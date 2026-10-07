@@ -309,6 +309,49 @@ function Invoke-FeedRequest {
     }
 }
 
+function Get-PreviousReleaseTag {
+    <#
+    .SYNOPSIS
+        Returns the release tag GitHub should generate release notes from:
+        the greatest semantic version of the same major that is strictly
+        lower than $Tag, or $null when there is none.
+
+    .DESCRIPTION
+        Without a previous tag GitHub diffs against the latest release, which
+        can be a 1.5.378 maintenance release on another branch; the 2.0.0
+        notes generated that way exceeded the 125000-character body limit.
+        Choosing by version instead of publication time keeps a servicing
+        promotion (2.0.1 after 2.1.0) on its own line. Tags that are not
+        semantic versions, such as the four-component 1.5.378.x, are ignored.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Tag,
+        [AllowEmptyCollection()][string[]]$ReleaseTags = @()
+    )
+
+    $target = $null
+    if (-not [System.Management.Automation.SemanticVersion]::TryParse($Tag, [ref]$target)) {
+        throw "Release tag '$Tag' is not a semantic version."
+    }
+
+    $best = $null
+    $bestTag = $null
+    foreach ($candidateTag in $ReleaseTags) {
+        $candidate = $null
+        if (-not [System.Management.Automation.SemanticVersion]::TryParse($candidateTag, [ref]$candidate)) {
+            continue
+        }
+        if ($candidate.Major -ne $target.Major -or $candidate -ge $target) {
+            continue
+        }
+        if ($null -eq $best -or $candidate -gt $best) {
+            $best = $candidate
+            $bestTag = $candidateTag
+        }
+    }
+    return $bestTag
+}
+
 function Test-StablePackageVersion {
     <#
     .SYNOPSIS

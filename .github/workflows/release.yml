@@ -468,18 +468,16 @@ jobs:
              # previous tag is given. That is a 1.5.378 maintenance release
              # on another branch, so the 2.0.0 notes listed every commit
              # since the branches split and exceeded the 125000-character
-             # body limit (HTTP 422). Start from the newest earlier release
-             # of the same major line and cap the body regardless.
-             $major = $tag.Split('.')[0]
-             # The API lists releases newest first.
+             # body limit (HTTP 422). Start from the greatest lower release
+             # of the same major (see Get-PreviousReleaseTag) and cap the
+             # body regardless.
+             . ./.azurepipelines/package-version-policy.ps1
              $releaseTags = @(gh api --paginate "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" `
                  --jq '.[] | select(.draft | not) | .tag_name')
              if ($LASTEXITCODE -ne 0) {
                  throw 'Unable to list existing GitHub Releases.'
              }
-             $previousTag = $releaseTags |
-                 Where-Object { $_ -cne $tag -and $_.StartsWith("$major.", [StringComparison]::Ordinal) } |
-                 Select-Object -First 1
+             $previousTag = Get-PreviousReleaseTag -Tag $tag -ReleaseTags $releaseTags
 
              $notesRequest = @('--method', 'POST', "repos/$env:GITHUB_REPOSITORY/releases/generate-notes",
                  '-f', "tag_name=$tag", '-f', "target_commitish=$env:RELEASE_COMMIT")

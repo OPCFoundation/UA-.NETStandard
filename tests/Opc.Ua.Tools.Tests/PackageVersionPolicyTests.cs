@@ -845,6 +845,149 @@ namespace Opc.Ua.Tools.Tests
             });
         }
 
+        [TestCase(200, 1, Description = "Success is returned at once")]
+        [TestCase(404, 1, Description = "Not published is the normal answer, never retried")]
+        [TestCase(403, 1, Description = "Permission failures are not transient")]
+        [TestCase(400, 1, Description = "Other client errors are not transient")]
+        [TestCase(408, 4, Description = "Request timeout is retried")]
+        [TestCase(429, 4, Description = "Throttling is retried")]
+        [TestCase(500, 4, Description = "Server error is retried")]
+        [TestCase(503, 4, Description = "Unavailable is retried")]
+        public async Task InvokeFeedRequestRetriesOnlyTransientStatusesAsync(int status, int expectedRequests)
+        {
+            // Invoke-WebRequest -MaximumRetryCount retries every 4xx, which
+            // made each absent package in the release gates cost ~15 s. The
+            // gates must still get the final response back to fail closed.
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                $script:requests = 0
+                function Invoke-WebRequest {
+                    param([string]$Uri, [hashtable]$Headers, [switch]$SkipHttpErrorCheck)
+                    $script:requests++
+                    return [pscustomobject]@{ StatusCode = {{status}} }
+                }
+
+                $response = Invoke-FeedRequest -Uri 'https://stub/pkg' -MaximumRetryCount 3 -RetryIntervalSec 0
+                @{ requests = $script:requests; status = [int]$response.StatusCode } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(expectedRequests));
+                Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(status));
+            });
+        }
+
+        [Test]
+        public async Task InvokeFeedRequestStopsRetryingOnceTheResponseIsNotTransientAsync()
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                $script:requests = 0
+                function Invoke-WebRequest {
+                    param([string]$Uri, [hashtable]$Headers, [switch]$SkipHttpErrorCheck)
+                    $script:requests++
+                    $status = if ($script:requests -lt 3) { 503 } else { 404 }
+                    return [pscustomobject]@{ StatusCode = $status }
+                }
+
+                $response = Invoke-FeedRequest -Uri 'https://stub/pkg' -MaximumRetryCount 3 -RetryIntervalSec 0
+                @{ requests = $script:requests; status = [int]$response.StatusCode } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
+                Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(404));
+            });
+        }
+
+        [Test]
+        public async Task InvokeFeedRequestRethrowsNetworkFailureAfterTheLastRetryAsync()
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                $script:requests = 0
+                function Invoke-WebRequest {
+                    param([string]$Uri, [hashtable]$Headers, [switch]$SkipHttpErrorCheck)
+                    $script:requests++
+                    throw [System.Net.Http.HttpRequestException]::new('connection refused')
+                }
+
+                $threw = $false
+                $message = ''
+                try {
+                    [void](Invoke-FeedRequest -Uri 'https://stub/pkg' -MaximumRetryCount 2 -RetryIntervalSec 0)
+                }
+                catch {
+                    $threw = $true
+                    $message = $_.Exception.Message
+                }
+                @{ requests = $script:requests; threw = $threw; message = $message } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
+                Assert.That(result.GetProperty("threw").GetBoolean(), Is.True);
+                Assert.That(result.GetProperty("message").GetString(), Is.EqualTo("connection refused"));
+            });
+        }
+
+        [Test]
+        public async Task InvokeFeedRequestPassesOutFileThroughAsync()
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                function Invoke-WebRequest {
+                    param([string]$Uri, [hashtable]$Headers, [switch]$SkipHttpErrorCheck, [string]$OutFile, [switch]$PassThru)
+                    return [pscustomobject]@{ StatusCode = 200; OutFile = $OutFile; PassThru = [bool]$PassThru }
+                }
+
+                $response = Invoke-FeedRequest -Uri 'https://stub/pkg' -OutFile 'pkg.nupkg' -RetryIntervalSec 0
+                @{ outFile = $response.OutFile; passThru = $response.PassThru } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("outFile").GetString(), Is.EqualTo("pkg.nupkg"));
+                Assert.That(
+                    result.GetProperty("passThru").GetBoolean(),
+                    Is.True,
+                    "Without -PassThru, -OutFile returns no response and the caller cannot read the status.");
+            });
+        }
+
+        [TestCase("2.0.0", "2.0.0-preview.10", Description = "Stable follows its greatest preview, not preview.2")]
+        [TestCase("2.0.1", "2.0.0", Description = "Servicing ignores the newer 2.1.0 minor line")]
+        [TestCase("2.1.0", "2.0.1", Description = "New minor follows the greatest lower release")]
+        [TestCase("2.0.0-preview.10", "2.0.0-preview.2", Description = "Preview numbers compare numerically")]
+        [TestCase("2.0.0-preview.2", null, Description = "No lower 2.x release: 1.5.378 is ignored")]
+        public async Task GetPreviousReleaseTagPicksGreatestLowerSameMajorVersionAsync(
+            string tag,
+            string? expected)
+        {
+            // Published out of version order on purpose: selection must not
+            // depend on publication time, and the four-component 1.5.378
+            // maintenance tags must never become the baseline.
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                $tags = @('1.5.378.182', '2.1.0', '2.0.1', '2.0.0', '2.0.0-preview.10',
+                    '2.0.0-preview.2', '1.5.378.176', 'not-a-version')
+                @{ actual = (Get-PreviousReleaseTag -Tag '{{tag}}' -ReleaseTags $tags) } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            JsonElement actual = result.GetProperty("actual");
+            Assert.That(
+                actual.ValueKind == JsonValueKind.Null ? null : actual.GetString(),
+                Is.EqualTo(expected));
+        }
+
         [Test]
         public async Task GetNuGetPackageContentDigestIgnoresTheSignaturePartAsync()
         {
