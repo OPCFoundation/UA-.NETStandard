@@ -1251,6 +1251,10 @@ namespace Opc.Ua.Bindings
                 //     requestId);
                 BufferCollection buffers = null;
 
+                // a response sent long after its request (Publish) must not be secured
+                // with a token that has expired while the client sent nothing.
+                ActivateRenewedTokenIfDue();
+
                 try
                 {
                     // note that the server does nothing if the message limits are exceeded.
