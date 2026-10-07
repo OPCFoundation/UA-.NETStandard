@@ -91,7 +91,7 @@ jobs:
 
     # 'dotnet test' exits 0 when the filter matches nothing; until this check
     # existed the nightly run stayed green while running no test at all, from the
-    # July 2026 move of the test to Opc.Ua.Sessions.Tests until the workflow
+    # move of the test to Opc.Ua.Sessions.Tests (#3810, May 2026) until the workflow
     # was pointed at that project.
     - name: Check that the stability tests ran
       shell: pwsh
