@@ -315,7 +315,7 @@
                         IsVisible="{CompiledBinding ShowReferences}" />
           <ContentControl Grid.Row="6" x:Name="RefsPanel" IsVisible="{CompiledBinding ShowReferences}">
             <v:ReferencesView x:Name="NodeReferences" DataContext="{CompiledBinding References}"
-                              ToolTip.Tip="In offline mode, double-click a reference target to inspect it." />
+                              ToolTip.Tip="Double-click or press Ctrl+R to reveal a target; Ctrl+D reveals the reference type." />
           </ContentControl>
         </Grid>
       </Border>

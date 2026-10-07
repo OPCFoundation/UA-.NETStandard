@@ -54,7 +54,7 @@ internal sealed class InspectorPreferences
         m_path = Path.GetFullPath(path);
     }
 
-    public async Task<SidePanelMode> LoadAsync(CancellationToken cancellationToken = default)
+    public async Task<InspectorSettings> LoadSettingsAsync(CancellationToken cancellationToken = default)
     {
         InspectorSnapshot snapshot;
         try
@@ -64,36 +64,74 @@ internal sealed class InspectorPreferences
         }
         catch (FileNotFoundException)
         {
-            return SidePanelMode.AttrsAndRefs;
+            return InspectorSettings.Default;
         }
         catch (DirectoryNotFoundException)
         {
-            return SidePanelMode.AttrsAndRefs;
+            return InspectorSettings.Default;
         }
         if (!Enum.TryParse(snapshot.Mode, ignoreCase: true, out SidePanelMode mode) || !Enum.IsDefined(mode))
         {
             throw new JsonException($"Unknown inspector preference '{snapshot.Mode}'.");
         }
-        return mode;
+        if (!Enum.TryParse(
+            snapshot.ReferenceDirection,
+            ignoreCase: true,
+            out ReferenceDirectionFilter referenceDirection) ||
+            !Enum.IsDefined(referenceDirection))
+        {
+            throw new JsonException($"Unknown reference direction preference '{snapshot.ReferenceDirection}'.");
+        }
+        return new InspectorSettings(mode, referenceDirection);
+    }
+
+    public async Task<SidePanelMode> LoadAsync(CancellationToken cancellationToken = default)
+    {
+        InspectorSettings settings = await LoadSettingsAsync(cancellationToken).ConfigureAwait(false);
+        return settings.Mode;
+    }
+
+    public Task SaveSettingsAsync(InspectorSettings settings, CancellationToken cancellationToken = default)
+    {
+        if (!Enum.IsDefined(settings.Mode))
+        {
+            throw new ArgumentOutOfRangeException(nameof(settings));
+        }
+        if (!Enum.IsDefined(settings.ReferenceDirection))
+        {
+            throw new ArgumentOutOfRangeException(nameof(settings));
+        }
+        return JsonFileStore.WriteAsync(
+            m_path,
+            new InspectorSnapshot
+            {
+                Mode = settings.Mode.ToString(),
+                ReferenceDirection = settings.ReferenceDirection.ToString()
+            },
+            InspectorJsonContext.Default.InspectorSnapshot, cancellationToken);
     }
 
     public Task SaveAsync(SidePanelMode mode, CancellationToken cancellationToken = default)
     {
-        if (!Enum.IsDefined(mode))
-        {
-            throw new ArgumentOutOfRangeException(nameof(mode));
-        }
-        return JsonFileStore.WriteAsync(
-            m_path, new InspectorSnapshot { Mode = mode.ToString() },
-            InspectorJsonContext.Default.InspectorSnapshot, cancellationToken);
+        return SaveSettingsAsync(
+            new InspectorSettings(mode, ReferenceDirectionFilter.Both),
+            cancellationToken);
     }
 
     private readonly string m_path;
 }
 
+internal sealed record InspectorSettings(SidePanelMode Mode, ReferenceDirectionFilter ReferenceDirection)
+{
+    public static InspectorSettings Default { get; } =
+        new(SidePanelMode.AttrsAndRefs, ReferenceDirectionFilter.Both);
+}
+
 internal sealed class InspectorSnapshot
 {
     public string Mode { get; set; } = nameof(SidePanelMode.AttrsAndRefs);
+
+    public string ReferenceDirection { get; set; } = nameof(ReferenceDirectionFilter.Both);
 }
 
 [JsonSourceGenerationOptions(PropertyNamingPolicy = JsonKnownNamingPolicy.CamelCase, WriteIndented = true)]

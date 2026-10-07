@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Markup.Xaml;
 using Opc.Ua;
@@ -280,6 +281,30 @@ internal sealed partial class AddressSpaceView : UserControl
             return true;
         }
         return false;
+    }
+
+    public async Task<bool> RevealNodeAsync(
+        NodeId nodeId,
+        NodeClass nodeClass,
+        CancellationToken cancellationToken = default)
+    {
+        if (DataContext is not BrowserViewModel vm)
+        {
+            return false;
+        }
+        NodeViewModel? node = await vm.RevealNodeAsync(nodeId, nodeClass, cancellationToken).ConfigureAwait(true);
+        if (node is null)
+        {
+            return false;
+        }
+        var tree = this.RequiredControl<TreeView>("Tree");
+        tree.SelectedItem = node;
+        Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+        {
+            tree.UpdateLayout();
+            tree.ContainerFromItem(node)?.BringIntoView();
+        });
+        return true;
     }
 
     /// <summary>

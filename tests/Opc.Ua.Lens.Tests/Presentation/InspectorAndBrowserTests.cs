@@ -188,6 +188,29 @@ public sealed class InspectorAndBrowserTests
         }).ConfigureAwait(false);
     }
 
+    [TestCase((int)ReferenceDirectionFilter.Forward, BrowseDirection.Forward)]
+    [TestCase((int)ReferenceDirectionFilter.Backward, BrowseDirection.Inverse)]
+    [TestCase((int)ReferenceDirectionFilter.Both, BrowseDirection.Both)]
+    public async Task ReferenceDirectionFilterControlsBrowse(int filterValue, BrowseDirection expected)
+    {
+        var filter = (ReferenceDirectionFilter)filterValue;
+        BrowseDirection actual = (BrowseDirection)(-1);
+        var session = BrowseSession();
+        session.Setup(value => value.BrowseAsync(
+            null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+            .Callback<RequestHeader?, ViewDescription?, uint, ArrayOf<BrowseDescription>, CancellationToken>(
+                (_, _, _, descriptions, _) => actual = descriptions[0].BrowseDirection)
+            .ReturnsAsync(new BrowseResponse { Results = [new BrowseResult()] });
+        var model = new ReferencesViewModel(Telemetry(), () => session.Object, InlineWorkspaceDispatcher.Instance)
+        {
+            DirectionFilter = filter
+        };
+
+        await model.LoadAsync(new NodeId("node", 0), NodeClass.Object).ConfigureAwait(false);
+
+        Assert.That(actual, Is.EqualTo(expected));
+    }
+
     [TestCase(false)]
     [TestCase(true)]
     public async Task FailedBrowseCanRetryWithoutRebuildingSuccessfulBranches(bool badResult)
@@ -226,6 +249,131 @@ public sealed class InspectorAndBrowserTests
         Assert.That(node.Children[0], Is.SameAs(child));
         session.Verify(value => value.BrowseAsync(
             null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
+
+    [Test]
+    public async Task RevealNodeExpandsHierarchyFromRootToTarget()
+    {
+        var session = BrowseSession();
+        var targetId = new NodeId("target", 0);
+        session.Setup(value => value.BrowseAsync(
+            null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+            .Returns<RequestHeader?, ViewDescription?, uint, ArrayOf<BrowseDescription>, CancellationToken>(
+                (_, _, _, descriptions, _) => new ValueTask<BrowseResponse>(
+                    descriptions[0].BrowseDirection == BrowseDirection.Inverse
+                        ? ParentResponse(descriptions[0].NodeId)
+                        : ChildResponse(descriptions[0].NodeId)));
+        var model = new BrowserViewModel(Telemetry(), () => session.Object, InlineWorkspaceDispatcher.Instance);
+
+        NodeViewModel? revealed = await model.RevealNodeAsync(targetId, NodeClass.Variable).ConfigureAwait(false);
+
+        Assert.That(revealed?.NodeId, Is.EqualTo(targetId));
+        Assert.That(model.CurrentViewKind, Is.EqualTo(BrowseViewKind.Objects));
+        NodeViewModel root = model.Roots.Single();
+        Assert.That(root.IsExpanded, Is.True);
+        NodeViewModel objects = root.Children.Single(child => child.NodeId == ObjectIds.ObjectsFolder);
+        Assert.That(objects.IsExpanded, Is.True);
+        Assert.That(objects.Children.Single().NodeId, Is.EqualTo(targetId));
+
+        BrowseResponse ParentResponse(NodeId child)
+        {
+            NodeId parent = child == targetId ? ObjectIds.ObjectsFolder : ObjectIds.RootFolder;
+            return new BrowseResponse
+            {
+                Results = [new BrowseResult { References = [Reference(parent, NodeClass.Object)] }]
+            };
+        }
+
+        BrowseResponse ChildResponse(NodeId parent)
+        {
+            ReferenceDescription[] references = parent == ObjectIds.RootFolder
+                ? [Reference(ObjectIds.ObjectsFolder, NodeClass.Object)]
+                : [Reference(targetId, NodeClass.Variable)];
+            return new BrowseResponse
+            {
+                Results =
+                [
+                    new BrowseResult(),
+                    new BrowseResult { References = references },
+                    new BrowseResult()
+                ]
+            };
+        }
+    }
+
+    [Test]
+    public async Task RevealVariableTypePreservesAndExpandsFullHierarchy()
+    {
+        var session = BrowseSession();
+        var targetId = new NodeId("PropertyVariableType", 0);
+        var parentByChild = new Dictionary<NodeId, NodeId>
+        {
+            [targetId] = VariableTypeIds.BaseVariableType,
+            [VariableTypeIds.BaseVariableType] = ObjectIds.VariableTypesFolder,
+            [ObjectIds.VariableTypesFolder] = ObjectIds.TypesFolder,
+            [ObjectIds.TypesFolder] = ObjectIds.RootFolder
+        };
+        var classByNode = new Dictionary<NodeId, NodeClass>
+        {
+            [ObjectIds.RootFolder] = NodeClass.Object,
+            [targetId] = NodeClass.VariableType,
+            [VariableTypeIds.BaseVariableType] = NodeClass.VariableType,
+            [ObjectIds.VariableTypesFolder] = NodeClass.Object,
+            [ObjectIds.TypesFolder] = NodeClass.Object
+        };
+        session.Setup(value => value.BrowseAsync(
+            null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
+            .Returns<RequestHeader?, ViewDescription?, uint, ArrayOf<BrowseDescription>, CancellationToken>(
+                (_, _, _, descriptions, _) => new ValueTask<BrowseResponse>(
+                    descriptions[0].BrowseDirection == BrowseDirection.Inverse
+                        ? ParentResponse(descriptions[0].NodeId)
+                        : ChildResponse(descriptions[0].NodeId)));
+        var model = new BrowserViewModel(Telemetry(), () => session.Object, InlineWorkspaceDispatcher.Instance);
+
+        NodeViewModel? revealed = await model.RevealNodeAsync(targetId, NodeClass.VariableType).ConfigureAwait(false);
+
+        Assert.That(revealed?.NodeId, Is.EqualTo(targetId));
+        Assert.That(model.CurrentViewKind, Is.EqualTo(BrowseViewKind.Objects));
+        NodeViewModel current = model.Roots.Single();
+        foreach (NodeId expected in new[]
+        {
+            ObjectIds.TypesFolder,
+            ObjectIds.VariableTypesFolder,
+            VariableTypeIds.BaseVariableType,
+            targetId
+        })
+        {
+            Assert.That(current.IsExpanded, Is.True);
+            current = current.Children.Single(child => child.NodeId == expected);
+        }
+
+        BrowseResponse ParentResponse(NodeId child)
+        {
+            return new BrowseResponse
+            {
+                Results =
+                [
+                    new BrowseResult
+                    {
+                        References = [Reference(parentByChild[child], classByNode[parentByChild[child]])]
+                    }
+                ]
+            };
+        }
+
+        BrowseResponse ChildResponse(NodeId parent)
+        {
+            NodeId child = parentByChild.Single(pair => pair.Value == parent).Key;
+            return new BrowseResponse
+            {
+                Results =
+                [
+                    new BrowseResult(),
+                    new BrowseResult { References = [Reference(child, classByNode[child])] },
+                    new BrowseResult()
+                ]
+            };
+        }
     }
 
     [TestCase(false)]
@@ -321,6 +469,15 @@ public sealed class InspectorAndBrowserTests
         DisplayName = new LocalizedText(name),
         BrowseName = new QualifiedName(name),
         NodeClass = NodeClass.Object
+    };
+
+    private static ReferenceDescription Reference(NodeId nodeId, NodeClass nodeClass) => new()
+    {
+        NodeId = new ExpandedNodeId(nodeId),
+        ReferenceTypeId = ReferenceTypeIds.Organizes,
+        DisplayName = new LocalizedText(nodeId.ToString()),
+        BrowseName = new QualifiedName(nodeId.ToString()),
+        NodeClass = nodeClass
     };
 
     private sealed class GuardedDispatcher : IWorkspaceDispatcher

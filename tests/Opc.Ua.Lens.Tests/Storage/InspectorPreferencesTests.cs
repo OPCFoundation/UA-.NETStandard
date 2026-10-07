@@ -65,6 +65,28 @@ public sealed class InspectorPreferencesTests
         Assert.That(File.Exists(m_path), Is.False);
     }
 
+    [Test]
+    public async Task FreshPreferencesShowBothReferenceDirections()
+    {
+        var preferences = new InspectorPreferences(m_path);
+
+        InspectorSettings settings = await preferences.LoadSettingsAsync().ConfigureAwait(false);
+
+        Assert.That(settings.ReferenceDirection, Is.EqualTo(ReferenceDirectionFilter.Both));
+    }
+
+    [Test]
+    public async Task ExistingVisibilityPreferenceDefaultsToBothReferenceDirections()
+    {
+        await File.WriteAllTextAsync(m_path, "{\"mode\":\"AttrsOnly\"}").ConfigureAwait(false);
+        var preferences = new InspectorPreferences(m_path);
+
+        InspectorSettings settings = await preferences.LoadSettingsAsync().ConfigureAwait(false);
+
+        Assert.That(settings.Mode, Is.EqualTo(SidePanelMode.AttrsOnly));
+        Assert.That(settings.ReferenceDirection, Is.EqualTo(ReferenceDirectionFilter.Both));
+    }
+
     [TestCase((int)SidePanelMode.None)]
     [TestCase((int)SidePanelMode.AttrsOnly)]
     [TestCase((int)SidePanelMode.AttrsAndRefs)]
@@ -77,6 +99,22 @@ public sealed class InspectorPreferencesTests
         await preferences.SaveAsync(mode).ConfigureAwait(false);
 
         Assert.That(await preferences.LoadAsync().ConfigureAwait(false), Is.EqualTo(mode));
+    }
+
+    [TestCase((int)ReferenceDirectionFilter.Forward)]
+    [TestCase((int)ReferenceDirectionFilter.Backward)]
+    [TestCase((int)ReferenceDirectionFilter.Both)]
+    public async Task SavedReferenceDirectionIsRestored(int value)
+    {
+        var direction = (ReferenceDirectionFilter)value;
+        var preferences = new InspectorPreferences(m_path);
+
+        await preferences.SaveSettingsAsync(
+            new InspectorSettings(SidePanelMode.RefsOnly, direction)).ConfigureAwait(false);
+
+        InspectorSettings settings = await preferences.LoadSettingsAsync().ConfigureAwait(false);
+        Assert.That(settings.Mode, Is.EqualTo(SidePanelMode.RefsOnly));
+        Assert.That(settings.ReferenceDirection, Is.EqualTo(direction));
     }
 
     [TestCase("{")]

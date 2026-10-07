@@ -376,6 +376,193 @@ internal sealed partial class BrowserViewModel : ObservableObject
     }
 
     /// <summary>
+    /// Reveals a node in the current hierarchy and expands each ancestor.
+    /// Falls back to the full Root hierarchy only when the current specialized view
+    /// cannot contain the target node class.
+    /// </summary>
+    public async Task<NodeViewModel?> RevealNodeAsync(
+        NodeId nodeId,
+        NodeClass nodeClass,
+        CancellationToken ct = default)
+    {
+        m_dispatcher.VerifyAccess();
+        if (nodeId.IsNull)
+        {
+            return null;
+        }
+        BrowseViewKind viewKind = CanContain(CurrentViewKind, nodeClass)
+            ? CurrentViewKind
+            : BrowseViewKind.Objects;
+        if (CurrentViewKind != viewKind || Roots.Count == 0)
+        {
+            CurrentViewKind = viewKind;
+            Reload();
+        }
+        (NodeId rootId, _) = GetRootSpec(viewKind);
+        NodeViewModel? root = Roots.FirstOrDefault(candidate => candidate.NodeId == rootId);
+        if (root is null)
+        {
+            return null;
+        }
+        if (nodeId == rootId)
+        {
+            return root;
+        }
+
+        IReadOnlyList<NodeId>? path = await ResolveHierarchyPathAsync(rootId, nodeId, ct).ConfigureAwait(true);
+        if (path is null)
+        {
+            return null;
+        }
+        NodeViewModel current = root;
+        foreach (NodeId childId in path.Skip(1))
+        {
+            ct.ThrowIfCancellationRequested();
+            current.IsExpanded = true;
+            await EnsureChildrenLoadedAsync(current, ct).ConfigureAwait(true);
+            NodeViewModel? child = current.Children.FirstOrDefault(candidate => candidate.NodeId == childId);
+            if (child is null)
+            {
+                return null;
+            }
+            current = child;
+        }
+        return current;
+    }
+
+    private static bool CanContain(BrowseViewKind viewKind, NodeClass nodeClass) => viewKind switch
+    {
+        BrowseViewKind.Objects => true,
+        BrowseViewKind.ObjectTypes => nodeClass == NodeClass.ObjectType,
+        BrowseViewKind.VariableTypes => nodeClass == NodeClass.VariableType,
+        BrowseViewKind.DataTypes => nodeClass == NodeClass.DataType,
+        BrowseViewKind.ReferenceTypes => nodeClass == NodeClass.ReferenceType,
+        BrowseViewKind.Views => nodeClass == NodeClass.View,
+        _ => false
+    };
+
+    private async Task EnsureChildrenLoadedAsync(NodeViewModel node, CancellationToken ct)
+    {
+        while (node.IsLoading)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(10), ct).ConfigureAwait(true);
+        }
+        if (!node.ChildrenLoaded)
+        {
+            await LoadChildrenAsync(node).ConfigureAwait(true);
+        }
+        while (node.IsLoading)
+        {
+            await Task.Delay(TimeSpan.FromMilliseconds(10), ct).ConfigureAwait(true);
+        }
+    }
+
+    private async Task<IReadOnlyList<NodeId>?> ResolveHierarchyPathAsync(
+        NodeId rootId,
+        NodeId targetId,
+        CancellationToken ct)
+    {
+        var pending = new Queue<NodeId>();
+        var visited = new HashSet<NodeId> { targetId };
+        var childByParent = new Dictionary<NodeId, NodeId>();
+        pending.Enqueue(targetId);
+        while (pending.Count > 0 && visited.Count <= 4096)
+        {
+            ct.ThrowIfCancellationRequested();
+            NodeId child = pending.Dequeue();
+            foreach (NodeId parent in await BrowseHierarchyParentsAsync(child, ct).ConfigureAwait(false))
+            {
+                if (!visited.Add(parent))
+                {
+                    continue;
+                }
+                childByParent[parent] = child;
+                if (parent == rootId)
+                {
+                    var path = new List<NodeId> { rootId };
+                    NodeId current = rootId;
+                    while (childByParent.TryGetValue(current, out NodeId next))
+                    {
+                        path.Add(next);
+                        if (next == targetId)
+                        {
+                            return path;
+                        }
+                        current = next;
+                    }
+                    return null;
+                }
+                pending.Enqueue(parent);
+            }
+        }
+        return null;
+    }
+
+    private async Task<IReadOnlyList<NodeId>> BrowseHierarchyParentsAsync(NodeId nodeId, CancellationToken ct)
+    {
+        ISession? session = m_session();
+        NodeSetAddressSpace? offline = OfflineSource;
+        if (session is null && offline is null)
+        {
+            return [];
+        }
+        ArrayOf<BrowseDescription> descriptions = BuildBrowseDescriptions(nodeId);
+        foreach (BrowseDescription description in descriptions)
+        {
+            description.BrowseDirection = BrowseDirection.Inverse;
+        }
+        BrowseResponse response = offline is not null
+            ? await offline.BrowseAsync(descriptions, ct).ConfigureAwait(false)
+            : await session!.BrowseAsync(null, null, 0, descriptions, ct).ConfigureAwait(false);
+        var parents = new List<NodeId>();
+        var continuationPoints = new List<ByteString>();
+        Collect(response.Results);
+        while (continuationPoints.Count > 0 && session is not null)
+        {
+            ArrayOf<ByteString> current = continuationPoints.ToArray();
+            continuationPoints.Clear();
+            BrowseNextResponse next = await session.BrowseNextAsync(
+                null,
+                false,
+                current,
+                ct).ConfigureAwait(false);
+            Collect(next.Results);
+        }
+        return parents;
+
+        void Collect(ArrayOf<BrowseResult> results)
+        {
+            NamespaceTable? namespaceUris = offline?.NamespaceUris ?? session?.NamespaceUris;
+            if (namespaceUris is null)
+            {
+                return;
+            }
+            foreach (BrowseResult result in results)
+            {
+                if (StatusCode.IsBad(result.StatusCode))
+                {
+                    continue;
+                }
+                foreach (ReferenceDescription reference in result.References)
+                {
+                    if (!reference.NodeId.IsNull && reference.NodeId.ServerIndex == 0)
+                    {
+                        NodeId parent = ExpandedNodeId.ToNodeId(reference.NodeId, namespaceUris);
+                        if (!parent.IsNull)
+                        {
+                            parents.Add(parent);
+                        }
+                    }
+                }
+                if (result.ContinuationPoint.Length > 0)
+                {
+                    continuationPoints.Add(result.ContinuationPoint);
+                }
+            }
+        }
+    }
+
+    /// <summary>
     /// Maps a <see cref="BrowseViewKind"/> to its root NodeId and the
     /// human-readable label shown at the top of the tree.
     /// </summary>

@@ -43,11 +43,21 @@ using UaLens.Workspace;
 namespace UaLens.ViewModels;
 
 /// <summary>
+/// Direction of references displayed by the reference inspector.
+/// </summary>
+internal enum ReferenceDirectionFilter
+{
+    Forward,
+    Backward,
+    Both
+}
+
+/// <summary>
 /// View model backing the per-node references panel.  When the address-space
-/// tree selection changes, <see cref="LoadAsync"/> issues a single
-/// <c>BrowseDirection.Both</c> browse against the root <c>References</c>
-/// reference type (IncludeSubtypes=true) and renders every link the node
-/// participates in — forward and inverse — as a <see cref="ReferenceRow"/>.
+/// tree selection changes, <see cref="LoadAsync"/> issues a single browse
+/// against the root <c>References</c> reference type (IncludeSubtypes=true)
+/// using <see cref="DirectionFilter"/> and renders the matching links as
+/// <see cref="ReferenceRow"/>.
 /// Keeps a per-load <see cref="CancellationTokenSource"/> so a fast tree
 /// selection change cancels in-flight work.
 /// </summary>
@@ -60,11 +70,19 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
     private Action? m_cancelCurrent;
     private CancellationToken m_currentRequest;
     private bool m_disposed;
+    private NodeId m_selectedNodeId = NodeId.Null;
+    private NodeClass m_selectedNodeClass;
 
     public ObservableCollection<ReferenceRow> Rows { get; } = new();
 
+    public ObservableCollection<ReferenceDirectionFilter> DirectionFilters { get; } =
+        new(Enum.GetValues<ReferenceDirectionFilter>());
+
     [ObservableProperty]
     private string m_header = "(no node selected)";
+
+    [ObservableProperty]
+    private ReferenceDirectionFilter m_directionFilter = ReferenceDirectionFilter.Both;
 
     public ReferencesViewModel(
         ITelemetryContext telemetry,
@@ -99,6 +117,8 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
         m_currentRequest = default;
         Rows.Clear();
         Header = "(no node selected)";
+        m_selectedNodeId = NodeId.Null;
+        m_selectedNodeClass = NodeClass.Unspecified;
     }
 
     public async Task LoadAsync(NodeId nodeId, NodeClass nodeClass)
@@ -110,6 +130,8 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
         m_cancelCurrent = request.Cancel;
         CancellationToken ct = request.Token;
         m_currentRequest = ct;
+        m_selectedNodeId = nodeId;
+        m_selectedNodeClass = nodeClass;
 
         Header = $"{Glyph(nodeClass)} {nodeId}  ({nodeClass})";
         Rows.Clear();
@@ -128,7 +150,12 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
                 new BrowseDescription
                 {
                     NodeId = nodeId,
-                    BrowseDirection = BrowseDirection.Both,
+                    BrowseDirection = DirectionFilter switch
+                    {
+                        ReferenceDirectionFilter.Forward => BrowseDirection.Forward,
+                        ReferenceDirectionFilter.Backward => BrowseDirection.Inverse,
+                        _ => BrowseDirection.Both
+                    },
                     ReferenceTypeId = ReferenceTypeIds.References,
                     IncludeSubtypes = true,
                     NodeClassMask = 0,
@@ -212,7 +239,14 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
                 string targetName = !r.DisplayName.IsNull
                     ? r.DisplayName.Text ?? string.Empty
                     : (!r.BrowseName.IsNull ? r.BrowseName.Name ?? string.Empty : string.Empty);
-                rows.Add(new ReferenceRow(direction, refType, target, targetName, r.NodeClass.ToString()));
+                rows.Add(new ReferenceRow(
+                    direction,
+                    refType,
+                    target,
+                    targetName,
+                    r.NodeClass.ToString(),
+                    r.ReferenceTypeId.ToString() ?? string.Empty,
+                    r.NodeClass));
             }
             if (rows.Count == 0)
             {
@@ -242,6 +276,18 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
                 }
                 return Task.CompletedTask;
             }).ConfigureAwait(false);
+        }
+    }
+
+    partial void OnDirectionFilterChanged(ReferenceDirectionFilter value)
+    {
+        if (!Enum.IsDefined(value))
+        {
+            throw new ArgumentOutOfRangeException(nameof(value));
+        }
+        if (!m_selectedNodeId.IsNull)
+        {
+            _ = LoadAsync(m_selectedNodeId, m_selectedNodeClass);
         }
     }
 
@@ -286,4 +332,6 @@ internal sealed partial class ReferencesViewModel : ObservableObject, IDisposabl
 
 internal sealed record ReferenceRow(
     string Direction, string ReferenceType, string TargetNodeId,
-    string TargetBrowseName, string TargetNodeClass);
+    string TargetBrowseName, string TargetNodeClass,
+    string ReferenceTypeNodeId = "",
+    NodeClass TargetNodeClassValue = NodeClass.Unspecified);

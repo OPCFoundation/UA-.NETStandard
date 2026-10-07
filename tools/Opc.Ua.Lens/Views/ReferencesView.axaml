@@ -33,18 +33,41 @@
              x:DataType="vm:ReferencesViewModel">
   <Border BorderBrush="{DynamicResource PanelBorder}" BorderThickness="1" CornerRadius="4" Background="{DynamicResource PanelBg}">
     <Grid RowDefinitions="Auto,*">
-      <TextBlock Grid.Row="0"
-                 Margin="8,6,8,4"
-                 FontWeight="SemiBold"
-                 FontSize="12"
-                 Foreground="{DynamicResource TextSecondary}"
-                 TextTrimming="CharacterEllipsis"
-                 Text="{CompiledBinding Header, StringFormat='References — {0}'}" />
-      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto">
-        <ItemsControl ItemsSource="{CompiledBinding Rows}">
-          <ItemsControl.ItemTemplate>
+      <Grid Grid.Row="0" ColumnDefinitions="*,Auto" Margin="8,4">
+        <TextBlock VerticalAlignment="Center"
+                   FontWeight="SemiBold"
+                   FontSize="12"
+                   Foreground="{DynamicResource TextSecondary}"
+                   TextTrimming="CharacterEllipsis"
+                   Text="{CompiledBinding Header, StringFormat='References — {0}'}" />
+        <ComboBox Grid.Column="1"
+                  x:Name="DirectionFilter"
+                  MinWidth="100"
+                  ItemsSource="{CompiledBinding DirectionFilters}"
+                  SelectedItem="{CompiledBinding DirectionFilter, Mode=TwoWay}"
+                  ToolTip.Tip="Show forward, backward, or both reference directions." />
+      </Grid>
+      <ListBox Grid.Row="1"
+               x:Name="ReferenceList"
+               ItemsSource="{CompiledBinding Rows}"
+               Background="Transparent"
+               BorderThickness="0">
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+          </Style>
+        </ListBox.Styles>
+        <ListBox.ContextMenu>
+          <ContextMenu x:Name="ReferenceMenu">
+            <MenuItem x:Name="MenuGoToTarget" Header="Go to target" InputGesture="Ctrl+R" />
+            <MenuItem x:Name="MenuGoToReferenceType" Header="Go to reference type" InputGesture="Ctrl+D" />
+          </ContextMenu>
+        </ListBox.ContextMenu>
+        <ListBox.ItemTemplate>
             <DataTemplate DataType="vm:ReferenceRow">
-              <Grid ColumnDefinitions="20,140,*,80" Margin="8,1,8,1">
+              <Grid ColumnDefinitions="20,140,*,80"
+                    Margin="8,1,8,1"
+                    PointerPressed="OnRowPointerPressed">
                 <TextBlock Grid.Column="0"
                            Text="{CompiledBinding Direction}"
                            Foreground="{DynamicResource InfoText}"
@@ -74,9 +97,8 @@
                            TextAlignment="Right" />
               </Grid>
             </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </ScrollViewer>
+        </ListBox.ItemTemplate>
+      </ListBox>
     </Grid>
   </Border>
 </UserControl>

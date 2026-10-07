@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.ComponentModel;
 using System.Threading.Tasks;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -122,18 +123,27 @@ namespace UaLens.Views
             m_connection.Attach();
             m_nodeSets.Attach();
             m_shell.Attach();
+            m_vm.References.PropertyChanged += OnReferenceInspectorPropertyChanged;
 
             AddHandler(KeyDownEvent, (_, e) => m_shell.OnKeyDown(e), RoutingStrategies.Tunnel);
             Opened += async (_, _) =>
             {
+                m_loadingInspectorPreferences = true;
                 try
                 {
-                    m_vm.AttributesPanelMode = await m_inspectorPreferences.LoadAsync().ConfigureAwait(true);
+                    InspectorSettings settings =
+                        await m_inspectorPreferences.LoadSettingsAsync().ConfigureAwait(true);
+                    m_vm.AttributesPanelMode = settings.Mode;
+                    m_vm.References.DirectionFilter = settings.ReferenceDirection;
                 }
                 catch (Exception error) when (error is System.IO.IOException
                     or UnauthorizedAccessException or System.Text.Json.JsonException)
                 {
                     m_vm.ConnectionStatus = $"Inspector preference could not be loaded: {error.Message}";
+                }
+                finally
+                {
+                    m_loadingInspectorPreferences = false;
                 }
                 try
                 {
@@ -197,6 +207,7 @@ namespace UaLens.Views
         {
             try
             {
+                m_vm.References.PropertyChanged -= OnReferenceInspectorPropertyChanged;
                 await m_nodeSets.DisposeAsync().ConfigureAwait(true);
                 try
                 {
@@ -210,6 +221,14 @@ namespace UaLens.Views
             finally
             {
                 await m_connection.DisposeAsync().ConfigureAwait(true);
+            }
+        }
+
+        private async void OnReferenceInspectorPropertyChanged(object? sender, PropertyChangedEventArgs args)
+        {
+            if (args.PropertyName == nameof(ReferencesViewModel.DirectionFilter))
+            {
+                await SaveInspectorPreferenceAsync(m_vm.AttributesPanelMode).ConfigureAwait(true);
             }
         }
 
@@ -227,9 +246,14 @@ namespace UaLens.Views
 
         private async Task SaveInspectorPreferenceAsync(SidePanelMode mode)
         {
+            if (m_loadingInspectorPreferences)
+            {
+                return;
+            }
             try
             {
-                await m_inspectorPreferences.SaveAsync(mode).ConfigureAwait(true);
+                await m_inspectorPreferences.SaveSettingsAsync(
+                    new InspectorSettings(mode, m_vm.References.DirectionFilter)).ConfigureAwait(true);
             }
             catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException)
             {
@@ -252,6 +276,7 @@ namespace UaLens.Views
         private Task? m_disposal;
         private bool m_closing;
         private bool m_closeReady;
+        private bool m_loadingInspectorPreferences;
     }
 
     /// <summary>

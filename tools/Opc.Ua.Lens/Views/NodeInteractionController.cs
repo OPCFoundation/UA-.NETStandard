@@ -83,20 +83,19 @@ internal sealed class NodeInteractionController
         tree.ExportValueRequested += async n => await ExportValueAsync(n).ConfigureAwait(true);
         tree.FindByPathRequested += OnFindByPath;
         tree.ViewNodeStateRequested += OnViewNodeState;
-        m_window.RequiredControl<ReferencesView>("NodeReferences").NavigateRequested += target =>
-        {
-            if (m_vm.OfflineAddressSpace is { } offline &&
-                ExpandedNodeId.TryParse(target, out ExpandedNodeId expanded))
-            {
-                NodeId nodeId = expanded.ServerIndex == 0
-                    ? ExpandedNodeId.ToNodeId(expanded, offline.NamespaceUris)
-                    : NodeId.Null;
-                if (nodeId.IsNull || !tree.SelectOfflineNode(nodeId))
-                {
-                    m_vm.ConnectionStatus = $"Reference target is not available offline: {target}";
-                }
-            }
-        };
+        var references = m_window.RequiredControl<ReferencesView>("NodeReferences");
+        references.NavigateTargetRequested += async row =>
+            await NavigateReferenceAsync(
+                tree,
+                row.TargetNodeId,
+                row.TargetNodeClassValue,
+                "Reference target").ConfigureAwait(true);
+        references.NavigateReferenceTypeRequested += async row =>
+            await NavigateReferenceAsync(
+                tree,
+                row.ReferenceTypeNodeId,
+                NodeClass.ReferenceType,
+                "Reference type").ConfigureAwait(true);
 
         m_window.RequiredControl<Button>("NodeMonitorBtn").Click +=
             async (_, _) => await MonitorSelectedAsync().ConfigureAwait(true);
@@ -162,6 +161,28 @@ internal sealed class NodeInteractionController
     private void OnNodeSelected(NodeViewModel node)
     {
         _ = LoadSelectionAsync(node);
+    }
+
+    private async Task NavigateReferenceAsync(
+        AddressSpaceView tree,
+        string expandedNodeId,
+        NodeClass nodeClass,
+        string description)
+    {
+        NamespaceTable? namespaceUris =
+            m_vm.OfflineAddressSpace?.NamespaceUris ?? m_vm.Connection.CurrentSession?.NamespaceUris;
+        if (namespaceUris is null ||
+            !ExpandedNodeId.TryParse(expandedNodeId, out ExpandedNodeId expanded) ||
+            expanded.ServerIndex != 0)
+        {
+            m_vm.ConnectionStatus = $"{description} is not available: {expandedNodeId}";
+            return;
+        }
+        NodeId nodeId = ExpandedNodeId.ToNodeId(expanded, namespaceUris);
+        if (nodeId.IsNull || !await tree.RevealNodeAsync(nodeId, nodeClass).ConfigureAwait(true))
+        {
+            m_vm.ConnectionStatus = $"{description} could not be revealed in the address space: {expandedNodeId}";
+        }
     }
 
     private async Task LoadSelectionAsync(NodeViewModel node)
