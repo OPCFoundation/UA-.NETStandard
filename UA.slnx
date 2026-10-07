@@ -351,6 +351,7 @@
     <Project Path="tests/Opc.Ua.Core.TestFramework/Opc.Ua.Core.TestFramework.csproj" />
   </Folder>
   <Folder Name="/tools/">
+    <Project Path="tools/Opc.Ua.Lens.AppHost/Opc.Ua.Lens.AppHost.csproj" />
     <Project Path="tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj" />
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Net.Sockets;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -59,7 +60,8 @@ namespace UaLens.Views
             ILogger log,
             IRepositorySampleService? repositorySamples = null,
             IStorageProvider? storageProvider = null,
-            Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null)
+            Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null,
+            EnvironmentConnectionConfiguration? automaticConnection = null)
         {
             m_window = window ?? throw new ArgumentNullException(nameof(window));
             m_vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
@@ -67,6 +69,7 @@ namespace UaLens.Views
             m_repositorySamples = repositorySamples ?? new RepositorySampleService(viewModel.Telemetry);
             m_ownsRepositorySamples = repositorySamples is null;
             m_storageProvider = storageProvider;
+            m_automaticConnection = automaticConnection;
             m_certificateStores = certificateOperations
                 ?? (configuration => new CertificateStoreOperations(
                     new CertificateStoreService(configuration, viewModel.Telemetry)));
@@ -87,6 +90,11 @@ namespace UaLens.Views
             settings.Flyout = BuildSettingsFlyout();
             // Refresh the advanced menu state before the flyout renders on the same click.
             settings.Click += (_, _) => RefreshSettingsFlyout();
+            if (m_automaticConnection is not null)
+            {
+                m_window.Opened += (_, _) =>
+                    m_automaticConnectionTask = ConnectConfiguredAsync(m_automaticConnection, m_lifetime.Token);
+            }
         }
 
         internal bool HasOwnedSampleResources => m_repositorySamples.Snapshot.OwnsResources;
@@ -137,8 +145,19 @@ namespace UaLens.Views
 
         private async Task DisposeCoreAsync()
         {
+            m_lifetime.Cancel();
             try
             {
+                if (m_automaticConnectionTask is not null)
+                {
+                    try
+                    {
+                        await m_automaticConnectionTask.ConfigureAwait(true);
+                    }
+                    catch (OperationCanceledException) when (m_lifetime.IsCancellationRequested)
+                    {
+                    }
+                }
                 if (m_samplesWindow is not null)
                 {
                     await m_samplesWindow.DisposeAsync().ConfigureAwait(true);
@@ -155,10 +174,83 @@ namespace UaLens.Views
             }
             finally
             {
-                if (m_ownsRepositorySamples)
+                try
                 {
-                    await m_repositorySamples.DisposeAsync().ConfigureAwait(true);
+                    if (m_ownsRepositorySamples)
+                    {
+                        await m_repositorySamples.DisposeAsync().ConfigureAwait(true);
+                    }
                 }
+                finally
+                {
+                    m_lifetime.Dispose();
+                }
+            }
+        }
+
+        private async Task ConnectConfiguredAsync(
+            EnvironmentConnectionConfiguration configuration,
+            CancellationToken cancellationToken)
+        {
+            ClearError();
+            m_vm.EndpointUrl = configuration.EndpointUrl;
+            m_vm.ConnectionStatus = "Waiting for the configured OPC UA server…";
+            try
+            {
+                ArrayOf<EndpointDescription> endpoints = default;
+                Exception? lastError = null;
+                for (int attempt = 0; attempt < 30; attempt++)
+                {
+                    cancellationToken.ThrowIfCancellationRequested();
+                    try
+                    {
+                        endpoints = await RunConnectionOperationAsync(
+                            () => m_vm.Connection.DiscoverEndpointsAsync(
+                                new ConnectionSetupSelection(configuration.EndpointUrl),
+                                cancellationToken),
+                            cancellationToken).ConfigureAwait(true);
+                        lastError = null;
+                        break;
+                    }
+                    catch (Exception error) when (error is ServiceResultException or TimeoutException
+                        or SocketException or System.IO.IOException)
+                    {
+                        lastError = error;
+                        await Task.Delay(TimeSpan.FromSeconds(1), cancellationToken).ConfigureAwait(true);
+                    }
+                }
+                if (lastError is not null)
+                {
+                    throw new InvalidOperationException(
+                        "The configured OPC UA server did not become ready within 30 seconds.",
+                        lastError);
+                }
+
+                ConnectionSelection selection = await configuration
+                    .CreateSelectionAsync(endpoints, m_vm.Engine, cancellationToken)
+                    .ConfigureAwait(true);
+                await using (selection.ConfigureAwait(true))
+                {
+                    await RunConnectionOperationAsync(
+                        () => m_vm.Connection.ConnectAsync(selection, PromptCertTrustAsync, cancellationToken),
+                        cancellationToken).ConfigureAwait(true);
+                }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                if (!m_window.IsClosingRequested)
+                {
+                    m_vm.ConnectionStatus = "Automatic connection canceled.";
+                }
+            }
+            catch (Exception error) when (error is ServiceResultException or InvalidOperationException
+                or TimeoutException or SocketException or AggregateException
+                or System.IO.IOException or UnauthorizedAccessException or ArgumentException
+                or NotSupportedException)
+            {
+                m_vm.ConnectionStatus = $"Automatic connection failed: {error.Message}";
+                ShowError(m_vm.ConnectionStatus);
+                MainWindowLog.ConnectFailed(m_log, error);
             }
         }
 
@@ -615,7 +707,10 @@ namespace UaLens.Views
         private readonly bool m_ownsRepositorySamples;
         private readonly IStorageProvider? m_storageProvider;
         private readonly Func<ApplicationConfiguration, CertificateStoreOperations> m_certificateStores;
+        private readonly EnvironmentConnectionConfiguration? m_automaticConnection;
+        private readonly CancellationTokenSource m_lifetime = new();
         private RepositorySamplesWindow? m_samplesWindow;
+        private Task? m_automaticConnectionTask;
         private Task? m_disposal;
     }
 }

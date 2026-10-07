@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Sdk Name="Aspire.AppHost.Sdk" Version="13.6.0" />
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <IsAspireHost>true</IsAspireHost>
+    <AspireUseCliBundle>true</AspireUseCliBundle>
+    <Nullable>enable</Nullable>
+    <RootNamespace>UaLens.AppHost</RootNamespace>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Aspire.Hosting.AppHost" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="../../samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj"
+                      AdditionalProperties="CustomTestTarget=net10.0" />
+    <ProjectReference Include="../Opc.Ua.Lens/Opc.Ua.Lens.csproj"
+                      AdditionalProperties="CustomTestTarget=net10.0;PublishAotEnabled=false" />
+  </ItemGroup>
+</Project>

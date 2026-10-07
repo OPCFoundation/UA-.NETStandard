@@ -41,6 +41,38 @@ The project targets .NET 8, .NET 9 and .NET 10. Its source is in `tools\Opc.Ua.L
 The assembly is `UaLens`, the package is `OPCFoundation.NetStandard.Opc.Ua.Lens`,
 and the tool command is `ualens`.
 
+### Automatic connection
+
+Set `UALENS_ENDPOINT_URL` to connect when the desktop opens. The remaining
+variables pin the discovered server and prevent fallback to another security or
+identity profile:
+
+| Variable | Meaning | Default |
+| --- | --- | --- |
+| `UALENS_ENDPOINT_URL` | OPC UA discovery/endpoint URL; enables automatic connection | none |
+| `UALENS_APPLICATION_URI` | Expected server ApplicationUri | any |
+| `UALENS_SECURITY_MODE` | `None`, `Sign`, or `SignAndEncrypt` | `None` |
+| `UALENS_SECURITY_POLICY` | SHA-2-or-higher policy name such as `Basic256Sha256`, `None`, or its full URI | `None` |
+| `UALENS_USERNAME` | Username identity; omit for Anonymous | none |
+| `UALENS_PASSWORD` | Password required when a username is supplied | none |
+
+Secure endpoints remain fail-closed. Their server certificate must already be
+trusted or accepted through the existing trust dialog; environment startup does
+not add a blanket certificate-trust bypass.
+
+To start the pump Device Integration sample and UaLens together, with Lens
+automatically connected over the local `None/None` development endpoint:
+
+```powershell
+$env:CustomTestTarget = 'net10.0'
+dotnet run --project tools/Opc.Ua.Lens.AppHost/Opc.Ua.Lens.AppHost.csproj
+```
+
+Override AppHost settings with standard configuration environment variables,
+for example `UaLens__SecurityMode`, `UaLens__SecurityPolicy`,
+`UaLens__Username`, and `UaLens__Password`. Do not put passwords in
+`appsettings.json`.
+
 ## Tools
 
 Monitor values, quality and timestamps with optional trends and timing charts.

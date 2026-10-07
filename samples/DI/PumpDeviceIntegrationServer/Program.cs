@@ -72,6 +72,13 @@ if (autoAcceptOption is not null && !bool.TryParse(autoAcceptOption, out autoAcc
     Console.Error.WriteLine("--autoaccept must be true or false.");
     return 2;
 }
+string? includeUnsecureOption = builder.Configuration["include-unsecure"];
+bool includeUnsecure = false;
+if (includeUnsecureOption is not null && !bool.TryParse(includeUnsecureOption, out includeUnsecure))
+{
+    Console.Error.WriteLine("--include-unsecure must be true or false.");
+    return 2;
+}
 string pkiRoot = builder.Configuration["pki-root"] ?? Path.Combine(AppContext.BaseDirectory, "pki");
 if (!Path.IsPathRooted(pkiRoot))
 {
@@ -111,6 +118,7 @@ builder.Services
         o.PkiRoot = pkiRoot;
         o.RejectSHA1Certificates = true;
         o.MinCertificateKeySize = 2048;
+        o.IncludeUnsecurePolicyNone = includeUnsecure;
         o.EndpointUrls.Add($"opc.tcp://{host}:{port}/PumpDeviceIntegrationServer");
     })
     .AddNodeManager<PumpNodeManagerFactory>()

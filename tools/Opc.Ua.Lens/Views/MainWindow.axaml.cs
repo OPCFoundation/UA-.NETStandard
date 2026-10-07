@@ -36,6 +36,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
+using UaLens.Connection;
 using UaLens.NodeSets.Loading;
 using UaLens.Samples;
 using UaLens.Themes;
@@ -64,7 +65,8 @@ namespace UaLens.Views
             WriteValueOperationFactory? writeOperations = null,
             IStorageProvider? storageProvider = null,
             Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null,
-            INodeSetRepository? nodeSetRepository = null)
+            INodeSetRepository? nodeSetRepository = null,
+            EnvironmentConnectionConfiguration? automaticConnection = null)
             : this(
                 viewModel,
                 appearance,
@@ -73,7 +75,8 @@ namespace UaLens.Views
                 writeOperations,
                 storageProvider,
                 certificateOperations,
-                nodeSetRepository)
+                nodeSetRepository,
+                automaticConnection)
         {
         }
 
@@ -85,7 +88,8 @@ namespace UaLens.Views
             WriteValueOperationFactory? writeOperations = null,
             IStorageProvider? storageProvider = null,
             Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null,
-            INodeSetRepository? nodeSetRepository = null)
+            INodeSetRepository? nodeSetRepository = null,
+            EnvironmentConnectionConfiguration? automaticConnection = null)
         {
             m_vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
             m_appearance = appearance ?? new AppearancePreferences();
@@ -104,7 +108,8 @@ namespace UaLens.Views
                 log,
                 repositorySamples,
                 storageProvider,
-                certificateOperations);
+                certificateOperations,
+                automaticConnection);
             m_nodeSets = new NodeSetController(this, m_vm, nodeSetRepository, storageProvider);
             m_shell = new ShellPresenter(this, m_vm, m_connection, log, ChangeThemeAsync, favoritesPath);
             m_nodes.Attach();

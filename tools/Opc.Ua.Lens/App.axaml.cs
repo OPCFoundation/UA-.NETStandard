@@ -37,6 +37,7 @@ using Avalonia.Markup.Xaml;
 using Avalonia.Platform.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua;
+using UaLens.Connection;
 using UaLens.NodeSets.Loading;
 using UaLens.Samples;
 using UaLens.Themes;
@@ -81,7 +82,8 @@ namespace UaLens
                     storageProvider: services.GetService<IStorageProvider>(),
                     certificateOperations: services.GetRequiredService<
                         Func<ApplicationConfiguration, CertificateStoreOperations>>(),
-                    nodeSetRepository: services.GetRequiredService<INodeSetRepository>());
+                    nodeSetRepository: services.GetRequiredService<INodeSetRepository>(),
+                    automaticConnection: services.GetService<EnvironmentConnectionConfiguration>());
                 if (m_desktopSmoke is { } smoke)
                 {
                     window.Opened += (_, _) => smoke.Start(window, viewModel, desktop);

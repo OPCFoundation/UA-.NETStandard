@@ -58,6 +58,8 @@ variables). `--pumps` defaults to `2` and accepts values from 1 to 100.
 For bounded local experiments, `--run-seconds N` requests graceful shutdown after
 1–3600 seconds. `--pki-root` selects an absolute private certificate-store root;
 `--autoaccept false` disables the sample's default untrusted-certificate convenience.
+`--include-unsecure true` adds a `None/None` endpoint for explicit local
+development scenarios such as the UaLens Aspire AppHost; it defaults to `false`.
 
 Sample console output:
 
