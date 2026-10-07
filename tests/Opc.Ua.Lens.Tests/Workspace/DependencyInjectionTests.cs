@@ -37,6 +37,7 @@ using NUnit.Framework;
 using Opc.Ua;
 using Opc.Ua.Client;
 using UaLens.Connection;
+using UaLens.Storage;
 using UaLens.Themes;
 using UaLens.Tests.Observe;
 using UaLens.ViewModels;
@@ -75,6 +76,20 @@ public sealed class DependencyInjectionTests
         Assert.That(provider.GetRequiredService<AppearancePreferences>(), Is.SameAs(appearance));
         Assert.That(
             services.Count(descriptor => descriptor.ServiceType == typeof(AppearancePreferences)), Is.EqualTo(1));
+    }
+
+    [Test]
+    public void InspectorPreferencesAreSharedAcrossScopes()
+    {
+        IServiceCollection services = new ServiceCollection().AddUaLens();
+        using ServiceProvider provider = services.BuildServiceProvider();
+        using IServiceScope first = provider.CreateScope();
+        using IServiceScope second = provider.CreateScope();
+
+        InspectorPreferences original = first.ServiceProvider.GetRequiredService<InspectorPreferences>();
+        InspectorPreferences shared = second.ServiceProvider.GetRequiredService<InspectorPreferences>();
+
+        Assert.That(shared, Is.SameAs(original));
     }
 
     [TestCase(nameof(PluginKind.Alarms))]

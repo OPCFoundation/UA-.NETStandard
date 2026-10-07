@@ -40,6 +40,7 @@ using Opc.Ua;
 using UaLens.Connection;
 using UaLens.NodeSets.Loading;
 using UaLens.Samples;
+using UaLens.Storage;
 using UaLens.Themes;
 using UaLens.ViewModels;
 using UaLens.Views;
@@ -74,6 +75,7 @@ namespace UaLens
                         "Desktop startup requires the owned UaLens service container.");
                 MainViewModel viewModel = services.GetRequiredService<MainViewModel>();
                 AppearancePreferences appearance = services.GetRequiredService<AppearancePreferences>();
+                InspectorPreferences inspectorPreferences = services.GetRequiredService<InspectorPreferences>();
                 var window = new MainWindow(
                     viewModel,
                     appearance,
@@ -83,7 +85,8 @@ namespace UaLens
                     certificateOperations: services.GetRequiredService<
                         Func<ApplicationConfiguration, CertificateStoreOperations>>(),
                     nodeSetRepository: services.GetRequiredService<INodeSetRepository>(),
-                    automaticConnection: services.GetService<EnvironmentConnectionConfiguration>());
+                    automaticConnection: services.GetService<EnvironmentConnectionConfiguration>(),
+                    inspectorPreferences: inspectorPreferences);
                 if (m_desktopSmoke is { } smoke)
                 {
                     window.Opened += (_, _) => smoke.Start(window, viewModel, desktop);

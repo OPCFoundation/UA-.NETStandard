@@ -42,6 +42,7 @@ using NUnit.Framework;
 using Opc.Ua;
 using UaLens.Capabilities;
 using UaLens.Connection;
+using UaLens.Storage;
 using UaLens.Tests.Subscriptions;
 using UaLens.Themes;
 using UaLens.ViewModels;
@@ -203,6 +204,36 @@ namespace UaLens.Tests.Desktop
                 Assert.That(grid.RowDefinitions[4].Height.IsStar, Is.EqualTo(attributes));
                 Assert.That(grid.RowDefinitions[6].Height.IsStar, Is.EqualTo(references));
                 Assert.That(grid.RowDefinitions[5].Height.Value, Is.EqualTo(attributes && references ? 4 : 0));
+            });
+        }
+
+        [Test]
+        public Task InspectorVisibilityIsRestoredAndExplicitChangesAreSaved()
+        {
+            return AvaloniaDesktopTestHost.RunAsync(async () =>
+            {
+                await using var context = new ShellContext();
+                var preferences = new InspectorPreferences(context.InspectorPath);
+                await preferences.SaveAsync(SidePanelMode.AttrsOnly).ConfigureAwait(true);
+                MainWindow? window = null;
+                await DesktopInteraction.ModelChangedAsync(
+                    context.Model,
+                    () => context.Model.AttributesPanelMode == SidePanelMode.AttrsOnly,
+                    () =>
+                    {
+                        window = context.Show();
+                        return Task.CompletedTask;
+                    }).ConfigureAwait(true);
+                await FlushAsync().ConfigureAwait(true);
+                MenuItem references = DesktopInteraction.Control<MenuItem>(window!, "MenuToggleRefs");
+                references.IsChecked = true;
+                references.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+
+                await window!.DisposeAsync().ConfigureAwait(true);
+
+                Assert.That(
+                    await preferences.LoadAsync().ConfigureAwait(true),
+                    Is.EqualTo(SidePanelMode.AttrsAndRefs));
             });
         }
 
@@ -732,6 +763,7 @@ namespace UaLens.Tests.Desktop
                 Connection = connection ?? new DesktopConnectionContext();
                 Root = Directory.CreateTempSubdirectory("UaLensShell").FullName;
                 FavoritesPath = Path.Combine(Root, "favorites.json");
+                InspectorPath = Path.Combine(Root, "inspectors.json");
                 var factory = new Mock<IPluginFactory>(MockBehavior.Strict);
                 factory.Setup(value => value.Create(It.IsAny<PluginKind>(), It.IsAny<PluginHost>(),
                     It.IsAny<Func<PluginHost, IPlugin>>())).Returns(
@@ -768,6 +800,7 @@ namespace UaLens.Tests.Desktop
 
             public string Root { get; }
             public string FavoritesPath { get; }
+            public string InspectorPath { get; }
             public DesktopConnectionContext Connection { get; }
             public MainViewModel Model { get; }
             public MainWindow? Window { get; private set; }
@@ -780,7 +813,8 @@ namespace UaLens.Tests.Desktop
                 Window = new MainWindow(
                     Model,
                     new AppearancePreferences(Path.Combine(Root, "theme.json")),
-                    FavoritesPath)
+                    FavoritesPath,
+                    inspectorPreferences: new InspectorPreferences(InspectorPath))
                 {
                     ShowInTaskbar = false
                 };

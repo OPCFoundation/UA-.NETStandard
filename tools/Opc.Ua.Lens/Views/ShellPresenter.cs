@@ -64,6 +64,7 @@ internal sealed class ShellPresenter
         ConnectionController connection,
         ILogger log,
         Func<ThemePreset, Task> changeThemeAsync,
+        Func<SidePanelMode, Task> saveInspectorPreferenceAsync,
         string? favoritesPath = null)
     {
         m_window = window ?? throw new ArgumentNullException(nameof(window));
@@ -71,6 +72,8 @@ internal sealed class ShellPresenter
         m_connection = connection ?? throw new ArgumentNullException(nameof(connection));
         m_log = log ?? throw new ArgumentNullException(nameof(log));
         m_changeThemeAsync = changeThemeAsync ?? throw new ArgumentNullException(nameof(changeThemeAsync));
+        m_saveInspectorPreferenceAsync = saveInspectorPreferenceAsync
+            ?? throw new ArgumentNullException(nameof(saveInspectorPreferenceAsync));
         m_favoritesPath = favoritesPath;
     }
 
@@ -91,6 +94,7 @@ internal sealed class ShellPresenter
         UpdateWorkspacePresence();
 
         m_vm.PropertyChanged += OnViewModelChanged;
+        m_vm.InspectorPreferenceChanged += OnInspectorPreferenceChanged;
         m_vm.Browser.PropertyChanged += OnBrowserChanged;
         m_vm.Tabs.CollectionChanged += OnTabsChanged;
         m_vm.Connection.StateChanged += OnConnectionStateChanged;
@@ -167,6 +171,7 @@ internal sealed class ShellPresenter
         m_connectionTimer?.Stop();
         m_tabStatusTimer?.Stop();
         m_vm.PropertyChanged -= OnViewModelChanged;
+        m_vm.InspectorPreferenceChanged -= OnInspectorPreferenceChanged;
         m_vm.Browser.PropertyChanged -= OnBrowserChanged;
         m_vm.Tabs.CollectionChanged -= OnTabsChanged;
         m_vm.Connection.StateChanged -= OnConnectionStateChanged;
@@ -176,7 +181,7 @@ internal sealed class ShellPresenter
     public async Task StopAsync()
     {
         Dispose();
-        await m_favoritesOperation.ConfigureAwait(true);
+        await Task.WhenAll(m_favoritesOperation, m_inspectorOperation).ConfigureAwait(true);
     }
 
     private bool TryWindowLocalShortcut(string gesture)
@@ -727,14 +732,19 @@ internal sealed class ShellPresenter
     {
         bool attrs = m_window.RequiredControl<MenuItem>("MenuToggleAttrs").IsChecked;
         bool refs = m_window.RequiredControl<MenuItem>("MenuToggleRefs").IsChecked;
-        m_vm.AttributesPanelMode = (attrs, refs) switch
-        {
-            (true, true) => SidePanelMode.AttrsAndRefs,
-            (true, false) => SidePanelMode.AttrsOnly,
-            (false, true) => SidePanelMode.RefsOnly,
-            _ => SidePanelMode.None
-        };
+        m_vm.SetInspectorVisibility(attrs, refs);
         UpdateLeftStackRows();
+    }
+
+    private void OnInspectorPreferenceChanged(SidePanelMode mode)
+    {
+        m_inspectorOperation = SaveInspectorPreferenceAfterAsync(m_inspectorOperation, mode);
+    }
+
+    private async Task SaveInspectorPreferenceAfterAsync(Task previous, SidePanelMode mode)
+    {
+        await previous.ConfigureAwait(true);
+        await m_saveInspectorPreferenceAsync(mode).ConfigureAwait(true);
     }
 
     private void SyncInspectorMenu()
@@ -1019,8 +1029,10 @@ internal sealed class ShellPresenter
     private readonly ConnectionController m_connection;
     private readonly ILogger m_log;
     private readonly Func<ThemePreset, Task> m_changeThemeAsync;
+    private readonly Func<SidePanelMode, Task> m_saveInspectorPreferenceAsync;
     private readonly string? m_favoritesPath;
     private Task m_favoritesOperation = Task.CompletedTask;
+    private Task m_inspectorOperation = Task.CompletedTask;
     private readonly ObservableCollection<string> m_welcomeItems = [];
     private readonly System.Collections.Generic.List<string> m_recent = [];
     private System.Collections.Generic.List<string> m_favorites = [];

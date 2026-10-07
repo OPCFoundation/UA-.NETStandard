@@ -38,6 +38,7 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua;
 using UaLens.Samples;
+using UaLens.Storage;
 using UaLens.Tests.Administration;
 using UaLens.Themes;
 using UaLens.ViewModels;
@@ -275,7 +276,8 @@ namespace UaLens.Tests.Desktop
                 await using var model = new MainViewModel(context.Telemetry, context.Connection);
                 var window = new MainWindow(
                     model, new AppearancePreferences(Path.Combine(files.Root, "appearance.json")),
-                    favoritesPath: Path.Combine(files.Root, "favorites.json"), repositorySamples: stub.Service.Object);
+                    favoritesPath: Path.Combine(files.Root, "favorites.json"), repositorySamples: stub.Service.Object,
+                    inspectorPreferences: new InspectorPreferences(Path.Combine(files.Root, "inspectors.json")));
                 window.Show(DesktopInteraction.Owner);
                 TextBlock error = Control<TextBlock>(window, "OperationErrorText");
                 await DesktopInteraction.ChangedAsync(error, () => error.Text?.Contains(
@@ -325,7 +327,8 @@ namespace UaLens.Tests.Desktop
                 await using var model = new MainViewModel(context.Telemetry, context.Connection);
                 await using var window = new MainWindow(
                     model, new AppearancePreferences(Path.Combine(files.Root, "appearance.json")),
-                    favoritesPath: Path.Combine(files.Root, "favorites.json"), repositorySamples: stub.Service.Object);
+                    favoritesPath: Path.Combine(files.Root, "favorites.json"), repositorySamples: stub.Service.Object,
+                    inspectorPreferences: new InspectorPreferences(Path.Combine(files.Root, "inspectors.json")));
                 window.Show(DesktopInteraction.Owner);
                 Button settings = Button(window, "ConnectionSettingsButton");
                 MenuItem entry = ((MenuFlyout)settings.Flyout!).Items.OfType<MenuItem>()

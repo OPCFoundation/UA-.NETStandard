@@ -39,6 +39,7 @@ using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using NUnit.Framework;
 using UaLens.NodeSets.Loading;
+using UaLens.Storage;
 using UaLens.Themes;
 using UaLens.ViewModels;
 using UaLens.Views;
@@ -59,15 +60,18 @@ internal sealed class DesktopWindowScope : IAsyncDisposable
     {
         DirectoryPath = directory;
         Appearance = new AppearancePreferences(Path.Combine(directory, "appearance.json"));
+        Inspectors = new InspectorPreferences(Path.Combine(directory, "inspectors.json"));
         ViewModel = viewModel ?? new MainViewModel();
         Window = new MainWindow(
-            ViewModel, Appearance, storageProvider: storageProvider, nodeSetRepository: nodeSetRepository);
+            ViewModel, Appearance, storageProvider: storageProvider, nodeSetRepository: nodeSetRepository,
+            inspectorPreferences: Inspectors);
         Window.Closed += (_, _) => m_closed.TrySetResult();
     }
 
     public MainWindow Window { get; }
     public MainViewModel ViewModel { get; }
     public AppearancePreferences Appearance { get; }
+    public InspectorPreferences Inspectors { get; }
     public string DirectoryPath { get; }
     public Task Closed => m_closed.Task;
 

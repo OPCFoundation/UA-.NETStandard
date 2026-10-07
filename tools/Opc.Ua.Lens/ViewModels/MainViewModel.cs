@@ -281,6 +281,11 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
     public bool ShowReferences
         => AttributesPanelMode is SidePanelMode.AttrsAndRefs or SidePanelMode.RefsOnly;
 
+    /// <summary>
+    /// Raised when the user explicitly changes the inspector visibility.
+    /// </summary>
+    public event Action<SidePanelMode>? InspectorPreferenceChanged;
+
     public bool UseChannelV2Engine
     {
         get => Engine == SubscriptionEngineKind.ChannelV2;
@@ -486,6 +491,22 @@ internal sealed partial class MainViewModel : ObservableObject, IPluginWorkspace
             SidePanelMode.AttrsAndRefs => SidePanelMode.RefsOnly,
             _ => SidePanelMode.None
         };
+        InspectorPreferenceChanged?.Invoke(AttributesPanelMode);
+    }
+
+    /// <summary>
+    /// Applies an explicit inspector visibility choice.
+    /// </summary>
+    public void SetInspectorVisibility(bool showAttributes, bool showReferences)
+    {
+        AttributesPanelMode = (showAttributes, showReferences) switch
+        {
+            (true, true) => SidePanelMode.AttrsAndRefs,
+            (true, false) => SidePanelMode.AttrsOnly,
+            (false, true) => SidePanelMode.RefsOnly,
+            _ => SidePanelMode.None
+        };
+        InspectorPreferenceChanged?.Invoke(AttributesPanelMode);
     }
 
     /// <summary>

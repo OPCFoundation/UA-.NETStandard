@@ -39,6 +39,7 @@ using Opc.Ua;
 using UaLens.Connection;
 using UaLens.NodeSets.Loading;
 using UaLens.Samples;
+using UaLens.Storage;
 using UaLens.Themes;
 using UaLens.ViewModels;
 
@@ -66,7 +67,8 @@ namespace UaLens.Views
             IStorageProvider? storageProvider = null,
             Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null,
             INodeSetRepository? nodeSetRepository = null,
-            EnvironmentConnectionConfiguration? automaticConnection = null)
+            EnvironmentConnectionConfiguration? automaticConnection = null,
+            InspectorPreferences? inspectorPreferences = null)
             : this(
                 viewModel,
                 appearance,
@@ -76,7 +78,8 @@ namespace UaLens.Views
                 storageProvider,
                 certificateOperations,
                 nodeSetRepository,
-                automaticConnection)
+                automaticConnection,
+                inspectorPreferences)
         {
         }
 
@@ -89,10 +92,12 @@ namespace UaLens.Views
             IStorageProvider? storageProvider = null,
             Func<ApplicationConfiguration, CertificateStoreOperations>? certificateOperations = null,
             INodeSetRepository? nodeSetRepository = null,
-            EnvironmentConnectionConfiguration? automaticConnection = null)
+            EnvironmentConnectionConfiguration? automaticConnection = null,
+            InspectorPreferences? inspectorPreferences = null)
         {
             m_vm = viewModel ?? throw new ArgumentNullException(nameof(viewModel));
             m_appearance = appearance ?? new AppearancePreferences();
+            m_inspectorPreferences = inspectorPreferences ?? new InspectorPreferences();
             if (PendingResourceMonitor is not null)
             {
                 m_vm.ResourceMonitor = PendingResourceMonitor;
@@ -111,7 +116,8 @@ namespace UaLens.Views
                 certificateOperations,
                 automaticConnection);
             m_nodeSets = new NodeSetController(this, m_vm, nodeSetRepository, storageProvider);
-            m_shell = new ShellPresenter(this, m_vm, m_connection, log, ChangeThemeAsync, favoritesPath);
+            m_shell = new ShellPresenter(
+                this, m_vm, m_connection, log, ChangeThemeAsync, SaveInspectorPreferenceAsync, favoritesPath);
             m_nodes.Attach();
             m_connection.Attach();
             m_nodeSets.Attach();
@@ -120,6 +126,15 @@ namespace UaLens.Views
             AddHandler(KeyDownEvent, (_, e) => m_shell.OnKeyDown(e), RoutingStrategies.Tunnel);
             Opened += async (_, _) =>
             {
+                try
+                {
+                    m_vm.AttributesPanelMode = await m_inspectorPreferences.LoadAsync().ConfigureAwait(true);
+                }
+                catch (Exception error) when (error is System.IO.IOException
+                    or UnauthorizedAccessException or System.Text.Json.JsonException)
+                {
+                    m_vm.ConnectionStatus = $"Inspector preference could not be loaded: {error.Message}";
+                }
                 try
                 {
                     await ThemeManager.LoadPreferenceAsync(m_appearance).ConfigureAwait(true);
@@ -210,6 +225,18 @@ namespace UaLens.Views
             }
         }
 
+        private async Task SaveInspectorPreferenceAsync(SidePanelMode mode)
+        {
+            try
+            {
+                await m_inspectorPreferences.SaveAsync(mode).ConfigureAwait(true);
+            }
+            catch (Exception error) when (error is System.IO.IOException or UnauthorizedAccessException)
+            {
+                m_vm.ConnectionStatus = $"Inspector preference could not be saved: {error.Message}";
+            }
+        }
+
         private void InitializeComponent()
         {
             AvaloniaXamlLoader.Load(this);
@@ -217,6 +244,7 @@ namespace UaLens.Views
 
         private readonly MainViewModel m_vm;
         private readonly AppearancePreferences m_appearance;
+        private readonly InspectorPreferences m_inspectorPreferences;
         private readonly NodeInteractionController m_nodes;
         private readonly ConnectionController m_connection;
         private readonly NodeSetController m_nodeSets;

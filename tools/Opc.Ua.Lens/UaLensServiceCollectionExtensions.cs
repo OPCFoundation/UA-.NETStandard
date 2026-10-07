@@ -39,6 +39,7 @@ using UaLens.Diagnostics;
 using UaLens.NodeSets;
 using UaLens.NodeSets.Loading;
 using UaLens.Samples;
+using UaLens.Storage;
 using UaLens.Telemetry;
 using UaLens.Themes;
 using UaLens.ViewModels;
@@ -62,6 +63,7 @@ namespace UaLens
             services.AddUaLensRepositorySamples();
             services.TryAddSingleton(_ => new PublishLogObserver());
             services.TryAddSingleton(_ => new AppearancePreferences());
+            services.TryAddSingleton(_ => new InspectorPreferences());
             services.TryAddSingleton<IWorkspaceDispatcher>(_ => new AvaloniaWorkspaceDispatcher());
             services.TryAddSingleton<WriteValueOperationFactory>(_ =>
                 static (nodeId, session) => new WriteValueOperation(nodeId, session));
