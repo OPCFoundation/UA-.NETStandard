@@ -130,6 +130,12 @@ $baseVersion = [string]$manifest.basePackageVersion
 $previewBuildNumber = Get-PreviewPackageBuildNumber
 $candidateVersion = ConvertTo-PreviewPackageVersion -Version $baseVersion `
     -PreviewPackageBuildNumber $previewBuildNumber
+$exemptVersions = Get-PreviewPackageOrderingExemptions
+if ($exemptVersions.Count -gt 0) {
+    Write-Host (
+        "Ignoring $($exemptVersions.Count) exempt published version(s) listed in " +
+        "preview-version.props: $($exemptVersions -join ', ').")
+}
 
 $packageIds = @($manifest.archives |
     Where-Object { $_.type -eq 'package' -and (Test-PreviewPackageId -PackageId $_.id) } |
@@ -171,7 +177,8 @@ foreach ($packageId in $packageIds) {
         $blocking = Get-BlockingPublishedPreviewVersions `
             -BaseVersion $baseVersion `
             -PublishedVersions $published[$feedName] `
-            -PreviewPackageBuildNumber $previewBuildNumber
+            -PreviewPackageBuildNumber $previewBuildNumber `
+            -ExemptVersions $exemptVersions
         if ($blocking.Count -gt 0) {
             $violations += [pscustomobject]@{
                 PackageId = $packageId

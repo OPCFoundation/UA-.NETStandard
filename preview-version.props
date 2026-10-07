@@ -36,5 +36,21 @@
   -->
   <PropertyGroup>
     <PreviewPackageBuildNumber Condition="'$(PreviewPackageBuildNumber)' == ''">200</PreviewPackageBuildNumber>
+    <!--
+      Exact, already-published versions that the preview ordering gate
+      (.azurepipelines/validate-preview-package-ordering.ps1) must not treat
+      as blocking, separated by ";". Only for versions that no
+      PreviewPackageBuildNumber can ever outrank and that cannot be removed
+      from the feed: SemVer 2 ranks an alphanumeric identifier such as
+      "g<commit>" above every numeric one, so "<base>-preview.g<commit>"
+      sorts above every "<base>-preview.N".
+
+      2.0.0-preview.gfd360271d9 and 2.0.0-preview.ge78c648295 were pushed to
+      GitHub Packages (never nuget.org) by master CI runs 37461428995 and
+      37462705289 on 2026-10-06, while master briefly carried the stable
+      root version 2.0.0 and Nerdbank.GitVersioning appended the commit id.
+      They stay above the released 2.0.0-preview.N on that feed only.
+    -->
+    <PreviewPackageOrderingExemptions>2.0.0-preview.gfd360271d9;2.0.0-preview.ge78c648295</PreviewPackageOrderingExemptions>
   </PropertyGroup>
 </Project>

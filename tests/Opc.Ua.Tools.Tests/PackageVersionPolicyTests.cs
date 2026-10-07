@@ -614,6 +614,42 @@ namespace Opc.Ua.Tools.Tests
         }
 
         [Test]
+        public async Task GetBlockingPublishedPreviewVersionsSkipsOnlyExactExemptVersionsAsync()
+        {
+            JsonElement result = await RunBlockingPreviewVersionsAsync(
+                baseVersion: "2.0.0",
+                previewPackageBuildNumber: "200",
+                publishedVersions:
+                [
+                    "2.0.0-preview.gfd360271d9",
+                    // Exemptions match case-insensitively, like NuGet versions.
+                    "2.0.0-PREVIEW.GE78C648295",
+                    // Not listed: a commit-id label still blocks.
+                    "2.0.0-preview.g0123456789",
+                    "2.0.0-preview.201",
+                ],
+                exemptVersions: ["2.0.0-preview.gfd360271d9", "2.0.0-preview.ge78c648295"]).ConfigureAwait(false);
+
+            string[] blocking = [.. result.EnumerateArray().Select(e => e.GetString()!)];
+            string[] expected = ["2.0.0-preview.201", "2.0.0-preview.g0123456789"];
+            Assert.That(blocking, Is.EquivalentTo(expected));
+        }
+
+        [Test]
+        public async Task GetPreviewPackageOrderingExemptionsReadsTheCommittedListAsync()
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                ConvertTo-Json -InputObject (Get-PreviewPackageOrderingExemptions) -Depth 3
+                """).ConfigureAwait(false);
+
+            string[] exemptions = [.. result.EnumerateArray().Select(e => e.GetString()!)];
+            Assert.That(exemptions, Has.All.Matches<string>(v => v.Length > 0 && v.Trim() == v));
+            Assert.That(exemptions, Has.All.Contains("-preview."));
+        }
+
+        [Test]
         public async Task GetBlockingPublishedPreviewVersionsRejectsANonStableBaseVersionAsync()
         {
             // The guard only has meaning for an exact stable base version;
@@ -1124,16 +1160,19 @@ namespace Opc.Ua.Tools.Tests
         private static Task<JsonElement> RunBlockingPreviewVersionsAsync(
             string baseVersion,
             string previewPackageBuildNumber,
-            string[] publishedVersions)
+            string[] publishedVersions,
+            string[]? exemptVersions = null)
         {
             string published = string.Join(",", publishedVersions.Select(v => $"'{v}'"));
+            string exempt = string.Join(",", (exemptVersions ?? []).Select(v => $"'{v}'"));
             return RunPolicyScriptAsync(
                 $$"""
                 . '{{PolicyScriptPath}}'
                 $blocking = Get-BlockingPublishedPreviewVersions `
                     -BaseVersion '{{baseVersion}}' `
                     -PublishedVersions @({{published}}) `
-                    -PreviewPackageBuildNumber '{{previewPackageBuildNumber}}'
+                    -PreviewPackageBuildNumber '{{previewPackageBuildNumber}}' `
+                    -ExemptVersions @({{exempt}})
                 ConvertTo-Json -InputObject $blocking -Depth 3
                 """);
         }
