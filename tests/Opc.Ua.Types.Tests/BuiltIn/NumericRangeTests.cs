@@ -1278,8 +1278,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UpdateRangeStringArrayReturnsNoDataForSubstringBeyondElementsWithWrongSliceLength()
         {
-            ArrayOf<string> dst = new[] { "a", "b" }.ToArrayOf();
-            ArrayOf<string> slice = new[] { "xy" }.ToArrayOf();
+            ArrayOf<string> dst = ["a", "b"];
+            ArrayOf<string> slice = ["xy"];
             var range = NumericRange.Parse("0:1,5:6");
             StatusCode result = range.UpdateRange(ref dst, slice);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
@@ -1302,8 +1302,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void UpdateRangeStringArrayReturnsDataMismatchForSubstringWithinElementsAndWrongSliceLength()
         {
-            ArrayOf<string> dst = new[] { "abcdefg", "abcdefg" }.ToArrayOf();
-            ArrayOf<string> slice = new[] { "xy" }.ToArrayOf();
+            ArrayOf<string> dst = ["abcdefg", "abcdefg"];
+            ArrayOf<string> slice = ["xy"];
             var range = NumericRange.Parse("0:1,5:6");
             StatusCode result = range.UpdateRange(ref dst, slice);
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));

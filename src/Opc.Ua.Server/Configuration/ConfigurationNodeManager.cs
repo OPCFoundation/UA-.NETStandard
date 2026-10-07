@@ -286,30 +286,29 @@ namespace Opc.Ua.Server
                 m_certificateGroups.Add(defaultHttpsGroup);
             }
 
-            // For each certificate in ApplicationCertificates, add the certificate type to ServerConfiguration_CertificateGroups_DefaultApplicationGroup
-            // under the CertificateTypes field.
+            // Each certificate in ApplicationCertificates belongs to exactly one
+            // CertificateGroup (OPC 10000-12 §7.8.3): an HttpsCertificateType
+            // certificate to DefaultHttpsGroup, every other type to
+            // DefaultApplicationGroup, whose CertificateTypes are
+            // ApplicationCertificateType subtypes. Without a DefaultHttpsGroup
+            // (no Https stores configured) an HttpsCertificateType certificate
+            // stays manageable through DefaultApplicationGroup as before.
             foreach (CertificateIdentifier cert in configuration.SecurityConfiguration
                 .ApplicationCertificates)
             {
-                defaultApplicationGroup.CertificateTypes =
-                [
-                    .. defaultApplicationGroup.CertificateTypes,
-                    .. new NodeId[] { cert.CertificateType }
-                ];
-                defaultApplicationGroup.ApplicationCertificates =
-                    defaultApplicationGroup.ApplicationCertificates.AddItem(cert);
-
-                if (cert.CertificateType == ObjectTypeIds.HttpsCertificateType &&
-                    defaultHttpsGroup != null)
+                ServerCertificateGroup group =
+                    cert.CertificateType == ObjectTypeIds.HttpsCertificateType && defaultHttpsGroup != null
+                        ? defaultHttpsGroup
+                        : defaultApplicationGroup;
+                if (!group.CertificateTypes.Contains(cert.CertificateType))
                 {
-                    defaultHttpsGroup.CertificateTypes =
+                    group.CertificateTypes =
                     [
-                        .. defaultHttpsGroup.CertificateTypes,
+                        .. group.CertificateTypes,
                         .. new NodeId[] { cert.CertificateType }
                     ];
-                    defaultHttpsGroup.ApplicationCertificates =
-                        defaultHttpsGroup.ApplicationCertificates.AddItem(cert);
                 }
+                group.ApplicationCertificates = group.ApplicationCertificates.AddItem(cert);
             }
         }
 
@@ -728,6 +727,9 @@ namespace Opc.Ua.Server
                     // with the OPC 10000-4 process.
                     trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
                 }
+                // §7.8.2: the TrustList audit events must reach Clients that
+                // subscribe to the Server Object.
+                trustList.SetAuditEventServer(Server);
                 certGroup.Node.TrustList!.Handle = trustList;
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }

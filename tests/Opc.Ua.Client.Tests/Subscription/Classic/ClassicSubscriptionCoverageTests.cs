@@ -1141,11 +1141,11 @@ namespace Opc.Ua.Client.Tests
         private static IEnumerable<TestCaseData> UnusableGetMonitoredItemsOutputs()
         {
             yield return new TestCaseData(
-                Variant.From(new string[] { "88" }.ToArrayOf()),
-                Variant.From(new uint[] { 4335u }.ToArrayOf()));
+                Variant.From((ArrayOf<string>)["88"]),
+                Variant.From((ArrayOf<uint>)[4335u]));
             yield return new TestCaseData(
-                Variant.From(new uint[] { 88u, 89u }.ToArrayOf()),
-                Variant.From(new uint[] { 4335u }.ToArrayOf()));
+                Variant.From((ArrayOf<uint>)[88u, 89u]),
+                Variant.From((ArrayOf<uint>)[4335u]));
         }
 
         /// <summary>
