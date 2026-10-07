@@ -182,6 +182,9 @@ same semantic colors as dialogs and document surfaces.
 Standard text-editing shortcuts retain their usual meaning. F2 renames a document;
 Ctrl+Tab and Ctrl+Shift+Tab cycle documents. The command registry is the source of
 truth for displayed shortcuts and their availability.
+In the attributes inspector, select an attribute row and press Ctrl+C (Cmd+C on
+macOS) to copy its displayed value, or Ctrl+Shift+C (Cmd+Shift+C on macOS) to
+copy `Name: Value`. The row context menu exposes both copy actions.
 
 Close and Quit await local cleanup, with bounded V2 server-side subscription
 deletion even when the server is unavailable. The status bar shows shutdown

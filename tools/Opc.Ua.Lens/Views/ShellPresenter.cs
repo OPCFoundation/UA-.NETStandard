@@ -41,6 +41,7 @@ using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Media;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 using Microsoft.Extensions.Logging;
 using UaLens.Connection;
 using UaLens.Themes;
@@ -114,6 +115,10 @@ internal sealed class ShellPresenter
             return;
         }
         bool isTextInput = e.Source is TextBox;
+        if (IsAttributeCopyGesture(gesture, e.Source))
+        {
+            return;
+        }
 
         // Rename needs to also focus the inline editor, so it is handled here.
         if (!isTextInput && Equals(gesture, "F2") && m_vm.SelectedTab is { } toRename)
@@ -136,6 +141,25 @@ internal sealed class ShellPresenter
         {
             e.Handled = true;
         }
+    }
+
+    private static bool IsAttributeCopyGesture(string gesture, object? source)
+    {
+        if (gesture is not ("Ctrl+C" or "Ctrl+Shift+C" or "Meta+C" or "Meta+Shift+C"))
+        {
+            return false;
+        }
+
+        Visual? current = source as Visual;
+        while (current is not null)
+        {
+            if (current is NodeAttributesView)
+            {
+                return true;
+            }
+            current = current.GetVisualParent();
+        }
+        return false;
     }
 
     public void Dispose()

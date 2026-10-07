@@ -40,30 +40,51 @@
                  Foreground="{DynamicResource TextSecondary}"
                  TextTrimming="CharacterEllipsis"
                  Text="{CompiledBinding Header}" />
-      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto">
-        <ItemsControl ItemsSource="{CompiledBinding Rows}">
-          <ItemsControl.ItemTemplate>
-            <DataTemplate DataType="vm:AttributeRow">
-              <Grid ColumnDefinitions="160,*" Margin="8,2,8,2">
-                <TextBlock Grid.Column="0"
-                           Text="{CompiledBinding Name}"
-                           Foreground="{DynamicResource TextSecondary}"
-                           FontFamily="Cascadia Mono, Consolas, monospace"
-                           FontSize="11" />
-                <TextBlock Grid.Column="1"
-                           Text="{CompiledBinding Value}"
-                           Foreground="{DynamicResource TextPrimary}"
-                           FontFamily="Cascadia Mono, Consolas, monospace"
-                           FontSize="11"
-                           TextWrapping="Wrap" />
-              </Grid>
-            </DataTemplate>
-          </ItemsControl.ItemTemplate>
-        </ItemsControl>
-      </ScrollViewer>
+      <ListBox Grid.Row="1"
+               x:Name="AttributesList"
+               ItemsSource="{CompiledBinding Rows}"
+               SelectionMode="Single"
+               Background="Transparent"
+               BorderThickness="0"
+               ScrollViewer.HorizontalScrollBarVisibility="Auto"
+               KeyDown="OnAttributesKeyDown">
+        <ListBox.Styles>
+          <Style Selector="ListBoxItem">
+            <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+          </Style>
+        </ListBox.Styles>
+        <ListBox.ContextMenu>
+          <ContextMenu>
+            <MenuItem x:Name="CopyAttributeValue"
+                      Header="Copy _value"
+                      InputGesture="Ctrl+C"
+                      Click="OnCopyValue" />
+            <MenuItem x:Name="CopyAttributeKeyValue"
+                      Header="Copy _key and value"
+                      InputGesture="Ctrl+Shift+C"
+                      Click="OnCopyKeyValue" />
+          </ContextMenu>
+        </ListBox.ContextMenu>
+        <ListBox.ItemTemplate>
+          <DataTemplate DataType="vm:AttributeRow">
+            <Grid ColumnDefinitions="160,*"
+                  Margin="8,2,8,2"
+                  PointerPressed="OnRowPointerPressed">
+              <TextBlock Grid.Column="0"
+                         Text="{CompiledBinding Name}"
+                         Foreground="{DynamicResource TextSecondary}"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         FontSize="11" />
+              <TextBlock Grid.Column="1"
+                         Text="{CompiledBinding Value}"
+                         Foreground="{DynamicResource TextPrimary}"
+                         FontFamily="Cascadia Mono, Consolas, monospace"
+                         FontSize="11"
+                         TextWrapping="Wrap" />
+            </Grid>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </ListBox>
     </Grid>
   </Border>
 </UserControl>
-
-
-
