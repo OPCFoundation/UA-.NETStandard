@@ -139,6 +139,9 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("2.0.0-preview.1.gabc123def0", "2.0.0-preview.1.gabc123def0", Description = "Already preview with commit id: unchanged")]
         [TestCase("2.0.1-preview.3+build5", "2.0.1-preview.3+build5", Description = "Already preview with build metadata: unchanged")]
         [TestCase("2.0.0-rc.1", "2.0.0-preview.rc.1", Description = "Other prerelease label: preview-prefixed")]
+        [TestCase("2.0.0-ge78c648295", "2.0.0-preview.0.ge78c648295", Description = "Commit id only: numbered 0")]
+        [TestCase("2.0.0-gabc123def0+b5", "2.0.0-preview.0.gabc123def0+b5", Description = "Commit id and metadata: numbered 0")]
+        [TestCase("2.0.0-gamma.1", "2.0.0-preview.gamma.1", Description = "A label that merely starts with 'g' is not a commit id")]
         public async Task ConvertToPreviewPackageVersionIsIdempotentForExistingPrereleaseAsync(
             string input,
             string expected)
