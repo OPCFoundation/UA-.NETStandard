@@ -95,8 +95,7 @@ function Get-PublishedPackageBytes {
 
     $deadline = [DateTimeOffset]::UtcNow.AddSeconds($TimeoutSeconds)
     while ($true) {
-        $response = Invoke-WebRequest -Uri $Uri -Headers $Headers -SkipHttpErrorCheck `
-            -MaximumRetryCount 3 -RetryIntervalSec 5 -OutFile $Destination -PassThru
+        $response = Invoke-FeedRequest -Uri $Uri -Headers $Headers -OutFile $Destination
         if ($response.StatusCode -eq 404) {
             if (Test-Path -LiteralPath $Destination) {
                 Remove-Item -LiteralPath $Destination -Force

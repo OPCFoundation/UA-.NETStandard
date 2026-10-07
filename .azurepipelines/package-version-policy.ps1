@@ -250,6 +250,65 @@ function Get-NuGetPackageContentDigest {
     }
 }
 
+function Invoke-FeedRequest {
+    <#
+    .SYNOPSIS
+        Invoke-WebRequest that retries transient failures only and returns
+        the final response for the caller to judge by status code.
+
+    .DESCRIPTION
+        Invoke-WebRequest's own -MaximumRetryCount retries every status from
+        400 to 599, so each 404 - the normal "this id/version is not
+        published" answer the release gates ask for once per package - cost
+        three pointless retries and ~15 s. Across a full package set on two
+        feeds that turned a read-only check into an hour-long step.
+
+        Only a network failure, 408, 429 or 5xx is retried here. Every other
+        status is returned straight away; after the last retry the final
+        response is returned (or the network error rethrown), so callers keep
+        failing closed on anything they do not recognise.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Uri,
+        [hashtable]$Headers = @{},
+        [string]$OutFile,
+        [ValidateRange(0, 10)][int]$MaximumRetryCount = 3,
+        [ValidateRange(0, 60)][int]$RetryIntervalSec = 5
+    )
+
+    $parameters = @{
+        Uri = $Uri
+        Headers = $Headers
+        SkipHttpErrorCheck = $true
+    }
+    if ($OutFile) {
+        $parameters['OutFile'] = $OutFile
+        $parameters['PassThru'] = $true
+    }
+
+    for ($attempt = 0; ; $attempt++) {
+        try {
+            $response = Invoke-WebRequest @parameters
+        }
+        catch {
+            # -SkipHttpErrorCheck means only failures without an HTTP
+            # status (DNS, connection reset, timeout) reach this block.
+            if ($attempt -ge $MaximumRetryCount) {
+                throw
+            }
+            Start-Sleep -Seconds $RetryIntervalSec
+            continue
+        }
+
+        $status = [int]$response.StatusCode
+        $transient = $status -eq 408 -or $status -eq 429 -or $status -ge 500
+        if (-not $transient -or $attempt -ge $MaximumRetryCount) {
+            return $response
+        }
+        Start-Sleep -Seconds $RetryIntervalSec
+    }
+}
+
 function Test-StablePackageVersion {
     <#
     .SYNOPSIS

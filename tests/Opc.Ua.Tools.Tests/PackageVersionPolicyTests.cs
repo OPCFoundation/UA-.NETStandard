@@ -758,8 +758,11 @@ namespace Opc.Ua.Tools.Tests
             // read the organization's packages" (403). Pin that contract:
             // silently treating a 403 as "nothing published" would let a
             // stale preview number reach an immutable feed.
+            // The policy script supplies Invoke-FeedRequest, which resolves
+            // the Invoke-WebRequest stub below at call time.
             JsonElement result = await RunPolicyScriptAsync(
                 $$"""
+                . '{{PolicyScriptPath}}'
                 $ast = [System.Management.Automation.Language.Parser]::ParseFile(
                     '{{OrderingScriptPath}}', [ref]$null, [ref]$null)
                 $fn = $ast.FindAll({
