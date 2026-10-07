@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -639,25 +640,33 @@ namespace Opc.Ua.Server
                                         false);
                                 }
 
-                                updateCertificate.CertificateWithPrivateKey =
-                                    CertificateFactory.CreateCertificateWithPrivateKey(
-                                        newCert,
-                                        exportableKey);
-                                try
+                                // Combine the new certificate with a private copy of the
+                                // key. CopyWithPrivateKey shares the native key handle with
+                                // its source; on macOS disposing the combined certificate
+                                // later invalidates that key for RSA-PSS, and the source is
+                                // the certificate new channels use until ApplyChanges reloads it.
+                                using (X509Certificate2 keyCopy = CreateDetachedKeyCopy(exportableKey))
                                 {
-                                    await UpdateCertificateInternalAsync(
-                                        certificateGroup,
-                                        existingCertIdentifier,
-                                        updateCertificate, ct).ConfigureAwait(false);
-                                    break;
-                                }
-                                catch (Exception ex) when (ShouldRetry(attempt, ex))
-                                {
-                                    m_logger.LogDebug(
-                                        Utils.TraceMasks.Security,
-                                        ex,
-                                        "Failed to update certificate {Certificate}. Retrying...",
-                                        newCert.AsLogSafeString());
+                                    updateCertificate.CertificateWithPrivateKey =
+                                        CertificateFactory.CreateCertificateWithPrivateKey(
+                                            newCert,
+                                            keyCopy ?? exportableKey);
+                                    try
+                                    {
+                                        await UpdateCertificateInternalAsync(
+                                            certificateGroup,
+                                            existingCertIdentifier,
+                                            updateCertificate, ct).ConfigureAwait(false);
+                                        break;
+                                    }
+                                    catch (Exception ex) when (ShouldRetry(attempt, ex))
+                                    {
+                                        m_logger.LogDebug(
+                                            Utils.TraceMasks.Security,
+                                            ex,
+                                            "Failed to update certificate {Certificate}. Retrying...",
+                                            newCert.AsLogSafeString());
+                                    }
                                 }
                             }
                             break;
@@ -987,6 +996,63 @@ namespace Opc.Ua.Server
             certificateGroup.TemporaryApplicationCertificate = certificate;
 
             return certificate;
+        }
+
+        /// <summary>
+        /// Returns a copy of a certificate whose private key is independent
+        /// of the source, or null if the key cannot be exported.
+        /// </summary>
+        /// <remarks>
+        /// <c>X509Certificate2.CopyWithPrivateKey</c> does not deep copy the
+        /// key: the result shares the native key handle with the certificate
+        /// the key came from. On macOS the stack loads keys into a temporary
+        /// keychain, and disposing a certificate that shares such a key leaves
+        /// the source unable to export key parameters, which RSA-PSS signing
+        /// needs (OSStatus -50). Round-tripping the source through an
+        /// in-memory PFX gives the copy a key of its own, the technique
+        /// <see cref="X509Utils.CreateCopyWithPrivateKey"/> already uses on
+        /// Windows. A key that cannot be exported (TPM, HSM, PKCS#11) is not
+        /// affected, so null is returned and the caller uses the source as is.
+        /// The caller verifies the key pair when it combines the copy with the
+        /// new certificate.
+        /// </remarks>
+        private static X509Certificate2 CreateDetachedKeyCopy(
+            X509Certificate2 certificateWithPrivateKey)
+        {
+            char[] passcode = X509Utils.GeneratePasscode();
+            byte[] pfx = null;
+            try
+            {
+                using var securePasscode = new SecureString();
+                foreach (char c in passcode)
+                {
+                    securePasscode.AppendChar(c);
+                }
+                securePasscode.MakeReadOnly();
+
+                try
+                {
+                    pfx = certificateWithPrivateKey.Export(X509ContentType.Pfx, securePasscode);
+                }
+                catch (CryptographicException)
+                {
+                    // not exportable: nothing to copy
+                    return null;
+                }
+
+                return X509CertificateLoader.LoadPkcs12(
+                    pfx,
+                    passcode,
+                    X509KeyStorageFlags.Exportable);
+            }
+            finally
+            {
+                if (pfx != null)
+                {
+                    Array.Clear(pfx, 0, pfx.Length);
+                }
+                Array.Clear(passcode, 0, passcode.Length);
+            }
         }
 
         private ServiceResult ApplyChanges(
