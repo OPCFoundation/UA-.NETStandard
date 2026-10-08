@@ -114,7 +114,18 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Whether the token has expired.
         /// </summary>
-        public bool Expired => (HiResClock.TickCount - CreatedAtTickCount) > Lifetime;
+        public bool Expired => IsExpired(0);
+
+        /// <summary>
+        /// Whether the token has expired, allowing for the fraction of its lifetime
+        /// (<paramref name="gracePeriod"/>) during which messages secured with it are
+        /// still accepted.
+        /// </summary>
+        internal bool IsExpired(double gracePeriod)
+        {
+            return (HiResClock.TickCount - CreatedAtTickCount) >
+                Lifetime + Math.Round(Lifetime * gracePeriod);
+        }
 
         /// <summary>
         /// Whether the token should be activated in case a new one is already created.
