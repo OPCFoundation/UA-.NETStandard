@@ -48,7 +48,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
     [Category("CryptoProvider")]
     [Parallelizable(ParallelScope.All)]
     [SetCulture("en-us")]
-    public class AeadPolyfillTests
+    public sealed class AeadPolyfillTests
     {
         public sealed record KnownAnswer(
             string Name,

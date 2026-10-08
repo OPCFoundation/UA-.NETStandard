@@ -131,28 +131,47 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         }
 
         /// <summary>
-        /// Every target, .NET Framework included (BouncyCastle AEAD and raw
-        /// ECDH), registers the NIST AEAD profiles.
+        /// The NIST AEAD profiles are registered exactly when the probed
+        /// primitives allow them. On .NET Framework the AEAD ciphers are the
+        /// BouncyCastle ones and the NIST curves are CNG's, so there they are
+        /// always registered.
         /// </summary>
         [Test]
-        public void CurrentRuntimeRegistersTheNistAeadProfiles()
+        public void CurrentRuntimeRegistersTheNistAeadProfilesItsPrimitivesAllow()
         {
             var registry = new DtlsProfileRegistry();
+            DtlsPrimitiveSupport support = registry.PrimitiveSupport;
+            string[] names = registry.SupportedProfiles.Select(profile => profile.Name).ToArray();
 
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    registry.SupportedProfiles.Select(profile => profile.Name),
-                    Is.SupersetOf(new[]
-                    {
-                        "ECC_nistP256_AesGcm",
-                        "ECC_nistP384_AesGcm",
-                        "ECC_nistP256_ChaChaPoly",
-                        "ECC_nistP384_ChaChaPoly"
-                    }));
+                    names.Contains("ECC_nistP256_AesGcm"),
+                    Is.EqualTo(support.HasHkdf && support.HasAesGcm && support.HasAes128Gcm && support.HasNistP256));
                 Assert.That(
-                    registry.Resolve("ECC_nistP256_AesGcm").CipherSuite,
-                    Is.EqualTo(DtlsCipherSuite.TlsAes128GcmSha256));
+                    names.Contains("ECC_nistP384_AesGcm"),
+                    Is.EqualTo(support.HasHkdf && support.HasAesGcm && support.HasAes256Gcm && support.HasNistP384));
+                Assert.That(
+                    names.Contains("ECC_nistP256_ChaChaPoly"),
+                    Is.EqualTo(support.HasHkdf && support.HasChaCha20Poly1305 && support.HasNistP256));
+                Assert.That(
+                    names.Contains("ECC_nistP384_ChaChaPoly"),
+                    Is.EqualTo(support.HasHkdf && support.HasChaCha20Poly1305 && support.HasNistP384));
+#if NETFRAMEWORK
+                Assert.That(
+                    support,
+                    Is.EqualTo(support with
+                    {
+                        HasAesGcm = true,
+                        HasAes128Gcm = true,
+                        HasAes256Gcm = true,
+                        HasChaCha20Poly1305 = true,
+                        HasHkdf = true,
+                        HasNistP256 = true,
+                        HasNistP384 = true
+                    }),
+                    "The BouncyCastle ciphers, the managed HKDF and the CNG NIST curves exist on every .NET Framework host.");
+#endif
             });
         }
 

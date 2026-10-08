@@ -196,7 +196,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     }
 
     /// <summary>
-    /// Runtime .NET BCL primitive support for DTLS profiles.
+    /// Runtime primitive support for DTLS profiles: the .NET 8+ BCL ciphers and
+    /// curves, or on .NET Framework the BouncyCastle AES-GCM and
+    /// ChaCha20-Poly1305 from Opc.Ua.Security.Certificates and the CNG curves.
+    /// HKDF is the managed, HMAC-based <see cref="DtlsHkdf"/> on every target.
     /// </summary>
     public readonly record struct DtlsPrimitiveSupport(
         bool HasAesGcm,
@@ -210,7 +213,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         bool HasBrainpoolP384r1)
     {
         /// <summary>
-        /// Probes the current runtime using typed BCL APIs only.
+        /// Probes the primitives the DTLS stack uses on this target: the AEAD
+        /// ciphers (BCL on .NET 8+, BouncyCastle on .NET Framework), the
+        /// managed <see cref="DtlsHkdf"/>, and the named curves the platform can
+        /// create.
         /// </summary>
         public static DtlsPrimitiveSupport Probe()
         {
