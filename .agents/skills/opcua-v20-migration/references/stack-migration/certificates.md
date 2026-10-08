@@ -6,7 +6,7 @@
 
 - [Centralised certificate cache via `ICertificateProvider`](#centralised-certificate-cache-via-icertificateprovider)
 - [Certificate Management](#certificate-management)
-  - [ECC security policies require .NET 8 or later](#ecc-security-policies-require-net-8-or-later)
+  - [ECC security policies on .NET Framework use a BouncyCastle ECDH agreement](#ecc-security-policies-on-net-framework-use-a-bouncycastle-ecdh-agreement)
   - [Certificates with an empty distinguished name are always rejected](#certificates-with-an-empty-distinguished-name-are-always-rejected)
   - [An incomplete certificate chain can no longer be accepted](#an-incomplete-certificate-chain-can-no-longer-be-accepted)
   - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
@@ -55,18 +55,21 @@ UserIdentity userIdentity = await UserIdentity.CreateAsync(
 
 ## Certificate Management
 
-### ECC security policies require .NET 8 or later
+### ECC security policies on .NET Framework use a BouncyCastle ECDH agreement
 
-The built-in ECC SecureChannel and user-token policies are unavailable in the
-.NET Framework 4.8 builds. OPC UA Part 6 requires
-raw ECDH shared-secret agreement before HKDF; the older `DeriveKeyMaterial`
-API applies an additional hash and cannot interoperate with compliant peers.
-`SecurityPolicies.GetInfo` returns `null` for these policies on downlevel builds.
+OPC UA Part 6 requires the raw ECDH shared secret before HKDF, which the
+.NET Framework BCL cannot produce (`DeriveKeyMaterial` always hashes it). The
+.NET Framework 4.8 build computes that agreement with the managed
+`BouncyCastle.Cryptography` package, already a dependency of
+`Opc.Ua.Security.Certificates` on that target, so the CBC-based ECC
+SecureChannel and user-token policies (`ECC_nistP256`, `ECC_nistP384`,
+`ECC_brainpoolP256r1`, `ECC_brainpoolP384r1`) are available there.
 
-**Migration:** target .NET 8 or later and use its matching stack assets for ECC,
-or configure a supported RSA security policy on both peers. Loading downlevel
-stack assets on a newer runtime does not restore raw-secret support.
-ECC certificate parsing and signing alone do not imply ECC policy support.
+**Migration:** nothing is required. Note that on .NET Framework the agreement
+step does not run in a platform-validated cryptographic module; deployments
+with FIPS or certified-module requirements should use the .NET 8+ build or an
+RSA policy. The `_AesGcm` and `_ChaChaPoly` ECC variants still need .NET 8 or
+later, and `SecurityPolicies.GetInfo` returns `null` for them on .NET Framework.
 See [ECC platform requirements](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/EccProfiles.md#known-limitations).
 
 ### Certificates with an empty distinguished name are always rejected
