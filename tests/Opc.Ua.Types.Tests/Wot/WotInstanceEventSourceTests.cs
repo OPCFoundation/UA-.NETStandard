@@ -292,6 +292,27 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
+        public void ArchivedNodeSetAcceptsAnEventItsRootTypeGenerates()
+        {
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(WotTestData.Utf8(ObjectDescription));
+            using WotDocument archived = WotNodeSetConverter.FromNodeSet(
+                nodeSet,
+                options: new WotNodeSetConverterOptions
+                {
+                    PreservationMode = WotNodeSetPreservationMode.Always
+                });
+            Assert.That(archived.RootElement.TryGetProperty("uav:nodeSet", out _), Is.True);
+
+            WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(archived);
+
+            Assert.That(
+                result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
+                Is.Empty,
+                "The archive states the event on the root's type, which is where §7.15 puts it.");
+            Assert.That(result.Value, Is.Not.Null);
+        }
+
+        [Test]
         public void InstanceLevelGeneratesEventIsStillReadAsAnEventAffordance()
         {
             var nodeSet = new UANodeSet
