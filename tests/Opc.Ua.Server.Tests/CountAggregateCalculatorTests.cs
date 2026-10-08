@@ -696,13 +696,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that transition counting uses a preceding uncertain value only when uncertain quality is not
-        /// treated as bad (Part 13 §4.2.1.2, §5.4.3.24): with TreatUncertainAsBad no previous non-Bad value exists,
-        /// so the first value in the interval is a transition.
+        /// Verifies that transition counting uses a preceding uncertain value as the previous non-Bad value
+        /// whatever TreatUncertainAsBad is (Part 13 §5.4.3.24 speaks of non-Bad values; the aggregate
+        /// definition wins over TreatUncertainAsBad, Mantis 11425 ~0025847, 11426 ~0025852).
         /// </summary>
         [TestCase(false, 1)]
-        [TestCase(true, 2)]
-        public void NumberOfTransitionsUsesPreviousUncertainValueOnlyWhenUncertainIsNotConfiguredAsBad(
+        [TestCase(true, 1)]
+        public void NumberOfTransitionsUsesPreviousUncertainValue(
             bool treatUncertainAsBad,
             int expected)
         {
