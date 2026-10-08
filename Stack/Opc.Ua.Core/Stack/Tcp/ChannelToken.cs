@@ -124,7 +124,7 @@ namespace Opc.Ua.Bindings
         internal bool IsExpired(double gracePeriod)
         {
             return (HiResClock.TickCount - CreatedAtTickCount) >
-                Lifetime + (int)Math.Round(Lifetime * gracePeriod);
+                Lifetime + Math.Round(Lifetime * gracePeriod);
         }
 
         /// <summary>
