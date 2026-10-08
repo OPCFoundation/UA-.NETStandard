@@ -351,16 +351,18 @@ namespace Opc.Ua.History.Tests
         }
 
         /// <summary>
-        /// Verifies extrema retain good source values while uncertain candidates affect the aggregate quality.
+        /// Verifies that uncertain values are extrema candidates and an uncertain extremum is returned with
+        /// Uncertain_DataSubNormal (Mantis 11426 ~0025852: Uncertain values are looked at as if they are Good).
         /// </summary>
-        [TestCase(Objects.AggregateFunction_Minimum, 5.0)]
-        [TestCase(Objects.AggregateFunction_Maximum, 10.0)]
-        [TestCase(Objects.AggregateFunction_Range, 5.0)]
-        [TestCase(Objects.AggregateFunction_MinimumActualTime, 5.0)]
-        [TestCase(Objects.AggregateFunction_MaximumActualTime, 10.0)]
-        public async Task MinMaxHistoryPreservesGoodValuesAndReportsUncertainExtremaAsync(
+        [TestCase(Objects.AggregateFunction_Minimum, 1.0, 0)]
+        [TestCase(Objects.AggregateFunction_Maximum, 20.0, 0)]
+        [TestCase(Objects.AggregateFunction_Range, 19.0, 0)]
+        [TestCase(Objects.AggregateFunction_MinimumActualTime, 1.0, 1)]
+        [TestCase(Objects.AggregateFunction_MaximumActualTime, 20.0, 3)]
+        public async Task MinMaxHistoryReturnsUncertainExtremaAsUncertainAsync(
             uint aggregateTypeId,
-            double expected)
+            double expected,
+            int expectedTimestampSeconds)
         {
             var client = new HistoryClient(Session);
             var nodeId = new NodeId("Extrema", m_namespaceIndex);
@@ -400,10 +402,9 @@ namespace Opc.Ua.History.Tests
                 Assert.That(
                     values[0].StatusCode,
                     Is.EqualTo(StatusCodes.UncertainDataSubNormal.WithAggregateBits(AggregateBits.Calculated)));
-                DateTime expectedTimestamp = aggregateTypeId == Objects.AggregateFunction_MaximumActualTime
-                    ? start.AddSeconds(2)
-                    : start;
-                Assert.That(values[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)expectedTimestamp));
+                Assert.That(
+                    values[0].SourceTimestamp,
+                    Is.EqualTo((DateTimeUtc)start.AddSeconds(expectedTimestampSeconds)));
             });
         }
 

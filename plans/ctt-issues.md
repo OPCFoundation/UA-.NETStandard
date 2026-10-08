@@ -227,6 +227,14 @@ used to determine whether Uncertain values are Bad or non-Bad"*; the answer is r
   TreatUncertainAsBad does not apply, DurationGood counts only Good and DurationBad only Bad regions (an Uncertain
   region counts for neither), and the first region takes the status of the raw value at or before the start
   (§5.4.3.31–34). The server counted Uncertain regions as Good or Bad depending on TreatUncertainAsBad.
+- **Aggregate definitions win over TreatUncertainAsBad (fixed).** Paul's note on
+  [11426](https://mantis.opcfoundation.org/view.php?id=11426) (~0025852): Minimum, Maximum, MinimumActualTime,
+  MaximumActualTime and Range follow OPC Classic. Uncertain values are looked at as if they are Good, so an
+  Uncertain extremum is returned with `UncertainDataSubNormal`; the status is otherwise Good unless Bad values exist
+  (`UncertainDataSubNormal`), and `BadNoData` if all values are Bad. The server ignored an Uncertain value beyond the
+  Good extremum. NumberOfTransitions follows §5.4.3.24 ("non-Bad") the same way: Uncertain values are counted and
+  can be the previous value, whatever TreatUncertainAsBad is. Minimum2/Maximum2 keep TreatUncertainAsBad, which
+  §5.4.3.15 names explicitly.
 - With the patched scripts corrected accordingly, Aggregates (p06) has 0 errors against the fixed server and 99
   against the server before the fix.
 
