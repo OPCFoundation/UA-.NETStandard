@@ -451,7 +451,9 @@ namespace Opc.Ua.Server
             // The first non-Bad value is a transition when no previous non-Bad value exists.
             // Part 13 §4.2.1.2: with TreatUncertainAsBad an Uncertain value is equivalent to Bad,
             // so it is neither counted nor used as the previous value (IsGood applies the setting).
-            LinkedListNode<DataValue>? previousValue = slice.EarlyBound;
+            // The EarlyBound is the last non-Bad value (bounds ignore TreatUncertainAsBad), so use
+            // the last value that IsGood accepts instead.
+            LinkedListNode<DataValue>? previousValue = slice.EarlyGoodValue;
             bool hasLastValue = previousValue != null;
             Variant lastValue = previousValue != null
                 ? previousValue.Value.WrappedValue

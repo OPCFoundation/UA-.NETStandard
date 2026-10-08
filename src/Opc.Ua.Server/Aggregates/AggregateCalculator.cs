@@ -421,12 +421,16 @@ namespace Opc.Ua.Server
             }
             else if (CurrentSlice.EarlyBound != null)
             {
-                LinkedListNode<DataValue>? ii = CurrentSlice.EarlyBound.Previous;
+                LinkedListNode<DataValue> keep = CurrentSlice.SecondEarlyBound ?? CurrentSlice.EarlyBound;
 
-                if (CurrentSlice.SecondEarlyBound != null)
+                // the bounds may be Uncertain (bounds ignore TreatUncertainAsBad); keep the last value
+                // that IsGood accepts as well, the next slice may need it (e.g. NumberOfTransitions).
+                while (keep.Previous != null && !IsGood(keep.Value))
                 {
-                    ii = CurrentSlice.SecondEarlyBound.Previous;
+                    keep = keep.Previous;
                 }
+
+                LinkedListNode<DataValue>? ii = keep.Previous;
 
                 while (ii != null)
                 {
@@ -680,6 +684,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Checks if a raw value can form a bounding value. Part 13 §3.1.8 and §3.1.9 build
+        /// bounding values from non-Bad raw values; TreatUncertainAsBad does not apply to them
+        /// (Mantis 11462), an Uncertain raw value makes the bound Uncertain_DataSubNormal instead.
+        /// </summary>
+        /// <param name="value">The raw value to test.</param>
+        /// <returns>True if the value is not Bad.</returns>
+        protected static bool IsBoundCandidate(DataValue value)
+        {
+            return !value.IsNull && !StatusCode.IsBad(value.StatusCode);
+        }
+
+        /// <summary>
         /// Stores information about a slice of data to be processed.
         /// </summary>
         protected class TimeSlice
@@ -718,6 +734,12 @@ namespace Opc.Ua.Server
             /// The second early bound for the slice (always earlier than the first).
             /// </summary>
             public LinkedListNode<DataValue> SecondEarlyBound { get; set; } = null!;
+
+            /// <summary>
+            /// The last value before the slice that IsGood accepts (honours TreatUncertainAsBad).
+            /// The early bound is the last non-Bad value, so it may be an earlier or the same node.
+            /// </summary>
+            public LinkedListNode<DataValue> EarlyGoodValue { get; set; } = null!;
 
             /// <summary>
             /// The beginning of the slice.
@@ -831,10 +853,15 @@ namespace Opc.Ua.Server
                     // check if before the beginning of the slice.
                     if (CompareTimestamps(slice.StartTime, ii) >= 0)
                     {
-                        if (IsGood(ii.Value))
+                        if (IsBoundCandidate(ii.Value))
                         {
                             slice.SecondEarlyBound = slice.EarlyBound;
                             slice.EarlyBound = ii;
+                        }
+
+                        if (IsGood(ii.Value))
+                        {
+                            slice.EarlyGoodValue = ii;
                         }
 
                         continue;
@@ -843,7 +870,7 @@ namespace Opc.Ua.Server
                     // check if after the end if the slice.
                     if (CompareTimestamps(slice.EndTime, ii) < 0)
                     {
-                        if (IsGood(ii.Value))
+                        if (IsBoundCandidate(ii.Value))
                         {
                             slice.LateBound = ii;
                             break;
@@ -867,11 +894,16 @@ namespace Opc.Ua.Server
                     // check if before the beginning of the slice.
                     if (CompareTimestamps(slice.StartTime, ii) > 0)
                     {
-                        if (IsGood(ii.Value))
+                        if (IsBoundCandidate(ii.Value))
                         {
                             slice.SecondEarlyBound = slice.EarlyBound;
                             slice.EarlyBound = ii;
                             slice.LastProcessedValue = ii;
+                        }
+
+                        if (IsGood(ii.Value))
+                        {
+                            slice.EarlyGoodValue = ii;
                         }
 
                         continue;
@@ -880,7 +912,7 @@ namespace Opc.Ua.Server
                     // check if after the end if the slice.
                     if (CompareTimestamps(slice.EndTime, ii) < 0)
                     {
-                        if (IsGood(ii.Value))
+                        if (IsBoundCandidate(ii.Value))
                         {
                             slice.LateBound = ii;
                             slice.LastProcessedValue = ii;
@@ -911,6 +943,13 @@ namespace Opc.Ua.Server
                 else
                 {
                     requiredBound = slice.EarlyBound;
+                }
+
+                // older values arrive later; the early bound may be Uncertain, so also wait for the
+                // last value before the slice that IsGood accepts (e.g. NumberOfTransitions uses it).
+                if (slice.EarlyGoodValue == null)
+                {
+                    requiredBound = null!;
                 }
             }
             else
@@ -997,9 +1036,9 @@ namespace Opc.Ua.Server
                 int comparison = CompareTimestamps(timestamp, ii);
                 if (comparison == 0)
                 {
-                    // Part 13 §4.2.1.2: with TreatUncertainAsBad an Uncertain raw value at
-                    // the timestamp is equivalent to Bad, so the value is interpolated.
-                    if (IsGood(ii.Value))
+                    // Part 13 §3.1.8: a non-Bad raw value at the timestamp is the bounding
+                    // value; TreatUncertainAsBad does not apply to bounds (Mantis 11462).
+                    if (IsBoundCandidate(ii.Value))
                     {
                         return ii.Value;
                     }
@@ -1015,7 +1054,7 @@ namespace Opc.Ua.Server
             UpdateSlice(slice);
 
             // check for value at the timestamp.
-            if (slice.Begin != null && IsGood(slice.Begin.Value))
+            if (slice.Begin != null && IsBoundCandidate(slice.Begin.Value))
             {
                 return slice.Begin.Value;
             }
@@ -1266,8 +1305,10 @@ namespace Opc.Ua.Server
                 startBound = ii;
             }
 
-            // check if no data found or if start bound is bad..
-            if (startBound == null || !IsGood(startBound.Value))
+            // check if no data found or if start bound is bad. Part 13 §3.1.9: only a Bad raw
+            // value before the timestamp gives Bad_NoData, an Uncertain one gives an Uncertain
+            // bound; TreatUncertainAsBad does not apply to bounds (Mantis 11462).
+            if (startBound == null || !IsBoundCandidate(startBound.Value))
             {
                 return GetNoDataValue(timestamp);
             }
@@ -1280,8 +1321,9 @@ namespace Opc.Ua.Server
             {
                 if (endBound != null)
                 {
-                    // do sloped interpolation if two good bounds exist.
-                    if (IsGood(endBound.Value))
+                    // do sloped interpolation unless the raw value after the timestamp is Bad
+                    // (Part 13 §3.1.9); an Uncertain one makes the bound Uncertain_DataSubNormal.
+                    if (IsBoundCandidate(endBound.Value))
                     {
                         return SlopedInterpolate(
                             timestamp,
@@ -1630,17 +1672,24 @@ namespace Opc.Ua.Server
                     // calculate region span.
                     else
                     {
-                        // set uncertain status to bad if treat uncertain as bad is true.
-                        if (StatusCode.IsUncertain(currentStatus) && !IsGood(values[ii]))
-                        {
-                            currentStatus = StatusCodes.BadNoData;
-                        }
-
                         currentRegion.Duration = (currentTime - currentRegion.StartTime)
                             .TotalMilliseconds;
                     }
 
                     regions.Add(currentRegion);
+                }
+
+                // set uncertain status to bad if treat uncertain as bad is true (Part 13 §5.4.3.2.1:
+                // Uncertain regions are included as Bad regions). Without ignoreBadData (Simple
+                // Bounding Values) this applies to the first region too: an Uncertain start bound is
+                // treated as any other Uncertain value in the interval (e.g. Table 55 "Bound
+                // Uncertain"). With Interpolated Bounding Values an Uncertain start bound is used and
+                // makes the result Uncertain (e.g. Table 54 "Bound Uncertain: NA").
+                if (StatusCode.IsUncertain(currentStatus) &&
+                    !IsGood(values[ii]) &&
+                    (currentRegion != null || !ignoreBadData))
+                {
+                    currentStatus = StatusCodes.BadNoData;
                 }
 
                 // start a new region.

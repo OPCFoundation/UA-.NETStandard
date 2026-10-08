@@ -29,6 +29,7 @@ CTT project configuration notes follow the tables. The procedure for running the
 | C48 | Aggregate – Minimum, Maximum, MinimumActualTime, MaximumActualTime `001-02.js`… | The CTT ignores Uncertain values beyond the Good extremum and expects Good instead of UncertainDataSubNormal. | [11426](https://mantis.opcfoundation.org/view.php?id=11426) |
 | C49 | Aggregate – Minimum, MinimumActualTime, MaximumActualTime | The CTT does not set the Calculated bit when non-Good values make the status Uncertain. | [11427](https://mantis.opcfoundation.org/view.php?id=11427) |
 | U2 | Aggregate – Minimum2 (reverse reads) | The CTT clears the Calculated bit when the minimum is the End bound at the early end of a reverse interval (Part 11 §6.5.4.2). | [11461](https://mantis.opcfoundation.org/view.php?id=11461) |
+| U4 | Aggregate – DeltaBounds, StartBound, EndBound, WorstQuality2, TimeAverage2, Total2, Interpolative (TreatUncertainAsBad = True) | The CTT applies TreatUncertainAsBad to bounding values: an Uncertain raw value before or at a bound removes the bound, and DeltaBounds treats an Uncertain bound as Bad (answer to [11462](https://mantis.opcfoundation.org/view.php?id=11462)). | [11487](https://mantis.opcfoundation.org/view.php?id=11487) |
 
 ### Historical Access
 
@@ -202,34 +203,32 @@ CTT project configuration notes follow the tables. The procedure for running the
 
 ## Needs clarification
 
-### U4. DeltaBounds: does TreatUncertainAsBad make an Uncertain bound Bad?
+### U4. TreatUncertainAsBad and bounding values (answered)
 
-§5.4.3.30: *"If one or both values are Bad the return status will be Bad_NoData. If one or both values are
-Uncertain the status will be Uncertain_DataSubNormal."* A logged run (AGGDIAG project copy) of Aggregate –
-DeltaBounds `003-01.js`…`008-01.js` on the Double and Float nodes differs in 200 readings; the timestamps always
-agree:
+The clarification request [11462](https://mantis.opcfoundation.org/view.php?id=11462) is answered (~0025840):
+TreatUncertainAsBad does not apply to bounding values; they are calculated only as §3.1.7–§3.1.9 describe. The
+server and the CTT both applied it, in different places, so DeltaBounds `003-01.js`…`008-01.js` and
+TimeAverage2/Total2 `003-xx`/`004-xx` differed. §3.1.7 also says *"In all cases the TreatUncertainAsBad … flag is
+used to determine whether Uncertain values are Bad or non-Bad"*; the answer is read as covering that sentence.
 
-| Readings | Server | CTT | Cause |
-| --- | --- | --- | --- |
-| 80 | value 24, Good | value 23, Good | Int32 rounding (see *Aggregate expected-value differences*) |
-| 72 | `BadNoData` | value, `UncertainDataSubNormal` | TreatUncertainAsBad=false requested, but C1 makes the server use its default true; the Uncertain raw value before the bound then counts as Bad and no bound exists |
-| 48 | value, `UncertainDataSubNormal` | `BadNoData` | TreatUncertainAsBad=true; the raw value after the bound is Bad, so §3.1.9 makes the bound Uncertain, and the CTT then treats the Uncertain bound as Bad |
-
-§3.1.9 (Simple Bounding Values) and Table 78 never mention TreatUncertainAsBad, §4.2.1.2 applies it to every
-aggregate calculation *"unless the Aggregate definition says otherwise"*, and its note (*"still treated as
-Uncertain when the StatusCode for the result is calculated"*) contradicts §5.4.3.2.1. Whether TreatUncertainAsBad
-applies to the raw values that form a bound (server), to the resulting bound (CTT) or not at all is open. A
-spec clarification request is filed as [11462](https://mantis.opcfoundation.org/view.php?id=11462); neither side changes
-before the answer.
-
-With the Bad data entry of the reference server (see *Bad data entries for aggregates*) the same question shows
-in more test cases: DeltaBounds `005-05.js` (an Uncertain raw value at the end bound with TreatUncertainAsBad:
-server value with `UncertainDataSubNormal`, CTT `BadNoData`) and TimeAverage2/Total2 `003-01.js`, `003-04.js`,
-`004-01.js`, `004-04.js` on every numeric node (the raw value after the simple start bound is Uncertain and
-TreatUncertainAsBad is true: the server treats it as Bad and uses the stepped bound 348, §3.1.9 only names a
-Bad value, so the CTT uses the sloped bound 348.56). Interpolative applies TreatUncertainAsBad to a raw
-value exactly at the interval start, as the server does for the raw values around a bound; that agrees with
-the CTT.
+- **Server (fixed).** Simple and Interpolated Bounding Values are formed from non-Bad raw values whatever
+  TreatUncertainAsBad is (`AggregateCalculator.IsBoundCandidate`): an Uncertain raw value before, at or after the
+  bound makes the bound `UncertainDataSubNormal` (a raw value at the bound keeps its own status), and only a Bad
+  value after a Simple bound reverts to stepped. StartBound/EndBound keep an Uncertain bound (Tables 76/77) and
+  WorstQuality2 includes it (§5.4.3.36 ignores TreatUncertainAsBad). How an aggregate uses an Uncertain bound
+  still follows TreatUncertainAsBad: TimeAverage2/Total2 omit it like any other Uncertain value (§5.4.3.7, Table
+  55; the first region was not converted before), and report `Bad`, not `BadNoData`, for an interval that holds
+  only omitted data (§5.4.3.2.1); Minimum2/Maximum2 ignore it as a candidate (§5.4.3.15). TimeAverage/Total use
+  an Uncertain Interpolated bound and report `UncertainDataSubNormal` (Table 54).
+- **CTT.** The native calculation applies TreatUncertainAsBad to the raw values at and before a bound and treats
+  an Uncertain bound as Bad in DeltaBounds: filed as [11487](https://mantis.opcfoundation.org/view.php?id=11487).
+- **DurationGood/DurationBad/PercentGood/PercentBad (fixed).** Paul's note on
+  [11425](https://mantis.opcfoundation.org/view.php?id=11425) (~0025847): the bound is the stepped Simple bound,
+  TreatUncertainAsBad does not apply, DurationGood counts only Good and DurationBad only Bad regions (an Uncertain
+  region counts for neither), and the first region takes the status of the raw value at or before the start
+  (§5.4.3.31–34). The server counted Uncertain regions as Good or Bad depending on TreatUncertainAsBad.
+- With the patched scripts corrected accordingly, Aggregates (p06) has 0 errors against the fixed server and 99
+  against the server before the fix.
 
 ### U5. TreatUncertainAsBad = false: are Uncertain values Good for the value and for the status?
 
