@@ -130,22 +130,31 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             Assert.That(registry.SupportedProfiles.Select(profile => profile.Name), Is.EqualTo(s_nistP256ProfileNames));
         }
 
-#if !NET8_0_OR_GREATER
+        /// <summary>
+        /// Every target, .NET Framework included (BouncyCastle AEAD and raw
+        /// ECDH), registers the NIST AEAD profiles.
+        /// </summary>
         [Test]
-        public void CurrentRuntimeOnLowTargetFrameworkRegistersNoProfiles()
+        public void CurrentRuntimeRegistersTheNistAeadProfiles()
         {
             var registry = new DtlsProfileRegistry();
 
             Assert.Multiple(() =>
             {
-                Assert.That(registry.SupportedProfiles, Is.Empty);
                 Assert.That(
-                    () => registry.Resolve("ECC_nistP256_AesGcm"),
-                    Throws.TypeOf<NotSupportedException>(),
-                    "net48 must fail closed instead of substituting unsupported DTLS primitives.");
+                    registry.SupportedProfiles.Select(profile => profile.Name),
+                    Is.SupersetOf(new[]
+                    {
+                        "ECC_nistP256_AesGcm",
+                        "ECC_nistP384_AesGcm",
+                        "ECC_nistP256_ChaChaPoly",
+                        "ECC_nistP384_ChaChaPoly"
+                    }));
+                Assert.That(
+                    registry.Resolve("ECC_nistP256_AesGcm").CipherSuite,
+                    Is.EqualTo(DtlsCipherSuite.TlsAes128GcmSha256));
             });
         }
-#endif
 
         private static DtlsPrimitiveSupport CreateFullBclSupport()
         {
