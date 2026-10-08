@@ -377,13 +377,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(transferredLocal, Is.SameAs(local));
             Assert.That(transferredRemote, Is.SameAs(remote));
             Assert.That(() => token.TakeNonces(), Throws.TypeOf<ObjectDisposedException>());
-            if (policy.CertificateKeyFamily == CertificateKeyFamily.ECC &&
-                !SecurityPolicies.SupportsRawEccSecretAgreement())
-            {
-                Assert.That(() => transferredLocal.GenerateSecret(transferredRemote, null),
-                    Throws.TypeOf<NotSupportedException>());
-                return;
-            }
             byte[]? secret = transferredLocal.GenerateSecret(transferredRemote, null);
             Assert.That(secret, Is.Not.Null.And.Not.Empty);
             Assert.That(secret, Is.EqualTo(remote.GenerateSecret(local, null)));

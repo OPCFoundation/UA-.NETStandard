@@ -1536,15 +1536,6 @@ namespace Opc.Ua
             return Utils.IsSupportedCertificateType(certificateType);
         }
 
-        internal static bool SupportsRawEccSecretAgreement()
-        {
-#if NET8_0_OR_GREATER
-            return true;
-#else
-            return false;
-#endif
-        }
-
         internal static bool UnsupportedPolicy()
         {
             return false;
