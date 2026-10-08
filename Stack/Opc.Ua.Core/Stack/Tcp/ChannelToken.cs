@@ -114,7 +114,7 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Whether the token has expired.
         /// </summary>
-        public bool Expired => (HiResClock.TickCount - CreatedAtTickCount) > Lifetime;
+        public bool Expired => IsExpired(0);
 
         /// <summary>
         /// Whether the token has expired, allowing for the fraction of its lifetime
