@@ -66,7 +66,8 @@ SecureChannel and user-token policies (`ECC_nistP256`, `ECC_nistP384`,
 `ECC_brainpoolP256r1`, `ECC_brainpoolP384r1`) are available there.
 
 **Migration:** nothing is required. Note that on .NET Framework the agreement
-step does not run in a platform-validated cryptographic module; deployments
+step does not run in a platform-validated cryptographic module, so
+`CryptoCompliancePolicy.FipsOnly` withholds the ECC policies there; deployments
 with FIPS or certified-module requirements should use the .NET 8+ build or an
 RSA policy. The `_AesGcm` and `_ChaChaPoly` ECC variants still need .NET 8 or
 later, and `SecurityPolicies.GetInfo` returns `null` for them on .NET Framework.

@@ -308,7 +308,8 @@ which `Opc.Ua.Security.Certificates` already references on that target.
 The ephemeral keys, ECDSA signatures and HKDF stay on the platform (CNG)
 providers; only the agreement step is managed code. Deployments bound to
 FIPS-validated or other certified cryptographic modules should note that
-this step is not performed by a validated module on .NET Framework; use the
+this step is not performed by a validated module on .NET Framework, so
+`CryptoCompliancePolicy.FipsOnly` withholds the ECC policies there; use the
 .NET 8+ build, or an RSA policy, where that matters. The .NET 8+ builds use
 `ECDiffieHellman.DeriveRawSecretAgreement` and do not load BouncyCastle for it.
 

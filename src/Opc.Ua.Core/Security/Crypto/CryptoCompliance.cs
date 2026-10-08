@@ -77,7 +77,27 @@ namespace Opc.Ua
             SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfoIgnoringPlatformSupport(
                 securityPolicyUri ?? string.Empty);
 
-            return info != null && info.IsFipsApproved;
+            return info != null && info.IsFipsApproved && !UsesUnvalidatedKeyAgreement(info);
+        }
+
+        /// <summary>
+        /// Whether this build performs a step of the policy outside any
+        /// validated module, whatever providers are registered.
+        /// </summary>
+        /// <remarks>
+        /// The .NET Framework BCL cannot return the raw ECDH secret OPC UA
+        /// requires, so that build computes the agreement in the managed
+        /// BouncyCastle implementation. It bypasses the provider registry, so
+        /// the auditor cannot see it, and the ECC policies are withheld instead.
+        /// </remarks>
+        private static bool UsesUnvalidatedKeyAgreement(SecurityPolicyInfo info)
+        {
+#if NETFRAMEWORK
+            return info.CertificateKeyFamily == CertificateKeyFamily.ECC;
+#else
+            _ = info;
+            return false;
+#endif
         }
 
         /// <summary>
