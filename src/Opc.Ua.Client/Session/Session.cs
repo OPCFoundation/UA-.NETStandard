@@ -1897,6 +1897,31 @@ namespace Opc.Ua.Client
                 IUserIdentity identity = await provider.AcquireIdentityAsync(context, operationCt)
                     .ConfigureAwait(false);
 
+                // The selector lets a policy with an empty SecurityPolicyUri
+                // through, as it inherits the channel policy. When the
+                // override itself cannot be satisfied (for example an ECC
+                // policy whose curve the instance certificate does not
+                // match) that fallback would silently encrypt the token
+                // under the channel policy instead, and against an
+                // EphemeralKey fetched for a different policy. Refuse it
+                // before any key is fetched or state is committed.
+                if (!string.IsNullOrEmpty(overrideUserTokenPolicyUri))
+                {
+                    string? selectedPolicyUri = GetEffectiveTokenPolicyUri(identity);
+                    if (!string.Equals(
+                        selectedPolicyUri,
+                        overrideUserTokenPolicyUri,
+                        StringComparison.Ordinal))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadIdentityTokenRejected,
+                            "OverrideUserTokenPolicyUriNotSatisfiable (no offered policy for " +
+                            "'{0}' can be satisfied; the selected policy uses '{1}').",
+                            overrideUserTokenPolicyUri,
+                            selectedPolicyUri ?? "<unknown>");
+                    }
+                }
+
                 string? previousPolicyUri = null;
                 Nonce? previousEphemeralKey = null;
                 bool overrideCommitted = false;
@@ -2224,6 +2249,28 @@ namespace Opc.Ua.Client
                         policyUri);
                 }
             }
+        }
+
+        /// <summary>
+        /// The security policy the token of <paramref name="identity"/> is
+        /// protected with: its user-token policy's SecurityPolicyUri, or the
+        /// channel policy when that is empty.
+        /// </summary>
+        private string? GetEffectiveTokenPolicyUri(IUserIdentity identity)
+        {
+            string? policyId = identity.TokenHandler.Token.PolicyId;
+            ArrayOf<UserTokenPolicy> offered = m_endpoint.Description.UserIdentityTokens;
+            for (int i = 0; i < offered.Count; i++)
+            {
+                UserTokenPolicy? policy = offered[i];
+                if (policy != null && string.Equals(policy.PolicyId, policyId, StringComparison.Ordinal))
+                {
+                    return string.IsNullOrEmpty(policy.SecurityPolicyUri)
+                        ? m_endpoint.Description.SecurityPolicyUri
+                        : policy.SecurityPolicyUri;
+                }
+            }
+            return null;
         }
 
         /// <summary>

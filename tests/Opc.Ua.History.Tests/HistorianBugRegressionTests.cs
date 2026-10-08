@@ -156,13 +156,15 @@ namespace Opc.Ua.History.Tests
 
         /// <summary>
         /// Verifies advertised aggregate defaults are applied and per-request overrides do not mutate them.
+        /// Count honours TreatUncertainAsBad (Part 13 §4.2.1.2): the Uncertain value is counted only when it is
+        /// treated as Good. PercentGood cannot show the setting, it ignores it (Mantis 11425 ~0025847).
         /// </summary>
-        [TestCase("UncertainIsGood", false, 100.0)]
-        [TestCase("UncertainIsBad", true, 0.0)]
+        [TestCase("UncertainIsGood", false, 2)]
+        [TestCase("UncertainIsBad", true, 1)]
         public async Task ProcessedReadUsesAdvertisedNodeAggregateDefaultsAsync(
             string identifier,
             bool treatUncertainAsBad,
-            double expected)
+            int expected)
         {
             var nodeId = new NodeId(identifier, m_namespaceIndex);
             var client = new HistoryClient(Session);
@@ -171,9 +173,10 @@ namespace Opc.Ua.History.Tests
                 nodeId,
                 [
                     new DataValue(5.0, StatusCodes.Uncertain, start, start),
+                    new DataValue(5.0, StatusCodes.Good, start.AddSeconds(5), start.AddSeconds(5)),
                     new DataValue(5.0, StatusCodes.Good, start.AddSeconds(10), start.AddSeconds(10))
                 ]).ConfigureAwait(false);
-            Assert.That(statuses, Has.Count.EqualTo(2));
+            Assert.That(statuses, Has.Count.EqualTo(3));
             Assert.That(statuses.ToArray(), Has.All.Matches<StatusCode>(StatusCode.IsGood));
 
             HistoricalDataConfigurationInfo advertised = await client
@@ -187,7 +190,7 @@ namespace Opc.Ua.History.Tests
             var values = new List<DataValue>();
             await foreach (DataValue value in client.ReadProcessedAsync(
                 nodeId,
-                ObjectIds.AggregateFunction_PercentGood,
+                ObjectIds.AggregateFunction_Count,
                 start,
                 start.AddSeconds(10),
                 10_000).ConfigureAwait(false))
@@ -198,18 +201,17 @@ namespace Opc.Ua.History.Tests
             Assert.That(values, Has.Count.EqualTo(1));
             Assert.Multiple(() =>
             {
-                Assert.That(values[0].WrappedValue.TryGetValue(out double actual), Is.True);
+                Assert.That(values[0].WrappedValue.TryGetValue(out int actual), Is.True);
                 Assert.That(actual, Is.EqualTo(expected));
                 Assert.That(values[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)start));
-                Assert.That(
-                    values[0].StatusCode,
-                    Is.EqualTo(StatusCodes.Good.WithAggregateBits(AggregateBits.Calculated)));
+                Assert.That(StatusCode.IsBad(values[0].StatusCode), Is.False);
+                Assert.That(values[0].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
             });
 
             values.Clear();
             await foreach (DataValue value in client.ReadProcessedAsync(
                 nodeId,
-                ObjectIds.AggregateFunction_PercentGood,
+                ObjectIds.AggregateFunction_Count,
                 start,
                 start.AddSeconds(10),
                 10_000,
@@ -223,8 +225,8 @@ namespace Opc.Ua.History.Tests
                 values.Add(value);
             }
             Assert.That(values, Has.Count.EqualTo(1));
-            Assert.That(values[0].WrappedValue.TryGetValue(out double overridden), Is.True);
-            Assert.That(overridden, Is.EqualTo(treatUncertainAsBad ? 100.0 : 0.0));
+            Assert.That(values[0].WrappedValue.TryGetValue(out int overridden), Is.True);
+            Assert.That(overridden, Is.EqualTo(treatUncertainAsBad ? 2 : 1));
             HistoricalDataConfigurationInfo afterOverride = await client
                 .GetConfigurationAsync(nodeId).ConfigureAwait(false);
             Assert.That(afterOverride.AggregateConfiguration, Is.Not.Null);
@@ -349,16 +351,18 @@ namespace Opc.Ua.History.Tests
         }
 
         /// <summary>
-        /// Verifies extrema retain good source values while uncertain candidates affect the aggregate quality.
+        /// Verifies that uncertain values are extrema candidates and an uncertain extremum is returned with
+        /// Uncertain_DataSubNormal (Mantis 11426 ~0025852: Uncertain values are looked at as if they are Good).
         /// </summary>
-        [TestCase(Objects.AggregateFunction_Minimum, 5.0)]
-        [TestCase(Objects.AggregateFunction_Maximum, 10.0)]
-        [TestCase(Objects.AggregateFunction_Range, 5.0)]
-        [TestCase(Objects.AggregateFunction_MinimumActualTime, 5.0)]
-        [TestCase(Objects.AggregateFunction_MaximumActualTime, 10.0)]
-        public async Task MinMaxHistoryPreservesGoodValuesAndReportsUncertainExtremaAsync(
+        [TestCase(Objects.AggregateFunction_Minimum, 1.0, 0)]
+        [TestCase(Objects.AggregateFunction_Maximum, 20.0, 0)]
+        [TestCase(Objects.AggregateFunction_Range, 19.0, 0)]
+        [TestCase(Objects.AggregateFunction_MinimumActualTime, 1.0, 1)]
+        [TestCase(Objects.AggregateFunction_MaximumActualTime, 20.0, 3)]
+        public async Task MinMaxHistoryReturnsUncertainExtremaAsUncertainAsync(
             uint aggregateTypeId,
-            double expected)
+            double expected,
+            int expectedTimestampSeconds)
         {
             var client = new HistoryClient(Session);
             var nodeId = new NodeId("Extrema", m_namespaceIndex);
@@ -398,10 +402,9 @@ namespace Opc.Ua.History.Tests
                 Assert.That(
                     values[0].StatusCode,
                     Is.EqualTo(StatusCodes.UncertainDataSubNormal.WithAggregateBits(AggregateBits.Calculated)));
-                DateTime expectedTimestamp = aggregateTypeId == Objects.AggregateFunction_MaximumActualTime
-                    ? start.AddSeconds(2)
-                    : start;
-                Assert.That(values[0].SourceTimestamp, Is.EqualTo((DateTimeUtc)expectedTimestamp));
+                Assert.That(
+                    values[0].SourceTimestamp,
+                    Is.EqualTo((DateTimeUtc)start.AddSeconds(expectedTimestampSeconds)));
             });
         }
 

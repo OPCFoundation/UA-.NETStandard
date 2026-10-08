@@ -262,6 +262,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 UserTokenType.Anonymous,
                 null,
                 activationSequence: 2,
+                userTokenRequiresEphemeralKey: false,
                 CancellationToken.None).ConfigureAwait(false);
             await manager.MirrorActivationIfCurrentAsync(
                 entry.AuthenticationToken,
@@ -269,6 +270,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 UserTokenType.Anonymous,
                 null,
                 activationSequence: 1,
+                userTokenRequiresEphemeralKey: false,
                 CancellationToken.None).ConfigureAwait(false);
 
             SharedSessionEntry? stored = await sessionStore
@@ -301,6 +303,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 UserTokenType.Anonymous,
                 null,
                 activationSequence: 1,
+                userTokenRequiresEphemeralKey: false,
                 CancellationToken.None).ConfigureAwait(false);
             await manager.MirrorActivationIfCurrentAsync(
                 entry.AuthenticationToken,
@@ -308,6 +311,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 UserTokenType.Anonymous,
                 null,
                 activationSequence: 2,
+                userTokenRequiresEphemeralKey: false,
                 CancellationToken.None).ConfigureAwait(false);
 
             SharedSessionEntry? stored = await sessionStore
@@ -483,6 +487,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 CreateContext()).ConfigureAwait(false);
 
             Assert.That(session, Is.Null);
+
+            // Issue #4627 RS-6: an entry nobody can restore any more is removed.
+            Assert.That(
+                await sessionStore.TryGetAsync(authenticationToken).ConfigureAwait(false),
+                Is.Null);
         }
 
         [Test]
@@ -741,6 +750,429 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Issue #4627 RS-1: a session in normal use is kept alive by its liveness
+        /// heartbeat, not only by activations, so it stays restorable long after its
+        /// last activation.
+        /// </summary>
+        [Test]
+        public void AuthorizeAcceptsSessionKeptAliveByTheHeartbeat()
+        {
+            var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-08T12:00:00Z", CultureInfo.InvariantCulture));
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using DistributedSessionManager manager = CreateManager(
+                new SharedSingleUseNonceRegistry(registryKv),
+                timeProvider: timeProvider);
+            DateTime now = timeProvider.GetUtcNow().UtcDateTime;
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 30)) with
+            {
+                LastActivatedAt = DateTimeUtc.From(now.AddMinutes(-10)),
+                LastContactAt = DateTimeUtc.From(now.AddSeconds(-5)),
+                SessionTimeout = 60_000
+            };
+
+            Assert.That(
+                manager.AuthorizeRestore(entry, PolicyA, MessageSecurityMode.SignAndEncrypt, s_clientChannelCertificate),
+                Is.EqualTo(DistributedSessionManager.RestoreDecision.Authorized));
+        }
+
+        [Test]
+        public void AuthorizeRejectsSessionWhoseHeartbeatStopped()
+        {
+            var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-08T12:00:00Z", CultureInfo.InvariantCulture));
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using DistributedSessionManager manager = CreateManager(
+                new SharedSingleUseNonceRegistry(registryKv),
+                timeProvider: timeProvider);
+            DateTime now = timeProvider.GetUtcNow().UtcDateTime;
+
+            // Timeout plus the heartbeat's maximum lag (a quarter of the timeout plus the
+            // one second liveness interval) has passed since the last mirrored contact.
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 31)) with
+            {
+                LastActivatedAt = DateTimeUtc.From(now.AddMinutes(-10)),
+                LastContactAt = DateTimeUtc.From(now.AddMilliseconds(-(60_000 + 15_000 + 1_000))),
+                SessionTimeout = 60_000
+            };
+
+            Assert.That(
+                manager.AuthorizeRestore(entry, PolicyA, MessageSecurityMode.SignAndEncrypt, s_clientChannelCertificate),
+                Is.EqualTo(DistributedSessionManager.RestoreDecision.Expired));
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-4: a session whose user token is encrypted with an EphemeralKey
+        /// is not restored, and nothing is consumed or counted as a failed authentication.
+        /// </summary>
+        [Test]
+        public async Task AuthorizeRejectsEphemeralKeyUserTokenWithoutConsumingTheNonceAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            using DistributedSessionManager manager = CreateManager(registry);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 32)) with
+            {
+                UserTokenRequiresEphemeralKey = true
+            };
+
+            DistributedSessionManager.RestoreDecision decision = await manager.AuthorizeAndConsumeAsync(
+                entry,
+                PolicyA,
+                MessageSecurityMode.SignAndEncrypt,
+                s_clientChannelCertificate).ConfigureAwait(false);
+
+            Assert.That(decision, Is.EqualTo(DistributedSessionManager.RestoreDecision.EphemeralKeyUnavailable));
+            Assert.That(await registry.TryConsumeAsync(entry.ServerNonce).ConfigureAwait(false), Is.True);
+        }
+
+        [TestCase(UserTokenType.UserName, null, ExpectedResult = true)]
+        [TestCase(UserTokenType.IssuedToken, null, ExpectedResult = true)]
+        [TestCase(UserTokenType.UserName, PolicyA, ExpectedResult = false)]
+        [TestCase(UserTokenType.Anonymous, null, ExpectedResult = false)]
+        [TestCase(UserTokenType.Certificate, null, ExpectedResult = false)]
+        public bool UserTokenRequiresEphemeralKeyOnlyForEncryptedTokensOfEphemeralKeyPolicies(
+            UserTokenType tokenType,
+            string? tokenSecurityPolicyUri)
+        {
+            if (SecurityPolicies.Default.GetInfo(SecurityPolicies.ECC_nistP256)?.EphemeralKeyAlgorithm is
+                null or CertificateKeyAlgorithm.None)
+            {
+                Assert.Ignore("ECC security policies are not supported on this platform.");
+            }
+
+            var endpoint = new EndpointDescription
+            {
+                SecurityPolicyUri = SecurityPolicies.ECC_nistP256,
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                UserIdentityTokens = new ArrayOf<UserTokenPolicy>(new[]
+                {
+                    new UserTokenPolicy
+                    {
+                        PolicyId = "policy",
+                        TokenType = tokenType,
+                        SecurityPolicyUri = tokenSecurityPolicyUri
+                    }
+                })
+            };
+            var handler = new Mock<IUserIdentityTokenHandler>();
+            handler.Setup(h => h.TokenType).Returns(tokenType);
+            handler.Setup(h => h.Token).Returns(new UserNameIdentityToken { PolicyId = "policy" });
+            var session = new Mock<ISession>();
+            session.Setup(s => s.EndpointDescription).Returns(endpoint);
+            session.Setup(s => s.IdentityToken).Returns(handler.Object);
+
+            return DistributedSessionManager.UserTokenRequiresEphemeralKey(session.Object);
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-5: a restore materializes the session without consuming the
+        /// single-use nonce; it is consumed only when the activation passed validation.
+        /// </summary>
+        [Test]
+        public async Task RestoreDoesNotConsumeTheNonceBeforeTheActivationIsValidatedAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv);
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
+            Mock<IServerInternal> server = CreateRestoreServerMock(true);
+            using DistributedSessionManager manager = CreateManager(
+                registry,
+                sessionStore: sessionStore,
+                server: server.Object,
+                serverCertificateProvider: _ => serverCertificate.AddRef());
+            SharedSessionEntry entry = CreateSecureEntry(clientCertificate);
+            await sessionStore.PutAsync(entry).ConfigureAwait(false);
+
+            ISession? first = await InvokeRestoreSessionAsync(
+                manager, entry.AuthenticationToken, CreateContext(clientCertificate.RawData)).ConfigureAwait(false);
+            ISession? second = await InvokeRestoreSessionAsync(
+                manager, entry.AuthenticationToken, CreateContext(clientCertificate.RawData)).ConfigureAwait(false);
+
+            try
+            {
+                Assert.That(first, Is.Not.Null);
+                Assert.That(second, Is.Not.Null, "a failed or abandoned attempt leaves the session restorable");
+                Assert.That(await registry.TryConsumeAsync(entry.ServerNonce).ConfigureAwait(false), Is.True);
+                Assert.That(await sessionStore.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false), Is.Not.Null);
+            }
+            finally
+            {
+                first?.Dispose();
+                second?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-3: the restored session asks for the SessionId the client got
+        /// from CreateSession instead of minting a new one.
+        /// </summary>
+        [Test]
+        public async Task RestoreRequestsTheMirroredSessionIdAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
+            NodeId requested = NodeId.Null;
+            Mock<IServerInternal> server = CreateRestoreServerMock(true, d => requested = d.SessionId);
+            using DistributedSessionManager manager = CreateManager(
+                new SharedSingleUseNonceRegistry(registryKv),
+                sessionStore: sessionStore,
+                server: server.Object,
+                serverCertificateProvider: _ => serverCertificate.AddRef());
+            SharedSessionEntry entry = CreateSecureEntry(clientCertificate) with
+            {
+                SessionId = new NodeId(Guid.NewGuid(), 1)
+            };
+            await sessionStore.PutAsync(entry).ConfigureAwait(false);
+
+            ISession? session = await InvokeRestoreSessionAsync(
+                manager, entry.AuthenticationToken, CreateContext(clientCertificate.RawData)).ConfigureAwait(false);
+            session?.Dispose();
+
+            Assert.That(session, Is.Not.Null);
+            Assert.That(requested, Is.EqualTo(entry.SessionId));
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-3: a new session asks for a SessionId that is unique across the
+        /// replica set (a per-process counter would repeat on every replica).
+        /// </summary>
+        [Test]
+        public async Task CreateSessionRequestsAClusterUniqueSessionIdAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            NodeId requested = NodeId.Null;
+            Mock<IServerInternal> server = CreateRestoreServerMock(true, d => requested = d.SessionId);
+            var namespaces = new NamespaceTable();
+            int diagnosticsIndex = namespaces.GetIndexOrAppend(Ua.Namespaces.OpcUa + "Diagnostics");
+            server.Setup(s => s.NamespaceUris).Returns(namespaces);
+            using DistributedSessionManager manager = CreateManager(
+                new SharedSingleUseNonceRegistry(registryKv),
+                sessionStore: sessionStore,
+                server: server.Object);
+
+            await CreateMirroredSessionAsync(manager, serverCertificate, "unique").ConfigureAwait(false);
+
+            Assert.That(requested.IdType, Is.EqualTo(IdType.Guid));
+            Assert.That(requested.NamespaceIndex, Is.EqualTo((ushort)diagnosticsIndex));
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-2: the created entry names this replica as its owner and carries
+        /// the server certificate the client received.
+        /// </summary>
+        [Test]
+        public async Task CreateSessionMirrorsOwnerAndServerCertificateAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            using DistributedSessionManager manager = CreateManager(
+                new SharedSingleUseNonceRegistry(registryKv),
+                sessionStore: sessionStore,
+                server: CreateRestoreServerMock(true).Object);
+
+            CreateSessionResult result = await CreateMirroredSessionAsync(manager, serverCertificate, "owner")
+                .ConfigureAwait(false);
+            SharedSessionEntry? entry = await sessionStore.TryGetAsync(result.AuthenticationToken).ConfigureAwait(false);
+
+            Assert.That(entry, Is.Not.Null);
+            Assert.That(entry!.OwnerId, Is.EqualTo(manager.ReplicaId));
+            Assert.That(entry.ServerCertificate, Is.EqualTo(serverCertificate.RawData.ToByteString()));
+            Assert.That(entry.LastContactAt.IsNull, Is.False);
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-8: when the server sends its complete chain in CreateSession the
+        /// entry carries that blob, which the client may have signed.
+        /// </summary>
+        [Test]
+        public async Task CreateSessionMirrorsTheAdvertisedServerCertificateChainAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            using Certificate issuer = CreateCertificate("CN=DistributedIssuer");
+            using var chain = new CertificateCollection { serverCertificate, issuer };
+            ByteString chainBlob = ByteString.From(Utils.CreateCertificateChainBlob(chain));
+            using DistributedSessionManager manager = CreateManager(
+                new SharedSingleUseNonceRegistry(registryKv),
+                sessionStore: sessionStore,
+                server: CreateRestoreServerMock(true).Object);
+
+            CreateSessionResult result = await CreateMirroredSessionAsync(
+                manager, serverCertificate, "chain", chainBlob).ConfigureAwait(false);
+            SharedSessionEntry? entry = await sessionStore.TryGetAsync(result.AuthenticationToken).ConfigureAwait(false);
+
+            Assert.That(entry!.ServerCertificate, Is.EqualTo(chainBlob));
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-2: a replica whose copy of a session was taken over by another
+        /// replica does not delete the shared entry when that stale copy times out or
+        /// closes; the owner does.
+        /// </summary>
+        [TestCase(false, ExpectedResult = true)]
+        [TestCase(true, ExpectedResult = false)]
+        public async Task<bool> CloseDeletesTheEntryOnlyOnTheOwningReplicaAsync(bool owned)
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            using DistributedSessionManager manager = CreateManager(
+                new SharedSingleUseNonceRegistry(registryKv),
+                sessionStore: sessionStore,
+                server: CreateRestoreServerMock(true).Object);
+            CreateSessionResult result = await CreateMirroredSessionAsync(manager, serverCertificate, "close")
+                .ConfigureAwait(false);
+            if (!owned)
+            {
+                SharedSessionEntry entry = (await sessionStore.TryGetAsync(result.AuthenticationToken).ConfigureAwait(false))!;
+                await sessionStore.PutAsync(entry with { OwnerId = "another-replica" }).ConfigureAwait(false);
+            }
+
+            await manager.CloseSessionAsync(result.SessionId).ConfigureAwait(false);
+
+            return await sessionStore.TryGetAsync(result.AuthenticationToken).ConfigureAwait(false) != null;
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-2: an activation that committed on this replica records it as the
+        /// owner, together with the liveness of the activation.
+        /// </summary>
+        [Test]
+        public async Task MirroredActivationRecordsTheOwnerAsync()
+        {
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using DistributedSessionManager manager = CreateManager(
+                new SharedSingleUseNonceRegistry(registryKv),
+                sessionStore);
+            SharedSessionEntry entry = EntryWithNonce(CreateBytes(32, 33)) with { OwnerId = "another-replica" };
+            await sessionStore.PutAsync(entry).ConfigureAwait(false);
+
+            await manager.MirrorActivationIfCurrentAsync(
+                entry.AuthenticationToken,
+                ByteString.From(CreateBytes(32, 34)),
+                UserTokenType.Anonymous,
+                null,
+                activationSequence: 1,
+                userTokenRequiresEphemeralKey: true,
+                CancellationToken.None).ConfigureAwait(false);
+
+            SharedSessionEntry? stored = await sessionStore.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
+            Assert.That(stored!.OwnerId, Is.EqualTo(manager.ReplicaId));
+            Assert.That(stored.LastContactAt.IsNull, Is.False);
+            Assert.That(stored.UserTokenRequiresEphemeralKey, Is.True);
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-6: the sweep removes the entries of sessions that can no longer
+        /// be restored and the consumed-nonce markers no live entry references.
+        /// </summary>
+        [Test]
+        public async Task SweepRemovesExpiredEntriesAndOrphanedNonceMarkersAsync()
+        {
+            var timeProvider = new FakeTimeProvider(DateTimeOffset.Parse("2026-10-08T12:00:00Z", CultureInfo.InvariantCulture));
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var registry = new SharedSingleUseNonceRegistry(registryKv, timeProvider: timeProvider);
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using DistributedSessionManager manager = CreateManager(
+                registry,
+                sessionStore: sessionStore,
+                timeProvider: timeProvider);
+
+            SharedSessionEntry expired = EntryWithNonce(CreateBytes(32, 40)) with
+            {
+                AuthenticationToken = new NodeId("expired", 2),
+                LastActivatedAt = DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime),
+                SessionTimeout = 60_000
+            };
+            Assert.That(await registry.TryConsumeAsync(expired.ServerNonce).ConfigureAwait(false), Is.True);
+            ByteString liveNonce = ByteString.From(CreateBytes(32, 41));
+            Assert.That(await registry.TryConsumeAsync(liveNonce).ConfigureAwait(false), Is.True);
+
+            timeProvider.Advance(TimeSpan.FromHours(2));
+            SharedSessionEntry live = EntryWithNonce(CreateBytes(32, 41)) with
+            {
+                AuthenticationToken = new NodeId("live", 2),
+                LastActivatedAt = DateTimeUtc.From(timeProvider.GetUtcNow().UtcDateTime),
+                SessionTimeout = 60_000
+            };
+            await sessionStore.PutAsync(expired).ConfigureAwait(false);
+            await sessionStore.PutAsync(live).ConfigureAwait(false);
+
+            (int entries, int markers) = await manager.SweepAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(entries, Is.EqualTo(1));
+            Assert.That(markers, Is.EqualTo(1));
+            Assert.That(await sessionStore.TryGetAsync(expired.AuthenticationToken).ConfigureAwait(false), Is.Null);
+            Assert.That(await sessionStore.TryGetAsync(live.AuthenticationToken).ConfigureAwait(false), Is.Not.Null);
+            Assert.That(
+                await registry.TryConsumeAsync(liveNonce).ConfigureAwait(false),
+                Is.False,
+                "the marker of a nonce a live entry carries is kept");
+        }
+
+        private static async Task<CreateSessionResult> CreateMirroredSessionAsync(
+            DistributedSessionManager manager,
+            Certificate serverCertificate,
+            string name,
+            ByteString advertisedServerCertificate = default)
+        {
+            using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
+            using OperationContext context = CreateContext(clientCertificate.RawData, advertisedServerCertificate);
+            Certificate sessionClientCertificate = clientCertificate.AddRef();
+            try
+            {
+                return await manager.CreateSessionAsync(
+                    context,
+                    serverCertificate,
+                    name,
+                    ByteString.From(CreateBytes(32, (byte)name.Length)),
+                    new ApplicationDescription { ApplicationUri = "urn:test:client" },
+                    "opc.tcp://localhost:4840",
+                    sessionClientCertificate,
+                    [],
+                    60_000,
+                    0).ConfigureAwait(false);
+            }
+            catch
+            {
+                sessionClientCertificate.Dispose();
+                throw;
+            }
+        }
+
         private static SharedSessionEntry CreateSecureEntry(Certificate clientCertificate)
         {
             using var clientChain = new CertificateCollection { clientCertificate };
@@ -780,13 +1212,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .CreateForRSA();
         }
 
-        private static OperationContext CreateContext(byte[]? clientChannelCertificate = null)
+        private static OperationContext CreateContext(
+            byte[]? clientChannelCertificate = null,
+            ByteString serverCertificate = default)
         {
             var endpoint = new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityPolicyUri = PolicyA,
-                SecurityMode = MessageSecurityMode.Sign
+                SecurityMode = MessageSecurityMode.Sign,
+                ServerCertificate = serverCertificate
             };
             var channelContext = new SecureChannelContext(
                 "restore-channel",
@@ -802,7 +1237,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 RequestLifetime.None);
         }
 
-        private static Mock<IServerInternal> CreateRestoreServerMock(bool initializeSucceeds)
+        private static Mock<IServerInternal> CreateRestoreServerMock(
+            bool initializeSucceeds,
+            Action<SessionDiagnosticsDataType>? onCreateDiagnostics = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var serverMock = new Mock<IServerInternal>();
@@ -821,6 +1258,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
                         It.IsAny<SessionSecurityDiagnosticsDataType>(),
                         It.IsAny<NodeValueSimpleEventHandler>(),
                         It.IsAny<CancellationToken>()))
+                    .Callback<ServerSystemContext, SessionDiagnosticsDataType, NodeValueSimpleEventHandler,
+                        SessionSecurityDiagnosticsDataType, NodeValueSimpleEventHandler, CancellationToken>(
+                        (_, diagnostics, _, _, _, _) => onCreateDiagnostics?.Invoke(diagnostics))
                     .Returns(new ValueTask<NodeId>(new NodeId(5001, 1)));
             }
             else

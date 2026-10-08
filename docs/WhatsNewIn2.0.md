@@ -153,8 +153,9 @@ support application-specific authentication. Pluggable crypto providers let an
 application replace platform cryptography with another library, a remote service,
 or hardware such as a TPM, HSM, or PKCS#11 token. Providers can be selected by
 purpose and security policy, including support for hardware-held private keys.
-ECC SecureChannel and user-token policies require .NET 8-or-later stack assets;
-curve and cipher availability also depends on the platform.
+ECC SecureChannel and user-token policies are available on every target; on .NET
+Framework the ECDH agreement uses BouncyCastle and the AEAD variants need .NET 8 or
+later. Curve and cipher availability also depends on the platform.
 See [Certificate Manager](CertificateManager.md), [Identity Providers](IdentityProviders.md),
 [Crypto Providers](CryptoProvider.md), and [ECC Profiles](EccProfiles.md#known-limitations).
 

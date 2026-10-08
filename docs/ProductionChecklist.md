@@ -41,7 +41,8 @@ review of your deployment.
   set to `false`; both are the hosted-server defaults. See
   [Server security and resource controls](DependencyInjection.md#server-security-and-resource-controls).
 - [ ] Enable `IncludeEccPolicies` only when every client supports the ECC
-  policies. ECC SecureChannel policies require the .NET 8 or later assemblies.
+  policies. On .NET Framework only the CBC-based ECC policies are available,
+  and their ECDH agreement runs in BouncyCastle rather than a validated module.
   See [ECC profiles: known limitations](EccProfiles.md#known-limitations).
 - [ ] Configure clients to select a `SignAndEncrypt` endpoint. See
   [Concepts: endpoints, secure channels, and sessions](Concepts.md#endpoints-secure-channels-and-sessions).

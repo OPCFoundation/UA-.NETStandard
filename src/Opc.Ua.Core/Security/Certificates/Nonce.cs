@@ -31,6 +31,9 @@ using System;
 using System.Collections.Generic;
 using System.Numerics;
 using System.Security.Cryptography;
+#if NETFRAMEWORK
+using Opc.Ua.Security.Certificates.BouncyCastle;
+#endif
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -77,9 +80,10 @@ namespace Opc.Ua
             byte[]? previousSecret)
         {
             byte[]? ikm = null;
-#if NET8_0_OR_GREATER
             if (m_ecdh != null)
             {
+                // On .NET Framework this resolves to the BouncyCastle polyfill
+                // in Opc.Ua.Security.Certificates; .NET 8+ uses the BCL method.
                 ikm = m_ecdh.DeriveRawSecretAgreement(remoteNonce.m_ecdh!.PublicKey);
             }
             else if (m_rsadh != null)
@@ -87,16 +91,6 @@ namespace Opc.Ua
                 ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh!);
             }
 
-#else // !NET8_0_OR_GREATER (NET78 and NET80)
-            if (m_ecdh != null)
-            {
-                throw new NotSupportedException("Raw ECDHE shared-secret extraction requires .NET 8 or later.");
-            }
-            else if (m_rsadh != null)
-            {
-                ikm = m_rsadh.DeriveRawSecretAgreement(remoteNonce.m_rsadh!);
-            }
-#endif
             if (ikm != null && previousSecret != null)
             {
                 for (int ii = 0; ii < ikm.Length && ii < previousSecret.Length; ii++)
