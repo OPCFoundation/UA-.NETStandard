@@ -326,7 +326,7 @@ namespace Opc.Ua.Server.Tests.Aggregates
                     PercentDataGood = 100,
                     UseSlopedExtrapolation = false
                 },
-                NUnitTelemetryContext.Create());
+                NUnitTelemetryContext.Create())!;
 
             foreach (DataValue value in raw)
             {
@@ -373,7 +373,7 @@ namespace Opc.Ua.Server.Tests.Aggregates
                     PercentDataGood = 100,
                     UseSlopedExtrapolation = false
                 },
-                NUnitTelemetryContext.Create());
+                NUnitTelemetryContext.Create())!;
 
             var results = new List<DataValue>();
             foreach (DataValue value in raw)
@@ -438,7 +438,7 @@ namespace Opc.Ua.Server.Tests.Aggregates
                     PercentDataGood = 100,
                     UseSlopedExtrapolation = false
                 },
-                NUnitTelemetryContext.Create());
+                NUnitTelemetryContext.Create())!;
 
             foreach (DataValue value in raw)
             {
