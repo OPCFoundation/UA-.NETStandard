@@ -66,8 +66,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(domains.Contains("ALTERNATE.EXAMPLE.COM"), Is.True);
             Assert.That(domains.Contains("127.0.0.1"), Is.True);
             Assert.That(X509Utils.DoesUrlMatchCertificate(cert, new Uri("opc.tcp://alternate.example.com:4840")), Is.True);
-            Assert.That(X509Utils.DoesUrlMatchCertificate(null, new Uri("opc.tcp://alternate.example.com:4840")), Is.False);
-            Assert.That(X509Utils.DoesUrlMatchCertificate(cert, null), Is.False);
+            Assert.That(X509Utils.DoesUrlMatchCertificate(null!, new Uri("opc.tcp://alternate.example.com:4840")), Is.False);
+            Assert.That(X509Utils.DoesUrlMatchCertificate(cert, null!), Is.False);
         }
 
         [Test]
@@ -183,29 +183,29 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
             X509SubjectKeyIdentifierExtension subjectKey =
-                issuer.FindExtension<X509SubjectKeyIdentifierExtension>();
+                issuer.FindExtension<X509SubjectKeyIdentifierExtension>()!;
             Assert.That(subjectKey, Is.Not.Null);
 
             var store = new Mock<ICertificateStore>(MockBehavior.Strict);
             store.Setup(s => s.EnumerateAsync(It.IsAny<CancellationToken>()))
                 .Returns(() => Task.FromResult(new CertificateCollection { other, issuer }));
 
-            Certificate bySerial = await X509Utils.FindIssuerCABySerialNumberAsync(
+            Certificate bySerial = (await X509Utils.FindIssuerCABySerialNumberAsync(
                 store.Object,
                 issuer.SubjectName,
-                issuer.SerialNumber).ConfigureAwait(false);
-            Certificate byKey = await X509Utils.FindIssuerCAByKeyIdentifierAsync(
+                issuer.SerialNumber).ConfigureAwait(false))!;
+            Certificate byKey = (await X509Utils.FindIssuerCAByKeyIdentifierAsync(
                 store.Object,
                 issuer.SubjectName,
-                subjectKey.SubjectKeyIdentifier).ConfigureAwait(false);
-            Certificate missingBySerial = await X509Utils.FindIssuerCABySerialNumberAsync(
+                subjectKey.SubjectKeyIdentifier!).ConfigureAwait(false))!;
+            Certificate missingBySerial = (await X509Utils.FindIssuerCABySerialNumberAsync(
                 store.Object,
                 issuer.SubjectName,
-                "missing").ConfigureAwait(false);
-            Certificate missingByKey = await X509Utils.FindIssuerCAByKeyIdentifierAsync(
+                "missing").ConfigureAwait(false))!;
+            Certificate missingByKey = (await X509Utils.FindIssuerCAByKeyIdentifierAsync(
                 store.Object,
                 issuer.SubjectName,
-                "missing").ConfigureAwait(false);
+                "missing").ConfigureAwait(false))!;
 
             try
             {

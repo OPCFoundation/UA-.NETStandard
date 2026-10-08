@@ -64,7 +64,7 @@ namespace Opc.Ua.Configuration.Tests
             // SecurityConfiguration
             Assert.That(config.SecurityConfiguration, Is.Not.Null);
             Assert.That(
-                config.SecurityConfiguration.ApplicationCertificate.StoreType,
+                config.SecurityConfiguration.ApplicationCertificate!.StoreType,
                 Is.EqualTo(CertificateStoreType.Directory));
             Assert.That(
                 config.SecurityConfiguration.ApplicationCertificate.StorePath,
@@ -79,7 +79,7 @@ namespace Opc.Ua.Configuration.Tests
                 config.SecurityConfiguration.TrustedPeerCertificates.StorePath,
                 Is.EqualTo("%LocalApplicationData%/OPC/trusted"));
             Assert.That(
-                config.SecurityConfiguration.RejectedCertificateStore.StorePath,
+                config.SecurityConfiguration.RejectedCertificateStore!.StorePath,
                 Is.EqualTo("%LocalApplicationData%/OPC/rejected"));
             Assert.That(config.SecurityConfiguration.NonceLength, Is.EqualTo(32));
             Assert.That(
@@ -143,7 +143,7 @@ namespace Opc.Ua.Configuration.Tests
                 roundTripped.SecurityConfiguration.MinimumCertificateKeySize,
                 Is.EqualTo(config.SecurityConfiguration.MinimumCertificateKeySize));
             Assert.That(
-                roundTripped.TransportQuotas.OperationTimeout,
+                roundTripped.TransportQuotas!.OperationTimeout,
                 Is.EqualTo(config.TransportQuotas.OperationTimeout));
             Assert.That(
                 roundTripped.TransportQuotas.MaxStringLength,
@@ -155,13 +155,13 @@ namespace Opc.Ua.Configuration.Tests
                 roundTripped.TransportQuotas.MaxMessageSize,
                 Is.EqualTo(config.TransportQuotas.MaxMessageSize));
             Assert.That(
-                roundTripped.ServerConfiguration.BaseAddresses[0],
+                roundTripped.ServerConfiguration!.BaseAddresses[0],
                 Is.EqualTo(config.ServerConfiguration.BaseAddresses[0]));
             Assert.That(
                 roundTripped.ServerConfiguration.MaxSessionCount,
                 Is.EqualTo(config.ServerConfiguration.MaxSessionCount));
             Assert.That(
-                roundTripped.TraceConfiguration.OutputFilePath,
+                roundTripped.TraceConfiguration!.OutputFilePath,
                 Is.EqualTo(config.TraceConfiguration.OutputFilePath));
             Assert.That(
                 roundTripped.TraceConfiguration.TraceMasks,
@@ -246,7 +246,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(rt.ProductUri, Is.EqualTo(config.ProductUri));
             Assert.That(rt.ApplicationType, Is.EqualTo(config.ApplicationType));
             Assert.That(
-                rt.ClientConfiguration.DefaultSessionTimeout,
+                rt.ClientConfiguration!.DefaultSessionTimeout,
                 Is.EqualTo(config.ClientConfiguration.DefaultSessionTimeout));
             Assert.That(
                 rt.ClientConfiguration.WellKnownDiscoveryUrls,
@@ -265,7 +265,7 @@ namespace Opc.Ua.Configuration.Tests
                 rt.ClientConfiguration.MinSubscriptionLifetime,
                 Is.EqualTo(config.ClientConfiguration.MinSubscriptionLifetime));
             Assert.That(
-                rt.ClientConfiguration.ReverseConnect.ClientEndpoints,
+                rt.ClientConfiguration.ReverseConnect!.ClientEndpoints,
                 Has.Count.EqualTo(
                     config.ClientConfiguration.ReverseConnect.ClientEndpoints.Count));
             Assert.That(
@@ -580,7 +580,7 @@ namespace Opc.Ua.Configuration.Tests
                 rt.SecurityConfiguration.ApplicationCertificates,
                 Has.Count.EqualTo(1));
             Assert.That(
-                rt.SecurityConfiguration.ApplicationCertificate.SubjectName,
+                rt.SecurityConfiguration.ApplicationCertificate!.SubjectName,
                 Is.EqualTo("CN=Legacy, O=Test"));
             Assert.That(
                 rt.SecurityConfiguration.RejectSHA1SignedCertificates,
@@ -685,16 +685,16 @@ namespace Opc.Ua.Configuration.Tests
                 rtSec.TrustedPeerCertificates.TrustedCertificates[0].SubjectName,
                 Is.EqualTo("CN=Trusted Peer, O=Test"));
             Assert.That(
-                rtSec.UserIssuerCertificates.StorePath,
+                rtSec.UserIssuerCertificates!.StorePath,
                 Is.EqualTo(sec.UserIssuerCertificates.StorePath));
             Assert.That(
-                rtSec.TrustedUserCertificates.StorePath,
+                rtSec.TrustedUserCertificates!.StorePath,
                 Is.EqualTo(sec.TrustedUserCertificates.StorePath));
             Assert.That(
-                rtSec.HttpsIssuerCertificates.StorePath,
+                rtSec.HttpsIssuerCertificates!.StorePath,
                 Is.EqualTo(sec.HttpsIssuerCertificates.StorePath));
             Assert.That(
-                rtSec.TrustedHttpsCertificates.StorePath,
+                rtSec.TrustedHttpsCertificates!.StorePath,
                 Is.EqualTo(sec.TrustedHttpsCertificates.StorePath));
             Assert.That(
                 rtSec.RejectUnknownRevocationStatus,
@@ -712,7 +712,7 @@ namespace Opc.Ua.Configuration.Tests
 
             Assert.That(config.ApplicationName, Is.EqualTo("Full Server Test"));
 
-            ServerConfiguration srv = config.ServerConfiguration;
+            ServerConfiguration srv = config.ServerConfiguration!;
             Assert.That(srv, Is.Not.Null);
 
             // BaseAddresses
@@ -848,7 +848,7 @@ namespace Opc.Ua.Configuration.Tests
                 Is.EqualTo(24));
 
             // ReverseConnect
-            ReverseConnectServerConfiguration rc = srv.ReverseConnect;
+            ReverseConnectServerConfiguration rc = srv.ReverseConnect!;
             Assert.That(rc, Is.Not.Null);
             Assert.That(rc.Clients, Has.Count.EqualTo(2));
             Assert.That(
@@ -872,7 +872,7 @@ namespace Opc.Ua.Configuration.Tests
             Assert.That(xml, Is.Not.Null.And.Not.Empty);
 
             ApplicationConfiguration rt = DecodeFromString<ApplicationConfiguration>(xml);
-            ServerConfiguration rtSrv = rt.ServerConfiguration;
+            ServerConfiguration rtSrv = rt.ServerConfiguration!;
             Assert.That(rtSrv, Is.Not.Null);
 
             // Verify key fields survived the round-trip
@@ -1139,7 +1139,7 @@ namespace Opc.Ua.Configuration.Tests
 
             // Explicit non-default value
             Assert.That(
-                config.ServerConfiguration.MaxSessionCount,
+                config.ServerConfiguration!.MaxSessionCount,
                 Is.EqualTo(50),
                 "MaxSessionCount should be the explicit value from XML.");
 
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Configuration.Tests
             // Round-trip
             string xml = EncodeToXml(config);
             ApplicationConfiguration roundTripped = DecodeFromString<ApplicationConfiguration>(xml);
-            Assert.That(roundTripped.ServerConfiguration.MaxSessionCount, Is.EqualTo(50));
+            Assert.That(roundTripped.ServerConfiguration!.MaxSessionCount, Is.EqualTo(50));
             Assert.That(roundTripped.ServerConfiguration.MaxTrustListSize, Is.Zero);
         }
 
@@ -1163,7 +1163,7 @@ namespace Opc.Ua.Configuration.Tests
                 DecodeFromFile<ApplicationConfiguration>("test-server-defaults.xml");
 
             Assert.That(
-                config.ServerConfiguration.MaxSessionCount,
+                config.ServerConfiguration!.MaxSessionCount,
                 Is.EqualTo(100),
                 "MaxSessionCount should default to 100.");
             Assert.That(
@@ -1182,7 +1182,7 @@ namespace Opc.Ua.Configuration.Tests
             // Round-trip: encode, re-parse, verify defaults persist
             string xml = EncodeToXml(config);
             ApplicationConfiguration roundTripped = DecodeFromString<ApplicationConfiguration>(xml);
-            Assert.That(roundTripped.ServerConfiguration.MaxSessionCount, Is.EqualTo(100));
+            Assert.That(roundTripped.ServerConfiguration!.MaxSessionCount, Is.EqualTo(100));
             Assert.That(roundTripped.ServerConfiguration.MinSessionTimeout, Is.EqualTo(10000));
             Assert.That(roundTripped.ServerConfiguration.MaxSessionTimeout, Is.EqualTo(3600000));
             Assert.That(roundTripped.ServerConfiguration.ShutdownDelay, Is.EqualTo(5));

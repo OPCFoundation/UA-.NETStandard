@@ -109,7 +109,7 @@ namespace Opc.Ua.Gds.Tests.Identity
 
             AuthenticationResult result = await provider.AugmentAsync(
                 identity,
-                CreateContext(null, ApplicationUri)).ConfigureAwait(false);
+                CreateContext(null!, ApplicationUri)).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.NotHandled));
             Assert.That(result.Identity, Is.Null);
@@ -130,7 +130,7 @@ namespace Opc.Ua.Gds.Tests.Identity
 
             AuthenticationResult result = await provider.AugmentAsync(
                 identity,
-                CreateContext(channelCertificate, null)).ConfigureAwait(false);
+                CreateContext(channelCertificate, null!)).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
             Assert.That(result.Identity, Is.SameAs(identity));
@@ -301,7 +301,7 @@ namespace Opc.Ua.Gds.Tests.Identity
                 string certificateTypeId,
                 out string trustListId)
             {
-                trustListId = null;
+                trustListId = null!;
                 return false;
             }
 

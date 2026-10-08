@@ -114,7 +114,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
             GetEndpointsResponse response = await m_server.GetEndpointsAsync(
                 CreateChannelContext(), new RequestHeader(), BalancingUrl, default, default, RequestLifetime.None).ConfigureAwait(false);
 
-            EndpointDescription[] endpoints = response.Endpoints.ToArray();
+            EndpointDescription[] endpoints = response.Endpoints.ToArray()!;
             Assert.That(endpoints, Has.Length.EqualTo(1));
             Assert.That(endpoints[0].Server?.ApplicationUri, Is.EqualTo("urn:B"));
         }
@@ -122,12 +122,12 @@ namespace Opc.Ua.Server.Tests.Redundancy
         [Test]
         public async Task GetEndpointsOnNormalUrlServesLocalServerAsync()
         {
-            string normalUrl = m_server.GetEndpoints().ToArray()[0].EndpointUrl;
+            string normalUrl = m_server.GetEndpoints().ToArray()![0].EndpointUrl!;
 
             GetEndpointsResponse response = await m_server.GetEndpointsAsync(
                 CreateChannelContext(), new RequestHeader(), normalUrl, default, default, RequestLifetime.None).ConfigureAwait(false);
 
-            EndpointDescription[] endpoints = response.Endpoints.ToArray();
+            EndpointDescription[] endpoints = response.Endpoints.ToArray()!;
             Assert.That(endpoints, Is.Not.Empty, "a normal request returns the local server's own endpoints");
             Assert.That(
                 endpoints.Any(e => string.Equals(e.Server?.ApplicationUri, "urn:B", StringComparison.Ordinal)),
@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
         private SecureChannelContext CreateChannelContext()
         {
-            EndpointDescription endpoint = m_server.GetEndpoints().ToArray()[0];
+            EndpointDescription endpoint = m_server.GetEndpoints().ToArray()![0];
             return new SecureChannelContext("loaddir-test", endpoint, RequestEncoding.Binary, null, null, null);
         }
 

@@ -180,7 +180,7 @@ namespace Opc.Ua.Server.Tests
             using var reader = new StreamReader(attachment.FilePath);
             foreach (ReferenceDescription reference in expected)
             {
-                string line = await reader.ReadLineAsync().ConfigureAwait(false);
+                string line = (await reader.ReadLineAsync().ConfigureAwait(false))!;
                 Assert.That(line,
                     Is.EqualTo($"NodeId {reference.NodeId} {reference.NodeClass} {reference.BrowseName}"));
             }

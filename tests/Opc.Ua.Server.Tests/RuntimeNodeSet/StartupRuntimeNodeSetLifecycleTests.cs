@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    m_server.Probe.DeleteAddressSpaceCount,
+                    m_server!.Probe.DeleteAddressSpaceCount,
                     Is.EqualTo(1));
                 Assert.That(
                     m_server.Probe.DisposeCount,
@@ -312,12 +312,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             ushort primaryNamespaceIndex = (ushort)server.NamespaceUris.GetIndex(
                 StartupRuntimeNodeSetServer.PrimaryNamespaceUri);
-            NodeState removedRoot = await server.NodeManager
+            NodeState removedRoot = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(
                     new NodeId(
                         StartupRuntimeNodeSetServer.PrimaryRootNodeId,
                         primaryNamespaceIndex))
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             ArrayOf<NodeManagerRegistration> afterRemove =
                 m_server.NodeManagerLifecycle.Registrations;
 
@@ -349,7 +349,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             string pkiRoot = Path.Combine(
                 Path.GetTempPath(),
                 "ua-startup-" + Guid.NewGuid().ToString("N"));
-            FailingStartupRuntimeNodeSetServer failedServer = null;
+            FailingStartupRuntimeNodeSetServer? failedServer = null;
             var fixture = new ServerFixture<FailingStartupRuntimeNodeSetServer>(
                 telemetry =>
                 {
@@ -452,12 +452,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             IServerInternal server = m_server.CurrentInstance;
             ushort namespaceIndex = (ushort)server.NamespaceUris.GetIndex(
                 StartupRuntimeNodeSetServer.PrimaryNamespaceUri);
-            NodeState node = await server.NodeManager
+            NodeState node = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(
                     new NodeId(
                         StartupRuntimeNodeSetServer.PrimaryValueNodeId,
                         namespaceIndex))
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(node, Is.InstanceOf<BaseVariableState>());
             return ((BaseVariableState)node).WrappedValue.GetInt32();
         }
@@ -483,7 +483,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             BrowseResponse response = await services
                 .BrowseAsync(
                     m_requestHeader,
-                    view: null,
+                    view: null!,
                     requestedMaxReferencesPerNode: 0,
                     nodesToBrowse)
                 .ConfigureAwait(false);

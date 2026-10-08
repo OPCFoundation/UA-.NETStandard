@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints("urn:A")).ConfigureAwait(false);
 
             Assert.That(redirect, Is.True);
-            EndpointDescription[] result = endpoints.ToArray();
+            EndpointDescription[] result = endpoints.ToArray()!;
             Assert.That(result, Has.Length.EqualTo(1));
             Assert.That(result[0].Server.ApplicationUri, Is.EqualTo("urn:B"));
         }
@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] published = (await directory.GetEndpointsAsync("urn:A").ConfigureAwait(false)).ToArray();
+            EndpointDescription[] published = (await directory.GetEndpointsAsync("urn:A").ConfigureAwait(false)).ToArray()!;
             Assert.That(published, Has.Length.EqualTo(1), "the local endpoints are published for peers");
             Assert.That(published[0].Server.ApplicationUri, Is.EqualTo("urn:A"));
         }
@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 await director.TryGetDirectedEndpointsAsync(BalancingUrl, LocalEndpoints("urn:A")).ConfigureAwait(false);
 
             Assert.That(redirect, Is.True);
-            Assert.That(endpoints.ToArray()[0].Server.ApplicationUri, Is.EqualTo("urn:B"));
+            Assert.That(endpoints.ToArray()![0].Server.ApplicationUri, Is.EqualTo("urn:B"));
         }
 
         [Test]

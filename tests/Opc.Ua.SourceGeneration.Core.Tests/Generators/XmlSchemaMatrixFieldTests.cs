@@ -90,8 +90,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             XmlSchemaSet schemas = CreateSchemaSet();
             var matrix = (XmlSchemaComplexType)schemas.GlobalTypes[
-                new XmlQualifiedName("Matrix", UaXmlUri)];
-            var sequence = (XmlSchemaSequence)matrix.ContentTypeParticle;
+                new XmlQualifiedName("Matrix", UaXmlUri)]!;
+            var sequence = (XmlSchemaSequence)matrix!.ContentTypeParticle;
             Assert.That(
                 sequence.Items.OfType<XmlSchemaElement>().Select(e => e.QualifiedName.Name),
                 Is.EqualTo(s_matrixChildren));
@@ -106,8 +106,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void MatrixFieldsAreOfTheMatrixType()
         {
             XmlSchemaSet schemas = CreateSchemaSet();
-            var grids = (XmlSchemaComplexType)schemas.GlobalTypes[new XmlQualifiedName("Grids", XmlUri)];
-            Dictionary<string, XmlSchemaElement> fields = ((XmlSchemaSequence)grids.ContentTypeParticle)
+            var grids = (XmlSchemaComplexType)schemas.GlobalTypes[new XmlQualifiedName("Grids", XmlUri)]!;
+            Dictionary<string, XmlSchemaElement> fields = ((XmlSchemaSequence)grids!.ContentTypeParticle)
                 .Items.OfType<XmlSchemaElement>()
                 .ToDictionary(e => e.QualifiedName.Name);
             foreach (string name in s_matrixFields)
@@ -173,42 +173,42 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [TestCase(true)]
         public void EncodedXmlValidatesAgainstGeneratedSchema(bool populated)
         {
-            Type gridsType = m_assembly.GetType("Test.XM.Grids", throwOnError: true);
-            Type cellType = m_assembly.GetType("Test.XM.Cell", throwOnError: true);
-            var grids = (IEncodeable)Activator.CreateInstance(gridsType);
-            Set(grids, "Before", 7);
+            Type gridsType = m_assembly.GetType("Test.XM.Grids", throwOnError: true)!;
+            Type cellType = m_assembly.GetType("Test.XM.Cell", throwOnError: true)!;
+            var grids = (IEncodeable)Activator.CreateInstance(gridsType!)!;
+            Set(grids!, "Before", 7);
             if (populated)
             {
-                Array cells = Array.CreateInstance(cellType, 1, 2);
+                Array cells = Array.CreateInstance(cellType!, 1, 2);
                 cells.SetValue(Cell(cellType, 1), 0, 0);
                 cells.SetValue(Cell(cellType, 2), 0, 1);
                 Set(grids, "Cells", typeof(MatrixOf)
-                    .GetMethod(nameof(MatrixOf.From), BindingFlags.Public | BindingFlags.Static)
+                    .GetMethod(nameof(MatrixOf.From), BindingFlags.Public | BindingFlags.Static)!
                     .MakeGenericMethod(cellType)
-                    .Invoke(null, [cells]));
+                    .Invoke(null, [cells])!);
                 Set(grids, "Loose", Variant.From(s_oneTwo.ToArrayOf()));
             }
             Set(grids, "After", 9);
-            var opt = (IEncodeable)Activator.CreateInstance(m_assembly.GetType("Test.XM.Opt", throwOnError: true));
+            var opt = (IEncodeable)Activator.CreateInstance(m_assembly.GetType("Test.XM.Opt", throwOnError: true)!)!;
             if (populated)
             {
-                Set(opt, "B", 5);
+                Set(opt!, "B", 5);
             }
 
             ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             context.NamespaceUris.Append(ModelUri);
             context.Factory.Builder.AddEncodeableTypes(m_assembly).Commit();
-            foreach ((string name, IEncodeable value) in new[] { ("Grids", grids), ("Opt", opt) })
+            foreach ((string name, IEncodeable value) in new[] { ("Grids", grids), ("Opt", opt) }!)
             {
                 string xml;
                 using (var encoder = new XmlEncoder(context))
                 {
                     encoder.PushNamespace(XmlUri);
-                    encoder.WriteEncodeable(name, value, value.TypeId);
+                    encoder.WriteEncodeable(name, value, value!.TypeId);
                     encoder.PopNamespace();
-                    xml = encoder.CloseAndReturnText();
+                    xml = encoder.CloseAndReturnText()!;
                 }
-                Assert.That(Validate(xml), Is.Empty, xml);
+                Assert.That(Validate(xml!), Is.Empty, xml);
             }
         }
 
@@ -242,20 +242,20 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             static XmlSchema Load(string text)
             {
                 using var reader = XmlReader.Create(new StringReader(text.TrimStart((char)0xFEFF)));
-                return XmlSchema.Read(reader, null);
+                return XmlSchema.Read(reader, null)!;
             }
         }
 
         private static IEncodeable Cell(Type cellType, int value)
         {
-            var cell = (IEncodeable)Activator.CreateInstance(cellType);
-            Set(cell, "V", value);
+            var cell = (IEncodeable)Activator.CreateInstance(cellType)!;
+            Set(cell!, "V", value);
             return cell;
         }
 
         private static void Set(object instance, string name, object value)
         {
-            instance.GetType().GetProperty(name).SetValue(instance, value);
+            instance.GetType().GetProperty(name)!.SetValue(instance, value);
         }
 
         private const string ConformantGrids =

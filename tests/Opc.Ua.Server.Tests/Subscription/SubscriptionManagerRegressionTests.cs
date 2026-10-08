@@ -606,8 +606,8 @@ namespace Opc.Ua.Server.Tests
             // but A has not returned (and released its reservation) yet.
             var addedByA = new MonitoredItemCountChange();
             object reservationA = typeof(SubscriptionManager)
-                .GetMethod("ReserveMonitoredItems", BindingFlags.Instance | BindingFlags.NonPublic)
-                .Invoke(manager, [subscription, 60, addedByA]);
+                .GetMethod("ReserveMonitoredItems", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .Invoke(manager, [subscription, 60, addedByA])!;
             Assert.That(reservationA, Is.Not.Null);
             SetMonitoredItemCount(subscription, 60);
             for (int ii = 0; ii < 60; ii++)
@@ -761,7 +761,7 @@ namespace Opc.Ua.Server.Tests
 
         private static TestSession CreateSession(
             string applicationUri = "urn:localhost:opcfoundation.org:SubscriptionManagerRegressionTests",
-            UserIdentity identity = null)
+            UserIdentity? identity = null)
         {
             identity ??= new UserIdentity("manager-user", [1, 2, 3]);
             var result = new TestSession
@@ -798,8 +798,8 @@ namespace Opc.Ua.Server.Tests
         {
             CreateSubscriptionResponse created = await StartCreateSubscription(manager, session)
                 .ConfigureAwait(false);
-            Assert.That(manager.TryGetSubscription(created.SubscriptionId, out ISubscription subscription), Is.True);
-            return (Subscription)subscription;
+            Assert.That(manager.TryGetSubscription(created.SubscriptionId, out ISubscription? subscription), Is.True);
+            return (Subscription)subscription!;
         }
 
         private static Task<CreateSubscriptionResponse> StartCreateSubscription(
@@ -825,7 +825,7 @@ namespace Opc.Ua.Server.Tests
             var creating = new List<Task<CreateSubscriptionResponse>>();
             int succeeded = 0;
             int rejected = 0;
-            ExceptionDispatchInfo failure = null;
+            ExceptionDispatchInfo? failure = null;
             try
             {
                 for (int ii = 0; ii < 3; ii++)
@@ -891,7 +891,7 @@ namespace Opc.Ua.Server.Tests
                 fieldName,
                 BindingFlags.Instance | BindingFlags.NonPublic)
                 ?? throw new InvalidOperationException($"Field {fieldName} not found.");
-            return (T)field.GetValue(instance);
+            return (T)field.GetValue(instance)!;
         }
 
         private static void SetPrivateField<T>(object instance, string fieldName, T value)
@@ -906,8 +906,8 @@ namespace Opc.Ua.Server.Tests
         private sealed class TestSession
         {
             public NodeId Id { get; set; }
-            public Mock<ISession> Mock { get; set; }
-            public SessionDiagnosticsDataType Diagnostics { get; set; }
+            public Mock<ISession> Mock { get; set; } = null!;
+            public SessionDiagnosticsDataType Diagnostics { get; set; } = null!;
             public bool Closing { get; set; }
         }
     }

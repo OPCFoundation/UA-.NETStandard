@@ -65,7 +65,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(
                     budget.MaxBytes,
                     Is.EqualTo(ChunkReassemblyBudget.GetDefaultMaxBytes(
-                        fixture.Config.TransportQuotas.MaxMessageSize)));
+                        fixture.Config.TransportQuotas!.MaxMessageSize)));
                 Assert.That(server.ChunkReassemblyBudget, Is.SameAs(budget));
                 Assert.That(server.ResourceIsolationProvider!.UseFairScheduling, Is.True);
             }
@@ -111,8 +111,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(provider.HasSession(channel.SecureChannelId), Is.True);
                 Assert.That(provider.TryGetSessionContext(header.AuthenticationToken, channel, out var context),
                     Is.True);
-                Assert.That(context.SessionId,
-                    Is.EqualTo(server.CurrentInstance.SessionManager.GetSession(header.AuthenticationToken).Id));
+                Assert.That(context!.SessionId,
+                    Is.EqualTo(server.CurrentInstance.SessionManager.GetSession(header.AuthenticationToken)!.Id));
                 await server.CloseSessionAsync(channel, header, CancellationToken.None).ConfigureAwait(false);
                 Assert.That(provider.HasSession(channel.SecureChannelId), Is.False);
                 Assert.That(provider.TryGetSessionContext(header.AuthenticationToken, channel, out _), Is.False);
@@ -179,8 +179,8 @@ namespace Opc.Ua.Server.Tests
                 Uri endpointUri)
             {
                 base.ConfigureTransportListenerSettings(settings, endpointUri);
-                ListenerBudgets.Add(settings.ChunkReassemblyBudget);
-                BindingProviders.Add(settings.SessionBindingProvider);
+                ListenerBudgets.Add(settings.ChunkReassemblyBudget!);
+                BindingProviders.Add(settings.SessionBindingProvider!);
             }
         }
     }

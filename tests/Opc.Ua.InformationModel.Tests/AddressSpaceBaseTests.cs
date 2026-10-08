@@ -96,7 +96,7 @@ namespace Opc.Ua.InformationModel.Tests
             var childNames = new List<string>();
             foreach (ReferenceDescription r in browseResult.References)
             {
-                childNames.Add(r.BrowseName.Name);
+                childNames.Add(r.BrowseName.Name!);
             }
 
             Assert.That(childNames, Does.Contain("ServerCapabilities"));
@@ -130,7 +130,7 @@ namespace Opc.Ua.InformationModel.Tests
             var childNames = new List<string>();
             foreach (ReferenceDescription r in browseResult.References)
             {
-                childNames.Add(r.BrowseName.Name);
+                childNames.Add(r.BrowseName.Name!);
             }
 
             Assert.That(childNames, Does.Contain("State"));
@@ -146,7 +146,7 @@ namespace Opc.Ua.InformationModel.Tests
             var childNames = new List<string>();
             foreach (ReferenceDescription r in browseResult.References)
             {
-                childNames.Add(r.BrowseName.Name);
+                childNames.Add(r.BrowseName.Name!);
             }
 
             Assert.That(childNames, Does.Contain("ObjectTypes"));

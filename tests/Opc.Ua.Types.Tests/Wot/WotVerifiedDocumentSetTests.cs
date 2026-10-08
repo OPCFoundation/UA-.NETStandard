@@ -389,7 +389,7 @@ namespace Opc.Ua.Types.Tests.Wot
             DirectoryInfo directory = new(TestContext.CurrentContext.TestDirectory);
             while (directory is not null && !File.Exists(Path.Combine(directory.FullName, "UA.slnx")))
             {
-                directory = directory.Parent;
+                directory = directory.Parent!;
             }
             Assert.That(directory, Is.Not.Null);
             string sourcePath = Path.Combine(directory!.FullName, Path.Combine(relativePath.Split('\\')));
@@ -421,7 +421,7 @@ namespace Opc.Ua.Types.Tests.Wot
             await AssertEquivalentAsync(source, reloaded, options).ConfigureAwait(false);
             TestContext.Out.WriteLine(
                 $"{Path.GetFileName(sourcePath)}: {set.Entries.Count} linked partitions, " +
-                $"{set.Entries.ToArray().Count(entry => entry.Document.TryGetNativeProjection(out _))} native.");
+                $"{set.Entries.ToArray()!.Count(entry => entry.Document.TryGetNativeProjection(out _))} native.");
         }
 
         [Test]
@@ -515,7 +515,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     changed.Extensions![0].InnerText = "changed";
                     break;
                 default:
-                    changed.Items = changed.Items!.Take(changed.Items.Length - 1).ToArray();
+                    changed.Items = changed.Items!.Take(changed.Items!.Length - 1).ToArray();
                     break;
             }
             Assert.That(WotNodeSetConverter.CompareDocumentSet(source, changed).AreEquivalent, Is.False, fact);
@@ -722,7 +722,7 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet source,
             WotDocumentSet documents,
             WotNodeSetConverterOptions options,
-            IWotNodeResolver nodeResolver = null)
+            IWotNodeResolver? nodeResolver = null)
         {
             WotConversionResult<UANodeSet> restored =
                 await WotNodeSetConverter.ToNodeSetAsync(documents, options, nodeResolver).ConfigureAwait(false);

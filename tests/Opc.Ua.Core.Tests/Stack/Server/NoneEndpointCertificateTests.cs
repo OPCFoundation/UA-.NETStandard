@@ -62,23 +62,23 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 new NodeId(certificateType), rsa)
                 .ConfigureAwait(false);
             using var server = new ServerBase(telemetry);
-            ApplicationConfiguration configuration = CreateConfiguration(registry, type, null);
+            ApplicationConfiguration configuration = CreateConfiguration(registry, type, null!);
             EndpointDescription endpoint = CreateEndpoint();
             endpoint.UserIdentityTokens = server.GetUserTokenPolicies(configuration, endpoint);
 
             ServerBase.SetServerCertificateInEndpointDescription(endpoint, registry);
 
             Assert.That(endpoint.UserIdentityTokens.Count, Is.EqualTo(3));
-            Assert.That(endpoint.UserIdentityTokens.ToArray().Single(policy => policy.TokenType == type)
+            Assert.That(endpoint.UserIdentityTokens.ToArray()!.Single(policy => policy.TokenType == type)
                 .SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
             using CertificateCollection advertised = Utils.ParseCertificateChainBlob(
                 endpoint.ServerCertificate.ToArray(), telemetry);
             Assert.That(advertised[0].RawData, Is.EqualTo(rsa.RawData));
-            using RSA publicKey = advertised[0].GetRSAPublicKey();
-            using RSA privateKey = rsa.GetRSAPrivateKey();
+            using RSA publicKey = advertised[0].GetRSAPublicKey()!;
+            using RSA privateKey = rsa.GetRSAPrivateKey()!;
             byte[] plaintext = [1, 2, 3, 4];
-            byte[] encrypted = publicKey.Encrypt(plaintext, RSAEncryptionPadding.OaepSHA256);
-            Assert.That(privateKey.Decrypt(encrypted, RSAEncryptionPadding.OaepSHA256), Is.EqualTo(plaintext));
+            byte[] encrypted = publicKey!.Encrypt(plaintext, RSAEncryptionPadding.OaepSHA256);
+            Assert.That(privateKey!.Decrypt(encrypted, RSAEncryptionPadding.OaepSHA256), Is.EqualTo(plaintext));
         }
 
         [TestCase(UserTokenType.UserName, ObjectTypes.RsaSha256ApplicationCertificateType, (ushort)1024)]
@@ -95,13 +95,13 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             await registry.UpdateApplicationCertificateAsync(new NodeId(certificateType), certificate)
                 .ConfigureAwait(false);
             using var server = new ServerBase(telemetry);
-            ApplicationConfiguration configuration = CreateConfiguration(registry, type, null);
+            ApplicationConfiguration configuration = CreateConfiguration(registry, type, null!);
 
             ArrayOf<UserTokenPolicy> policies = server.GetUserTokenPolicies(configuration, CreateEndpoint());
 
-            Assert.That(policies.ToArray().Select(policy => policy.TokenType),
+            Assert.That(policies.ToArray()!.Select(policy => policy.TokenType),
                 Is.EquivalentTo([UserTokenType.Anonymous, UserTokenType.Certificate]));
-            Assert.That(configuration.ServerConfiguration.UserTokenPolicies.Count, Is.EqualTo(3));
+            Assert.That(configuration.ServerConfiguration!.UserTokenPolicies.Count, Is.EqualTo(3));
         }
 
         [TestCase(UserTokenType.UserName, null, false)]
@@ -111,7 +111,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [TestCase(UserTokenType.IssuedToken, SecurityPolicies.RSA_DH_AesGcm, false)]
         [TestCase(UserTokenType.IssuedToken, SecurityPolicies.RSA_DH_AesGcm, true)]
         public async Task NoneEndpointOmitsEncryptedTokensWithoutCompatibleRsaPolicyAsync(
-            UserTokenType type, string policyUri, bool hasRsa)
+            UserTokenType type, string? policyUri, bool hasRsa)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             using var registry = new CertificateManager(telemetry);
@@ -127,12 +127,12 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                     .ConfigureAwait(false);
             }
             using var server = new ServerBase(telemetry);
-            ApplicationConfiguration configuration = CreateConfiguration(registry, type, policyUri);
+            ApplicationConfiguration configuration = CreateConfiguration(registry, type, policyUri!);
             ArrayOf<UserTokenPolicy> policies = server.GetUserTokenPolicies(configuration, CreateEndpoint());
 
-            Assert.That(policies.ToArray().Select(policy => policy.TokenType),
+            Assert.That(policies.ToArray()!.Select(policy => policy.TokenType),
                 Is.EquivalentTo([UserTokenType.Anonymous, UserTokenType.Certificate]));
-            Assert.That(configuration.ServerConfiguration.UserTokenPolicies.Count, Is.EqualTo(3));
+            Assert.That(configuration.ServerConfiguration!.UserTokenPolicies.Count, Is.EqualTo(3));
         }
 
         [Test]
@@ -150,7 +150,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             using var server = new ServerBase(telemetry);
             ApplicationConfiguration configuration = CreateConfiguration(
                 registry, UserTokenType.UserName, SecurityPolicies.Basic128Rsa15);
-            configuration.ServerConfiguration.UserTokenPolicies += new UserTokenPolicy(UserTokenType.IssuedToken)
+            configuration.ServerConfiguration!.UserTokenPolicies += new UserTokenPolicy(UserTokenType.IssuedToken)
             {
                 SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss
             };
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             ArrayOf<UserTokenPolicy> policies = server.GetUserTokenPolicies(configuration, CreateEndpoint());
 
-            Assert.That(policies.ToArray().Single(policy => policy.TokenType == UserTokenType.UserName)
+            Assert.That(policies.ToArray()!.Single(policy => policy.TokenType == UserTokenType.UserName)
                 .SecurityPolicyUri, Is.EqualTo(SecurityPolicies.None));
         }
 

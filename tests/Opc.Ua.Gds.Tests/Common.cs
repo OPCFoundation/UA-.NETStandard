@@ -143,7 +143,7 @@ namespace Opc.Ua.Gds.Tests
             string appName = "UA " + pureAppName;
             ArrayOf<string> domainNames = RandomDomainNames();
             string localhost = domainNames[0];
-            string locale = RandomSource.NextInt32(10) == 0 ? null : "en-US";
+            string locale = (RandomSource.NextInt32(10) == 0 ? null : "en-US")!;
             string privateKeyFormat = RandomSource.NextInt32(1) == 0 ? "PEM" : "PFX";
             string appUri = ("urn:localhost:opcfoundation.org:" + pureAppUri.ToLowerInvariant())
                 .Replace("localhost", localhost, StringComparison.Ordinal);
@@ -195,7 +195,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 if (RandomSource.NextInt32(100) > 50)
                 {
-                    serverCapabilities.Add(cap.Id);
+                    serverCapabilities.Add(cap.Id!);
                     if (capabilities-- == 0)
                     {
                         break;
@@ -283,25 +283,25 @@ namespace Opc.Ua.Gds.Tests
             CertificateTypeId = default;
             CertificateRequestId = default;
             DomainNames = [];
-            Subject = null;
+            Subject = null!;
             PrivateKeyFormat = "PFX";
-            PrivateKeyPassword = null;
-            Certificate = null;
-            PrivateKey = null;
-            IssuerCertificates = null;
+            PrivateKeyPassword = null!;
+            Certificate = null!;
+            PrivateKey = null!;
+            IssuerCertificates = null!;
         }
 
-        public ApplicationRecordDataType ApplicationRecord;
+        public ApplicationRecordDataType ApplicationRecord = null!;
         public NodeId CertificateGroupId;
         public NodeId CertificateTypeId;
         public NodeId CertificateRequestId;
         public ArrayOf<string> DomainNames;
-        public string Subject;
-        public string PrivateKeyFormat;
-        public char[] PrivateKeyPassword;
-        public byte[] Certificate;
-        public byte[] PrivateKey;
-        public byte[][] IssuerCertificates;
+        public string Subject = null!;
+        public string PrivateKeyFormat = null!;
+        public char[] PrivateKeyPassword = null!;
+        public byte[] Certificate = null!;
+        public byte[] PrivateKey = null!;
+        public byte[][] IssuerCertificates = null!;
     }
 
     public class ApplicationMessageDlg : IApplicationMessageDlg
@@ -351,7 +351,7 @@ namespace Opc.Ua.Gds.Tests
             CertificateIdentifier id,
             ITelemetryContext telemetry)
         {
-            using ICertificateStore store = CertificateIdentifierResolver.OpenStore(id, telemetry);
+            using ICertificateStore? store = CertificateIdentifierResolver.OpenStore(id, telemetry);
             if (store == null)
             {
                 return;
@@ -382,7 +382,7 @@ namespace Opc.Ua.Gds.Tests
 
         public static void DeleteDirectory(string storePath)
         {
-            string fullStorePath = Utils.ReplaceSpecialFolderNames(storePath);
+            string fullStorePath = Utils.ReplaceSpecialFolderNames(storePath)!;
             if (Directory.Exists(fullStorePath))
             {
                 Directory.Delete(fullStorePath, true);
@@ -396,7 +396,7 @@ namespace Opc.Ua.Gds.Tests
             if (basePort is >= kMinPort and <= ServerFixtureUtils.MaxTestPort)
             {
                 var newBaseAddresses = new List<string>();
-                foreach (string baseAddress in config.ServerConfiguration.BaseAddresses)
+                foreach (string baseAddress in config.ServerConfiguration!.BaseAddresses)
                 {
                     var baseAddressUri = new UriBuilder(baseAddress) { Port = basePort++ };
                     newBaseAddresses.Add(baseAddressUri.Uri.AbsoluteUri);
@@ -423,9 +423,9 @@ namespace Opc.Ua.Gds.Tests
             bool clean,
             string storeType = CertificateStoreType.Directory,
             int maxTrustListSize = 0,
-            IEnumerable<CertificateGroupConfiguration> additionalCertGroups = null)
+            IEnumerable<CertificateGroupConfiguration>? additionalCertGroups = null)
         {
-            GlobalDiscoveryTestServer server = null;
+            GlobalDiscoveryTestServer? server = null;
             int testPort = ServerFixtureUtils.GetNextFreeIPPort();
             int serverStartRetries = 25;
             bool retryStartServer;
@@ -456,7 +456,7 @@ namespace Opc.Ua.Gds.Tests
                         catch
                         {
                         }
-                        server = null;
+                        server = null!;
                     }
 
                     testPort = UnsecureRandom.Shared.Next(
@@ -468,7 +468,7 @@ namespace Opc.Ua.Gds.Tests
                 await Task.Delay(UnsecureRandom.Shared.Next(100, 1000)).ConfigureAwait(false);
             } while (retryStartServer);
 
-            return server;
+            return server!;
         }
     }
 }

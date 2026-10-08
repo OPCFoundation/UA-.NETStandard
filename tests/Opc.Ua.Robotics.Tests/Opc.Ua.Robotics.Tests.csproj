@@ -3,7 +3,6 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Robotics.Tests</RootNamespace>
     <AssemblyName>Opc.Ua.Robotics.Tests</AssemblyName>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
   </PropertyGroup>

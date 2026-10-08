@@ -153,7 +153,7 @@ namespace Opc.Ua.SourceGeneration
 
             Assert.Multiple(() =>
             {
-                Assert.That(comparer.GetHashCode(null), Is.Zero);
+                Assert.That(comparer.GetHashCode(null!), Is.Zero);
                 Assert.That(comparer.GetHashCode(ImmutableHashSet<string>.Empty), Is.Zero);
             });
         }

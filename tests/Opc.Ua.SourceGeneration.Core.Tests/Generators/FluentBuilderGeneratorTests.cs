@@ -666,7 +666,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         private static Dictionary<string, string> GenerateForDeclarationBackedNodeSet(
-            Func<string, string> transform = null,
+            Func<string, string>? transform = null,
             (string FileName, string Content)? ignoredDependency = null)
         {
             const string nodeSetFile = "DeclarationBackedMethod.NodeSet2.xml";
@@ -753,7 +753,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void EmitChildWithANonCollidingName_Generates()
         {
-            string builders = null;
+            string? builders = null;
             Assert.DoesNotThrow(() => builders = GenerateWrapperWithChildNamed("Setpoint"));
             Assert.That(builders, Does.Contain("Setpoint"));
         }

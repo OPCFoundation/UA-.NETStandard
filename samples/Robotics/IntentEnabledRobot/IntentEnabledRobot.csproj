@@ -7,7 +7,6 @@
     <PackageId>IntentEnabledRobot</PackageId>
     <Description>Minimal self-contained OPC UA Robot Intent server sample with a simulated UR5e-style arm and OpenUSD assets.</Description>
     <RootNamespace>Robotics.IntentEnabledRobot</RootNamespace>
-    <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA1014;CA1822</NoWarn>
     <PublishAot>true</PublishAot>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>

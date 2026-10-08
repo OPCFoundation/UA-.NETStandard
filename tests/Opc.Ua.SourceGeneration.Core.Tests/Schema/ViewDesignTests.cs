@@ -57,7 +57,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = instance.Equals(null);
+            bool result = instance.Equals(null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -325,7 +325,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = viewDesign.Equals(null);
+            bool result = viewDesign.Equals(null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert

@@ -29,8 +29,6 @@
 
 #pragma warning disable CA2000, CA2007
 
-#nullable enable
-
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;

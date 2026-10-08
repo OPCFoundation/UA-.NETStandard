@@ -59,7 +59,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
 
             List<uint> order = [];
-            while (queue.TryDequeue(out FairRequestQueue.Entry entry))
+            while (queue.TryDequeue(out FairRequestQueue.Entry? entry))
             {
                 order.Add(entry.Request.Request.RequestHeader.RequestHandle);
                 entry.Dispose();
@@ -353,7 +353,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             var admitted = new TestRequest(token);
             provider.BeforeCostGrant = () =>
             {
-                provider.BeforeCostGrant = null;
+                provider.BeforeCostGrant = null!;
                 Enqueue(queue, admitted);
             };
 
@@ -731,24 +731,24 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             using FairRequestQueue.Entry running = Dequeue(queue);
             Enqueue(queue, new TestRequest(token, 2));
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
-            Task<FairRequestQueue.Entry> competing = null;
+            Task<FairRequestQueue.Entry>? competing = null;
             provider.BeforeExecutionRejection = () =>
             {
-                provider.BeforeExecutionRejection = null;
+                provider.BeforeExecutionRejection = null!;
                 running.ReleaseExecution();
                 competing = queue.DequeueAsync(deadline.Token).AsTask();
                 Assert.That(competing.IsCompleted, Is.False);
             };
             Task<FairRequestQueue.Entry> original = queue.DequeueAsync(deadline.Token).AsTask();
-            Task<FairRequestQueue.Entry> completed = await Task.WhenAny(original, competing)
+            Task<FairRequestQueue.Entry> completed = await Task.WhenAny(original, competing!)
                 .WaitAsync(deadline.Token).ConfigureAwait(false);
             using FairRequestQueue.Entry next = await completed.ConfigureAwait(false);
             Assert.That(next.Request.Request.RequestHeader.RequestHandle, Is.EqualTo(2));
             Assert.That(provider.ExecutionGrants, Is.EqualTo(2));
             deadline.Cancel();
-            Task<FairRequestQueue.Entry> cancelled = completed == original ? competing : original;
+            Task<FairRequestQueue.Entry> cancelled = (completed == original ? competing : original)!;
             Assert.ThrowsAsync<OperationCanceledException>(async () =>
-                await cancelled.ConfigureAwait(false));
+                await cancelled!.ConfigureAwait(false));
         }
 
         /// <summary>
@@ -769,7 +769,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             }
             provider.BeforeExecutionGrant = () =>
             {
-                provider.BeforeExecutionGrant = null;
+                provider.BeforeExecutionGrant = null!;
                 for (int ii = 1; ii < requests.Length; ii++)
                 {
                     server.Enqueue(requests[ii]);
@@ -875,7 +875,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             NodeId token = provider.AddOwner("A");
             provider.BeforeExecutionGrant = () =>
             {
-                provider.BeforeExecutionGrant = null;
+                provider.BeforeExecutionGrant = null!;
                 throw new InvalidOperationException("Classification provider failure.");
             };
             using var server = new QueueServer(provider, workers: 1);
@@ -1032,7 +1032,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [Test]
         public async Task NullProviderKeepsCompatibilityFifoWithoutRequestCostAsync()
         {
-            using var server = new QueueServer(null, workers: 1, requestCost: 0);
+            using var server = new QueueServer(null!, workers: 1, requestCost: 0);
             using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(5));
             var first = new TestRequest(new NodeId(1));
             var second = new TestRequest(new NodeId(2));
@@ -1092,8 +1092,8 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
         private static FairRequestQueue.Entry Dequeue(FairRequestQueue queue)
         {
-            Assert.That(queue.TryDequeue(out FairRequestQueue.Entry entry), Is.True);
-            return entry;
+            Assert.That(queue.TryDequeue(out FairRequestQueue.Entry? entry), Is.True);
+            return entry!;
         }
 
         /// <summary>
@@ -1157,17 +1157,17 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 uint handle = 1,
                 bool park = false,
                 string channel = "channel",
-                IServiceRequest serviceRequest = null)
+                IServiceRequest? serviceRequest = null)
             {
                 Request = serviceRequest ?? (park ? new PublishRequest() : new ReadRequest());
                 Request.RequestHeader = new RequestHeader { AuthenticationToken = token, RequestHandle = handle };
-                ParkSink = Request is PublishRequest ? new RequestParkSink() : null;
+                ParkSink = (Request is PublishRequest ? new RequestParkSink() : null)!;
                 SecureChannelContext = new SecureChannelContext(channel, null, RequestEncoding.Binary);
             }
 
             public IServiceRequest Request { get; }
             public SecureChannelContext SecureChannelContext { get; }
-            public RequestParkSink ParkSink { get; }
+            public RequestParkSink ParkSink { get; } = null!;
             public TaskCompletionSource<bool> Started { get; } =
                 new(TaskCreationOptions.RunContinuationsAsynchronously);
             public TaskCompletionSource<bool> Completed { get; } =
@@ -1188,7 +1188,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 m_released.TrySetResult(true);
             }
 
-            public void OperationCompleted(IServiceResponse response, ServiceResult error)
+            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
             {
                 Interlocked.Increment(ref m_completionCount);
                 Status = error.StatusCode;
@@ -1227,17 +1227,17 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             /// <summary>
             /// Reports exactly the stage whose lease was returned.
             /// </summary>
-            public event Action<ResourceIsolationStage> CapacityAvailable;
+            public event Action<ResourceIsolationStage>? CapacityAvailable;
             public bool UseFairScheduling { get; set; } = true;
             public bool BlockSharedExecution { get; set; }
-            public Action BeforeExecutionGrant { get; set; }
+            public Action BeforeExecutionGrant { get; set; } = null!;
 
             /// <summary>
             /// Runs after a rejected execution decision, outside the provider accounting gate.
             /// </summary>
-            public Action BeforeExecutionRejection { get; set; }
+            public Action BeforeExecutionRejection { get; set; } = null!;
 
-            public Action BeforeCostGrant { get; set; }
+            public Action BeforeCostGrant { get; set; } = null!;
             public int ExecutionAttempts { get; private set; }
             public int ExecutionGrants { get; private set; }
             public int ClassificationCount { get; private set; }
@@ -1302,7 +1302,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 Assert.That(m_bindings.Remove(token), Is.True);
             }
 
-            public ResourceIsolationOwner ClassifyConnection(IPEndPoint remoteEndpoint)
+            public ResourceIsolationOwner ClassifyConnection(IPEndPoint? remoteEndpoint)
             {
                 return m_bindings[m_unknownToken].Owner;
             }
@@ -1390,7 +1390,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                         amount > m_capacity[(int)stage] - m_used[(int)stage] ||
                         amount > owner.GetHardLimit(stage) - ownerUsed)
                     {
-                        lease = null;
+                        lease = null!;
                         failure = new ResourceIsolationFailure(
                             ResourceIsolationFailureReason.Capacity, TimeSpan.Zero);
                         acquired = false;
@@ -1459,7 +1459,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             {
                 public void Dispose()
                 {
-                    Interlocked.Exchange(ref m_release, null)?.Invoke();
+                    Interlocked.Exchange(ref m_release!, null)?.Invoke();
                 }
 
                 private Action m_release = release;

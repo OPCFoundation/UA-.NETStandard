@@ -166,10 +166,10 @@ namespace Opc.Ua.Core.Tests.Conformance
         {
             bool found = HistoricalAccessProfileCatalog.TryGetProfile(
                 HistoricalAggregateFunctionCatalog.ServerProfileUri,
-                out HistoricalAccessProfileDescriptor descriptor);
+                out HistoricalAccessProfileDescriptor? descriptor);
 
             Assert.That(found, Is.True);
-            Assert.That(descriptor.Family, Is.EqualTo(HistoricalAccessProfileFamily.Aggregate));
+            Assert.That(descriptor!.Family, Is.EqualTo(HistoricalAccessProfileFamily.Aggregate));
             Assert.That(descriptor.Side, Is.EqualTo(HistoricalAccessProfileSide.Server));
         }
 
@@ -181,10 +181,10 @@ namespace Opc.Ua.Core.Tests.Conformance
         {
             bool found = HistoricalAccessProfileCatalog.TryGetProfile(
                 HistoricalAggregateFunctionCatalog.ClientProfileUri,
-                out HistoricalAccessProfileDescriptor descriptor);
+                out HistoricalAccessProfileDescriptor? descriptor);
 
             Assert.That(found, Is.True);
-            Assert.That(descriptor.Family, Is.EqualTo(HistoricalAccessProfileFamily.Aggregate));
+            Assert.That(descriptor!.Family, Is.EqualTo(HistoricalAccessProfileFamily.Aggregate));
             Assert.That(descriptor.Side, Is.EqualTo(HistoricalAccessProfileSide.Client));
         }
     }

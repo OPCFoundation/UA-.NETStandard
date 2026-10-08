@@ -129,7 +129,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         public void NextBytesWithNullArrayThrows()
         {
             var source = new RandomSource(42);
-            Assert.That(() => source.NextBytes(null, 0, 1), Throws.TypeOf<ArgumentNullException>());
+            Assert.That(() => source.NextBytes(null!, 0, 1), Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]

@@ -77,14 +77,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var decryptor = new EncryptedSecret(
                 context, negotiatedPolicy, issuers, receiver, receiverNonce, sender, senderNonce);
             bool success;
-            byte[] secret;
+            byte[]? secret;
             if (asynchronous)
             {
                 (success, secret) = await decryptor.TryDecryptAsync(encoded, s_nonce).ConfigureAwait(false);
             }
             else
             {
-                success = decryptor.TryDecrypt(encoded, s_nonce, out secret);
+                success = decryptor.TryDecrypt(encoded, s_nonce, out secret!);
             }
             Assert.That(success, Is.EqualTo(!differentPolicy));
             Assert.That(decryptor.SecurityPolicy.Uri, Is.EqualTo(negotiatedPolicy));
@@ -128,10 +128,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             byte[] encoded = encryptor.Encrypt(s_secret, s_nonce);
             byte[] buffer = [.. Enumerable.Repeat((byte)0x7A, offset + encoded.Length + 13)];
             encoded.CopyTo(buffer, offset);
-            byte[] key = null;
-            byte[] iv = null;
-            byte[] prefix = null;
-            byte[] suffix = null;
+            byte[]? key = null;
+            byte[]? iv = null;
+            byte[]? prefix = null;
+            byte[]? suffix = null;
             ArraySegment<byte> working = default;
             using var decryptor = new EncryptedSecret(
                 context, policy, issuers, receiver, receiverNonce, sender, null, null, false,

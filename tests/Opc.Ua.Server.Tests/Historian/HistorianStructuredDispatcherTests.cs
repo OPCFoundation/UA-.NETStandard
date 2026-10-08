@@ -139,10 +139,10 @@ namespace Opc.Ua.Server.Tests.Historian
                 Is.True);
             Assert.That(
                 extension.TryGetValue(
-                    out KeyValuePair pair),
+                    out KeyValuePair? pair),
                 Is.True);
             Assert.That(
-                pair.Value.TryGetValue(out double reading),
+                pair!.Value.TryGetValue(out double reading),
                 Is.True);
             return reading;
         }

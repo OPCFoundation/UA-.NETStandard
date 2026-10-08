@@ -48,9 +48,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "test.xml";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("TestXml"));
         }
@@ -60,9 +60,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "test.file.config.xml";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("TestFileConfigXml"));
         }
@@ -74,9 +74,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "C:\\test\\test\\file.xml" :
                 "test/test/file.xml";
             // Arrange
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("FileXml"));
         }
@@ -88,9 +88,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "..\\..\\file.xml" :
                 "../../file.xml";
             // Arrange
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("FileXml"));
         }
@@ -124,9 +124,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "test.xml";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("TestXml"));
         }
@@ -148,9 +148,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = ".test.xml.";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("TestXml"));
         }
@@ -160,9 +160,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "test..xml";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("TestXml"));
         }
@@ -172,9 +172,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "testfile";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("Testfile"));
         }
@@ -184,9 +184,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "a.b.c";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("ABC"));
         }
@@ -196,9 +196,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "...";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
         }
@@ -208,9 +208,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
         }
@@ -219,10 +219,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void GetNameForFile_NullInputFile_ThrowsNullReferenceException()
         {
             // Arrange
-            const string inputFile = null;
-            const string namespacePrefix = null;
+            const string? inputFile = null;
+            const string? namespacePrefix = null;
             // Act & Assert
-            Assert.Throws<NullReferenceException>(() => Resource.GetNameForFile(inputFile, namespacePrefix));
+            Assert.Throws<NullReferenceException>(() => Resource.GetNameForFile(inputFile!, namespacePrefix!));
         }
 
         [Test]
@@ -230,9 +230,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "test-file_name.xml";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("Test-file_nameXml"));
         }
@@ -242,9 +242,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "TEST.XML";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("TESTXML"));
         }
@@ -254,9 +254,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "TeSt.XmL";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("TeStXmL"));
         }
@@ -304,9 +304,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = " test.xml";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo(" testXml"));
         }
@@ -316,9 +316,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "very.long.filename.with.many.parts.and.dots.xml";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("VeryLongFilenameWithManyPartsAndDotsXml"));
         }
@@ -328,9 +328,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "version2.0.1.xml";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("Version201Xml"));
         }
@@ -364,9 +364,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             // Arrange
             const string inputFile = "test\u00E9.xml";
-            const string namespacePrefix = null;
+            const string? namespacePrefix = null;
             // Act
-            string result = Resource.GetNameForFile(inputFile, namespacePrefix);
+            string result = Resource.GetNameForFile(inputFile, namespacePrefix!);
             // Assert
             Assert.That(result, Is.EqualTo("Test\u00E9Xml"));
         }
@@ -375,7 +375,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Constructor_NullResourceName_ThrowsNullReferenceException()
         {
             // Arrange
-            const string resourceName = null;
+            const string? resourceName = null;
             byte[] data =
             [
                 1,
@@ -383,7 +383,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 3
             ];
             // Act & Assert
-            Assert.Throws<NullReferenceException>(() => new BinaryResource(resourceName, data, false));
+            Assert.Throws<NullReferenceException>(() => new BinaryResource(resourceName!, data, false));
         }
 
         [Test]

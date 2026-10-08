@@ -614,13 +614,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         private static CertificateTrustList GetTrustedList(SecurityConfiguration configuration, string scope)
         {
-            return scope switch
+            return (scope switch
             {
                 "Peers" => configuration.TrustedPeerCertificates,
                 "Users" => configuration.TrustedUserCertificates,
                 "Https" => configuration.TrustedHttpsCertificates,
                 _ => throw new ArgumentOutOfRangeException(nameof(scope))
-            };
+            })!;
         }
 
         /// <summary>
@@ -628,13 +628,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         private static CertificateTrustList GetIssuerList(SecurityConfiguration configuration, string scope)
         {
-            return scope switch
+            return (scope switch
             {
                 "Peers" => configuration.TrustedIssuerCertificates,
                 "Users" => configuration.UserIssuerCertificates,
                 "Https" => configuration.HttpsIssuerCertificates,
                 _ => throw new ArgumentOutOfRangeException(nameof(scope))
-            };
+            })!;
         }
 
         /// <summary>

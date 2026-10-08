@@ -60,7 +60,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             byte[] hash = Hash([1, 2, 3]);
 
             // Mirrors a caller's using block.
-            using (RSA first = certificate.GetRSAPrivateKey())
+            using (RSA first = certificate.GetRSAPrivateKey()!)
             {
                 Assert.That(first, Is.Not.Null);
                 Assert.That(
@@ -68,10 +68,10 @@ namespace Opc.Ua.Security.Certificates.Tests
                     Is.Not.Empty);
             }
 
-            using RSA second = certificate.GetRSAPrivateKey();
+            using RSA second = certificate.GetRSAPrivateKey()!;
 
             Assert.That(
-                second.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
+                second!.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
                 Is.Not.Empty,
                 "disposing one view must not take the shared device key down with it");
 
@@ -88,14 +88,14 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             byte[] hash = Hash([4, 5, 6]);
 
-            using (ECDsa first = certificate.GetECDsaPrivateKey())
+            using (ECDsa first = certificate.GetECDsaPrivateKey()!)
             {
-                Assert.That(first.SignHash(hash), Is.Not.Empty);
+                Assert.That(first!.SignHash(hash), Is.Not.Empty);
             }
 
-            using ECDsa second = certificate.GetECDsaPrivateKey();
+            using ECDsa second = certificate.GetECDsaPrivateKey()!;
 
-            Assert.That(second.SignHash(hash), Is.Not.Empty);
+            Assert.That(second!.SignHash(hash), Is.Not.Empty);
             Assert.That(deviceKey.SignHash(hash), Is.Not.Empty);
         }
 
@@ -103,10 +103,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void RsaViewSignsAndVerifiesThroughTheSharedKey()
         {
             using Certificate certificate = CreateDetachedRsa(out _);
-            using RSA view = certificate.GetRSAPrivateKey();
+            using RSA view = certificate.GetRSAPrivateKey()!;
 
             byte[] hash = Hash([7, 7, 7]);
-            byte[] signature = view.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
+            byte[] signature = view!.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pss);
 
             Assert.Multiple(() =>
             {
@@ -123,10 +123,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void RsaViewRoundTripsEncryption()
         {
             using Certificate certificate = CreateDetachedRsa(out _);
-            using RSA view = certificate.GetRSAPrivateKey();
+            using RSA view = certificate.GetRSAPrivateKey()!;
 
             byte[] plaintext = [1, 1, 2, 3, 5];
-            byte[] encrypted = view.Encrypt(plaintext, RSAEncryptionPadding.OaepSHA256);
+            byte[] encrypted = view!.Encrypt(plaintext, RSAEncryptionPadding.OaepSHA256);
 
             Assert.That(
                 view.Decrypt(encrypted, RSAEncryptionPadding.OaepSHA256),
@@ -137,12 +137,12 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void RsaViewSignsData()
         {
             using Certificate certificate = CreateDetachedRsa(out _);
-            using RSA view = certificate.GetRSAPrivateKey();
+            using RSA view = certificate.GetRSAPrivateKey()!;
 
             byte[] data = [9, 9, 9, 9];
 
             // Exercises the HashData overrides the base class routes through.
-            byte[] fromBuffer = view.SignData(
+            byte[] fromBuffer = view!.SignData(
                 data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
 
             using var stream = new MemoryStream(data);
@@ -163,10 +163,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void EcdsaViewSignsDataAndExposesThePublicParameters()
         {
             using Certificate certificate = CreateDetachedEcdsa(out _);
-            using ECDsa view = certificate.GetECDsaPrivateKey();
+            using ECDsa view = certificate.GetECDsaPrivateKey()!;
 
             byte[] data = [3, 1, 4, 1, 5];
-            byte[] signature = view.SignData(data, HashAlgorithmName.SHA256);
+            byte[] signature = view!.SignData(data, HashAlgorithmName.SHA256);
 
             Assert.Multiple(() =>
             {
@@ -181,12 +181,12 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void EcdsaViewSignsAStream()
         {
             using Certificate certificate = CreateDetachedEcdsa(out _);
-            using ECDsa view = certificate.GetECDsaPrivateKey();
+            using ECDsa view = certificate.GetECDsaPrivateKey()!;
 
             byte[] data = [2, 7, 1, 8];
 
             using var stream = new MemoryStream(data);
-            byte[] signature = view.SignData(stream, HashAlgorithmName.SHA256);
+            byte[] signature = view!.SignData(stream, HashAlgorithmName.SHA256);
 
             Assert.That(view.VerifyData(data, signature, HashAlgorithmName.SHA256), Is.True);
         }
@@ -215,15 +215,15 @@ namespace Opc.Ua.Security.Certificates.Tests
             using Certificate publicOnly = Certificate.FromRawData(selfSigned.RawData);
             using Certificate certificate = publicOnly.CopyWithDetachedPrivateKey(hardwareKey);
 
-            using RSA view = certificate.GetRSAPrivateKey();
+            using RSA view = certificate.GetRSAPrivateKey()!;
 
             Assert.Multiple(() =>
             {
                 Assert.Throws<CryptographicException>(
-                    () => view.ExportParameters(true),
+                    () => view!.ExportParameters(true),
                     "the view must not become a way around a non-extractable key");
                 Assert.DoesNotThrow(
-                    () => view.ExportParameters(false),
+                    () => view!.ExportParameters(false),
                     "the public key must still be readable through the view");
             });
 
@@ -233,7 +233,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    view.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
+                    view!.SignHash(hash, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
                     Is.Not.Empty);
                 Assert.That(hardwareKey.PrivateKeyExportAttempts, Is.EqualTo(1));
             });
@@ -249,12 +249,12 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void RsaViewForwardsParameterImportToTheSharedKey()
         {
             using Certificate certificate = CreateDetachedRsa(out RSA deviceKey);
-            using RSA view = certificate.GetRSAPrivateKey();
+            using RSA view = certificate.GetRSAPrivateKey()!;
 
             using RSA replacement = RSA.Create(2048);
             RSAParameters parameters = replacement.ExportParameters(true);
 
-            view.ImportParameters(parameters);
+            view!.ImportParameters(parameters);
 
             Assert.That(
                 deviceKey.ExportParameters(false).Modulus,
@@ -266,10 +266,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void EcdsaViewForwardsParameterImportAndKeyGenerationToTheSharedKey()
         {
             using Certificate certificate = CreateDetachedEcdsa(out ECDsa deviceKey);
-            using ECDsa view = certificate.GetECDsaPrivateKey();
+            using ECDsa view = certificate.GetECDsaPrivateKey()!;
 
             using ECDsa replacement = ECDsa.Create(ECCurve.NamedCurves.nistP256);
-            view.ImportParameters(replacement.ExportParameters(true));
+            view!.ImportParameters(replacement.ExportParameters(true));
 
             Assert.That(
                 deviceKey.ExportParameters(false).Q.X,
@@ -284,9 +284,9 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void EcdsaViewReportsTheSharedKeyExchangeAlgorithm()
         {
             using Certificate certificate = CreateDetachedEcdsa(out ECDsa deviceKey);
-            using ECDsa view = certificate.GetECDsaPrivateKey();
+            using ECDsa view = certificate.GetECDsaPrivateKey()!;
 
-            Assert.That(view.KeyExchangeAlgorithm, Is.EqualTo(deviceKey.KeyExchangeAlgorithm));
+            Assert.That(view!.KeyExchangeAlgorithm, Is.EqualTo(deviceKey.KeyExchangeAlgorithm));
             Assert.That(view.SignatureAlgorithm, Is.EqualTo(deviceKey.SignatureAlgorithm));
         }
 
@@ -305,10 +305,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             var hashAlgorithm = new HashAlgorithmName(algorithmName);
 
             using Certificate certificate = CreateDetachedRsa(out RSA deviceKey);
-            using RSA view = certificate.GetRSAPrivateKey();
+            using RSA view = certificate.GetRSAPrivateKey()!;
 
             byte[] data = [4, 5, 6, 7];
-            byte[] signature = view.SignData(data, hashAlgorithm, RSASignaturePadding.Pkcs1);
+            byte[] signature = view!.SignData(data, hashAlgorithm, RSASignaturePadding.Pkcs1);
 
             Assert.That(
                 deviceKey.VerifyData(data, signature, hashAlgorithm, RSASignaturePadding.Pkcs1),
@@ -319,10 +319,10 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void RsaViewRefusesAnUnsupportedDigest()
         {
             using Certificate certificate = CreateDetachedRsa(out _);
-            using RSA view = certificate.GetRSAPrivateKey();
+            using RSA view = certificate.GetRSAPrivateKey()!;
 
             Assert.Throws<CryptographicException>(
-                () => view.SignData(
+                () => view!.SignData(
                     [1, 2, 3],
                     new HashAlgorithmName("MD5"),
                     RSASignaturePadding.Pkcs1));
@@ -336,10 +336,10 @@ namespace Opc.Ua.Security.Certificates.Tests
             var hashAlgorithm = new HashAlgorithmName(algorithmName);
 
             using Certificate certificate = CreateDetachedEcdsa(out ECDsa deviceKey);
-            using ECDsa view = certificate.GetECDsaPrivateKey();
+            using ECDsa view = certificate.GetECDsaPrivateKey()!;
 
             byte[] data = [8, 9, 10];
-            byte[] signature = view.SignData(data, hashAlgorithm);
+            byte[] signature = view!.SignData(data, hashAlgorithm);
 
             Assert.That(deviceKey.VerifyData(data, signature, hashAlgorithm), Is.True);
         }
@@ -348,11 +348,11 @@ namespace Opc.Ua.Security.Certificates.Tests
         public void EcdsaViewSignsAStreamThroughTheSharedKey()
         {
             using Certificate certificate = CreateDetachedEcdsa(out ECDsa deviceKey);
-            using ECDsa view = certificate.GetECDsaPrivateKey();
+            using ECDsa view = certificate.GetECDsaPrivateKey()!;
 
             byte[] data = [11, 12, 13, 14];
             using var stream = new MemoryStream(data);
-            byte[] signature = view.SignData(stream, HashAlgorithmName.SHA256);
+            byte[] signature = view!.SignData(stream, HashAlgorithmName.SHA256);
 
             Assert.That(
                 deviceKey.VerifyData(data, signature, HashAlgorithmName.SHA256),

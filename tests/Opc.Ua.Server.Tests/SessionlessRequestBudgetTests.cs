@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -311,7 +309,10 @@ namespace Opc.Ua.Server.Tests
                         Interlocked.CompareExchange(ref highWater, now, seen) != seen)
                     {
                     }
-                    await Task.Yield();
+                    // Hold the lease across a real suspension so the thread is released and other callers
+                    // run while it is held. Task.Yield alone lets a runner with few cores serialize the
+                    // callers so that none of them ever sees the limit.
+                    await Task.Delay(1).ConfigureAwait(false);
                     Interlocked.Decrement(ref running);
                     lease!.Dispose();
                 }

@@ -217,7 +217,7 @@ namespace Opc.Ua.Types.Tests.Schema
             };
         }
 
-        private static OpaqueType CreateOpaque(string name, int? lengthInBits = null, string documentation = null)
+        private static OpaqueType CreateOpaque(string name, int? lengthInBits = null, string? documentation = null)
         {
             var type = new OpaqueType
             {

@@ -9,7 +9,6 @@
     <Description>Self-contained .NET console OPC UA server demonstrating FluentAPI NodeManagers + the typed fluent OnCall surface for methods with arguments. Native AOT compatible.</Description>
     <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
     <RootNamespace>BasicFluentApiServer</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PublishAot>true</PublishAot>

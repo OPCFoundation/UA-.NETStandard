@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.ECM</PackageId>
     <RootNamespace>Opc.Ua.ECM</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108;CS0109</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Source-generated OPC 34100 Energy Consumption Management (ECM) information model over the OPC 10000-200 Industrial Automation and OPC 10000-100 DI base models.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

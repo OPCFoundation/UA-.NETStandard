@@ -169,11 +169,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ServiceMessageContext context = CreateContext();
             var id = new ExpandedNodeId(7u, "urn:a;b%cä");
 
-            string text = id.Format(context, useUris: true);
+            string text = id.Format(context, useUris: true)!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(ExpandedNodeId.Parse(text).NamespaceUri, Is.EqualTo("urn:a;b%cä"));
+                Assert.That(ExpandedNodeId.Parse(text!).NamespaceUri, Is.EqualTo("urn:a;b%cä"));
                 Assert.That(ExpandedNodeId.Parse(context, text).NamespaceUri, Is.EqualTo("urn:a;b%cä"));
             });
         }

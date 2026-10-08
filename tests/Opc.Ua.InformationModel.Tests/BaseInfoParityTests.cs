@@ -1080,7 +1080,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             NodeId current = typeId;
             int hops = 0;
-            while (current != null && !current.IsNull && hops++ < 16)
+            while (!current.IsNull && hops++ < 16)
             {
                 List<ReferenceDescription> generatesEvent = await BrAsync(
                     current,
@@ -1189,7 +1189,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(r.Results.Count, Is.EqualTo(1));
             var refs = new List<ReferenceDescription>();
 
-            if (r.Results[0].References != default)
+            if (r.Results[0].References != default!)
             {
                 foreach (ReferenceDescription x in r.Results[0].References)
                 {

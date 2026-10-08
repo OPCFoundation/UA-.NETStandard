@@ -333,7 +333,7 @@ namespace Opc.Ua.Core.Tests.Conformance
         {
             bool found = HistoricalAccessProfileCatalog.TryGetProfile(
                 "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022",
-                out HistoricalAccessProfileDescriptor descriptor);
+                out HistoricalAccessProfileDescriptor? descriptor);
 
             Assert.That(found, Is.True);
             Assert.That(descriptor, Is.Not.Null);
@@ -348,7 +348,7 @@ namespace Opc.Ua.Core.Tests.Conformance
         {
             bool found = HistoricalAccessProfileCatalog.TryGetProfile(
                 "http://opcfoundation.org/UA-Profile/Server/DoesNotExist",
-                out HistoricalAccessProfileDescriptor descriptor);
+                out HistoricalAccessProfileDescriptor? descriptor);
 
             Assert.That(found, Is.False);
             Assert.That(descriptor, Is.Null);

@@ -381,7 +381,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ValidateReturnsGoodForNullString()
         {
-            ServiceResult result = NumericRange.Validate(null, out NumericRange range);
+            ServiceResult result = NumericRange.Validate(null!, out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range, Is.EqualTo(NumericRange.Null));
         }
@@ -537,7 +537,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ParseReturnsEmptyForNullString()
         {
-            var range = NumericRange.Parse(null);
+            var range = NumericRange.Parse(null!);
             Assert.That(range, Is.EqualTo(NumericRange.Null));
         }
 
@@ -629,7 +629,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode statusCode = numericRange.ApplyRange(ref value);
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
 
-            int[,] range = (int[,])value.GetInt32Matrix();
+            int[,] range = (int[,])value.GetInt32Matrix()!;
             Assert.That(range, Is.Not.Null, "Applied range null");
             Assert.That(range.Rank, Is.EqualTo(2));
             Assert.That(range[0, 0], Is.EqualTo(5));
@@ -733,8 +733,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase("2147483646:2147483647,0", null, null)]
         public void ApplyRangeMatrixOfClipsUpperBoundsToSource(
             string range,
-            int[] expectedDimensions,
-            int[] expectedValues)
+            int[]? expectedDimensions,
+            int[]? expectedValues)
         {
             int[,] source = new int[,]
             {
@@ -777,14 +777,14 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(
                 strings.Span.ToArray(),
                 Is.EqualTo(Array.ConvertAll(
-                    expectedValues,
+                    expectedValues!,
                     v => v.ToString(CultureInfo.InvariantCulture))));
             Assert.That(byteStringStatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(byteStrings.Dimensions, Is.EqualTo(expectedDimensions));
             Assert.That(
                 byteStrings.Span.ToArray(),
                 Is.EqualTo(Array.ConvertAll(
-                    expectedValues,
+                    expectedValues!,
                     v => ByteString.From((byte)v))));
         }
 
@@ -1528,12 +1528,12 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyMultiRangeNoDataFoundReturnsNoData()
         {
             // Create an array where all extracted elements would be null
-            var value = Variant.From(new string[] { null, null, null });
+            var value = Variant.From(new string[] { null!, null!, null! });
             var range = new NumericRange(0, 1, [new NumericRange(0, 1)]);
             StatusCode result = range.ApplyRange(ref value);
             // null elements are skipped
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
-            Assert.That(value.GetStringArray(), Is.EqualTo(new string[] { null, null }));
+            Assert.That(value.GetStringArray(), Is.EqualTo(new string[] { null!, null! }));
         }
 
         [Test]
@@ -2305,7 +2305,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 NumericRange[] range1 = [new(1, 3)];
                 NumericRange[] range2 = [new(2, 4)];
                 NumericRange[] empty = [];
-                NumericRange[] nullValue = null;
+                NumericRange[]? nullValue = null;
 
                 yield return new TestCaseData(range1, range2).Returns(false);
                 yield return new TestCaseData(empty, range1).Returns(false);

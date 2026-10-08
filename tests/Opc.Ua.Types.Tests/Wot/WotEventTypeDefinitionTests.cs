@@ -289,7 +289,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     .Select(d => d.Message),
                 Is.Empty);
             Assert.That(
-                result.Value!.Items.OfType<UAVariable>()
+                result.Value!.Items!.OfType<UAVariable>()
                     .Select(v => v.BrowseName),
                 Does.Contain("1:Temperature"),
                 "The field the linked definition declares and BaseEventType does not is the " +
@@ -320,7 +320,7 @@ namespace Opc.Ua.Types.Tests.Wot
                         .Select(d => d.Message),
                     Is.Empty);
                 Assert.That(
-                    result.Value!.Items.OfType<UAVariable>().Select(v => v.BrowseName),
+                    result.Value!.Items!.OfType<UAVariable>().Select(v => v.BrowseName),
                     Does.Contain("1:Temperature"));
             });
         }

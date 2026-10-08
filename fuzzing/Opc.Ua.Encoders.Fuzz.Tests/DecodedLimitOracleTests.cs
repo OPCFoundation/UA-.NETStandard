@@ -55,9 +55,9 @@ namespace Opc.Ua.Fuzzing
         {
             ReadRequest request = CreateReadRequest(new NodeId(LongString(), 1));
 
-            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(() => CheckLimits(request));
+            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(() => CheckLimits(request))!;
 
-            Assert.That(ex.Kind, Is.EqualTo(ResourceFindingKind.Limit));
+            Assert.That(ex!.Kind, Is.EqualTo(ResourceFindingKind.Limit));
             Assert.That(ex.Message, Does.Contain("NodeId.Identifier"));
             Assert.That(ex.Message, Does.Contain(nameof(IServiceMessageContext.MaxStringLength)));
         }
@@ -68,9 +68,9 @@ namespace Opc.Ua.Fuzzing
             byte[] opaque = new byte[FuzzableCode.FuzzMaxByteStringLength + 1];
             ReadRequest request = CreateReadRequest(new NodeId(ByteString.From(opaque), 1));
 
-            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(() => CheckLimits(request));
+            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(() => CheckLimits(request))!;
 
-            Assert.That(ex.Message, Does.Contain(nameof(IServiceMessageContext.MaxByteStringLength)));
+            Assert.That(ex!.Message, Does.Contain(nameof(IServiceMessageContext.MaxByteStringLength)));
         }
 
         [Test]
@@ -83,9 +83,9 @@ namespace Opc.Ua.Fuzzing
             }
             var request = new ReadRequest { NodesToRead = nodes };
 
-            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(() => CheckLimits(request));
+            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(() => CheckLimits(request))!;
 
-            Assert.That(ex.Message, Does.Contain(nameof(IServiceMessageContext.MaxArrayLength)));
+            Assert.That(ex!.Message, Does.Contain(nameof(IServiceMessageContext.MaxArrayLength)));
         }
 
         [Test]
@@ -96,9 +96,9 @@ namespace Opc.Ua.Fuzzing
                 Results = [new DataValue(Variant.From(new QualifiedName(LongString(), 2)))]
             };
 
-            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(() => CheckLimits(response));
+            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(() => CheckLimits(response))!;
 
-            Assert.That(ex.Message, Does.Contain("Name"));
+            Assert.That(ex!.Message, Does.Contain("Name"));
         }
 
         [TestCase(true)]
@@ -113,9 +113,9 @@ namespace Opc.Ua.Fuzzing
                 longNodeId ? new QualifiedName("Name", 1) : new QualifiedName(LongString(), 1)));
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => FuzzableCode.FuzzJsonDecoderCore(json, throwAll: true));
+                () => FuzzableCode.FuzzJsonDecoderCore(json, throwAll: true))!;
 
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.DoesNotThrow(() => FuzzableCode.LibfuzzJsonDecoder(Encoding.UTF8.GetBytes(json)));
         }
 
@@ -132,9 +132,9 @@ namespace Opc.Ua.Fuzzing
                 decoded = decoder.DecodeMessage<IEncodeable>();
             }
 
-            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(() => CheckLimits(decoded));
+            ResourceBudgetException ex = Assert.Throws<ResourceBudgetException>(() => CheckLimits(decoded))!;
 
-            Assert.That(ex.Kind, Is.EqualTo(ResourceFindingKind.Limit));
+            Assert.That(ex!.Kind, Is.EqualTo(ResourceFindingKind.Limit));
         }
 
         [Test]
@@ -144,14 +144,14 @@ namespace Opc.Ua.Fuzzing
             using (var encoder = new BinaryEncoder(CreatePermissiveContext()))
             {
                 encoder.EncodeMessage(CreateReadRequest(new NodeId(LongString(), 1)));
-                message = encoder.CloseAndReturnBuffer();
+                message = encoder.CloseAndReturnBuffer()!;
             }
 
-            using var stream = new MemoryStream(message);
+            using var stream = new MemoryStream(message!);
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => FuzzableCode.FuzzBinaryDecoderCore(stream, throwAll: true));
+                () => FuzzableCode.FuzzBinaryDecoderCore(stream, throwAll: true))!;
 
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         private static void CheckLimits(object value)

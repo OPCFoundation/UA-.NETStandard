@@ -118,13 +118,13 @@ namespace Opc.Ua.History.Tests
                 Assert.Fail("Cannot read EURange.");
             }
 
-            Range range = rangeVal.GetValue<Range>(default);
+            Range range = rangeVal.GetValue<Range>(default!);
             if (range == null)
             {
                 Assert.Fail("EURange is null.");
             }
 
-            double outOfRange = range.High + 1000.0;
+            double outOfRange = range!.High + 1000.0;
             WriteResponse wr = await Session.WriteAsync(
                 null,
                 new WriteValue[]

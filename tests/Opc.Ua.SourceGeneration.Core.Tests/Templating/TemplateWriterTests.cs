@@ -93,12 +93,12 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void Constructor_WithNullWriter_DoesNotThrow()
         {
             // Arrange
-            TextWriter writer = null;
+            TextWriter? writer = null;
 
             // Act & Assert
             Assert.DoesNotThrow(() =>
             {
-                using var templateWriter = new TemplateWriter(writer);
+                using var templateWriter = new TemplateWriter(writer!);
             });
         }
 
@@ -631,10 +631,10 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using var writer = new StringWriter();
             using var templateWriter = new TemplateWriter(writer);
             const string format = "Value: {0}";
-            object arg1 = null;
+            object? arg1 = null;
 
             // Act
-            templateWriter.Write(format, arg1);
+            templateWriter.Write(format, arg1!);
 
             // Assert
             string result = writer.ToString();
@@ -696,11 +696,11 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             using var writer = new StringWriter();
             using var templateWriter = new TemplateWriter(writer);
-            const string format = null;
+            const string? format = null;
             object arg1 = "test";
 
             // Act
-            templateWriter.Write(format, arg1);
+            templateWriter.Write(format!, arg1);
 
             // Assert
             string result = writer.ToString();
@@ -1119,14 +1119,14 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase("{0}", null, "test", "")]
         [TestCase("{1}", "test", null, "")]
         [TestCase("{0} and {1}", null, null, " and ")]
-        public void Write_WithNullArguments_WritesNullAsString(string format, object arg1, object arg2, string expected)
+        public void Write_WithNullArguments_WritesNullAsString(string format, object? arg1, object? arg2, string expected)
         {
             // Arrange
             using var stringWriter = new StringWriter();
             using var templateWriter = new TemplateWriter(stringWriter);
 
             // Act
-            templateWriter.Write(format, arg1, arg2);
+            templateWriter.Write(format, arg1!, arg2!);
 
             // Assert
             string result = stringWriter.ToString();
@@ -1546,10 +1546,10 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase("Test {0} {1} {2}", new object[] { 1, 2, 3 }, "Test 1 2 3")]
         [TestCase("No placeholders", new object[] { "ignored" }, "No placeholders")]
         [TestCase("Value: {0}", new object[] { 42 }, "Value: 42")]
-        [TestCase("Value: {0}", new object[] { null }, "Value: ")]
+        [TestCase("Value: {0}", new object[] { null! }, "Value: ")]
         public void WriteLine_WithTextAndArgs_WritesFormattedTextWithNewLine(
             string text,
-            object[] args,
+            object[]? args,
             string expectedOutput)
         {
             // Arrange
@@ -1557,7 +1557,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using (var templateWriter = new TemplateWriter(writer, leaveOpen: false))
             {
                 // Act
-                templateWriter.WriteLine(text, args);
+                templateWriter.WriteLine(text, args!);
             }
             // Assert
             string result = writer.ToString();
@@ -1576,7 +1576,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using (var templateWriter = new TemplateWriter(writer, leaveOpen: false))
             {
                 // Act
-                templateWriter.WriteLine(null, []);
+                templateWriter.WriteLine(null!, []);
             }
             // Assert
             string result = writer.ToString();
@@ -1720,7 +1720,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using (var templateWriter = new TemplateWriter(writer, leaveOpen: false))
             {
                 // Act
-                templateWriter.WriteLine("Value1: {0}, Value2: {1}", ["Test", null]);
+                templateWriter.WriteLine("Value1: {0}, Value2: {1}", ["Test", null!]);
             }
             // Assert
             string result = writer.ToString();
@@ -1995,7 +1995,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void Write_NullFormatString_UsesEmptyStringInstead()
         {
             // Arrange
-            const string format = null;
+            const string? format = null;
             object arg1 = "First";
             object arg2 = "Second";
             object arg3 = "Third";
@@ -2004,7 +2004,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using (var templateWriter = new TemplateWriter(stringWriter))
             {
                 // Act
-                templateWriter.Write(format, arg1, arg2, arg3);
+                templateWriter.Write(format!, arg1, arg2, arg3);
             }
             // Assert
             string result = stringWriter.ToString();
@@ -2020,9 +2020,9 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         [TestCase("{0} {1} {2}", null, null, "Last", "  Last")]
         public void Write_NullArguments_WritesFormattedTextWithNulls(
             string format,
-            object arg1,
-            object arg2,
-            object arg3,
+            object? arg1,
+            object? arg2,
+            object? arg3,
             string expected)
         {
             // Arrange
@@ -2030,7 +2030,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using var templateWriter = new TemplateWriter(stringWriter);
 
             // Act
-            templateWriter.Write(format, arg1, arg2, arg3);
+            templateWriter.Write(format, arg1!, arg2!, arg3!);
 
             // Assert
             string result = stringWriter.ToString();
@@ -3171,7 +3171,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using var templateWriter = new TemplateWriter(writer);
 
             // Act
-            templateWriter.Write(null);
+            templateWriter.Write(null!);
 
             // Assert
             string result = writer.ToString();
@@ -3429,7 +3429,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using var templateWriter = new TemplateWriter(stringWriter);
 
             // Act & Assert
-            Assert.DoesNotThrow(() => templateWriter.WriteLine(null));
+            Assert.DoesNotThrow(() => templateWriter.WriteLine(null!));
         }
 
         /// <summary>

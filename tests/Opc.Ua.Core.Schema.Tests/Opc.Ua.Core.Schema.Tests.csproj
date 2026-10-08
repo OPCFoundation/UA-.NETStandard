@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
   </PropertyGroup>
   <ItemGroup>

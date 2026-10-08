@@ -69,7 +69,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             // The provider owns the cached tokens and the certificates they hold.
             m_provider?.Dispose();
-            m_provider = null;
+            m_provider = null!;
         }
 
         [Test]
@@ -114,9 +114,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using ICertificateStore store = m_provider.CreateStore(m_telemetry);
             store.Open(m_storePath, false);
 
-            using Certificate loaded = await store
+            using Certificate loaded = (await store
                 .LoadPrivateKeyAsync(generated.Thumbprint, null, null, NodeId.Null, null)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(loaded, Is.Not.Null);
             Assert.Multiple(() =>
@@ -149,9 +149,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             using ICertificateStore store = m_provider.CreateStore(m_telemetry);
             store.Open(m_storePath, false);
-            using Certificate certificate = await store
+            using Certificate certificate = (await store
                 .LoadPrivateKeyAsync(generated.Thumbprint, null, null, NodeId.Null, null)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             byte[] dataToSign = new byte[128];
             for (int ii = 0; ii < dataToSign.Length; ii++)
@@ -160,7 +160,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             byte[] signature = CryptoUtils.Sign(
-                new ArraySegment<byte>(dataToSign), certificate, securityPolicyUri);
+                new ArraySegment<byte>(dataToSign), certificate!, securityPolicyUri)!;
 
             Assert.That(signature, Is.Not.Null.And.Not.Empty);
             Assert.That(
@@ -172,7 +172,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             EncryptedData encrypted = SecurityPolicies.Default.Encrypt(
                 certificate, securityPolicyUri, secret);
             byte[] decrypted = SecurityPolicies.Default.Decrypt(
-                certificate, securityPolicyUri, encrypted);
+                certificate, securityPolicyUri, encrypted)!;
 
             Assert.That(decrypted, Is.EqualTo(secret), "The token must be able to unwrap the peer secret.");
         }
@@ -191,18 +191,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             using ICertificateStore store = m_provider.CreateStore(m_telemetry);
             store.Open(m_storePath, false);
-            using Certificate certificate = await store
+            using Certificate certificate = (await store
                 .LoadPrivateKeyAsync(generated.Thumbprint, null, null, NodeId.Null, null)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             byte[] dataToSign = [1, 1, 2, 3, 5, 8, 13];
             byte[] signature = CryptoUtils.Sign(
-                new ArraySegment<byte>(dataToSign), certificate, SecurityPolicies.ECC_nistP256);
+                new ArraySegment<byte>(dataToSign), certificate!, SecurityPolicies.ECC_nistP256)!;
 
             Assert.That(
                 CryptoUtils.Verify(
                     new ArraySegment<byte>(dataToSign),
-                    signature,
+                    signature!,
                     certificate,
                     SecurityPolicies.ECC_nistP256),
                 Is.True);

@@ -213,10 +213,10 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    () => registry.RegisterDefault(null),
+                    () => registry.RegisterDefault(null!),
                     Throws.TypeOf<ArgumentNullException>());
                 Assert.That(
-                    () => registry.RegisterFor(CryptoPurpose.KeyAgreement, null),
+                    () => registry.RegisterFor(CryptoPurpose.KeyAgreement, null!),
                     Throws.TypeOf<ArgumentNullException>());
                 Assert.That(
                     () => registry.RegisterFor(

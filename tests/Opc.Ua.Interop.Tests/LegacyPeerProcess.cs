@@ -137,7 +137,7 @@ namespace Opc.Ua.Interop.Tests
             get
             {
                 string line = FindLine(kInfoPrefix);
-                return line == null ? null : PeerInfo.Parse(line.Substring(kInfoPrefix.Length));
+                return (line == null ? null : PeerInfo.Parse(line.Substring(kInfoPrefix.Length)))!;
             }
         }
 
@@ -245,8 +245,8 @@ namespace Opc.Ua.Interop.Tests
 
             var process = new Process { StartInfo = startInfo, EnableRaisingEvents = true };
             var peerProcess = new LegacyPeerProcess(process);
-            process.OutputDataReceived += (_, e) => peerProcess.OnOutput(e.Data, true);
-            process.ErrorDataReceived += (_, e) => peerProcess.OnOutput(e.Data, false);
+            process.OutputDataReceived += (_, e) => peerProcess.OnOutput(e.Data!, true);
+            process.ErrorDataReceived += (_, e) => peerProcess.OnOutput(e.Data!, false);
             process.Exited += (_, _) => peerProcess.OnExited();
 
             if (!process.Start())
@@ -286,7 +286,7 @@ namespace Opc.Ua.Interop.Tests
                     }
                     if (!failOnExit)
                     {
-                        return null;
+                        return null!;
                     }
                     break;
                 }
@@ -295,7 +295,7 @@ namespace Opc.Ua.Interop.Tests
             Assert.Fail(
                 $"The 1.5.378 peer did not print '{prefix}' within {timeout} " +
                 $"(exited: {m_exited.Task.IsCompleted}).{Environment.NewLine}{Output}");
-            return null;
+            return null!;
         }
 
         /// <summary>
@@ -351,7 +351,7 @@ namespace Opc.Ua.Interop.Tests
 
         private string FindLine(string prefix)
         {
-            return Lines.FirstOrDefault(l => l.StartsWith(prefix, StringComparison.Ordinal));
+            return Lines.FirstOrDefault(l => l.StartsWith(prefix, StringComparison.Ordinal))!;
         }
 
         private void Kill()
@@ -409,11 +409,11 @@ namespace Opc.Ua.Interop.Tests
         /// <summary>
         /// The folder of the peer, which may hold its expected differences.
         /// </summary>
-        public static string PeerDirectory => Path.GetDirectoryName(FindPeer());
+        public static string PeerDirectory => Path.GetDirectoryName(FindPeer())!;
 
         private static string FindPeer()
         {
-            string configured = Environment.GetEnvironmentVariable(PeerPathVariable);
+            string configured = Environment.GetEnvironmentVariable(PeerPathVariable)!;
             // Absolute, because the peer runs with its own folder as working
             // directory and gets the path as argument.
             string peer = Path.GetFullPath(!string.IsNullOrEmpty(configured)
@@ -434,13 +434,13 @@ namespace Opc.Ua.Interop.Tests
         /// </summary>
         private static string FindPeerHost()
         {
-            string host = Environment.GetEnvironmentVariable(PeerHostVariable);
+            string host = Environment.GetEnvironmentVariable(PeerHostVariable)!;
             return !string.IsNullOrEmpty(host) ? host : FindDotnetHost();
         }
 
         private static string[] HostArguments()
         {
-            string arguments = Environment.GetEnvironmentVariable(PeerHostArgumentsVariable);
+            string arguments = Environment.GetEnvironmentVariable(PeerHostArgumentsVariable)!;
             return string.IsNullOrWhiteSpace(arguments)
                 ? []
                 : arguments.Split([' '], StringSplitOptions.RemoveEmptyEntries);
@@ -453,7 +453,7 @@ namespace Opc.Ua.Interop.Tests
         /// </summary>
         private static string FindDotnetHost()
         {
-            string host = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH");
+            string host = Environment.GetEnvironmentVariable("DOTNET_HOST_PATH")!;
             if (!string.IsNullOrEmpty(host) && File.Exists(host))
             {
                 return host;

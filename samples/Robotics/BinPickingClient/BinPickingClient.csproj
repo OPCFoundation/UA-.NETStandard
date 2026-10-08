@@ -7,7 +7,6 @@
     <PackageId>BinPickingClient</PackageId>
     <Description>Vision-guided bin-picking client that hosts the composed Vision + Robotics MCP catalogue over an OPC UA session to the BinPickingCell server, optionally opens the OpenUSD viewer for a human observer, and can execute a scripted pick-and-place demonstration that closes the perception-to-action loop without an agent attached.</Description>
     <RootNamespace>BinPickingClient</RootNamespace>
-    <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- MCP hosting needs .NET 8+ and the Opc.Ua.Mcp.* projects. Those projects opt into
          $(RestrictForLegacyTfm), so under a legacy $(CustomTestTarget) they build as empty

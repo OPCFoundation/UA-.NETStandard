@@ -109,7 +109,7 @@ namespace Opc.Ua.InformationModel.Tests
             var propertyNames = new List<string>();
             foreach (ReferenceDescription r in response.Results[0].References)
             {
-                propertyNames.Add(r.BrowseName.Name);
+                propertyNames.Add(r.BrowseName.Name!);
             }
 
             Assert.That(propertyNames, Does.Contain("EventId"));

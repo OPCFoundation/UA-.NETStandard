@@ -429,7 +429,7 @@ namespace Opc.Ua.Core.Security.Tests
                     Assert.Fail(
                         "Username token not available on this endpoint.");
                 }
-                Assert.That(session.Connected, Is.True,
+                Assert.That(session!.Connected, Is.True,
                     "Should connect with newly created user.");
             }
             finally
@@ -460,7 +460,7 @@ namespace Opc.Ua.Core.Security.Tests
                     Assert.Fail(
                         "Username token not available on this endpoint.");
                 }
-                Assert.That(session.Connected, Is.True);
+                Assert.That(session!.Connected, Is.True);
             }
 
             // Delete and verify connection fails
@@ -496,7 +496,7 @@ namespace Opc.Ua.Core.Security.Tests
                     Assert.Fail(
                         "Username token not available on this endpoint.");
                 }
-                Assert.That(session.Connected, Is.True,
+                Assert.That(session!.Connected, Is.True,
                     "Should connect with new password.");
             }
             finally
@@ -526,7 +526,7 @@ namespace Opc.Ua.Core.Security.Tests
                     Assert.Fail(
                         "Username token not available on this endpoint.");
                 }
-                Assert.That(session1.Connected, Is.True);
+                Assert.That(session1!.Connected, Is.True);
                 await session1.CloseAsync(5000, true).ConfigureAwait(false);
                 session1.Dispose();
 
@@ -538,7 +538,7 @@ namespace Opc.Ua.Core.Security.Tests
                     Assert.Fail(
                         "Username token not available on this endpoint.");
                 }
-                Assert.That(session2.Connected, Is.True,
+                Assert.That(session2!.Connected, Is.True,
                     "Should be able to reconnect after disconnect.");
             }
             finally
@@ -569,7 +569,7 @@ namespace Opc.Ua.Core.Security.Tests
                     Assert.Fail(
                         "Admin session not available on this endpoint.");
                 }
-                Assert.That(session.Connected, Is.True);
+                Assert.That(session!.Connected, Is.True);
             }
             finally
             {
@@ -713,7 +713,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException)
             {
-                return null;
+                return null!;
             }
         }
 
@@ -736,7 +736,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException)
             {
-                return null;
+                return null!;
             }
         }
 
@@ -745,6 +745,6 @@ namespace Opc.Ua.Core.Security.Tests
             return Encoding.UTF8.GetBytes(s);
         }
 
-        private IUserDatabase UserDb => ReferenceServer?.UserDatabase;
+        private IUserDatabase UserDb => (ReferenceServer?.UserDatabase)!;
     }
 }

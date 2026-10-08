@@ -388,7 +388,7 @@ namespace Opc.Ua.Server.Tests
 
         [TestCase(null)]
         [TestCase(Ua.Namespaces.OpcUa)]
-        public void TranslateStandardStatusUsesRegisteredTranslation(string namespaceUri)
+        public void TranslateStandardStatusUsesRegisteredTranslation(string? namespaceUri)
         {
             var configuration = new ApplicationConfiguration(NUnitTelemetryContext.Create());
             using var resources = new ResourceManager(configuration);

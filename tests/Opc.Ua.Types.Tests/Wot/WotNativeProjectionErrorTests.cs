@@ -54,7 +54,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(result, Is.Null);
             Assert.That(
@@ -69,7 +69,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(result, Is.Null);
             Assert.That(
@@ -85,7 +85,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(result, Is.Null);
             Assert.That(
@@ -101,7 +101,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(result, Is.Null);
             Assert.That(
@@ -117,7 +117,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(result, Is.Null);
             Assert.That(
@@ -139,7 +139,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var options = new WotNodeSetConverterOptions { MaxNodeCount = 1 };
             var diagnostics = new List<WotDiagnostic>();
 
-            UANodeSet result = WotNativeProjection.Read(doc.RootElement, options, diagnostics);
+            UANodeSet result = WotNativeProjection.Read(doc.RootElement, options, diagnostics)!;
 
             Assert.That(
                 diagnostics.Any(d => d.Code == WotDiagnosticCode.NodeCountExceeded),
@@ -157,7 +157,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(result, Is.Null);
             Assert.That(
@@ -177,7 +177,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(
                 diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionInvalid),
@@ -197,7 +197,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(
                 diagnostics.Any(d => d.Code == WotDiagnosticCode.NativeProjectionInvalid),
@@ -218,7 +218,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet restored = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(restored, Is.Not.Null);
             Assert.That(diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error), Is.False);
@@ -262,13 +262,13 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet result = WotNativeProjection.Read(
                 doc.RootElement,
                 new WotNodeSetConverterOptions(),
-                diagnostics);
+                diagnostics)!;
 
             Assert.That(result, Is.Null);
             WotDiagnostic diagnostic = diagnostics.SingleOrDefault(d =>
                 d.Severity == WotDiagnosticSeverity.Error &&
                 d.Code == WotDiagnosticCode.NativeProjectionInvalid &&
-                d.Location?.JsonPointer == expectedPointer);
+                d.Location?.JsonPointer == expectedPointer)!;
             Assert.That(
                 diagnostic,
                 Is.Not.Null,
@@ -289,7 +289,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error), Is.False);
@@ -305,7 +305,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(result, Is.Null);
             Assert.That(
@@ -323,7 +323,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(diagnostics.Any(d => d.Severity == WotDiagnosticSeverity.Error), Is.False);
@@ -349,10 +349,10 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             UANodeSet result = WotNativeProjection.Read(
-                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics);
+                doc.RootElement, new WotNodeSetConverterOptions(), diagnostics)!;
 
             Assert.That(result, Is.Not.Null);
-            UADataType dt = result!.Items?.OfType<UADataType>().FirstOrDefault();
+            UADataType dt = (result!.Items?.OfType<UADataType>().FirstOrDefault())!;
             Assert.That(dt, Is.Not.Null);
             Assert.That(dt!.Definition, Is.Not.Null);
             Assert.That(dt.Definition!.Field, Has.Length.EqualTo(2));

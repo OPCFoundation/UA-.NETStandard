@@ -104,14 +104,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
         {
             public StructureFieldParameter(StructureField structureField)
             {
-                Name = structureField.Name;
+                Name = structureField.Name!;
                 BuiltInType = TypeInfo.GetBuiltInType(structureField.DataType);
             }
 
-            public string Name { get; set; }
+            public string Name { get; set; } = null!;
             public BuiltInType BuiltInType { get; set; }
 
-            public string ToString(string format, IFormatProvider formatProvider)
+            public string ToString(string? format, IFormatProvider? formatProvider)
             {
                 return Name;
             }
@@ -135,7 +135,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             StructureType structureType,
             string testFunc)
         {
-            return BuildComplexTypeWithAllBuiltInTypes(null, structureType, testFunc, out _);
+            return BuildComplexTypeWithAllBuiltInTypes(null!, structureType, testFunc, out _);
         }
 
         /// <summary>
@@ -171,7 +171,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             int i = 1;
             foreach (StructureField field in complexTypeStructure.Fields)
             {
-                IType fieldType = TypeInfo.GetSystemType(field.DataType, null);
+                IType fieldType = TypeInfo.GetSystemType(field.DataType, null!)!;
                 field.IsOptional = structureType == StructureType.StructureWithOptionalFields;
                 fieldBuilder.AddField(field, fieldType, i++, false);
             }
@@ -274,8 +274,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                             break;
                     }
                 }
-                structType[property.Name] = newObj;
-                Assert.That(newObj, Is.EqualTo(structType[property.Name]));
+                structType[property.Name!] = newObj;
+                Assert.That(newObj, Is.EqualTo(structType[property.Name!]));
                 Assert.That(newObj, Is.EqualTo(structType[index]));
                 index++;
             }

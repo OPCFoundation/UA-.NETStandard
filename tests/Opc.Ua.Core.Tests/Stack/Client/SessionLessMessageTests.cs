@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.Tests
         public void DecodeAsJsonThrowsOnNullBuffer()
         {
             Assert.That(
-                () => SessionLessMessage.DecodeAsJson(null, m_context),
+                () => SessionLessMessage.DecodeAsJson(null!, m_context),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -62,7 +62,7 @@ namespace Opc.Ua.Core.Tests
         public void DecodeAsJsonThrowsOnNullContext()
         {
             Assert.That(
-                () => SessionLessMessage.DecodeAsJson([], null),
+                () => SessionLessMessage.DecodeAsJson([], null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -71,7 +71,7 @@ namespace Opc.Ua.Core.Tests
         {
             using var stream = new MemoryStream();
             Assert.That(
-                () => SessionLessMessage.EncodeAsJson(null, stream, m_context, true),
+                () => SessionLessMessage.EncodeAsJson(null!, stream, m_context, true),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests
         {
             using var stream = new MemoryStream();
             Assert.That(
-                () => SessionLessMessage.EncodeAsJson(new ReadRequest(), stream, null, true),
+                () => SessionLessMessage.EncodeAsJson(new ReadRequest(), stream, null!, true),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -162,7 +162,7 @@ namespace Opc.Ua.Core.Tests
         public void DecodeAsBinaryThrowsOnNullBuffer()
         {
             Assert.That(
-                () => SessionLessMessage.DecodeAsBinary(null, m_context),
+                () => SessionLessMessage.DecodeAsBinary(null!, m_context),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -170,7 +170,7 @@ namespace Opc.Ua.Core.Tests
         public void DecodeAsBinaryThrowsOnNullContext()
         {
             Assert.That(
-                () => SessionLessMessage.DecodeAsBinary([], null),
+                () => SessionLessMessage.DecodeAsBinary([], null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -179,7 +179,7 @@ namespace Opc.Ua.Core.Tests
         {
             using var stream = new MemoryStream();
             Assert.That(
-                () => SessionLessMessage.EncodeAsBinary(new ReadRequest(), stream, null, true),
+                () => SessionLessMessage.EncodeAsBinary(new ReadRequest(), stream, null!, true),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -188,7 +188,7 @@ namespace Opc.Ua.Core.Tests
         {
             using var stream = new MemoryStream();
             Assert.That(
-                () => SessionLessMessage.EncodeAsBinary(null, stream, m_context, true),
+                () => SessionLessMessage.EncodeAsBinary(null!, stream, m_context, true),
                 Throws.TypeOf<ArgumentNullException>());
         }
 

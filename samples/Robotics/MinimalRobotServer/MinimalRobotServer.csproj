@@ -7,7 +7,6 @@
     <PackageId>MinimalRobotServer</PackageId>
     <Description>Minimal self-contained .NET console OPC UA server demonstrating the OPC 40010 Robotics companion specification (a MotionDeviceSystem robot cell of two 6-axis articulated robots) bound to OpenUSD via the draft OPC UA - OpenUSD Bindings companion model, so a generic connector renders the cell live. Built on the Opc.Ua.Robotics and Opc.Ua.OpenUsd SDK libraries.</Description>
     <RootNamespace>Robotics</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>

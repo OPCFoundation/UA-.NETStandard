@@ -243,8 +243,8 @@ namespace Opc.Ua.Client.Tests
 
                 PublishRequest first = await firstRequest.Task.WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(
-                    first.SubscriptionAcknowledgements.ToArray().Select(ack => ack.SequenceNumber),
-                    Is.EquivalentTo(immediateAcknowledgements.ToArray()),
+                    first.SubscriptionAcknowledgements.ToArray()!.Select(ack => ack.SequenceNumber),
+                    Is.EquivalentTo(immediateAcknowledgements.ToArray()!),
                     "Transfer must not acknowledge messages whose Republish responses are still blocked.");
 
                 if (!replayedSequenceNumbers.IsEmpty)
@@ -254,7 +254,7 @@ namespace Opc.Ua.Client.Tests
                     republish.Release();
                     await notificationsReceived.Task.WaitAsync(s_timeout).ConfigureAwait(false);
                     Assert.That(notifications.Select(notification => notification.SequenceNumber),
-                        Is.EquivalentTo(replayedSequenceNumbers.ToArray()));
+                        Is.EquivalentTo(replayedSequenceNumbers.ToArray()!));
                     foreach (DataChangeNotification notification in notifications)
                     {
                         Assert.That(notification.MonitoredItems.Count, Is.EqualTo(1));
@@ -272,10 +272,10 @@ namespace Opc.Ua.Client.Tests
                 targetPublish.Release();
                 PublishRequest next = await secondRequest.Task.WaitAsync(s_timeout).ConfigureAwait(false);
                 Assert.That(
-                    next.SubscriptionAcknowledgements.ToArray().Select(ack => ack.SequenceNumber),
-                    Is.EquivalentTo(replayedSequenceNumbers.ToArray()));
+                    next.SubscriptionAcknowledgements.ToArray()!.Select(ack => ack.SequenceNumber),
+                    Is.EquivalentTo(replayedSequenceNumbers.ToArray()!));
                 Assert.That(
-                    first.SubscriptionAcknowledgements.ToArray().Concat(next.SubscriptionAcknowledgements.ToArray())
+                    first.SubscriptionAcknowledgements.ToArray()!.Concat(next.SubscriptionAcknowledgements.ToArray()!)
                         .Select(ack => ack.SubscriptionId),
                     Is.EqualTo(Enumerable.Repeat(1u, availableSequenceNumbers.Count)));
             }

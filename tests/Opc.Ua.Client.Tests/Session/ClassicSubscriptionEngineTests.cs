@@ -120,7 +120,7 @@ namespace Opc.Ua.Client.Tests
                     NotificationData = [new ExtensionObject(new DataChangeNotification())]
                 });
 
-            Assert.That(subscription.AvailableSequenceNumbers.ToArray(), Is.EquivalentTo(available.ToArray()));
+            Assert.That(subscription.AvailableSequenceNumbers.ToArray(), Is.EquivalentTo(available.ToArray()!));
         }
 
         /// <summary>
@@ -163,7 +163,7 @@ namespace Opc.Ua.Client.Tests
                 },
                 republished: true);
 
-            Assert.That(subscription.AvailableSequenceNumbers.ToArray(), Is.EquivalentTo(available.ToArray()));
+            Assert.That(subscription.AvailableSequenceNumbers.ToArray(), Is.EquivalentTo(available.ToArray()!));
             Assert.That(engine.RemoveAcknowledgementsForSubscription(subscription.Id), Is.EqualTo(3),
                 "The acks for 9 and 30 are kept and the republished 7 is added.");
         }
@@ -297,7 +297,7 @@ namespace Opc.Ua.Client.Tests
         public void ConstructorThrowsOnNullContext()
         {
             Assert.That(
-                () => new ClassicSubscriptionEngine(null),
+                () => new ClassicSubscriptionEngine(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 

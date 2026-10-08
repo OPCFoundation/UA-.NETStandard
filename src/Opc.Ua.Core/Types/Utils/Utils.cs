@@ -1159,7 +1159,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats a message using the invariant locale.
         /// </summary>
-        public static string Format(string text, params object[] args)
+        public static string Format(string text, params object?[] args)
         {
             return CoreUtils.Format(text, args);
         }
