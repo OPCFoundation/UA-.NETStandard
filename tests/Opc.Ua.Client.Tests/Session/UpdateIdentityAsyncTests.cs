@@ -147,15 +147,19 @@ namespace Opc.Ua.Client.Tests.Identity
                 passwordId);
 
             // The reference server only honours ECDHPolicyUri on CreateSession,
-            // so it may not hand out the key for the new policy; the switch must
-            // then fail cleanly (not with a null ephemeral key) and leave the
-            // current identity active.
+            // so it may not hand out the key for the new policy; and with an RSA
+            // instance certificate the ECC token policy cannot be satisfied at
+            // all. Either way the switch must fail cleanly (not with a null
+            // ephemeral key, nor by silently encrypting under the channel
+            // policy) and leave the current identity active.
             string expectedUser = "user2";
             try
             {
                 await rawSession.UpdateIdentityAsync(provider, eccPolicyUri).ConfigureAwait(false);
             }
-            catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecurityPolicyRejected)
+            catch (ServiceResultException sre) when (
+                sre.StatusCode == StatusCodes.BadSecurityPolicyRejected ||
+                sre.StatusCode == StatusCodes.BadIdentityTokenRejected)
             {
                 expectedUser = "user1";
             }
@@ -221,6 +225,55 @@ namespace Opc.Ua.Client.Tests.Identity
             Assert.That(
                 async () => await rawSession.UpdateIdentityAsync(provider, eccPolicyUri).ConfigureAwait(false),
                 Throws.InstanceOf<ServiceResultException>());
+            Assert.That(session.Identity.DisplayName, Is.EqualTo("user1"));
+
+            await session.ReconnectAsync(null, null, default).ConfigureAwait(false);
+
+            ServerStatusDataType status = await session
+                .ReadValueAsync<ServerStatusDataType>(VariableIds.Server_ServerStatus)
+                .ConfigureAwait(false);
+            Assert.That(status, Is.Not.Null);
+            Assert.That(session.Identity.DisplayName, Is.EqualTo("user1"));
+        }
+
+        /// <summary>
+        /// An override to an ECC policy on another curve than the client's
+        /// P-256 instance certificate cannot be satisfied. It must be refused
+        /// up front rather than fall back to a policy that inherits the
+        /// channel policy, which would encrypt the token for the wrong curve.
+        /// </summary>
+        [Test]
+        public async Task UnsatisfiableEccOverrideIsRejectedWithoutChangingTheSession()
+        {
+            Endpoints = await ClientFixture.GetEndpointsAsync(ServerUrl).ConfigureAwait(false);
+            ConfiguredEndpoint endpoint = await ClientFixture
+                .GetEndpointAsync(ServerUrl, SecurityPolicies.ECC_nistP256, Endpoints)
+                .ConfigureAwait(false);
+            const string overridePolicyUri = SecurityPolicies.ECC_nistP384;
+            bool offered = false;
+            foreach (UserTokenPolicy policy in endpoint.Description.UserIdentityTokens)
+            {
+                offered |= policy.TokenType == UserTokenType.UserName &&
+                    policy.SecurityPolicyUri == overridePolicyUri;
+            }
+            if (!offered)
+            {
+                Assert.Ignore("The test server endpoint does not advertise an ECC_nistP384 UserName token policy.");
+            }
+
+            using ISession session = await ClientFixture
+                .ConnectAsync(endpoint, new UserIdentity("user1", "password"u8))
+                .ConfigureAwait(false);
+            var rawSession = (Session)session;
+            SecretIdentifier passwordId = await CreatePasswordAsync("password"u8.ToArray())
+                .ConfigureAwait(false);
+            var provider = new UserNamePasswordIdentityProvider("user2", m_secretRegistry, passwordId);
+
+            Assert.That(
+                async () => await rawSession.UpdateIdentityAsync(provider, overridePolicyUri).ConfigureAwait(false),
+                Throws.InstanceOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadIdentityTokenRejected));
             Assert.That(session.Identity.DisplayName, Is.EqualTo("user1"));
 
             await session.ReconnectAsync(null, null, default).ConfigureAwait(false);
