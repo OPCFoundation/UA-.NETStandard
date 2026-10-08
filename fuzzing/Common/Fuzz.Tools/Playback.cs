@@ -46,7 +46,7 @@ namespace Opc.Ua.Fuzzing
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
         public static void Run(string directoryPath, bool stackTrace, ITelemetryContext telemetry)
         {
-            Run(directoryPath, stackTrace, telemetry, null!);
+            Run(directoryPath, stackTrace, telemetry, null);
         }
 
         /// <summary>
@@ -56,7 +56,7 @@ namespace Opc.Ua.Fuzzing
             string directoryPath,
             bool stackTrace,
             ITelemetryContext telemetry,
-            string target)
+            string? target)
         {
             _ = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             string fullPath;

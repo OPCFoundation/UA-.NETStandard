@@ -560,10 +560,10 @@ namespace Opc.Ua.Schema.Model.Tests
                     new XmlQualifiedName(name, NamespaceUri(ns)),
                     "Test",
                     "Node",
-                    out NodeDesign node),
+                    out NodeDesign? node),
                 Is.True,
                 name);
-            return node;
+            return node!;
         }
 
         private ModelDesignValidator CreateValidator(

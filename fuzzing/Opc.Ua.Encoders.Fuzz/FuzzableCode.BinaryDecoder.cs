@@ -126,7 +126,7 @@ namespace Opc.Ua.Fuzzing
         /// The fuzz target for the BinaryDecoder.
         /// </summary>
         /// <param name="stream">A memory stream with fuzz content.</param>
-        internal static IEncodeable FuzzBinaryDecoderCore(
+        internal static IEncodeable? FuzzBinaryDecoderCore(
             MemoryStream stream,
             bool throwAll = false)
         {
@@ -140,7 +140,7 @@ namespace Opc.Ua.Fuzzing
             }
             catch (ServiceResultException sre) when (!throwAll && IsExpectedDecodingError(sre))
             {
-                return null!;
+                return null;
             }
         }
 
@@ -162,13 +162,13 @@ namespace Opc.Ua.Fuzzing
             using MemoryStream memoryStream = segmented
                 ? PrepareArraySegmentStream(serialized)
                 : new MemoryStream(serialized);
-            IEncodeable encodeable2 = FuzzBinaryDecoderCore(memoryStream, true);
+            IEncodeable encodeable2 = FuzzBinaryDecoderCore(memoryStream, true)!;
             byte[] serialized2 = BinaryEncoder.EncodeMessage(encodeable2, MessageContext);
 
             using MemoryStream memoryStream2 = segmented
                 ? PrepareArraySegmentStream(serialized2)
                 : new MemoryStream(serialized2);
-            IEncodeable encodeable3 = FuzzBinaryDecoderCore(memoryStream2, true);
+            IEncodeable encodeable3 = FuzzBinaryDecoderCore(memoryStream2, true)!;
 
             string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
             if (serialized2 == null || !serialized.SequenceEqual(serialized2))
@@ -187,7 +187,7 @@ namespace Opc.Ua.Fuzzing
 
         private static void FuzzBinaryEncoderCore(MemoryStream stream, bool idempotent, bool segmented)
         {
-            IEncodeable encodeable = FuzzBinaryDecoderCore(stream);
+            IEncodeable? encodeable = FuzzBinaryDecoderCore(stream);
             if (encodeable != null)
             {
                 byte[] serialized = BinaryEncoder.EncodeMessage(encodeable, MessageContext);

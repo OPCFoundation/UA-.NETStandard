@@ -86,7 +86,7 @@ namespace Opc.Ua.Fuzzing
             ByteString actual = EncodeCallback(encode, wire);
 
             Assert.That(actual, Is.EqualTo(EncodeSeed(seedName, wire)));
-            EncoderTestMessages.AssertPopulated(EncoderTestMessages.Decode(actual.Span, wire));
+            EncoderTestMessages.AssertPopulated(EncoderTestMessages.Decode(actual.Span, wire)!);
         }
 
         [TestCase("ReadRequest")]
@@ -134,16 +134,16 @@ namespace Opc.Ua.Fuzzing
         {
             ByteString first = EncodeSeed(seedName, wire);
             ByteString second = EncodeSeed(seedName, wire);
-            IEncodeable decoded = EncoderTestMessages.Decode(first.Span, wire);
-            IEncodeable decodedAgain = EncoderTestMessages.Decode(second.Span, wire);
+            IEncodeable decoded = EncoderTestMessages.Decode(first.Span, wire)!;
+            IEncodeable decodedAgain = EncoderTestMessages.Decode(second.Span, wire)!;
 
             Assert.That(first.IsNull, Is.False);
             Assert.That(first.Length, Is.GreaterThan(64), "Each seed must cross the default segment boundary.");
             Assert.That(second, Is.EqualTo(first), "Freshly constructed seeds must have stable bytes/text.");
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decodedAgain, Is.Not.SameAs(decoded));
-            EncoderTestMessages.AssertPopulated(decoded);
-            EncoderTestMessages.AssertPopulated(decodedAgain);
+            EncoderTestMessages.AssertPopulated(decoded!);
+            EncoderTestMessages.AssertPopulated(decodedAgain!);
             Assert.That(Utils.IsEqual(decoded, decodedAgain), Is.True);
             Assert.That(EncoderTestMessages.Encode(decoded, wire), Is.EqualTo(first));
         }
@@ -175,8 +175,8 @@ namespace Opc.Ua.Fuzzing
             {
                 Assert.That(actual, Is.EqualTo(EncodeSeed(seedName, wire)));
             }
-            IEncodeable decoded = EncoderTestMessages.Decode(actual.Span, wire);
-            EncoderTestMessages.AssertPopulated(decoded);
+            IEncodeable decoded = EncoderTestMessages.Decode(actual.Span, wire)!;
+            EncoderTestMessages.AssertPopulated(decoded!);
         }
 
         private static string NormalizeNewlines(ByteString value)
@@ -304,7 +304,7 @@ namespace Opc.Ua.Fuzzing
             }
         }
 
-        internal static IEncodeable Decode(ReadOnlySpan<byte> input, string wire, bool strict = true)
+        internal static IEncodeable? Decode(ReadOnlySpan<byte> input, string wire, bool strict = true)
         {
             using var stream = new MemoryStream(input.ToArray());
             return wire switch

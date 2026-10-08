@@ -183,7 +183,7 @@ namespace Opc.Ua.Fuzzing
         /// The fuzz target for the JsonDecoder.
         /// </summary>
         /// <param name="json">A string with fuzz content.</param>
-        internal static IEncodeable FuzzJsonDecoderCore(string json, bool throwAll = false)
+        internal static IEncodeable? FuzzJsonDecoderCore(string json, bool throwAll = false)
         {
             try
             {
@@ -195,7 +195,7 @@ namespace Opc.Ua.Fuzzing
             }
             catch (ServiceResultException sre) when (!throwAll && IsExpectedDecodingError(sre))
             {
-                return null!;
+                return null;
             }
         }
 
@@ -333,7 +333,7 @@ namespace Opc.Ua.Fuzzing
 
         private static void FuzzJsonEncoderCore(string input, JsonEncoderOptions options)
         {
-            IEncodeable encodeable = FuzzJsonDecoderCore(input);
+            IEncodeable? encodeable = FuzzJsonDecoderCore(input);
             if (encodeable != null)
             {
                 FuzzJsonRoundTripCore(encodeable, options);

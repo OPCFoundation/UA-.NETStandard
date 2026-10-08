@@ -291,7 +291,7 @@ namespace Opc.Ua.Fuzzing
                 CheckAllocation(operation, inputLength, before, ex);
                 throw;
             }
-            CheckAllocation(operation, inputLength, before, null!);
+            CheckAllocation(operation, inputLength, before, null);
             return result;
         }
 
@@ -312,7 +312,7 @@ namespace Opc.Ua.Fuzzing
             });
         }
 
-        private static void CheckAllocation(string operation, long inputLength, long before, Exception inner)
+        private static void CheckAllocation(string operation, long inputLength, long before, Exception? inner)
         {
             if (before < 0)
             {

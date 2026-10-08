@@ -89,10 +89,10 @@ namespace Opc.Ua.Fuzzing.Tests
         {
             using var error = new StringWriter(CultureInfo.InvariantCulture);
 
-            Delegate method = FuzzMethods.FindFuzzMethod(error, target);
+            Delegate? method = FuzzMethods.FindFuzzMethod(error, target);
 
             Assert.That(method, Is.TypeOf(delegateType));
-            Assert.That(method.Method.Name, Is.EqualTo(target));
+            Assert.That(method!.Method.Name, Is.EqualTo(target));
             Assert.That(method.Target, Is.Null);
             Assert.That(error.ToString(), Is.Empty);
             Assert.That(FuzzableCode.Invocations, Is.Empty);
@@ -106,7 +106,7 @@ namespace Opc.Ua.Fuzzing.Tests
         {
             using var error = new StringWriter(CultureInfo.InvariantCulture);
 
-            Delegate method = FuzzMethods.FindFuzzMethod(error, target);
+            Delegate? method = FuzzMethods.FindFuzzMethod(error, target);
 
             Assert.That(method, Is.Null);
             Assert.That(error.ToString(), Does.Contain("The fuzzing function " + target));
@@ -121,9 +121,9 @@ namespace Opc.Ua.Fuzzing.Tests
         public void NamedDelegateReplaysOnlyTheRequestedTarget(string target)
         {
             byte[] input = [0x41, 0x00, 0xc3, 0xa9];
-            Delegate method = FuzzMethods.FindFuzzMethod(TextWriter.Null, target);
+            Delegate method = FuzzMethods.FindFuzzMethod(TextWriter.Null, target)!;
 
-            FuzzMethods.Replay(method, input);
+            FuzzMethods.Replay(method!, input);
 
             Assert.That(FuzzableCode.Invocations.Select(call => call.Target), Is.EqualTo(new[] { target }));
             Assert.That(FuzzableCode.Invocations[0].Input, Is.EqualTo(input));
@@ -203,10 +203,10 @@ namespace Opc.Ua.Fuzzing.Tests
         public void ReplayPropagatesTheOriginalTargetException(string target)
         {
             byte[] input = [0x41, 0x00, 0xc3, 0xa9];
-            Delegate method = FuzzMethods.FindFuzzMethod(TextWriter.Null, target);
+            Delegate method = FuzzMethods.FindFuzzMethod(TextWriter.Null, target)!;
 
             InvalidOperationException exception =
-                Assert.Throws<InvalidOperationException>(() => FuzzMethods.Replay(method, input))!;
+                Assert.Throws<InvalidOperationException>(() => FuzzMethods.Replay(method!, input))!;
 
             Assert.That(exception, Is.SameAs(FuzzableCode.InjectedFailure));
             Assert.That(FuzzableCode.Invocations.Select(call => call.Target), Is.EqualTo(new[] { target }));

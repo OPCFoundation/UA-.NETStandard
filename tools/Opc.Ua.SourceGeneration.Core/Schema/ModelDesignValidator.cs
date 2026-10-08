@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
@@ -329,7 +330,7 @@ namespace Opc.Ua.Schema.Model
             XmlQualifiedName symbolicId,
             string sourceName,
             string referenceName,
-            out NodeDesign target)
+            [NotNullWhen(true)] out NodeDesign? target)
         {
             if (IsNull(symbolicId))
             {
@@ -338,7 +339,7 @@ namespace Opc.Ua.Schema.Model
                     referenceName,
                     sourceName);
             }
-            return m_nodes.TryGetValue(symbolicId, out target!);
+            return m_nodes.TryGetValue(symbolicId, out target);
         }
 
         /// <summary>
@@ -4589,7 +4590,7 @@ namespace Opc.Ua.Schema.Model
                     instance.ReferenceType,
                     instance.SymbolicId.Name,
                     "ReferenceType",
-                    out NodeDesign referenceType) ||
+                    out NodeDesign? referenceType) ||
                     referenceType is not ReferenceTypeDesign))
             {
                 m_logger.LogWarning(

@@ -95,10 +95,10 @@ namespace Opc.Ua.Schema.Model.Tests
 
             Assert.That(validator.TryFindNode(
                 new XmlQualifiedName("OpaqueType", TargetNamespaceUri),
-                "Test", "Dependency", out NodeDesign node), Is.True);
+                "Test", "Dependency", out NodeDesign? node), Is.True);
             Assert.Multiple(() =>
             {
-                Assert.That(node.OpaqueId,
+                Assert.That(node!.OpaqueId,
                     Is.EqualTo(opaqueId == null ? null : Convert.FromBase64String(opaqueId)));
                 Assert.That(node.HasIdentifier(), Is.EqualTo(opaqueId != null));
             });
@@ -269,11 +269,11 @@ namespace Opc.Ua.Schema.Model.Tests
             ModelDesignValidator validator = CreateValidatedValidator();
             var symbolicId = new XmlQualifiedName("GenerateValuesEventType", TargetNamespaceUri);
 
-            bool found = validator.TryFindNode(symbolicId, "source", "reference", out NodeDesign node);
+            bool found = validator.TryFindNode(symbolicId, "source", "reference", out NodeDesign? node);
 
             Assert.That(found, Is.True);
             Assert.That(node, Is.Not.Null);
-            Assert.That(node.BrowseName, Is.EqualTo("GenerateValuesEventType"));
+            Assert.That(node!.BrowseName, Is.EqualTo("GenerateValuesEventType"));
             Assert.That(node, Is.TypeOf<ObjectTypeDesign>());
         }
 
@@ -283,7 +283,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ModelDesignValidator validator = CreateValidatedValidator();
             var symbolicId = new XmlQualifiedName("ThereIsNoSuchNode", TargetNamespaceUri);
 
-            bool found = validator.TryFindNode(symbolicId, "source", "reference", out NodeDesign node);
+            bool found = validator.TryFindNode(symbolicId, "source", "reference", out NodeDesign? node);
 
             Assert.That(found, Is.False);
             Assert.That(node, Is.Null);

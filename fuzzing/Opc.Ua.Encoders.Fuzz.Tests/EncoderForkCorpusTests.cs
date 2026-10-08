@@ -80,13 +80,13 @@ namespace Opc.Ua.Fuzzing
                     callbackName.EndsWith("Segmented", StringComparison.Ordinal)))
             {
                 using MemoryStream segmented = FuzzableCode.PrepareArraySegmentStream(input);
-                IEncodeable segmentedDecode = FuzzableCode.FuzzBinaryDecoderCore(segmented, throwAll: true);
-                AssertOriginalMessage(segmentedDecode, wire, messageName);
+                IEncodeable segmentedDecode = FuzzableCode.FuzzBinaryDecoderCore(segmented, throwAll: true)!;
+                AssertOriginalMessage(segmentedDecode!, wire, messageName);
                 Assert.That(Utils.IsEqual(decoded, segmentedDecode), Is.True);
             }
-            Delegate callback = FuzzMethods.FindFuzzMethod(TestContext.Error, callbackName);
+            Delegate callback = FuzzMethods.FindFuzzMethod(TestContext.Error, callbackName)!;
             Assert.That(callback, Is.Not.Null);
-            Assert.That(callback.Method.Name, Is.EqualTo(callbackName));
+            Assert.That(callback!.Method.Name, Is.EqualTo(callbackName));
             string[] namespaces = FuzzableCode.MessageContext.NamespaceUris.ToArray();
             string[] servers = FuzzableCode.MessageContext.ServerUris.ToArray();
 
@@ -136,10 +136,10 @@ namespace Opc.Ua.Fuzzing
             Assert.That(() => DecodeOriginal(input, "Xml"),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadDecodingError));
-            Delegate callback = FuzzMethods.FindFuzzMethod(TestContext.Error, callbackName);
+            Delegate callback = FuzzMethods.FindFuzzMethod(TestContext.Error, callbackName)!;
             Assert.That(callback, Is.Not.Null);
 
-            FuzzMethods.Replay(callback, input);
+            FuzzMethods.Replay(callback!, input);
 
             AssertOriginalHash(input, "Xml", messageName);
         }
@@ -308,12 +308,12 @@ namespace Opc.Ua.Fuzzing
         private static IEncodeable DecodeOriginal(byte[] input, string wire)
         {
             using var stream = new MemoryStream(input, writable: false);
-            return wire switch
+            return (wire switch
             {
                 "Binary" => FuzzableCode.FuzzBinaryDecoderCore(stream, throwAll: true),
                 "Xml" => FuzzableCode.FuzzXmlDecoderCore(stream, throwAll: true),
                 _ => throw new ArgumentException("Only Binary/XML originals use this typed replay.", nameof(wire))
-            };
+            })!;
         }
 
         private static void AssertOriginalMessage(IEncodeable decoded, string wire, string messageName)

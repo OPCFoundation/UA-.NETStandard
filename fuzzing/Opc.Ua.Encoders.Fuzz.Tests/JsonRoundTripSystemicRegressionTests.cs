@@ -101,8 +101,8 @@ namespace Opc.Ua.Fuzzing
                 FuzzableCode.LegacyReversibleOptions,
                 FuzzableCode.MessageContext);
 
-            var decoded = (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(json, true);
-            ExtensionObject decodedHeader = decoded.RequestHeader.AdditionalHeader;
+            var decoded = (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(json, true)!;
+            ExtensionObject decodedHeader = decoded!.RequestHeader.AdditionalHeader;
 
             Assert.That(
                 decodedHeader.TryGetValue(out IEncodeable? materialized),
@@ -127,8 +127,8 @@ namespace Opc.Ua.Fuzzing
                 FuzzableCode.MessageContext);
 
             var unregisteredDecoded =
-                (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(unregisteredJson, true);
-            ExtensionObject unregisteredHeader = unregisteredDecoded.RequestHeader.AdditionalHeader;
+                (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(unregisteredJson, true)!;
+            ExtensionObject unregisteredHeader = unregisteredDecoded!.RequestHeader.AdditionalHeader;
 
             Assert.That(
                 unregisteredHeader.Encoding,
@@ -165,10 +165,10 @@ namespace Opc.Ua.Fuzzing
                 FuzzableCode.LegacyReversibleOptions,
                 FuzzableCode.MessageContext);
 
-            var decoded = (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(json, true);
+            var decoded = (BrowseRequest)FuzzableCode.FuzzJsonDecoderCore(json, true)!;
 
             Assert.That(
-                decoded.RequestHeader.AdditionalHeader.TryGetValue(out IEncodeable? body),
+                decoded!.RequestHeader.AdditionalHeader.TryGetValue(out IEncodeable? body),
                 Is.True);
             Assert.That(body, Is.InstanceOf<ObjectAttributes>());
             Assert.That(((ObjectAttributes)body!).EventNotifier, Is.EqualTo(5));

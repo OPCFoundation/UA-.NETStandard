@@ -64,7 +64,7 @@ namespace Opc.Ua.Fuzzing
 
             if (args.Length == 3 && args[0] == "--replay")
             {
-                Delegate method = FuzzMethods.FindFuzzMethod(Console.Error, args[1]);
+                Delegate? method = FuzzMethods.FindFuzzMethod(Console.Error, args[1]);
                 if (method == null)
                 {
                     return 2;
@@ -93,7 +93,7 @@ namespace Opc.Ua.Fuzzing
 
             if (args.Length == 1)
             {
-                Delegate method = FuzzMethods.FindFuzzMethod(Console.Error, args[0]);
+                Delegate? method = FuzzMethods.FindFuzzMethod(Console.Error, args[0]);
                 if (method != null)
                 {
                     FuzzableCode.FuzzInfo();

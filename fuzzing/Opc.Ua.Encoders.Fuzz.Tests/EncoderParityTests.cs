@@ -55,8 +55,8 @@ namespace Opc.Ua.Fuzzing
             IEncodeable original = EncoderTestMessages.Create(messageName);
             EncoderTestMessages.AssertPopulated(original);
             ByteString input = EncoderTestMessages.Encode(original, target.Wire);
-            IEncodeable decoded = EncoderTestMessages.Decode(input.Span, target.Wire);
-            EncoderTestMessages.AssertPopulated(decoded);
+            IEncodeable decoded = EncoderTestMessages.Decode(input.Span, target.Wire)!;
+            EncoderTestMessages.AssertPopulated(decoded!);
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
 
             target.Span(input.Span);
@@ -71,8 +71,8 @@ namespace Opc.Ua.Fuzzing
             IEncodeable original = EncoderTestMessages.Create(messageName);
             EncoderTestMessages.AssertPopulated(original);
             ByteString input = EncoderTestMessages.Encode(original, target.Wire);
-            IEncodeable decoded = EncoderTestMessages.Decode(input.Span, target.Wire);
-            EncoderTestMessages.AssertPopulated(decoded);
+            IEncodeable decoded = EncoderTestMessages.Decode(input.Span, target.Wire)!;
+            EncoderTestMessages.AssertPopulated(decoded!);
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
 
             ReplayAfl(target, input, true);
@@ -119,8 +119,8 @@ namespace Opc.Ua.Fuzzing
             Assert.That(stream.Position, Is.Zero);
             AssertSegmentLayout(input, segmentSize);
 
-            IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true);
-            EncoderTestMessages.AssertPopulated(decoded);
+            IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true)!;
+            EncoderTestMessages.AssertPopulated(decoded!);
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
             ByteString canonical = EncoderTestMessages.Encode(decoded, "Binary");
             Assert.That(canonical, Is.EqualTo(input));
@@ -173,9 +173,9 @@ namespace Opc.Ua.Fuzzing
                 ReplayAfl(callback, input, true);
             }
             using MemoryStream stream = FuzzableCode.PrepareArraySegmentStream(input.Span);
-            IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true);
+            IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true)!;
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
-            Assert.That(EncoderTestMessages.Encode(decoded, "Binary"), Is.EqualTo(input));
+            Assert.That(EncoderTestMessages.Encode(decoded!, "Binary"), Is.EqualTo(input));
         }
 
         [Test]
@@ -243,7 +243,7 @@ namespace Opc.Ua.Fuzzing
             Assert.That(FuzzableCode.MessageContext.Factory.TryGetType(name, out IType? resolved), Is.True);
             Assert.That(resolved, Is.SameAs(type));
             ByteString serialized = EncoderTestMessages.Encode(message, "Xml");
-            IEncodeable decoded = EncoderTestMessages.Decode(serialized.Span, "Xml");
+            IEncodeable decoded = EncoderTestMessages.Decode(serialized.Span, "Xml")!;
             Assert.That(Utils.IsEqual(message, decoded), Is.True);
         }
 
@@ -723,9 +723,9 @@ namespace Opc.Ua.Fuzzing
             }
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(serialized));
 
-            IEncodeable decoded = FuzzableCode.FuzzXmlDecoderCore(stream, true);
+            IEncodeable decoded = FuzzableCode.FuzzXmlDecoderCore(stream, true)!;
 
-            EncoderTestMessages.AssertPopulated(decoded);
+            EncoderTestMessages.AssertPopulated(decoded!);
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
         }
 

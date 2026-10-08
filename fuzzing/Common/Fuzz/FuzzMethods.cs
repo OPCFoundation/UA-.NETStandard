@@ -87,7 +87,7 @@ namespace Opc.Ua.Fuzzing
         /// <summary>
         /// Finds a fuzzing method by name and returns a delegate to call it.
         /// </summary>
-        public static Delegate FindFuzzMethod(TextWriter errorOutput, string fuzzingFunction)
+        public static Delegate? FindFuzzMethod(TextWriter errorOutput, string fuzzingFunction)
         {
             // find the function to fuzz based on the first argument using reflection
             Type type = typeof(FuzzableCode);
@@ -144,7 +144,7 @@ namespace Opc.Ua.Fuzzing
                 errorOutput.WriteLine("The fuzzing function {0} was not found.", fuzzingFunction);
             }
 
-            return null!;
+            return null;
         }
 
         /// <summary>

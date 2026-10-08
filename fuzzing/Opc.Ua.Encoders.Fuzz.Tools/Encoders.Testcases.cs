@@ -80,10 +80,10 @@ namespace Opc.Ua.Fuzzing
                 }
                 using (var stream = new MemoryStream(message))
                 {
-                    IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true);
+                    IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true)!;
                     foreach (JsonEncoderOptions options in FuzzableCode.JsonEncodingModes)
                     {
-                        FuzzableCode.FuzzJsonRoundTripCore(decoded, options);
+                        FuzzableCode.FuzzJsonRoundTripCore(decoded!, options);
                     }
                 }
 
@@ -114,10 +114,10 @@ namespace Opc.Ua.Fuzzing
                 string json = Encoding.UTF8.GetString(message);
                 FuzzableCode.AflfuzzJsonDecoder(json);
                 FuzzableCode.AflfuzzJsonEncoder(json);
-                IEncodeable decoded = FuzzableCode.FuzzJsonDecoderCore(json, true);
+                IEncodeable decoded = FuzzableCode.FuzzJsonDecoderCore(json, true)!;
                 foreach (JsonEncoderOptions options in FuzzableCode.JsonEncodingModes)
                 {
-                    FuzzableCode.FuzzJsonRoundTripCore(decoded, options);
+                    FuzzableCode.FuzzJsonRoundTripCore(decoded!, options);
                 }
 
                 string fileName = Path.Combine(
@@ -154,10 +154,10 @@ namespace Opc.Ua.Fuzzing
                 }
                 using (var stream = new MemoryStream(message))
                 {
-                    IEncodeable decoded = FuzzableCode.FuzzXmlDecoderCore(stream, true);
+                    IEncodeable decoded = FuzzableCode.FuzzXmlDecoderCore(stream, true)!;
                     foreach (JsonEncoderOptions options in FuzzableCode.JsonEncodingModes)
                     {
-                        FuzzableCode.FuzzJsonRoundTripCore(decoded, options);
+                        FuzzableCode.FuzzJsonRoundTripCore(decoded!, options);
                     }
                 }
                 FuzzableCode.LibfuzzXmlDecoder(message);

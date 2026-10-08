@@ -4225,7 +4225,7 @@ namespace Opc.Ua.SourceGeneration
                         reference.TargetId,
                         root!.SymbolicId.Name,
                         reference.ReferenceType!.Name,
-                        out NodeDesign targetNode))
+                        out NodeDesign? targetNode))
                     {
                         continue;
                     }
@@ -4328,7 +4328,7 @@ namespace Opc.Ua.SourceGeneration
                     referenceTypeId,
                     string.Empty,
                     string.Empty,
-                    out NodeDesign design))
+                    out NodeDesign? design))
             {
                 return false;
             }
