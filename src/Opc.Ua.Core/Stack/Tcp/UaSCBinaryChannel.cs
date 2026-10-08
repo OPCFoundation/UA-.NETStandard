@@ -646,7 +646,7 @@ namespace Opc.Ua.Bindings
                         {
                             var context = new SecureChannelContext(
                                 GlobalChannelId, EndpointDescription, RequestEncoding.Binary,
-                                ClientCertificate?.RawData, ServerCertificate?.RawData, ChannelThumbprint,
+                                ClientCertificateRawData, ServerCertificateRawData, ChannelThumbprint,
                                 (Transport?.RemoteEndpoint as System.Net.IPEndPoint)?.Address);
                             owner = isolation is IResourceIsolationReassemblyProvider reassembly
                                 ? reassembly.ClassifyReassembly(context) : isolation.Classify(context);

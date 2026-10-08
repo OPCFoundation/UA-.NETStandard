@@ -644,6 +644,15 @@ namespace Opc.Ua.Server
         public ServerSystemContext SystemContext { get; }
 
         /// <summary>
+        /// Returns the system context for an operation, reusing the copy already made
+        /// for the same request. Use it in callbacks that run once per node of a request.
+        /// </summary>
+        private ServerSystemContext GetOperationSystemContext(OperationContext context)
+        {
+            return context != null ? context.GetSystemContext(SystemContext) : SystemContext.Copy(context!);
+        }
+
+        /// <summary>
         /// Gets the default index for the node manager's namespace.
         /// </summary>
         public ushort NamespaceIndex => m_namespaceIndexes[0];
@@ -4345,7 +4354,7 @@ namespace Opc.Ua.Server
             BrowseResultMask resultMask,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // check for valid handle.
             NodeHandle? handle = IsHandleInNamespace(targetHandle);
@@ -4716,8 +4725,6 @@ namespace Opc.Ua.Server
             ContinuationPoint continuationPoint,
             CancellationToken cancellationToken = default)
         {
-            _ = SystemContext.Copy(context);
-
             // create the type definition reference.
             var description = new ReferenceDescription { NodeId = reference.TargetId };
             description.SetReferenceType(
@@ -4821,7 +4828,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             // check for valid handle.
             NodeHandle? handle = IsHandleInNamespace(sourceHandle);
@@ -4944,7 +4951,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -5208,7 +5215,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
@@ -5936,7 +5943,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
             for (int ii = 0; ii < nodesToRead.Count; ii++)
@@ -6808,7 +6815,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
@@ -7422,7 +7429,7 @@ namespace Opc.Ua.Server
             }
 
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             NodeHandle? handle = await GetManagerHandleAsync(
                 systemContext,
@@ -7482,7 +7489,7 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
@@ -8244,7 +8251,7 @@ namespace Opc.Ua.Server
             }
 
             ServerSystemContext systemContext = SystemContext.Copy();
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var restoredItems = new List<IMonitoredItem>();
 
@@ -8416,7 +8423,7 @@ namespace Opc.Ua.Server
         {
             using NodeManagerOperation nodeOperation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var createdItems = new List<IMonitoredItem>();
 
@@ -10369,7 +10376,7 @@ namespace Opc.Ua.Server
             if (handle.Node != null)
             {
                 return new ValueTask<bool>(
-                    IsNodeInView(SystemContext.Copy(context), viewId, handle.Node));
+                    IsNodeInView(GetOperationSystemContext(context), viewId, handle.Node));
             }
 
             return new ValueTask<bool>(false);
@@ -10390,7 +10397,7 @@ namespace Opc.Ua.Server
             bool permissionsOnly,
             CancellationToken cancellationToken = default)
         {
-            ServerSystemContext systemContext = SystemContext.Copy(context);
+            ServerSystemContext systemContext = GetOperationSystemContext(context);
 
             // check for valid handle.
             NodeHandle? handle = IsHandleInNamespace(targetHandle);
@@ -10408,8 +10415,6 @@ namespace Opc.Ua.Server
                 return null!;
             }
 
-            var values = new Variant[3];
-
             // construct the meta-data object.
             var metadata = new NodeMetadata(target, target.NodeId)
             {
@@ -10420,25 +10425,10 @@ namespace Opc.Ua.Server
             if (uniqueNodesServiceAttributesCache != null)
             {
                 NodeId key = handle.NodeId;
-                if (uniqueNodesServiceAttributesCache.ContainsKey(key))
+                if (!uniqueNodesServiceAttributesCache.TryGetValue(key, out Variant[]? values) ||
+                    values.Length != 3)
                 {
-                    if (uniqueNodesServiceAttributesCache[key].Length != 3)
-                    {
-                        ReadAndCacheValidationAttributes(
-                            uniqueNodesServiceAttributesCache,
-                            systemContext,
-                            target,
-                            key,
-                            ref values);
-                    }
-                    else
-                    {
-                        // Retrieve value from cache
-                        values = uniqueNodesServiceAttributesCache[key];
-                    }
-                }
-                else
-                {
+                    values = new Variant[3];
                     ReadAndCacheValidationAttributes(
                         uniqueNodesServiceAttributesCache,
                         systemContext,
@@ -10451,6 +10441,7 @@ namespace Opc.Ua.Server
             } // All other calls that do not use the cache
             else if (permissionsOnly)
             {
+                var values = new Variant[3];
                 ReadValidationAttributes(systemContext, target, ref values);
                 SetAccessAndRolePermissions(values, metadata);
             }

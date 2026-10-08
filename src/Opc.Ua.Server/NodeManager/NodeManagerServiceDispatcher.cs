@@ -714,7 +714,6 @@ namespace Opc.Ua.Server
             ArrayOf<T> nodesList,
             out Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes)
         {
-            var uniqueNodes = new HashSet<NodeId>();
             Type listType = typeof(T);
 
             if (listType != typeof(ReadValueId) &&
@@ -727,6 +726,8 @@ namespace Opc.Ua.Server
                     nameof(nodesList));
             }
 
+            // uniqueNodesServiceAttributes is the place where the attributes for each unique nodeId are kept on the services
+            uniqueNodesServiceAttributes = new Dictionary<NodeId, Variant[]>(nodesList.Count);
             for (int i = 0; i < nodesList.Count; i++)
             {
                 NodeId nodeId = default;
@@ -746,14 +747,8 @@ namespace Opc.Ua.Server
 
                 if (!nodeId.IsNull)
                 {
-                    uniqueNodes.Add(nodeId);
+                    uniqueNodesServiceAttributes.TryAdd(nodeId, []);
                 }
-            }
-            // uniqueNodesReadAttributes is the place where the attributes for each unique nodeId are kept on the services
-            uniqueNodesServiceAttributes = [];
-            foreach (NodeId uniqueNode in uniqueNodes)
-            {
-                uniqueNodesServiceAttributes.Add(uniqueNode, []);
             }
         }
 
@@ -1223,7 +1218,7 @@ namespace Opc.Ua.Server
             var diagnosticInfos = new List<DiagnosticInfo>(nodesToRead.Count);
 
             // create empty list of errors.
-            var errors = new List<ServiceResult>(values.Count);
+            var errors = new List<ServiceResult>(nodesToRead.Count);
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
                 errors.Add(null!);
@@ -1370,7 +1365,7 @@ namespace Opc.Ua.Server
             // pre-validate items.
             bool validItems = false;
             // create empty list of errors.
-            var errors = new List<ServiceResult>(results.Count);
+            var errors = new List<ServiceResult>(nodesToRead.Count);
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
                 errors.Add(null!);
@@ -1709,7 +1704,7 @@ namespace Opc.Ua.Server
             bool validItems = false;
 
             // create empty list of errors.
-            var errors = new List<ServiceResult>(results.Count);
+            var errors = new List<ServiceResult>(nodesToUpdate.Count);
             for (int ii = 0; ii < nodesToUpdate.Count; ii++)
             {
                 errors.Add(null!);

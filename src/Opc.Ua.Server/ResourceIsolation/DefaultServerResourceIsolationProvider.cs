@@ -273,22 +273,25 @@ namespace Opc.Ua.Server
                     ? StatusCodes.BadSessionIdInvalid : StatusCodes.BadServerTooBusy;
             }
 
-            bool secure = original.Channel.SecurityMode is
-                MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt &&
-                original.Channel.SecurityPolicyUri != SecurityPolicies.None;
-            SecureChannelContext verifiedContext = secure ? channelContext : new SecureChannelContext(
-                channelContext.SecureChannelId, channelContext.EndpointDescription, channelContext.MessageEncoding,
-                peerAddress: channelContext.PeerAddress)
-            { UpstreamIdentity = channelContext.UpstreamIdentity };
-            if (m_classifier?.TryClassify(verifiedContext, current, out ResourceIsolationIdentity identity) == true ||
-                m_classifier?.TryClassifyIngress(
-                    channelContext.PeerAddress == null ? null : new IPEndPoint(channelContext.PeerAddress, 0),
-                    out identity) == true)
+            if (m_classifier != null)
             {
-                string key = identity.Class == ResourceIsolationClass.Trusted
-                    ? GetTrustedOwnerKey(identity.Key) : "mapped:" + identity.Key;
-                return identity.Class == owner.Class && key == owner.Key
-                    ? StatusCodes.Good : StatusCodes.BadServerTooBusy;
+                bool secure = original.Channel.SecurityMode is
+                    MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt &&
+                    original.Channel.SecurityPolicyUri != SecurityPolicies.None;
+                SecureChannelContext verifiedContext = secure ? channelContext : new SecureChannelContext(
+                    channelContext.SecureChannelId, channelContext.EndpointDescription, channelContext.MessageEncoding,
+                    peerAddress: channelContext.PeerAddress)
+                { UpstreamIdentity = channelContext.UpstreamIdentity };
+                if (m_classifier.TryClassify(verifiedContext, current, out ResourceIsolationIdentity identity) ||
+                    m_classifier.TryClassifyIngress(
+                        channelContext.PeerAddress == null ? null : new IPEndPoint(channelContext.PeerAddress, 0),
+                        out identity))
+                {
+                    string key = identity.Class == ResourceIsolationClass.Trusted
+                        ? GetTrustedOwnerKey(identity.Key) : "mapped:" + identity.Key;
+                    return identity.Class == owner.Class && key == owner.Key
+                        ? StatusCodes.Good : StatusCodes.BadServerTooBusy;
+                }
             }
             ResourceIsolationClass expected = current != null && controlRequest
                 ? ResourceIsolationClass.Control
@@ -861,14 +864,33 @@ namespace Opc.Ua.Server
             /// </summary>
             public bool Matches(SecureChannelContext context)
             {
-                byte[]? peer = context.PeerAddress?.GetAddressBytes();
                 return m_channelId == context.SecureChannelId &&
                     SecurityPolicyUri == context.EndpointDescription?.SecurityPolicyUri &&
                     SecurityMode == (context.EndpointDescription?.SecurityMode ?? MessageSecurityMode.Invalid) &&
                     (SecurityPolicyUri == SecurityPolicies.None ||
                         m_certificate.AsSpan().SequenceEqual(context.ClientChannelCertificate.AsSpan())) &&
-                    m_peer.AsSpan().SequenceEqual(peer.AsSpan()) &&
+                    PeerMatches(context.PeerAddress) &&
                     ReferenceEquals(m_upstreamIdentity, context.UpstreamIdentity);
+            }
+
+            /// <summary>
+            /// Compares the captured peer address bytes; runs for every request, so the
+            /// current address is written to the stack rather than copied to a new array.
+            /// </summary>
+            private bool PeerMatches(IPAddress? peer)
+            {
+                if (peer == null)
+                {
+                    return m_peer == null || m_peer.Length == 0;
+                }
+#if NET
+                Span<byte> bytes = stackalloc byte[16];
+                if (peer.TryWriteBytes(bytes, out int written))
+                {
+                    return m_peer.AsSpan().SequenceEqual(bytes[..written]);
+                }
+#endif
+                return m_peer.AsSpan().SequenceEqual(peer.GetAddressBytes());
             }
 
             private readonly string m_channelId;

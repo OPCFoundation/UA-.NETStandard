@@ -1721,8 +1721,8 @@ namespace Opc.Ua.Bindings
                         channel.GlobalChannelId,
                         channel.EndpointDescription,
                         RequestEncoding.Binary,
-                        channel.ClientCertificate?.RawData,
-                        channel.ServerCertificate?.RawData,
+                        channel.ClientCertificateRawData,
+                        channel.ServerCertificateRawData,
                         channel.ChannelThumbprint,
                         (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
 
