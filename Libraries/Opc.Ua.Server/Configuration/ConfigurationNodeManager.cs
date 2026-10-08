@@ -38,9 +38,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 using System.Security.Cryptography;
 using System.Diagnostics;
-#if !NET9_0_OR_GREATER
 using System.Runtime.InteropServices;
-#endif
 
 namespace Opc.Ua.Server
 {
@@ -640,12 +638,16 @@ namespace Opc.Ua.Server
                                         false);
                                 }
 
-                                // Combine the new certificate with a private copy of the
-                                // key. CopyWithPrivateKey shares the native key handle with
-                                // its source; on macOS disposing the combined certificate
-                                // later invalidates that key for RSA-PSS, and the source is
-                                // the certificate new channels use until ApplyChanges reloads it.
-                                using (X509Certificate2 keyCopy = CreateDetachedKeyCopy(exportableKey))
+                                // On macOS combine the new certificate with a private copy of
+                                // the key. CopyWithPrivateKey shares the native key handle with
+                                // its source; disposing the combined certificate later would
+                                // invalidate that key for RSA-PSS, and the source is the
+                                // certificate new channels use until ApplyChanges reloads it.
+                                // Linux keys are in memory and Windows already has a detached
+                                // copy, so those platforms keep using the source as is.
+                                using (X509Certificate2 keyCopy = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+                                    ? CreateDetachedKeyCopy(exportableKey)
+                                    : null)
                                 {
                                     updateCertificate.CertificateWithPrivateKey =
                                         CertificateFactory.CreateCertificateWithPrivateKey(
@@ -661,6 +663,9 @@ namespace Opc.Ua.Server
                                     }
                                     catch (Exception ex) when (ShouldRetry(attempt, ex))
                                     {
+                                        // release the failed attempt's certificate; the retry creates a new one
+                                        updateCertificate.CertificateWithPrivateKey.Dispose();
+                                        updateCertificate.CertificateWithPrivateKey = null;
                                         m_logger.LogDebug(
                                             Utils.TraceMasks.Security,
                                             ex,
@@ -697,6 +702,9 @@ namespace Opc.Ua.Server
                                 }
                                 catch (Exception ex) when (ShouldRetry(attempt, ex))
                                 {
+                                    // release the failed attempt's certificate; the retry creates a new one
+                                    updateCertificate.CertificateWithPrivateKey.Dispose();
+                                    updateCertificate.CertificateWithPrivateKey = null;
                                     m_logger.LogDebug(
                                         Utils.TraceMasks.Security,
                                         ex,
@@ -723,6 +731,9 @@ namespace Opc.Ua.Server
                                 }
                                 catch (Exception ex) when (ShouldRetry(attempt, ex))
                                 {
+                                    // release the failed attempt's certificate; the retry creates a new one
+                                    updateCertificate.CertificateWithPrivateKey.Dispose();
+                                    updateCertificate.CertificateWithPrivateKey = null;
                                     m_logger.LogDebug(
                                         Utils.TraceMasks.Security,
                                         ex,
@@ -1013,8 +1024,8 @@ namespace Opc.Ua.Server
         /// <see cref="X509Utils.CreateCopyWithPrivateKey"/> already uses on
         /// Windows. A key that cannot be exported (TPM, HSM, PKCS#11) is not
         /// affected, so null is returned and the caller uses the source as is.
-        /// The caller verifies the key pair when it combines the copy with the
-        /// new certificate.
+        /// The caller decides on which platform a copy is needed and verifies
+        /// the key pair when it combines the copy with the new certificate.
         /// </remarks>
         private static X509Certificate2 CreateDetachedKeyCopy(
             X509Certificate2 certificateWithPrivateKey)
