@@ -298,13 +298,14 @@ namespace Opc.Ua.Server.Tests.Aggregates
         }
 
         /// <summary>
-        /// NumberOfTransitions with TreatUncertainAsBad uses the last Good value before the interval as the
-        /// previous value, even when the bounds of the earlier intervals are Uncertain values: the Good
-        /// value 1 at 1 s must survive the pruning of old raw values, so the Good value 1 at 35 s is no
-        /// transition in [30 s, 40 s).
+        /// NumberOfTransitions compares the earliest non-Bad value in the interval with the previous non-Bad
+        /// value (Part 13 §5.4.3.24, Table 72 "Bound Uncertain: Use as value"), whatever TreatUncertainAsBad
+        /// is: the previous value of [30 s, 40 s) is the Uncertain 0 at 22 s, so the Good 1 at 35 s is a
+        /// transition.
         /// </summary>
-        [Test]
-        public void NumberOfTransitionsKeepsLastGoodValueBehindUncertainBounds()
+        [TestCase(true)]
+        [TestCase(false)]
+        public void NumberOfTransitionsUsesUncertainPreviousValue(bool treatUncertainAsBad)
         {
             List<DataValue> raw = Raw(
                 (1, 1.0, StatusCodes.Good),
@@ -321,7 +322,7 @@ namespace Opc.Ua.Server.Tests.Aggregates
                 true,
                 new AggregateConfiguration
                 {
-                    TreatUncertainAsBad = true,
+                    TreatUncertainAsBad = treatUncertainAsBad,
                     PercentDataBad = 100,
                     PercentDataGood = 100,
                     UseSlopedExtrapolation = false
@@ -341,16 +342,16 @@ namespace Opc.Ua.Server.Tests.Aggregates
 
             Assert.That(results, Has.Count.EqualTo(4));
             Assert.That(results[3].WrappedValue.TryGetValue(out int transitions), Is.True);
-            Assert.That(transitions, Is.Zero);
+            Assert.That(transitions, Is.EqualTo(1));
         }
 
         /// <summary>
-        /// A reverse read queues the raw values newest first. The interval [30 s, 40 s) must wait for the
-        /// last Good value before it (1 at 1 s) although its early bound (the Uncertain value at 22 s)
-        /// arrives earlier, so the Good value 1 at 35 s is no transition.
+        /// A reverse read queues the raw values newest first; the interval [30 s, 40 s) uses the same
+        /// previous non-Bad value (the Uncertain 0 at 22 s) as a forward read, so the Good 1 at 35 s is a
+        /// transition.
         /// </summary>
         [Test]
-        public void NumberOfTransitionsReverseReadWaitsForLastGoodValue()
+        public void NumberOfTransitionsReverseReadUsesUncertainPreviousValue()
         {
             List<DataValue> raw = Raw(
                 (1, 1.0, StatusCodes.Good),
@@ -393,7 +394,7 @@ namespace Opc.Ua.Server.Tests.Aggregates
             Assert.That(results, Has.Count.EqualTo(4));
             Assert.That(results[0].SourceTimestamp, Is.EqualTo(s_origin.AddMilliseconds(40_000)));
             Assert.That(results[0].WrappedValue.TryGetValue(out int transitions), Is.True);
-            Assert.That(transitions, Is.Zero);
+            Assert.That(transitions, Is.EqualTo(1));
         }
 
         private static List<DataValue> UncertainAfterEndBound()

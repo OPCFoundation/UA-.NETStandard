@@ -448,12 +448,13 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // The first non-Bad value is a transition when no previous non-Bad value exists.
-            // Part 13 §4.2.1.2: with TreatUncertainAsBad an Uncertain value is equivalent to Bad,
-            // so it is neither counted nor used as the previous value (IsGood applies the setting).
-            // The EarlyBound is the last non-Bad value (bounds ignore TreatUncertainAsBad), so use
-            // the last value that IsGood accepts instead.
-            LinkedListNode<DataValue>? previousValue = slice.EarlyGoodValue;
+            // Part 13 §5.4.3.24: the earliest non-Bad value in the interval is compared to the
+            // previous non-Bad value, which is a transition when no previous non-Bad value exists;
+            // Bad values are not included. The definition speaks of non-Bad values, so an Uncertain
+            // value counts whatever TreatUncertainAsBad is (Table 72 "Bound Uncertain: Use as value";
+            // the aggregate definition wins over TreatUncertainAsBad, Mantis 11425 ~0025847,
+            // 11426 ~0025852). The EarlyBound is the last non-Bad value before the interval.
+            LinkedListNode<DataValue>? previousValue = slice.EarlyBound;
             bool hasLastValue = previousValue != null;
             Variant lastValue = previousValue != null
                 ? previousValue.Value.WrappedValue
@@ -464,7 +465,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (!IsGood(values[ii]))
+                if (!IsBoundCandidate(values[ii]))
                 {
                     continue;
                 }

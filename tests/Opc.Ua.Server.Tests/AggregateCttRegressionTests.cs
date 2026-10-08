@@ -468,13 +468,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that direct and live transition counts include uncertain values only when
-        /// TreatUncertainAsBad is false. With TreatUncertainAsBad the Uncertain values are equivalent
-        /// to Bad (Part 13 §4.2.1.2) and Bad values are not counted (Part 13 §5.4.3.24).
+        /// Verifies that direct and live transition counts include uncertain values whatever
+        /// TreatUncertainAsBad is: only Bad values are not counted (Part 13 §5.4.3.24 speaks of non-Bad
+        /// values; the aggregate definition wins over TreatUncertainAsBad, Mantis 11425 ~0025847,
+        /// 11426 ~0025852).
         /// </summary>
         [TestCase(false, 22)]
-        [TestCase(true, 20)]
-        public async Task DirectAndLiveNumberOfTransitionsCountUncertainValuesOnlyWhenNotTreatedAsBadAsync(
+        [TestCase(true, 22)]
+        public async Task DirectAndLiveNumberOfTransitionsCountUncertainValuesAsync(
             bool treatUncertainAsBad,
             int expectedTransitions)
         {

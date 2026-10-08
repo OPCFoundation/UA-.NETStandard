@@ -421,16 +421,12 @@ namespace Opc.Ua.Server
             }
             else if (CurrentSlice.EarlyBound != null)
             {
-                LinkedListNode<DataValue> keep = CurrentSlice.SecondEarlyBound ?? CurrentSlice.EarlyBound;
+                LinkedListNode<DataValue>? ii = CurrentSlice.EarlyBound.Previous;
 
-                // the bounds may be Uncertain (bounds ignore TreatUncertainAsBad); keep the last value
-                // that IsGood accepts as well, the next slice may need it (e.g. NumberOfTransitions).
-                while (keep.Previous != null && !IsGood(keep.Value))
+                if (CurrentSlice.SecondEarlyBound != null)
                 {
-                    keep = keep.Previous;
+                    ii = CurrentSlice.SecondEarlyBound.Previous;
                 }
-
-                LinkedListNode<DataValue>? ii = keep.Previous;
 
                 while (ii != null)
                 {
@@ -736,12 +732,6 @@ namespace Opc.Ua.Server
             public LinkedListNode<DataValue> SecondEarlyBound { get; set; } = null!;
 
             /// <summary>
-            /// The last value before the slice that IsGood accepts (honours TreatUncertainAsBad).
-            /// The early bound is the last non-Bad value, so it may be an earlier or the same node.
-            /// </summary>
-            public LinkedListNode<DataValue> EarlyGoodValue { get; set; } = null!;
-
-            /// <summary>
             /// The beginning of the slice.
             /// </summary>
             public LinkedListNode<DataValue> Begin { get; set; } = null!;
@@ -859,11 +849,6 @@ namespace Opc.Ua.Server
                             slice.EarlyBound = ii;
                         }
 
-                        if (IsGood(ii.Value))
-                        {
-                            slice.EarlyGoodValue = ii;
-                        }
-
                         continue;
                     }
 
@@ -899,11 +884,6 @@ namespace Opc.Ua.Server
                             slice.SecondEarlyBound = slice.EarlyBound;
                             slice.EarlyBound = ii;
                             slice.LastProcessedValue = ii;
-                        }
-
-                        if (IsGood(ii.Value))
-                        {
-                            slice.EarlyGoodValue = ii;
                         }
 
                         continue;
@@ -943,13 +923,6 @@ namespace Opc.Ua.Server
                 else
                 {
                     requiredBound = slice.EarlyBound;
-                }
-
-                // older values arrive later; the early bound may be Uncertain, so also wait for the
-                // last value before the slice that IsGood accepts (e.g. NumberOfTransitions uses it).
-                if (slice.EarlyGoodValue == null)
-                {
-                    requiredBound = null!;
                 }
             }
             else
