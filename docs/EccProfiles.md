@@ -314,7 +314,8 @@ the stack runs AES-GCM (`GcmBlockCipher` over `AesEngine`) and
 ChaCha20-Poly1305 in BouncyCastle as well, also for the encrypted ECC user
 tokens. Deployments bound to FIPS-validated or other certified cryptographic
 modules should note that these steps are not performed by a validated module
-on .NET Framework, and that the managed AES is neither hardware accelerated
+on .NET Framework, so `CryptoCompliancePolicy.FipsOnly` withholds the ECC and
+AEAD policies there, and that the managed AES is neither hardware accelerated
 nor hardened against cache-timing side channels like the CNG implementation;
 use the .NET 8+ build, or an RSA policy, where that matters. The .NET 8+
 builds use `ECDiffieHellman.DeriveRawSecretAgreement`, `AesGcm` and

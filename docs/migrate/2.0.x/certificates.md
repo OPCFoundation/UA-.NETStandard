@@ -71,8 +71,9 @@ policies (`ECC_nistP256`, `ECC_nistP384`, `ECC_brainpoolP256r1`,
 
 **Migration:** nothing is required. Note that on .NET Framework the agreement
 and the authenticated ciphers do not run in a platform-validated cryptographic
-module; deployments with FIPS or certified-module requirements should use the
-.NET 8+ build or an RSA policy.
+module, so `CryptoCompliancePolicy.FipsOnly` withholds the ECC and AEAD
+policies there; deployments with FIPS or certified-module requirements should
+use the .NET 8+ build or an RSA policy.
 See [ECC platform requirements](../../EccProfiles.md#known-limitations).
 
 ### Certificates with an empty distinguished name are always rejected
