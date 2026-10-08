@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Security;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -37,9 +38,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 using System.Security.Cryptography;
 using System.Diagnostics;
-#if !NET9_0_OR_GREATER
 using System.Runtime.InteropServices;
-#endif
 
 namespace Opc.Ua.Server
 {
@@ -514,12 +513,16 @@ namespace Opc.Ua.Server
                         StatusCodes.BadInvalidArgument,
                         "No existing certificate found for the specified certificate type and subject name.");
 
+                bool isApplicationCertificateGroup = Utils.IsEqual(
+                    certificateGroup.NodeId,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup);
                 var newIssuerCollection = new X509Certificate2Collection();
 
                 try
                 {
-                    // build issuer chain
-                    if (issuerCertificates != null)
+                    // Application-group issuers must already be installed in the
+                    // configured TrustList. Ignore supplied issuer bytes entirely.
+                    if (!isApplicationCertificateGroup && issuerCertificates != null)
                     {
                         foreach (byte[] issuerRawCert in issuerCertificates)
                         {
@@ -547,27 +550,26 @@ namespace Opc.Ua.Server
                 {
                     try
                     {
-                        // Verify the integrity of the new certificate and the supplied issuer
-                        // chain. Seed the validator from the server's SecurityConfiguration so
-                        // operator-configured policy (minimum key size, SHA-1, revocation) is
-                        // honored, then trust the caller-supplied issuer chain as the trust
-                        // anchor for the new certificate. The application trust list is not
-                        // consulted here since the caller supplies the issuer chain as part of
-                        // the UpdateCertificate input.
+                        // Honor the server's certificate validation policy and use its
+                        // configured trust and issuer stores for application certificates.
                         var certValidator = new CertificateValidator(Server.Telemetry);
                         await certValidator.UpdateAsync(
                             m_configuration.SecurityConfiguration,
                             m_configuration.ApplicationUri,
                             ct).ConfigureAwait(false);
 
-                        var issuerStore = new CertificateTrustList();
-                        var issuerCollection = new CertificateIdentifierCollection();
-                        foreach (X509Certificate2 issuerCert in newIssuerCollection)
+                        if (newIssuerCollection.Count > 0)
                         {
-                            issuerCollection.Add(new CertificateIdentifier(issuerCert));
+                            // Preserve supplied-chain handling for other certificate groups.
+                            var issuerStore = new CertificateTrustList();
+                            var issuerCollection = new CertificateIdentifierCollection();
+                            foreach (X509Certificate2 issuerCert in newIssuerCollection)
+                            {
+                                issuerCollection.Add(new CertificateIdentifier(issuerCert));
+                            }
+                            issuerStore.TrustedCertificates = issuerCollection;
+                            certValidator.Update(issuerStore, issuerStore, null);
                         }
-                        issuerStore.TrustedCertificates = issuerCollection;
-                        certValidator.Update(issuerStore, issuerStore, null);
 
                         await certValidator.ValidateAsync(newCert, ct).ConfigureAwait(false);
                     }
@@ -636,25 +638,40 @@ namespace Opc.Ua.Server
                                         false);
                                 }
 
-                                updateCertificate.CertificateWithPrivateKey =
-                                    CertificateFactory.CreateCertificateWithPrivateKey(
-                                        newCert,
-                                        exportableKey);
-                                try
+                                // On macOS combine the new certificate with a private copy of
+                                // the key. CopyWithPrivateKey shares the native key handle with
+                                // its source; disposing the combined certificate later would
+                                // invalidate that key for RSA-PSS, and the source is the
+                                // certificate new channels use until ApplyChanges reloads it.
+                                // Linux keys are in memory and Windows already has a detached
+                                // copy, so those platforms keep using the source as is.
+                                using (X509Certificate2 keyCopy = RuntimeInformation.IsOSPlatform(OSPlatform.OSX)
+                                    ? CreateDetachedKeyCopy(exportableKey)
+                                    : null)
                                 {
-                                    await UpdateCertificateInternalAsync(
-                                        certificateGroup,
-                                        existingCertIdentifier,
-                                        updateCertificate, ct).ConfigureAwait(false);
-                                    break;
-                                }
-                                catch (Exception ex) when (ShouldRetry(attempt, ex))
-                                {
-                                    m_logger.LogDebug(
-                                        Utils.TraceMasks.Security,
-                                        ex,
-                                        "Failed to update certificate {Certificate}. Retrying...",
-                                        newCert.AsLogSafeString());
+                                    updateCertificate.CertificateWithPrivateKey =
+                                        CertificateFactory.CreateCertificateWithPrivateKey(
+                                            newCert,
+                                            keyCopy ?? exportableKey);
+                                    try
+                                    {
+                                        await UpdateCertificateInternalAsync(
+                                            certificateGroup,
+                                            existingCertIdentifier,
+                                            updateCertificate, ct).ConfigureAwait(false);
+                                        break;
+                                    }
+                                    catch (Exception ex) when (ShouldRetry(attempt, ex))
+                                    {
+                                        // release the failed attempt's certificate; the retry creates a new one
+                                        updateCertificate.CertificateWithPrivateKey.Dispose();
+                                        updateCertificate.CertificateWithPrivateKey = null;
+                                        m_logger.LogDebug(
+                                            Utils.TraceMasks.Security,
+                                            ex,
+                                            "Failed to update certificate {Certificate}. Retrying...",
+                                            newCert.AsLogSafeString());
+                                    }
                                 }
                             }
                             break;
@@ -685,6 +702,9 @@ namespace Opc.Ua.Server
                                 }
                                 catch (Exception ex) when (ShouldRetry(attempt, ex))
                                 {
+                                    // release the failed attempt's certificate; the retry creates a new one
+                                    updateCertificate.CertificateWithPrivateKey.Dispose();
+                                    updateCertificate.CertificateWithPrivateKey = null;
                                     m_logger.LogDebug(
                                         Utils.TraceMasks.Security,
                                         ex,
@@ -711,6 +731,9 @@ namespace Opc.Ua.Server
                                 }
                                 catch (Exception ex) when (ShouldRetry(attempt, ex))
                                 {
+                                    // release the failed attempt's certificate; the retry creates a new one
+                                    updateCertificate.CertificateWithPrivateKey.Dispose();
+                                    updateCertificate.CertificateWithPrivateKey = null;
                                     m_logger.LogDebug(
                                         Utils.TraceMasks.Security,
                                         ex,
@@ -984,6 +1007,63 @@ namespace Opc.Ua.Server
             certificateGroup.TemporaryApplicationCertificate = certificate;
 
             return certificate;
+        }
+
+        /// <summary>
+        /// Returns a copy of a certificate whose private key is independent
+        /// of the source, or null if the key cannot be exported.
+        /// </summary>
+        /// <remarks>
+        /// <c>X509Certificate2.CopyWithPrivateKey</c> does not deep copy the
+        /// key: the result shares the native key handle with the certificate
+        /// the key came from. On macOS the stack loads keys into a temporary
+        /// keychain, and disposing a certificate that shares such a key leaves
+        /// the source unable to export key parameters, which RSA-PSS signing
+        /// needs (OSStatus -50). Round-tripping the source through an
+        /// in-memory PFX gives the copy a key of its own, the technique
+        /// <see cref="X509Utils.CreateCopyWithPrivateKey"/> already uses on
+        /// Windows. A key that cannot be exported (TPM, HSM, PKCS#11) is not
+        /// affected, so null is returned and the caller uses the source as is.
+        /// The caller decides on which platform a copy is needed and verifies
+        /// the key pair when it combines the copy with the new certificate.
+        /// </remarks>
+        private static X509Certificate2 CreateDetachedKeyCopy(
+            X509Certificate2 certificateWithPrivateKey)
+        {
+            char[] passcode = X509Utils.GeneratePasscode();
+            byte[] pfx = null;
+            try
+            {
+                using var securePasscode = new SecureString();
+                foreach (char c in passcode)
+                {
+                    securePasscode.AppendChar(c);
+                }
+                securePasscode.MakeReadOnly();
+
+                try
+                {
+                    pfx = certificateWithPrivateKey.Export(X509ContentType.Pfx, securePasscode);
+                }
+                catch (CryptographicException)
+                {
+                    // not exportable: nothing to copy
+                    return null;
+                }
+
+                return X509CertificateLoader.LoadPkcs12(
+                    pfx,
+                    passcode,
+                    X509KeyStorageFlags.Exportable);
+            }
+            finally
+            {
+                if (pfx != null)
+                {
+                    Array.Clear(pfx, 0, pfx.Length);
+                }
+                Array.Clear(passcode, 0, passcode.Length);
+            }
         }
 
         private ServiceResult ApplyChanges(
