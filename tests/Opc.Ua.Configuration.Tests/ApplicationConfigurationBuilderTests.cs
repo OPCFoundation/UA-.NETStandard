@@ -1018,11 +1018,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddEccSignPolicies();
 
                 ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
-#if NET8_0_OR_GREATER
                 Assert.That(policies.Count, Is.GreaterThan(0));
-#else
-                Assert.That(policies, Is.Empty, "Raw ECDH policies require a net8+ stack build.");
-#endif
                 Assert.That(
                     policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.Sign),
                     Is.True);
@@ -1041,11 +1037,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddEccSignAndEncryptPolicies();
 
                 ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
-#if NET8_0_OR_GREATER
                 Assert.That(policies.Count, Is.GreaterThan(0));
-#else
-                Assert.That(policies, Is.Empty, "Raw ECDH policies require a net8+ stack build.");
-#endif
                 Assert.That(
                     policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
                     Is.True);

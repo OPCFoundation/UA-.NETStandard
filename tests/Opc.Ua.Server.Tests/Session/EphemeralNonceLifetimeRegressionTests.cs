@@ -752,6 +752,19 @@ namespace Opc.Ua.Server.Tests
                 WaitForRelease();
                 return inner.DeriveRawSecretAgreement(otherPartyPublicKey);
             }
+#else
+            /// <summary>
+            /// Waits for the borrower's release gate before the raw-agreement
+            /// polyfill reads the retained private key.
+            /// </summary>
+            public override ECParameters ExportParameters(bool includePrivateParameters)
+            {
+                if (includePrivateParameters)
+                {
+                    WaitForRelease();
+                }
+                return inner.ExportParameters(includePrivateParameters);
+            }
 #endif
 
             /// <summary>

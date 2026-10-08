@@ -34,7 +34,11 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 using NUnit.Framework;
+#if NETFRAMEWORK
+using Opc.Ua.Security.Certificates.BouncyCastle;
+#endif
 
 namespace Opc.Ua.Core.Tests.Types.Nonce
 {
@@ -59,11 +63,11 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
         ];
 
         [Test]
-        public void RawEccSecretIsUnhashedOrExplicitlyUnsupported([Values] bool p384)
+        public void RawEccSecretIsUnhashed([Values] bool p384)
         {
             SecurityPolicyInfo policy = p384 ? SecurityPolicyInfo.ECC_nistP384 : SecurityPolicyInfo.ECC_nistP256;
-            bool supported = SecurityPolicies.SupportsRawEccSecretAgreement();
-            Assert.That(SecurityPolicies.Default.GetInfo(policy.Uri) != null, Is.EqualTo(supported));
+            Assert.That(SecurityPolicies.Default.GetInfo(policy.Uri), Is.Not.Null);
+            Assert.That(SecurityPolicies.Default.GetDefaultEccUris(), Does.Contain(policy.Uri));
             using var local = Ua.Nonce.CreateNonce(policy);
             // A peer using scalar 1 publishes the curve generator. Its shared Z is the local public X coordinate.
             byte[] generator = Utils.FromHexString(p384
@@ -72,13 +76,6 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
                 : "6B17D1F2E12C4247F8BCE6E563A440F277037D812DEB33A0F4A13945D898C296" +
                     "4FE342E2FE1A7F9B8EE7EB4A7C0F9E162BCE33576B315ECECBB6406837BF51F5");
             using var remote = Ua.Nonce.CreateNonce(policy, generator);
-            if (!supported)
-            {
-                Assert.That(SecurityPolicies.Default.GetDefaultEccUris(), Does.Not.Contain(policy.Uri));
-                Assert.That(() => local.GenerateSecret(remote, null),
-                    Throws.TypeOf<NotSupportedException>().With.Message.Contains(".NET 8"));
-                return;
-            }
 
             byte[] secret = local.GenerateSecret(remote, null)!;
             try
@@ -90,6 +87,110 @@ namespace Opc.Ua.Core.Tests.Types.Nonce
                 CryptoUtils.ZeroMemory(secret);
             }
         }
+
+        /// <summary>
+        /// Both peers derive the same raw secret, of the curve's field size,
+        /// on every ECC curve the platform supports.
+        /// </summary>
+        [TestCase(SecurityPolicies.ECC_nistP256, 32)]
+        [TestCase(SecurityPolicies.ECC_nistP384, 48)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP256r1, 32)]
+        [TestCase(SecurityPolicies.ECC_brainpoolP384r1, 48)]
+        public void EccSecretAgreementIsSymmetric(string policyUri, int fieldSize)
+        {
+            SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfo(policyUri);
+            if (info == null)
+            {
+                Assert.Ignore($"{policyUri} is not supported on this platform.");
+            }
+
+            using var client = Ua.Nonce.CreateNonce(info);
+            using var server = Ua.Nonce.CreateNonce(info);
+            using var clientSeenByServer = Ua.Nonce.CreateNonce(info, client.Data!);
+            using var serverSeenByClient = Ua.Nonce.CreateNonce(info, server.Data!);
+
+            byte[] clientSecret = client.GenerateSecret(serverSeenByClient, null)!;
+            byte[] serverSecret = server.GenerateSecret(clientSeenByServer, null)!;
+            try
+            {
+                Assert.That(clientSecret, Has.Length.EqualTo(fieldSize));
+                Assert.That(serverSecret, Is.EqualTo(clientSecret));
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(clientSecret);
+                CryptoUtils.ZeroMemory(serverSecret);
+            }
+        }
+
+#if NETFRAMEWORK
+        /// <summary>
+        /// The BouncyCastle polyfill returns the unhashed secret CNG agrees on:
+        /// hashing it gives exactly what CNG's own hashed derivation returns.
+        /// </summary>
+        [TestCase("nistP256")]
+        [TestCase("nistP384")]
+        [TestCase("brainpoolP256r1")]
+        [TestCase("brainpoolP384r1")]
+        public void PolyfillRawSecretMatchesThePlatformAgreement(string curveName)
+        {
+            ECCurve curve = ECCurve.CreateFromFriendlyName(curveName);
+            ECDiffieHellman local;
+            try
+            {
+                local = ECDiffieHellman.Create(curve);
+            }
+            catch (PlatformNotSupportedException)
+            {
+                Assert.Ignore($"{curveName} is not supported on this platform.");
+                return;
+            }
+
+            using (local)
+            using (var remote = ECDiffieHellman.Create(curve))
+            {
+                byte[] raw = EcdhRawAgreement.DeriveRawSecretAgreement(local, remote.PublicKey);
+                byte[] expected = local.DeriveKeyFromHash(remote.PublicKey, HashAlgorithmName.SHA256);
+                using var sha256 = SHA256.Create();
+
+                Assert.That(sha256.ComputeHash(raw), Is.EqualTo(expected));
+                Assert.That(
+                    EcdhRawAgreement.DeriveRawSecretAgreement(remote, local.PublicKey),
+                    Is.EqualTo(raw));
+            }
+        }
+
+        /// <summary>
+        /// The polyfill refuses keys on different curves rather than
+        /// computing an agreement on the wrong domain.
+        /// </summary>
+        [Test]
+        public void PolyfillRejectsKeysOnDifferentCurves()
+        {
+            using var local = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
+            using var remote = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP384);
+
+            Assert.That(
+                () => EcdhRawAgreement.DeriveRawSecretAgreement(local, remote.PublicKey),
+                Throws.TypeOf<CryptographicException>());
+        }
+
+        /// <summary>
+        /// A point that is not on the curve is rejected before any agreement.
+        /// </summary>
+        [Test]
+        public void PolyfillRejectsAPointOffTheCurve()
+        {
+            using var local = ECDiffieHellman.Create(ECCurve.NamedCurves.nistP256);
+            ECParameters localKey = local.ExportParameters(true);
+            ECParameters offCurve = local.ExportParameters(false);
+            offCurve.Q.Y![offCurve.Q.Y.Length - 1] ^= 1;
+
+            Assert.That(
+                () => EcdhRawAgreement.DeriveRawSecretAgreement(localKey, offCurve),
+                Throws.TypeOf<CryptographicException>());
+        }
+#endif
 
         /// <summary>
         /// Test the CreateNonce - securitypolicy and valid nonceLength

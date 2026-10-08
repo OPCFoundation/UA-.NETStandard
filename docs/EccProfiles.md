@@ -299,16 +299,26 @@ The GDS checks on startup if a valid configuration was supplied.
 ## Known Limitations
 
 Not all curves are supported by all OS platforms and not all .NET implementations offer cryptographic API support for all curve types.
-**ECC security policies require the .NET 8 or later build of the stack.**
-OPC UA Part 6 feeds the raw ECDH shared secret into HKDF. The older
-`ECDiffieHellman.DeriveKeyMaterial` API applies a hash first and is not a
-compatible substitute. Consequently the .NET Framework 4.8
-builds do not advertise or accept the built-in ECC
-SecureChannel or user-token policies, even when loaded by a newer runtime.
-`SecurityPolicies.GetInfo` returns `null` for those unavailable policies.
-Use a .NET 8+ application and the matching stack assets for ECC endpoints,
-or configure a supported RSA policy on both peers. ECC certificate parsing
-and signing are separate capabilities and remain subject to OS curve support.
+**On .NET Framework 4.8 the ECDH agreement runs in BouncyCastle.**
+OPC UA Part 6 feeds the raw ECDH shared secret into HKDF. .NET Framework
+only offers `ECDiffieHellman.DeriveKeyMaterial`, which hashes the secret
+first, so the .NET Framework 4.8 build computes the raw agreement with the
+managed `BouncyCastle.Cryptography` implementation (`ECDHBasicAgreement`),
+which `Opc.Ua.Security.Certificates` already references on that target.
+The ephemeral keys, ECDSA signatures and HKDF stay on the platform (CNG)
+providers; only the agreement step is managed code. Deployments bound to
+FIPS-validated or other certified cryptographic modules should note that
+this step is not performed by a validated module on .NET Framework; use the
+.NET 8+ build, or an RSA policy, where that matters. The .NET 8+ builds use
+`ECDiffieHellman.DeriveRawSecretAgreement` and do not load BouncyCastle for it.
+
+The AES-GCM and ChaCha20-Poly1305 variants of the ECC policies
+(`ECC_*_AesGcm`, `ECC_*_ChaChaPoly`) still need .NET 8 or later, because
+.NET Framework has no authenticated ciphers; `SecurityPolicies.GetInfo`
+returns `null` for them there. The CBC-based ECC policies (`ECC_nistP256`,
+`ECC_nistP384`, `ECC_brainpoolP256r1`, `ECC_brainpoolP384r1`) are available
+on every target, subject to the OS supporting the curve.
+ECC certificate parsing and signing remain subject to OS curve support.
 The supported ECC curve types are the following:
 
 - `NistP256`               for ECC certificates with NIST P256 curve

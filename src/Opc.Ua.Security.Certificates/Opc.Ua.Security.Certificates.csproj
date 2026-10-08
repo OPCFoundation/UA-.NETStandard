@@ -26,7 +26,8 @@
     <PackageReference Include="System.Formats.Asn1" />
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
-  <!-- Add additional crypto library version -->
+  <!-- Add additional crypto library version: certificate creation and the
+       raw ECDH agreement polyfill for the ECC security policies. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <PackageReference Include="BouncyCastle.Cryptography" />
   </ItemGroup>
