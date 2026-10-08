@@ -91,7 +91,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConstructStaticFactory()
         {
-            NodeState node = MethodState.Construct(null);
+            NodeState node = MethodState.Construct(null!);
             Assert.That(node, Is.InstanceOf<MethodState>());
         }
 
@@ -108,7 +108,7 @@ namespace Opc.Ua.Types.Tests.State
                 Is.EqualTo(NodeStateChangeMasks.NonValue));
 
             // Clear and verify same value does not trigger
-            method.ClearChangeMasks(null, false);
+            method.ClearChangeMasks(null!, false);
             method.Executable = false;
             Assert.That(method.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }
@@ -117,7 +117,7 @@ namespace Opc.Ua.Types.Tests.State
         public void UserExecutablePropertySetterTriggersChangeMask()
         {
             var method = new MethodState(null);
-            method.ClearChangeMasks(null, false);
+            method.ClearChangeMasks(null!, false);
 
             method.UserExecutable = false;
             Assert.That(method.UserExecutable, Is.False);
@@ -483,7 +483,7 @@ namespace Opc.Ua.Types.Tests.State
             // the penultimate optional argument is described by a child, the last one only
             // by a bare Reference whose target is not a child.
             MethodState method = CreateMethodWithOptionalArgument(describeByChild: true);
-            method.InputArguments.Value =
+            method.InputArguments!.Value =
             [
                 new Argument { Name = "Required", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },
                 new Argument { Name = "Optional", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },

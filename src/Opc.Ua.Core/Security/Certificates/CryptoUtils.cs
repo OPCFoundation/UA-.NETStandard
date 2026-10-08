@@ -29,8 +29,6 @@ using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Digests;
 #endif
 
-#nullable enable
-
 namespace Opc.Ua
 {
     /// <summary>

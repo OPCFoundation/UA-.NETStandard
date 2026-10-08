@@ -126,9 +126,9 @@ namespace Opc.Ua.Types.Tests
                 ["de-DE"] = "Hallo"
             }, default);
 
-            LocalizedText german = original.FilterByPreferredLocales([null, string.Empty, "de-DE"]);
-            LocalizedText first = original.FilterByPreferredLocales([null]);
-            LocalizedText multi = original.FilterByPreferredLocales(["mul", null, "de-DE", "de-DE"]);
+            LocalizedText german = original.FilterByPreferredLocales([null!, string.Empty, "de-DE"]);
+            LocalizedText first = original.FilterByPreferredLocales([null!]);
+            LocalizedText multi = original.FilterByPreferredLocales(["mul", null!, "de-DE", "de-DE"]);
 
             Assert.Multiple(() =>
             {

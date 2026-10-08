@@ -62,7 +62,7 @@ namespace Opc.Ua.Types.Tests.State
 
             for (int ii = 0; ii < kLargeChildCount; ii++)
             {
-                BaseInstanceState found = parent.FindChild(m_context, Name(ii));
+                BaseInstanceState found = parent.FindChild(m_context, Name(ii))!;
                 Assert.That(found, Is.Not.Null, $"child {ii}");
                 Assert.That(found.BrowseName, Is.EqualTo(Name(ii)));
             }
@@ -103,7 +103,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildInLargeListDoesNotReturnRemovedChild()
         {
             BaseObjectState parent = CreateParentWithChildren(kLargeChildCount);
-            BaseInstanceState child = parent.FindChild(m_context, Name(7));
+            BaseInstanceState child = parent.FindChild(m_context, Name(7))!;
             Assert.That(child, Is.Not.Null);
 
             parent.RemoveChild(child);
@@ -116,7 +116,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildInLargeListFindsRenamedChildUnderNewNameOnly()
         {
             BaseObjectState parent = CreateParentWithChildren(kLargeChildCount);
-            BaseInstanceState child = parent.FindChild(m_context, Name(3));
+            BaseInstanceState child = parent.FindChild(m_context, Name(3))!;
             Assert.That(child, Is.Not.Null);
 
             child.BrowseName = QualifiedName.From("Renamed");
@@ -131,7 +131,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseObjectState parent = CreateParentWithChildren(kLargeChildCount);
             Assert.That(parent.FindChild(m_context, Name(9)), Is.Not.Null);
 
-            BaseDataVariableState replacement = CreateChild(null, "Child9");
+            BaseDataVariableState replacement = CreateChild(null!, "Child9");
             parent.ReplaceChild(m_context, replacement);
 
             Assert.That(parent.FindChild(m_context, Name(9)), Is.SameAs(replacement));
@@ -142,7 +142,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildInLargeListFindsChildThatWasAddedToAnotherParent()
         {
             BaseObjectState parent = CreateParentWithChildren(kLargeChildCount);
-            BaseInstanceState child = parent.FindChild(m_context, Name(11));
+            BaseInstanceState child = parent.FindChild(m_context, Name(11))!;
             Assert.That(child, Is.Not.Null);
 
             // AddChild moves the Parent but leaves the child in the first list.
@@ -162,7 +162,7 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(parent.FindChild(m_context, Name(2)), Is.Not.Null);
 
             var clone = (BaseObjectState)parent.Clone();
-            BaseInstanceState clonedChild = clone.FindChild(m_context, Name(2));
+            BaseInstanceState clonedChild = clone.FindChild(m_context, Name(2))!;
             Assert.That(clonedChild, Is.Not.Null);
             Assert.That(clonedChild, Is.Not.SameAs(parent.FindChild(m_context, Name(2))));
 
@@ -181,15 +181,15 @@ namespace Opc.Ua.Types.Tests.State
 
             for (int ii = kLargeChildCount - 1; ii >= 10; ii--)
             {
-                parent.RemoveChild(parent.FindChild(m_context, Name(ii)));
+                parent.RemoveChild(parent.FindChild(m_context, Name(ii))!);
             }
 
-            BaseInstanceState child = parent.FindChild(m_context, Name(4));
-            child.BrowseName = QualifiedName.From("RenamedWhileSmall");
+            BaseInstanceState child = parent.FindChild(m_context, Name(4))!;
+            child!.BrowseName = QualifiedName.From("RenamedWhileSmall");
 
             for (int ii = 10; ii < kLargeChildCount; ii++)
             {
-                parent.AddChild(CreateChild(parent, Name(ii).Name));
+                parent.AddChild(CreateChild(parent, Name(ii).Name!));
             }
 
             Assert.That(parent.FindChild(m_context, QualifiedName.From("RenamedWhileSmall")), Is.SameAs(child));
@@ -225,7 +225,7 @@ namespace Opc.Ua.Types.Tests.State
                         break;
                     default:
                         QualifiedName name = QualifiedName.From("Child" + random.Next(300));
-                        BaseInstanceState expected = children.Find(c => c.BrowseName == name);
+                        BaseInstanceState expected = children.Find(c => c.BrowseName == name)!;
                         Assert.That(parent.FindChild(m_context, name), Is.SameAs(expected), $"step {step}");
                         break;
                 }
@@ -315,7 +315,7 @@ namespace Opc.Ua.Types.Tests.State
 
             for (int ii = 0; ii < count; ii++)
             {
-                parent.AddChild(CreateChild(parent, Name(ii).Name));
+                parent.AddChild(CreateChild(parent, Name(ii).Name!));
             }
 
             return parent;

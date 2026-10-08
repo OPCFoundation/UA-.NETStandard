@@ -9,7 +9,6 @@
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">net10.0</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>    <RootNamespace>ModelManagement.Server</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <PublishAot>false</PublishAot>
     <IsAotCompatible>false</IsAotCompatible>

@@ -97,8 +97,8 @@ namespace Opc.Ua.Security.Certificates.Tests
                     // A leftover temp directory must not fail the run.
                 }
             }
-            m_root = null;
-            m_deep = null;
+            m_root = null!;
+            m_deep = null!;
         }
 
         [Test]

@@ -106,13 +106,13 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
         private static IssuerVerificationKey CreateKey(string kid)
         {
-            RSA rsa = null;
+            RSA? rsa = null;
             try
             {
                 rsa = RSA.Create(2048);
                 var key = new IssuerVerificationKey(kid, rsa, "RS256");
                 // Ownership of the RSA instance has transferred to the key.
-                rsa = null;
+                rsa = null!;
                 return key;
             }
             finally

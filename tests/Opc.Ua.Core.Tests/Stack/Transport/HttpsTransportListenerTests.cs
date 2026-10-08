@@ -235,7 +235,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public async Task UpdateChannelLastActiveTimeWithNullDoesNotThrowAsync()
         {
             await using var listener = new HttpsTransportListener(Utils.UriSchemeHttps, m_telemetry);
-            Assert.DoesNotThrow(() => listener.UpdateChannelLastActiveTime(null));
+            Assert.DoesNotThrow(() => listener.UpdateChannelLastActiveTime(null!));
         }
 
         /// <summary>

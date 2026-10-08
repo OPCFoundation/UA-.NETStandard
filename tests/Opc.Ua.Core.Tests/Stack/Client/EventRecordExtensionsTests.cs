@@ -76,7 +76,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             EventFilter filter = ConditionTypeRecord.EventFilters.Build();
 
             Assert.That(
-                filter.SelectClauses.ToArray().Any(static clause =>
+                filter.SelectClauses.ToArray()!.Any(static clause =>
                     clause.TypeDefinitionId == ObjectTypeIds.ConditionType &&
                     clause.AttributeId == Attributes.NodeId &&
                     clause.BrowsePath.IsEmpty),

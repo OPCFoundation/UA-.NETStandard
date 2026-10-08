@@ -1096,7 +1096,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(new[] { arg1, arg2 }));
             Assert.That(
-                new DataValue(v).GetValue<Argument[]>(null),
+                new DataValue(v).GetValue<Argument[]>(null!),
                 Is.EqualTo(new[] { arg1, arg2 }));
         }
 
@@ -1110,7 +1110,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             bool result = v.TryCastTo(out Argument[] value);
             Assert.That(result, Is.False);
             Assert.That(value, Is.Null);
-            Assert.That(new DataValue(v).GetValue<Argument[]>(null), Is.Null);
+            Assert.That(new DataValue(v).GetValue<Argument[]>(null!), Is.Null);
         }
 
         [Test]

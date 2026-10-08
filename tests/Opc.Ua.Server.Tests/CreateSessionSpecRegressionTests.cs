@@ -98,13 +98,13 @@ namespace Opc.Ua.Server.Tests
                     channel, new RequestHeader(), null, null, null, "cap-admission-1",
                     default, default, 60000, 0, RequestLifetime.None).ConfigureAwait(false);
                 object sessionManager = server.CurrentInstance.SessionManager;
-                ISession session = server.CurrentInstance.SessionManager.GetSession(first.AuthenticationToken);
-                object state = GetActivationState(sessionManager, session);
-                PropertyInfo inFlight = state.GetType().GetProperty("ActivationInFlight");
-                PropertyInfo claimed = state.GetType().GetProperty("CapEvictionClaimed");
+                ISession session = server.CurrentInstance.SessionManager.GetSession(first.AuthenticationToken)!;
+                object state = GetActivationState(sessionManager, session!);
+                PropertyInfo inFlight = state.GetType().GetProperty("ActivationInFlight")!;
+                PropertyInfo claimed = state.GetType().GetProperty("CapEvictionClaimed")!;
 
                 // an activation admitted between the eviction's candidate check and its claim.
-                inFlight.SetValue(state, true);
+                inFlight!.SetValue(state, true);
                 ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
                     async () => await CreateAsync(server, "cap-admission-2").ConfigureAwait(false));
                 Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManySessions));
@@ -115,7 +115,7 @@ namespace Opc.Ua.Server.Tests
 
                 // an activation that acquires the gate after the eviction claim fails.
                 inFlight.SetValue(state, false);
-                claimed.SetValue(state, true);
+                claimed!.SetValue(state, true);
                 ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await server.ActivateSessionAsync(
                         channel, new RequestHeader { AuthenticationToken = first.AuthenticationToken },
@@ -132,10 +132,10 @@ namespace Opc.Ua.Server.Tests
         private static object GetActivationState(object sessionManager, ISession session)
         {
             object table = typeof(SessionManager)
-                .GetField("m_sessionActivationStates", BindingFlags.Instance | BindingFlags.NonPublic)
-                .GetValue(sessionManager);
-            object[] args = [session, null];
-            bool found = (bool)table.GetType().GetMethod("TryGetValue").Invoke(table, args);
+                .GetField("m_sessionActivationStates", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .GetValue(sessionManager)!;
+            object[] args = [session, null!];
+            bool found = (bool)table!.GetType().GetMethod("TryGetValue")!.Invoke(table, args)!;
             Assert.That(found, Is.True);
             return args[1];
         }
@@ -203,8 +203,8 @@ namespace Opc.Ua.Server.Tests
                     fixture.Server, "server-uri", serverUri: foreignUri).ConfigureAwait(false);
 
                 ISession session = fixture.Server.CurrentInstance.SessionManager.GetSession(
-                    response.AuthenticationToken);
-                Assert.That(session.ReadDiagnostics(d => d.ServerUri), Is.EqualTo(foreignUri));
+                    response.AuthenticationToken)!;
+                Assert.That(session!.ReadDiagnostics(d => d.ServerUri), Is.EqualTo(foreignUri));
             }
             finally
             {
@@ -228,10 +228,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(double.IsNaN(response.RevisedSessionTimeout), Is.False);
                 Assert.That(
                     response.RevisedSessionTimeout,
-                    Is.EqualTo(fixture.Config.ServerConfiguration.MinSessionTimeout));
+                    Is.EqualTo(fixture.Config.ServerConfiguration!.MinSessionTimeout));
                 ISession session = fixture.Server.CurrentInstance.SessionManager.GetSession(
-                    response.AuthenticationToken);
-                Assert.That(session.HasExpired, Is.False);
+                    response.AuthenticationToken)!;
+                Assert.That(session!.HasExpired, Is.False);
             }
             finally
             {
@@ -253,8 +253,8 @@ namespace Opc.Ua.Server.Tests
                     fixture.Server, "max-response", maxResponseMessageSize: 65536).ConfigureAwait(false);
 
                 ISession session = fixture.Server.CurrentInstance.SessionManager.GetSession(
-                    response.AuthenticationToken);
-                Assert.That(session.ReadDiagnostics(d => d.MaxResponseMessageSize), Is.EqualTo(65536u));
+                    response.AuthenticationToken)!;
+                Assert.That(session!.ReadDiagnostics(d => d.MaxResponseMessageSize), Is.EqualTo(65536u));
             }
             finally
             {
@@ -319,14 +319,14 @@ namespace Opc.Ua.Server.Tests
             ServerFixture<StandardServer> fixture = await StartAsync().ConfigureAwait(false);
             try
             {
-                CreateSessionResponse first = await CreateAsync(fixture.Server, null).ConfigureAwait(false);
+                CreateSessionResponse first = await CreateAsync(fixture.Server, null!).ConfigureAwait(false);
                 CreateSessionResponse second = await CreateAsync(fixture.Server, string.Empty).ConfigureAwait(false);
 
                 ISessionManager sessions = fixture.Server.CurrentInstance.SessionManager;
-                string firstName = sessions.GetSession(first.AuthenticationToken)
-                    .ReadDiagnostics(d => d.SessionName);
-                string secondName = sessions.GetSession(second.AuthenticationToken)
-                    .ReadDiagnostics(d => d.SessionName);
+                string firstName = sessions.GetSession(first.AuthenticationToken)!
+                    .ReadDiagnostics(d => d.SessionName)!;
+                string secondName = sessions.GetSession(second.AuthenticationToken)!
+                    .ReadDiagnostics(d => d.SessionName)!;
                 Assert.That(firstName, Is.Not.Empty);
                 Assert.That(secondName, Is.Not.Empty);
                 Assert.That(firstName, Is.Not.EqualTo(secondName));
@@ -357,8 +357,8 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(server.ReportedErrors, Does.Contain((StatusCode)StatusCodes.BadCertificateUntrusted));
                 Assert.That(response.ServerSignature, Is.Not.Null);
                 Assert.That(response.ServerSignature.Signature.IsEmpty, Is.False);
-                ISession session = server.CurrentInstance.SessionManager.GetSession(response.AuthenticationToken);
-                Assert.That(session.ClientCertificate, Is.Not.Null);
+                ISession session = server.CurrentInstance.SessionManager.GetSession(response.AuthenticationToken)!;
+                Assert.That(session!.ClientCertificate, Is.Not.Null);
                 Assert.That(session.ClientCertificate.Thumbprint, Is.EqualTo(untrusted.Thumbprint));
             }
             finally
@@ -386,8 +386,8 @@ namespace Opc.Ua.Server.Tests
                 CreateSessionResponse response = await CreateSecuredAsync(
                     server, untrusted, kApplicationUri).ConfigureAwait(false);
                 var session = (Opc.Ua.Server.Session)server.CurrentInstance.SessionManager
-                    .GetSession(response.AuthenticationToken);
-                Assert.That(session.ClientCertificateValidated, Is.False);
+                    .GetSession(response.AuthenticationToken)!;
+                Assert.That(session!.ClientCertificateValidated, Is.False);
 
                 EndpointDescription endpoint = session.EndpointDescription;
                 var channel = new SecureChannelContext(
@@ -396,21 +396,21 @@ namespace Opc.Ua.Server.Tests
                 using var context = new OperationContext(
                     new RequestHeader(), channel, RequestType.ActivateSession, RequestLifetime.None);
                 MethodInfo addMandatoryRoles = typeof(SessionManager).GetMethod(
-                    "AddMandatoryRoles", BindingFlags.Instance | BindingFlags.NonPublic);
+                    "AddMandatoryRoles", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 object sessionManager = server.CurrentInstance.SessionManager;
 
-                var untrustedIdentity = (IUserIdentity)addMandatoryRoles.Invoke(
-                    sessionManager, [session, context, new UserIdentity()]);
+                var untrustedIdentity = (IUserIdentity)addMandatoryRoles!.Invoke(
+                    sessionManager, [session, context, new UserIdentity()])!;
                 Assert.That(
-                    untrustedIdentity.GrantedRoleIds.ToArray(),
+                    untrustedIdentity!.GrantedRoleIds.ToArray(),
                     Has.No.Member(ObjectIds.WellKnownRole_TrustedApplication));
 
                 // the same session with a validated certificate is a trusted application.
                 session.ClientCertificateValidated = true;
                 var trustedIdentity = (IUserIdentity)addMandatoryRoles.Invoke(
-                    sessionManager, [session, context, new UserIdentity()]);
+                    sessionManager, [session, context, new UserIdentity()])!;
                 Assert.That(
-                    trustedIdentity.GrantedRoleIds.ToArray(),
+                    trustedIdentity!.GrantedRoleIds.ToArray(),
                     Has.Member(ObjectIds.WellKnownRole_TrustedApplication));
             }
             finally
@@ -450,20 +450,20 @@ namespace Opc.Ua.Server.Tests
                 using var context = new OperationContext(
                     new RequestHeader(), channel, RequestType.ActivateSession, RequestLifetime.None);
                 MethodInfo addMandatoryRoles = typeof(SessionManager).GetMethod(
-                    "AddMandatoryRoles", BindingFlags.Instance | BindingFlags.NonPublic);
+                    "AddMandatoryRoles", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 object sessionManager = server.CurrentInstance.SessionManager;
 
-                var untrustedIdentity = (IUserIdentity)addMandatoryRoles.Invoke(
-                    sessionManager, [customSession.Object, context, new UserIdentity()]);
+                var untrustedIdentity = (IUserIdentity)addMandatoryRoles!.Invoke(
+                    sessionManager, [customSession.Object, context, new UserIdentity()])!;
                 Assert.That(
-                    untrustedIdentity.GrantedRoleIds.ToArray(),
+                    untrustedIdentity!.GrantedRoleIds.ToArray(),
                     Has.No.Member(ObjectIds.WellKnownRole_TrustedApplication));
 
                 ClientCertificateProvenance.SetValidated(customSession.Object, true);
                 var trustedIdentity = (IUserIdentity)addMandatoryRoles.Invoke(
-                    sessionManager, [customSession.Object, context, new UserIdentity()]);
+                    sessionManager, [customSession.Object, context, new UserIdentity()])!;
                 Assert.That(
-                    trustedIdentity.GrantedRoleIds.ToArray(),
+                    trustedIdentity!.GrantedRoleIds.ToArray(),
                     Has.Member(ObjectIds.WellKnownRole_TrustedApplication));
             }
             finally
@@ -509,7 +509,7 @@ namespace Opc.Ua.Server.Tests
             await fixture.LoadConfigurationAsync().ConfigureAwait(false);
             if (maxSessionCount > 0)
             {
-                fixture.Config.ServerConfiguration.MaxSessionCount = maxSessionCount;
+                fixture.Config.ServerConfiguration!.MaxSessionCount = maxSessionCount;
             }
             await fixture.StartAsync().ConfigureAwait(false);
             return fixture;
@@ -540,8 +540,8 @@ namespace Opc.Ua.Server.Tests
         private static ValueTask<CreateSessionResponse> CreateAsync(
             StandardServer server,
             string sessionName,
-            string serverUri = null,
-            string endpointUrl = null,
+            string? serverUri = null,
+            string? endpointUrl = null,
             double sessionTimeout = 60000,
             uint maxResponseMessageSize = 0)
         {

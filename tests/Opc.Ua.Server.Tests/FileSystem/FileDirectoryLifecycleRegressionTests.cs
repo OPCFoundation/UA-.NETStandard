@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -107,7 +105,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             await using IFileDirectoryBinding binding = await harness.BindAsync(1).ConfigureAwait(false);
             var host = (IFileSystemHost)binding;
             (ServiceResult result, _) = await FileReadRegressionTests.CallAsync(
-                harness.Root.MoveOrCopy, harness.Context, harness.Root.NodeId,
+                harness.Root.MoveOrCopy!, harness.Context, harness.Root.NodeId,
                 [host.BuildFileNodeId("source"), harness.Root.NodeId, false, "renamed"]).ConfigureAwait(false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(await harness.Physical.GetEntryAsync("source", CancellationToken.None).ConfigureAwait(false),
@@ -133,7 +131,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 _ => new OperationCanceledException()
             };
             (ServiceResult result, List<Variant> output) = await FileReadRegressionTests.CallAsync(
-                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["created", false]).ConfigureAwait(false);
+                harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["created", false]).ConfigureAwait(false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(await harness.Physical.GetEntryAsync("created", CancellationToken.None).ConfigureAwait(false),
                 Is.Not.Null);
@@ -166,7 +164,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             await harness.Physical.CreateFileAsync("external", CancellationToken.None).ConfigureAwait(false);
 
             (ServiceResult renamed, List<Variant> output) = await FileReadRegressionTests.CallAsync(
-                harness.Root.MoveOrCopy, harness.Context, harness.Root.NodeId,
+                harness.Root.MoveOrCopy!, harness.Context, harness.Root.NodeId,
                 [originalId, harness.Root.NodeId, false, "renamed"]).ConfigureAwait(false);
 
             Assert.That(renamed.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -188,7 +186,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(host.TryGetProviderPath(host.BuildFileNodeId("external"), out _, out _, out _), Is.False);
 
             (ServiceResult deleted, _) = await FileReadRegressionTests.CallAsync(
-                harness.Root.DeleteFileSystemObject, harness.Context, harness.Root.NodeId, [deletedId])
+                harness.Root.DeleteFileSystemObject!, harness.Context, harness.Root.NodeId, [deletedId])
                 .ConfigureAwait(false);
 
             Assert.That(deleted.StatusCode, Is.EqualTo(StatusCodes.Good),
@@ -232,12 +230,12 @@ namespace Opc.Ua.Server.Tests.FileSystem
             NodeId originalId = harness.FindFile("keep").NodeId;
             await harness.Physical.CreateFileAsync("external", CancellationToken.None).ConfigureAwait(false);
             (ServiceResult renamed, _) = await FileReadRegressionTests.CallAsync(
-                harness.Root.MoveOrCopy, harness.Context, harness.Root.NodeId,
+                harness.Root.MoveOrCopy!, harness.Context, harness.Root.NodeId,
                 [originalId, harness.Root.NodeId, false, "renamed"]).ConfigureAwait(false);
             Assert.That(renamed.StatusCode, Is.EqualTo(StatusCodes.Good));
 
             (ServiceResult created, _) = await FileReadRegressionTests.CallAsync(
-                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["blocked", false])
+                harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["blocked", false])
                 .ConfigureAwait(false);
 
             Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
@@ -263,7 +261,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             NodeId keptId = harness.FindFile("keep").NodeId;
             harness.RefreshFailure = new IOException("post-refresh unavailable");
             (ServiceResult created, _) = await FileReadRegressionTests.CallAsync(
-                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["created", false])
+                harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["created", false])
                 .ConfigureAwait(false);
             Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.Good));
             harness.RefreshFailure = new OperationCanceledException("pre-refresh cancelled");
@@ -294,7 +292,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             NodeId keptId = harness.FindFile("keep").NodeId;
             harness.RefreshFailure = new IOException("refresh unavailable");
             (ServiceResult created, _) = await FileReadRegressionTests.CallAsync(
-                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["created", false])
+                harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["created", false])
                 .ConfigureAwait(false);
             Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.Good));
             using var cancellation = new CancellationTokenSource();
@@ -342,14 +340,14 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 _ => throw new ArgumentOutOfRangeException(nameof(failure))
             };
             (ServiceResult created, _) = await FileReadRegressionTests.CallAsync(
-                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["created", false])
+                harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["created", false])
                 .ConfigureAwait(false);
             Assert.That(created.StatusCode, Is.EqualTo(StatusCodes.Good));
             harness.Provider.Setup(provider => provider.DeleteAsync("keep", It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new UnauthorizedAccessException("delete denied"));
 
             (ServiceResult deleted, _) = await FileReadRegressionTests.CallAsync(
-                harness.Root.DeleteFileSystemObject, harness.Context, harness.Root.NodeId, [keptId])
+                harness.Root.DeleteFileSystemObject!, harness.Context, harness.Root.NodeId, [keptId])
                 .ConfigureAwait(false);
 
             Assert.That(deleted.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
@@ -448,13 +446,13 @@ namespace Opc.Ua.Server.Tests.FileSystem
                     await harness.CreateFileAsync(path, ct).ConfigureAwait(false);
                 });
             Task<(ServiceResult Result, List<Variant> Output)> first = FileReadRegressionTests.CallAsync(
-                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["first", false]).AsTask();
+                harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["first", false]).AsTask();
             Task<(ServiceResult Result, List<Variant> Output)>? second = null;
             try
             {
                 await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
                 second = FileReadRegressionTests.CallAsync(
-                    harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["second", false]).AsTask();
+                    harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["second", false]).AsTask();
                 Assert.That(second.IsCompleted, Is.False);
             }
             finally
@@ -491,7 +489,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 return default;
             }).ConfigureAwait(false);
             (ServiceResult result, _) = await FileReadRegressionTests.CallAsync(
-                harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["created", false]).ConfigureAwait(false);
+                harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["created", false]).ConfigureAwait(false);
             var host = (IFileSystemHost)binding;
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(host.TryGetProviderPath(host.BuildFileNodeId("created"), out _, out _, out _), Is.False);
@@ -530,7 +528,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 Assert.That(refresh.IsCompleted, Is.False);
                 disposing = binding.DisposeAsync().AsTask();
                 mutation = FileReadRegressionTests.CallAsync(
-                    harness.Root.CreateFile, harness.Context, harness.Root.NodeId, ["late", false]).AsTask();
+                    harness.Root.CreateFile!, harness.Context, harness.Root.NodeId, ["late", false]).AsTask();
                 Assert.That(disposing.IsCompleted, Is.False);
                 Assert.That(mutation.IsCompleted, Is.False);
             }

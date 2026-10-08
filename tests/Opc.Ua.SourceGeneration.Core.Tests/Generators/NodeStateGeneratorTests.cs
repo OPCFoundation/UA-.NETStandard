@@ -82,10 +82,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Constructor_NullContext_ThrowsArgumentNullException()
         {
             // Arrange
-            GeneratorContext context = null;
+            GeneratorContext? context = null;
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => new NodeStateGenerator(context));
+            Assert.Throws<ArgumentNullException>(() => new NodeStateGenerator(context!));
         }
 
         /// <summary>
@@ -233,7 +233,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     "PlainType", "http://vendor.test/UA/")
             };
             ObjectTypeDesign elementFreeMachine = CreateFsmSubtype(
-                "http://vendor.test/UA/", children: null);
+                "http://vendor.test/UA/", children: null!);
 
             Assert.Multiple(() =>
             {
@@ -487,7 +487,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(
                     executeParameters[9].ParameterType,
                     Is.EqualTo(typeof(string).MakeByRefType()));
-                AssertArrayOfNodeIds(executeParameters[10].ParameterType.GetElementType());
+                AssertArrayOfNodeIds(executeParameters[10].ParameterType.GetElementType()!);
             });
 
             Type asyncDelegate = GetGeneratedType(
@@ -515,7 +515,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     result.GetProperty("SelectedId")?.PropertyType.FullName,
                     Is.EqualTo("Opc.Ua.NodeId"));
                 Assert.That(result.GetProperty("Message")?.PropertyType, Is.EqualTo(typeof(string)));
-                AssertArrayOfNodeIds(result.GetProperty("RelatedIds")?.PropertyType);
+                AssertArrayOfNodeIds((result.GetProperty("RelatedIds")?.PropertyType)!);
             });
 
             Type controller = GetGeneratedType(assembly, "ControllerState");
@@ -546,10 +546,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(alpha.MethodDeclarationNode, Is.SameAs(beta.MethodDeclarationNode));
                 Assert.That(gamma.MethodDeclarationNode, Is.Not.SameAs(alpha.MethodDeclarationNode));
                 Assert.That(
-                    alpha.MethodDeclarationNode.SymbolicId.Name,
+                    alpha.MethodDeclarationNode!.SymbolicId.Name,
                     Is.EqualTo("ExecuteAlphaTypeMethodType"));
                 Assert.That(
-                    gamma.MethodDeclarationNode.SymbolicId.Name,
+                    gamma.MethodDeclarationNode!.SymbolicId.Name,
                     Is.EqualTo("ExecuteGammaTypeMethodType"));
             });
 
@@ -606,10 +606,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     cached.MethodDeclarationNode,
                     Is.Not.SameAs(fileSystem.MethodDeclarationNode));
                 Assert.That(
-                    cached.MethodDeclarationNode.SymbolicId.Name,
+                    cached.MethodDeclarationNode!.SymbolicId.Name,
                     Is.EqualTo("GetUpdateBehaviorCachedLoadingTypeMethodType"));
                 Assert.That(
-                    fileSystem.MethodDeclarationNode.SymbolicId.Name,
+                    fileSystem.MethodDeclarationNode!.SymbolicId.Name,
                     Is.EqualTo("GetUpdateBehaviorFileSystemLoadingTypeMethodType"));
                 Assert.That(
                     MethodDesignArgumentResolver.ResolveMethodInputs(cached),
@@ -635,9 +635,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Single(method => method.SymbolicId.Name == "StringConvertMethodType");
             Assert.That(stringMethodType.InputArguments, Has.Length.EqualTo(1));
             Assert.That(stringMethodType.OutputArguments, Has.Length.EqualTo(1));
-            MethodDesign mergedMethod = (MethodDesign)derivedType.Hierarchy.Nodes["Convert"].Instance;
+            MethodDesign mergedMethod = (MethodDesign)derivedType.Hierarchy.Nodes["Convert"].Instance!;
             Parameter[] inputs =
-                MethodDesignArgumentResolver.ResolveMethodInputs(mergedMethod);
+                MethodDesignArgumentResolver.ResolveMethodInputs(mergedMethod!);
             Parameter[] outputs =
                 MethodDesignArgumentResolver.ResolveMethodOutputs(mergedMethod);
             Assert.That(inputs, Has.Length.EqualTo(1));
@@ -649,10 +649,10 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     mergedMethod.TypeDefinition.Name,
                     Is.EqualTo("StringConvertMethodType"));
                 Assert.That(
-                    mergedMethod.MethodType.SymbolicId.Name,
+                    mergedMethod.MethodType!.SymbolicId.Name,
                     Is.EqualTo("StringConvertMethodType"));
                 Assert.That(
-                    mergedMethod.MethodDeclarationNode.SymbolicId.Name,
+                    mergedMethod.MethodDeclarationNode!.SymbolicId.Name,
                     Is.EqualTo("StringControllerType_Convert"));
                 Assert.That(
                     mergedMethod.MethodDeclarationNode,
@@ -1591,7 +1591,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [TestCase(typeof(MethodDesign), typeof(MethodState))]
         public void ChildHidingDecisionMatchesTheRuntimeBaseClass(Type parentKind, Type runtimeBase)
         {
-            var parent = (NodeDesign)Activator.CreateInstance(parentKind);
+            var parent = (NodeDesign)Activator.CreateInstance(parentKind)!;
             HashSet<string> inherited = GetMembersVisibleToDerivedClasses(runtimeBase);
             // A Variable child named Value is emitted as a plain public property.
             if (parent is VariableDesign)
@@ -1606,11 +1606,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             ];
 
             string[] missing = [.. inherited
-                .Where(n => !NodeStateGenerator.RequiresNewModifier(parent, n))
+                .Where(n => !NodeStateGenerator.RequiresNewModifier(parent!, n))
                 .OrderBy(n => n, StringComparer.Ordinal)];
             string[] extra = [.. candidates
                 .Where(n => !inherited.Contains(n) && n != "Value" &&
-                    NodeStateGenerator.RequiresNewModifier(parent, n))
+                    NodeStateGenerator.RequiresNewModifier(parent!, n))
                 .OrderBy(n => n, StringComparer.Ordinal)];
 
             Assert.Multiple(() =>
@@ -1627,7 +1627,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             const BindingFlags kFlags = BindingFlags.Public | BindingFlags.NonPublic |
                 BindingFlags.Instance | BindingFlags.Static | BindingFlags.DeclaredOnly;
             var names = new HashSet<string>(StringComparer.Ordinal);
-            for (Type current = type; current != null; current = current.BaseType)
+            for (Type current = type; current != null; current = current.BaseType!)
             {
                 foreach (MemberInfo member in current.GetMembers(kFlags))
                 {
@@ -1637,7 +1637,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         MethodInfo m => !m.IsSpecialName && IsVisibleToDerived(m),
                         PropertyInfo p => p.GetIndexParameters().Length == 0 &&
                             p.GetAccessors(true).Any(IsVisibleToDerived),
-                        EventInfo e => IsVisibleToDerived(e.AddMethod),
+                        EventInfo e => IsVisibleToDerived(e.AddMethod!),
                         FieldInfo f => !f.IsSpecialName &&
                             (f.IsPublic || f.IsFamily || f.IsFamilyOrAssembly),
                         Type t => t.IsNestedPublic || t.IsNestedFamily || t.IsNestedFamORAssem,
@@ -1856,12 +1856,12 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string modelUri = nodesets.ModelUris.Single();
             List<string> designFiles = nodesets.GetDesignFileListForModel(
                 modelUri,
-                out _);
+                out _)!;
             IFileSystem sourceFileSystem = typeof(Generators).Assembly
                 .AsFileSystem("Opc.Ua.SourceGeneration.Design")
                 .WithFallback(fileSystem);
             return sourceFileSystem.OpenModelDesign(
-                new DesignFileCollection { Targets = designFiles },
+                new DesignFileCollection { Targets = designFiles! },
                 [],
                 telemetry,
                 useAllowSubtypes: false);
@@ -1901,7 +1901,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static Assembly CompileGeneratedAssembly(
             Dictionary<string, string> files,
-            List<Diagnostic> diagnostics = null)
+            List<Diagnostic>? diagnostics = null)
         {
             using var peStream = new MemoryStream();
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
@@ -1932,7 +1932,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static Type GetGeneratedType(Assembly assembly, string name)
         {
-            Type type = assembly.GetTypes().SingleOrDefault(candidate => candidate.Name == name);
+            Type? type = assembly.GetTypes().SingleOrDefault(candidate => candidate.Name == name);
             Assert.That(type, Is.Not.Null, $"Generated type '{name}' was not found.");
             return type;
         }
@@ -2027,6 +2027,6 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private Mock<IFileSystem> m_mockFileSystem;
         private Mock<IModelDesign> m_mockModelDesign;
         private Mock<ITelemetryContext> m_mockTelemetry;
-        private GeneratorContext m_context;
+        private GeneratorContext m_context = null!;
     }
 }

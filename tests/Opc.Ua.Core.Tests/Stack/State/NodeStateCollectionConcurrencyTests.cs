@@ -78,7 +78,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             start.SetResult(true);
             await Task.WhenAll(workers).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
             var snapshot = new List<IReference>();
-            node.GetReferences(null, snapshot);
+            node.GetReferences(null!, snapshot);
             Assert.That(snapshot, Has.Count.EqualTo(k_count));
             Assert.That(addedCallbacks, Is.EqualTo(k_count));
             for (int worker = 0; worker < workers.Length; worker++)
@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             }
             await Task.WhenAll(workers).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
             var current = new List<IReference>();
-            node.GetReferences(null, current);
+            node.GetReferences(null!, current);
             Assert.That(current, Is.Empty);
             Assert.That(removedCallbacks, Is.EqualTo(k_count));
             Assert.That(snapshot, Has.Count.EqualTo(k_count));

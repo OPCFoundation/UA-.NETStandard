@@ -60,7 +60,7 @@ namespace Opc.Ua.SourceGeneration
         public void TearDown()
         {
             m_fileSystem?.Dispose();
-            m_fileSystem = null;
+            m_fileSystem = null!;
         }
 
         /// <summary>
@@ -271,7 +271,7 @@ namespace Opc.Ua.SourceGeneration
             // The dated one is older by publication date, so it must lose.
             m_fileSystem.Add(
                 dated,
-                Encoding.UTF8.GetBytes(NodeSet(null, "2021-04-15T00:00:00Z")));
+                Encoding.UTF8.GetBytes(NodeSet(null!, "2021-04-15T00:00:00Z")));
             m_fileSystem.Add(
                 versioned,
                 Encoding.UTF8.GetBytes(NodeSet("1.05.4", "2026-08-12T00:00:00Z")));
@@ -296,9 +296,9 @@ namespace Opc.Ua.SourceGeneration
             const string newer = "memory://newer.NodeSet2.xml";
 
             m_fileSystem.Add(
-                older, Encoding.UTF8.GetBytes(NodeSet(null, "2024-05-01T00:00:00Z")));
+                older, Encoding.UTF8.GetBytes(NodeSet(null!, "2024-05-01T00:00:00Z")));
             m_fileSystem.Add(
-                newer, Encoding.UTF8.GetBytes(NodeSet(null, "2024-12-01T00:00:00Z")));
+                newer, Encoding.UTF8.GetBytes(NodeSet(null!, "2024-12-01T00:00:00Z")));
 
             NodesetFileCollection collection = Create((older, null), (newer, null));
 
@@ -319,13 +319,13 @@ namespace Opc.Ua.SourceGeneration
         [TestCase(2, 1, 0)]
         public void NewestSelectionDoesNotDependOnInputOrder(int first, int second, int third)
         {
-            (string Path, string Version, string Published)[] candidates =
+            (string Path, string? Version, string Published)[] candidates =
             [
                 ("memory://a.NodeSet2.xml", "1.0.2", "2024-01-01T00:00:00Z"),
                 ("memory://b.NodeSet2.xml", null, "2023-01-01T00:00:00Z"),
                 ("memory://c.NodeSet2.xml", "1.0.3", "2022-01-01T00:00:00Z")
             ];
-            foreach ((string path, string version, string published) in candidates)
+            foreach ((string path, string? version, string published) in candidates)
             {
                 m_fileSystem.Add(
                     path, Encoding.UTF8.GetBytes(NodeSet(version, published, version)));
@@ -364,7 +364,7 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(
                 collection.GetDesignFileListForModel(ModelUri, out NodesetFile nodeset),
                 Is.Not.Null);
-            Assert.That(nodeset.Info.ModelUri, Is.EqualTo(ModelUri));
+            Assert.That(nodeset.Info!.ModelUri, Is.EqualTo(ModelUri));
         }
 
         /// <summary>
@@ -387,10 +387,10 @@ namespace Opc.Ua.SourceGeneration
                 m_fileSystem,
                 NUnitTelemetryContext.Create(logLevel: LogLevel.Error));
 
-            List<string> files = collection.GetDesignFileListForModel(rootUri, out _);
+            List<string> files = collection.GetDesignFileListForModel(rootUri, out _)!;
 
             Assert.That(
-                files.Select(f => f.Split(',')[0]),
+                files!.Select(f => f.Split(',')[0]),
                 Is.EqualTo(new[] { root, other }));
         }
 
@@ -433,7 +433,7 @@ namespace Opc.Ua.SourceGeneration
         public void IdentifierSidecarPathIsNormalizedAndMatchedOnWholeSegments(
             string nodeSetPath,
             string identifierFile,
-            string expected)
+            string? expected)
         {
             string[] csvFiles =
             [
@@ -475,7 +475,7 @@ namespace Opc.Ua.SourceGeneration
                 """;
         }
 
-        private NodesetFileCollection Create(params (string Path, string Version)[] inputs)
+        private NodesetFileCollection Create(params (string Path, string? Version)[] inputs)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             List<(string, NodesetFileOptions)> files =
@@ -490,9 +490,9 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private static string NodeSet(
-            string version,
+            string? version,
             string publicationDate = "2026-08-12T00:00:00Z",
-            string modelVersion = null)
+            string? modelVersion = null)
         {
             string versionAttribute = version == null
                 ? string.Empty

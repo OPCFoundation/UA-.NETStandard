@@ -140,9 +140,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             NodeId objectId = new NodeId(RuntimeNodeSetTestServer.ComplexTypesTestDataObject, ns);
 
-            NodeState node = await server.NodeManager
+            NodeState node = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(objectId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(node, Is.Not.Null,
                 "ComplexTypesTestData object should be in the server's address space.");
@@ -166,12 +166,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             NodeId pointId = new NodeId(RuntimeNodeSetTestServer.PointValueVariable, ns);
             NodeId colorId = new NodeId(RuntimeNodeSetTestServer.ColorValueVariable, ns);
 
-            NodeState pointNode = await server.NodeManager
+            NodeState pointNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(pointId)
-                .ConfigureAwait(false);
-            NodeState colorNode = await server.NodeManager
+                .ConfigureAwait(false))!;
+            NodeState colorNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(colorId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
@@ -199,9 +199,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             NodeId colorId = new NodeId(RuntimeNodeSetTestServer.ColorValueVariable, ns);
 
-            NodeState colorNode = await server.NodeManager
+            NodeState colorNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(colorId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(colorNode, Is.Not.Null);
 
@@ -249,7 +249,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    server.Factory.TryGetEncodeableType(structureTypeId, out IEncodeableType structType),
+                    server.Factory.TryGetEncodeableType(structureTypeId, out IEncodeableType? structType),
                     Is.True,
                     "TestPoint stand-in structure should be registered in the server factory.");
                 Assert.That(structType, Is.Not.Null);
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     "TestPoint binary encoding id should resolve to the stand-in structure.");
 
                 Assert.That(
-                    server.Factory.TryGetEnumeratedType(enumTypeId, out IEnumeratedType enumType),
+                    server.Factory.TryGetEnumeratedType(enumTypeId, out IEnumeratedType? enumType),
                     Is.True,
                     "TestColor stand-in enumeration should be registered in the server factory.");
                 Assert.That(enumType, Is.Not.Null);

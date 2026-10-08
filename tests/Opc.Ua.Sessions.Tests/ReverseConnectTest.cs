@@ -202,12 +202,12 @@ namespace Opc.Ua.Sessions.Tests
                     .ConfigureAwait(false);
                 Assert.That(connection, Is.Not.Null, "Failed to get connection.");
             }
-            EndpointDescription selectedEndpoint = await CoreClientUtils.SelectEndpointAsync(
+            EndpointDescription selectedEndpoint = (await CoreClientUtils.SelectEndpointAsync(
                 config,
                 connection,
                 true,
                 MaxTimeout,
-                Telemetry).ConfigureAwait(false);
+                Telemetry).ConfigureAwait(false))!;
             Assert.That(selectedEndpoint, Is.Not.Null);
         }
 

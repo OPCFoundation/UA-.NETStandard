@@ -52,7 +52,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 DiscoveryUrl = ["opc.tcp://myserver.example.com:4840"]
             };
-            string result = app.GetHttpsDomainName();
+            string result = app.GetHttpsDomainName()!;
             Assert.That(result, Is.EqualTo("myserver.example.com"));
         }
 
@@ -63,7 +63,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 DiscoveryUrl = ["opc.tcp://localhost:4840"]
             };
-            string result = app.GetHttpsDomainName();
+            string result = app.GetHttpsDomainName()!;
             Assert.That(result, Is.EqualTo(Utils.GetHostName()));
         }
 
@@ -71,7 +71,7 @@ namespace Opc.Ua.Gds.Tests
         public void GetHttpsDomainNameReturnsNullWhenNoDiscoveryUrls()
         {
             var app = new RegisteredApplication();
-            string result = app.GetHttpsDomainName();
+            string? result = app.GetHttpsDomainName();
             Assert.That(result, Is.Null);
         }
 
@@ -82,7 +82,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 DiscoveryUrl = ["not a url", "opc.tcp://valid.example.com:4840"]
             };
-            string result = app.GetHttpsDomainName();
+            string result = app.GetHttpsDomainName()!;
             Assert.That(result, Is.EqualTo("valid.example.com"));
         }
 
@@ -297,7 +297,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 DiscoveryUrl = []
             };
-            string result = app.GetHttpsDomainName();
+            string? result = app.GetHttpsDomainName();
             Assert.That(result, Is.Null);
         }
 

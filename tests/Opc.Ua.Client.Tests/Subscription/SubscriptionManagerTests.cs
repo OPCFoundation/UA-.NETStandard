@@ -325,7 +325,7 @@ namespace Opc.Ua.Client.Subscriptions
                     AvailableSequenceNumbers = [],
                     NotificationMessage = new NotificationMessage
                     {
-                        SequenceNumber = h.RequestHandle
+                        SequenceNumber = h!.RequestHandle
                     },
                     Results = s.ConvertAll(_ => StatusCodes.Good),
                     SubscriptionId = 1,
@@ -379,7 +379,7 @@ namespace Opc.Ua.Client.Subscriptions
                 TaskCreationOptions.RunContinuationsAsynchronously);
             session.OnPublishAsync = (h, s, ct) =>
             {
-                published.TrySetResult(h.TimeoutHint);
+                published.TrySetResult(h!.TimeoutHint);
                 return new ValueTask<PublishResponse>(new PublishResponse
                 {
                     AvailableSequenceNumbers = [],
@@ -1205,7 +1205,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     publishSeen.TrySetResult(true);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(7u, h.RequestHandle));
+                        CreatePublishResponse(7u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;
@@ -1257,7 +1257,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     Interlocked.Increment(ref publishCount);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(4242u, h.RequestHandle));
+                        CreatePublishResponse(4242u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;
@@ -1322,7 +1322,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     Volatile.Write(ref armed, 1);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(4242u, h.RequestHandle));
+                        CreatePublishResponse(4242u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;
@@ -1380,7 +1380,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     Volatile.Write(ref armed, 1);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(4242u, h.RequestHandle));
+                        CreatePublishResponse(4242u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;
@@ -1427,7 +1427,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     Interlocked.Increment(ref publishCount);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(4242u, h.RequestHandle));
+                        CreatePublishResponse(4242u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;
@@ -1463,7 +1463,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 publishSeen.TrySetResult(true);
                 return new ValueTask<PublishResponse>(
-                    CreatePublishResponse(4242u, header.RequestHandle));
+                    CreatePublishResponse(4242u, header!.RequestHandle));
             };
 
             var sut = new SubscriptionManager(
@@ -1518,7 +1518,7 @@ namespace Opc.Ua.Client.Subscriptions
             session.OnPublishAsync = async (header, acknowledgements, ct) =>
             {
                 await Task.Delay(5, ct).ConfigureAwait(false);
-                return CreatePublishResponse(4242u, header.RequestHandle);
+                return CreatePublishResponse(4242u, header!.RequestHandle);
             };
 
             var sut = new SubscriptionManager(session,
@@ -1598,7 +1598,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     Interlocked.Increment(ref publishCount);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(4242u, h.RequestHandle));
+                        CreatePublishResponse(4242u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;
@@ -1646,7 +1646,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     Interlocked.Increment(ref publishCount);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(4242u, h.RequestHandle));
+                        CreatePublishResponse(4242u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;

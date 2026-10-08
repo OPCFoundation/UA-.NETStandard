@@ -7,7 +7,6 @@
     <PackageId>VisualInspectionCell</PackageId>
     <Description>Visual inspection work cell hosting Vision, AI Model Management, ISA-95 Job Control V2 and an operator dialog condition.</Description>
     <RootNamespace>Vision.VisualInspectionCell</RootNamespace>
-    <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA1014;CA1812;CA1822</NoWarn>
     <PublishAot>false</PublishAot>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>

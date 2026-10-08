@@ -232,7 +232,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.QueueEvent(e3);
             monitoredItem.QueueEvent(e4);
 
-            var published = new List<object>();
+            var published = new List<object?>();
             var notifications = new Queue<EventFieldList>();
             monitoredItem.Publish(new OperationContext(monitoredItem), notifications, 2);
             published.AddRange(notifications.Select(n => n.Handle));
@@ -441,7 +441,7 @@ namespace Opc.Ua.Server.Tests
             return new MonitoredItem(
                 serverMock.Object,
                 new Mock<IAsyncNodeManager>().Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId(),

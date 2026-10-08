@@ -62,7 +62,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void TearDown()
         {
             m_fileSystem?.Dispose();
-            m_fileSystem = null;
+            m_fileSystem = null!;
         }
 
         /// <summary>
@@ -82,7 +82,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string path = AddDesign("Pinned", pinnedFirst ? pinned + auto : auto + pinned);
             ModelDesignValidator validator = CreateValidator(startId: 1);
 
-            Assert.DoesNotThrow(() => validator.Validate([path], [], null));
+            Assert.DoesNotThrow(() => validator.Validate([path], [], null!));
 
             Assert.Multiple(() =>
             {
@@ -128,7 +128,7 @@ namespace Opc.Ua.Schema.Model.Tests
             Assert.DoesNotThrow(() => validator.Validate(
                 [target],
                 [files[first], files[second], files[third]],
-                null));
+                null!));
 
             var zType = (TypeDesign)FindNode(validator, "ZType", "Z");
             Assert.That(zType.BaseTypeNode?.SymbolicName?.Name, Is.EqualTo("XType"));
@@ -150,7 +150,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 """<opc:ObjectType SymbolicName="TType" BaseType="ua:BaseObjectType" />""");
             ModelDesignValidator validator = CreateValidator();
 
-            Assert.DoesNotThrow(() => validator.Validate([target], [downstream], null));
+            Assert.DoesNotThrow(() => validator.Validate([target], [downstream], null!));
 
             var dType = (TypeDesign)FindNode(validator, "DType", "D");
             Assert.That(dType.BaseTypeNode?.SymbolicName?.Name, Is.EqualTo("TType"));
@@ -168,10 +168,10 @@ namespace Opc.Ua.Schema.Model.Tests
             string path = AddDesign("Methods", MachineTypeWithMethods("MachineType", "ua:BaseObjectType"));
             ModelDesignValidator validator = CreateValidator();
 
-            validator.Validate([path], [], null);
+            validator.Validate([path], [], null!);
 
             var type = (TypeDesign)FindNode(validator, "MachineType", "Methods");
-            List<string> paths = type.Hierarchy.NodeList.ConvertAll(n => n.RelativePath);
+            List<string?> paths = type.Hierarchy.NodeList.ConvertAll(n => n.RelativePath);
 
             Assert.Multiple(() =>
             {
@@ -200,10 +200,10 @@ namespace Opc.Ua.Schema.Model.Tests
                 "Dep");
             ModelDesignValidator validator = CreateValidator();
 
-            validator.Validate([target], [dependency], null);
+            validator.Validate([target], [dependency], null!);
 
             var type = (TypeDesign)FindNode(validator, "SubMachineType", "Tgt");
-            List<string> paths = type.Hierarchy.NodeList.ConvertAll(n => n.RelativePath);
+            List<string?> paths = type.Hierarchy.NodeList.ConvertAll(n => n.RelativePath);
 
             Assert.Multiple(() =>
             {
@@ -255,12 +255,12 @@ namespace Opc.Ua.Schema.Model.Tests
                     "Tgt",
                     """<opc:ObjectType SymbolicName="SubMoverType" BaseType="dep:MoverType" />""",
                     "Dep");
-                validator.Validate([target], [dependency], null);
+                validator.Validate([target], [dependency], null!);
                 ns = "Dep";
             }
             else
             {
-                validator.Validate([AddDesign("Movers", machine)], [], null);
+                validator.Validate([AddDesign("Movers", machine)], [], null!);
                 ns = "Movers";
             }
 
@@ -297,7 +297,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 """);
             ModelDesignValidator validator = CreateValidator();
 
-            validator.Validate([path], [], null);
+            validator.Validate([path], [], null!);
 
             var dataType = (DataTypeDesign)FindNode(validator, "TextEncoding", "Enums");
             Assert.That(
@@ -338,18 +338,18 @@ namespace Opc.Ua.Schema.Model.Tests
                 "Dep");
             ModelDesignValidator validator = CreateValidator();
 
-            validator.Validate([target], [dependency], null);
+            validator.Validate([target], [dependency], null!);
 
             var type = (TypeDesign)FindNode(validator, "SubDeviceType", "Tgt");
             var limits = (VariableDesign)type.Hierarchy.NodeList
-                .Single(n => n.RelativePath == "Limits").Instance;
+                .Single(n => n.RelativePath == "Limits").Instance!;
             var level = (VariableDesign)type.Hierarchy.NodeList
-                .Single(n => n.RelativePath == "Level").Instance;
+                .Single(n => n.RelativePath == "Level").Instance!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(limits.ValueRank, Is.EqualTo(ValueRank.ScalarOrArray));
-                Assert.That(level.ValueRank, Is.EqualTo(ValueRank.Scalar));
+                Assert.That(limits!.ValueRank, Is.EqualTo(ValueRank.ScalarOrArray));
+                Assert.That(level!.ValueRank, Is.EqualTo(ValueRank.Scalar));
             });
         }
 
@@ -377,7 +377,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 """);
             ModelDesignValidator validator = CreateValidator();
 
-            validator.Validate([path], [], null);
+            validator.Validate([path], [], null!);
 
             var type = (TypeDesign)FindNode(validator, "PumpType", "Pumps");
             InstanceDesign start = type.Children.Items.Single(c => c.SymbolicName.Name == "Start");
@@ -414,7 +414,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 """);
             ModelDesignValidator validator = CreateValidator(startId: 1);
 
-            validator.Validate([path], [], null);
+            validator.Validate([path], [], null!);
 
             var type = (TypeDesign)FindNode(validator, "MachineType", "Prefix");
             HierarchyNode status = type.Hierarchy.NodeList.Single(n => n.RelativePath == "Status");
@@ -422,8 +422,8 @@ namespace Opc.Ua.Schema.Model.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That((uint)status.Identifier, Is.LessThan(1000000u));
-                Assert.That((uint)statusCode.Identifier, Is.GreaterThanOrEqualTo(1000000u));
+                Assert.That((uint)status.Identifier!, Is.LessThan(1000000u));
+                Assert.That((uint)statusCode.Identifier!, Is.GreaterThanOrEqualTo(1000000u));
             });
         }
 
@@ -452,7 +452,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             try
             {
-                validator.Validate([path], [], null);
+                validator.Validate([path], [], null!);
             }
             catch (InvalidOperationException)
             {
@@ -475,7 +475,7 @@ namespace Opc.Ua.Schema.Model.Tests
         public void ImportFieldKeepsTheRankOfMatrixFields(
             int rank,
             ValueRank expectedRank,
-            string expectedDimensions)
+            string? expectedDimensions)
         {
             var field = new SchemaTypes.FieldType
             {
@@ -484,11 +484,11 @@ namespace Opc.Ua.Schema.Model.Tests
                 ValueRank = rank
             };
 
-            Parameter parameter = ModelDesignValidator.ImportField(field);
+            Parameter parameter = ModelDesignValidator.ImportField(field)!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(parameter.ValueRank, Is.EqualTo(expectedRank));
+                Assert.That(parameter!.ValueRank, Is.EqualTo(expectedRank));
                 Assert.That(parameter.ArrayDimensions, Is.EqualTo(expectedDimensions));
             });
         }
@@ -560,15 +560,15 @@ namespace Opc.Ua.Schema.Model.Tests
                     new XmlQualifiedName(name, NamespaceUri(ns)),
                     "Test",
                     "Node",
-                    out NodeDesign node),
+                    out NodeDesign? node),
                 Is.True,
                 name);
-            return node;
+            return node!;
         }
 
         private ModelDesignValidator CreateValidator(
             uint startId = 1000,
-            ITelemetryContext telemetry = null)
+            ITelemetryContext? telemetry = null)
         {
             telemetry ??= NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             IFileSystem fileSystem = typeof(ModelDesignValidator).Assembly
@@ -577,7 +577,7 @@ namespace Opc.Ua.Schema.Model.Tests
             return new ModelDesignValidator(
                 fileSystem,
                 startId,
-                null,
+                null!,
                 telemetry,
                 SpecificationVersion.V105);
         }
@@ -622,7 +622,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             public IDisposable BeginScope<TState>(TState state) where TState : notnull
             {
-                return null;
+                return null!;
             }
 
             public bool IsEnabled(LogLevel logLevel)
@@ -634,12 +634,12 @@ namespace Opc.Ua.Schema.Model.Tests
                 LogLevel logLevel,
                 EventId eventId,
                 TState state,
-                Exception exception,
+                Exception? exception,
                 Func<TState, Exception, string> formatter)
             {
                 if (IsEnabled(logLevel))
                 {
-                    m_entries.Add(formatter(state, exception));
+                    m_entries.Add(formatter(state, exception!));
                 }
             }
 

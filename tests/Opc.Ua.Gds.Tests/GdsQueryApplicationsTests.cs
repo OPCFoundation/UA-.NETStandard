@@ -284,7 +284,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             var returnedUris = new HashSet<string>(
-                applications.Select(a => a.ApplicationUri));
+                applications.Select(a => a.ApplicationUri!));
 
             foreach (string uri in registeredUris)
             {
@@ -304,7 +304,7 @@ namespace Opc.Ua.Gds.Tests
                 startingRecordId: 0,
                 maxRecordsToReturn: 100,
                 applicationName: string.Empty,
-                applicationUri: appRecord.ApplicationUri,
+                applicationUri: appRecord.ApplicationUri!,
                 applicationType: 0,
                 productUri: string.Empty,
                 serverCapabilities: null).ConfigureAwait(false);
@@ -318,7 +318,7 @@ namespace Opc.Ua.Gds.Tests
                 startingRecordId: 0,
                 maxRecordsToReturn: 100,
                 applicationName: string.Empty,
-                applicationUri: appRecord.ApplicationUri,
+                applicationUri: appRecord.ApplicationUri!,
                 applicationType: 0,
                 productUri: string.Empty,
                 serverCapabilities: null).ConfigureAwait(false);
@@ -405,7 +405,7 @@ namespace Opc.Ua.Gds.Tests
                             new(applicationUri ?? string.Empty),
                             new(applicationType),
                             new(productUri ?? string.Empty),
-                            new(serverCapabilities.HasValue ? serverCapabilities.Value.ToArray() : [])
+                            new((serverCapabilities.HasValue ? serverCapabilities.Value.ToArray() : [])!)
                         }.ToArrayOf()
                     }
                 }.ToArrayOf(),
@@ -428,7 +428,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 foreach (ExtensionObject eo in eoArray)
                 {
-                    if (eo.TryGetValue(out ApplicationDescription appDesc, Session.MessageContext))
+                    if (eo.TryGetValue(out ApplicationDescription? appDesc, Session.MessageContext))
                     {
                         applicationsList.Add(appDesc);
                     }

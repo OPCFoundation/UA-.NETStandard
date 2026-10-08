@@ -318,7 +318,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Read_ReturnsNullForEmptyString()
         {
             Assert.That(ModelDependencyV1.FromBase64Payload(string.Empty), Is.Null);
-            Assert.That(ModelDependencyV1.FromBase64Payload(null), Is.Null);
+            Assert.That(ModelDependencyV1.FromBase64Payload(null!), Is.Null);
         }
 
         [Test]
@@ -466,7 +466,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             ModelDependencyV1 decoded =
                 ModelDependencyV1.FromBase64Payload(
-                    dependency.ToBase64Payload());
+                    dependency.ToBase64Payload())!;
 
             Assert.That(decoded, Is.Not.Null);
             DependencyChild child = decoded.Nodes.Single().Children.Single();
@@ -544,7 +544,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             ModelDependencyV1 dependency = BuildTrailerSnapshot(
                 methodStateName: "DoItMethodType",
                 guidId: "09087e75-8e5e-499b-954f-f2a9603db28a");
-            ModelDependencyV1 bodyOnly = BuildTrailerSnapshot(methodStateName: null, guidId: null);
+            ModelDependencyV1 bodyOnly = BuildTrailerSnapshot(methodStateName: null!, guidId: null!);
 
             byte[] body = Inflate(bodyOnly.ToBase64Payload());
             byte[] full = Inflate(dependency.ToBase64Payload());
@@ -553,7 +553,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(full[body.Length + 1], Is.EqualTo((byte)1));
             full[body.Length + 1] = 2;
 
-            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full));
+            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full))!;
 
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.Nodes, Has.Count.EqualTo(1));
@@ -574,7 +574,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
 
-            Assert.That(decoded.Nodes[0].Children[0].MethodStateName, Is.EqualTo("DoItMethodType"));
+            Assert.That(decoded!.Nodes[0].Children[0].MethodStateName, Is.EqualTo("DoItMethodType"));
             Assert.That(decoded.Nodes[0].GuidId, Is.EqualTo("09087e75-8e5e-499b-954f-f2a9603db28a"));
         }
 
@@ -606,7 +606,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
 
-            Assert.That(decoded.Nodes[0].GuidId, Is.Empty);
+            Assert.That(decoded!.Nodes[0].GuidId, Is.Empty);
             Assert.That(
                 decoded.Nodes[0].Children[0].MethodStateNamespace,
                 Is.EqualTo("http://example.org/UA/Edge/"));
@@ -623,7 +623,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
 
-            Assert.That(decoded.FluentAccessorsEmitted, Is.Null);
+            Assert.That(decoded!.FluentAccessorsEmitted, Is.Null);
             Assert.That(decoded.Nodes[0].GuidId, Is.Null);
             IReadOnlyList<DependencyDataField> fields = decoded.Nodes[0].Fields;
             Assert.That(fields, Is.EqualTo(dependency.Nodes[0].Fields));
@@ -652,8 +652,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(full.Take(old.Length), Is.EqualTo(old), "the old payload is a prefix");
 
             // New reader, old payload: the fields read without flags.
-            ModelDependencyV1 fromOld = ModelDependencyV1.FromBase64Payload(Deflate(old));
-            Assert.That(fromOld.Nodes[0].Fields, Is.EqualTo(withoutFlags.Nodes[0].Fields));
+            ModelDependencyV1 fromOld = ModelDependencyV1.FromBase64Payload(Deflate(old))!;
+            Assert.That(fromOld!.Nodes[0].Fields, Is.EqualTo(withoutFlags.Nodes[0].Fields));
             Assert.That(fromOld.Nodes[0].Fields.Any(f => f.IsOptional || f.AllowSubTypes), Is.False);
 
             // Old reader, new payload: an old reader only honours the
@@ -663,7 +663,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(capabilities & 0x40, Is.Zero, "fluent accessors stay unknown");
             byte[] asOldReaderSeesIt = (byte[])full.Clone();
             asOldReaderSeesIt[old.Length] = (byte)(capabilities & ~0x10);
-            ModelDependencyV1 oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt));
+            ModelDependencyV1 oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt))!;
             Assert.That(oldView, Is.Not.Null);
             Assert.That(oldView.FluentAccessorsEmitted, Is.Null);
             Assert.That(oldView.Nodes[0].GuidId, Is.Null);
@@ -671,8 +671,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             // Known fluent capability plus the trailer still round trips.
             ModelDependencyV1 fluent = ModelDependencyV1.FromBase64Payload(
-                BuildStructureSnapshot(withFlags: true, fluent: true).ToBase64Payload());
-            Assert.That(fluent.FluentAccessorsEmitted, Is.True);
+                BuildStructureSnapshot(withFlags: true, fluent: true).ToBase64Payload())!;
+            Assert.That(fluent!.FluentAccessorsEmitted, Is.True);
             Assert.That(fluent.Nodes[0].Fields[1].IsOptional, Is.True);
         }
 
@@ -692,7 +692,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(full[structureTrailer], Is.EqualTo((byte)1));
             full[structureTrailer] = 2;
 
-            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full));
+            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full))!;
 
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.Nodes[0].Fields.Any(f => f.IsOptional), Is.False);
@@ -710,7 +710,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             var decoded = ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload());
 
-            IReadOnlyList<DependencyChild> children = decoded.Nodes[1].Children;
+            IReadOnlyList<DependencyChild> children = decoded!.Nodes[1].Children;
             Assert.That(children[0].DefaultValueNamespaceUris, Is.EqualTo(s_producerTable));
             Assert.That(children[1].DefaultValueNamespaceUris, Is.EqualTo(s_nodeSetTable));
             Assert.That(children[2].DefaultValueNamespaceUris, Is.Null);
@@ -758,9 +758,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             }
 
             // New reader, old payload.
-            ModelDependencyV1 fromOld = ModelDependencyV1.FromBase64Payload(Deflate(old));
+            ModelDependencyV1 fromOld = ModelDependencyV1.FromBase64Payload(Deflate(old))!;
             Assert.That(
-                fromOld.Nodes.SelectMany(n => n.Children).Select(c => c.DefaultValueNamespaceUris),
+                fromOld!.Nodes.SelectMany(n => n.Children).Select(c => c.DefaultValueNamespaceUris),
                 Has.All.Null);
             Assert.That(fromOld.Nodes[1].Children[0].DefaultValueXml, Is.Not.Null);
 
@@ -770,7 +770,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(capabilities & 0x40, Is.Zero, "fluent accessors stay unknown");
             byte[] asOldReaderSeesIt = (byte[])full.Clone();
             asOldReaderSeesIt[capabilityOffset] = (byte)(capabilities & ~0x08);
-            ModelDependencyV1 oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt));
+            ModelDependencyV1 oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt))!;
             Assert.That(oldView, Is.Not.Null);
             Assert.That(oldView.FluentAccessorsEmitted, Is.Null);
             Assert.That(oldView.Nodes[1].Children, Has.Count.EqualTo(4));
@@ -780,7 +780,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(oldView.Nodes[0].Fields[0].IsOptional, Is.EqualTo(withFlags));
             // A reader that predates the structure field trailer as well.
             asOldReaderSeesIt[capabilityOffset] = (byte)(capabilities & ~0x18);
-            oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt));
+            oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt))!;
             Assert.That(oldView, Is.Not.Null);
             Assert.That(oldView.Nodes[0].Fields[0].IsOptional, Is.False);
         }
@@ -801,7 +801,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(full[trailer], Is.EqualTo((byte)1));
             full[trailer] = 2;
 
-            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full));
+            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full))!;
 
             Assert.That(decoded, Is.Not.Null);
             Assert.That(
@@ -857,8 +857,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(full.Take(old.Length), Is.EqualTo(old), "the old payload is a prefix");
 
             // New reader, old payload.
-            ModelDependencyV1 fromOld = ModelDependencyV1.FromBase64Payload(Deflate(old));
-            Assert.That(fromOld.Nodes[0].DataTypeName, Is.Null);
+            ModelDependencyV1 fromOld = ModelDependencyV1.FromBase64Payload(Deflate(old))!;
+            Assert.That(fromOld!.Nodes[0].DataTypeName, Is.Null);
             Assert.That(
                 fromOld.Nodes[1].Children.Select(c => c.BrowseNameNamespace + c.ReferenceTypeName),
                 Has.All.Empty);
@@ -870,7 +870,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(capabilities & 0x40, Is.Zero, "fluent accessors stay unknown");
             byte[] asOldReaderSeesIt = (byte[])full.Clone();
             asOldReaderSeesIt[old.Length] = (byte)(capabilities & ~0x04);
-            ModelDependencyV1 oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt));
+            ModelDependencyV1 oldView = ModelDependencyV1.FromBase64Payload(Deflate(asOldReaderSeesIt))!;
             Assert.That(oldView, Is.Not.Null);
             Assert.That(oldView.FluentAccessorsEmitted, Is.Null);
             Assert.That(oldView.Nodes[0].DataTypeName, Is.Null);
@@ -899,7 +899,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "the declaration trailer is the last one");
             full[trailer] = 2;
 
-            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full));
+            ModelDependencyV1 decoded = ModelDependencyV1.FromBase64Payload(Deflate(full))!;
 
             Assert.That(decoded, Is.Not.Null);
             Assert.That(decoded.Nodes[0].DataTypeName, Is.Null);

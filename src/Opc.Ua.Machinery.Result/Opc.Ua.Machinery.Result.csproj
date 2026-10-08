@@ -13,7 +13,6 @@
          redundant. The generated code is correct; only the modifier is
          superfluous, and generated modifiers cannot be hand-tuned. -->
     <NoWarn>$(NoWarn);CS1591;CS0108;CS0109</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Source-generated OPC 40001-101 Machinery Result Transfer information model, including the ResultManagement and ResultTransfer object types, the Result data types and their binary, XML and JSON encodings.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

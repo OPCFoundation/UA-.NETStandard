@@ -406,7 +406,7 @@ namespace Opc.Ua.Server.Tests
             TrustListUpdatedAuditEventState updated = auditServer.Events
                 .OfType<TrustListUpdatedAuditEventState>()
                 .Single();
-            Assert.That(updated.Status.Value, Is.True);
+            Assert.That(updated.Status!.Value, Is.True);
         }
 
         /// <summary>
@@ -420,7 +420,7 @@ namespace Opc.Ua.Server.Tests
             var auditServer = new CapturingAuditEventServer(CreateContext(new NodeId(Guid.NewGuid(), 1)));
             TrustListState node = CreateNode();
 
-            Assert.DoesNotThrow(() => ((IAuditEventServer)null).ReportTrustListUpdatedAuditEvent(
+            Assert.DoesNotThrow(() => ((IAuditEventServer)null!).ReportTrustListUpdatedAuditEvent(
                 node,
                 auditServer.DefaultAuditContext,
                 node.NodeId,
@@ -503,13 +503,13 @@ namespace Opc.Ua.Server.Tests
             ISystemContext owner = CreateContext(new NodeId(Guid.NewGuid(), 1));
             using Certificate cert = CreateSelfSigned("CN=Push Foreign Transaction");
 
-            OpenMethodStateResult open = await node.Open.OnCallAsync(
+            OpenMethodStateResult open = await node.Open!.OnCallAsync!(
                 writer,
                 node.Open,
                 node.NodeId,
                 (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
                 CancellationToken.None).ConfigureAwait(false);
-            await node.Write.OnCallAsync(
+            await node.Write!.OnCallAsync!(
                 writer,
                 node.Write,
                 node.NodeId,
@@ -527,7 +527,7 @@ namespace Opc.Ua.Server.Tests
                 CommitAsync = _ => Task.CompletedTask
             });
 
-            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate.OnCallAsync(
+            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate!.OnCallAsync!(
                 writer,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -538,14 +538,14 @@ namespace Opc.Ua.Server.Tests
             TrustListUpdatedAuditEventState updated = auditServer.Events
                 .OfType<TrustListUpdatedAuditEventState>()
                 .Single();
-            Assert.That(updated.Status.Value, Is.False);
+            Assert.That(updated.Status!.Value, Is.False);
             m_coordinator.CancelChanges(GetSessionId(owner));
         }
 
         [Test]
         public void IsX509Version3RejectsNull()
         {
-            Assert.Throws<ArgumentNullException>(() => X509Utils.IsX509Version3(null));
+            Assert.Throws<ArgumentNullException>(() => X509Utils.IsX509Version3(null!));
         }
 
         [Test]
@@ -634,7 +634,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context,
             byte[] certificate)
         {
-            return node.AddCertificate.OnCallAsync(
+            return node.AddCertificate!.OnCallAsync!(
                 context,
                 node.AddCertificate,
                 node.NodeId,
@@ -648,20 +648,20 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context,
             TrustListDataType trustList)
         {
-            OpenMethodStateResult open = await node.Open.OnCallAsync(
+            OpenMethodStateResult open = await node.Open!.OnCallAsync!(
                 context,
                 node.Open,
                 node.NodeId,
                 (byte)((int)OpenFileMode.Write | (int)OpenFileMode.EraseExisting),
                 CancellationToken.None).ConfigureAwait(false);
-            await node.Write.OnCallAsync(
+            await node.Write!.OnCallAsync!(
                 context,
                 node.Write,
                 node.NodeId,
                 open.FileHandle,
                 EncodeTrustListPayload(context, trustList),
                 CancellationToken.None).ConfigureAwait(false);
-            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate.OnCallAsync(
+            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate!.OnCallAsync!(
                 context,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -706,7 +706,7 @@ namespace Opc.Ua.Server.Tests
 
         private static X509CRL EmptyCrl(Certificate ca)
         {
-            return DefaultCertificateIssuer.Instance.RevokeCertificates(ca, null, null);
+            return DefaultCertificateIssuer.Instance.RevokeCertificates(ca, null!, null!);
         }
 
         private static byte[] ToPem(byte[] der)

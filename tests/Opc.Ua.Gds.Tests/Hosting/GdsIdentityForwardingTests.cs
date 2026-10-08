@@ -156,7 +156,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         public void AddJwtIssuerConfigurationMatchesServerBuilderRegistration()
         {
             IConfiguration section = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string>
+                .AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["IssuerUri"] = "https://issuer.example",
                     ["JwksUri"] = "https://issuer.example/.well-known/jwks"
@@ -173,7 +173,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         private static IConfiguration BuildConfiguration(string key, string value)
         {
             return new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string> { [key] = value })
+                .AddInMemoryCollection(new Dictionary<string, string?> { [key] = value })
                 .Build();
         }
 
@@ -248,7 +248,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 "|",
                 descriptor.Lifetime,
                 GetTypeName(descriptor.ServiceType),
-                GetTypeName(descriptor.ImplementationType),
+                GetTypeName(descriptor.ImplementationType!),
                 descriptor.ImplementationFactory == null ? string.Empty : "factory",
                 descriptor.ImplementationInstance == null
                     ? string.Empty
@@ -264,7 +264,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         {
             public UserTokenType TokenType => UserTokenType.Anonymous;
 
-            public string IssuedTokenProfileUri => null;
+            public string IssuedTokenProfileUri => null!;
 
             public ValueTask<AuthenticationResult> AuthenticateAsync(
                 AuthenticationContext context,

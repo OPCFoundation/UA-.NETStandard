@@ -66,7 +66,7 @@ namespace Opc.Ua.SourceGeneration
             m_assembly = GenerateAndLoad();
             m_namespaceUris = new NamespaceTable();
             m_namespaceUris.Append(ModelUri);
-            m_colorType = m_assembly.GetType("Test.XI.Color", throwOnError: true);
+            m_colorType = m_assembly.GetType("Test.XI.Color", throwOnError: true)!;
         }
 
         [Test]
@@ -134,12 +134,12 @@ namespace Opc.Ua.SourceGeneration
             // The generated enumeration, and the Structure in place of the
             // generated structure.
             var colorActivator = (IEnumeratedType)m_assembly
-                .GetType("Test.XI.ColorActivator", throwOnError: true)
-                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)
-                .GetValue(null);
+                .GetType("Test.XI.ColorActivator", throwOnError: true)!
+                .GetField("Instance", BindingFlags.Public | BindingFlags.Static)!
+                .GetValue(null)!;
             StructureField colorField = ((StructureDefinition)structure
-                .GetDataTypeDefinition(m_namespaceUris)).Fields.ToArray()
-                .FirstOrDefault(f => f.DataType.NamespaceIndex != 0);
+                .GetDataTypeDefinition(m_namespaceUris)).Fields.ToArray()!
+                .FirstOrDefault(f => f.DataType.NamespaceIndex != 0)!;
             IEncodeableFactoryBuilder builder = runtime.Factory.Builder
                 .AddEncodeableTypes(m_assembly)
                 .AddEncodeableType(structure);
@@ -147,7 +147,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 builder = builder.AddEnumeratedType(
                     NodeId.ToExpandedNodeId(colorField.DataType, m_namespaceUris),
-                    colorActivator);
+                    colorActivator!);
             }
             builder.Commit();
             ServiceMessageContext generated = CreateContext();
@@ -171,14 +171,14 @@ namespace Opc.Ua.SourceGeneration
 
         private Structure CreateStructure(string name, StructureType structureType)
         {
-            Type type = m_assembly.GetType("Test.XI." + name, throwOnError: true);
-            var instance = (IEncodeable)Activator.CreateInstance(type);
+            Type type = m_assembly.GetType("Test.XI." + name, throwOnError: true)!;
+            var instance = (IEncodeable)Activator.CreateInstance(type!)!;
             MethodInfo create = m_assembly.GetTypes()
                 .Select(t => t.GetMethod("Create" + name, BindingFlags.Public | BindingFlags.Static))
-                .First(m => m != null);
-            var definition = (StructureDefinition)create.Invoke(null, [m_namespaceUris]);
-            Dictionary<string, BuiltInType> fieldTypes = definition.Fields.ToArray().ToDictionary(
-                f => f.Name,
+                .First(m => m != null)!;
+            var definition = (StructureDefinition)create!.Invoke(null, [m_namespaceUris])!;
+            Dictionary<string, BuiltInType> fieldTypes = definition!.Fields.ToArray()!.ToDictionary(
+                f => f.Name!,
                 f => f.DataType.NamespaceIndex == 0 && f.DataType.TryGetValue(out uint id)
                     ? (BuiltInType)id
                     : BuiltInType.Enumeration);
@@ -187,21 +187,21 @@ namespace Opc.Ua.SourceGeneration
             {
                 StructureType.Union => new Union(
                     xmlName,
-                    instance.TypeId,
+                    instance!.TypeId,
                     instance.BinaryEncodingId,
                     instance.XmlEncodingId,
                     definition,
                     fieldTypes),
                 StructureType.StructureWithOptionalFields => new StructureWithOptionalFields(
                     xmlName,
-                    instance.TypeId,
+                    instance!.TypeId,
                     instance.BinaryEncodingId,
                     instance.XmlEncodingId,
                     definition,
                     fieldTypes),
                 _ => new Structure(
                     xmlName,
-                    instance.TypeId,
+                    instance!.TypeId,
                     instance.BinaryEncodingId,
                     instance.XmlEncodingId,
                     definition,
@@ -222,14 +222,14 @@ namespace Opc.Ua.SourceGeneration
             encoder.PushNamespace(XmlNamespace);
             encoder.WriteEncodeable("Value", value, value.TypeId);
             encoder.PopNamespace();
-            return encoder.CloseAndReturnText();
+            return encoder.CloseAndReturnText()!;
         }
 
         private static byte[] EncodeBinary(ServiceMessageContext context, IEncodeable value)
         {
             using var encoder = new BinaryEncoder(context);
             value.Encode(encoder);
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
 
         private static IEncodeable DecodeXml(

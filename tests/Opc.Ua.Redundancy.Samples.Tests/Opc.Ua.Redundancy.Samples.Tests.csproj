@@ -20,7 +20,6 @@
     <_SamplesPlaceholder Condition="'$(TargetFramework)' == 'net48'">true</_SamplesPlaceholder>
     <EnableDefaultCompileItems Condition="'$(_SamplesPlaceholder)' == 'true'">false</EnableDefaultCompileItems>
     <RootNamespace>Opc.Ua.Redundancy.Samples.Tests</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <!--
       The placeholder assembly (legacy TFM matrix entries) has no source code;

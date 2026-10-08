@@ -53,14 +53,14 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             {
                 var literal = new LiteralOperand { Value = input };
                 var nested = Variant.From(new ExtensionObject(literal));
-                Assert.That(nested.Copy().GetExtensionObject().TryGetValue(out LiteralOperand copy), Is.True);
-                Assert.That(copy.Value, Is.EqualTo(input));
+                Assert.That(nested.Copy().GetExtensionObject().TryGetValue(out LiteralOperand? copy), Is.True);
+                Assert.That(copy!.Value, Is.EqualTo(input));
                 using var encoder = new BinaryEncoder(context);
                 encoder.WriteVariant(null, nested);
-                using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer(), context);
+                using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, context);
                 Variant decoded = decoder.ReadVariant(null);
-                Assert.That(decoded.GetExtensionObject().TryGetValue(out LiteralOperand result), Is.True);
-                Assert.That(result.Value.TypeInfo, Is.EqualTo(input.TypeInfo));
+                Assert.That(decoded.GetExtensionObject().TryGetValue(out LiteralOperand? result), Is.True);
+                Assert.That(result!.Value.TypeInfo, Is.EqualTo(input.TypeInfo));
                 Assert.That(result.Value, Is.EqualTo(input));
             }
         }

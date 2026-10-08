@@ -72,7 +72,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConstructStaticFactory()
         {
-            NodeState node = ViewState.Construct(null);
+            NodeState node = ViewState.Construct(null!);
             Assert.That(node, Is.InstanceOf<ViewState>());
         }
 
@@ -80,14 +80,14 @@ namespace Opc.Ua.Types.Tests.State
         public void EventNotifierPropertySetterTriggersChangeMask()
         {
             var view = new ViewState();
-            view.ClearChangeMasks(null, false);
+            view.ClearChangeMasks(null!, false);
 
             view.EventNotifier = EventNotifiers.SubscribeToEvents;
             Assert.That(view.EventNotifier, Is.EqualTo(EventNotifiers.SubscribeToEvents));
             Assert.That(view.ChangeMasks & NodeStateChangeMasks.NonValue,
                 Is.EqualTo(NodeStateChangeMasks.NonValue));
 
-            view.ClearChangeMasks(null, false);
+            view.ClearChangeMasks(null!, false);
             view.EventNotifier = EventNotifiers.SubscribeToEvents;
             Assert.That(view.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }
@@ -96,14 +96,14 @@ namespace Opc.Ua.Types.Tests.State
         public void ContainsNoLoopsPropertySetterTriggersChangeMask()
         {
             var view = new ViewState();
-            view.ClearChangeMasks(null, false);
+            view.ClearChangeMasks(null!, false);
 
             view.ContainsNoLoops = true;
             Assert.That(view.ContainsNoLoops, Is.True);
             Assert.That(view.ChangeMasks & NodeStateChangeMasks.NonValue,
                 Is.EqualTo(NodeStateChangeMasks.NonValue));
 
-            view.ClearChangeMasks(null, false);
+            view.ClearChangeMasks(null!, false);
             view.ContainsNoLoops = true;
             Assert.That(view.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }

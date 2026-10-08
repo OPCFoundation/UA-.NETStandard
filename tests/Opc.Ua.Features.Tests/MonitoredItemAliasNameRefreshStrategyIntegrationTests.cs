@@ -110,7 +110,7 @@ namespace Opc.Ua.Features.Tests
             {
                 await m_session.CloseAsync().ConfigureAwait(false);
                 m_session.Dispose();
-                m_session = null;
+                m_session = null!;
             }
             if (m_serverFixture != null)
             {

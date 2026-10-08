@@ -55,7 +55,7 @@ namespace Opc.Ua.Fuzzing.Tests
         internal async Task<string> WriteAsync(string name, byte[] input)
         {
             string file = Path.Combine(DirectoryPath, name);
-            Directory.CreateDirectory(Path.GetDirectoryName(file));
+            Directory.CreateDirectory(Path.GetDirectoryName(file)!);
             using var stream = new FileStream(
                 file, FileMode.CreateNew, FileAccess.Write, FileShare.None, bufferSize: 4096, useAsync: true);
 #if NET8_0_OR_GREATER

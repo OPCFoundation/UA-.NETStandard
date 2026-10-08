@@ -66,7 +66,7 @@ namespace Opc.Ua.Sessions.Tests
             ClientFixture.Config);
             using DiscoveryClient cl = await DiscoveryClient.CreateAsync(ServerUrl, ec, Telemetry, ct: CancellationToken.None).ConfigureAwait(false);
             ArrayOf<EndpointDescription> eps = await cl.GetEndpointsAsync(default, CancellationToken.None).ConfigureAwait(false);
-            string first = eps[0].Server.ApplicationUri;
+            string first = eps[0].Server.ApplicationUri!;
             for (int i = 1; i < eps.Count; i++)
             {
                 Assert.That(eps[i].Server.ApplicationUri, Is.EqualTo(first));

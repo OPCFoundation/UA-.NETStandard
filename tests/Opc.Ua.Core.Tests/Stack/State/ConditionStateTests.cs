@@ -83,7 +83,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamp is updated
-            Assert.That(condition.EnabledState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
+            Assert.That(condition.EnabledState!.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
             Assert.That(condition.EnabledState.Timestamp, Is.LessThanOrEqualTo(afterTime));
 
             // Verify change masks are cleared (all should be None)
@@ -105,9 +105,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamps are updated
-            Assert.That(condition.Severity.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
+            Assert.That(condition.Severity!.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
             Assert.That(condition.Severity.Timestamp, Is.LessThanOrEqualTo(afterTime));
-            Assert.That(condition.LastSeverity.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
+            Assert.That(condition.LastSeverity!.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
             Assert.That(condition.LastSeverity.Timestamp, Is.LessThanOrEqualTo(afterTime));
 
             // Verify change masks are cleared
@@ -120,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetActiveStateUpdatesTimestampAndClearsChangeMasks()
         {
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
 
             DateTimeUtc beforeTime = DateTimeUtc.Now;
@@ -128,7 +128,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamp is updated
-            Assert.That(alarm.ActiveState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
+            Assert.That(alarm.ActiveState!.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
             Assert.That(alarm.ActiveState.Timestamp, Is.LessThanOrEqualTo(afterTime));
 
             // Verify change masks are cleared
@@ -142,7 +142,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetSuppressedStateUpdatesTimestampAndClearsChangeMasks()
         {
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.SuppressedState = new TwoStateVariableState(alarm);
             alarm.SuppressedState.Create(m_context, default, QualifiedName.From(BrowseNames.SuppressedState), default, false);
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             DateTimeUtc afterTime = DateTimeUtc.Now;
 
             // Verify timestamp is updated
-            Assert.That(condition.AckedState.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
+            Assert.That(condition.AckedState!.Timestamp, Is.GreaterThanOrEqualTo(beforeTime));
             Assert.That(condition.AckedState.Timestamp, Is.LessThanOrEqualTo(afterTime));
 
             // Verify change masks are cleared
@@ -212,7 +212,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetShelvingStateUpdatesTimestampAndClearsChangeMasks()
         {
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.ShelvingState = new ShelvedStateMachineState(alarm);
             alarm.ShelvingState.Create(m_context, default, QualifiedName.From(BrowseNames.ShelvingState), default, false);
@@ -237,7 +237,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
         [Test]
         public void SetActiveStateNotifiesSubscribers()
         {
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
 
             // Initially inactive
@@ -250,7 +250,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             DateTimeUtc afterActivation = DateTimeUtc.Now;
 
             // Verify that the timestamp is within the expected range
-            Assert.That(alarm.ActiveState.Timestamp, Is.GreaterThanOrEqualTo(beforeActivation));
+            Assert.That(alarm.ActiveState!.Timestamp, Is.GreaterThanOrEqualTo(beforeActivation));
             Assert.That(alarm.ActiveState.Timestamp, Is.LessThanOrEqualTo(afterActivation));
 
             // Verify that change masks were cleared (indicating subscribers were notified)
@@ -270,8 +270,8 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             // Initially disabled
             condition.SetEnableState(m_context, false);
-            Assert.That(condition.EnabledState.Id.Value, Is.False);
-            Assert.That(condition.Retain.Value, Is.False);
+            Assert.That(condition.EnabledState!.Id!.Value, Is.False);
+            Assert.That(condition.Retain!.Value, Is.False);
 
             // Act - Enable the condition
             condition.SetEnableState(m_context, true);
@@ -291,19 +291,19 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void UpdateStateAfterDisableSetsRetainToFalse()
         {
             // Arrange
-            var condition = new TestConditionStateWithRetain(null);
+            var condition = new TestConditionStateWithRetain(null!);
             condition.Create(m_context, default, QualifiedName.From("TestCondition"), default, true);
 
             // Enable the condition and set retain to true
             condition.SetEnableState(m_context, true);
             condition.ForceRetain(true);
-            Assert.That(condition.Retain.Value, Is.True);
+            Assert.That(condition.Retain!.Value, Is.True);
 
             // Act - Disable the condition
             condition.SetEnableState(m_context, false);
 
             // Assert - Retain should be false per specification
-            Assert.That(condition.EnabledState.Id.Value, Is.False);
+            Assert.That(condition.EnabledState!.Id!.Value, Is.False);
             Assert.That(condition.Retain.Value, Is.False);
         }
 
@@ -315,18 +315,18 @@ namespace Opc.Ua.Core.Tests.Stack.State
         public void DerivedClassCanOverrideEvaluateRetainStateOnEnable()
         {
             // Arrange
-            var condition = new TestConditionStateWithCustomRetain(null);
+            var condition = new TestConditionStateWithCustomRetain(null!);
             condition.Create(m_context, default, QualifiedName.From("TestCondition"), default, true);
 
             // Initially disabled
             condition.SetEnableState(m_context, false);
-            Assert.That(condition.Retain.Value, Is.False);
+            Assert.That(condition.Retain!.Value, Is.False);
 
             // Act - Enable the condition
             condition.SetEnableState(m_context, true);
 
             // Assert - The custom implementation should have been called
-            Assert.That(condition.EnabledState.Id.Value, Is.True);
+            Assert.That(condition.EnabledState!.Id!.Value, Is.True);
             Assert.That(condition.EvaluateCalled, Is.True);
             Assert.That(condition.Retain.Value, Is.True);  // Custom logic always sets to true
         }
@@ -405,7 +405,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
             public void ForceRetain(bool value)
             {
-                Retain.Value = value;
+                Retain!.Value = value;
             }
         }
 
@@ -425,7 +425,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             {
                 EvaluateCalled = true;
                 // Custom logic: always set Retain to true when enabled
-                Retain.Value = true;
+                Retain!.Value = true;
             }
         }
     }

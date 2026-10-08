@@ -180,7 +180,7 @@ namespace Opc.Ua.Client.Tests
         {
             MethodInfo method = typeof(SessionReconnectHandler).GetMethod(
                 "UpdateEndpointFromServerAsync",
-                BindingFlags.NonPublic | BindingFlags.Instance);
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
 
             Assert.That(method, Is.Not.Null);
             Assert.That(method.IsVirtual, Is.True);
@@ -196,7 +196,7 @@ namespace Opc.Ua.Client.Tests
         {
             MethodInfo method = typeof(SessionReconnectHandler).GetMethod(
                 "UpdateEndpointFromServerAsync",
-                BindingFlags.NonPublic | BindingFlags.Instance);
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
 
             Assert.That(method, Is.Not.Null);
             ParameterInfo[] parameters = method.GetParameters();
@@ -266,7 +266,7 @@ namespace Opc.Ua.Client.Tests
             using var handler = new SessionReconnectHandler(m_telemetry);
 
             SessionReconnectHandler.ReconnectState state = handler.BeginReconnect(
-                null,
+                null!,
                 1000,
                 (_, _) => { });
 
@@ -351,7 +351,7 @@ namespace Opc.Ua.Client.Tests
             EndpointDescription fallback = SessionReconnectHandler.SelectFallbackEndpoint(
                 original,
                 discovered,
-                m_telemetry.CreateLogger<SessionReconnectHandlerTests>());
+                m_telemetry.CreateLogger<SessionReconnectHandlerTests>())!;
 
             Assert.That(fallback, Is.Null);
         }
@@ -390,7 +390,7 @@ namespace Opc.Ua.Client.Tests
             EndpointDescription fallback = SessionReconnectHandler.SelectFallbackEndpoint(
                 original,
                 [weakerAdvertisedHigh, aes128, aes256],
-                m_telemetry.CreateLogger<SessionReconnectHandlerTests>());
+                m_telemetry.CreateLogger<SessionReconnectHandlerTests>())!;
 
             Assert.That(fallback, Is.SameAs(aes256));
         }
@@ -435,7 +435,7 @@ namespace Opc.Ua.Client.Tests
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            return new ConfiguredEndpoint(null, new EndpointDescription
+            return new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = securityMode,
@@ -460,7 +460,7 @@ namespace Opc.Ua.Client.Tests
                 .GetMethod("DoReconnectAsync", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("DoReconnectAsync method not found");
 
-            return (Task<bool>)method.Invoke(handler, null);
+            return (Task<bool>)method.Invoke(handler, null)!;
         }
 
         private static void SetSessionHandlerField(
@@ -489,7 +489,7 @@ namespace Opc.Ua.Client.Tests
             FieldInfo field = typeof(SessionReconnectHandler)
                 .GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException($"Field {fieldName} not found");
-            return (T)field.GetValue(handler);
+            return (T)field.GetValue(handler)!;
         }
 
         /// <summary>
@@ -511,9 +511,9 @@ namespace Opc.Ua.Client.Tests
 
             protected override Task UpdateEndpointFromServerAsync(
                 ConfiguredEndpoint endpoint,
-                ITransportWaitingConnection connection = null)
+                ITransportWaitingConnection? connection = null)
             {
-                return _updateDelegate(endpoint, connection);
+                return _updateDelegate(endpoint, connection!);
             }
         }
     }

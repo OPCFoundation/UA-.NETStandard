@@ -204,7 +204,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 // Remove the link
                 SetTriggeringResponse removeResp = await SetTriggerAsync(
-                    idA, null, [idB]).ConfigureAwait(false);
+                    idA, null!, [idB]).ConfigureAwait(false);
                 Assert.That(
                     StatusCode.IsGood(removeResp.ResponseHeader.ServiceResult), Is.True);
                 Assert.That(StatusCode.IsGood(removeResp.RemoveResults[0]), Is.True);
@@ -428,7 +428,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Remove B→C link
             SetTriggeringResponse removeResp = await SetTriggerAsync(
-                idB, null, [idC]).ConfigureAwait(false);
+                idB, null!, [idC]).ConfigureAwait(false);
             Assert.That(
                 StatusCode.IsGood(removeResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(StatusCode.IsGood(removeResp.RemoveResults[0]), Is.True);
@@ -505,7 +505,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 .ConfigureAwait(false);
 
             uint idA = createResp.Results[0].MonitoredItemId;
-            uint[] linkedIds = [.. createResp.Results.ToArray()
+            uint[] linkedIds = [.. createResp.Results.ToArray()!
                 .Skip(1).Select(r => r.MonitoredItemId)];
 
             SetTriggeringResponse trigResp =
@@ -604,7 +604,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(createResp.Results.Count, Is.EqualTo(6));
 
             uint idA = createResp.Results[0].MonitoredItemId;
-            uint[] linkedIds = [.. createResp.Results.ToArray()
+            uint[] linkedIds = [.. createResp.Results.ToArray()!
                 .Skip(1).Select(r => r.MonitoredItemId)];
 
             SetTriggeringResponse trigResp =
@@ -651,7 +651,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(createResp.Results.Count, Is.EqualTo(11));
 
             uint idA = createResp.Results[0].MonitoredItemId;
-            uint[] linkedIds = [.. createResp.Results.ToArray()
+            uint[] linkedIds = [.. createResp.Results.ToArray()!
                 .Skip(1).Select(r => r.MonitoredItemId)];
 
             SetTriggeringResponse trigResp =
@@ -692,7 +692,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 // Remove only B
                 SetTriggeringResponse removeResp = await SetTriggerAsync(
-                    idA, null, [idB]).ConfigureAwait(false);
+                    idA, null!, [idB]).ConfigureAwait(false);
                 Assert.That(
                     StatusCode.IsGood(removeResp.ResponseHeader.ServiceResult), Is.True);
                 Assert.That(StatusCode.IsGood(removeResp.RemoveResults[0]), Is.True);
@@ -744,7 +744,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Remove both at once
             SetTriggeringResponse removeResp = await SetTriggerAsync(
-                idA, null, [idB, idC]).ConfigureAwait(false);
+                idA, null!, [idB, idC]).ConfigureAwait(false);
             Assert.That(
                 StatusCode.IsGood(removeResp.ResponseHeader.ServiceResult), Is.True);
             Assert.That(removeResp.RemoveResults.Count, Is.EqualTo(2));
@@ -776,12 +776,12 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Remove B
             SetTriggeringResponse r1 = await SetTriggerAsync(
-                idA, null, [idB]).ConfigureAwait(false);
+                idA, null!, [idB]).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r1.RemoveResults[0]), Is.True);
 
             // Remove C
             SetTriggeringResponse r2 = await SetTriggerAsync(
-                idA, null, [idC]).ConfigureAwait(false);
+                idA, null!, [idC]).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r2.RemoveResults[0]), Is.True);
         }
 
@@ -798,7 +798,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Try to remove a bogus linked item ID
             SetTriggeringResponse removeResp = await SetTriggerAsync(
-                idA, null, [999999u]).ConfigureAwait(false);
+                idA, null!, [999999u]).ConfigureAwait(false);
 
             Assert.That(removeResp.RemoveResults.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsBad(removeResp.RemoveResults[0]), Is.True);
@@ -824,7 +824,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Remove link
             SetTriggeringResponse removeResp = await SetTriggerAsync(
-                idA, null, [idB]).ConfigureAwait(false);
+                idA, null!, [idB]).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(removeResp.RemoveResults[0]), Is.True);
 
             // Re-add link
@@ -1462,7 +1462,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             Assert.That(createResp.Results.Count, Is.EqualTo(4));
             uint idA = createResp.Results[0].MonitoredItemId;
-            uint[] linkedIds = [.. createResp.Results.ToArray()
+            uint[] linkedIds = [.. createResp.Results.ToArray()!
                 .Skip(1).Select(r => r.MonitoredItemId)];
 
             SetTriggeringResponse trigResp =
@@ -1499,7 +1499,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 .ConfigureAwait(false);
 
             SetTriggeringResponse removeResp = await SetTriggerAsync(
-                idA, null, [idB]).ConfigureAwait(false);
+                idA, null!, [idB]).ConfigureAwait(false);
             Assert.That(
                 StatusCode.IsGood(removeResp.ResponseHeader.ServiceResult),
                 Is.True);
@@ -1533,7 +1533,7 @@ namespace Opc.Ua.Subscriptions.Tests
                 .ConfigureAwait(false);
 
             SetTriggeringResponse removeResp = await SetTriggerAsync(
-                idA, null, [idB, idC]).ConfigureAwait(false);
+                idA, null!, [idB, idC]).ConfigureAwait(false);
             Assert.That(
                 StatusCode.IsGood(removeResp.ResponseHeader.ServiceResult),
                 Is.True);
@@ -1844,7 +1844,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
                 Assert.That(createResp.Results.Count, Is.EqualTo(5));
                 uint idA = createResp.Results[0].MonitoredItemId;
-                uint[] linkedIds = [.. createResp.Results.ToArray()
+                uint[] linkedIds = [.. createResp.Results.ToArray()!
                     .Skip(1).Select(r => r.MonitoredItemId)];
 
                 SetTriggeringResponse trigResp =
@@ -2078,7 +2078,7 @@ namespace Opc.Ua.Subscriptions.Tests
                     .ConfigureAwait(false);
 
                 uint idA = createResp.Results[0].MonitoredItemId;
-                uint[] linkedIds = [.. createResp.Results.ToArray()
+                uint[] linkedIds = [.. createResp.Results.ToArray()!
                     .Skip(1).Select(r => r.MonitoredItemId)];
 
                 await SetTriggerAsync(idA, linkedIds).ConfigureAwait(false);
@@ -2261,7 +2261,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Try to remove the deleted item from trigger links
             SetTriggeringResponse removeResp = await SetTriggerAsync(
-                idA, null, [idB]).ConfigureAwait(false);
+                idA, null!, [idB]).ConfigureAwait(false);
 
             Assert.That(removeResp.RemoveResults.Count, Is.EqualTo(1));
             Assert.That(
@@ -2379,7 +2379,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             // Try to remove deleted B from trigger links
             SetTriggeringResponse removeResp = await SetTriggerAsync(
-                idA, null, [idB]).ConfigureAwait(false);
+                idA, null!, [idB]).ConfigureAwait(false);
             Assert.That(removeResp.RemoveResults.Count, Is.EqualTo(1));
             Assert.That(
                 StatusCode.IsBad(removeResp.RemoveResults[0]), Is.True,
@@ -2665,7 +2665,7 @@ namespace Opc.Ua.Subscriptions.Tests
         private async Task<SetTriggeringResponse> SetTriggerAsync(
             uint triggeringItemId,
             uint[] linksToAdd,
-            uint[] linksToRemove = null)
+            uint[]? linksToRemove = null)
         {
             return await Session.SetTriggeringAsync(
                 null, m_subscriptionId, triggeringItemId,

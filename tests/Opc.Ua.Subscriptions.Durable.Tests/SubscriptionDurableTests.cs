@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 #pragma warning disable CA2016
 
 using System;
@@ -73,7 +71,6 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             bool disableActivityLogging,
             bool securityNone)
         {
-#nullable disable
             ServerFixture = new ServerFixture<ReferenceServer>(
                 t => new ReferenceServer(t),
                 enableTracing,
@@ -88,12 +85,12 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
-            ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ServerFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = ServerFixture
                 .Config
                 .TransportQuotas
                 .MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.MinSessionTimeout = 1000;
+            ServerFixture.Config.ServerConfiguration!.MinSessionTimeout = 1000;
             ServerFixture.Config.ServerConfiguration.MinSubscriptionLifetime = 1500;
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
@@ -104,7 +101,6 @@ namespace Opc.Ua.Subscriptions.Durable.Tests
                 .ConfigureAwait(false);
             ReferenceServer.TokenValidator = TokenValidator;
             ServerFixturePort = ServerFixture.Port;
-#nullable enable
         }
 
         [OneTimeTearDown]

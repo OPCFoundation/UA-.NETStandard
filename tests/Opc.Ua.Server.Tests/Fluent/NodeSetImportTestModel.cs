@@ -107,7 +107,7 @@ namespace NodeSetImportModel
         /// <summary>
         /// The manager created for the running server.
         /// </summary>
-        public NodeSetImportOverlayNodeManager Manager { get; private set; }
+        public NodeSetImportOverlayNodeManager Manager { get; private set; } = null!;
 
         /// <inheritdoc/>
         public override ValueTask<IAsyncNodeManager> CreateAsync(
@@ -215,7 +215,7 @@ namespace NodeSetImportModel
                 nodes + "\r\n" +
                 "</UANodeSet>";
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
-            return UANodeSet.Read(stream);
+            return UANodeSet.Read(stream)!;
         }
     }
 

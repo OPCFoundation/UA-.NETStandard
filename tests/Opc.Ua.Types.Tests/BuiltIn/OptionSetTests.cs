@@ -68,9 +68,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var xmlName = new XmlQualifiedName("AccessRights", "urn:test");
 
             Assert.Throws<ArgumentNullException>(() =>
-                new RuntimeOptionSet(null, NodeId.Null, NodeId.Null, NodeId.Null, definition));
+                new RuntimeOptionSet(null!, NodeId.Null, NodeId.Null, NodeId.Null, definition));
             Assert.Throws<ArgumentNullException>(() =>
-                new RuntimeOptionSet(xmlName, NodeId.Null, NodeId.Null, NodeId.Null, null));
+                new RuntimeOptionSet(xmlName, NodeId.Null, NodeId.Null, NodeId.Null, null!));
         }
 
         [Test]

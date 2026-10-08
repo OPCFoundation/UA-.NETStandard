@@ -31,8 +31,6 @@
 // harness or are short-lived, making CA2000 noisy without a real leak risk.
 #pragma warning disable CA2000
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using Microsoft.Extensions.Logging;

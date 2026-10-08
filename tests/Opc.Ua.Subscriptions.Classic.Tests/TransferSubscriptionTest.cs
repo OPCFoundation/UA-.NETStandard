@@ -112,7 +112,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
 
             processTransfer.Invoke(subscription, [available]);
 
-            Assert.That(subscription.AvailableSequenceNumbers.ToArray(), Is.EquivalentTo(available.ToArray()));
+            Assert.That(subscription.AvailableSequenceNumbers.ToArray(), Is.EquivalentTo(available.ToArray()!));
         }
 
         /// <summary>
@@ -292,11 +292,11 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                     subscription.PublishStatusChanged += (s, e) =>
                     {
                         TestContext.Out.WriteLine(
-                            $"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+                            $"PublishStatusChanged: {s.Session!.SessionId}-{s.Id}-{e.Status}");
                         if ((e.Status & PublishStateChangedMask.Transferred) != 0)
                         {
                             // subscription transferred
-                            Interlocked.Increment(ref originSubscriptionTransferred[(int)s.Handle]);
+                            Interlocked.Increment(ref originSubscriptionTransferred[(int)s.Handle!]);
                         }
                     };
                 }
@@ -331,9 +331,9 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             NotificationMessage originStaticMessage = staticOrigin.Notifications.Single();
             Assert.That(originStaticMessage.NotificationData.Count, Is.EqualTo(1));
             Assert.That(
-                originStaticMessage.NotificationData[0].TryGetValue(out DataChangeNotification originStaticData),
+                originStaticMessage.NotificationData[0].TryGetValue(out DataChangeNotification? originStaticData),
                 Is.True);
-            Assert.That(originStaticData.MonitoredItems.Count, Is.EqualTo(staticOrigin.MonitoredItemCount));
+            Assert.That(originStaticData!.MonitoredItems.Count, Is.EqualTo(staticOrigin.MonitoredItemCount));
 
             // close session, do not delete subscription
             if (transferType != TransferType.KeepOpen)
@@ -404,7 +404,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                         s.Id,
                         notification.SequenceNumber,
                         notification.MonitoredItems.Count);
-                    int index = (int)s.Handle;
+                    int index = (int)s.Handle!;
                     Interlocked.Increment(ref targetSubscriptionFastDataCounters[index]);
                     if (index == 0)
                     {
@@ -433,9 +433,9 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                     };
                 }
                 subscription.StateChanged += (s, e) =>
-                    TestContext.Out.WriteLine($"StateChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+                    TestContext.Out.WriteLine($"StateChanged: {s.Session!.SessionId}-{s.Id}-{e.Status}");
                 subscription.PublishStatusChanged += (s, e) =>
-                    TestContext.Out.WriteLine($"PublishStatusChanged: {s.Session.SessionId}-{s.Id}-{e.Status}");
+                    TestContext.Out.WriteLine($"PublishStatusChanged: {s.Session!.SessionId}-{s.Id}-{e.Status}");
             }
 
             // transfer restored subscriptions
@@ -471,7 +471,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
                     .ConfigureAwait(false);
                 foreach (Subscription subscription in originSubscriptions)
                 {
-                    Assert.That(originSubscriptionTransferred[(int)subscription.Handle], Is.EqualTo(1));
+                    Assert.That(originSubscriptionTransferred[(int)subscription.Handle!], Is.EqualTo(1));
                 }
             }
 
@@ -480,7 +480,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             {
                 TestContext.Out.WriteLine(
                     "SetPublishingMode(false) for SessionId={0}, SubscriptionId={1}",
-                    subscription.Session.SessionId,
+                    subscription.Session!.SessionId,
                     subscription.Id);
                 await subscription.SetPublishingModeAsync(false).ConfigureAwait(false);
             }
@@ -536,7 +536,7 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             {
                 TestContext.Out.WriteLine(
                     "SetPublishingMode(true) for SessionId={0}, SubscriptionId={1}",
-                    subscription.Session.SessionId,
+                    subscription.Session!.SessionId,
                     subscription.Id);
                 await subscription.SetPublishingModeAsync(true).ConfigureAwait(false);
             }
@@ -608,19 +608,19 @@ namespace Opc.Ua.Subscriptions.Classic.Tests
             Assert.That(notifications.Select(notification => notification.SequenceNumber), Is.Unique);
 
             Dictionary<uint, MonitoredItemNotification> originalItems =
-                origin.MonitoredItems.ToArray().ToDictionary(item => item.ClientHandle);
+                origin.MonitoredItems.ToArray()!.ToDictionary(item => item.ClientHandle);
             foreach (DataChangeNotification notification in notifications)
             {
                 Assert.That(notification.SequenceNumber, Is.GreaterThanOrEqualTo(origin.SequenceNumber));
                 Assert.That(
-                    notification.MonitoredItems.ToArray().Select(item => item.ClientHandle),
+                    notification.MonitoredItems.ToArray()!.Select(item => item.ClientHandle),
                     Is.EquivalentTo(originalItems.Keys));
                 foreach (MonitoredItemNotification item in notification.MonitoredItems)
                 {
                     Assert.That(
-                        originalItems.TryGetValue(item.ClientHandle, out MonitoredItemNotification original),
+                        originalItems.TryGetValue(item.ClientHandle, out MonitoredItemNotification? original),
                         Is.True);
-                    Assert.That(item.Value.WrappedValue, Is.EqualTo(original.Value.WrappedValue));
+                    Assert.That(item.Value.WrappedValue, Is.EqualTo(original!.Value.WrappedValue));
                     Assert.That(item.Value.StatusCode, Is.EqualTo(original.Value.StatusCode));
                     Assert.That(item.Value.SourceTimestamp, Is.EqualTo(original.Value.SourceTimestamp));
                 }

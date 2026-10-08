@@ -188,7 +188,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             IReadOnlyList<ModelFluentAccessorProviderReference> accessorProviders,
             out string reason)
         {
-            string captured = null;
+            string? captured = null;
             bool accepted = Generators.ValidateFluentAccessorsOnlyTarget(
                 modelUri,
                 Prefix,
@@ -196,7 +196,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 producers,
                 accessorProviders,
                 (_, _, _, message) => captured = message);
-            reason = captured;
+            reason = captured!;
             return accepted;
         }
 

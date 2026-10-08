@@ -80,9 +80,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         {
             m_generated = DataTypeModelTests.Generate(Model);
             m_assembly = DataTypeModelTests.Compile(m_generated);
-            m_gridsType = m_assembly.GetType("Test.MX.Grids", throwOnError: true);
-            m_cellType = m_assembly.GetType("Test.MX.Cell", throwOnError: true);
-            m_colorType = m_assembly.GetType("Test.MX.Color", throwOnError: true);
+            m_gridsType = m_assembly.GetType("Test.MX.Grids", throwOnError: true)!;
+            m_cellType = m_assembly.GetType("Test.MX.Cell", throwOnError: true)!;
+            m_colorType = m_assembly.GetType("Test.MX.Color", throwOnError: true)!;
         }
 
         /// <summary>
@@ -118,7 +118,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Assert.That(code, Does.Not.Match(@"encoder\.WriteVariant\(""(Doubles|Strings|Colors|Flags|Objects|Values|Cube)"""));
             });
             Assert.That(
-                m_gridsType.GetProperty("Row").PropertyType,
+                m_gridsType.GetProperty("Row")!.PropertyType,
                 Is.EqualTo(typeof(ArrayOf<double>)),
                 "a single ArrayDimensions entry is a one dimensional array");
         }
@@ -130,8 +130,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void StructureDefinitionDescribesTheFieldsAsWritten()
         {
             StructureDefinition definition = CreateDefinition();
-            Dictionary<string, StructureField> fields = definition.Fields.ToArray()
-                .ToDictionary(f => f.Name);
+            Dictionary<string, StructureField> fields = definition.Fields.ToArray()!
+                .ToDictionary(f => f.Name!);
             Assert.Multiple(() =>
             {
                 Assert.That(fields["Doubles"].ValueRank, Is.EqualTo(ValueRanks.TwoDimensions));
@@ -151,11 +151,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void UnrankedMatrixFieldIsPublishedAsTwoDimensions()
         {
             StructureDefinition definition = CreateDefinition("CreateUnranked");
-            StructureField field = definition.Fields.ToArray().Single(f => f.Name == "M");
+            StructureField field = definition.Fields.ToArray()!.Single(f => f.Name == "M");
             Assert.That(field.ValueRank, Is.EqualTo(ValueRanks.TwoDimensions));
             Assert.That(field.ArrayDimensions.ToArray(), Is.EqualTo(s_unknownTwoDimensions));
             Assert.That(
-                CreateDefinition().Fields.ToArray().Select(f => f.ValueRank),
+                CreateDefinition().Fields.ToArray()!.Select(f => f.ValueRank),
                 Has.None.EqualTo(ValueRanks.OneOrMoreDimensions));
 
             string code = m_generated
@@ -183,7 +183,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             using (var encoder = new BinaryEncoder(context))
             {
                 original.Encode(encoder);
-                encoded = encoder.CloseAndReturnBuffer();
+                encoded = encoder.CloseAndReturnBuffer()!;
             }
 
             byte[] expected;
@@ -249,7 +249,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         break;
                 }
                 e.WriteInt32(null, 9);
-                expected = e.CloseAndReturnBuffer();
+                expected = e.CloseAndReturnBuffer()!;
             }
 
             Assert.That(encoded, Is.EqualTo(expected));
@@ -327,8 +327,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             XNamespace ns = ModelUri;
             foreach (string field in s_matrixFields)
             {
-                XElement generatedField = generatedRoot.Element(ns + field);
-                XElement runtimeField = runtimeRoot.Element(ns + field);
+                XElement generatedField = generatedRoot.Element(ns + field)!;
+                XElement runtimeField = runtimeRoot.Element(ns + field)!;
                 Assert.That(generatedField, Is.Not.Null, field);
                 Assert.That(
                     XNode.DeepEquals(generatedField, runtimeField),
@@ -406,8 +406,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private IEncodeable CreateGrids(Content content)
         {
-            var grids = (IEncodeable)Activator.CreateInstance(m_gridsType);
-            Set(grids, "Before", 7);
+            var grids = (IEncodeable)Activator.CreateInstance(m_gridsType)!;
+            Set(grids!, "Before", 7);
             Set(grids, "After", 9);
             switch (content)
             {
@@ -426,7 +426,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     break;
                 case Content.Full:
                     Set(grids, "Doubles", MatrixOf.From<double>(new double[,] { { 1.5, 2.5, 3.5 }, { 4.5, 5.5, 6.5 } }));
-                    Set(grids, "Strings", MatrixOf.From<string>(new string[,] { { "a", null }, { "c", "d" } }));
+                    Set(grids, "Strings", MatrixOf.From<string>(new string[,] { { "a", null! }, { "c", "d" } }));
                     Array colors = Array.CreateInstance(m_colorType, 2, 2);
                     colors.SetValue(Enum.ToObject(m_colorType, 0), 0, 0);
                     colors.SetValue(Enum.ToObject(m_colorType, 1), 0, 1);
@@ -456,30 +456,30 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private IEncodeable Cell(int value)
         {
-            var cell = (IEncodeable)Activator.CreateInstance(m_cellType);
-            Set(cell, "V", value);
+            var cell = (IEncodeable)Activator.CreateInstance(m_cellType)!;
+            Set(cell!, "V", value);
             return cell;
         }
 
         private static object MatrixFrom(Type elementType, Array array)
         {
             return typeof(MatrixOf)
-                .GetMethod(nameof(MatrixOf.From), BindingFlags.Public | BindingFlags.Static)
+                .GetMethod(nameof(MatrixOf.From), BindingFlags.Public | BindingFlags.Static)!
                 .MakeGenericMethod(elementType)
-                .Invoke(null, [array]);
+                .Invoke(null, [array])!;
         }
 
         private static void Set(object instance, string name, object value)
         {
-            instance.GetType().GetProperty(name).SetValue(instance, value);
+            instance.GetType().GetProperty(name)!.SetValue(instance, value);
         }
 
         private StructureDefinition CreateDefinition(string factory = "CreateGrids")
         {
             MethodInfo create = m_assembly.GetTypes()
                 .Select(t => t.GetMethod(factory, BindingFlags.Public | BindingFlags.Static))
-                .First(m => m != null);
-            return (StructureDefinition)create.Invoke(null, [CreateNamespaceTable()]);
+                .First(m => m != null)!;
+            return (StructureDefinition)create!.Invoke(null, [CreateNamespaceTable()])!;
         }
 
         private static NamespaceTable CreateNamespaceTable()
@@ -504,8 +504,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         /// </summary>
         private ServiceMessageContext CreateRuntimeContext(out ExpandedNodeId typeId)
         {
-            var template = (IEncodeable)Activator.CreateInstance(m_gridsType);
-            typeId = template.TypeId;
+            var template = (IEncodeable)Activator.CreateInstance(m_gridsType)!;
+            typeId = template!.TypeId;
             var fieldTypes = new Dictionary<string, BuiltInType>
             {
                 ["Before"] = BuiltInType.Int32,
@@ -545,7 +545,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 {
                     using var encoder = new BinaryEncoder(context);
                     encoder.WriteEncodeable("Grids", value, typeId);
-                    return encoder.CloseAndReturnBuffer();
+                    return encoder.CloseAndReturnBuffer()!;
                 }
                 case Codec.JsonCompact:
                 case Codec.JsonVerbose:
@@ -562,7 +562,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     encoder.PushNamespace(ModelUri);
                     encoder.WriteEncodeable("Grids", value, typeId);
                     encoder.PopNamespace();
-                    return encoder.CloseAndReturnText();
+                    return encoder.CloseAndReturnText()!;
                 }
             }
         }

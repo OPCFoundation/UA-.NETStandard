@@ -183,13 +183,13 @@ namespace Opc.Ua.Fuzzing
         /// The fuzz target for the JsonDecoder.
         /// </summary>
         /// <param name="json">A string with fuzz content.</param>
-        internal static IEncodeable FuzzJsonDecoderCore(string json, bool throwAll = false)
+        internal static IEncodeable? FuzzJsonDecoderCore(string json, bool throwAll = false)
         {
             try
             {
                 return DecodeWithOracles(nameof(JsonDecoder), json?.Length ?? 0, () =>
                 {
-                    using var decoder = new JsonDecoder(json, MessageContext);
+                    using var decoder = new JsonDecoder(json!, MessageContext);
                     return decoder.DecodeMessage<IEncodeable>();
                 });
             }
@@ -206,8 +206,8 @@ namespace Opc.Ua.Fuzzing
         internal static void FuzzJsonEncoderIndempotentCore(
             string serialized,
             IEncodeable encodeable,
-            JsonEncoderOptions options = null,
-            IServiceMessageContext context = null)
+            JsonEncoderOptions? options = null,
+            IServiceMessageContext? context = null)
         {
             if (serialized == null || encodeable == null)
             {
@@ -225,7 +225,7 @@ namespace Opc.Ua.Fuzzing
             string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
             bool firstGenerationNormalized = !Utils.IsEqual(encodeable, encodeable2);
             if (firstGenerationNormalized &&
-                !IsExpectedJsonSemanticLoss(encodeable, encodeable2, options, context))
+                !IsExpectedJsonSemanticLoss(encodeable, encodeable2!, options, context))
             {
                 throw new EncodingFidelityException(
                     $"JSON semantic round-trip failed. Type={encodeableTypeName}, Mode={options.Name}.");
@@ -233,9 +233,9 @@ namespace Opc.Ua.Fuzzing
 
             if (serialized2 == null || !serialized.SequenceEqual(serialized2))
             {
-                if (!IsExpectedJsonEncodingNormalization(serialized, serialized2, context) &&
+                if (!IsExpectedJsonEncodingNormalization(serialized, serialized2!, context) &&
                     !(firstGenerationNormalized &&
-                        IsStableFromSecondGeneration(serialized2, encodeable3, options, context)))
+                        IsStableFromSecondGeneration(serialized2!, encodeable3, options, context)))
                 {
                     throw new EncodingFidelityException(
                         Utils.Format("Idempotent JSON encoding failed. Type={0}.", encodeableTypeName));
@@ -243,7 +243,7 @@ namespace Opc.Ua.Fuzzing
             }
 
             if (!Utils.IsEqual(encodeable2, encodeable3) &&
-                !IsExpectedJsonSemanticLoss(encodeable2, encodeable3, options, context))
+                !IsExpectedJsonSemanticLoss(encodeable2!, encodeable3, options, context))
             {
                 throw new EncodingFidelityException(Utils.Format(
                     "Idempotent JSON 3rd gen decoding failed. Type={0}.",
@@ -254,7 +254,7 @@ namespace Opc.Ua.Fuzzing
         internal static void FuzzJsonRoundTripCore(
             IEncodeable encodeable,
             JsonEncoderOptions options,
-            IServiceMessageContext context = null)
+            IServiceMessageContext? context = null)
         {
             context ??= MessageContext;
             try
@@ -271,7 +271,7 @@ namespace Opc.Ua.Fuzzing
         internal static string EncodeJsonMessage(
             IEncodeable encodeable,
             JsonEncoderOptions options,
-            IServiceMessageContext context = null)
+            IServiceMessageContext? context = null)
         {
             using var memoryStream = new MemoryStream(0x1000);
             using var encoder = new JsonEncoder(memoryStream, context ?? MessageContext, options);
@@ -333,7 +333,7 @@ namespace Opc.Ua.Fuzzing
 
         private static void FuzzJsonEncoderCore(string input, JsonEncoderOptions options)
         {
-            IEncodeable encodeable = FuzzJsonDecoderCore(input);
+            IEncodeable? encodeable = FuzzJsonDecoderCore(input);
             if (encodeable != null)
             {
                 FuzzJsonRoundTripCore(encodeable, options);
@@ -436,7 +436,7 @@ namespace Opc.Ua.Fuzzing
             if (value is ExtensionObject extensionObject)
             {
                 return IsJsonUnencodableExtensionObjectTypeId(in extensionObject, context) ||
-                    (extensionObject.TryGetValue(out IEncodeable encodeable) &&
+                    (extensionObject.TryGetValue(out IEncodeable? encodeable) &&
                         HasJsonUnencodableValue(encodeable, seen, context));
             }
 
@@ -476,7 +476,7 @@ namespace Opc.Ua.Fuzzing
 
             foreach (PropertyInfo property in GetComparableProperties(type))
             {
-                if (HasJsonUnencodableValue(property.GetValue(value), seen, context))
+                if (HasJsonUnencodableValue(property.GetValue(value)!, seen, context))
                 {
                     return true;
                 }
@@ -606,8 +606,8 @@ namespace Opc.Ua.Fuzzing
             {
                 comparedProperty = true;
                 if (!IsJsonEquivalent(
-                    property.GetValue(left),
-                    property.GetValue(right),
+                    property.GetValue(left)!,
+                    property.GetValue(right)!,
                     seen,
                     options,
                     context))
@@ -671,8 +671,8 @@ namespace Opc.Ua.Fuzzing
                 return true;
             }
 
-            if (left.TryGetAsJson(out string leftJson) &&
-                right.TryGetAsJson(out string rightJson))
+            if (left.TryGetAsJson(out string? leftJson) &&
+                right.TryGetAsJson(out string? rightJson))
             {
                 try
                 {
@@ -686,8 +686,8 @@ namespace Opc.Ua.Fuzzing
                 }
             }
 
-            return left.TryGetValue(out IEncodeable leftEncodeable) &&
-                right.TryGetValue(out IEncodeable rightEncodeable) &&
+            return left.TryGetValue(out IEncodeable? leftEncodeable) &&
+                right.TryGetValue(out IEncodeable? rightEncodeable) &&
                 IsJsonEquivalent(leftEncodeable, rightEncodeable, seen, options, context);
         }
 
@@ -708,8 +708,8 @@ namespace Opc.Ua.Fuzzing
         {
             if (left.Encoding != ExtensionObjectEncoding.None ||
                 left.TypeId.IsNull ||
-                left.TryGetValue(out IEncodeable _) ||
-                !right.TryGetValue(out IEncodeable decoded) ||
+                left.TryGetValue(out IEncodeable? _) ||
+                !right.TryGetValue(out IEncodeable? decoded) ||
                 decoded == null ||
                 !AreJsonEquivalentExpandedNodeIds(left.TypeId, right.TypeId, context))
             {
@@ -719,7 +719,7 @@ namespace Opc.Ua.Fuzzing
             IEncodeable prototype;
             try
             {
-                prototype = Activator.CreateInstance(decoded.GetType()) as IEncodeable;
+                prototype = (Activator.CreateInstance(decoded.GetType()) as IEncodeable)!;
             }
             catch (MissingMethodException)
             {
@@ -807,10 +807,10 @@ namespace Opc.Ua.Fuzzing
                 case JsonValueKind.Array:
                     return IsJsonEquivalentArrayText(left, right, context);
                 case JsonValueKind.String:
-                    string leftString = left.GetString();
-                    string rightString = right.GetString();
+                    string leftString = left.GetString()!;
+                    string rightString = right.GetString()!;
                     return StringComparer.Ordinal.Equals(leftString, rightString) ||
-                        AreJsonEquivalentIdentifierStrings(leftString, rightString, context);
+                        AreJsonEquivalentIdentifierStrings(leftString!, rightString!, context);
                 default:
                     return StringComparer.Ordinal.Equals(left.GetRawText(), right.GetRawText());
             }

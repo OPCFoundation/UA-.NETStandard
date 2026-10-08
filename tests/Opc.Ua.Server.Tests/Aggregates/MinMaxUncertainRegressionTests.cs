@@ -67,9 +67,9 @@ namespace Opc.Ua.Server.Tests.Aggregates
                     PercentDataBad = 100,
                     PercentDataGood = 100
                 },
-                NUnitTelemetryContext.Create());
+                NUnitTelemetryContext.Create())!;
 
-            calculator.QueueRawValue(new DataValue(5.0, StatusCodes.Good, start, start));
+            calculator!.QueueRawValue(new DataValue(5.0, StatusCodes.Good, start, start));
             DateTimeUtc middle = start.AddMilliseconds(5_000);
             calculator.QueueRawValue(new DataValue(
                 uncertainValue, StatusCodes.Uncertain, middle, middle));
@@ -116,9 +116,9 @@ namespace Opc.Ua.Server.Tests.Aggregates
                     PercentDataBad = 100,
                     PercentDataGood = 100
                 },
-                NUnitTelemetryContext.Create());
+                NUnitTelemetryContext.Create())!;
 
-            calculator.QueueRawValue(new DataValue(5.0, StatusCodes.Good, start, start));
+            calculator!.QueueRawValue(new DataValue(5.0, StatusCodes.Good, start, start));
             DateTimeUtc maximum = start.AddMilliseconds(2_000);
             calculator.QueueRawValue(new DataValue(10.0, StatusCodes.Good, maximum, maximum));
             DateTimeUtc middle = start.AddMilliseconds(5_000);
@@ -162,9 +162,9 @@ namespace Opc.Ua.Server.Tests.Aggregates
                     PercentDataBad = 100,
                     PercentDataGood = 100
                 },
-                NUnitTelemetryContext.Create());
+                NUnitTelemetryContext.Create())!;
 
-            calculator.QueueRawValue(new DataValue(5.0, StatusCodes.Uncertain, start, start));
+            calculator!.QueueRawValue(new DataValue(5.0, StatusCodes.Uncertain, start, start));
             DateTimeUtc end = start.AddMilliseconds(10_000);
             calculator.QueueRawValue(new DataValue(7.0, StatusCodes.Good, end, end));
 

@@ -270,7 +270,7 @@ namespace Opc.Ua.InformationModel.Tests
                 ArrayOf<ReferenceDescription> references = browse.Results[0].References;
                 for (int ii = 0; ii < references.Count; ii++)
                 {
-                    names.Add(references[ii].BrowseName.Name);
+                    names.Add(references[ii].BrowseName.Name!);
                 }
                 Assert.That(names, Is.SupersetOf(new[]
                 {

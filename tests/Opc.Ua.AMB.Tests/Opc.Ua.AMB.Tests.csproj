@@ -4,7 +4,6 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.AMB.Tests</RootNamespace>
     <AssemblyName>Opc.Ua.AMB.Tests</AssemblyName>
-    <Nullable>enable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>

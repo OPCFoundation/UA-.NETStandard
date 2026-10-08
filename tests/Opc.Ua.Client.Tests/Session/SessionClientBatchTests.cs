@@ -59,7 +59,7 @@ namespace Opc.Ua.Client.Tests
         [DatapointSource]
         public static readonly RequestHeader[] RequestHeaders =
         [
-            null,
+            null!,
             new RequestHeader(),
             new RequestHeader { AuditEntryId = "audit-entry-id" }
         ];
@@ -700,7 +700,7 @@ namespace Opc.Ua.Client.Tests
             System.Reflection.MethodInfo addResponses = typeof(SessionClientBatched)
                 .GetMethod(
                     "AddResponses",
-                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)
+                    System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static)!
                 .MakeGenericMethod(typeof(StatusCode));
 
             // An earlier batch (or the other list of SetTriggering) already filled
@@ -750,7 +750,7 @@ namespace Opc.Ua.Client.Tests
             });
             Assert.That(activitySource.HasListeners(), Is.True);
             sessionMock.ActivityTraceFlags = ClientTraceFlags.Traces;
-            using Activity activity = activitySource.StartActivity("TestActivity");
+            using Activity activity = activitySource.StartActivity("TestActivity")!;
 
             sessionMock.Channel
                 .Setup(c => c.SendRequestAsync(
@@ -777,8 +777,8 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.That(requestHeader.AdditionalHeader.IsNull, Is.False);
                 Assert.That(requestHeader.AdditionalHeader.TryGetValue(
-                    out AdditionalParametersType additionalParameters), Is.True);
-                Assert.That(additionalParameters.Parameters.Find(k => k.Key == "SpanContext"), Is.Not.Null);
+                    out AdditionalParametersType? additionalParameters), Is.True);
+                Assert.That(additionalParameters!.Parameters.Find(k => k.Key == "SpanContext"), Is.Not.Null);
             }
 
             sessionMock.Channel
@@ -808,7 +808,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(activitySource.HasListeners(), Is.True);
             sessionMock.ActivityTraceFlags = ClientTraceFlags.Traces;
 
-            using Activity activity = activitySource.StartActivity("TestActivity");
+            using Activity activity = activitySource.StartActivity("TestActivity")!;
 
             sessionMock.Channel
                 .SetupSequence(c => c.SendRequestAsync(
@@ -835,7 +835,7 @@ namespace Opc.Ua.Client.Tests
             {
                 Assert.That(requestHeader.AdditionalHeader.IsNull, Is.False);
                 Assert.That(requestHeader.AdditionalHeader.TryGetValue(
-                    out AdditionalParametersType additionalParameters), Is.True);
+                    out AdditionalParametersType? additionalParameters), Is.True);
                 Assert.That(additionalParameters, Is.Not.Null);
                 Assert.That(additionalParameters.Parameters.Find(k => k.Key == "SpanContext"), Is.Not.Null);
             }
@@ -3304,8 +3304,8 @@ namespace Opc.Ua.Client.Tests
                     var results = new List<HistoryUpdateResult>();
                     foreach (ExtensionObject detail in update.HistoryUpdateDetails)
                     {
-                        Assert.That(detail.TryGetValue(out DeleteEventDetails delete), Is.True);
-                        requestedNodes.Add(delete.NodeId);
+                        Assert.That(detail.TryGetValue(out DeleteEventDetails? delete), Is.True);
+                        requestedNodes.Add(delete!.NodeId);
                         results.Add(new HistoryUpdateResult
                         {
                             OperationResults = [(uint)requestedNodes.Count]

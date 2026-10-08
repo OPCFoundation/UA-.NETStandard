@@ -373,10 +373,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
             var references = new List<ReferenceDescription>();
 
-            ContinuationPoint result = await harness.Manager.BrowsePublicAsync(
+            ContinuationPoint result = (await harness.Manager.BrowsePublicAsync(
                 operationContext,
                 continuationPoint,
-                references).ConfigureAwait(false);
+                references).ConfigureAwait(false))!;
 
             Assert.That(result, Is.Null);
             return references;
@@ -484,7 +484,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 defaultNamespaceIndex: ns,
                 rootResolver: q => manager.PredefinedNodes.Values
                     .FirstOrDefault(node => node.BrowseName == q)!,
-                nodeIdResolver: id => manager.PredefinedNodes.TryGetValue(id, out NodeState node) ? node : null!,
+                nodeIdResolver: id => manager.PredefinedNodes.TryGetValue(id, out NodeState? node) ? node : null!,
                 typeIdResolver: _ => []);
 
             return new Harness(server, serverObject, manager, builder, root, source, flag, ns);
@@ -577,7 +577,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return GetManagerHandleAsync(nodeId);
             }
 
-            public ValueTask<ContinuationPoint> BrowsePublicAsync(
+            public ValueTask<ContinuationPoint?> BrowsePublicAsync(
                 OperationContext context,
                 ContinuationPoint continuationPoint,
                 IList<ReferenceDescription> references)

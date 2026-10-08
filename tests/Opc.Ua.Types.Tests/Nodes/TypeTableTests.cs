@@ -1055,7 +1055,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             NodeClass nodeClass,
             QualifiedName browseName = default,
             ExpandedNodeId superTypeTarget = default,
-            IList<IReference> encodings = null)
+            IList<IReference>? encodings = null)
         {
             var mockNode = new Mock<ILocalNode>();
             mockNode.Setup(n => n.NodeId).Returns(nodeId);
@@ -1088,7 +1088,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void AddIgnoresNullNode()
         {
-            m_typeTable.Add(null);
+            m_typeTable.Add(null!);
             // No exception — table unchanged
             Assert.That(m_typeTable.IsKnown(s_rootTypeId), Is.True);
         }

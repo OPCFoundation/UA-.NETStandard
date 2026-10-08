@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests
             }
 
             using var cancellation = new CancellationTokenSource();
-            byte[] captured = null;
+            byte[]? captured = null;
             ECDsa Import(ECParameters parameters)
             {
                 captured = parameters.D;
@@ -92,8 +92,8 @@ namespace Opc.Ua.Server.Tests
             if (outcome == "success")
             {
                 using Certificate certificate = generator.CreateApplicationCertificate(request, cancellation.Token);
-                using ECDsa key = certificate.GetECDsaPrivateKey();
-                using ECDsa publicKey = certificate.GetECDsaPublicKey();
+                using ECDsa key = certificate.GetECDsaPrivateKey()!;
+                using ECDsa publicKey = certificate.GetECDsaPublicKey()!;
                 byte[] data = [1, 2, 3];
                 byte[] signature = key.SignData(data, HashAlgorithmName.SHA256);
                 Assert.That(publicKey.VerifyData(data, signature, HashAlgorithmName.SHA256), Is.True);

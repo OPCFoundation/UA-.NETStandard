@@ -114,7 +114,7 @@ namespace Opc.Ua.SourceGeneration
             template.Render();
         }
 
-        private TemplateString LoadTemplate_Imports(ILoadContext context)
+        private TemplateString? LoadTemplate_Imports(ILoadContext context)
         {
             if (context.Target is not Namespace ns)
             {
@@ -150,7 +150,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private TemplateString LoadTemplate_DataType(ILoadContext context)
+        private TemplateString? LoadTemplate_DataType(ILoadContext context)
         {
             if (context.Target is IModelDesign design)
             {
@@ -259,7 +259,7 @@ namespace Opc.Ua.SourceGeneration
             List<Parameter> fields = [];
             var parents = new Stack<DataTypeDesign>();
 
-            for (DataTypeDesign parent = dataType;
+            for (DataTypeDesign? parent = dataType;
                 parent != null;
                 parent = parent.BaseTypeNode as DataTypeDesign)
             {
@@ -491,7 +491,7 @@ namespace Opc.Ua.SourceGeneration
             return expanded;
         }
 
-        private TemplateString LoadTemplate_Field(ILoadContext context)
+        private TemplateString? LoadTemplate_Field(ILoadContext context)
         {
             if (context.Target is BinaryField binaryField)
             {
@@ -554,12 +554,12 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private void WriteStructureField(ILoadContext context, BinaryField binaryField)
         {
-            Parameter field = binaryField.Field;
+            Parameter? field = binaryField.Field;
 
             // The authored field name lands in XML attributes, so it has to be
             // escaped - a BrowseName may legally contain '&', '<' or a quote,
             // which would otherwise make the served dictionary non-well-formed.
-            string fieldName = field.Name.AsXmlAttributeValue();
+            string fieldName = field!.Name.AsXmlAttributeValue();
 
             string fieldDataType = field.DataTypeNode.GetBinaryDataType(
                 m_context.ModelDesign.TargetNamespace.Value,
@@ -571,7 +571,7 @@ namespace Opc.Ua.SourceGeneration
             // (BaseDataType, Number, ...) as a Variant, which GetBinaryDataType
             // already returns.
             if (field.AllowSubTypes &&
-                field.DataTypeNode.BasicDataType is BasicDataType.UserDefined or BasicDataType.Structure)
+                field.DataTypeNode!.BasicDataType is BasicDataType.UserDefined or BasicDataType.Structure)
             {
                 fieldDataType = "ua:ExtensionObject";
             }
@@ -651,7 +651,7 @@ namespace Opc.Ua.SourceGeneration
                 Length = length;
             }
 
-            public BinaryField(Parameter field, string switchField, uint? switchValue)
+            public BinaryField(Parameter field, string? switchField, uint? switchValue)
             {
                 Field = field;
                 Name = field.Name;
@@ -659,11 +659,11 @@ namespace Opc.Ua.SourceGeneration
                 SwitchValue = switchValue;
             }
 
-            public Parameter Field { get; }
+            public Parameter? Field { get; }
             public string Name { get; }
-            public string TypeName { get; }
+            public string? TypeName { get; }
             public uint Length { get; }
-            public string SwitchField { get; }
+            public string? SwitchField { get; }
             public uint? SwitchValue { get; }
         }
 
@@ -678,7 +678,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private const string kSpecifiedSuffix = "Specified";
 
-        private TemplateString LoadTemplate_BinaryDocumentation(ILoadContext context)
+        private TemplateString? LoadTemplate_BinaryDocumentation(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign dataType)
             {

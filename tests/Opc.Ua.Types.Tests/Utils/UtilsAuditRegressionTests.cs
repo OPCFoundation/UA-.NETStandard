@@ -179,7 +179,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ServiceResultExceptionToleratesANullResult()
         {
             // The constructor dereferenced the null it explicitly tolerates.
-            var ex = new ServiceResultException((ServiceResult)null);
+            var ex = new ServiceResultException((ServiceResult)null!);
 
             Assert.That(ex.StatusCode, Is.EqualTo(ServiceResult.Bad.StatusCode));
         }

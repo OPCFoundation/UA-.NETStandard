@@ -451,7 +451,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 factory.Setup(value => value.CreateCoreNodeManager(It.IsAny<ushort>()))
                     .Returns(new Mock<ICoreNodeManager>().Object);
                 server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
-                m_supported = CreateOwner(server.Object.NamespaceUris.GetString(0), StatusCodes.Good, cleanupFailure);
+                m_supported = CreateOwner(server.Object.NamespaceUris.GetString(0)!, StatusCodes.Good, cleanupFailure);
                 m_unsupported = CreateOwner("urn:tests:unsupported-events",
                     StatusCodes.BadNotSupported, StatusCodes.BadNotSupported);
                 m_terminal = CreateOwner("urn:tests:terminal-events", failure, StatusCodes.Good);
@@ -491,9 +491,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public EventManager Events { get; }
 
-            public IMonitoredItem Item { get; private set; }
+            public IMonitoredItem Item { get; private set; } = null!;
 
-            public ServiceResult Result { get; private set; }
+            public ServiceResult Result { get; private set; } = null!;
 
             public async Task CreateAsync()
             {
@@ -673,7 +673,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return owner;
             }
 
-            private static MonitoredItemModifyRequest CreateModify(uint id, EventFilter filter = null)
+            private static MonitoredItemModifyRequest CreateModify(uint id, EventFilter? filter = null)
             {
                 return new MonitoredItemModifyRequest
                 {

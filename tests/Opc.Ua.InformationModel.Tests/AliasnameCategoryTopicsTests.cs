@@ -87,7 +87,7 @@ namespace Opc.Ua.InformationModel.Tests
                     continue;
                 }
                 aliasInstances++;
-                browseNames.Add(child.BrowseName.Name);
+                browseNames.Add(child.BrowseName.Name!);
 
                 // Part 17 §9 requires every alias in the Topics hierarchy to
                 // point at a PublishedDataSetType instance.
@@ -131,7 +131,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
             IList<AliasRecord> records = DecodeAliasResults(Session, result);
-            string[] names = [.. records.Select(r => r.AliasName.Name)];
+            string[] names = [.. records.Select(r => r.AliasName.Name)!];
             Assert.That(names, Contains.Item("ServerEvents"));
             Assert.That(names, Contains.Item("AuditEvents"));
         }

@@ -115,7 +115,7 @@ namespace Opc.Ua.Types.Tests.State
         public void PropertyStateExtractsValueFromExtensionObject()
         {
             // Create a PropertyState for Argument type (IEncodeable)
-            var propertyState = PropertyState<Argument>.With<StructureBuilder<Argument>>(null);
+            var propertyState = PropertyState<Argument>.With<StructureBuilder<Argument>>(null!);
 
             // Create an Argument (IEncodeable type that can be in ExtensionObject)
             var testArg = new Argument("arg1", DataTypeIds.String, -1, "test description");
@@ -138,7 +138,7 @@ namespace Opc.Ua.Types.Tests.State
         public void PropertyStateExtractsComplexTypeFromExtensionObject()
         {
             // Create a PropertyState for RelativePath type (IEncodeable)
-            var propertyState = PropertyState<RelativePath>.With<StructureBuilder<RelativePath>>(null);
+            var propertyState = PropertyState<RelativePath>.With<StructureBuilder<RelativePath>>(null!);
 
             // Create a RelativePath (IEncodeable type)
             var testValue = new RelativePath
@@ -169,7 +169,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyStateAcceptsDirectValue()
         {
-            var propertyState = PropertyState<string>.With<VariantBuilder>(null);
+            var propertyState = PropertyState<string>.With<VariantBuilder>(null!);
             const string testString = "DirectValue";
 
             // Set value directly (not in ExtensionObject)
@@ -184,7 +184,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyStateAcceptsNullValue()
         {
-            var propertyState = PropertyState<string>.With<VariantBuilder>(null);
+            var propertyState = PropertyState<string>.With<VariantBuilder>(null!);
 
             // Set null value
             ((BaseVariableState)propertyState).Value = default;
@@ -198,7 +198,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void BaseDataVariableStateExtractsValueFromExtensionObject()
         {
-            var variableState = BaseDataVariableState<Argument>.With<StructureBuilder<Argument>>(null);
+            var variableState = BaseDataVariableState<Argument>.With<StructureBuilder<Argument>>(null!);
 
             // Create an Argument (IEncodeable type)
             var testArg = new Argument("testArg", DataTypeIds.Int32, -1, "test description");
@@ -214,7 +214,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyStateExtractsValueFromVariant()
         {
-            var propertyState = PropertyState<string>.With<VariantBuilder>(null);
+            var propertyState = PropertyState<string>.With<VariantBuilder>(null!);
             const string testString = "VariantValue";
 
             // Use WrappedValue property which calls ExtractValueFromVariant
@@ -229,7 +229,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyStateExtractsValueFromVariantWithExtensionObject()
         {
-            var propertyState = PropertyState<Argument>.With<StructureBuilder<Argument>>(null);
+            var propertyState = PropertyState<Argument>.With<StructureBuilder<Argument>>(null!);
             var testArg = new Argument("variantArg", DataTypeIds.Double, -1, "test description");
             var extensionObject = new ExtensionObject(testArg);
 
@@ -751,7 +751,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             var variable = new BaseDataVariableState(null);
 
-            Assert.That(variable.DeepEquals(null), Is.False);
+            Assert.That(variable.DeepEquals(null!), Is.False);
         }
 
         [Test]
@@ -902,7 +902,7 @@ namespace Opc.Ua.Types.Tests.State
 
             variable.Export(context, table);
 
-            INode exported = table.Find(variable.NodeId);
+            INode exported = table.Find(variable.NodeId)!;
             Assert.That(exported, Is.Not.Null);
             Assert.That(exported, Is.InstanceOf<VariableNode>());
 
@@ -950,7 +950,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ArrayDimensionsToXmlReturnsNullForEmpty()
         {
-            string result = BaseVariableState.ArrayDimensionsToXml(default);
+            string? result = BaseVariableState.ArrayDimensionsToXml(default);
 
             Assert.That(result, Is.Null);
         }
@@ -960,7 +960,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             ArrayOf<uint> dims = new uint[] { 10 }.ToArrayOf();
 
-            string result = BaseVariableState.ArrayDimensionsToXml(dims);
+            string result = BaseVariableState.ArrayDimensionsToXml(dims)!;
 
             Assert.That(result, Is.EqualTo("10"));
         }
@@ -970,7 +970,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             ArrayOf<uint> dims = new uint[] { 3, 4, 5 }.ToArrayOf();
 
-            string result = BaseVariableState.ArrayDimensionsToXml(dims);
+            string result = BaseVariableState.ArrayDimensionsToXml(dims)!;
 
             Assert.That(result, Is.EqualTo("3,4,5"));
         }
@@ -1025,7 +1025,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             ArrayOf<uint> original = new uint[] { 2, 7, 11 }.ToArrayOf();
 
-            string xml = BaseVariableState.ArrayDimensionsToXml(original);
+            string xml = BaseVariableState.ArrayDimensionsToXml(original)!;
             ArrayOf<uint> parsed = BaseVariableState.ArrayDimensionsFromXml(xml);
 
             Assert.That(parsed.Count, Is.EqualTo(original.Count));
@@ -1327,7 +1327,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void GenericPropertyStateValueSetAndGet()
         {
-            var property = PropertyState<int>.With<VariantBuilder>(null);
+            var property = PropertyState<int>.With<VariantBuilder>(null!);
 
             property.Value = 42;
 
@@ -1338,7 +1338,7 @@ namespace Opc.Ua.Types.Tests.State
         public void GenericBaseDataVariableStateValueSetAndGet()
         {
             var variable =
-                BaseDataVariableState<string>.With<VariantBuilder>(null);
+                BaseDataVariableState<string>.With<VariantBuilder>(null!);
 
             variable.Value = "hello";
 

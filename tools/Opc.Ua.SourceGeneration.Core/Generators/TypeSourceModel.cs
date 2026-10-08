@@ -41,7 +41,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// The C# class/enum name.
         /// </summary>
-        public string ClassName { get; set; }
+        public string? ClassName { get; set; }
 
         /// <summary>
         /// Declarations of the types the annotated type is nested in,
@@ -56,7 +56,7 @@ namespace Opc.Ua.SourceGeneration
         /// <c>null</c> to use <see cref="ClassName"/>. Set for a nested type
         /// (for example <c>global::N.Models.Foo</c>).
         /// </summary>
-        public string TypeReference { get; set; }
+        public string? TypeReference { get; set; }
 
         /// <summary>
         /// The identifier the activator class and definition factory method
@@ -64,7 +64,7 @@ namespace Opc.Ua.SourceGeneration
         /// for a nested type so two nested types of the same name in one
         /// namespace do not collide (for example <c>Models_Foo</c>).
         /// </summary>
-        public string SymbolName { get; set; }
+        public string? SymbolName { get; set; }
 
         /// <summary>
         /// The nesting-qualified name the default DataTypeId, XML name and
@@ -73,14 +73,14 @@ namespace Opc.Ua.SourceGeneration
         /// of the same name in one namespace URI get distinct identities
         /// (for example <c>Models.Foo</c>).
         /// </summary>
-        public string QualifiedName { get; set; }
+        public string? QualifiedName { get; set; }
 
         /// <summary>
         /// The fully qualified name of the encodeable base type, or
         /// <c>null</c>. Used to follow a rename of the base type's activator
         /// (see <see cref="SymbolName"/>).
         /// </summary>
-        public string BaseTypeReference { get; set; }
+        public string? BaseTypeReference { get; set; }
 
         /// <summary>
         /// The accessibility modifier of the generated partial declaration,
@@ -88,41 +88,41 @@ namespace Opc.Ua.SourceGeneration
         /// a nested type, whose accessibility can be
         /// <c>protected internal</c>.
         /// </summary>
-        public string AccessModifier { get; set; }
+        public string? AccessModifier { get; set; }
 
         /// <summary>
         /// Fully qualified .NET namespace (e.g. "Opc.Ua.Gds.Server").
         /// </summary>
-        public string Namespace { get; set; }
+        public string? Namespace { get; set; }
 
         /// <summary>
         /// OPC UA namespace URI (from [DataType].Namespace,
         /// [DataContract].Namespace, or fallback to
         /// "urn:" + dotnet namespace lowered).
         /// </summary>
-        public string NamespaceUri { get; set; }
+        public string? NamespaceUri { get; set; }
 
         /// <summary>
         /// The dot-stripped namespace for use in extension
         /// method names (e.g. "OpcUaGdsServer").
         /// </summary>
-        public string NamespaceSymbol { get; set; }
+        public string? NamespaceSymbol { get; set; }
 
         /// <summary>
         /// Data type id string (e.g. "i=395", "s=MyType",
         /// or null for auto).
         /// </summary>
-        public string DataTypeId { get; set; }
+        public string? DataTypeId { get; set; }
 
         /// <summary>
         /// Binary encoding id string, or null.
         /// </summary>
-        public string BinaryEncodingId { get; set; }
+        public string? BinaryEncodingId { get; set; }
 
         /// <summary>
         /// XML encoding id string, or null.
         /// </summary>
-        public string XmlEncodingId { get; set; }
+        public string? XmlEncodingId { get; set; }
 
         /// <summary>
         /// True if the type is a C# record type.
@@ -143,7 +143,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Name of the base class (null if no relevant base class).
         /// </summary>
-        public string BaseClassName { get; set; }
+        public string? BaseClassName { get; set; }
 
         /// <summary>
         /// True if the base class implements IEncodeable
@@ -157,7 +157,7 @@ namespace Opc.Ua.SourceGeneration
         /// if there is none. Used to emit the inherited fields and the base
         /// data type in the structure definition.
         /// </summary>
-        public string BaseDefinitionActivator { get; set; }
+        public string? BaseDefinitionActivator { get; set; }
 
         /// <summary>
         /// True if the user class is sealed.
@@ -220,25 +220,25 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// The C# property name.
         /// </summary>
-        public string PropertyName { get; set; }
+        public string? PropertyName { get; set; }
 
         /// <summary>
         /// The serialized field name (from [DataTypeField].Name
         /// or defaults to PropertyName).
         /// </summary>
-        public string FieldName { get; set; }
+        public string? FieldName { get; set; }
 
         /// <summary>
         /// The fully qualified C# type name (e.g.
         /// "global::System.String", "global::Opc.Ua.NodeId").
         /// </summary>
-        public string TypeName { get; set; }
+        public string? TypeName { get; set; }
 
         /// <summary>
         /// Short type name without namespace prefix (e.g.
         /// "String", "NodeId", "Int32").
         /// </summary>
-        public string ShortTypeName { get; set; }
+        public string? ShortTypeName { get; set; }
 
         /// <summary>
         /// True if the field type is ArrayOf&lt;T&gt;.
@@ -254,13 +254,13 @@ namespace Opc.Ua.SourceGeneration
         /// The element type short name for ArrayOf/MatrixOf
         /// (e.g. "Int32", "NodeId").
         /// </summary>
-        public string ElementShortTypeName { get; set; }
+        public string? ElementShortTypeName { get; set; }
 
         /// <summary>
         /// The element fully qualified type name for
         /// ArrayOf/MatrixOf.
         /// </summary>
-        public string ElementTypeName { get; set; }
+        public string? ElementTypeName { get; set; }
 
         /// <summary>
         /// True if the field is nullable / optional.
@@ -298,7 +298,7 @@ namespace Opc.Ua.SourceGeneration
         /// identifier; complex/enum field types fall back to the Structure
         /// (i=22) / Enumeration (i=29) DataType respectively.
         /// </summary>
-        public string DataTypeNodeId { get; set; }
+        public string? DataTypeNodeId { get; set; }
 
         /// <summary>
         /// Structure handling from [DataTypeField].
@@ -333,7 +333,7 @@ namespace Opc.Ua.SourceGeneration
         /// a conformant peer decodes a missing field as (OPC 10000-6 5.4.1),
         /// so such a field is never omitted.
         /// </summary>
-        public string DefaultValueLiteral { get; set; }
+        public string? DefaultValueLiteral { get; set; }
 
         /// <summary>
         /// True if the value a missing field decodes to is not known to be
@@ -359,7 +359,7 @@ namespace Opc.Ua.SourceGeneration
         /// partial properties (e.g. "__DisplayName").
         /// Null when <see cref="IsInitOnly"/> is false.
         /// </summary>
-        public string BackingFieldName { get; set; }
+        public string? BackingFieldName { get; set; }
 
         /// <summary>
         /// The default value initializer expression for init-only
@@ -367,7 +367,7 @@ namespace Opc.Ua.SourceGeneration
         /// Captured from the defining declaration's initializer.
         /// Null when there is no initializer.
         /// </summary>
-        public string DefaultInitializer { get; set; }
+        public string? DefaultInitializer { get; set; }
     }
 
     /// <summary>
@@ -378,11 +378,11 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// The member name.
         /// </summary>
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         /// <summary>
         /// The member value as a string (e.g. "0", "1", "0x01").
         /// </summary>
-        public string Value { get; set; }
+        public string? Value { get; set; }
     }
 }

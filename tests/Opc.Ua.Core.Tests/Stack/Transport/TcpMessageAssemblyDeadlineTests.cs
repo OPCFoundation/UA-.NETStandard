@@ -383,7 +383,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public bool FailErrorAllocation { get; set; }
 
             public DeadlineChannel CreateChannel(
-                CountingTimeProvider clock = null,
+                CountingTimeProvider? clock = null,
                 TcpChannelState state = TcpChannelState.Open)
             {
                 var channel = new DeadlineChannel(
@@ -517,7 +517,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return m_clock.GetUtcNow();
             }
 
-            public override ITimer CreateTimer(TimerCallback callback, object state, TimeSpan dueTime, TimeSpan period)
+            public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
             {
                 Interlocked.Increment(ref m_createdTimers);
                 Interlocked.Increment(ref m_activeTimers);

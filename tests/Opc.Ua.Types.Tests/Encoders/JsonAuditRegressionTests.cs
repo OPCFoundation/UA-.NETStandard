@@ -63,7 +63,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext context = CreateContext();
             using var decoder = new JsonDecoder("{\"Second\":42}", context);
 
-            uint selector = decoder.ReadSwitchField(s_switches, out string fieldName);
+            uint selector = decoder.ReadSwitchField(s_switches, out string? fieldName);
 
             Assert.Multiple(() =>
             {
@@ -79,7 +79,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext context = CreateContext();
             using var decoder = new JsonDecoder("{\"SwitchField\":0}", context);
 
-            uint selector = decoder.ReadSwitchField(s_switches, out string fieldName);
+            uint selector = decoder.ReadSwitchField(s_switches, out string? fieldName);
 
             Assert.Multiple(() =>
             {
@@ -96,7 +96,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext context = CreateContext();
             using var decoder = new JsonDecoder("{\"SwitchField\":2,\"Second\":42}", context);
 
-            uint selector = decoder.ReadSwitchField(s_switches, out string fieldName);
+            uint selector = decoder.ReadSwitchField(s_switches, out string? fieldName);
 
             Assert.Multiple(() =>
             {
@@ -113,7 +113,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext context = CreateContext();
             using var decoder = new JsonDecoder("{\"SwitchField\":2,\"Second\":42}", context);
 
-            uint selector = decoder.ReadSwitchField(null, out _);
+            uint selector = decoder.ReadSwitchField(null!, out _);
 
             Assert.That(selector, Is.EqualTo(2u));
         }
@@ -225,11 +225,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    Assert.Throws<ServiceResultException>(() => bytes.ReadByteArray("Value"))
+                    Assert.Throws<ServiceResultException>(() => bytes.ReadByteArray("Value"))!
                         .StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(
-                    Assert.Throws<ServiceResultException>(() => sbytes.ReadSByteArray("Value"))
+                    Assert.Throws<ServiceResultException>(() => sbytes.ReadSByteArray("Value"))!
                         .StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
             });
@@ -266,11 +266,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    Assert.Throws<ServiceResultException>(() => shorthand.ReadLocalizedText("Value"))
+                    Assert.Throws<ServiceResultException>(() => shorthand.ReadLocalizedText("Value"))!
                         .StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(
-                    Assert.Throws<ServiceResultException>(() => verbose.ReadLocalizedText("Value"))
+                    Assert.Throws<ServiceResultException>(() => verbose.ReadLocalizedText("Value"))!
                         .StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
             });
@@ -415,15 +415,15 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    factory.TryGetEncodeableType(absoluteId, out IEncodeableType byAbsolute),
+                    factory.TryGetEncodeableType(absoluteId, out IEncodeableType? byAbsolute),
                     Is.True);
-                Assert.That(byAbsolute.Type, Is.EqualTo(typeof(Sample)));
+                Assert.That(byAbsolute!.Type, Is.EqualTo(typeof(Sample)));
                 Assert.That(
                     factory.TryGetEncodeableType(
                         new ExpandedNodeId(99001),
-                        out IEncodeableType byRelative),
+                        out IEncodeableType? byRelative),
                     Is.True);
-                Assert.That(byRelative.Type, Is.EqualTo(typeof(Sample)));
+                Assert.That(byRelative!.Type, Is.EqualTo(typeof(Sample)));
             });
         }
 
@@ -599,7 +599,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(context))
             {
                 encoder.WriteEncodeable(null, body);
-                base64 = Convert.ToBase64String(encoder.CloseAndReturnBuffer());
+                base64 = Convert.ToBase64String(encoder.CloseAndReturnBuffer()!);
             }
 
             // The JSON part is two levels deep; the body adds four more.
@@ -621,19 +621,19 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Equals compared against (obj as IEncodeableType)?.Type, so an
             // enumerated type was not even equal to itself.
-            IType enumType = ReflectionBasedType.From(typeof(NodeClass));
-            IType enumType2 = ReflectionBasedType.From(typeof(NodeClass));
-            IType encodeableType = ReflectionBasedType.From(typeof(Sample));
-            IType encodeableType2 = ReflectionBasedType.From(typeof(Sample));
+            IType enumType = ReflectionBasedType.From(typeof(NodeClass))!;
+            IType enumType2 = ReflectionBasedType.From(typeof(NodeClass))!;
+            IType encodeableType = ReflectionBasedType.From(typeof(Sample))!;
+            IType encodeableType2 = ReflectionBasedType.From(typeof(Sample))!;
 
             Assert.Multiple(() =>
             {
                 Assert.That(enumType, Is.EqualTo(enumType2));
-                Assert.That(enumType.GetHashCode(), Is.EqualTo(enumType2.GetHashCode()));
+                Assert.That(enumType!.GetHashCode(), Is.EqualTo(enumType2!.GetHashCode()));
                 Assert.That(encodeableType, Is.EqualTo(encodeableType2));
                 Assert.That(
-                    encodeableType.GetHashCode(),
-                    Is.EqualTo(encodeableType2.GetHashCode()));
+                    encodeableType!.GetHashCode(),
+                    Is.EqualTo(encodeableType2!.GetHashCode()));
                 Assert.That(encodeableType, Is.Not.EqualTo(enumType));
                 var set = new HashSet<IType> { enumType };
                 Assert.That(set, Does.Contain(enumType2));
@@ -703,7 +703,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Child = decoder.ReadExtensionObject("Child");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }
@@ -735,7 +735,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     "Decode failed.");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }
@@ -767,7 +767,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is Sample other && other.Value == Value;
             }

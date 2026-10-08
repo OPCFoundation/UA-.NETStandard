@@ -121,7 +121,7 @@ namespace Opc.Ua.Sessions.Tests
             // Fetch the actual nodes
             foreach (ReferenceDescription reference in references.ToList())
             {
-                INode node = await Session.NodeCache.FindAsync(reference.NodeId).ConfigureAwait(false);
+                INode node = (await Session.NodeCache.FindAsync(reference.NodeId).ConfigureAwait(false))!;
                 if (node != null)
                 {
                     allNodes.Add(node);
@@ -178,28 +178,28 @@ namespace Opc.Ua.Sessions.Tests
 
             // Get different types of nodes
             // Object node
-            INode serverNode = await Session.NodeCache.FindAsync(ObjectIds.Server).ConfigureAwait(false);
+            INode serverNode = (await Session.NodeCache.FindAsync(ObjectIds.Server).ConfigureAwait(false))!;
             if (serverNode != null)
             {
                 allNodes.Add(serverNode);
             }
 
             // Variable node
-            INode serverStatusNode = await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false);
+            INode serverStatusNode = (await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false))!;
             if (serverStatusNode != null)
             {
                 allNodes.Add(serverStatusNode);
             }
 
             // ObjectType node
-            INode baseObjectTypeNode = await Session.NodeCache.FindAsync(ObjectTypeIds.BaseObjectType).ConfigureAwait(false);
+            INode baseObjectTypeNode = (await Session.NodeCache.FindAsync(ObjectTypeIds.BaseObjectType).ConfigureAwait(false))!;
             if (baseObjectTypeNode != null)
             {
                 allNodes.Add(baseObjectTypeNode);
             }
 
             // VariableType node
-            INode baseVariableTypeNode = await Session.NodeCache.FindAsync(VariableTypeIds.BaseVariableType).ConfigureAwait(false);
+            INode baseVariableTypeNode = (await Session.NodeCache.FindAsync(VariableTypeIds.BaseVariableType).ConfigureAwait(false))!;
             if (baseVariableTypeNode != null)
             {
                 allNodes.Add(baseVariableTypeNode);
@@ -253,13 +253,13 @@ namespace Opc.Ua.Sessions.Tests
             var allNodes = new List<INode>();
 
             // Get some nodes
-            INode serverNode = await Session.NodeCache.FindAsync(ObjectIds.Server).ConfigureAwait(false);
+            INode serverNode = (await Session.NodeCache.FindAsync(ObjectIds.Server).ConfigureAwait(false))!;
             if (serverNode != null)
             {
                 allNodes.Add(serverNode);
             }
 
-            INode serverStatusNode = await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false);
+            INode serverStatusNode = (await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false))!;
             if (serverStatusNode != null)
             {
                 allNodes.Add(serverStatusNode);
@@ -292,7 +292,7 @@ namespace Opc.Ua.Sessions.Tests
                         NamespaceUris = new NamespaceTable()
                     };
 
-                    if (nodeSet.NamespaceUris != null)
+                    if (nodeSet!.NamespaceUris != null)
                     {
                         foreach (string namespaceUri in nodeSet.NamespaceUris)
                         {
@@ -322,14 +322,14 @@ namespace Opc.Ua.Sessions.Tests
             var allNodes = new List<INode>();
 
             // Get variable node that has a value
-            INode serverStatusNode = await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false);
+            INode serverStatusNode = (await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false))!;
             if (serverStatusNode != null)
             {
                 allNodes.Add(serverStatusNode);
             }
 
             // Get another variable
-            INode stateNode = await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false);
+            INode stateNode = (await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus_State).ConfigureAwait(false))!;
             if (stateNode != null)
             {
                 allNodes.Add(stateNode);
@@ -429,7 +429,7 @@ namespace Opc.Ua.Sessions.Tests
             var allNodes = new List<INode>();
 
             // Get variable node
-            INode serverStatusNode = await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false);
+            INode serverStatusNode = (await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false))!;
             if (serverStatusNode != null)
             {
                 allNodes.Add(serverStatusNode);
@@ -478,7 +478,7 @@ namespace Opc.Ua.Sessions.Tests
             var allNodes = new List<INode>();
 
             // Get variable node
-            INode serverStatusNode = await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false);
+            INode serverStatusNode = (await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false))!;
             if (serverStatusNode != null)
             {
                 allNodes.Add(serverStatusNode);
@@ -530,7 +530,7 @@ namespace Opc.Ua.Sessions.Tests
             var allNodes = new List<INode>();
 
             // Get some nodes
-            INode serverNode = await Session.NodeCache.FindAsync(ObjectIds.Server).ConfigureAwait(false);
+            INode serverNode = (await Session.NodeCache.FindAsync(ObjectIds.Server).ConfigureAwait(false))!;
             if (serverNode != null)
             {
                 allNodes.Add(serverNode);
@@ -596,14 +596,14 @@ namespace Opc.Ua.Sessions.Tests
             var allNodes = new List<INode>();
 
             // Get method node that has UserExecutable
-            INode getMonitoredItemsNode = await Session.NodeCache.FindAsync(MethodIds.Server_GetMonitoredItems).ConfigureAwait(false);
+            INode getMonitoredItemsNode = (await Session.NodeCache.FindAsync(MethodIds.Server_GetMonitoredItems).ConfigureAwait(false))!;
             if (getMonitoredItemsNode != null)
             {
                 allNodes.Add(getMonitoredItemsNode);
             }
 
             // Get variable node that has UserAccessLevel
-            INode serverStatusNode = await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false);
+            INode serverStatusNode = (await Session.NodeCache.FindAsync(VariableIds.Server_ServerStatus).ConfigureAwait(false))!;
             if (serverStatusNode != null)
             {
                 allNodes.Add(serverStatusNode);
@@ -659,14 +659,14 @@ namespace Opc.Ua.Sessions.Tests
                     UANodeSet nodeSetNoContext;
                     using (var stream = new FileStream(tempFileNoContext, FileMode.Open))
                     {
-                        nodeSetNoContext = UANodeSet.Read(stream);
+                        nodeSetNoContext = UANodeSet.Read(stream)!;
                         Assert.That(nodeSetNoContext, Is.Not.Null, "Should be able to read NodeSet without user context");
                     }
 
                     UANodeSet nodeSetWithContext;
                     using (var stream = new FileStream(tempFileWithContext, FileMode.Open))
                     {
-                        nodeSetWithContext = UANodeSet.Read(stream);
+                        nodeSetWithContext = UANodeSet.Read(stream)!;
                         Assert.That(nodeSetWithContext, Is.Not.Null, "Should be able to read NodeSet with user context");
                     }
 

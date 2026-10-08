@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 type.GetProperties(declaredMembers))
             {
                 MethodInfo accessor =
-                    property.GetMethod ?? property.SetMethod;
+                    (property.GetMethod ?? property.SetMethod)!;
                 if (accessor != null && IsVisible(accessor))
                 {
                     CheckType(

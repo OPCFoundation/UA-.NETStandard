@@ -71,10 +71,10 @@ namespace Opc.Ua.Fuzzing
             byte[] input = ResourceReproducerBuilders.BuildOversizedDecimalExtensionObject();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => DecodeExtensionObject(input));
+                () => DecodeExtensionObject(input))!;
 
             Assert.That(
-                ex.StatusCode,
+                ex!.StatusCode,
                 Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded)
                     .Or.EqualTo(StatusCodes.BadDecodingError));
             Assert.DoesNotThrow(() => FuzzableCode.LibfuzzExtensionObjectBinary(input));
@@ -93,8 +93,8 @@ namespace Opc.Ua.Fuzzing
             byte[] input = ResourceReproducerBuilders.BuildDeeplyNestedXmlVariant();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => DecodeVariantXml(input));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                () => DecodeVariantXml(input))!;
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
 
             // The pre-fix codec overflowed the stack reading this; the target swallows the
             // bounded rejection, and FuzzStackTestcasesAsync replays it in a child process.
@@ -129,10 +129,10 @@ namespace Opc.Ua.Fuzzing
         private static void AssertVariantDecodeRejected(byte[] input)
         {
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => DecodeVariant(input));
+                () => DecodeVariant(input))!;
 
             Assert.That(
-                ex.StatusCode,
+                ex!.StatusCode,
                 Is.EqualTo(StatusCodes.BadDecodingError)
                     .Or.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
             Assert.DoesNotThrow(() => FuzzableCode.LibfuzzVariantBinary(input));
@@ -235,7 +235,7 @@ namespace Opc.Ua.Fuzzing
                 ByteString.From(body));
             using var encoder = new BinaryEncoder(FuzzableCode.MessageContext);
             encoder.WriteExtensionObject(null, extension);
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
 
         /// <summary>

@@ -19,11 +19,11 @@ namespace Opc.Ua.Server.Tests
         private DataValue m_lastValueFloat;
         private DataValue m_valueArrayDouble;
         private DataValue m_lastValueArrayDouble;
-        private DataChangeFilter m_filter;
-        private MonitoredItem m_monitoredItem;
-        private MonitoredItemQueueFactory m_queueFactory;
-        private BaseEventState m_event1;
-        private BaseEventState m_event2;
+        private DataChangeFilter m_filter = null!;
+        private MonitoredItem m_monitoredItem = null!;
+        private MonitoredItemQueueFactory m_queueFactory = null!;
+        private BaseEventState m_event1 = null!;
+        private BaseEventState m_event2 = null!;
         private readonly double m_range = 100.0;
         private const int kIterations = 10000;
         private static readonly double[] s_value = [1.0, 2.0, 3.0, 4.0, 5.0];
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Tests
             m_monitoredItem = new MonitoredItem(
                 serverMock.Object,
                 nodeManagerMock.Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId { NodeId = ObjectIds.Server },
@@ -174,7 +174,7 @@ namespace Opc.Ua.Server.Tests
         {
             for (int i = 0; i < kIterations; i++)
             {
-                MonitoredItem.ValueChanged(m_valueDouble, null, m_lastValueDouble, null, m_filter, m_range);
+                MonitoredItem.ValueChanged(m_valueDouble, null!, m_lastValueDouble, null!, m_filter, m_range);
             }
         }
 
@@ -184,7 +184,7 @@ namespace Opc.Ua.Server.Tests
         {
             for (int i = 0; i < kIterations; i++)
             {
-                MonitoredItem.ValueChanged(m_valueFloat, null, m_lastValueFloat, null, m_filter, m_range);
+                MonitoredItem.ValueChanged(m_valueFloat, null!, m_lastValueFloat, null!, m_filter, m_range);
             }
         }
 
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests
         {
             for (int i = 0; i < kIterations; i++)
             {
-                MonitoredItem.ValueChanged(m_valueArrayDouble, null, m_lastValueArrayDouble, null, m_filter, m_range);
+                MonitoredItem.ValueChanged(m_valueArrayDouble, null!, m_lastValueArrayDouble, null!, m_filter, m_range);
             }
         }
 

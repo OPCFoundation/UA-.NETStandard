@@ -94,7 +94,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void EscapeUriNullReturnsEmpty()
         {
-            Assert.That(Utils.EscapeUri(null), Is.EqualTo(string.Empty));
+            Assert.That(Utils.EscapeUri(null!), Is.EqualTo(string.Empty));
         }
 
         [Test]
@@ -410,7 +410,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ReplaceSpecialFolderNamesHandlesKnownEnvironmentAndFallbacks()
         {
-            string programData = Environment.GetEnvironmentVariable("ProgramData");
+            string programData = Environment.GetEnvironmentVariable("ProgramData")!;
             if (programData != null)
             {
                 Assert.That(
@@ -457,7 +457,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             {
                 File.Delete(existingFile);
                 File.Delete(createdFile);
-                string createdDirectory = Path.GetDirectoryName(createdFile);
+                string createdDirectory = Path.GetDirectoryName(createdFile)!;
                 if (createdDirectory != null && Directory.Exists(createdDirectory))
                 {
                     Directory.Delete(createdDirectory);
@@ -575,11 +575,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             Assert.Throws<ArgumentNullException>(
-                () => Utils.ParseExtension<string>(extensions, elementName, telemetry, null));
+                () => Utils.ParseExtension<string>(extensions, elementName, telemetry, null!));
             Assert.Throws<ArgumentNullException>(
-                () => Utils.ParseExtension<string>(extensions, null, telemetry, decoder => decoder.ReadString("Value")));
+                () => Utils.ParseExtension<string>(extensions, null!, telemetry, decoder => decoder.ReadString("Value")!));
             Assert.That(
-                Utils.ParseExtension<string>(extensions, elementName, telemetry, decoder => decoder.ReadString("Value")),
+                Utils.ParseExtension<string>(extensions, elementName, telemetry, decoder => decoder.ReadString("Value")!),
                 Is.Null);
         }
 
@@ -597,13 +597,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 telemetry,
                 (encoder, value) => encoder.WriteString("Value", value));
             Assert.That(extensions, Has.Count.EqualTo(1));
-            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Contain("alpha"));
+            Assert.That(extensions[0].AsXmlElement()!.OuterXml, Does.Contain("alpha"));
 
             string parsed = Utils.ParseExtension(
                 extensions,
                 elementName,
                 telemetry,
-                decoder => decoder != null ? "decoded" : null);
+                decoder => decoder != null ? "decoded" : null)!;
             Assert.That(parsed, Is.EqualTo("decoded"));
 
             Utils.UpdateExtension(
@@ -613,14 +613,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 telemetry,
                 (encoder, value) => encoder.WriteString("Value", value));
             Assert.That(extensions, Has.Count.EqualTo(1));
-            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Contain("beta"));
-            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Not.Contain("alpha"));
+            Assert.That(extensions[0].AsXmlElement()!.OuterXml, Does.Contain("beta"));
+            Assert.That(extensions[0].AsXmlElement()!.OuterXml, Does.Not.Contain("alpha"));
 
             parsed = Utils.ParseExtension(
                 extensions,
                 elementName,
                 telemetry,
-                decoder => decoder != null ? "decoded" : null);
+                decoder => decoder != null ? "decoded" : null)!;
             Assert.That(parsed, Is.EqualTo("decoded"));
         }
 
@@ -688,7 +688,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 (encoder, value) => encoder.WriteString("Value", value));
 
             Assert.That(extensions, Has.Count.EqualTo(1));
-            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Contain("beta"));
+            Assert.That(extensions[0].AsXmlElement()!.OuterXml, Does.Contain("beta"));
         }
 
         /// <summary>
@@ -764,7 +764,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             Assert.That(extensions, Has.Count.EqualTo(1));
 
-            ReadRequest parsed = Utils.ParseExtension<ReadRequest>(extensions, null, telemetry);
+            ReadRequest parsed = Utils.ParseExtension<ReadRequest>(extensions, null, telemetry)!;
             Assert.That(parsed, Is.Not.Null);
             Assert.That(parsed.NodesToRead, Has.Count.EqualTo(1));
             Assert.That(parsed.NodesToRead[0].NodeId, Is.EqualTo(VariableIds.Server_ServerStatus));
@@ -784,8 +784,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Utils.UpdateExtension(ref extensions, null, replacementRequest, telemetry);
 
             Assert.That(extensions, Has.Count.EqualTo(1));
-            parsed = Utils.ParseExtension<ReadRequest>(extensions, null, telemetry);
-            Assert.That(parsed.NodesToRead, Has.Count.EqualTo(1));
+            parsed = Utils.ParseExtension<ReadRequest>(extensions, null, telemetry)!;
+            Assert.That(parsed!.NodesToRead, Has.Count.EqualTo(1));
             Assert.That(
                 parsed.NodesToRead[0].NodeId,
                 Is.EqualTo(VariableIds.Server_ServerStatus_CurrentTime));

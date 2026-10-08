@@ -84,7 +84,7 @@ namespace Opc.Ua.Interop.Tests
             m_clientFixture = new ClientFixture(telemetry: m_telemetry) { SessionTimeout = 120_000 };
             await m_clientFixture.LoadClientConfigurationAsync(InteropPki.ClientPki(m_pkiRoot)).ConfigureAwait(false);
             m_endpoints = await m_clientFixture.GetEndpointsAsync(m_serverUrl).ConfigureAwait(false);
-            m_session = await ConnectAsync(null).ConfigureAwait(false);
+            m_session = await ConnectAsync(null!).ConfigureAwait(false);
             m_ns = m_session.NamespaceUris.GetIndexOrAppend(kInteropNamespace);
         }
 
@@ -352,7 +352,7 @@ namespace Opc.Ua.Interop.Tests
             var values = new List<DataValue>();
             Subscription subscription = await CreateDataSubscriptionAsync("Int32", values, _ => { }, 100, ct)
                 .ConfigureAwait(false);
-            ISession target = await ConnectAsync(null).ConfigureAwait(false);
+            ISession target = await ConnectAsync(null!).ConfigureAwait(false);
             try
             {
                 SubscriptionCollection transferred = new SubscriptionCollection([subscription]).CloneSubscriptions(false);
@@ -427,9 +427,9 @@ namespace Opc.Ua.Interop.Tests
                 [new NodeId("Int32", m_ns), new NodeId("String", m_ns)], CancellationToken.None).ConfigureAwait(false);
             Assert.That(registered.RegisteredNodeIds.Count, Is.EqualTo(2));
             ReadResponse read = await m_session.ReadAsync(null, 0, TimestampsToReturn.Neither,
-                [.. registered.RegisteredNodeIds.ToArray().Select(id => new ReadValueId { NodeId = id, AttributeId = Attributes.Value })],
+                [.. registered.RegisteredNodeIds.ToArray()!.Select(id => new ReadValueId { NodeId = id, AttributeId = Attributes.Value })],
                 CancellationToken.None).ConfigureAwait(false);
-            Assert.That(read.Results.ToArray().All(r => StatusCode.IsGood(r.StatusCode)), Is.True);
+            Assert.That(read.Results.ToArray()!.All(r => StatusCode.IsGood(r.StatusCode)), Is.True);
             await m_session.UnregisterNodesAsync(null, registered.RegisteredNodeIds, CancellationToken.None).ConfigureAwait(false);
         }
 
@@ -524,7 +524,7 @@ namespace Opc.Ua.Interop.Tests
                 m_clientFixture.Config, m_serverUrl, DiagnosticsMasks.None, CancellationToken.None).ConfigureAwait(false);
             ArrayOf<ApplicationDescription> servers = await client.FindServersAsync(default, CancellationToken.None)
                 .ConfigureAwait(false);
-            Assert.That(servers.ToArray().Select(s => s.ApplicationUri),
+            Assert.That(servers.ToArray()!.Select(s => s.ApplicationUri),
                 Does.Contain(m_session.Endpoint.Server.ApplicationUri));
         }
 
@@ -536,7 +536,7 @@ namespace Opc.Ua.Interop.Tests
         [CancelAfter(60_000)]
         public async Task SessionReconnectKeepsSessionAsync(CancellationToken ct)
         {
-            ISession session = await ConnectAsync(null).ConfigureAwait(false);
+            ISession session = await ConnectAsync(null!).ConfigureAwait(false);
             try
             {
                 NodeId before = session.SessionId;
@@ -554,9 +554,9 @@ namespace Opc.Ua.Interop.Tests
 
         private async Task<ISession> ConnectAsync(IUserIdentity identity)
         {
-            EndpointDescription description = m_endpoints.ToArray().FirstOrDefault(e =>
+            EndpointDescription description = m_endpoints.ToArray()!.FirstOrDefault(e =>
                 e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256 &&
-                e.SecurityMode == MessageSecurityMode.SignAndEncrypt);
+                e.SecurityMode == MessageSecurityMode.SignAndEncrypt)!;
             Assert.That(description, Is.Not.Null, "The peer offers no Basic256Sha256/SignAndEncrypt endpoint.");
             var endpoint = new ConfiguredEndpoint(null, description, EndpointConfiguration.Create(m_clientFixture.Config));
             return await m_clientFixture.ConnectAsync(endpoint, identity).ConfigureAwait(false);
@@ -657,7 +657,7 @@ namespace Opc.Ua.Interop.Tests
             {
                 lock (events)
                 {
-                    EventFieldList found = events.FirstOrDefault(match);
+                    EventFieldList found = events.FirstOrDefault(match)!;
                     if (found != null)
                     {
                         return found;
@@ -665,7 +665,7 @@ namespace Opc.Ua.Interop.Tests
                 }
                 await Task.Delay(100, ct).ConfigureAwait(false);
             }
-            return null;
+            return null!;
         }
 
         private async Task DeleteAsync(Subscription subscription, CancellationToken ct)
