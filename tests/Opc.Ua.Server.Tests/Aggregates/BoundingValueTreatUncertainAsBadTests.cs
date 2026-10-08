@@ -254,6 +254,32 @@ namespace Opc.Ua.Server.Tests.Aggregates
         }
 
         /// <summary>
+        /// TimeAverage and Total use Interpolated Bounding Values and keep an Uncertain start bound (Part 13
+        /// Table 54 "Bound Uncertain: NA"; Uncertain if Bad values are skipped): the start bound at 15 s is
+        /// interpolated between 10 at 10 s and 30 at 30 s across the Bad value at 20 s (15, Uncertain), so
+        /// the line 15 → 35 averages 25 and totals 500 over 20 s, whatever TreatUncertainAsBad is.
+        /// </summary>
+        [TestCase(Objects.AggregateFunction_TimeAverage, true, 25.0)]
+        [TestCase(Objects.AggregateFunction_TimeAverage, false, 25.0)]
+        [TestCase(Objects.AggregateFunction_Total, true, 500.0)]
+        [TestCase(Objects.AggregateFunction_Total, false, 500.0)]
+        public void TimeAverageAndTotalUseUncertainInterpolatedStartBound(
+            uint aggregateTypeId,
+            bool treatUncertainAsBad,
+            double expected)
+        {
+            List<DataValue> raw = Raw(
+                (10, 10.0, StatusCodes.Good),
+                (20, 20.0, StatusCodes.BadDataUnavailable),
+                (30, 30.0, StatusCodes.Good),
+                (40, 40.0, StatusCodes.Good));
+
+            DataValue result = Compute(new NodeId(aggregateTypeId), raw, treatUncertainAsBad);
+
+            AssertValue(result, expected, StatusCodes.UncertainDataSubNormal);
+        }
+
+        /// <summary>
         /// An interval that holds only data omitted by TimeAverage2/Total2 (an Uncertain start bound with
         /// TreatUncertainAsBad, then Bad raw values) has data, so its status is the PercentTime status
         /// Bad (Part 13 §5.4.3.2.1), not Bad_NoData.
