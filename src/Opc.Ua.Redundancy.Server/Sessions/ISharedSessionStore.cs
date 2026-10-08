@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Server;
@@ -70,5 +71,45 @@ namespace Opc.Ua.Redundancy.Server
         /// <param name="ct">Cancellation token.</param>
         /// <returns><c>true</c> when an entry was removed.</returns>
         ValueTask<bool> RemoveAsync(NodeId authenticationToken, CancellationToken ct = default);
+
+        /// <summary>
+        /// Replaces an entry only while the store still holds the version that
+        /// <paramref name="current"/> was read from (compare-and-swap), so concurrent
+        /// writers on different replicas cannot overwrite each other unnoticed.
+        /// </summary>
+        /// <param name="current">
+        /// The entry as last returned by this store (<see cref="TryGetAsync"/>,
+        /// <see cref="EnumerateAsync"/> or a successful <see cref="TryReplaceAsync"/>).
+        /// </param>
+        /// <param name="replacement">The entry to store; it must have the same token.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>
+        /// <c>true</c> when the entry was replaced; <c>false</c> when it changed or was
+        /// removed since <paramref name="current"/> was read.
+        /// </returns>
+        ValueTask<bool> TryReplaceAsync(
+            SharedSessionEntry current,
+            SharedSessionEntry replacement,
+            CancellationToken ct = default);
+
+        /// <summary>
+        /// Removes an entry only while the store still holds the version that
+        /// <paramref name="current"/> was read from.
+        /// </summary>
+        /// <param name="current">The entry as last returned by this store.</param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>
+        /// <c>true</c> when the entry was removed; <c>false</c> when it changed or was
+        /// already removed.
+        /// </returns>
+        ValueTask<bool> TryRemoveAsync(SharedSessionEntry current, CancellationToken ct = default);
+
+        /// <summary>
+        /// Enumerates a snapshot of the stored entries, for example to sweep the
+        /// entries of sessions that timed out. Entries that cannot be verified or
+        /// decoded are skipped.
+        /// </summary>
+        /// <param name="ct">Cancellation token.</param>
+        IAsyncEnumerable<SharedSessionEntry> EnumerateAsync(CancellationToken ct = default);
     }
 }
