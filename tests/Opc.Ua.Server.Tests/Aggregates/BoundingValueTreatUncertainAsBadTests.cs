@@ -454,7 +454,10 @@ namespace Opc.Ua.Server.Tests.Aggregates
         {
             Assert.Multiple(() =>
             {
-                Assert.That(result.StatusCode.CodeBits, Is.EqualTo(expectedCode.CodeBits), result.StatusCode.ToString());
+                Assert.That(
+                    result.StatusCode.CodeBits,
+                    Is.EqualTo(expectedCode.CodeBits),
+                    result.StatusCode.ToString());
                 Assert.That(result.WrappedValue.ConvertToDouble().GetDouble(), Is.EqualTo(expected).Within(1e-9));
             });
         }
