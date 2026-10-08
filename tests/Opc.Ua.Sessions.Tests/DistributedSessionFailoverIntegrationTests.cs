@@ -33,6 +33,7 @@
 #pragma warning disable CA2000, CA2007, CA2016
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -225,8 +226,155 @@ namespace Opc.Ua.Sessions.Tests
             }
         }
 
+        /// <summary>
+        /// Issue #4627 RS-1/RS-2/RS-3: a session that the client keeps using for longer
+        /// than its timeout after the last activation still fails over (the active
+        /// replica mirrors a liveness heartbeat), the standby keeps the SessionId, takes
+        /// ownership of the shared entry, and the stale copy left on the previous replica
+        /// no longer deletes the entry of the live session when it closes.
+        /// </summary>
+        [Test]
+        [Order(200)]
+        [CancelAfter(180_000)]
+        public async Task SessionUsedPastItsTimeoutFailsOverWithItsSessionIdAsync(CancellationToken ct)
+        {
+            using var sharedStore = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey());
+            var factory = new DistributedSessionManagerFactory(
+                sharedStore,
+                protector,
+                new DistributedSessionOptions { EnableFastReconnect = true });
+
+            ServerFixture<ReferenceServer>? fixtureA = null;
+            ServerFixture<ReferenceServer>? fixtureB = null;
+            ManagedSessionType? session = null;
+            var sessionTimeout = TimeSpan.FromSeconds(4);
+
+            try
+            {
+                (fixtureA, Uri urlA) = await StartHaServerAsync(factory, minSessionTimeout: 1000).ConfigureAwait(false);
+                (fixtureB, Uri urlB) = await StartHaServerAsync(factory, minSessionTimeout: 1000).ConfigureAwait(false);
+
+                ConfiguredEndpoint endpointA = await ClientFixture
+                    .GetEndpointAsync(urlA, SecurityPolicies.Basic256Sha256)
+                    .ConfigureAwait(false);
+                ConfiguredEndpoint endpointB = await ClientFixture
+                    .GetEndpointAsync(urlB, SecurityPolicies.Basic256Sha256)
+                    .ConfigureAwait(false);
+
+                var redundancyHandler = new FailoverRedundancyHandler(endpointB);
+                session = await new ManagedSessionBuilder(ClientFixture.Config, Telemetry)
+                    .UseEndpoint(endpointA)
+                    .WithSessionName(nameof(SessionUsedPastItsTimeoutFailsOverWithItsSessionIdAsync))
+                    .WithSessionTimeout(sessionTimeout)
+                    .WithUserIdentity(new UserIdentity("user1", "password"u8))
+                    .WithServerRedundancy(redundancyHandler)
+                    .WithTokenReuseFailover()
+                    .WithReconnectPolicy(p => p with
+                    {
+                        Strategy = BackoffStrategy.Constant,
+                        InitialDelay = TimeSpan.FromMilliseconds(50),
+                        MaxRetries = 1,
+                        JitterFactor = 0.0
+                    })
+                    .ConnectAsync(ct)
+                    .ConfigureAwait(false);
+
+                NodeId sessionIdBefore = session.InnerSession.SessionId;
+                NodeId authenticationToken = session.InnerSession.SaveSessionConfiguration().AuthenticationToken;
+                var mirroredStore = new SharedKeyValueSessionStore(
+                    sharedStore,
+                    fixtureA.Server.CurrentInstance.MessageContext,
+                    protector);
+                SharedSessionEntry? created = await mirroredStore
+                    .TryGetAsync(authenticationToken, ct)
+                    .ConfigureAwait(false);
+                Assert.That(created, Is.Not.Null);
+                string? ownerBefore = created!.OwnerId;
+                Assert.That(ownerBefore, Is.Not.Null);
+
+                // Use the session (without re-activating it) for well over its timeout.
+                DateTime until = DateTime.UtcNow + sessionTimeout + sessionTimeout;
+                while (DateTime.UtcNow < until)
+                {
+                    DataValue value = await session
+                        .ReadValueAsync(VariableIds.Server_ServerStatus_State, ct)
+                        .ConfigureAwait(false);
+                    Assert.That(StatusCode.IsGood(value.StatusCode), Is.True);
+                    await Task.Delay(250, ct).ConfigureAwait(false);
+                }
+
+                var reconnected = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                session.ConnectionStateChanged += (_, e) =>
+                {
+                    if (e.PreviousState == ConnectionState.Failover &&
+                        e.NewState == ConnectionState.Connected)
+                    {
+                        reconnected.TrySetResult(true);
+                    }
+                };
+                session.StateMachine.ReconnectWithBudgetAsync = (_, _) =>
+                    Task.FromResult(new ServiceResult(StatusCodes.BadNotConnected));
+                session.StateMachine.TriggerReconnect();
+
+                Assert.That(
+                    await reconnected.Task.WaitAsync(TimeSpan.FromSeconds(60), ct).ConfigureAwait(false),
+                    Is.True,
+                    "the client should fail over to the standby server.");
+                DataValue after = await session
+                    .ReadValueAsync(VariableIds.Server_ServerStatus_State, ct)
+                    .ConfigureAwait(false);
+                Assert.That(StatusCode.IsGood(after.StatusCode), Is.True);
+
+                // RS-1: restored (token reuse) rather than re-created.
+                Assert.That(session.InnerSession.SessionId, Is.EqualTo(sessionIdBefore));
+
+                // RS-3: the standby serves the session under the SessionId the client got.
+                Assert.That(
+                    fixtureB.Server.CurrentInstance.SessionManager.GetSessions().Any(s => s.Id == sessionIdBefore),
+                    Is.True,
+                    "the restored session keeps its SessionId on the standby.");
+
+                // RS-2: the standby owns the entry now, and the stale copy on the
+                // previous replica leaves it alone when it closes.
+                SharedSessionEntry? restored = await mirroredStore
+                    .TryGetAsync(authenticationToken, ct)
+                    .ConfigureAwait(false);
+                Assert.That(restored, Is.Not.Null);
+                Assert.That(restored!.OwnerId, Is.Not.EqualTo(ownerBefore));
+                if (fixtureA.Server.CurrentInstance.SessionManager.GetSessions().Any(s => s.Id == sessionIdBefore))
+                {
+                    await fixtureA.Server.CurrentInstance
+                        .CloseSessionAsync(null!, sessionIdBefore, false, ct)
+                        .ConfigureAwait(false);
+                }
+                Assert.That(
+                    await mirroredStore.TryGetAsync(authenticationToken, ct).ConfigureAwait(false),
+                    Is.Not.Null,
+                    "closing the stale copy must not delete the entry of the live session.");
+            }
+            finally
+            {
+                if (session != null)
+                {
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                    await session.DisposeAsync().ConfigureAwait(false);
+                }
+                if (fixtureA != null)
+                {
+                    await fixtureA.StopAsync().ConfigureAwait(false);
+                }
+                if (fixtureB != null)
+                {
+                    await fixtureB.StopAsync().ConfigureAwait(false);
+                }
+            }
+        }
+
         private async Task<(ServerFixture<ReferenceServer> Fixture, Uri Url)> StartHaServerAsync(
-            DistributedSessionManagerFactory factory)
+            DistributedSessionManagerFactory factory,
+            int? minSessionTimeout = null)
         {
             var fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry)
             {
@@ -245,6 +393,10 @@ namespace Opc.Ua.Sessions.Tests
                 new UserTokenPolicy(UserTokenType.Anonymous),
                 new UserTokenPolicy(UserTokenType.UserName)
             ];
+            if (minSessionTimeout != null)
+            {
+                fixture.Config.ServerConfiguration.MinSessionTimeout = minSessionTimeout.Value;
+            }
             await fixture.StartAsync().ConfigureAwait(false);
             return (fixture, new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{fixture.Port}"));
         }
