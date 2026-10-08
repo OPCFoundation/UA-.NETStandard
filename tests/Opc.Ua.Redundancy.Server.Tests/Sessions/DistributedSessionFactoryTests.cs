@@ -83,6 +83,25 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(manager, Is.Not.Null);
         }
 
+        /// <summary>
+        /// Issue #4627 RS-7: the public factory applies the same fail-closed rule as the
+        /// dependency injection registration instead of mirroring session secrets in
+        /// cleartext to an external store.
+        /// </summary>
+        [Test]
+        public void FactoryRejectsExternalStoreWithoutProtector()
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var external = new SharedSessionStoreTests.NoCompareAndSwapStore(inner);
+
+            Assert.That(
+                () => new DistributedSessionManagerFactory(external),
+                Throws.InvalidOperationException);
+            Assert.That(
+                () => new DistributedSessionManagerFactory(external, NullRecordProtector.Instance),
+                Throws.Nothing);
+        }
+
         [Test]
         public void FactoryConstructorRejectsNullStore()
         {

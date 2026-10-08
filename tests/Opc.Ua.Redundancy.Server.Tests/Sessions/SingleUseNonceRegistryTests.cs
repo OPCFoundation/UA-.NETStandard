@@ -35,7 +35,9 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
 using Opc.Ua.Redundancy.Server;
@@ -112,6 +114,49 @@ namespace Opc.Ua.Server.Tests.Redundancy
         public void NullStoreThrows()
         {
             Assert.That(() => new SharedSingleUseNonceRegistry(null!), Throws.ArgumentNullException);
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-6: consumed-nonce markers are purged once they are old enough and
+        /// no live session entry carries the nonce; a referenced or recent marker stays, and
+        /// a purged nonce stays rejected while an entry carries it.
+        /// </summary>
+        [Test]
+        public async Task PurgeRemovesOnlyOldUnreferencedMarkersAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var clock = new FakeTimeProvider(new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.Zero));
+            var registry = new SharedSingleUseNonceRegistry(kv, timeProvider: clock);
+            ByteString orphaned = MakeNonce(1);
+            ByteString referenced = MakeNonce(2);
+            ByteString recent = MakeNonce(3);
+
+            Assert.That(await registry.TryConsumeAsync(orphaned), Is.True);
+            Assert.That(await registry.TryConsumeAsync(referenced), Is.True);
+            clock.Advance(TimeSpan.FromHours(2));
+            Assert.That(await registry.TryConsumeAsync(recent), Is.True);
+            await kv.SetAsync("nonce/not-a-marker", ByteString.From(new byte[] { 1, 2, 3 }));
+
+            int purged = await registry.PurgeAsync([referenced], TimeSpan.FromHours(1));
+
+            Assert.That(purged, Is.EqualTo(1));
+            Assert.That(await registry.TryConsumeAsync(referenced), Is.False);
+            Assert.That(await registry.TryConsumeAsync(recent), Is.False);
+            Assert.That((await kv.TryGetAsync("nonce/not-a-marker")).Found, Is.True);
+
+            // The purged nonce is no longer carried by any session entry, so it can no
+            // longer be presented for a restore; the registry forgot it.
+            Assert.That(await registry.TryConsumeAsync(orphaned), Is.True);
+        }
+
+        private static ByteString MakeNonce(byte seed)
+        {
+            byte[] nonce = new byte[32];
+            for (int i = 0; i < nonce.Length; i++)
+            {
+                nonce[i] = (byte)(seed + i);
+            }
+            return ByteString.From(nonce);
         }
     }
 }
