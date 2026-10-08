@@ -77,7 +77,7 @@ namespace Opc.Ua
             SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfoIgnoringPlatformSupport(
                 securityPolicyUri ?? string.Empty);
 
-            return info != null && info.IsFipsApproved && !UsesUnvalidatedKeyAgreement(info);
+            return info != null && info.IsFipsApproved && !UsesUnvalidatedManagedCrypto(info);
         }
 
         /// <summary>
@@ -86,14 +86,20 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// The .NET Framework BCL cannot return the raw ECDH secret OPC UA
-        /// requires, so that build computes the agreement in the managed
-        /// BouncyCastle implementation. It bypasses the provider registry, so
-        /// the auditor cannot see it, and the ECC policies are withheld instead.
+        /// requires and has no AES-GCM or ChaCha20-Poly1305, so that build
+        /// computes the agreement and the authenticated ciphers in the managed
+        /// BouncyCastle implementation. The agreement and the encrypted user
+        /// tokens bypass the provider registry, so the auditor cannot see
+        /// them, and the ECC and AEAD policies are withheld instead.
         /// </remarks>
-        private static bool UsesUnvalidatedKeyAgreement(SecurityPolicyInfo info)
+        private static bool UsesUnvalidatedManagedCrypto(SecurityPolicyInfo info)
         {
 #if NETFRAMEWORK
-            return info.CertificateKeyFamily == CertificateKeyFamily.ECC;
+            return info.CertificateKeyFamily == CertificateKeyFamily.ECC ||
+                info.SymmetricEncryptionAlgorithm is
+                    SymmetricEncryptionAlgorithm.Aes128Gcm or
+                    SymmetricEncryptionAlgorithm.Aes256Gcm or
+                    SymmetricEncryptionAlgorithm.ChaCha20Poly1305;
 #else
             _ = info;
             return false;
