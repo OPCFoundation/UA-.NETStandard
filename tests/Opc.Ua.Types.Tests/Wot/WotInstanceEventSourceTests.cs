@@ -135,6 +135,95 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         [Test]
+        public void AuthoredAlwaysGeneratesEventLinkIsMovedOffTheInstance()
+        {
+            const string description =
+                "{\"@context\":[\"https://www.w3.org/2022/wot/td/v1.1\"," +
+                "{\"uav\":\"http://opcfoundation.org/UA/WoT-Binding/\"," +
+                "\"ua\":\"http://opcfoundation.org/UA/\"}]," +
+                "\"@type\":\"uav:object\",\"title\":\"Pump01\"," +
+                "\"uav:browseName\":\"nsu=urn:opcua:wot:synthesized;Pump\"," +
+                "\"links\":[{\"rel\":\"ua:AlwaysGeneratesEvent\",\"href\":\"i=2041\",\"uav:refId\":\"i=3065\"}]}";
+
+            UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(WotTestData.Utf8(description));
+
+            UAObject root = nodeSet.Items!.OfType<UAObject>().Single();
+            UAObjectType carrier = nodeSet.Items!.OfType<UAObjectType>().Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    root.References!.Any(reference => reference.Value == "i=2041"),
+                    Is.False,
+                    "AlwaysGeneratesEvent is a GeneratesEvent subtype, so an instance cannot be its source.");
+                Assert.That(TypeDefinitionOf(root), Is.EqualTo(carrier.NodeId));
+                Assert.That(
+                    carrier.References!.Any(reference => reference.IsForward && reference.Value == "i=2041"),
+                    Is.True);
+            });
+        }
+
+        [Test]
+        public void EventsAreFoundThroughDeclaredAliases()
+        {
+            var nodeSet = new UANodeSet
+            {
+                NamespaceUris = ["urn:test:aliases"],
+                Models = [new ModelTableEntry { ModelUri = "urn:test:aliases" }],
+                Aliases =
+                [
+                    new NodeIdAlias { Alias = "TypeOf", Value = "i=40" },
+                    new NodeIdAlias { Alias = "SubtypeOf", Value = "i=45" },
+                    new NodeIdAlias { Alias = "Raises", Value = "i=3065" },
+                    new NodeIdAlias { Alias = "PumpEvents", Value = "ns=1;i=2000" },
+                    new NodeIdAlias { Alias = "OverTempEvent", Value = "ns=1;i=1002" }
+                ],
+                Items =
+                [
+                    new UAObject
+                    {
+                        NodeId = "ns=1;i=5001",
+                        BrowseName = "1:Pump",
+                        DisplayName = [new Opc.Ua.Export.LocalizedText { Value = "Pump" }],
+                        References =
+                        [
+                            new Reference { ReferenceType = "TypeOf", IsForward = true, Value = "PumpEvents" }
+                        ]
+                    },
+                    new UAObjectType
+                    {
+                        NodeId = "ns=1;i=2000",
+                        BrowseName = "1:PumpType",
+                        DisplayName = [new Opc.Ua.Export.LocalizedText { Value = "PumpType" }],
+                        References =
+                        [
+                            new Reference { ReferenceType = "SubtypeOf", IsForward = false, Value = "i=58" },
+                            new Reference { ReferenceType = "Raises", IsForward = true, Value = "OverTempEvent" }
+                        ]
+                    },
+                    new UAObjectType
+                    {
+                        NodeId = "ns=1;i=1002",
+                        BrowseName = "1:OverTemp",
+                        DisplayName = [new Opc.Ua.Export.LocalizedText { Value = "OverTemp" }],
+                        References =
+                        [
+                            new Reference { ReferenceType = "SubtypeOf", IsForward = false, Value = "i=2041" }
+                        ]
+                    }
+                ]
+            };
+
+            WotConversionResult<WotDocument> result = WotNodeSetConverter.FromNodeSetResult(nodeSet);
+            Assert.That(result.Success, Is.True);
+            using WotDocument document = result.Value!;
+
+            Assert.That(document.RootElement.GetProperty("@type").GetString(), Is.EqualTo("uav:object"),
+                "A type that only carries the instance's events is not the document root.");
+            Assert.That(document.Events.Keys, Is.EquivalentTo(s_overTemp));
+        }
+
+        [Test]
         public void ThingModelKeepsGeneratesEventOnTheProjectedType()
         {
             UANodeSet nodeSet = WotNodeSetConverter.ToNodeSet(WotTestData.Utf8(ThingModel));

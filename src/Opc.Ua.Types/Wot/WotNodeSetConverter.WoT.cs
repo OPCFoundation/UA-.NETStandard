@@ -2271,8 +2271,13 @@ namespace Opc.Ua.Wot
             List<Reference> rootReferences,
             WotDeclarationCatalog? declarations)
         {
+            // AlwaysGeneratesEvent is a subtype of GeneratesEvent, so §7.15
+            // restricts its SourceNode the same way.
             List<Reference> generated = rootReferences.FindAll(reference =>
-                reference.IsForward && IsGeneratesEventReference(reference.ReferenceType));
+                reference.IsForward &&
+                (IsGeneratesEventReference(reference.ReferenceType) ||
+                    IsReferenceTypeNamed(
+                        reference.ReferenceType, "AlwaysGeneratesEvent", AlwaysGeneratesEventId)));
             if (generated.Count == 0)
             {
                 return;
