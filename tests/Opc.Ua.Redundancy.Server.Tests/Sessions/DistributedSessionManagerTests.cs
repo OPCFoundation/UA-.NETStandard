@@ -1000,6 +1000,34 @@ namespace Opc.Ua.Server.Tests.Redundancy
         }
 
         /// <summary>
+        /// Issue #4627 RS-8: when the server sends its complete chain in CreateSession the
+        /// entry carries that blob, which the client may have signed.
+        /// </summary>
+        [Test]
+        public async Task CreateSessionMirrorsTheAdvertisedServerCertificateChainAsync()
+        {
+            using var registryKv = new InMemorySharedKeyValueStore();
+            using var sessionKv = new InMemorySharedKeyValueStore();
+            var sessionStore = new SharedKeyValueSessionStore(
+                sessionKv,
+                ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            using Certificate serverCertificate = CreateCertificate("CN=DistributedServer");
+            using Certificate issuer = CreateCertificate("CN=DistributedIssuer");
+            using var chain = new CertificateCollection { serverCertificate, issuer };
+            ByteString chainBlob = ByteString.From(Utils.CreateCertificateChainBlob(chain));
+            using DistributedSessionManager manager = CreateManager(
+                new SharedSingleUseNonceRegistry(registryKv),
+                sessionStore: sessionStore,
+                server: CreateRestoreServerMock(true).Object);
+
+            CreateSessionResult result = await CreateMirroredSessionAsync(
+                manager, serverCertificate, "chain", chainBlob).ConfigureAwait(false);
+            SharedSessionEntry? entry = await sessionStore.TryGetAsync(result.AuthenticationToken).ConfigureAwait(false);
+
+            Assert.That(entry!.ServerCertificate, Is.EqualTo(chainBlob));
+        }
+
+        /// <summary>
         /// Issue #4627 RS-2: a replica whose copy of a session was taken over by another
         /// replica does not delete the shared entry when that stale copy times out or
         /// closes; the owner does.
@@ -1118,10 +1146,11 @@ namespace Opc.Ua.Server.Tests.Redundancy
         private static async Task<CreateSessionResult> CreateMirroredSessionAsync(
             DistributedSessionManager manager,
             Certificate serverCertificate,
-            string name)
+            string name,
+            ByteString advertisedServerCertificate = default)
         {
             using Certificate clientCertificate = CreateCertificate("CN=DistributedClient");
-            using OperationContext context = CreateContext(clientCertificate.RawData);
+            using OperationContext context = CreateContext(clientCertificate.RawData, advertisedServerCertificate);
             Certificate sessionClientCertificate = clientCertificate.AddRef();
             try
             {
@@ -1183,13 +1212,16 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 .CreateForRSA();
         }
 
-        private static OperationContext CreateContext(byte[]? clientChannelCertificate = null)
+        private static OperationContext CreateContext(
+            byte[]? clientChannelCertificate = null,
+            ByteString serverCertificate = default)
         {
             var endpoint = new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityPolicyUri = PolicyA,
-                SecurityMode = MessageSecurityMode.Sign
+                SecurityMode = MessageSecurityMode.Sign,
+                ServerCertificate = serverCertificate
             };
             var channelContext = new SecureChannelContext(
                 "restore-channel",

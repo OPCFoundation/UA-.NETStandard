@@ -323,7 +323,7 @@ namespace Opc.Ua.Redundancy.Server
         }
 
         /// <inheritdoc/>
-        protected override ValueTask OnSessionActivatedAsync(
+        protected override async ValueTask OnSessionActivatedAsync(
             NodeId authenticationToken,
             ISession session,
             ByteString serverNonce,
@@ -332,8 +332,22 @@ namespace Opc.Ua.Redundancy.Server
             long activationSequence,
             CancellationToken cancellationToken)
         {
-            // A restored session is tracked once its first activation has committed.
-            if (!m_tokensBySession.ContainsKey(session.Id))
+            // A restored session becomes this replica's once its first activation has
+            // committed: nothing shared beyond the consumed nonce is touched before.
+            SharedSessionEntry? restoredFrom = null;
+            lock (m_pendingRestoresLock)
+            {
+                if (m_admittedRestores.TryGetValue(session, out restoredFrom))
+                {
+                    m_admittedRestores.Remove(session);
+                }
+            }
+            if (restoredFrom != null)
+            {
+                await CompleteRestoreAsync(authenticationToken, session, restoredFrom, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else if (!m_tokensBySession.ContainsKey(session.Id))
             {
                 TrackLocalSession(
                     session.Id,
@@ -341,14 +355,14 @@ namespace Opc.Ua.Redundancy.Server
                     session.ReadDiagnostics(d => d.ActualSessionTimeout));
             }
 
-            return MirrorActivationIfCurrentAsync(
+            await MirrorActivationIfCurrentAsync(
                 authenticationToken,
                 serverNonce,
                 clientUserTokenType,
                 clientUserId,
                 activationSequence,
                 UserTokenRequiresEphemeralKey(session),
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -571,10 +585,31 @@ namespace Opc.Ua.Redundancy.Server
                 return false;
             }
 
-            // From here on the session belongs to this replica: it mirrors the
-            // activation that follows (which also starts tracking it locally) and
-            // refreshes the heartbeat, and the previous owner drops its stale copy. A
-            // failure to record the ownership is only logged, the activation is valid.
+            // Only the single-use nonce is consumed here, the one step that must precede
+            // the commit to stay single-use across the replica set. Ownership, the
+            // continuation points and the audit follow once the activation committed.
+            lock (m_pendingRestoresLock)
+            {
+                m_admittedRestores.Remove(session);
+                m_admittedRestores.Add(session, entry);
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Completes a restore after its first activation committed: this replica takes
+        /// over the entry (the previous owner then drops its stale copy), tracks the
+        /// session locally, loads its mirrored continuation points and audits it.
+        /// </summary>
+        private async ValueTask CompleteRestoreAsync(
+            NodeId authenticationToken,
+            ISession session,
+            SharedSessionEntry entry,
+            CancellationToken cancellationToken)
+        {
+            TrackLocalSession(session.Id, authenticationToken, entry.SessionTimeout);
+
+            // A failure to record the ownership is only logged, the activation is valid.
             try
             {
                 await TakeOwnershipAsync(entry, session.Id, cancellationToken).ConfigureAwait(false);
@@ -609,7 +644,6 @@ namespace Opc.Ua.Redundancy.Server
             // replica from shared state (audit, not just a log).
             m_server.ReportAuditSessionRestoredEvent(
                 TokenDigest(authenticationToken), session, m_logger);
-            return true;
         }
 
         /// <summary>
@@ -872,7 +906,7 @@ namespace Opc.Ua.Redundancy.Server
                 LastActivatedAt = now,
                 LastContactAt = now,
                 OwnerId = m_replicaId,
-                ServerCertificate = serverCertificate?.RawData.ToByteString() ?? default,
+                ServerCertificate = GetCreateSessionServerCertificate(endpoint, serverCertificate),
                 ServerNonce = result.ServerNonce,
                 ClientNonce = clientNonce,
                 ClientCertificateChain = clientCertBlob,
@@ -891,6 +925,42 @@ namespace Opc.Ua.Redundancy.Server
                 SessionTimeout = result.RevisedSessionTimeout,
                 ClientDescription = clientDescription ?? new ApplicationDescription()
             };
+        }
+
+        /// <summary>
+        /// The server certificate blob the client received in <c>CreateSession</c>: the
+        /// endpoint's encoded chain when the server sends the complete chain, otherwise the
+        /// leaf. A client may sign either, so the restoring replica verifies both.
+        /// </summary>
+        private ByteString GetCreateSessionServerCertificate(
+            EndpointDescription endpoint,
+            Certificate? serverCertificate)
+        {
+            if (serverCertificate == null)
+            {
+                return default;
+            }
+
+            ByteString leaf = serverCertificate.RawData.ToByteString();
+            ByteString advertised = endpoint.ServerCertificate;
+            if (advertised.IsEmpty || advertised == leaf)
+            {
+                return leaf;
+            }
+
+            try
+            {
+                using CertificateCollection chain = Utils.ParseCertificateChainBlob(advertised, m_telemetry);
+                if (chain.Count > 1 && chain[0].RawData.ToByteString() == leaf)
+                {
+                    return advertised;
+                }
+            }
+            catch (ServiceResultException)
+            {
+                // not a chain blob; the leaf is what the client signs.
+            }
+            return leaf;
         }
 
         private async ValueTask MirrorActivationAsync(
@@ -1234,15 +1304,25 @@ namespace Opc.Ua.Redundancy.Server
         {
             bool liveness = m_options.LivenessInterval > TimeSpan.Zero;
             bool sweep = m_options.SweepInterval > TimeSpan.Zero;
-            TimeSpan period = liveness ? m_options.LivenessInterval : m_options.SweepInterval;
-            DateTime nextSweep = m_restoreTimeProvider.GetUtcNow().UtcDateTime + m_options.SweepInterval;
+
+            // Each interval is an upper bound on its job's cadence, so the loop wakes up
+            // at the shorter one and runs whichever job is due.
+            TimeSpan period = !liveness ? m_options.SweepInterval
+                : !sweep ? m_options.LivenessInterval
+                : m_options.LivenessInterval < m_options.SweepInterval
+                    ? m_options.LivenessInterval
+                    : m_options.SweepInterval;
+            DateTime start = m_restoreTimeProvider.GetUtcNow().UtcDateTime;
+            DateTime nextLiveness = start + m_options.LivenessInterval;
+            DateTime nextSweep = start + m_options.SweepInterval;
             try
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     await m_restoreTimeProvider.Delay(period, cancellationToken).ConfigureAwait(false);
-                    if (liveness)
+                    if (liveness && m_restoreTimeProvider.GetUtcNow().UtcDateTime >= nextLiveness)
                     {
+                        nextLiveness = m_restoreTimeProvider.GetUtcNow().UtcDateTime + m_options.LivenessInterval;
                         try
                         {
                             await RefreshLivenessAsync(cancellationToken).ConfigureAwait(false);
@@ -1369,6 +1449,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ConcurrentDictionary<NodeId, NodeId> m_sessionsByToken = new();
         private readonly ConcurrentDictionary<NodeId, LivenessState> m_liveness = new();
         private readonly ConditionalWeakTable<ISession, SharedSessionEntry> m_pendingRestores = new();
+        private readonly ConditionalWeakTable<ISession, SharedSessionEntry> m_admittedRestores = new();
         private readonly Lock m_pendingRestoresLock = new();
         private readonly Lock m_maintenanceLock = new();
         private CancellationTokenSource? m_maintenanceCts;

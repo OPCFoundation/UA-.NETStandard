@@ -1036,10 +1036,31 @@ namespace Opc.Ua.Server
                 return false;
             }
 
+            // The original server may have returned its complete chain; a client signs
+            // either that blob or the leaf certificate.
+            if (VerifyClientSignatureOverServerCertificate(
+                    channelContext, securityPolicy, clientSignature, clientNonceData, original.ToArray()))
+            {
+                return true;
+            }
+
+            using CertificateCollection chain = Utils.ParseCertificateChainBlob(original, m_server.Telemetry);
+            return chain.Count > 1 &&
+                VerifyClientSignatureOverServerCertificate(
+                    channelContext, securityPolicy, clientSignature, clientNonceData, chain[0].RawData);
+        }
+
+        private bool VerifyClientSignatureOverServerCertificate(
+            SecureChannelContext channelContext,
+            SecurityPolicyInfo securityPolicy,
+            SignatureData clientSignature,
+            byte[] clientNonceData,
+            byte[] serverCertificate)
+        {
             byte[] dataToSign = securityPolicy.GetClientSignatureData(
                 channelContext.ChannelThumbprint,
                 m_serverNonce.Data,
-                original.ToArray(),
+                serverCertificate,
                 channelContext.ServerChannelCertificate,
                 channelContext.ClientChannelCertificate,
                 clientNonceData);

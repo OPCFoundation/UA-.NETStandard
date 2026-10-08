@@ -377,7 +377,10 @@ namespace Opc.Ua.Server.Tests
 
                 Task<ActivateSessionResponse> second = ActivateUnknownAsync(server, sameToken);
                 Task<ActivateSessionResponse> third = ActivateUnknownAsync(server, differentToken);
-                await manager.WaitForRestoreAttemptsAsync(3).ConfigureAwait(false);
+
+                // Issue #4627 RS-3/RS-5: the second activation of the same token shares the
+                // pending restore instead of materializing a competing copy.
+                await manager.WaitForRestoreAttemptsAsync(2).ConfigureAwait(false);
 
                 Task<(RequestHeader, SecureChannelContext)> unrelatedCreate =
                     server.CreateAndActivateSessionAsync("ConcurrentCreate", useSecurity: false);
@@ -397,9 +400,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(manager.GetSession(sameToken), Is.Not.Null);
                 Assert.That(manager.GetSession(differentToken), Is.Not.Null);
                 Assert.That(manager.GetSessions(), Has.Count.EqualTo(3));
-                Assert.That(manager.RestoreAttempts[sameToken.ToString()], Is.EqualTo(2));
+                Assert.That(manager.RestoreAttempts[sameToken.ToString()], Is.EqualTo(1));
                 Assert.That(manager.RestoreAttempts[differentToken.ToString()], Is.EqualTo(1));
-                Assert.That(manager.DisposedRestoredSessions[sameToken.ToString()], Is.EqualTo(1));
+                Assert.That(manager.DisposedRestoredSessions.ContainsKey(sameToken.ToString()), Is.False);
+                Assert.That(manager.AdmitAttempts[sameToken.ToString()], Is.EqualTo(1));
             }
             finally
             {

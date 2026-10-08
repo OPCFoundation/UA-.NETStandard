@@ -111,6 +111,29 @@ namespace Opc.Ua.Server.Tests
             Assert.That(handler.TokenType, Is.EqualTo(UserTokenType.Anonymous));
         }
 
+        /// <summary>
+        /// The original server may have returned its complete chain in CreateSession; a
+        /// client signs either that blob or the leaf certificate.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task SignatureOverOriginalServerCertificateChainOrLeafIsAcceptedAsync(bool signChain)
+        {
+            using ServerSession session = CreateSession(out byte[] serverNonce, out OperationContext context);
+            using var chain = new CertificateCollection { m_originalServerCertificate, m_localServerCertificate };
+            byte[] chainBlob = Utils.CreateCertificateChainBlob(chain);
+            session.OriginalServerCertificate = chainBlob.ToByteString();
+
+            SignatureData signature = signChain
+                ? Sign(chainBlob, serverNonce)
+                : Sign(m_originalServerCertificate, serverNonce);
+
+            (IUserIdentityTokenHandler handler, _) = await session.ValidateBeforeActivateAsync(
+                context, signature, default, new SignatureData(), CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(handler.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+        }
+
         [Test]
         public void SignatureOverAnotherServerCertificateIsRejectedWithoutOriginalCertificate()
         {
@@ -162,11 +185,16 @@ namespace Opc.Ua.Server.Tests
 
         private SignatureData Sign(Certificate serverCertificate, byte[] serverNonce)
         {
+            return Sign(serverCertificate.RawData, serverNonce);
+        }
+
+        private SignatureData Sign(byte[] serverCertificate, byte[] serverNonce)
+        {
             SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
             byte[] dataToSign = policy.GetClientSignatureData(
                 null,
                 serverNonce,
-                serverCertificate.RawData,
+                serverCertificate,
                 null,
                 null,
                 []);
