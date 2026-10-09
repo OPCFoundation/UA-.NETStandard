@@ -34,7 +34,7 @@ namespace Opc.Ua.EndpointRegistry.Federation
     /// Explicit discovery/preload over a caller-supplied authenticated SignAndEncrypt Session.
     /// This provider is deliberately not IEndpointRegistryResolutionProvider: network I/O is never implicit.
     /// </summary>
-    public sealed class OpcUaFederationProvider
+    public sealed partial class OpcUaFederationProvider
     {
         /// <summary>Creates a provider without connecting, discovering or reading any Node.</summary>
         public OpcUaFederationProvider(

@@ -22,6 +22,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -43,7 +44,7 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
     {
         private const string RemoteUri = "https://catalog.example.test/messagegroups/g/messages/m";
 
-        [OneTimeSetUp]
+        [SetUp]
         public async Task StartAsync()
         {
             m_telemetry = NUnitTelemetryContext.Create();
@@ -57,7 +58,7 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             await m_client.LoadClientConfigurationAsync(Path.Combine(m_pki, "client")).ConfigureAwait(false);
         }
 
-        [OneTimeTearDown]
+        [TearDown]
         public async Task StopAsync()
         {
             if (m_client is not null)
@@ -127,7 +128,8 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             RegistryObjectValueDataType expected = Json(
                 """
                 {"messageid":"m","basemessageuri":"https://catalog.example.test/messagegroups/g/messages/m",
-                 "description":"remote base","x-object":{"base":1.00,"child":null},"datacontenttype":"application/json","epoch":1}
+                 "description":"remote base","x-object":{"base":1.00,"child":null},"datacontenttype":"application/json","epoch":1,
+                 "self":"https://catalog.example.test/messagegroups/g/messages/m"}
                 """);
             Assert.That(RegistryValues.Identical(mapper.Restore(result.Definition), expected), Is.True,
                 System.Text.Encoding.UTF8.GetString(RegistryValues.ToJson(mapper.Restore(result.Definition)).ToArray()));
@@ -226,6 +228,30 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
                 Is.EqualTo(moved.Locator));
         }
 
+        [Test]
+        public async Task GroupPreloadVerifiesCollectionRootAndNativeMetadataAsync()
+        {
+            using ISession first = await ConnectAsync(m_first!).ConfigureAwait(false);
+            using ISession second = await ConnectAsync(m_second!).ConfigureAwait(false);
+            await WriteAsync(first, """{"messagegroupid":"g","messages":{"m":{"messageid":"m"}}}""")
+                .ConfigureAwait(false);
+            await WriteAsync(second, """{"messagegroupid":"g","messages":{"m":{"messageid":"m"}}}""")
+                .ConfigureAwait(false);
+            FederationGroupSnapshot local = await Provider(first, "urn:test:first").PreloadGroupAsync("/messagegroups/g")
+                .ConfigureAwait(false);
+            FederationGroupSnapshot remote = await Provider(second, "urn:test:second").PreloadGroupAsync("/messagegroups/g")
+                .ConfigureAwait(false);
+            Assert.That(local.Origin, Is.Not.EqualTo(remote.Origin));
+            Assert.That(local.Source.Xid, Is.EqualTo(remote.Source.Xid));
+            Assert.That(remote.Metadata, Is.InstanceOf<MessageGroupDataType>());
+            Assert.That(((MessageGroupDataType)remote.Metadata).MessageGroupId, Is.EqualTo("g"));
+            Assert.That(remote.Source.NativeTarget.NamespaceIndex, Is.Zero);
+            Assert.That(remote.RegistryRoot, Is.EqualTo(ObjectIds.EndpointRegistry));
+            Assert.That(remote.Epoch, Is.GreaterThan(0));
+            Assert.ThrowsAsync<ArgumentException>(async () =>
+                await Provider(second, "urn:test:second").PreloadGroupAsync("/messagegroups/g", local)
+                    .ConfigureAwait(false));
+        }
         private async Task<ServerFixture<FederationServer>> StartServerAsync(string id, EndpointRegistryResolutionOptions resolution)
         {
             var fixture = new ServerFixture<FederationServer>(telemetry => new FederationServer(telemetry, resolution))
@@ -264,15 +290,63 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
         {
             var access = new NativeRegistryAccessTypeClient(session,
                 ExpandedNodeId.ToNodeId(EndpointRegistryWellKnown.EndpointRegistryTypedAccess, session.NamespaceUris), m_telemetry!);
+            RegistryReadResultDataType existing = await access.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = "/messagegroups/g",
+                DocumentKind = "metadata",
+                View = 0,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            var definition = Json(json);
+            RegistryObjectValueDataType? previous = null;
+            if (StatusCode.IsGood(existing.StatusCode))
+            {
+                Assert.That(existing.Document.TryGetValue(out previous, session.MessageContext), Is.True);
+            }
+            PreserveOwned(definition, previous);
             RegistryMutationResultDataType result = await access.WriteDocumentAsync(new RegistryWriteRequestDataType
             {
                 TargetXid = "/messagegroups/g",
-                Definition = SessionMapper(session).Project(Json(json), nameof(MessageGroupDataType))
+                ExpectedEpoch = existing.Epoch,
+                Definition = SessionMapper(session).Project(definition, nameof(MessageGroupDataType))
             }).ConfigureAwait(false);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good),
                 result.Issues.Count == 0 ? string.Empty : result.Issues[0].Detail);
         }
 
+        private static void PreserveOwned(RegistryObjectValueDataType value, RegistryObjectValueDataType? previous)
+        {
+            var members = new System.Collections.Generic.List<RegistryMemberDataType>();
+            foreach (RegistryMemberDataType member in value.Members)
+            {
+                if (member.Name is "epoch" or "self" or "xid" or "createdat" or "modifiedat")
+                {
+                    continue;
+                }
+                if (member.Value is RegistryObjectValueDataType children && member.Name == "messages")
+                {
+                    RegistryObjectValueDataType? oldChildren = previous?.Members.ToArray()?
+                        .FirstOrDefault(item => item.Name == "messages")?.Value as RegistryObjectValueDataType;
+                    foreach (RegistryMemberDataType child in children.Members)
+                    {
+                        PreserveOwned((RegistryObjectValueDataType)child.Value, oldChildren?.Members.ToArray()?
+                            .FirstOrDefault(item => item.Name == child.Name)?.Value as RegistryObjectValueDataType);
+                    }
+                }
+                members.Add(member);
+            }
+            if (previous is not null)
+            {
+                foreach (RegistryMemberDataType member in previous.Members)
+                {
+                    if (member.Name is "epoch" or "self" or "xid" or "createdat" or "modifiedat")
+                    {
+                        members.Add(member);
+                    }
+                }
+            }
+            value.Members = members.ToArray();
+        }
         private EndpointRegistryTypeClient RootClient(ISession session) => new(session,
             ExpandedNodeId.ToNodeId(ObjectIds.EndpointRegistry, session.NamespaceUris), m_telemetry!);
 
@@ -285,7 +359,12 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             {
                 AddNodeManager(new EndpointRegistryNodeManagerFactory(new EndpointRegistryServerOptions
                 {
-                    Generic = new EndpointRegistryCatalogOptions { RegistryId = "federated-messages", Collections = ["messagegroups"] },
+                    Generic = new EndpointRegistryCatalogOptions
+                    {
+                        RegistryId = "federated-messages",
+                        Collections = ["messagegroups"],
+                        PublicBaseUri = "https://catalog.example.test"
+                    },
                     Resolution = resolution
                 }));
             }

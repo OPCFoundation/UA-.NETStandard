@@ -76,6 +76,47 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             Assert.That(handler.Calls, Is.EqualTo(2));
         }
 
+        [Test]
+        public async Task HttpGroupPreloadNeedsIndependentAuthorizedCollectionIdentity()
+        {
+            const string groupManifest =
+                """{"OriginUri":"urn:test:one","Xid":"/messagegroups/g","CollectionName":"messagegroups","GroupId":"g","Epoch":4}""";
+            const string groupMetadata = """{"messagegroupid":"g","epoch":4,"messages":{"m":{"messageid":"m"}}}""";
+            RegistryEntityReferenceDataType source = Source(locator: MetadataUrl, ua: false);
+            using var handler = new LoopbackHandler((request, _) => Task.FromResult(JsonResponse(request,
+                request.RequestUri!.OriginalString == ObservationUrl ? groupManifest : groupMetadata)));
+            using var client = new HttpClient(handler);
+            HttpFederationProvider provider = Provider(client, source);
+
+            FederationGroupSnapshot group = await provider.PreloadGroupAsync(MetadataUrl, ObservationUrl, Mapper)
+                .ConfigureAwait(false);
+
+            Assert.That(group.Epoch, Is.EqualTo(4));
+            Assert.That(group.Source.Xid, Is.EqualTo("/messagegroups/g"));
+            Assert.That(group.Source.HasNativeTarget, Is.False);
+            Assert.That(group.Metadata, Is.InstanceOf<MessageGroupDataType>());
+            Assert.That(((MessageGroupDataType)group.Metadata).Messages.Entries[0].Name, Is.EqualTo("m"));
+            Assert.That(handler.Calls, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void HttpGroupPreloadRejectsMetadataFromAnotherRevision()
+        {
+            const string groupManifest =
+                """{"OriginUri":"urn:test:one","Xid":"/messagegroups/g","CollectionName":"messagegroups","GroupId":"g","Epoch":4}""";
+            const string groupMetadata = """{"messagegroupid":"g","epoch":5,"messages":{}}""";
+            RegistryEntityReferenceDataType source = Source(locator: MetadataUrl, ua: false);
+            using var handler = new LoopbackHandler((request, _) => Task.FromResult(JsonResponse(request,
+                request.RequestUri!.OriginalString == ObservationUrl ? groupManifest : groupMetadata)));
+            using var client = new HttpClient(handler);
+            HttpFederationProvider provider = Provider(client, source);
+
+            ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await provider.PreloadGroupAsync(MetadataUrl, ObservationUrl, Mapper).ConfigureAwait(false))!;
+
+            Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
         [TestCase("redirect")]
         [TestCase("authority")]
         [TestCase("origin")]
@@ -148,9 +189,9 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             });
             using var client = new HttpClient(handler);
             HttpFederationProvider provider = Provider(client, source, timeout: TimeSpan.FromMilliseconds(20));
-            Assert.ThrowsAsync<TaskCanceledException>(async () =>
+            Assert.CatchAsync<OperationCanceledException>(async () =>
                 await provider.PreloadAsync(new FederationResolutionCache(), new FederationSourceKey(source)).ConfigureAwait(false));
-            Assert.ThrowsAsync<TaskCanceledException>(async () =>
+            Assert.CatchAsync<OperationCanceledException>(async () =>
                 await provider.PreloadAsync(new FederationResolutionCache(), new FederationSourceKey(source),
                     new CancellationToken(true)).ConfigureAwait(false));
             Assert.That(handler.Calls, Is.EqualTo(1));

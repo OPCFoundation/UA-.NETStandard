@@ -35,13 +35,25 @@ namespace Opc.Ua.XRegistry.Server
     /// <summary>
     /// Measures the actual UA Binary size of a value without buffering it.
     /// </summary>
-    internal static class RegistryEncodedSize
+    public static class RegistryEncodedSize
     {
         /// <summary>
         /// Returns the encoded size, or fails with Bad_EncodingLimitsExceeded beyond <paramref name="maximum"/>.
         /// </summary>
         public static long Measure(IEncodeable value, IServiceMessageContext context, long maximum)
         {
+            if (value is null)
+            {
+                throw new ArgumentNullException(nameof(value));
+            }
+            if (context is null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+            if (maximum <= 0)
+            {
+                throw new ArgumentOutOfRangeException(nameof(maximum));
+            }
             using var stream = new CountingStream(maximum);
             using var encoder = new BinaryEncoder(stream, context, true);
             value.Encode(encoder);

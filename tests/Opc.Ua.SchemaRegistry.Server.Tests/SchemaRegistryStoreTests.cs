@@ -208,6 +208,15 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             Assert.That(result.Issues[0].Code, Is.EqualTo("E_PROJECTION_PENDING"));
             Assert.That(result.Document.Epoch, Is.EqualTo(1));
             Assert.That(store.Read(reference).StatusCode, Is.EqualTo(StatusCodes.Good));
+            TypedSchemaReadResultDataType retry = await store.WriteAsync(new TypedSchemaWriteRequestDataType
+            {
+                Reference = reference,
+                ExpectedEpoch = 1,
+                Content = result.Document.Content
+            }).ConfigureAwait(false);
+            Assert.That(retry.StatusCode, Is.EqualTo(StatusCodes.UncertainNotAllNodesAvailable));
+            Assert.That(retry.Issues[0].Code, Is.EqualTo("E_PROJECTION_PENDING"));
+            Assert.That((await storage.ReadAsync().ConfigureAwait(false)).Revision, Is.EqualTo(1));
             using var recovered = Store(storage);
             await recovered.StartAsync().ConfigureAwait(false);
             Assert.That(recovered.Read(reference).Document.Epoch, Is.EqualTo(1));
@@ -274,6 +283,65 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(store.Entries.Count, Is.Zero);
             Assert.That((await storage.ReadAsync().ConfigureAwait(false)).Revision, Is.Zero);
+        }
+
+        [Test]
+        public async Task NativeRegistrationNoOpRetainsRawBytesAndTheCommittedRevisionAsync()
+        {
+            await using var storage = new MemoryRegistryStateStore();
+            using var store = Store(storage);
+            await store.StartAsync().ConfigureAwait(false);
+            var registration = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "urn:schemas:example",
+                SchemaName = "Temperature",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "https://schemas.example.test/v1"
+            };
+            ByteString original = ByteString.From("{ \"type\" : \"number\" }\n"u8.ToArray());
+            TypedSchemaReadResultDataType first = await store.RegisterRawAsync(registration, original)
+                .ConfigureAwait(false);
+            registration.ExpectedEpoch = first.Document.Epoch;
+            TypedSchemaReadResultDataType noOp = await store.RegisterAsync(new TypedSchemaRegistrationRequestDataType
+            {
+                Registration = registration,
+                Content = new JsonSchemaFormatProvider().Parse("""{"type":"number"}"""u8)
+            }).ConfigureAwait(false);
+
+            Assert.That(noOp.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(noOp.Document.Epoch, Is.EqualTo(first.Document.Epoch));
+            Assert.That(store.DocumentBytes(noOp.Document.Reference), Is.EqualTo(original));
+            Assert.That((await storage.ReadAsync().ConfigureAwait(false)).Revision, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task CollidingNamespaceIdentityIsRejectedAcrossDifferentSubjectsAsync()
+        {
+            await using var storage = new MemoryRegistryStateStore();
+            using var store = Store(storage);
+            await store.StartAsync().ConfigureAwait(false);
+            var registration = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "http://contoso.org/UA/Pumps/",
+                SchemaName = "Temperature",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "https://schemas.example.test/v1"
+            };
+            TypedSchemaReadResultDataType first = await store.RegisterRawAsync(registration,
+                ByteString.From("""{"type":"number"}"""u8.ToArray())).ConfigureAwait(false);
+            registration.NamespaceUri = "https://contoso.org/UA/Pumps/";
+            registration.SchemaName = "Pressure";
+            registration.EntityUri = "https://schemas.example.test/pressure-v1";
+            TypedSchemaReadResultDataType collision = await store.RegisterRawAsync(registration,
+                ByteString.From("""{"type":"string"}"""u8.ToArray())).ConfigureAwait(false);
+
+            Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(collision.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(collision.Issues[0].Detail, Does.Contain("symbolic identity collides"));
+            Assert.That(store.Entries.Count, Is.EqualTo(1));
+            Assert.That((await storage.ReadAsync().ConfigureAwait(false)).Revision, Is.EqualTo(1));
         }
 
         private static SchemaRegistryStore Store(IRegistryStateStore storage)

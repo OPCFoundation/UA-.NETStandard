@@ -167,7 +167,14 @@ namespace Opc.Ua.EndpointRegistry.Federation
 
         internal static string ValidateXid(string xid, string role)
         {
-            EndpointRegistryRules.ValidateMessageReference(xid, "Reference");
+            try
+            {
+                EndpointRegistryRules.ValidateMessageReference(xid, "Reference");
+            }
+            catch (RegistryRuleException error)
+            {
+                throw new ArgumentException("A concrete metadata Xid is required.", nameof(xid), error);
+            }
             string[] parts = xid.Split('/');
             if (parts.Length != (role == "MetadataResource" ? 5 : role == "MetadataVersion" ? 7 : 0) ||
                 parts[0].Length != 0 || parts[3] != "messages" ||
@@ -349,12 +356,12 @@ namespace Opc.Ua.EndpointRegistry.Federation
             {
                 throw new ArgumentException("Metadata Resource must have no document and one retained Version.");
             }
-            FederationSourceKey.ValidateXid(key.LogicalXid + "/versions/" + observation.VersionId, "MetadataVersion");
             if (observation.VersionId.Length == 0 || key.Role == "MetadataVersion" &&
                 key.Xid != key.LogicalXid + "/versions/" + observation.VersionId)
             {
                 throw new ArgumentException("The requested sole Version does not match the observed committed Version.");
             }
+            FederationSourceKey.ValidateXid(key.LogicalXid + "/versions/" + observation.VersionId, "MetadataVersion");
             if (binding.ApplicationUri.Length > 0)
             {
                 FederationNodeObservation root = observation.Registry ??

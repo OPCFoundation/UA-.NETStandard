@@ -156,8 +156,8 @@ namespace Opc.Ua.EndpointRegistry.Server
                 catalog.Host.Activation = async (state, ct) =>
                 {
                     catalog.Projection.Update(state);
-                    PublishRoot(catalog, state);
                     await engine.ReconcileAsync(ct).ConfigureAwait(false);
+                    PublishRoot(catalog, state);
                 };
                 await catalog.Host.StartAsync(cancellationToken).ConfigureAwait(false);
                 await engine.AttachAsync(catalog.Root, cancellationToken).ConfigureAwait(false);
@@ -322,6 +322,7 @@ namespace Opc.Ua.EndpointRegistry.Server
                     InitialDocument = InitialDocument(options.RegistryId),
                     Validate = document =>
                     {
+                        AssignPublicIdentity(document, options);
                         EndpointRegistryRules.ValidateRegistry(document, media);
                         options.Validate?.Invoke(document);
                     },
@@ -449,6 +450,70 @@ namespace Opc.Ua.EndpointRegistry.Server
                 {
                     nodes.RemoveAt(index);
                 }
+            }
+        }
+
+        private static void AssignPublicIdentity(
+            RegistryObjectValueDataType document, EndpointRegistryCatalogOptions options)
+        {
+            if (options.PublicBaseUri is null)
+            {
+                return;
+            }
+            if (!Uri.TryCreate(options.PublicBaseUri, UriKind.Absolute, out Uri? baseUri) ||
+                baseUri.Fragment.Length > 0 || baseUri.Query.Length > 0)
+            {
+                throw new ArgumentException("The metadata base URI must be absolute without query or fragment.");
+            }
+            foreach (string collection in options.Collections)
+            {
+                foreach (RegistryMemberDataType member in document.Members)
+                {
+                    if (member.Name != collection || member.Value is not RegistryObjectValueDataType groups)
+                    {
+                        continue;
+                    }
+                    foreach (RegistryMemberDataType group in groups.Members)
+                    {
+                        if (group.Value is RegistryObjectValueDataType entity)
+                        {
+                            Assign(entity, "/" + collection + "/" + group.Name);
+                        }
+                    }
+                }
+            }
+
+            void Assign(RegistryObjectValueDataType entity, string xid)
+            {
+                var members = new List<RegistryMemberDataType>();
+                foreach (RegistryMemberDataType member in entity.Members)
+                {
+                    if (member.Name != "self")
+                    {
+                        members.Add(member);
+                    }
+                    if (member.Name is "messages" or "versions" &&
+                        member.Value is RegistryObjectValueDataType children)
+                    {
+                        foreach (RegistryMemberDataType child in children.Members)
+                        {
+                            if (child.Value is RegistryObjectValueDataType value)
+                            {
+                                Assign(value, xid + "/" + member.Name + "/" + child.Name);
+                            }
+                        }
+                    }
+                }
+                members.Add(new RegistryMemberDataType
+                {
+                    Name = "self",
+                    Value = new RegistryStringValueDataType
+                    {
+                        Kind = 2,
+                        Value = options.PublicBaseUri.TrimEnd('/') + xid
+                    }
+                });
+                entity.Members = members.ToArray();
             }
         }
 

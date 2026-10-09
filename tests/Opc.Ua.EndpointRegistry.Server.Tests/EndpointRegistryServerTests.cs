@@ -633,6 +633,64 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
                 Is.EqualTo(StatusCodes.Good));
         }
 
+        [TestCase(null, "1")]
+        [TestCase("v9", "v9")]
+        public async Task SoleVersionAliasesRetainAuthoredAbsenceAndNeverSelectAnUnretainedVersionAsync(
+            string? authoredVersion, string retainedVersion)
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256,
+                new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
+            NativeRegistryAccessTypeClient access = TypedAccess(session);
+            string groupId = "version-alias-" + retainedVersion;
+            string groupXid = "/messagegroups/" + groupId;
+            RegistryMutationResultDataType written = await access.WriteDocumentAsync(new RegistryWriteRequestDataType
+            {
+                TargetXid = groupXid,
+                Definition = Mapper(session).Canonicalize(new MessageGroupDataType
+                {
+                    PresentFields = ["MessageGroupId", "Messages"],
+                    MessageGroupId = groupId,
+                    Messages = new MessageDefinitionMapDataType
+                    {
+                        Entries =
+                        [
+                            new MessageDefinitionMapEntryDataType
+                            {
+                                Name = "m",
+                                Value = new MessageDefinitionDataType
+                                {
+                                    PresentFields = authoredVersion is null ? ["MessageId"] : ["MessageId", "VersionId"],
+                                    MessageId = "m",
+                                    VersionId = authoredVersion ?? string.Empty
+                                }
+                            }
+                        ]
+                    }
+                })
+            }).ConfigureAwait(false);
+            RegistryReadResultDataType alias = await access.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = groupXid + "/messages/m/versions/" + retainedVersion,
+                DocumentKind = "metadata",
+                View = 1,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            Assert.That(written.StatusCode, Is.EqualTo(StatusCodes.Good), Detail(written));
+            Assert.That(alias.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(alias.Document.TryGetValue(out MessageDefinitionDataType? message), Is.True);
+            Assert.That(message!.MessageId, Is.EqualTo("m"));
+            Assert.That(message.PresentFields.Contains("VersionId"), Is.EqualTo(authoredVersion is not null));
+            Assert.That(message.VersionId, Is.EqualTo(authoredVersion ?? string.Empty));
+            RegistryReadResultDataType absent = await access.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = groupXid + "/messages/m/versions/absent",
+                DocumentKind = "metadata",
+                View = 1,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            Assert.That(absent.StatusCode, Is.EqualTo(StatusCodes.BadNotFound));
+        }
+
         [Test]
         public async Task InheritedLabelMethodsShareTypedStateAndExactEpochChecksAsync()
         {

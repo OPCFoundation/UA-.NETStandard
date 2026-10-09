@@ -61,6 +61,12 @@ namespace Opc.Ua.EndpointRegistry.Server
         public string RegistryId { get; set; } = "endpoint-registry";
 
         /// <summary>
+        /// Gets or sets the authoritative public metadata base URI, when this deployment exposes
+        /// absolute entity references. The server, not a mutation client, owns each self URI.
+        /// </summary>
+        public string? PublicBaseUri { get; set; }
+
+        /// <summary>
         /// Gets or sets the collections of the instance. A Message-only catalog uses only
         /// <c>messagegroups</c>; the media root uses only <c>endpoints</c>.
         /// </summary>

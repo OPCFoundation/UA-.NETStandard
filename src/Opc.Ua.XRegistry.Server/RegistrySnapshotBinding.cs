@@ -36,7 +36,13 @@ namespace Opc.Ua.XRegistry.Server
     /// <summary>
     /// An authorized native document selected from one immutable registry generation.
     /// </summary>
-    public readonly record struct RegistrySnapshotSource(IEncodeable Document, uint TargetEpoch, uint RegistryEpoch);
+    public readonly record struct RegistrySnapshotSource(IEncodeable Document, uint TargetEpoch, uint RegistryEpoch)
+    {
+        /// <summary>
+        /// Gets an optional check of current access to the pinned selection before exposing a part.
+        /// </summary>
+        public Func<ServiceResult>? Reauthorize { get; init; }
+    }
 
     /// <summary>
     /// Binds the generated snapshot Methods to a per-registry snapshot store and an authorized source.
@@ -93,7 +99,7 @@ namespace Opc.Ua.XRegistry.Server
                     return new OpenDocumentMethodStateResult { ServiceResult = StatusCodes.BadUserAccessDenied };
                 }
                 RegistrySnapshotOpenResultDataType result = snapshots.Open(session, view, request,
-                    selected.Document, selected.TargetEpoch, selected.RegistryEpoch);
+                    selected.Document, selected.TargetEpoch, selected.RegistryEpoch, selected.Reauthorize);
                 return new OpenDocumentMethodStateResult
                 {
                     ServiceResult = new ServiceResult(result.StatusCode),

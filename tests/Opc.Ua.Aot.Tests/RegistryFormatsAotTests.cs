@@ -29,9 +29,11 @@
 
 using System.Text;
 using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.EndpointRegistry;
 using Opc.Ua.SchemaRegistry;
 using Opc.Ua.SchemaRegistry.Formats;
 using Opc.Ua.XRegistry;
+using RegistryEndpoint = Opc.Ua.EndpointRegistry.EndpointDataType;
 
 namespace Opc.Ua.Aot.Tests
 {
@@ -71,6 +73,55 @@ namespace Opc.Ua.Aot.Tests
                 SchemaContentDataType complete = arrow.Parse(bytes);
                 await Assert.That(complete.IsEqual(arrow.Parse(arrow.Serialize(complete).Span))).IsTrue();
             }
+        }
+
+        [Test]
+        public async Task NativeRecordMapperAndModelDocumentsSurviveTrimming()
+        {
+            var context = ServiceMessageContext.Create(null);
+            context.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.xRegistry);
+            context.NamespaceUris.GetIndexOrAppend(SchemaRegistry.Namespaces.SchemaRegistry);
+            context.NamespaceUris.GetIndexOrAppend(EndpointRegistry.Namespaces.EndpointRegistry);
+            context.Factory.Builder.AddOpcUaXRegistry().AddOpcUaSchemaRegistry().AddOpcUaEndpointRegistry().Commit();
+            RegistryRecordMapper mapper = EndpointRegistryNativeCatalog.CreateMapper(context,
+                [new JsonSchemaFormatProvider(), new AvroSchemaFormatProvider()]);
+            RegistryRecordDataType record = mapper.Canonicalize(new RegistryEndpoint
+            {
+                PresentFields = ["EndpointId", "Usage", "Protocol", "ProtocolOptions"],
+                EndpointId = "aot-endpoint",
+                Usage = ["producer"],
+                Protocol = "MQTT/5.0",
+                ProtocolOptions = new EndpointProtocolOptionsMQTT50DataType
+                {
+                    PresentFields = ["Topic", "Qos"],
+                    Topic = "factory/aot",
+                    Qos = new RegistryNumberValueDataType
+                    {
+                        Kind = 3,
+                        Coefficient = ByteString.From([1]),
+                        IsInteger = true
+                    }
+                }
+            });
+            using var stream = new MemoryStream();
+            using (var encoder = new BinaryEncoder(stream, context, true))
+            {
+                encoder.WriteExtensionObject(null, new ExtensionObject(record));
+            }
+            stream.Position = 0;
+            using var decoder = new BinaryDecoder(stream, context, true);
+            ExtensionObject decoded = decoder.ReadExtensionObject(null);
+            bool found = decoded.TryGetValue(out RegistryEndpoint? endpoint, context);
+            await Assert.That(found).IsTrue();
+            await Assert.That(endpoint!.EndpointId).IsEqualTo("aot-endpoint");
+            await Assert.That(((EndpointProtocolOptionsMQTT50DataType)endpoint.ProtocolOptions).Topic)
+                .IsEqualTo("factory/aot");
+            await Assert.That(RegistryValues.Identical(mapper.Restore(record), mapper.Restore(endpoint))).IsTrue();
+            RegistryRecordDataType model = mapper.Project(EndpointRegistryNativeCatalog.ReadModel(),
+                nameof(RegistryModelDocumentDataType));
+            await Assert.That(model is RegistryModelDocumentDataType).IsTrue();
+            await Assert.That(RegistryValues.Identical(mapper.Restore(model),
+                EndpointRegistryNativeCatalog.ReadModel())).IsTrue();
         }
     }
 }

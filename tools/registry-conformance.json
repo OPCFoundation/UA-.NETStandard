@@ -5,15 +5,15 @@
     { "facet": "EndpointRegistry/Messages", "status": "not-claimed", "tests": [] },
     { "facet": "EndpointRegistry/Endpoints", "status": "not-claimed", "tests": [] },
     { "facet": "EndpointRegistry/Writable", "status": "not-claimed", "tests": [] },
-    { "facet": "EndpointRegistry/Federation", "status": "not-claimed", "tests": [] },
+    { "facet": "EndpointRegistry/Federation", "status": "not-claimed", "tests": ["OpcUaFederationTests", "HttpFederationTests", "FederationTrustTests"], "remaining": ["Complete the XREG-GroupFederation read-only proxy/mirror Property projection and durable identity-pin lifecycle. Provider preload APIs alone do not satisfy the hosting surface."] },
     { "facet": "EndpointRegistry/Resolution", "status": "not-claimed", "tests": [] },
     { "facet": "EndpointRegistry/PubSubBinding", "status": "not-claimed", "tests": [] },
     { "facet": "EndpointRegistry/Media", "status": "not-claimed", "tests": [] },
     { "facet": "EndpointRegistry/JsonCompatibility", "status": "not-claimed", "tests": [] },
     { "facet": "SchemaRegistry/Reader", "status": "not-claimed", "tests": [] },
-    { "facet": "SchemaRegistry/NativeSnapshots", "status": "not-claimed", "tests": [] },
-    { "facet": "SchemaRegistry/NativeWritable", "status": "not-claimed", "tests": [] },
+    { "facet": "SchemaRegistry/NativeSnapshots", "status": "not-claimed", "tests": ["SchemaRegistryWireTests.SharedMetadataModelAndCapabilitiesStayNativeWithoutEndpointDependencyAsync", "SchemaRegistryWireTests.SchemaSnapshotPinsOversizedContentsAndBothRevisionSpacesAsync", "SchemaRegistryWireTests.SnapshotPartsRecheckVisibilityOfThePinnedVersionAsync"], "remaining": ["Complete the XREG-NativeDocuments selected-entity metadata and effective-model/capability conformance review."] },
+    { "facet": "SchemaRegistry/NativeWritable", "status": "not-claimed", "tests": ["SchemaRegistryStoreTests", "SchemaRegistryWireTests"], "remaining": ["Implement the inherited xRegistry create/write registration surface required by SREG-SchemaRegistration.", "Implement complete Compatibility, Ancestor, ModelVersion, ConfigurationVersion and IsDefault behavior required by SREG-SchemaVersioning.", "Complete the NativeSnapshots prerequisites."] },
     { "facet": "SchemaRegistry/Server", "status": "out-of-scope", "reason": "Automatic schema materialization is not required by the selected scope." },
-    { "facet": "SchemaRegistry/Full", "status": "out-of-scope", "reason": "No inbound xRegistry HTTP server, automatic materialization or full schema-evolution implementation." }
+    { "facet": "SchemaRegistry/Full", "status": "out-of-scope", "reason": "No inbound xRegistry HTTP server, automatic materialization, TTL mirroring or Schema PubSub profile." }
   ]
 }

@@ -125,6 +125,52 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public void RevokedSelectionReleasesItsSnapshotAndExposesNoNativePart()
+        {
+            using var snapshots = new RegistryNativeSnapshots(Context());
+            var session = new NodeId("reader", 1);
+            bool visible = true;
+            RegistrySnapshotOpenResultDataType opened = snapshots.Open(session, "view",
+                new RegistrySnapshotOpenRequestDataType { TargetXid = "/", DocumentKind = "metadata", View = 0 },
+                new RegistryStringValueDataType { Kind = 2, Value = "private" }, 1, 1,
+                () => visible ? ServiceResult.Good : StatusCodes.BadUserAccessDenied);
+            var request = new RegistrySnapshotReadRequestDataType
+            {
+                SnapshotId = opened.SnapshotId,
+                Path = [new RegistryPathElementDataType { Kind = 0, Name = "Value" }],
+                MaxItems = 128,
+                MaxBytes = 512
+            };
+            Assert.That(snapshots.Read(session, "view", request).StatusCode, Is.EqualTo(StatusCodes.Good));
+            visible = false;
+            RegistrySnapshotReadResultDataType denied = snapshots.Read(session, "view", request);
+            Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(denied.Value.IsNull, Is.True);
+            Assert.That(denied.Entries.Count, Is.Zero);
+            visible = true;
+            Assert.That(snapshots.Read(session, "view", request).StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        [Test]
+        public void EncodedSizeHonorsTheExactBinaryBoundaryAndRejectsInvalidInputs()
+        {
+            ServiceMessageContext context = Context();
+            var document = new RegistryStringValueDataType { Kind = 2, Value = "A\U0001F600B" };
+            using var wire = new MemoryStream();
+            using (var encoder = new BinaryEncoder(wire, context, true))
+            {
+                document.Encode(encoder);
+            }
+            Assert.That(RegistryEncodedSize.Measure(document, context, wire.Length), Is.EqualTo(wire.Length));
+            ServiceResultException tooSmall = Assert.Throws<ServiceResultException>(
+                () => RegistryEncodedSize.Measure(document, context, wire.Length - 1))!;
+            Assert.That(tooSmall.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.Throws<ArgumentOutOfRangeException>(() => RegistryEncodedSize.Measure(document, context, 0));
+            Assert.Throws<ArgumentNullException>(() => RegistryEncodedSize.Measure(null!, context, 128));
+            Assert.Throws<ArgumentNullException>(() => RegistryEncodedSize.Measure(document, null!, 128));
+        }
+
+        [Test]
         public void OneOversizedBinaryLeafIsReconstructedWithinTheActualEncodedByteLimit()
         {
             ServiceMessageContext context = Context();

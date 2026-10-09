@@ -104,6 +104,22 @@ namespace Opc.Ua.XRegistry.Server
             uint targetEpoch,
             uint registryEpoch)
         {
+            return Open(session, authorizationView, request, document, targetEpoch, registryEpoch, null);
+        }
+
+        /// <summary>
+        /// Pins a document with a host-owned policy check for the retained selection.
+        /// The callback must not mutate snapshots or perform asynchronous work.
+        /// </summary>
+        public RegistrySnapshotOpenResultDataType Open(
+            NodeId session,
+            string authorizationView,
+            RegistrySnapshotOpenRequestDataType request,
+            IEncodeable document,
+            uint targetEpoch,
+            uint registryEpoch,
+            Func<ServiceResult>? reauthorize)
+        {
             lock (m_gate)
             {
                 ThrowIfDisposed();
@@ -131,7 +147,7 @@ namespace Opc.Ua.XRegistry.Server
                     }
                     ByteString id = Token();
                     var snapshot = new Snapshot(session, authorizationView, (IEncodeable)document.Clone(),
-                        bytes, m_clock.GetTimestamp());
+                        bytes, m_clock.GetTimestamp(), reauthorize);
                     m_snapshots.Add(id, snapshot);
                     m_retainedBytes += bytes;
                     return new RegistrySnapshotOpenResultDataType
@@ -176,6 +192,12 @@ namespace Opc.Ua.XRegistry.Server
                         throw new ArgumentException("Invalid native snapshot read bounds.");
                     }
                     Snapshot snapshot = Find(request.SnapshotId, session, authorizationView);
+                    ServiceResult allowed = snapshot.Reauthorize?.Invoke() ?? ServiceResult.Good;
+                    if (ServiceResult.IsBad(allowed))
+                    {
+                        Remove(request.SnapshotId);
+                        throw new ServiceResultException(allowed);
+                    }
                     bool continuing = request.ContinuationPoint.Length != 0;
                     if (continuing &&
                         (!m_continuations.TryGetValue(request.ContinuationPoint, out Continuation? continuation) ||
@@ -659,13 +681,15 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         private sealed class Snapshot(
-            NodeId session, string authorizationView, IEncodeable root, ulong bytes, long touched)
+            NodeId session, string authorizationView, IEncodeable root, ulong bytes, long touched,
+            Func<ServiceResult>? reauthorize)
         {
             public NodeId Session { get; } = session;
             public string AuthorizationView { get; } = authorizationView;
             public IEncodeable Root { get; } = root;
             public ulong Bytes { get; } = bytes;
             public long Touched { get; set; } = touched;
+            public Func<ServiceResult>? Reauthorize { get; } = reauthorize;
         }
 
         private sealed record Continuation(ByteString SnapshotId, ArrayOf<RegistryPathElementDataType> Path,

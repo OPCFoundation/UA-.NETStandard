@@ -305,10 +305,12 @@ namespace Opc.Ua.XRegistry.Server
                 RegistryCommittedState state = Load(stored);
                 Volatile.Write(ref m_current, state);
                 Func<RegistryCommittedState, CancellationToken, ValueTask>? activate = Activation;
+                m_projectionPending = true;
                 if (activate is not null)
                 {
                     await activate(state, cancellationToken).ConfigureAwait(false);
                 }
+                m_projectionPending = false;
             }
             finally
             {
@@ -437,7 +439,7 @@ namespace Opc.Ua.XRegistry.Server
             CancellationToken cancellationToken = default)
         {
             return CommitAsync(targetXid, state => RegistryMetadataMutation.Label(state.Root, targetXid, name, value,
-                expectedEpoch, m_collections, ProtectedPaths(), ValidateDocument), cancellationToken);
+                expectedEpoch, m_collections, ProtectedPaths(targetXid), ValidateOrdinaryDocument), cancellationToken);
         }
 
         /// <summary>
@@ -697,6 +699,11 @@ namespace Opc.Ua.XRegistry.Server
                 }
                 if (!commit.Changed)
                 {
+                    if (m_projectionPending)
+                    {
+                        return MutationResult(StatusCodes.UncertainNotAllNodesAvailable, commit.TargetEpoch,
+                            targetXid, [ProjectionPending()]);
+                    }
                     return MutationResult(StatusCodes.Good, commit.TargetEpoch, targetXid, []);
                 }
                 ByteString document = RegistryValues.ToJson(commit.Document);
@@ -717,33 +724,27 @@ namespace Opc.Ua.XRegistry.Server
                 }
                 var next = new RegistryCommittedState(stored.State.Revision, document, commit.Document,
                     RegistryMetadataMutation.Epoch(commit.Document));
-                await NotifyActivatingAsync(next).ConfigureAwait(false);
-                Volatile.Write(ref m_current, next);
-                Func<RegistryCommittedState, CancellationToken, ValueTask>? activate = Activation;
-                if (activate is not null)
+                try
                 {
-                    try
+                    m_projectionPending = true;
+                    await NotifyActivatingAsync(next).ConfigureAwait(false);
+                    Volatile.Write(ref m_current, next);
+                    Func<RegistryCommittedState, CancellationToken, ValueTask>? activate = Activation;
+                    if (activate is not null)
                     {
                         // The generation is durable; its activation is not abandoned on caller cancellation.
                         await activate(next, CancellationToken.None).ConfigureAwait(false);
                     }
-                    catch (Exception error)
-                    {
-                        m_logger.ActivationFailed(next.Revision, error);
-                        return MutationResult(StatusCodes.UncertainNotAllNodesAvailable, commit.TargetEpoch,
-                            targetXid,
-                            [
-                                new RegistryDiagnosticDataType
-                                {
-                                    StatusCode = StatusCodes.UncertainNotAllNodesAvailable,
-                                    Code = "E_PROJECTION_PENDING",
-                                    Path = [],
-                                    Detail = "The change is committed; its address-space projection is not active."
-                                }
-                            ]);
-                    }
+                    await NotifyActivatedAsync(next).ConfigureAwait(false);
+                    m_projectionPending = false;
                 }
-                await NotifyActivatedAsync(next).ConfigureAwait(false);
+                catch (Exception error)
+                {
+                    Volatile.Write(ref m_current, next);
+                    m_logger.ActivationFailed(next.Revision, error);
+                    return MutationResult(StatusCodes.UncertainNotAllNodesAvailable, commit.TargetEpoch,
+                        targetXid, [ProjectionPending()]);
+                }
                 return MutationResult(StatusCodes.Good, commit.TargetEpoch, targetXid, []);
             }
             finally
@@ -768,6 +769,14 @@ namespace Opc.Ua.XRegistry.Server
                 Issues = issues
             };
         }
+
+        private static RegistryDiagnosticDataType ProjectionPending() => new()
+        {
+            StatusCode = StatusCodes.UncertainNotAllNodesAvailable,
+            Code = "E_PROJECTION_PENDING",
+            Path = [],
+            Detail = "The change is committed; its address-space projection is not active."
+        };
 
         private static RegistryMutationResultDataType MutationFailure(Exception error)
         {
@@ -863,7 +872,21 @@ namespace Opc.Ua.XRegistry.Server
                 return (state.Root, recordType, state.Epoch);
             }
             RegistryValueDataType current = state.Root;
-            foreach (string part in xid.Substring(1).Split('/'))
+            string[] path = xid.Substring(1).Split('/');
+            if (path.Length == 6)
+            {
+                string logical = "/" + string.Join("/", path, 0, 4);
+                (RegistryValueDataType value, _, uint epoch) = Select(state, logical);
+                string? retained = value is RegistryObjectValueDataType message &&
+                    Member(message, "versionid") is RegistryStringValueDataType id ? id.Value : "1";
+                if (path[5] != retained)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotFound,
+                        "The selected sole metadata Version does not exist.");
+                }
+                return (value, recordType, epoch);
+            }
+            foreach (string part in path)
             {
                 current = Member(current, part) ?? throw new ServiceResultException(StatusCodes.BadNotFound,
                     "The selected entity does not exist.");
@@ -1007,6 +1030,7 @@ namespace Opc.Ua.XRegistry.Server
         private readonly Lock m_pagesGate = new();
         private readonly Dictionary<ByteString, Page> m_pages = [];
         private RegistryCommittedState? m_current;
+        private bool m_projectionPending;
     }
 
     internal static partial class RegistryNativeHostLog

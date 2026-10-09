@@ -357,7 +357,7 @@ namespace Opc.Ua.EndpointRegistry.Server
                 Present(record, "Name", record.Name), Present(record, "Description", record.Description),
                 Present(record, "Documentation", record.Documentation),
                 Present(record, "Labels", Labels(record.Labels?.Entries)),
-                Present(record, "VersionId", record.VersionId),
+                Present(record, "VersionId", record.VersionId) ?? "1",
                 record, Result(record, epoch), MetadataSize(state, xid),
                 new QualifiedName(BrowseNames.Messages, m_namespaceIndex));
         }

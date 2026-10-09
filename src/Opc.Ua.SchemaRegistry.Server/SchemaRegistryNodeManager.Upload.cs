@@ -88,12 +88,20 @@ namespace Opc.Ua.SchemaRegistry.Server
                 }
                 lock (m_uploadGate)
                 {
-                    if (bytes.IsNull || upload.Buffer.Position > kMaxUploadBytes - bytes.Length ||
-                        m_uploadBytes > kMaxRetainedUploadBytes - bytes.Length)
+                    if (!m_uploads.ContainsKey(file.NodeId))
+                    {
+                        return StatusCodes.BadInvalidState;
+                    }
+                    if (bytes.IsNull || upload.Buffer.Position > kMaxUploadBytes - bytes.Length)
                     {
                         return StatusCodes.BadEncodingLimitsExceeded;
                     }
                     long old = upload.Buffer.Length;
+                    long growth = Math.Max(old, upload.Buffer.Position + bytes.Length) - old;
+                    if (m_uploadBytes > kMaxRetainedUploadBytes - growth)
+                    {
+                        return StatusCodes.BadEncodingLimitsExceeded;
+                    }
                     byte[] next = bytes.ToArray();
                     upload.Buffer.Write(next, 0, next.Length);
                     m_uploadBytes += upload.Buffer.Length - old;
@@ -108,6 +116,10 @@ namespace Opc.Ua.SchemaRegistry.Server
                 {
                     lock (m_uploadGate)
                     {
+                        if (!m_uploads.ContainsKey(file.NodeId))
+                        {
+                            return StatusCodes.BadInvalidState;
+                        }
                         position = (ulong)upload.Buffer.Position;
                     }
                 }
@@ -122,6 +134,10 @@ namespace Opc.Ua.SchemaRegistry.Server
                 }
                 lock (m_uploadGate)
                 {
+                    if (!m_uploads.ContainsKey(file.NodeId))
+                    {
+                        return StatusCodes.BadInvalidState;
+                    }
                     if (position > (ulong)upload.Buffer.Length)
                     {
                         return StatusCodes.BadOutOfRange;
@@ -169,6 +185,16 @@ namespace Opc.Ua.SchemaRegistry.Server
             try
             {
                 await AddPredefinedNodeAsync(SystemContext, file, cancellationToken).ConfigureAwait(false);
+                bool active;
+                lock (m_uploadGate)
+                {
+                    active = m_uploads.ContainsKey(file.NodeId);
+                }
+                if (!active)
+                {
+                    await DeleteNodeAsync(SystemContext, file.NodeId, CancellationToken.None).ConfigureAwait(false);
+                    return new BeginSchemaUploadMethodStateResult { ServiceResult = StatusCodes.BadSessionClosed };
+                }
             }
             catch
             {

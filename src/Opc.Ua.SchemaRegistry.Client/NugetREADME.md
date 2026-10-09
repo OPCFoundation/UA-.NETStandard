@@ -1,6 +1,6 @@
 # OPC UA Schema Registry Client
 
-Native exact schema access with generated OPC 30455 structures. Depends only on
+Native exact schema access with generated OPC 30451 structures. Depends only on
 model/client modules, never server or format-provider implementations.
 
 Use `SchemaRegistryClient.DiscoverAsync(session, telemetry)` or construct directly

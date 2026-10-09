@@ -133,6 +133,7 @@ namespace Opc.Ua.EndpointRegistry.Federation
             {
                 throw new ArgumentNullException(nameof(cache));
             }
+            cancellationToken.ThrowIfCancellationRequested();
             if (!m_routes.TryGetValue(key, out HttpFederationRoute? route))
             {
                 throw new ArgumentException("No configured outbound route exists for this source.");

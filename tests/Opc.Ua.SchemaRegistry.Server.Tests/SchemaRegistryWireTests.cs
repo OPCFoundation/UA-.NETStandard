@@ -52,7 +52,7 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             m_telemetry = NUnitTelemetryContext.Create();
             m_directory = Path.Combine(TestContext.CurrentContext.WorkDirectory,
                 "schema-wire-" + Guid.NewGuid().ToString("N"));
-            m_server = new ServerFixture<SchemaServer>(telemetry => new SchemaServer(telemetry))
+            m_server = new ServerFixture<SchemaServer>(telemetry => m_host = new SchemaServer(telemetry))
             {
                 AutoAccept = true,
                 SecurityNone = true
@@ -370,6 +370,106 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
                 await badFile.CloseAsync(badHandle).ConfigureAwait(false))!;
             Assert.That(invalid.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
+
+        [Test]
+        public async Task SharedMetadataModelAndCapabilitiesStayNativeWithoutEndpointDependencyAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
+                .ConfigureAwait(false);
+            ushort xns = session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.xRegistry);
+            NodeId node = await PathAsync(session,
+                ExpandedNodeId.ToNodeId(ObjectIds.SchemaRegistry, session.NamespaceUris),
+                new QualifiedName(XRegistry.BrowseNames.TypedAccess, xns)).ConfigureAwait(false);
+            var access = new NativeRegistryAccessTypeClient(session, node, m_telemetry!);
+            RegistryReadResultDataType metadata = await access.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = "/",
+                DocumentKind = "metadata",
+                View = 1,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            Assert.That(metadata.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(metadata.Document.TryGetValue(out RegistryMetadataDataType? registry), Is.True);
+            Assert.That(registry!.RegistryId, Is.EqualTo("schema-registry"));
+            RegistryReadResultDataType model = await access.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = "/",
+                DocumentKind = "model",
+                View = 1,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            Assert.That(model.Document.TryGetValue(out RegistryModelDocumentDataType? definition), Is.True);
+            Assert.That(definition!.Groups.Entries[0].Name, Is.EqualTo("schemagroups"));
+            RegistryReadResultDataType capabilities = await access.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = "/",
+                DocumentKind = "capabilities",
+                View = 1,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            Assert.That(capabilities.Document.TryGetValue(out RegistryCapabilitiesDocumentDataType? supported), Is.True);
+            Assert.That(supported!.Formats.Count, Is.EqualTo(3));
+            RegistrySnapshotOpenResultDataType snapshot = await access.OpenDocumentAsync(
+                new RegistrySnapshotOpenRequestDataType { TargetXid = "/", DocumentKind = "model", View = 1 })
+                .ConfigureAwait(false);
+            Assert.That(snapshot.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That((await access.CloseDocumentAsync(snapshot.SnapshotId).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
+        }
+        [TestCase("schema")]
+        [TestCase("metadata")]
+        public async Task SnapshotPartsRecheckVisibilityOfThePinnedVersionAsync(string kind)
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
+                .ConfigureAwait(false);
+            TypedSchemaReadResultDataType registered = await (await AccessAsync(session).ConfigureAwait(false))
+                .RegisterSchemaAsync(new TypedSchemaRegistrationRequestDataType
+                {
+                    Registration = new SchemaRegistrationDataType
+                    {
+                        NamespaceUri = "urn:example:visibility",
+                        SchemaName = "Revocation-" + kind,
+                        Format = "JsonSchema/2020-12",
+                        VersionId = "1",
+                        EntityUri = "https://schemas.example.test/revocation-" + kind
+                    },
+                    Content = new JsonSchemaFormatProvider().Parse("""{"type":"number"}"""u8)
+                }).ConfigureAwait(false);
+            ushort xns = session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.xRegistry);
+            NodeId node = await PathAsync(session,
+                ExpandedNodeId.ToNodeId(ObjectIds.SchemaRegistry, session.NamespaceUris),
+                new QualifiedName(XRegistry.BrowseNames.TypedAccess, xns)).ConfigureAwait(false);
+            var access = new NativeRegistryAccessTypeClient(session, node, m_telemetry!);
+            RegistrySnapshotOpenResultDataType opened = await access.OpenDocumentAsync(
+                new RegistrySnapshotOpenRequestDataType
+                {
+                    TargetXid = kind == "schema" ? registered.Document.Reference.Entity.Xid : "/",
+                    DocumentKind = kind,
+                    View = 1
+                }).ConfigureAwait(false);
+            Assert.That(opened.StatusCode, Is.EqualTo(StatusCodes.Good));
+            try
+            {
+                m_host!.Revoked = true;
+                ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await access.ReadDocumentPartAsync(new RegistrySnapshotReadRequestDataType
+                    {
+                        SnapshotId = opened.SnapshotId,
+                        Path = [],
+                        MaxItems = 128,
+                        MaxBytes = 65536
+                    }).ConfigureAwait(false))!;
+                Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
+            finally
+            {
+                m_host!.Revoked = false;
+            }
+            ServiceResultException released = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await access.CloseDocumentAsync(opened.SnapshotId).ConfigureAwait(false))!;
+            Assert.That(released.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
         private async Task<ISession> ConnectAsync(string policy, string user, string password)
         {
             ISession session = await m_client!.ConnectAsync(
@@ -486,9 +586,9 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             {
                 var options = new SchemaRegistryServerOptions { Enabled = true, OriginUri = "urn:test:schema-wire" };
                 options.IsVisible = (context, reference) =>
-                    reference.Entity.Xid!.IndexOf("/hidden.jsonschema/", StringComparison.Ordinal) < 0 ||
+                    !Revoked && (reference.Entity.Xid!.IndexOf("/hidden.jsonschema/", StringComparison.Ordinal) < 0 ||
                     context is SessionSystemContext caller &&
-                    caller.UserIdentity?.GrantedRoleIds.Contains(Ua.ObjectIds.WellKnownRole_SecurityAdmin) == true;
+                    caller.UserIdentity?.GrantedRoleIds.Contains(Ua.ObjectIds.WellKnownRole_SecurityAdmin) == true);
                 options.NamespaceUris.Add(kGroupId, "http://contoso.org/UA/Pumps/");
                 foreach (string format in new[] { "JsonSchema/2020-12", "Avro/1.11", "ApacheArrow/1.0" })
                 {
@@ -500,12 +600,15 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
                 }
                 AddNodeManager(new SchemaRegistryNodeManagerFactory(options));
             }
+
+            public bool Revoked { get; set; }
         }
 
         private ITelemetryContext? m_telemetry;
         private const string kGroupId = "org.contoso.UA.Pumps";
         private string? m_directory;
         private ServerFixture<SchemaServer>? m_server;
+        private SchemaServer? m_host;
         private ClientFixture? m_client;
     }
 }

@@ -58,7 +58,7 @@ namespace Opc.Ua.EndpointRegistry
         /// </summary>
         public static RegistryNativeCatalog.Builder CreateBuilder()
         {
-            RegistryNativeCatalog.Builder builder = RegistryNativeCatalog.CreateBuilder();
+            RegistryNativeCatalog.Builder builder = RegistrySharedNativeCatalog.CreateBuilder();
             AddGeneratedTypes(builder);
             return builder;
         }

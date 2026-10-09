@@ -71,7 +71,7 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
                 root: RootEvidence(pin == "root" ? Target : Root,
                     pin == "root-type" ? [XRegistry.ObjectTypeIds.RegistryType] : default),
                 target: TargetEvidence(pin == "target" ? new ExpandedNodeId("wrong", 0, Namespaces.EndpointRegistry) : Target,
-                    pin == "target-type" ? [Ua.ObjectTypeIds.FileType] : default,
+                    pin == "target-type" ? [new ExpandedNodeId(11575u, 0, Ua.Namespaces.OpcUa)] : default,
                     pin == "node-class" ? NodeClass.Variable : NodeClass.Object,
                     pin == "role" ? "LogicalResource" : "MetadataResource"),
                 owner: pin == "ownership" ? Target : Root,
@@ -124,6 +124,26 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             moved.NativeTarget = new ExpandedNodeId("new-target", 0, Namespaces.EndpointRegistry);
             Assert.Throws<ArgumentException>(() => old.WithObservation(Binding(moved),
                 Evidence(moved, target: TargetEvidence(moved.NativeTarget)), Observation(moved)));
+        }
+
+        [TestCase("id")]
+        [TestCase("epoch")]
+        [TestCase("presence")]
+        public void GroupSnapshotRejectsMetadataContradictingIndependentIdentityOrEpoch(string mismatch)
+        {
+            RegistryEntityReferenceDataType source = Source(xid: "/messagegroups/g",
+                locator: "https://registry.example.test/group", ua: false);
+            source.Role = "Group";
+            FederationTrustBinding binding = Binding(source, application: string.Empty);
+            var metadata = new MessageGroupDataType
+            {
+                PresentFields = mismatch == "presence" ? ["Epoch"] : ["MessageGroupId", "Epoch"],
+                MessageGroupId = mismatch == "id" ? "wrong" : "g",
+                Epoch = (RegistryNumberValueDataType)RegistryValues.Parse(mismatch == "epoch" ? "5"u8 : "4"u8)
+            };
+
+            Assert.Throws<ArgumentException>(() =>
+                new FederationGroupSnapshot(source, binding, null, null, metadata, 4));
         }
 
         [Test]

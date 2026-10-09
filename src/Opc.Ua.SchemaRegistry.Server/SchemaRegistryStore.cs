@@ -87,6 +87,15 @@ namespace Opc.Ua.SchemaRegistry.Server
         public uint RegistryEpoch => checked((uint)Math.Max(1ul, Current.Revision));
 
         /// <summary>
+        /// Captures visible-source inputs and registry epoch from one committed generation.
+        /// </summary>
+        public (ArrayOf<SchemaEntry> Entries, uint RegistryEpoch) CaptureGeneration()
+        {
+            Generation generation = Current;
+            return ([.. generation.Entries.Values.Select(Copy)], checked((uint)Math.Max(1ul, generation.Revision)));
+        }
+
+        /// <summary>
         /// Returns the provider-owned reference for an exact Xid or a configured logical selection.
         /// No default is inferred from available Versions.
         /// </summary>
@@ -152,6 +161,11 @@ namespace Opc.Ua.SchemaRegistry.Server
                 if (request.Content.Format != provider.Format)
                 {
                     throw Input("The registration format differs from native content.");
+                }
+                if (Current.Entries.TryGetValue(reference.Entity.Xid!, out SchemaEntry? previous) &&
+                    previous.Content.IsEqual(request.Content))
+                {
+                    return (previous.Document, previous.Content);
                 }
                 ByteString bytes = provider.Serialize(request.Content);
                 SchemaContentDataType content = provider.Parse(bytes.Span);
@@ -234,10 +248,12 @@ namespace Opc.Ua.SchemaRegistry.Server
                     ? new Generation(0, new SortedDictionary<string, SchemaEntry>(StringComparer.Ordinal), [])
                     : Decode(stored);
                 Volatile.Write(ref m_current, generation);
+                m_projectionPending = true;
                 if (Activation is { } activate)
                 {
                     await activate(Entries, cancellationToken).ConfigureAwait(false);
                 }
+                m_projectionPending = false;
             }
             finally
             {
@@ -428,6 +444,11 @@ namespace Opc.Ua.SchemaRegistry.Server
                 };
                 if (previous is not null && previous == defaults[resource])
                 {
+                    if (m_projectionPending)
+                    {
+                        throw new ServiceResultException(StatusCodes.UncertainNotAllNodesAvailable,
+                            "The default is committed but its projection is pending.");
+                    }
                     return;
                 }
                 StatusCode status = await PublishAsync(new Generation(current.Revision, current.Entries, defaults),
@@ -487,8 +508,10 @@ namespace Opc.Ua.SchemaRegistry.Server
                     foreach (SchemaEntry entry in current.Entries.Values)
                     {
                         if (entry.Registration is { } source &&
-                            ResourceXid(entry.Reference.Entity.Xid!, "ExactVersion") == resource &&
-                            (source.NamespaceUri != registration.NamespaceUri || source.SchemaName != registration.SchemaName))
+                            (entry.Reference.Entity.Xid!.Split('/')[2] == xid.Split('/')[2] &&
+                                source.NamespaceUri != registration.NamespaceUri ||
+                             ResourceXid(entry.Reference.Entity.Xid!, "ExactVersion") == resource &&
+                                source.SchemaName != registration.SchemaName))
                         {
                             throw Input("The symbolic identity collides with another namespace or schema subject.");
                         }
@@ -507,7 +530,8 @@ namespace Opc.Ua.SchemaRegistry.Server
                 Claim(reference, provider.SchemaIdAlgorithm, fingerprint);
                 if (previous is not null && previous.Document == bytes && registration?.MakeDefault != true)
                 {
-                    return Good(previous);
+                    return ProjectionResult(previous, m_projectionPending
+                        ? StatusCodes.UncertainNotAllNodesAvailable : StatusCodes.Good);
                 }
                 if (previous?.Epoch == uint.MaxValue)
                 {
@@ -544,27 +568,13 @@ namespace Opc.Ua.SchemaRegistry.Server
                         current.Defaults.TryGetValue(resource, out DefaultSelection? selected) &&
                         selected == defaults[resource])
                     {
-                        return Good(previous);
+                        return ProjectionResult(previous, m_projectionPending
+                            ? StatusCodes.UncertainNotAllNodesAvailable : StatusCodes.Good);
                     }
                 }
                 StatusCode status = await PublishAsync(new Generation(current.Revision, entries, defaults),
                     cancellationToken).ConfigureAwait(false);
-                TypedSchemaReadResultDataType result = Good(next);
-                if (StatusCode.IsUncertain(status))
-                {
-                    result.StatusCode = status;
-                    result.Issues =
-                    [
-                        new RegistryDiagnosticDataType
-                        {
-                            StatusCode = status,
-                            Code = "E_PROJECTION_PENDING",
-                            Path = [],
-                            Detail = "The schema Version is committed but its projection is pending."
-                        }
-                    ];
-                }
-                return result;
+                return ProjectionResult(next, status);
             }
             catch (Exception error) when (ExpectedFailure(error))
             {
@@ -590,6 +600,7 @@ namespace Opc.Ua.SchemaRegistry.Server
             }
             next = next with { Revision = commit.State.Revision };
             Volatile.Write(ref m_current, next);
+            m_projectionPending = true;
             if (Activation is { } activate)
             {
                 try
@@ -602,9 +613,29 @@ namespace Opc.Ua.SchemaRegistry.Server
                     return StatusCodes.UncertainNotAllNodesAvailable;
                 }
             }
+            m_projectionPending = false;
             return StatusCodes.Good;
         }
 
+        private static TypedSchemaReadResultDataType ProjectionResult(SchemaEntry entry, StatusCode status)
+        {
+            TypedSchemaReadResultDataType result = Good(entry);
+            if (StatusCode.IsUncertain(status))
+            {
+                result.StatusCode = status;
+                result.Issues =
+                [
+                    new RegistryDiagnosticDataType
+                    {
+                        StatusCode = status,
+                        Code = "E_PROJECTION_PENDING",
+                        Path = [],
+                        Detail = "The schema Version is committed but its projection is pending."
+                    }
+                ];
+            }
+            return result;
+        }
         private ISchemaFormatProvider Validate(
             SchemaReferenceDataType reference, SchemaRegistrationDataType? registration = null)
         {
@@ -920,6 +951,7 @@ namespace Opc.Ua.SchemaRegistry.Server
         private readonly SemaphoreSlim m_gate = new(1, 1);
         private readonly ILogger m_logger;
         private Generation? m_current;
+        private bool m_projectionPending;
     }
 
     internal static partial class SchemaRegistryStoreLog

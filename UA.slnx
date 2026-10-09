@@ -319,6 +319,7 @@
     <Project Path="tests/Opc.Ua.EndpointRegistry.PubSub.Tests/Opc.Ua.EndpointRegistry.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.EndpointRegistry.Federation.Tests/Opc.Ua.EndpointRegistry.Federation.Tests.csproj" />
     <Project Path="tests/Opc.Ua.EndpointRegistry.Server.Tests/Opc.Ua.EndpointRegistry.Server.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Registry.Aot.Tests/Opc.Ua.Registry.Aot.Tests.csproj" />
     <Project Path="tests/Opc.Ua.OpenUsd.Tests/Opc.Ua.OpenUsd.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Registry.Samples.Tests/Opc.Ua.Registry.Samples.Tests.csproj" />

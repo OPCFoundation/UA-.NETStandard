@@ -29,7 +29,7 @@ namespace Opc.Ua.EndpointRegistry.Server
             {
                 catalog.Host.ReadRecord(catalog.Host.Current, xid);
             }
-            catch (ServiceResultException)
+            catch (ServiceResultException error) when (error.StatusCode == StatusCodes.BadNotFound)
             {
                 return null;
             }
@@ -43,7 +43,7 @@ namespace Opc.Ua.EndpointRegistry.Server
                     "messagegroups" => BrowseNames.MessageGroups,
                     "messages" => BrowseNames.Messages,
                     "versions" => XRegistry.BrowseNames.Versions,
-                    _ => part
+                    _ => parts[index]
                 };
                 current = current?.FindChild(SystemContext, new QualifiedName(name, NamespaceIndexes[0]))
                     as BaseObjectState;

@@ -101,6 +101,9 @@ namespace Opc.Ua.SchemaRegistry.Server
                 NamespaceUris = server.NamespaceUris,
                 ServerUris = server.ServerUris
             };
+            m_formats = providers;
+            m_documentContext = messageContext;
+            m_documentMapper = new RegistryRecordMapper(RegistrySharedNativeCatalog.Catalog, messageContext);
             var origin = new RegistryEntityReferenceDataType
             {
                 OriginUri = m_options.OriginUri ?? string.Empty,
@@ -233,6 +236,16 @@ namespace Opc.Ua.SchemaRegistry.Server
         }
 
         /// <inheritdoc/>
+        public override async ValueTask SessionActivatedAsync(
+            OperationContext context, NodeId sessionId, CancellationToken cancellationToken = default)
+        {
+            m_snapshots.ReleaseSession(sessionId);
+            m_files.ReleaseSession(sessionId);
+            await ReleaseUploadsAsync(sessionId, cancellationToken).ConfigureAwait(false);
+            await base.SessionActivatedAsync(context, sessionId, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <inheritdoc/>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
@@ -285,6 +298,7 @@ namespace Opc.Ua.SchemaRegistry.Server
                 });
             };
             root.AddTypedSchemas(context).AddTypedAccess(context);
+            BindDocuments(context, root.TypedAccess!);
             XRegistryProjectionEngine.SetValue(root.RegistryId, m_options.RegistryId);
             NativeSchemaAccessState access = root.TypedSchemas!;
             access.AddReadSchema(context).AddWriteSchema(context);
@@ -337,7 +351,12 @@ namespace Opc.Ua.SchemaRegistry.Server
                     {
                         throw new ServiceResultException(allowed);
                     }
-                    if (request.DocumentKind != "schema" || request.View > 1)
+                    if (request.DocumentKind != "schema")
+                    {
+                        return new ValueTask<RegistrySnapshotSource>(SharedDocument(caller, request.TargetXid,
+                            request.DocumentKind, request.View));
+                    }
+                    if (request.View > 1)
                     {
                         throw new ServiceResultException(StatusCodes.BadInvalidArgument);
                     }
@@ -350,8 +369,18 @@ namespace Opc.Ua.SchemaRegistry.Server
                     {
                         throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
                     }
+                    var pinnedReference = (SchemaReferenceDataType)result.Document.Reference.Clone();
                     return new ValueTask<RegistrySnapshotSource>(new RegistrySnapshotSource(
-                        result.Document, result.Document.Epoch, registryEpoch));
+                        result.Document, result.Document.Epoch, registryEpoch)
+                    {
+                        Reauthorize = () =>
+                        {
+                            ServiceResult access = m_authorize(caller, RegistryAccessKind.Read);
+                            return ServiceResult.IsBad(access) ? access :
+                                IsVisible(caller, pinnedReference)
+                                    ? ServiceResult.Good : StatusCodes.BadUserAccessDenied;
+                        }
+                    });
                 });
             XRegistryProjectionEngine.LinkMethodArguments(root, context);
         }

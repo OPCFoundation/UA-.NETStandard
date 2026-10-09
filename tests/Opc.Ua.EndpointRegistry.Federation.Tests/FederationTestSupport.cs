@@ -20,6 +20,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Text;
 using Opc.Ua.SchemaRegistry;
 using Opc.Ua.SchemaRegistry.Formats;
@@ -43,14 +44,14 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
 
         public static RegistryEntityReferenceDataType Source(string origin = "urn:test:one", string xid = Xid,
             string locator = Locator, bool ua = true) => new()
-        {
-            OriginUri = origin,
-            Xid = xid,
-            Role = xid.Contains("/versions/", System.StringComparison.Ordinal) ? "MetadataVersion" : "MetadataResource",
-            Locator = locator,
-            HasNativeTarget = ua,
-            NativeTarget = ua ? Target : ExpandedNodeId.Null
-        };
+            {
+                OriginUri = origin,
+                Xid = xid,
+                Role = xid.AsSpan().IndexOf("/versions/".AsSpan()) >= 0 ? "MetadataVersion" : "MetadataResource",
+                Locator = locator,
+                HasNativeTarget = ua,
+                NativeTarget = ua ? Target : ExpandedNodeId.Null
+            };
 
         public static FederationTrustBinding Binding(RegistryEntityReferenceDataType source,
             string application = Application, ExpandedNodeId root = default, ArrayOf<string> locators = default) =>
@@ -82,9 +83,9 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
 
         public static MessageResolutionRequestDataType Request(RegistryEntityReferenceDataType source,
             string? uri = null, RegistryEntityReferenceDataType? context = null) => new()
-        {
-            Reference = uri ?? source.Xid!,
-            References =
+            {
+                Reference = uri ?? source.Xid!,
+                References =
             [
                 new MessageReferenceBindingDataType
                 {
@@ -93,7 +94,7 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
                     Target = source
                 }
             ]
-        };
+            };
 
         private static ServiceMessageContext CreateContext()
         {

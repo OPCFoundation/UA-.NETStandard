@@ -216,7 +216,10 @@ namespace Opc.Ua.XRegistry.Server
                     {
                         throw new ServiceResultException(allowed);
                     }
-                    return new ValueTask<RegistrySnapshotSource>(host.SelectSnapshot(request));
+                    return new ValueTask<RegistrySnapshotSource>(host.SelectSnapshot(request) with
+                    {
+                        Reauthorize = () => policy(caller, RegistryAccessKind.Read)
+                    });
                 });
             m_restore = () =>
             {
