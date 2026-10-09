@@ -143,7 +143,14 @@ namespace Opc.Ua.EndpointRegistry.Server
                     index,
                     (node, ct) => AddPredefinedNodeAsync(SystemContext, node, ct),
                     async (nodeId, ct) => await DeleteNodeAsync(SystemContext, nodeId, ct).ConfigureAwait(false),
-                    (caller, _) => m_authorize(caller, RegistryAccessKind.Write));
+                    (caller, _) => m_authorize(caller, RegistryAccessKind.Write),
+                    new XRegistryServerOptions
+                    {
+                        EventsEnabled = m_options.EventsEnabled,
+                        EventSourceUrl = m_options.EventSourceUrl,
+                        GroupsAttributeName = "endpoints",
+                        ResourcesAttributeName = "messages"
+                    });
                 var engine = new XRegistryProjectionEngine(context, catalog.Projection, catalog.Path);
                 catalog.Engine = engine;
                 catalog.Host.Activation = async (state, ct) =>
@@ -154,6 +161,15 @@ namespace Opc.Ua.EndpointRegistry.Server
                 };
                 await catalog.Host.StartAsync(cancellationToken).ConfigureAwait(false);
                 await engine.AttachAsync(catalog.Root, cancellationToken).ConfigureAwait(false);
+                if (m_options.EventsEnabled)
+                {
+                    await AddRootNotifierAsync(catalog.Root, cancellationToken).ConfigureAwait(false);
+                    if (!externalReferences.TryGetValue(Ua.ObjectIds.Server, out IList<IReference>? references))
+                    {
+                        externalReferences.Add(Ua.ObjectIds.Server, references = []);
+                    }
+                    references.Add(new NodeStateReference(Ua.ReferenceTypeIds.HasNotifier, false, catalog.Root.NodeId));
+                }
             }
         }
 
@@ -332,6 +348,7 @@ namespace Opc.Ua.EndpointRegistry.Server
             RegistryNativeHost host = catalog.Host;
             XRegistryProjectionEngine.LinkMethodArguments(root.TypedAccess, context);
             root.AddLabels(context);
+            RegistryLabelBinding.Bind(root.Labels!, context, host, "/", m_authorize);
             root.AddCommitMetadata(context);
             root.CommitMetadata!.OnCallAsync = async (caller, _, _, targetXid, patch, expectedEpoch, ct) =>
             {

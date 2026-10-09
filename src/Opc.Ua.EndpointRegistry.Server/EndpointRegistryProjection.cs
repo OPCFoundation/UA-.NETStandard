@@ -68,6 +68,7 @@ namespace Opc.Ua.EndpointRegistry.Server
         {
             RegistryObjectValueDataType document = state.CloneDocument();
             var collections = new List<IXRegistryProjectionCollection>();
+            var eventGroups = new List<XRegistryProjectionEventGroup>();
             foreach (string collection in m_host.Collections)
             {
                 var groups = new List<IXRegistryProjectionCollectionGroup>();
@@ -75,7 +76,30 @@ namespace Opc.Ua.EndpointRegistry.Server
                 {
                     foreach (RegistryMemberDataType entry in map.Members)
                     {
-                        groups.Add(CreateGroup(state, collection, entry.Name!));
+                        Group group = CreateGroup(state, collection, entry.Name!);
+                        groups.Add(group);
+                        var eventResources = new List<XRegistryProjectionEventResource>();
+                        foreach (IXRegistryProjectionMetadataResource resource in group.Resources)
+                        {
+                            var message = (Message)resource;
+                            eventResources.Add(new XRegistryProjectionEventResource(group.GroupId, message.ResourceId,
+                                message.Xid, message.Epoch, message.Epoch,
+                                message.Labels ?? ImmutableSortedDictionary<string, string>.Empty, false,
+                                message.VersionId, [])
+                            {
+                                SourceNodeId = InstanceNode(message.Xid),
+                                SourceName = message.Name ?? message.ResourceId,
+                                Name = message.Name,
+                                Description = message.Description
+                            });
+                        }
+                        eventGroups.Add(new XRegistryProjectionEventGroup(group.GroupId, group.Xid, group.Epoch,
+                            group.Labels ?? ImmutableSortedDictionary<string, string>.Empty, false,
+                            [.. eventResources])
+                        {
+                            SourceNodeId = InstanceNode(group.Xid),
+                            SourceName = group.Name ?? group.GroupId
+                        });
                     }
                 }
                 collections.Add(new Collection(collection, new QualifiedName(
@@ -83,8 +107,12 @@ namespace Opc.Ua.EndpointRegistry.Server
                     m_namespaceIndex), groups.ToArray()));
             }
             Volatile.Write(ref m_generation,
-                new XRegistryProjectionGeneration(new Snapshot(collections.ToArray()), null));
+                new XRegistryProjectionGeneration(new Snapshot(collections.ToArray(), RootLabels(document)),
+                    new XRegistryProjectionEventSnapshot("/", state.Epoch, RootLabels(document), [.. eventGroups])));
         }
+
+        private NodeId InstanceNode(string xid) =>
+            new((m_media ? BrowseNames.MediaEndpointRegistry : BrowseNames.EndpointRegistry) + xid, m_namespaceIndex);
 
         /// <inheritdoc/>
         public XRegistryProjectionGeneration CaptureProjectionGeneration()
@@ -123,10 +151,17 @@ namespace Opc.Ua.EndpointRegistry.Server
             {
                 case Group group when node is MessageContainerState container:
                     ConfigureGroup(container, group, created);
+                    if (created)
+                    {
+                        container.AddLabels(m_context);
+                        RegistryLabelBinding.Bind(container.Labels!, m_context, m_host, group.Xid, m_authorize);
+                    }
                     break;
                 case Message message when node is MessageDefinitionState definition:
                     if (created)
                     {
+                        definition.AddLabels(m_context);
+                        RegistryLabelBinding.Bind(definition.Labels!, m_context, m_host, message.Xid, m_authorize);
                         if (message.Record.DataSchema is not null)
                         {
                             definition.AddDataSchema(m_context);
@@ -395,16 +430,35 @@ namespace Opc.Ua.EndpointRegistry.Server
             return null;
         }
 
+        private static ImmutableSortedDictionary<string, string> RootLabels(RegistryObjectValueDataType document)
+        {
+            var labels = ImmutableSortedDictionary.CreateBuilder<string, string>(StringComparer.Ordinal);
+            if (Member(document, "labels") is RegistryObjectValueDataType values)
+            {
+                foreach (RegistryMemberDataType member in values.Members)
+                {
+                    if (member.Value is not RegistryStringValueDataType text || text.Value is null || member.Name is null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState, "Committed labels are not Strings.");
+                    }
+                    labels.Add(member.Name, text.Value);
+                }
+            }
+            return labels.ToImmutable();
+        }
+
         private sealed class Snapshot : IXRegistryCollectionProjectionSnapshot
         {
-            public static readonly Snapshot Empty = new([]);
+            public static readonly Snapshot Empty = new([], ImmutableSortedDictionary<string, string>.Empty);
 
-            public Snapshot(ArrayOf<IXRegistryProjectionCollection> collections)
+            public Snapshot(ArrayOf<IXRegistryProjectionCollection> collections,
+                ImmutableSortedDictionary<string, string> labels)
             {
                 Collections = collections;
+                Labels = labels;
             }
 
-            public ImmutableSortedDictionary<string, string> Labels => ImmutableSortedDictionary<string, string>.Empty;
+            public ImmutableSortedDictionary<string, string> Labels { get; }
 
             public IEnumerable<IXRegistryProjectionGroup> Groups => [];
 

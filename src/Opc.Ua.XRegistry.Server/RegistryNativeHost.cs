@@ -430,6 +430,17 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
+        /// Adds or removes a String label through the registry's shared validation/CAS activation path.
+        /// </summary>
+        public ValueTask<RegistryMutationResultDataType> LabelAsync(
+            string targetXid, string name, string? value, uint expectedEpoch,
+            CancellationToken cancellationToken = default)
+        {
+            return CommitAsync(targetXid, state => RegistryMetadataMutation.Label(state.Root, targetXid, name, value,
+                expectedEpoch, m_collections, ProtectedPaths(), ValidateDocument), cancellationToken);
+        }
+
+        /// <summary>
         /// Selects the document pinned by a native snapshot from the current committed generation.
         /// </summary>
         /// <exception cref="ServiceResultException">The selection or expected epoch is invalid.</exception>

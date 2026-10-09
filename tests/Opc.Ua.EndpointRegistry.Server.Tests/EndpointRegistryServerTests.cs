@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -632,6 +633,118 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
                 Is.EqualTo(StatusCodes.Good));
         }
 
+        [Test]
+        public async Task InheritedLabelMethodsShareTypedStateAndExactEpochChecksAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256,
+                new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
+            ushort xns = session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.xRegistry);
+            NodeId root = ExpandedNodeId.ToNodeId(ObjectIds.EndpointRegistry, session.NamespaceUris);
+            NodeId labels = await PathAsync(session, root, new QualifiedName(XRegistry.BrowseNames.Labels, xns))
+                .ConfigureAwait(false);
+            NodeId add = await PathAsync(session, labels, new QualifiedName(XRegistry.BrowseNames.AddAttribute, xns))
+                .ConfigureAwait(false);
+            await session.CallAsync(labels, add, default, new Variant("owner"), new Variant("plant"), new Variant(0u))
+                .ConfigureAwait(false);
+            RegistryReadResultDataType read = await TypedAccess(session).ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = "/",
+                DocumentKind = "metadata",
+                View = 1,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            Assert.That(read.Document.TryGetValue(out EndpointRegistryDocumentDataType? document), Is.True);
+            Assert.That(document!.Labels.Entries[0].Name, Is.EqualTo("owner"));
+            Assert.That(document.Labels.Entries[0].Value, Is.EqualTo("plant"));
+            uint epoch = read.Epoch;
+            await session.CallAsync(labels, add, default, new Variant("owner"), new Variant("plant"), new Variant(epoch))
+                .ConfigureAwait(false);
+            RegistryReadResultDataType unchanged = await TypedAccess(session).ReadDocumentAsync(
+                new RegistryReadRequestDataType { TargetXid = "/", DocumentKind = "metadata", View = 1, MaxItems = 100 })
+                .ConfigureAwait(false);
+            Assert.That(unchanged.Epoch, Is.EqualTo(epoch));
+        }
+
+        [Test]
+        public async Task CollectionQualifiedLifecycleEventsReachTheTcpSubscriberAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256,
+                new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
+            EventFilter filter = GroupCreatedEventTypeRecord.EventFilters.Build(session.NamespaceUris,
+                new EventRecordDecoderRegistry().RegisterxRegistryDecoders(session.NamespaceUris));
+            CreateSubscriptionResponse subscription = await session.CreateSubscriptionAsync(null, 20, 100, 10,
+                0, true, 0, default).ConfigureAwait(false);
+            CreateMonitoredItemsResponse monitored = await session.CreateMonitoredItemsAsync(null,
+                subscription.SubscriptionId, TimestampsToReturn.Both,
+            [
+                new MonitoredItemCreateRequest
+                {
+                    ItemToMonitor = new ReadValueId { NodeId = Ua.ObjectIds.Server, AttributeId = Attributes.EventNotifier },
+                    MonitoringMode = MonitoringMode.Reporting,
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 1,
+                        QueueSize = 100,
+                        DiscardOldest = true,
+                        Filter = new ExtensionObject(filter)
+                    }
+                }
+            ], default).ConfigureAwait(false);
+            Assert.That(monitored.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            RegistryRecordMapper mapper = Mapper(session);
+            RegistryMutationResultDataType group = await TypedAccess(session).WriteDocumentAsync(
+                new RegistryWriteRequestDataType
+                {
+                    TargetXid = "/messagegroups/event-shared",
+                    Definition = mapper.Canonicalize(new MessageGroupDataType
+                    {
+                        PresentFields = ["MessageGroupId"],
+                        MessageGroupId = "event-shared"
+                    })
+                }).ConfigureAwait(false);
+            RegistryMutationResultDataType endpoint = await TypedAccess(session).WriteDocumentAsync(
+                new RegistryWriteRequestDataType
+                {
+                    TargetXid = "/endpoints/event-shared",
+                    Definition = mapper.Canonicalize(new EndpointDataType
+                    {
+                        PresentFields = ["EndpointId", "Usage"],
+                        EndpointId = "event-shared",
+                        Usage = ["producer"]
+                    })
+                }).ConfigureAwait(false);
+            Assert.That(group.StatusCode, Is.EqualTo(StatusCodes.Good), Detail(group));
+            Assert.That(endpoint.StatusCode, Is.EqualTo(StatusCodes.Good), Detail(endpoint));
+            var subjects = new System.Collections.Generic.HashSet<string>(StringComparer.Ordinal);
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            while (subjects.Count < 2)
+            {
+                PublishResponse published = await session.PublishAsync(null, default, cancellation.Token)
+                    .ConfigureAwait(false);
+                foreach (ExtensionObject data in published.NotificationMessage.NotificationData)
+                {
+                    if (data.TryGetValue(out EventNotificationList? events))
+                    {
+                        foreach (EventFieldList fields in events!.Events)
+                        {
+                            for (int index = 0; index < filter.SelectClauses.Count; index++)
+                            {
+                                ArrayOf<QualifiedName> path = filter.SelectClauses[index].BrowsePath;
+                                if (path.Count == 1 && path[0].Name == XRegistry.BrowseNames.Subject &&
+                                    fields.EventFields[index].TryGetValue(out string subject) &&
+                                    subject.EndsWith("/event-shared", StringComparison.Ordinal))
+                                {
+                                    subjects.Add(subject);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            Assert.That(subjects, Is.EquivalentTo(s_eventSubjects));
+            await session.DeleteSubscriptionsAsync(null, [subscription.SubscriptionId], default).ConfigureAwait(false);
+        }
+
         private static async Task<(NodeId Target, uint Epoch)> CommitAsync(
             EndpointRegistryTypeClient root,
             string xid,
@@ -846,6 +959,8 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
                 AddNodeManager(new EndpointRegistryNodeManagerFactory(new EndpointRegistryServerOptions
                 {
                     Generic = new EndpointRegistryCatalogOptions { RegistryId = "test-registry" },
+                    EventsEnabled = true,
+                    EventSourceUrl = "urn:test:catalog-events",
                     Media = new EndpointRegistryCatalogOptions
                     {
                         RegistryId = "media-registry",
@@ -856,6 +971,7 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
         }
 
         private ITelemetryContext? m_telemetry;
+        private static readonly string[] s_eventSubjects = ["/messagegroups/event-shared", "/endpoints/event-shared"];
         private string? m_pki;
         private ServerFixture<RegistryServer>? m_fixture;
         private ClientFixture? m_client;

@@ -131,6 +131,24 @@ namespace Opc.Ua.XRegistry.Tests
             Assert.That(explicitNull.TargetEpoch, Is.EqualTo(4));
         }
 
+        [Test]
+        public void RootLabelsUseTheSameExactNoOpAndRevisionChecks()
+        {
+            RegistryObjectValueDataType source = Document();
+            RegistryMetadataCommit changed = RegistryMetadataMutation.Label(source, "/", "owner", "plant", 7,
+                ["messagegroups"], [], _ => { });
+            Assert.That(changed.TargetEpoch, Is.EqualTo(8));
+            RegistryMetadataCommit noop = RegistryMetadataMutation.Label(changed.Document, "/", "owner", "plant", 8,
+                ["messagegroups"], [], _ => { });
+            Assert.That(noop.Changed, Is.False);
+            Assert.That(noop.TargetEpoch, Is.EqualTo(8));
+            ServiceResultException stale = Assert.Throws<ServiceResultException>(() =>
+                RegistryMetadataMutation.Label(changed.Document, "/", "owner", "other", 7,
+                    ["messagegroups"], [], _ => { }))!;
+            Assert.That(stale.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(RegistryValues.Identical(source, Document()), Is.True);
+        }
+
         private static RegistryObjectValueDataType Document()
         {
             return (RegistryObjectValueDataType)RegistryValues.Parse(Encoding.UTF8.GetBytes(

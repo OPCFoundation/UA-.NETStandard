@@ -2284,12 +2284,12 @@ namespace Opc.Ua.XRegistry.Server
             }
 
             var oldGroups =
-                previous.Groups.ToDictionary(group => group.GroupId, StringComparer.Ordinal);
+                previous.Groups.ToDictionary(group => group.Xid, StringComparer.Ordinal);
             var newGroups =
-                current.Groups.ToDictionary(group => group.GroupId, StringComparer.Ordinal);
+                current.Groups.ToDictionary(group => group.Xid, StringComparer.Ordinal);
 
             foreach (XRegistryProjectionEventGroup oldGroup in previous.Groups
-                .Where(group => !newGroups.ContainsKey(group.GroupId)))
+                .Where(group => !newGroups.ContainsKey(group.Xid)))
             {
                 foreach (XRegistryProjectionEventResource resource in oldGroup.Resources)
                 {
@@ -2314,7 +2314,7 @@ namespace Opc.Ua.XRegistry.Server
 
             foreach (XRegistryProjectionEventGroup newGroup in current.Groups)
             {
-                if (!oldGroups.TryGetValue(newGroup.GroupId, out XRegistryProjectionEventGroup? oldGroup))
+                if (!oldGroups.TryGetValue(newGroup.Xid, out XRegistryProjectionEventGroup? oldGroup))
                 {
                     changes.Add(new XRegistryEventChange(
                         XRegistryEventKind.GroupCreated,
@@ -2615,6 +2615,15 @@ namespace Opc.Ua.XRegistry.Server
             }
             if (change.Kind == XRegistryEventKind.ResourceDeleted)
             {
+                int collectionParent = change.Subject.AsSpan().LastIndexOf('/');
+                int resourceCollection = collectionParent < 0 ? -1 :
+                    change.Subject.LastIndexOf('/', collectionParent - 1);
+                if (resourceCollection > 0 &&
+                    m_entitiesByXid.TryGetValue(change.Subject.Substring(0, resourceCollection),
+                        out BaseObjectState? parentEntity))
+                {
+                    return parentEntity;
+                }
                 XRegistryProjectionEventResource? oldResource =
                     FindResourceBySubject(previous, change.Subject);
                 if (oldResource is not null &&
@@ -2664,7 +2673,8 @@ namespace Opc.Ua.XRegistry.Server
                 return m_registryNode!;
             }
 
-            NodeState? live = FindLiveNode(change.SourceNodeId);
+            NodeState? live = m_entitiesByXid.TryGetValue(change.Subject, out BaseObjectState? collectionEntity)
+                ? collectionEntity : FindLiveNode(change.SourceNodeId);
             if (live is not null)
             {
                 return live;

@@ -127,5 +127,11 @@ namespace Opc.Ua.EndpointRegistry.Server
         /// Gets or sets the advertised native snapshot limits, or <see langword="null"/> for the defaults.
         /// </summary>
         public RegistrySnapshotLimitsDataType? SnapshotLimits { get; set; }
+
+        /// <summary>Gets or sets whether committed catalog lifecycle events are emitted.</summary>
+        public bool EventsEnabled { get; set; }
+
+        /// <summary>Gets or sets the stable event SourceUrl of the catalog.</summary>
+        public string EventSourceUrl { get; set; } = "urn:opcua:endpoint-registry";
     }
 }

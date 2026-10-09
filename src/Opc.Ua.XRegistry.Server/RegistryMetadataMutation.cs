@@ -127,6 +127,45 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
+        /// Adds or removes an exact String label through the same entity/root commit checks.
+        /// The label Method may create its known labels container; arbitrary native paths do not.
+        /// </summary>
+        public static RegistryMetadataCommit Label(
+            RegistryObjectValueDataType source,
+            string targetXid,
+            string name,
+            string? value,
+            uint expectedEpoch,
+            ArrayOf<string> collections,
+            ArrayOf<string> protectedPaths,
+            Action<RegistryObjectValueDataType> validate)
+        {
+            if (string.IsNullOrEmpty(name))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "A non-empty label name is required.");
+            }
+            return Prepare(source, targetXid, expectedEpoch, collections, protectedPaths, validate, previous =>
+            {
+                if (previous is null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotFound);
+                }
+                var changed = (RegistryObjectValueDataType)previous.Clone();
+                if (Get(changed, "labels") is not RegistryObjectValueDataType labels)
+                {
+                    if (value is null)
+                    {
+                        return changed;
+                    }
+                    labels = new RegistryObjectValueDataType { Kind = 5, Members = [] };
+                    Set(changed, "labels", labels);
+                }
+                Set(labels, name, value is null ? null : new RegistryStringValueDataType { Kind = 2, Value = value });
+                return changed;
+            });
+        }
+
+        /// <summary>
         /// Reads a committed entity epoch without rounding or substituting a parent revision.
         /// </summary>
         public static uint Epoch(RegistryObjectValueDataType entity)
@@ -203,34 +242,43 @@ namespace Opc.Ua.XRegistry.Server
             {
                 Owned(previous, replacement);
             }
-            var current = (RegistryObjectValueDataType)source.Clone();
-            RegistryObjectValueDataType? collection = Get(current, path[0]) as RegistryObjectValueDataType;
-            if (collection is null)
+            RegistryObjectValueDataType current;
+            if (path.Length == 0)
             {
-                if (path.Length != 2 || replacement is null)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNotFound);
-                }
-                collection = new RegistryObjectValueDataType { Kind = 5, Members = [] };
-                Set(current, path[0], collection);
+                current = replacement ??
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument, "The registry root cannot be deleted.");
             }
-            RegistryObjectValueDataType owner = collection;
-            string key = path[1];
-            if (path.Length == 4)
+            else
             {
-                if (Get(collection, key) is not RegistryObjectValueDataType group)
+                current = (RegistryObjectValueDataType)source.Clone();
+                RegistryObjectValueDataType? collection = Get(current, path[0]) as RegistryObjectValueDataType;
+                if (collection is null)
                 {
-                    throw new ServiceResultException(StatusCodes.BadNotFound, "The parent Group does not exist.");
+                    if (path.Length != 2 || replacement is null)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNotFound);
+                    }
+                    collection = new RegistryObjectValueDataType { Kind = 5, Members = [] };
+                    Set(current, path[0], collection);
                 }
-                if (Get(group, "messages") is not RegistryObjectValueDataType resources)
+                RegistryObjectValueDataType owner = collection;
+                string key = path[1];
+                if (path.Length == 4)
                 {
-                    resources = new RegistryObjectValueDataType { Kind = 5, Members = [] };
-                    Set(group, "messages", resources);
+                    if (Get(collection, key) is not RegistryObjectValueDataType group)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNotFound, "The parent Group does not exist.");
+                    }
+                    if (Get(group, "messages") is not RegistryObjectValueDataType resources)
+                    {
+                        resources = new RegistryObjectValueDataType { Kind = 5, Members = [] };
+                        Set(group, "messages", resources);
+                    }
+                    owner = resources;
+                    key = path[3];
                 }
-                owner = resources;
-                key = path[3];
+                Set(owner, key, replacement);
             }
-            Set(owner, key, replacement);
             foreach (string protectedPath in protectedPaths)
             {
                 string[] parts = TargetPath(protectedPath, collections);
@@ -397,6 +445,10 @@ namespace Opc.Ua.XRegistry.Server
 
         private static string[] TargetPath(string xid, ArrayOf<string> collections)
         {
+            if (xid == "/")
+            {
+                return [];
+            }
             if (string.IsNullOrEmpty(xid) || xid[0] != '/')
             {
                 throw new ArgumentException("A concrete collection-qualified Xid is required.", nameof(xid));
