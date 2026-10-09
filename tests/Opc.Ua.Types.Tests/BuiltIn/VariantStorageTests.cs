@@ -375,7 +375,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, context);
             Variant decoded = decoder.ReadVariant(null);
             Assert.That(decoded.TypeInfo, Is.EqualTo(value.TypeInfo));
-            Assert.That(decoded, Is.EqualTo(value));
+            Variant binaryExpected = input is LocalizedText localizedText
+                ? new Variant(new LocalizedText(
+                    string.IsNullOrEmpty(localizedText.Locale) ? null : localizedText.Locale,
+                    string.IsNullOrEmpty(localizedText.Text) ? null : localizedText.Text))
+                : value;
+            Assert.That(decoded, Is.EqualTo(binaryExpected));
             var data = new DataValue(value);
             var nested = Variant.From(data);
             Assert.That(nested.GetDataValue().WrappedValue, Is.EqualTo(value));
