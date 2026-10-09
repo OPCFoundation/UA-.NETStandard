@@ -844,9 +844,10 @@ namespace Opc.Ua.Server
                 m_channelId = context.SecureChannelId;
                 SecurityPolicyUri = context.EndpointDescription?.SecurityPolicyUri;
                 SecurityMode = context.EndpointDescription?.SecurityMode ?? MessageSecurityMode.Invalid;
-                // ByteString is a read-only view, so the evidence cannot change after capture.
+                // Copied: the context wraps a buffer the transport owns, and revalidation
+                // must detect evidence that changed after the owner was issued.
                 m_certificate = SecurityPolicyUri != SecurityPolicies.None
-                    ? context.ClientChannelCertificate : default;
+                    ? ByteString.From(context.ClientChannelCertificate.Span) : default;
                 m_peer = context.PeerAddress?.GetAddressBytes();
                 m_upstreamIdentity = context.UpstreamIdentity;
             }
@@ -886,13 +887,13 @@ namespace Opc.Ua.Server
                     return m_peer == null || m_peer.Length == 0;
                 }
 #if NET
+                // 16 bytes hold an IPv6 address, so the write always succeeds.
                 Span<byte> bytes = stackalloc byte[16];
-                if (peer.TryWriteBytes(bytes, out int written))
-                {
-                    return m_peer.AsSpan().SequenceEqual(bytes[..written]);
-                }
-#endif
+                return peer.TryWriteBytes(bytes, out int written) &&
+                    m_peer.AsSpan().SequenceEqual(bytes[..written]);
+#else
                 return m_peer.AsSpan().SequenceEqual(peer.GetAddressBytes());
+#endif
             }
 
             private readonly string m_channelId;

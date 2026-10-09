@@ -71,6 +71,36 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         }
 
         /// <summary>
+        /// A stopped queue rejects admission before classifying or charging the request.
+        /// </summary>
+        [Test]
+        public void StoppedQueueRejectsAdmissionWithoutChargingTheProvider()
+        {
+            var provider = new TestProvider();
+            NodeId token = provider.AddOwner("A");
+            FairRequestQueue queue = CreateQueue(provider);
+            queue.Dispose();
+
+            Assert.That(queue.TryEnqueue(new TestRequest(token), default, out StatusCode status), Is.False);
+            Assert.That(status, Is.EqualTo(StatusCodes.BadServerHalted));
+            Assert.That(provider.TotalUsed, Is.Zero);
+        }
+
+        /// <summary>
+        /// A reader that arrives after the queue stopped is cancelled instead of waiting.
+        /// </summary>
+        [Test]
+        public void StoppedQueueCancelsANewReader()
+        {
+            var provider = new TestProvider();
+            FairRequestQueue queue = CreateQueue(provider);
+            queue.Dispose();
+
+            Assert.ThrowsAsync<OperationCanceledException>(
+                async () => await queue.DequeueAsync(CancellationToken.None).ConfigureAwait(false));
+        }
+
+        /// <summary>
         /// FIFO ordering ignores owner weights and preserves interleaved global admission order.
         /// </summary>
         [Test]

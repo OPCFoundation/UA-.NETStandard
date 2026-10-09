@@ -46,6 +46,15 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     public class ObjectPoolTests
     {
         /// <summary>
+        /// A pool must be able to retain at least one object.
+        /// </summary>
+        [Test]
+        public void NonPositiveCapacityIsRejected()
+        {
+            Assert.Throws<ArgumentOutOfRangeException>(() => _ = new ObjectPool<object>(() => new object(), 0));
+        }
+
+        /// <summary>
         /// A returned object is handed out again before a new one is created.
         /// </summary>
         [Test]
