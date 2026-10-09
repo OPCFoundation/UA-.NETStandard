@@ -333,10 +333,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Take(serverLines, "MARKED");
             workload.ResetStats();
             var window = Stopwatch.StartNew();
+            TimeSpan clientCpuStart = Process.GetCurrentProcess().TotalProcessorTime;
             await Task.Delay(TimeSpan.FromSeconds(durationSeconds)).ConfigureAwait(false);
             await server.StandardInput.WriteLineAsync("report").ConfigureAwait(false);
             string report = Take(serverLines, "REPORT")[7..];
-            string clientReport = workload.Report(window.Elapsed.TotalSeconds);
+            double clientCores = (Process.GetCurrentProcess().TotalProcessorTime - clientCpuStart).TotalSeconds /
+                window.Elapsed.TotalSeconds;
+            string clientReport = workload.Report(window.Elapsed.TotalSeconds) +
+                FormattableString.Invariant($" clientCpuCores={clientCores:F2}");
             await stop.CancelAsync().ConfigureAwait(false);
             try
             {
