@@ -257,6 +257,39 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Is.GreaterThanOrEqualTo(sends));
         }
 
+        /// <summary>
+        /// The UADP security wrapper cannot protect a JSON message. A connection
+        /// configured for SignAndEncrypt therefore refuses the JSON metadata
+        /// announcement and records the refusal, instead of publishing the DataSet
+        /// layout in plaintext.
+        /// </summary>
+        [Test]
+        public async Task JsonAnnouncementOfASecuredWriterGroupIsRefusedAsync()
+        {
+            using PubSubSecurityKeyRing ring = NewKeyRing();
+            var factory = new RecordingTransportFactory(JsonMqttProfile, supportsTopics: true);
+            await using IPubSubApplication app = BuildApp(
+                JsonMqttProfile,
+                factory,
+                securityKeyProvider: new StaticSecurityKeyProvider(SecurityGroupIdValue, ring));
+
+            // StartAsync returns after the initial announcement was sent or refused.
+            await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
+
+            List<(ReadOnlyMemory<byte> Payload, string? Topic)> sends;
+            lock (factory.Transport!.Sends)
+            {
+                sends = [.. factory.Transport.Sends];
+            }
+            Assert.That(
+                sends.Select(send => send.Topic),
+                Has.None.Contains("/metadata/"),
+                "The announcement must not be published unsecured.");
+            Assert.That(
+                app.Diagnostics.Read(PubSubDiagnosticsCounterKind.EncryptionErrors),
+                Is.GreaterThanOrEqualTo(1));
+        }
+
         [Test]
         public async Task DisposeAsync_UnsubscribesFromRegistry()
         {
