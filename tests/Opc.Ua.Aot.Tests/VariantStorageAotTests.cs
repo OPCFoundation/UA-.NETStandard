@@ -154,7 +154,11 @@ namespace Opc.Ua.Aot.Tests
                 int expectedOrder = value.Equals(Variant.Null) ? 0 : int.MinValue;
                 await Assert.That(value.CompareTo(value)).IsEqualTo(expectedOrder);
                 await Assert.That(value.GetHashCode()).IsEqualTo(input.GetHashCode());
-                await CheckAsync(input, value, default(VariantBuilder)).ConfigureAwait(false);
+                var binaryExpected = new LocalizedText(
+                    string.IsNullOrEmpty(input.Locale) ? null : input.Locale,
+                    string.IsNullOrEmpty(input.Text) ? null : input.Text);
+                await CheckAsync(input, value, default(VariantBuilder), binaryExpected)
+                    .ConfigureAwait(false);
             }
         }
 
@@ -189,7 +193,16 @@ namespace Opc.Ua.Aot.Tests
             await Assert.That((Variant.From(0L) | Variant.From(7L)).GetInt64()).IsEqualTo(7L);
         }
 
-        private async Task CheckAsync<T>(T input, Variant value, IVariantBuilder<T> builder)
+        private Task CheckAsync<T>(T input, Variant value, IVariantBuilder<T> builder)
+        {
+            return CheckAsync(input, value, builder, input);
+        }
+
+        private async Task CheckAsync<T>(
+            T input,
+            Variant value,
+            IVariantBuilder<T> builder,
+            T binaryExpected)
         {
             await Assert.That(EqualityComparer<T>.Default.Equals(builder.GetValue(value), input)).IsTrue();
             await Assert.That(builder.WithValue(input).Equals(value)).IsTrue();
@@ -204,7 +217,7 @@ namespace Opc.Ua.Aot.Tests
                 encoder.CloseAndReturnBuffer() ?? throw new InvalidOperationException("No encoded value."), context);
             Variant decoded = decoder.ReadVariant(null);
             await Assert.That(decoded.TypeInfo).IsEqualTo(value.TypeInfo);
-            await Assert.That(decoded.Equals(value)).IsTrue();
+            await Assert.That(decoded.Equals(Variant.From(binaryExpected))).IsTrue();
         }
 
         private sealed class NativeMemoryManager : MemoryManager<byte>
