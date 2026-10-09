@@ -205,7 +205,8 @@ namespace Opc.Ua.Server
             Certificate newCertificate,
             SecurityConfiguration securityConfiguration,
             ITelemetryContext telemetry,
-            CancellationToken ct)
+            CancellationToken ct,
+            ICertificateManager? certificateManager = null)
         {
             if (trustedStore == null)
             {
@@ -235,13 +236,15 @@ namespace Opc.Ua.Server
             }
 
             var trustList = new TrustListIdentifier(trustListName);
-            using CertificateManager validator = CertificateManagerFactory.Create(
-                securityConfiguration,
-                telemetry,
-                managerOptions => managerOptions.AddTrustList(
-                    trustList.Name,
-                    trustedStore.StorePath!,
-                    issuerStore?.StorePath));
+            using CertificateManager? validator = certificateManager != null
+                ? null
+                : CertificateManagerFactory.Create(
+                    securityConfiguration,
+                    telemetry,
+                    managerOptions => managerOptions.AddTrustList(
+                        trustList.Name,
+                        trustedStore.StorePath!,
+                        issuerStore?.StorePath));
 
             using var validationChain = new CertificateCollection { newCertificate };
 
@@ -254,7 +257,7 @@ namespace Opc.Ua.Server
                 AcceptError = static (_, _) => true
             };
 
-            CertificateValidationResult validationResult = await validator.ValidateAsync(
+            CertificateValidationResult validationResult = await (certificateManager ?? validator!).ValidateAsync(
                 validationChain,
                 trustList: trustList,
                 options: options,
