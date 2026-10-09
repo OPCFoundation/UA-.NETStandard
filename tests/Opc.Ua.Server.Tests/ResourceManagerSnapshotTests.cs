@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 
+using System;
 using System.Globalization;
 using System.Threading;
 using System.Threading.Tasks;
@@ -73,7 +74,7 @@ namespace Opc.Ua.Server.Tests
         /// written table, and see every translation once the writer is done.
         /// </summary>
         [Test]
-        public void ConcurrentReadersSeeACompleteSnapshotOnceWritesComplete()
+        public async Task ConcurrentReadersSeeACompleteSnapshotOnceWritesCompleteAsync()
         {
             using ResourceManager resourceManager = CreateResourceManager();
             const int keyCount = 500;
@@ -108,8 +109,8 @@ namespace Opc.Ua.Server.Tests
                     "de-DE",
                     "Wert" + ii.ToString(CultureInfo.InvariantCulture));
             }
-            cts.Cancel();
-            Assert.That(Task.WaitAll(readers, 30000), Is.True);
+            await cts.CancelAsync().ConfigureAwait(false);
+            await Task.WhenAll(readers).WaitAsync(TimeSpan.FromSeconds(30)).ConfigureAwait(false);
 
             Assert.That(wrongTexts, Is.Zero);
             for (int ii = 0; ii < keyCount; ii++)

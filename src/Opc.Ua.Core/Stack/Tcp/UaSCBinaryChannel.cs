@@ -965,7 +965,84 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
-        public virtual bool ChannelFull => m_activeWriteRequests > 100;
+        public virtual bool ChannelFull => Volatile.Read(ref m_activeWriteRequests) > 100;
+
+        /// <summary>
+        /// Whether the receive loop stops reading while the write queue is full.
+        /// </summary>
+        /// <remarks>
+        /// A server channel only writes responses to requests it read, so not reading
+        /// lets TCP flow control slow a client that pipelines more requests than the
+        /// responses it consumes. A client channel must keep reading: its writes are
+        /// requests, and responses are what drains them.
+        /// </remarks>
+        protected virtual bool AppliesReceiveBackpressure => false;
+
+        /// <summary>
+        /// Completes when the write queue has room again, or right away when it has.
+        /// </summary>
+        private ValueTask WaitForWriteCapacityAsync(CancellationToken ct)
+        {
+            return AppliesReceiveBackpressure && ChannelFull
+                ? WaitForWriteCapacitySlowAsync(ct)
+                : default;
+        }
+
+        private async ValueTask WaitForWriteCapacitySlowAsync(CancellationToken ct)
+        {
+            // resume only once the queue has drained to the low-water mark, so the loop
+            // reads a batch per wake-up instead of one request per completed write.
+            while (!HasWriteCapacityToResume)
+            {
+                TaskCompletionSource<bool> waiter;
+                lock (m_writeCapacityLock)
+                {
+                    waiter = m_writeCapacityWaiter ??=
+                        new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+                }
+
+                // re-checked after publishing the waiter: a write that completed in
+                // between saw no waiter and did not signal.
+                if (HasWriteCapacityToResume)
+                {
+                    return;
+                }
+
+                using (ct.Register(static state => ((TaskCompletionSource<bool>)state!).TrySetCanceled(), waiter))
+                {
+                    await waiter.Task.ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether a receive loop paused by a full write queue may read again.
+        /// </summary>
+        private bool HasWriteCapacityToResume =>
+            !ChannelFull && Volatile.Read(ref m_activeWriteRequests) <= kResumeWriteCount;
+
+        /// <summary>
+        /// The queued-write count a paused receive loop resumes at (half the full mark).
+        /// </summary>
+        private const int kResumeWriteCount = 50;
+
+        /// <summary>
+        /// Releases a receive loop that waits for write capacity once the queue has room.
+        /// </summary>
+        private void SignalWriteCapacity()
+        {
+            if (Volatile.Read(ref m_writeCapacityWaiter) == null || !HasWriteCapacityToResume)
+            {
+                return;
+            }
+            TaskCompletionSource<bool>? waiter;
+            lock (m_writeCapacityLock)
+            {
+                waiter = m_writeCapacityWaiter;
+                m_writeCapacityWaiter = null;
+            }
+            waiter?.TrySetResult(true);
+        }
 
         /// <summary>
         /// Indicates that admission cleanup must preserve the channel until outstanding writes finish.
@@ -1253,6 +1330,9 @@ namespace Opc.Ua.Bindings
                 ArraySegment<byte> chunk;
                 try
                 {
+                    // backpressure: do not read more requests while their responses
+                    // cannot be written; the peer's sends block in TCP flow control.
+                    await WaitForWriteCapacityAsync(ct).ConfigureAwait(false);
                     chunk = await transport.ReceiveChunkAsync(ct).ConfigureAwait(false);
                 }
                 catch (OperationCanceledException) when (ct.IsCancellationRequested)
@@ -1689,6 +1769,7 @@ namespace Opc.Ua.Bindings
 
             buffers?.Release(BufferManager, "WriteOperation");
             Interlocked.Decrement(ref m_activeWriteRequests);
+            SignalWriteCapacity();
         }
 
         /// <summary>
@@ -2082,6 +2163,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private int m_state;
         private int m_activeWriteRequests;
+        private readonly Lock m_writeCapacityLock = new();
+        private TaskCompletionSource<bool>? m_writeCapacityWaiter;
         private readonly Lock m_writeQueueLock = new();
         private readonly Queue<PendingWrite> m_writeQueue = new();
         private bool m_writerRunning;

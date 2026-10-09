@@ -179,6 +179,21 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             config.ServerConfiguration.MaxFailedAuthenticationAttempts = 0;
             config.ServerConfiguration.MaxRequestThreadCount = ArgInt("threads", 200);
             config.ServerConfiguration.MinRequestThreadCount = 50;
+            // sized for the largest pipeline (sessions x inflight), as the o6 benchmarks do
+            config.ServerConfiguration.MaxQueuedRequestCount = ArgInt("queue", 2000);
+            int counters = ArgInt("counters", 0);
+            int sampling = ArgInt("sampling", 10);
+            if (counters > 0)
+            {
+                // the subscription capacity workload of o6-automation/opcua-benchmarks
+                config.ServerConfiguration.MinPublishingInterval = 1;
+                config.ServerConfiguration.PublishingResolution = 1;
+                config.ServerConfiguration.MaxPublishingInterval = 86400_000;
+                config.ServerConfiguration.MaxNotificationQueueSize = 1;
+                config.ServerConfiguration.MaxNotificationsPerPublish = int.MaxValue;
+                config.ServerConfiguration.MaxPublishRequestCount = 4;
+                config.ServerConfiguration.AvailableSamplingRates = [new SamplingRateGroup(sampling, 1, 0)];
+            }
 
             if (!await application
                 .CheckApplicationInstanceCertificatesAsync(true, CertificateFactory.DefaultLifeTime)
@@ -188,10 +203,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 return 1;
             }
 
-            using var server = new ReferenceServer(telemetry)
-            {
-                TransportBindings = TestTransportBindings.WithAllSchemes()
-            };
+            using Opc.Ua.Server.StandardServer server = counters > 0
+                ? new CounterServer(telemetry, counters)
+                : new ReferenceServer(telemetry);
+            server.TransportBindings = TestTransportBindings.WithAllSchemes();
             await application.StartAsync(server).ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
 
@@ -205,10 +220,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         GC.Collect();
                         GC.WaitForPendingFinalizers();
                         mark = ProcessStats.Capture();
+                        (server as CounterServer)?.Counters?.Mark();
                         Console.WriteLine("MARKED");
                         break;
                     case "report":
-                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark));
+                        string counterReport = (server as CounterServer)?.Counters?.Report(sampling) ?? string.Empty;
+                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport);
                         break;
                     case "quit":
                         await server.StopAsync().ConfigureAwait(false);
@@ -230,7 +247,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             var startInfo = new ProcessStartInfo(
                 Environment.ProcessPath!,
                 FormattableString.Invariant(
-                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")}"))
+                    $"server --port {port} --diag {Arg("diag", "0")} --audit {Arg("audit", "0")} --threads {Arg("threads", "200")} --counters {(scenario == "counters" ? Arg("nodes", "1") : "0")} --sampling {Arg("sampling", "10")} --queue {Arg("queue", "2000")}"))
             {
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
@@ -307,7 +324,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Console.WriteLine(FormattableString.Invariant(
                 $"connected {sessionCount} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
 
-            Workload workload = scenario == "sub"
+            Workload workload = scenario == "counters"
+                ? new CounterWorkload(sessions[0], ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
+                : scenario == "sub"
                 ? new SubscribeWorkload(
                     sessions,
                     ArgInt("nodes", 100),
@@ -339,11 +358,15 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             ProcessStats clientMark = ProcessStats.Capture();
             workload.ResetStats();
             var window = Stopwatch.StartNew();
+            TimeSpan clientCpuStart = Process.GetCurrentProcess().TotalProcessorTime;
             await Task.Delay(TimeSpan.FromSeconds(durationSeconds)).ConfigureAwait(false);
             string clientProcess = ProcessStats.Capture().Delta(clientMark);
             await server.StandardInput.WriteLineAsync("report").ConfigureAwait(false);
             string report = Take(serverLines, "REPORT")[7..];
-            string clientReport = workload.Report(window.Elapsed.TotalSeconds);
+            double clientCores = (Process.GetCurrentProcess().TotalProcessorTime - clientCpuStart).TotalSeconds /
+                window.Elapsed.TotalSeconds;
+            string clientReport = workload.Report(window.Elapsed.TotalSeconds) +
+                FormattableString.Invariant($" clientCpuCores={clientCores:F2}");
             await stop.CancelAsync().ConfigureAwait(false);
             try
             {

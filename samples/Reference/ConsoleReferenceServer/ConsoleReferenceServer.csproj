@@ -13,7 +13,7 @@
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
     <!-- A server allocates per request on many threads. Workstation GC collects
          gen0 every few MB and pauses the whole process for it; Server GC (with
-         DATAS sizing the heap count dynamically) roughly doubled Read
+         DATAS sizing the heap count dynamically) roughly doubles Read
          throughput under load. See docs/ServerScalability.md. -->
     <ServerGarbageCollection>true</ServerGarbageCollection>
   </PropertyGroup>
