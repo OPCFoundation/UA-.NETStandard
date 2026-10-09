@@ -407,9 +407,10 @@ Modern AEAD cipher alternatives for traditional ECC curves:
 
 **Platform requirements for ECC.** Certificate creation, storage, and validation
 are distinct from ECC SecureChannel and user-token security policies. On .NET 8.0 or
-later those policies use the platform's raw ECDH agreement; on .NET Framework the
-agreement runs in the managed BouncyCastle implementation, and the AES-GCM and
-ChaCha20-Poly1305 variants are unavailable. Curve and cipher availability also depends on the OS and runtime probes
+later those policies use the platform's raw ECDH agreement and authenticated ciphers;
+on .NET Framework the agreement and the AES-GCM and ChaCha20-Poly1305 ciphers run in
+the managed BouncyCastle implementation. Curve and cipher availability also depends on
+the OS and, on .NET 8+, the runtime probes
 (`AesGcm.IsSupported` / `ChaCha20Poly1305.IsSupported`). See the
 [ECC platform limitations](EccProfiles.md#known-limitations) for the certificate-operation
 and channel-policy boundaries. PubSub has its own

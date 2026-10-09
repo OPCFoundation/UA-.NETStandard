@@ -29,6 +29,10 @@
 
 using System;
 using System.Security.Cryptography;
+#if NETFRAMEWORK
+using AesGcm = Opc.Ua.Security.Certificates.BouncyCastle.AesGcm;
+using ChaCha20Poly1305 = Opc.Ua.Security.Certificates.BouncyCastle.ChaCha20Poly1305;
+#endif
 
 namespace Opc.Ua
 {
@@ -63,11 +67,7 @@ namespace Opc.Ua
                 case SymmetricEncryptionAlgorithm.ChaCha20Poly1305:
                 case SymmetricEncryptionAlgorithm.Aes128Gcm:
                 case SymmetricEncryptionAlgorithm.Aes256Gcm:
-#if NET8_0_OR_GREATER
                     return true;
-#else
-                    return false;
-#endif
                 default:
                     return false;
             }
@@ -126,8 +126,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <exception cref="NotSupportedException">
-        /// <paramref name="algorithm"/> is not an authenticated cipher, or the
-        /// target framework does not supply it.
+        /// <paramref name="algorithm"/> is not an authenticated cipher.
         /// </exception>
         public void EncryptAuthenticated(
             SymmetricEncryptionAlgorithm algorithm,
@@ -138,7 +137,6 @@ namespace Opc.Ua
             Span<byte> tag,
             ReadOnlySpan<byte> associatedData)
         {
-#if NET8_0_OR_GREATER
             switch (algorithm)
             {
                 case SymmetricEncryptionAlgorithm.Aes128Gcm:
@@ -157,14 +155,12 @@ namespace Opc.Ua
                 default:
                     break;
             }
-#endif
             throw NotAnAuthenticatedCipher(algorithm);
         }
 
         /// <inheritdoc/>
         /// <exception cref="NotSupportedException">
-        /// <paramref name="algorithm"/> is not an authenticated cipher, or the
-        /// target framework does not supply it.
+        /// <paramref name="algorithm"/> is not an authenticated cipher.
         /// </exception>
         public bool DecryptAuthenticated(
             SymmetricEncryptionAlgorithm algorithm,
@@ -175,7 +171,6 @@ namespace Opc.Ua
             Span<byte> plaintext,
             ReadOnlySpan<byte> associatedData)
         {
-#if NET8_0_OR_GREATER
             switch (algorithm)
             {
                 case SymmetricEncryptionAlgorithm.Aes128Gcm:
@@ -210,7 +205,6 @@ namespace Opc.Ua
                 default:
                     break;
             }
-#endif
             throw NotAnAuthenticatedCipher(algorithm);
         }
 

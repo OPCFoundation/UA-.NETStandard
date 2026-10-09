@@ -280,8 +280,8 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         [TestCase(SecurityPolicies.Basic256Sha256)]
         [TestCase(SecurityPolicies.Aes128_Sha256_RsaOaep)]
         [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
-        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
 #if !NETFRAMEWORK
+        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
         [TestCase(SecurityPolicies.ECC_nistP256)]
         [TestCase(SecurityPolicies.ECC_nistP384)]
         [TestCase(SecurityPolicies.ECC_nistP256_AesGcm)]
@@ -296,15 +296,17 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
 
 #if NETFRAMEWORK
         /// <summary>
-        /// On .NET Framework the ECDH agreement runs in BouncyCastle, outside
-        /// any validated module, so even the NIST ECC policies are withheld.
+        /// On .NET Framework the ECDH agreement and the AEAD ciphers run in
+        /// BouncyCastle, outside any validated module, so even the NIST ECC
+        /// policies and RSA_DH_AesGcm are withheld.
         /// </summary>
         [Test]
         [TestCase(SecurityPolicies.ECC_nistP256)]
         [TestCase(SecurityPolicies.ECC_nistP384)]
         [TestCase(SecurityPolicies.ECC_nistP256_AesGcm)]
         [TestCase(SecurityPolicies.ECC_nistP384_AesGcm)]
-        public void FipsOnlyWithholdsEccPoliciesOnNetFramework(string securityPolicyUri)
+        [TestCase(SecurityPolicies.RSA_DH_AesGcm)]
+        public void FipsOnlyWithholdsBouncyCastlePoliciesOnNetFramework(string securityPolicyUri)
         {
             SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfoIgnoringPlatformSupport(
                 securityPolicyUri);

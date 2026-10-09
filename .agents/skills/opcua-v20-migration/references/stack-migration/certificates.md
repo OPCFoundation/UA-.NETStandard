@@ -6,7 +6,7 @@
 
 - [Centralised certificate cache via `ICertificateProvider`](#centralised-certificate-cache-via-icertificateprovider)
 - [Certificate Management](#certificate-management)
-  - [ECC security policies on .NET Framework use a BouncyCastle ECDH agreement](#ecc-security-policies-on-net-framework-use-a-bouncycastle-ecdh-agreement)
+  - [ECC and AEAD security policies on .NET Framework use BouncyCastle](#ecc-and-aead-security-policies-on-net-framework-use-bouncycastle)
   - [Certificates with an empty distinguished name are always rejected](#certificates-with-an-empty-distinguished-name-are-always-rejected)
   - [An incomplete certificate chain can no longer be accepted](#an-incomplete-certificate-chain-can-no-longer-be-accepted)
   - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
@@ -55,22 +55,25 @@ UserIdentity userIdentity = await UserIdentity.CreateAsync(
 
 ## Certificate Management
 
-### ECC security policies on .NET Framework use a BouncyCastle ECDH agreement
+### ECC and AEAD security policies on .NET Framework use BouncyCastle
 
 OPC UA Part 6 requires the raw ECDH shared secret before HKDF, which the
 .NET Framework BCL cannot produce (`DeriveKeyMaterial` always hashes it). The
 .NET Framework 4.8 build computes that agreement with the managed
 `BouncyCastle.Cryptography` package, already a dependency of
-`Opc.Ua.Security.Certificates` on that target, so the CBC-based ECC
-SecureChannel and user-token policies (`ECC_nistP256`, `ECC_nistP384`,
-`ECC_brainpoolP256r1`, `ECC_brainpoolP384r1`) are available there.
+`Opc.Ua.Security.Certificates` on that target. The authenticated ciphers the
+`_AesGcm` and `_ChaChaPoly` policies need (`AesGcm`, `ChaCha20Poly1305`) are
+not in the .NET Framework BCL either, so that build runs AES-GCM and
+ChaCha20-Poly1305 in BouncyCastle too. All ECC SecureChannel and user-token
+policies (`ECC_nistP256`, `ECC_nistP384`, `ECC_brainpoolP256r1`,
+`ECC_brainpoolP384r1` and their `_AesGcm` / `_ChaChaPoly` variants) and
+`RSA_DH_AesGcm` / `RSA_DH_ChaChaPoly` are available there.
 
 **Migration:** nothing is required. Note that on .NET Framework the agreement
-step does not run in a platform-validated cryptographic module, so
-`CryptoCompliancePolicy.FipsOnly` withholds the ECC policies there; deployments
-with FIPS or certified-module requirements should use the .NET 8+ build or an
-RSA policy. The `_AesGcm` and `_ChaChaPoly` ECC variants still need .NET 8 or
-later, and `SecurityPolicies.GetInfo` returns `null` for them on .NET Framework.
+and the authenticated ciphers do not run in a platform-validated cryptographic
+module, so `CryptoCompliancePolicy.FipsOnly` withholds the ECC and AEAD
+policies there; deployments with FIPS or certified-module requirements should
+use the .NET 8+ build or an RSA policy.
 See [ECC platform requirements](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/EccProfiles.md#known-limitations).
 
 ### Certificates with an empty distinguished name are always rejected

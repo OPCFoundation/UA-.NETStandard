@@ -526,7 +526,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static async Task AssertPumpHierarchyAsync(
-            ISession session,
+            ManagedSession session,
             string pumpName,
             CancellationToken cancellationToken)
         {
@@ -539,11 +539,37 @@ namespace Opc.Ua.WotCon.Samples.Tests
             var eventsNodeId = new NodeId(pumpName + ".Events", pumpNs);
             var processFluidNodeId = new NodeId(pumpName + ".Events.SupervisionProcessFluid", pumpNs);
             var pumpOperationNodeId = new NodeId(pumpName + ".Events.SupervisionPumpOperation", pumpNs);
+            // OPC 10000-3 §7.15: the pump Object is not the source of
+            // GeneratesEvent. It is typed by its own subtype of the companion
+            // PumpType, and that type declares the alarms the pump raises.
+            var pumpTypeNodeId = new NodeId(pumpName + ".Type", pumpNs);
             await AssertTypeDefinitionAsync(
                 session,
                 pumpNodeId,
-                new NodeId(1052u, pumpsNs),
+                pumpTypeNodeId,
                 cancellationToken).ConfigureAwait(false);
+            (_, _, ArrayOf<ReferenceDescription> pumpSupertypes) = await session.BrowseAsync(
+                null, null, pumpTypeNodeId,
+                0, BrowseDirection.Inverse, Ua.ReferenceTypeIds.HasSubtype, false,
+                (uint)NodeClass.ObjectType, cancellationToken).ConfigureAwait(false);
+            Assert.That(
+                pumpSupertypes.ToList().Select(reference =>
+                    ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris)),
+                Is.EqualTo(new[] { new NodeId(1052u, pumpsNs) }),
+                $"{pumpTypeNodeId} must derive from PumpType.");
+            (_, _, ArrayOf<ReferenceDescription> instanceEvents) = await session.BrowseAsync(
+                null, null, pumpNodeId,
+                0, BrowseDirection.Forward, Ua.ReferenceTypeIds.GeneratesEvent, true,
+                0, cancellationToken).ConfigureAwait(false);
+            Assert.That(instanceEvents, Is.Empty, $"{pumpNodeId} must not be the source of GeneratesEvent.");
+            (_, _, ArrayOf<ReferenceDescription> typeEvents) = await session.BrowseAsync(
+                null, null, pumpTypeNodeId,
+                0, BrowseDirection.Forward, Ua.ReferenceTypeIds.GeneratesEvent, true,
+                0, cancellationToken).ConfigureAwait(false);
+            Assert.That(
+                typeEvents.ToList().Select(reference => reference.BrowseName.Name),
+                Is.EquivalentTo(s_pumpAlarmTypes),
+                $"{pumpTypeNodeId} must declare the alarms the pump raises.");
             await AssertTypeDefinitionAsync(
                 session,
                 identificationNodeId,
@@ -640,7 +666,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static async Task AssertTypeDefinitionAsync(
-            ISession session,
+            ManagedSession session,
             NodeId nodeId,
             NodeId expectedTypeDefinition,
             CancellationToken cancellationToken)
@@ -1134,7 +1160,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             throw new AssertionException("The workflow unexpectedly succeeded.");
         }
 
-        private static ushort ResolveNamespace(ISession session, string namespaceUri)
+        private static ushort ResolveNamespace(ManagedSession session, string namespaceUri)
         {
             int namespaceIndex = session.NamespaceUris.GetIndex(namespaceUri);
             Assert.That(namespaceIndex, Is.GreaterThan(0), $"Missing namespace {namespaceUri}.");
@@ -1162,6 +1188,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
         private static readonly string[] s_pumpNames = ["Pump1", "Pump2"];
         private static readonly string[] s_identityProperties =
             ["Manufacturer", "SerialNumber", "ProductInstanceUri"];
+        private static readonly string[] s_pumpAlarmTypes =
+            ["CavitationAlarm", "MotorOverheatAlarm"];
         private static readonly string[] s_processMeasurements =
             ["DifferentialPressure", "FluidTemperature", "Level", "MassFlow"];
         private static readonly string[] s_conditionMeasurements =

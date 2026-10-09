@@ -34,6 +34,10 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
+#if NETFRAMEWORK
+using AesGcm = Opc.Ua.Security.Certificates.BouncyCastle.AesGcm;
+using ChaCha20Poly1305 = Opc.Ua.Security.Certificates.BouncyCastle.ChaCha20Poly1305;
+#endif
 
 #if NET8_0_OR_GREATER
 using System.Collections.Frozen;
@@ -1515,20 +1519,12 @@ namespace Opc.Ua
 
         internal static bool SupportsAesGcmPolicy()
         {
-#if NET8_0_OR_GREATER
             return AesGcm.IsSupported;
-#else
-            return false;
-#endif
         }
 
         internal static bool SupportsChaCha20Poly1305Policy()
         {
-#if NET8_0_OR_GREATER
             return ChaCha20Poly1305.IsSupported;
-#else
-            return false;
-#endif
         }
 
         internal static bool SupportsCertificateType(NodeId certificateType)
