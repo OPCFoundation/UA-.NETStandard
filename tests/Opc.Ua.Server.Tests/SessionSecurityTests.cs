@@ -528,12 +528,12 @@ namespace Opc.Ua.Server.Tests
             SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
             SecureChannelContext channel = created.Context.ChannelContext!;
             byte[] dataToSign = policy.GetUserTokenSignatureData(
-                channel.ChannelThumbprint,
+                channel.ChannelThumbprint.ToArrayOrNull(),
                 created.ServerNonce.ToArray(),
                 m_serverCertificate.RawData,
-                channel.ServerChannelCertificate,
+                channel.ServerChannelCertificate.ToArrayOrNull(),
                 m_clientCertificate.RawData,
-                channel.ClientChannelCertificate,
+                channel.ClientChannelCertificate.ToArrayOrNull(),
                 created.ClientNonce.ToArray());
             SignatureData userSignature = proof switch
             {
@@ -607,21 +607,21 @@ namespace Opc.Ua.Server.Tests
             SecureChannelContext channel = created.Context.ChannelContext!;
             byte[] dataToSign = noneVariant
                 ? policy!.GetUserTokenSignatureData(
-                    channel.ChannelThumbprint,
+                    channel.ChannelThumbprint.ToArrayOrNull(),
                     created.ServerNonce.ToArray(),
                     m_serverCertificate.RawData,
-                    channel.ServerChannelCertificate,
+                    channel.ServerChannelCertificate.ToArrayOrNull(),
                     m_clientCertificate.RawData,
-                    channel.ClientChannelCertificate,
+                    channel.ClientChannelCertificate.ToArrayOrNull(),
                     created.ClientNonce.ToArray(),
                     MessageSecurityMode.None)
                 : policy!.GetUserTokenSignatureData(
-                    channel.ChannelThumbprint,
+                    channel.ChannelThumbprint.ToArrayOrNull(),
                     created.ServerNonce.ToArray(),
                     m_serverCertificate.RawData,
-                    channel.ServerChannelCertificate,
+                    channel.ServerChannelCertificate.ToArrayOrNull(),
                     m_clientCertificate.RawData,
-                    channel.ClientChannelCertificate,
+                    channel.ClientChannelCertificate.ToArrayOrNull(),
                     created.ClientNonce.ToArray());
             SignatureData userSignature = await SecurityPolicies.Default.CreateSignatureDataAsync(
                 policy,
@@ -1459,11 +1459,11 @@ namespace Opc.Ua.Server.Tests
             SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(
                 context.ChannelContext!.EndpointDescription!.SecurityPolicyUri!)!;
             byte[] dataToSign = securityPolicy.GetClientSignatureData(
-                context.ChannelContext.ChannelThumbprint,
+                context.ChannelContext.ChannelThumbprint.ToArrayOrNull(),
                 serverNonce.ToArray(),
                 m_serverCertificate.RawData,
-                context.ChannelContext.ServerChannelCertificate,
-                context.ChannelContext.ClientChannelCertificate,
+                context.ChannelContext.ServerChannelCertificate.ToArrayOrNull(),
+                context.ChannelContext.ClientChannelCertificate.ToArrayOrNull(),
                 clientNonce.ToArray());
             return SecurityPolicies.Default.CreateSignatureData(
                 securityPolicy,

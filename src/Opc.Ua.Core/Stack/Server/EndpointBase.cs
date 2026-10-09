@@ -519,6 +519,26 @@ namespace Opc.Ua
         protected IServiceMessageContext MessageContext => m_server!.MessageContext;
 
         /// <summary>
+        /// The activity source for incoming requests. Resolved once per telemetry
+        /// context: the GetActivitySource extension walks the stack to find the
+        /// calling assembly, which is too expensive to repeat for every request.
+        /// </summary>
+        private ActivitySource RequestActivitySource
+        {
+            get
+            {
+                ITelemetryContext telemetry = MessageContext.Telemetry;
+                Tuple<ITelemetryContext, ActivitySource>? cached = m_activitySource;
+                if (cached == null || !ReferenceEquals(cached.Item1, telemetry))
+                {
+                    cached = Tuple.Create(telemetry, telemetry.GetActivitySource());
+                    m_activitySource = cached;
+                }
+                return cached.Item2;
+            }
+        }
+
+        /// <summary>
         /// Returns the description for the endpoint
         /// </summary>
         /// <value>The endpoint description.</value>
@@ -584,6 +604,7 @@ namespace Opc.Ua
 
         private IServiceHostBase? m_host;
         private IServerBase? m_server;
+        private Tuple<ITelemetryContext, ActivitySource>? m_activitySource;
     }
 
     /// <summary>
