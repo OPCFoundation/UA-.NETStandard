@@ -755,7 +755,8 @@ namespace Opc.Ua
             CancellationToken ct = default)
         {
             trustList ??= TrustListIdentifier.Peers;
-            using CertificateValidationCore.Borrow borrow = GetOrCreateCore(trustList);
+            using CertificateValidationCore.Borrow borrow = GetOrCreateCore(
+                trustList, useCache: options?.AcceptError == null);
 
             // Per-call AcceptError takes precedence over the global hook.
             Func<Certificate, ServiceResult, bool>? acceptError =
@@ -1471,7 +1472,9 @@ namespace Opc.Ua
         /// for the specified trust list.
         /// </summary>
         /// <exception cref="ObjectDisposedException"></exception>
-        private CertificateValidationCore.Borrow GetOrCreateCore(TrustListIdentifier trustList)
+        private CertificateValidationCore.Borrow GetOrCreateCore(
+            TrustListIdentifier trustList,
+            bool useCache = true)
         {
             lock (m_certificatesLock)
             {
@@ -1479,7 +1482,9 @@ namespace Opc.Ua
                 {
                     throw new ObjectDisposedException(nameof(CertificateManager));
                 }
-                CertificateValidationCore? core = GetCachedCore(trustList);
+                // Per-call acceptance must neither consume nor populate the
+                // cache used by normal connection validation.
+                CertificateValidationCore? core = useCache ? GetCachedCore(trustList) : null;
                 if (core == null)
                 {
                     core = new CertificateValidationCore(
@@ -1494,7 +1499,10 @@ namespace Opc.Ua
                             core.Update(entry.IssuerStore, entry.TrustedStore, rejectedCertificateStore: null);
                         }
                         ApplyValidationFlags(core);
-                        ReplaceCachedCore(trustList, core);
+                        if (useCache)
+                        {
+                            ReplaceCachedCore(trustList, core);
+                        }
                     }
                     catch
                     {
@@ -1502,7 +1510,12 @@ namespace Opc.Ua
                         throw;
                     }
                 }
-                return core.AcquireBorrow();
+                CertificateValidationCore.Borrow borrow = core.AcquireBorrow();
+                if (!useCache)
+                {
+                    core.Dispose();
+                }
+                return borrow;
             }
         }
 
