@@ -2102,11 +2102,70 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(variant.IsNull, Is.False);
         }
 #pragma warning restore CS0618 // Type or member is obsolete
+
+        /// <summary>
+        /// The enum cast converts without boxing and must keep the results of
+        /// Enum.ToObject for every underlying type: truncated to narrow types,
+        /// sign extended to wide ones.
+        /// </summary>
+        [Test]
+        public void TryCastToEnumConvertsLikeEnumToObject()
+        {
+            Assert.Multiple(() =>
+            {
+                AssertCastToEnum<TestEnum>(2);
+                AssertCastToEnum<TestEnum>(-1);
+                AssertCastToEnum<ByteTestEnum>(0x1FF);
+                AssertCastToEnum<SByteTestEnum>(-1);
+                AssertCastToEnum<UShortTestEnum>(-2);
+                AssertCastToEnum<UIntTestEnum>(int.MinValue);
+                AssertCastToEnum<LongTestEnum>(-5);
+                AssertCastToEnum<ULongTestEnum>(-1);
+            });
+        }
+
+        private static void AssertCastToEnum<T>(int value) where T : struct, Enum
+        {
+            bool result = Variant.From(value).TryCastTo(out T cast);
+            Assert.That(result, Is.True);
+            Assert.That(cast, Is.EqualTo((T)Enum.ToObject(typeof(T), value)), typeof(T).Name);
+        }
+
         private enum TestEnum
         {
             Zero = 0,
             One = 1,
             Two = 2
+        }
+
+        private enum ByteTestEnum : byte
+        {
+            Zero = 0
+        }
+
+        private enum SByteTestEnum : sbyte
+        {
+            Zero = 0
+        }
+
+        private enum UShortTestEnum : ushort
+        {
+            Zero = 0
+        }
+
+        private enum UIntTestEnum : uint
+        {
+            Zero = 0
+        }
+
+        private enum LongTestEnum : long
+        {
+            Zero = 0
+        }
+
+        private enum ULongTestEnum : ulong
+        {
+            Zero = 0
         }
     }
 }

@@ -32,10 +32,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using Opc.Ua.Types;
-#if NET8_0_OR_GREATER
 using System.Runtime.CompilerServices;
-#endif
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
@@ -68,7 +66,7 @@ namespace Opc.Ua
                     // Reinterpreting the Int32 as T reads past the local
                     // for enums wider than 4 bytes; convert by value.
                     bool ok = value.TryGetValue(out int v);
-                    result = (T)Enum.ToObject(t, v);
+                    result = EnumFromInt64(v);
                     return ok;
                 }
                 case Type t when t == typeof(bool):
@@ -744,12 +742,28 @@ namespace Opc.Ua
             static T AsT<U>(U value) where U : struct
             {
                 Debug.Assert(typeof(U) == typeof(T));
-#if NET8_0_OR_GREATER
                 Debug.Assert(Unsafe.SizeOf<T>() == Unsafe.SizeOf<U>());
                 return Unsafe.As<U, T>(ref value);
-#else
-                return (T)(object)value;
-#endif
+            }
+
+            // Helper to convert to the enum T like Enum.ToObject without boxing:
+            // keep the low bytes of the value that fit the underlying type.
+            static T EnumFromInt64(long value)
+            {
+                switch (Unsafe.SizeOf<T>())
+                {
+                    case sizeof(byte):
+                        byte b = unchecked((byte)value);
+                        return Unsafe.As<byte, T>(ref b);
+                    case sizeof(short):
+                        short s = unchecked((short)value);
+                        return Unsafe.As<short, T>(ref s);
+                    case sizeof(int):
+                        int i = unchecked((int)value);
+                        return Unsafe.As<int, T>(ref i);
+                    default:
+                        return Unsafe.As<long, T>(ref value);
+                }
             }
         }
 
