@@ -1866,6 +1866,24 @@ namespace Opc.Ua.PubSub.Connections
             {
                 return;
             }
+            try
+            {
+                await SendDiscoveryMessageAsync(response, topic, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A discovery message that cannot be secured or sent, for example while
+                // no security key is available, must neither fail the start of the
+                // connection nor end its receive loop.
+                m_logger.DiscoveryMessageNotSent(ex, response.DiscoveryType, Name);
+            }
+        }
+
+        private async ValueTask SendDiscoveryMessageAsync(
+            UadpDiscoveryResponseMessage response,
+            string? topic,
+            CancellationToken cancellationToken)
+        {
             PubSubNetworkMessage networkMessage = ConvertDiscoveryMessageForTransport(response);
             INetworkMessageEncoder? encoder = ResolveEncoder();
             if (ShouldUseDiscoveryAnnouncementDestination(
@@ -1873,11 +1891,21 @@ namespace Opc.Ua.PubSub.Connections
                     out IPubSubDiscoveryAnnouncementTransport? announcementTransport) &&
                 encoder is not null)
             {
-                ReadOnlyMemory<byte> payload = await EncodeNetworkMessageAsync(
+                var context = new PubSubNetworkMessageContext(
+                    ServiceMessageContext.CreateEmpty(m_telemetry),
+                    m_metaDataRegistry,
+                    m_diagnostics,
+                    m_timeProvider);
+                ReadOnlyMemory<byte>? payload = await EncodeOutboundAsync(
                     networkMessage,
                     encoder,
+                    context,
                     cancellationToken).ConfigureAwait(false);
-                await announcementTransport!.SendDiscoveryAnnouncementAsync(payload, cancellationToken)
+                if (payload is null)
+                {
+                    return;
+                }
+                await announcementTransport!.SendDiscoveryAnnouncementAsync(payload.Value, cancellationToken)
                     .ConfigureAwait(false);
                 return;
             }
@@ -2454,6 +2482,23 @@ namespace Opc.Ua.PubSub.Connections
             return SendNetworkMessageAsync(networkMessage, topic, writerGroup: null, cancellationToken);
         }
 
+        /// <summary>
+        /// Sends a DataSetMetaData announcement through the connection's send
+        /// pipeline, so a connection configured for message security secures the
+        /// announcement with its SecurityMode, like its DataSetMessages, and never
+        /// sends it unsecured.
+        /// </summary>
+        /// <param name="announcement">UADP discovery response or JSON metadata message.</param>
+        /// <param name="topic">Broker topic, or <see langword="null"/> for datagram transports.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        internal ValueTask SendMetaDataAnnouncementAsync(
+            PubSubNetworkMessage announcement,
+            string? topic,
+            CancellationToken cancellationToken)
+        {
+            return SendNetworkMessageAsync(announcement, topic, writerGroup: null, cancellationToken);
+        }
+
         private async ValueTask SendNetworkMessageAsync(
             PubSubNetworkMessage networkMessage,
             string? topic,
@@ -2481,36 +2526,16 @@ namespace Opc.Ua.PubSub.Connections
                 m_diagnostics,
                 m_timeProvider);
 
-            ReadOnlyMemory<byte> payload;
-            if (m_securityWrapper is not null &&
-                networkMessage is UadpNetworkMessage uadp)
+            ReadOnlyMemory<byte>? encoded = await EncodeOutboundAsync(
+                networkMessage,
+                encoder,
+                context,
+                cancellationToken).ConfigureAwait(false);
+            if (encoded is null)
             {
-                payload = await EncodeAndWrapUadpAsync(uadp, context, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            else if (RequiresInboundSecurity ||
-                (m_securityWrapper is not null &&
-                    m_requiredSecurityMode is MessageSecurityMode.Sign
-                        or MessageSecurityMode.SignAndEncrypt))
-            {
-                // Fail-closed: never emit plaintext for a secured group.
-                // This path is only reachable for non-UADP messages, which
-                // the UADP security wrapper cannot protect.
-                m_diagnostics.Increment(PubSubDiagnosticsCounterKind.EncryptionErrors);
-                m_diagnostics.RecordError(
-                    StatusCodes.BadSecurityModeRejected,
-                    "Refusing to publish an unsecured NetworkMessage on a connection " +
-                    "configured for message security.");
-                m_logger.DroppingOutboundMessage(Name, m_requiredSecurityMode);
                 return;
             }
-            else
-            {
-                payload = await encoder.EncodeAsync(
-                    networkMessage,
-                    context,
-                    cancellationToken).ConfigureAwait(false);
-            }
+            ReadOnlyMemory<byte> payload = encoded.Value;
 
             if (m_maxNetworkMessageSize > 0 &&
                 payload.Length > m_maxNetworkMessageSize &&
@@ -2523,6 +2548,57 @@ namespace Opc.Ua.PubSub.Connections
 
             await transport.SendAsync(payload, topic, cancellationToken)
                 .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Encodes a NetworkMessage for sending and applies the message security of
+        /// the connection. Returns <see langword="null"/>, and the message must not be
+        /// sent, when the connection requires message security that the message
+        /// cannot carry.
+        /// </summary>
+        private async ValueTask<ReadOnlyMemory<byte>?> EncodeOutboundAsync(
+            PubSubNetworkMessage networkMessage,
+            INetworkMessageEncoder encoder,
+            PubSubNetworkMessageContext context,
+            CancellationToken cancellationToken)
+        {
+            if (m_securityWrapper is not null && IsSecurableUadpMessage(networkMessage))
+            {
+                return await EncodeAndWrapUadpAsync(networkMessage, context, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            if (RequiresInboundSecurity ||
+                (m_securityWrapper is not null &&
+                    m_requiredSecurityMode is MessageSecurityMode.Sign
+                        or MessageSecurityMode.SignAndEncrypt))
+            {
+                // Fail-closed: never emit plaintext for a secured group. This path is
+                // reached for messages that the UADP security wrapper cannot protect.
+                m_diagnostics.Increment(PubSubDiagnosticsCounterKind.EncryptionErrors);
+                m_diagnostics.RecordError(
+                    StatusCodes.BadSecurityModeRejected,
+                    "Refusing to publish an unsecured NetworkMessage on a connection " +
+                    "configured for message security.");
+                m_logger.DroppingOutboundMessage(Name, m_requiredSecurityMode);
+                return null;
+            }
+            return await encoder.EncodeAsync(networkMessage, context, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Returns true for the NetworkMessages that the UADP security wrapper
+        /// protects: UADP data messages, and the discovery requests and responses
+        /// of a connection that uses the UADP encoding.
+        /// </summary>
+        private bool IsSecurableUadpMessage(PubSubNetworkMessage networkMessage)
+        {
+            if (networkMessage is UadpNetworkMessage)
+            {
+                return true;
+            }
+            return networkMessage is UadpDiscoveryRequestMessage or UadpDiscoveryResponseMessage &&
+                TransportProfileFamily(TransportProfileUri) == "Uadp";
         }
 
         private ValueTask<ReadOnlyMemory<byte>> EncodeNetworkMessageAsync(
@@ -2685,17 +2761,18 @@ namespace Opc.Ua.PubSub.Connections
         }
 
         private async ValueTask<ReadOnlyMemory<byte>> EncodeAndWrapUadpAsync(
-            UadpNetworkMessage message,
+            PubSubNetworkMessage message,
             PubSubNetworkMessageContext context,
             CancellationToken cancellationToken)
         {
+            ReadOnlyMemory<byte> wrapped;
             try
             {
                 ReadOnlyMemory<byte> encoded = UadpEncoder.EncodeWithSecurityBoundary(
                     message, context, out int payloadOffset);
                 ReadOnlyMemory<byte> prefix = encoded[..payloadOffset];
                 ReadOnlyMemory<byte> inner = encoded[payloadOffset..];
-                return await m_securityWrapper!
+                wrapped = await m_securityWrapper!
                     .WrapAsync(prefix, inner, m_securityWrapOptions, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -2712,6 +2789,17 @@ namespace Opc.Ua.PubSub.Connections
                 m_logger.UadpSecurityWrapFailed(ex);
                 throw;
             }
+
+            // The encoder counts the messages it encodes; the secured encoding bypasses
+            // it, so count the secured message in the same way.
+            context.Diagnostics.Increment(PubSubDiagnosticsCounterKind.SentNetworkMessages);
+            if (message is UadpNetworkMessage { DataSetMessages.Count: > 0 } data)
+            {
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.SentDataSetMessages,
+                    data.DataSetMessages.Count);
+            }
+            return wrapped;
         }
 
         private INetworkMessageEncoder? ResolveEncoder()
@@ -3317,6 +3405,14 @@ namespace Opc.Ua.PubSub.Connections
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 20, Level = LogLevel.Error,
             Message = "UADP unwrap threw on inbound frame.")]
         public static partial void UadpUnwrapThrewOnInboundFrame(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 22, Level = LogLevel.Warning,
+            Message = "Could not send the {DiscoveryType} discovery message on connection '{Connection}'.")]
+        public static partial void DiscoveryMessageNotSent(
+            this ILogger logger,
+            Exception exception,
+            UadpDiscoveryType discoveryType,
+            string connection);
     }
 
 }
