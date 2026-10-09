@@ -197,7 +197,7 @@ namespace Opc.Ua.Bindings
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask ConnectAsync(Uri url, int timeout, CancellationToken ct)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             if (url == null)
             {
                 throw new ArgumentNullException(nameof(url));
@@ -323,7 +323,7 @@ namespace Opc.Ua.Bindings
         /// </summary>
         public async Task CloseAsync(int timeout, CancellationToken ct = default)
         {
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             WriteOperation? operation = InternalClose(timeout);
 
             // wait for the close to succeed.
@@ -365,7 +365,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentException("Timeout must be greater than zero.", nameof(timeout));
             }
 
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             WriteOperation? operation = null;
             using (Gate.Enter())
             {
@@ -398,7 +398,7 @@ namespace Opc.Ua.Bindings
             }
             try
             {
-                await operation.EndAsync(int.MaxValue, true, ct).ConfigureAwait(false);
+                await operation.WaitForCompletionAsync(ct).ConfigureAwait(false);
             }
             finally
             {
@@ -951,9 +951,11 @@ namespace Opc.Ua.Bindings
             int bytesWritten,
             ServiceResult result)
         {
-            using (Gate.Enter())
+            // Only a failed write needs the gate. Successful writes are reported
+            // inline by the writer and must not wait for it.
+            if (state is WriteOperation operation && ServiceResult.IsBad(result))
             {
-                if (state is WriteOperation operation && ServiceResult.IsBad(result))
+                using (Gate.Enter())
                 {
                     operation.Fault(result);
                     ForceReconnectCore(result);
@@ -1992,6 +1994,15 @@ namespace Opc.Ua.Bindings
         private readonly AsyncCallback m_handshakeComplete;
         private List<QueuedOperation>? m_queuedOperations;
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// The activity source for service calls, resolved once: the
+        /// GetActivitySource extension walks the stack to find the calling
+        /// assembly, which is too expensive to repeat for every call.
+        /// </summary>
+        private ActivitySource CachedActivitySource => m_activitySource ??= m_telemetry.GetActivitySource();
+
+        private ActivitySource? m_activitySource;
         private readonly ITelemetryContext m_telemetry;
         private byte[]? m_oscRequestSignature;
         private readonly MessageSecurityMode m_requestedSecurityMode;

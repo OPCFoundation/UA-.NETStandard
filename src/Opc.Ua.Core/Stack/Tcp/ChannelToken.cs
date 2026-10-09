@@ -64,6 +64,9 @@ namespace Opc.Ua.Bindings
                 ClientHmac?.Dispose();
                 ClientHmac = null;
 
+                Interlocked.Exchange(ref ServerAes, null)?.Dispose();
+                Interlocked.Exchange(ref ClientAes, null)?.Dispose();
+
                 m_localNonce?.Dispose();
                 m_localNonce = null;
                 m_remoteNonce?.Dispose();
@@ -211,6 +214,19 @@ namespace Opc.Ua.Bindings
         /// A pre-allocated HMAC used to improve performance for SecurityPolicies that need it.
         /// </summary>
         internal HMAC? ClientHmac { get; set; }
+
+        /// <summary>
+        /// The AES instance for <see cref="ServerEncryptingKey"/> with the CBC
+        /// policies, created on first use. A field so that it can be taken and
+        /// returned atomically.
+        /// </summary>
+        internal Aes? ServerAes;
+
+        /// <summary>
+        /// The AES instance for <see cref="ClientEncryptingKey"/> with the CBC
+        /// policies, created on first use.
+        /// </summary>
+        internal Aes? ClientAes;
 
         /// <summary>
         /// Takes ownership of the actual key-agreement objects while a reconnect is handed off.
