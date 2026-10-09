@@ -84,6 +84,7 @@ namespace Opc.Ua.Bindings
     public sealed class TcpByteTransport :
         IUaSCByteTransport,
         IUaSCByteTransportLimits,
+        IUaSCChunkCoalescing,
         IDisposable
     {
         /// <summary>
@@ -487,6 +488,11 @@ namespace Opc.Ua.Bindings
             return new byte[kStagingSize];
 #endif
         }
+
+        /// <summary>
+        /// A TCP stream carries chunks back to back.
+        /// </summary>
+        bool IUaSCChunkCoalescing.CanCoalesceChunks => true;
 
         void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
         {
