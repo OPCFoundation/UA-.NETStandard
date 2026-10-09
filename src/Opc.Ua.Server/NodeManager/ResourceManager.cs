@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using System.Threading;
 using System.Xml;
 #if !NET6_0_OR_GREATER
@@ -47,12 +48,27 @@ namespace Opc.Ua.Server
         /// Initializes the resource manager with the server instance that owns it.
         /// </summary>
         public ResourceManager(ApplicationConfiguration configuration)
+            : this(configuration, static locale => new CultureInfo(locale))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the resource manager with the factory that creates the
+        /// culture of a locale id.
+        /// </summary>
+        /// <param name="configuration">The configuration of the server.</param>
+        /// <param name="createCulture">Creates the culture of a locale id, or throws
+        /// <see cref="CultureNotFoundException"/> when the runtime cannot create it.</param>
+        internal ResourceManager(
+            ApplicationConfiguration configuration,
+            Func<string, CultureInfo> createCulture)
         {
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
+            m_createCulture = createCulture ?? throw new ArgumentNullException(nameof(createCulture));
             m_translationTables = [];
         }
 
@@ -205,7 +221,7 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < m_translationTables.Count; ii++)
                 {
-                    availableLocales[ii] = m_translationTables![ii].Locale!.Name;
+                    availableLocales[ii] = m_translationTables[ii].Locale;
                 }
 
                 return availableLocales;
@@ -234,9 +250,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(text));
             }
 
-            var culture = new CultureInfo(locale);
+            string localeId = GetLocaleId(locale, out bool isNeutral);
 
-            if (culture.IsNeutralCulture)
+            if (isNeutral)
             {
                 throw new ArgumentException(
                     "Cannot specify neutral locales for translation tables.",
@@ -245,8 +261,8 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                TranslationTable? table = GetTable(culture.Name);
-                table!.Translations[key] = text;
+                TranslationTable table = GetTable(localeId);
+                table.Translations[key] = text;
             }
         }
 
@@ -267,9 +283,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(translations));
             }
 
-            var culture = new CultureInfo(locale);
+            string localeId = GetLocaleId(locale, out bool isNeutral);
 
-            if (culture.IsNeutralCulture)
+            if (isNeutral)
             {
                 throw new ArgumentException(
                     "Cannot specify neutral locales for translation tables.",
@@ -278,11 +294,11 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                TranslationTable? table = GetTable(culture.Name);
+                TranslationTable table = GetTable(localeId);
 
                 foreach (KeyValuePair<string, string> translation in translations)
                 {
-                    table!.Translations[translation.Key] = translation.Value;
+                    table.Translations[translation.Key] = translation.Value;
                 }
             }
         }
@@ -415,7 +431,7 @@ namespace Opc.Ua.Server
                             if (table.Translations
                                 .TryGetValue((info.Key ?? info.Text)!, out string? translation))
                             {
-                                translations[table!.Locale!.Name] = translation!;
+                                translations[table.Locale] = translation!;
                             }
                         }
                     }
@@ -430,13 +446,13 @@ namespace Opc.Ua.Server
                             string? translation = FindBestTranslation(
                                 preferredLocales.Slice(i, 1),
                                 (info.Key ?? info.Text)!,
-                                out CultureInfo culture);
+                                out string locale);
                             if (translation != null)
                             {
                                 // label the text with the locale of the table it came
                                 // from, which may be another region of the requested
                                 // language.
-                                translations[culture.Name] = translation;
+                                translations[locale] = translation;
                             }
                         }
                     }
@@ -450,15 +466,15 @@ namespace Opc.Ua.Server
             else
             {
                 // find the best translation.
-                string? translatedText = info.Text;
-                CultureInfo culture = CultureInfo.InvariantCulture;
+                string? translatedText;
+                string locale;
 
                 lock (m_lock)
                 {
                     translatedText = FindBestTranslation(
                         preferredLocales,
                         (info.Key ?? info.Text)!,
-                        out culture);
+                        out locale);
 
                     // use the default if no translation available.
                     if (translatedText == null)
@@ -470,23 +486,44 @@ namespace Opc.Ua.Server
                 }
 
                 // construct translated localized text.
-                return new LocalizedText(culture.Name, translatedText, info);
+                return new LocalizedText(locale, translatedText, info);
             }
         }
 
         /// <summary>
         /// Stores the translations for a locale.
         /// </summary>
-        private class TranslationTable
+        private sealed class TranslationTable
         {
-            public CultureInfo? Locale;
-            public SortedDictionary<string, string> Translations = [];
+            /// <summary>
+            /// Creates an empty table for a locale id.
+            /// </summary>
+            public TranslationTable(string locale)
+            {
+                Locale = locale;
+                Language = GetLanguage(locale);
+            }
+
+            /// <summary>
+            /// The locale id in the casing of its culture.
+            /// </summary>
+            public string Locale { get; }
+
+            /// <summary>
+            /// The language of the locale id, used to fall back to another region.
+            /// </summary>
+            public string Language { get; }
+
+            /// <summary>
+            /// The translations by key.
+            /// </summary>
+            public SortedDictionary<string, string> Translations { get; } = [];
         }
 
         /// <summary>
         /// Finds the translation table for the locale. Creates a new table if it does not exist.
         /// </summary>
-        private TranslationTable? GetTable(string locale)
+        private TranslationTable GetTable(string locale)
         {
             lock (m_lock)
             {
@@ -495,18 +532,170 @@ namespace Opc.Ua.Server
                 {
                     TranslationTable translationTable = m_translationTables[ii];
 
-                    if (translationTable!.Locale!.Name == locale)
+                    if (translationTable.Locale == locale)
                     {
                         return translationTable;
                     }
                 }
 
                 // add table.
-                var table = new TranslationTable { Locale = new CultureInfo(locale) };
+                var table = new TranslationTable(locale);
                 m_translationTables.Add(table);
 
                 return table;
             }
+        }
+
+        /// <summary>
+        /// Returns the locale id of a translation table in the casing of its culture,
+        /// and whether the locale id names a language without a region.
+        /// </summary>
+        /// <remarks>
+        /// When the runtime cannot create the culture, as in globalization-invariant
+        /// mode, where it creates no culture other than the invariant culture, a
+        /// well-formed locale id is parsed instead.
+        /// </remarks>
+        /// <exception cref="CultureNotFoundException">The locale id is malformed.</exception>
+        private string GetLocaleId(string locale, out bool isNeutral)
+        {
+            lock (m_lock)
+            {
+                if (m_localeIds.TryGetValue(locale, out (string LocaleId, bool IsNeutral) cached))
+                {
+                    isNeutral = cached.IsNeutral;
+                    return cached.LocaleId;
+                }
+
+                string localeId;
+                try
+                {
+                    CultureInfo culture = m_createCulture(locale);
+                    localeId = culture.Name;
+                    isNeutral = culture.IsNeutralCulture;
+                }
+                catch (CultureNotFoundException) when (TryParseLocaleId(locale, out localeId, out isNeutral))
+                {
+                    // the runtime cannot create the culture of a well-formed locale id.
+                }
+
+                m_localeIds[locale] = (localeId, isNeutral);
+                return localeId;
+            }
+        }
+
+        /// <summary>
+        /// Parses a well-formed locale id (an RFC 5646 language tag) into the casing
+        /// of its culture, and returns whether it names a language without a region.
+        /// </summary>
+        private static bool TryParseLocaleId(string locale, out string localeId, out bool isNeutral)
+        {
+            localeId = string.Empty;
+            isNeutral = false;
+
+            string[] subtags = locale.Split('-');
+            string language = subtags[0];
+            if (language.Length is < 2 or > 8 || !IsAsciiLetters(language))
+            {
+                return false;
+            }
+
+            var builder = new StringBuilder(locale.Length);
+            builder.Append(language.ToLowerInvariant());
+
+            // the script and the region can only follow the language, in this order.
+            int regionIndex = 1;
+            bool hasRegion = false;
+            bool isExtension = false;
+            for (int ii = 1; ii < subtags.Length; ii++)
+            {
+                string subtag = subtags[ii];
+                if (subtag.Length is < 1 or > 8 || !IsAsciiLettersOrDigits(subtag))
+                {
+                    return false;
+                }
+
+                builder.Append('-');
+
+                // a singleton starts an extension or a private use sequence.
+                isExtension |= subtag.Length == 1;
+
+                if (!isExtension && ii == 1 && subtag.Length == 4 && IsAsciiLetters(subtag))
+                {
+                    builder.Append(char.ToUpperInvariant(subtag[0]))
+                        .Append(subtag[1..].ToLowerInvariant());
+                    regionIndex = 2;
+                }
+                else if (!isExtension &&
+                    ii == regionIndex &&
+                    ((subtag.Length == 2 && IsAsciiLetters(subtag)) ||
+                        (subtag.Length == 3 && IsAsciiDigits(subtag))))
+                {
+                    builder.Append(subtag.ToUpperInvariant());
+                    hasRegion = true;
+                }
+                else
+                {
+                    builder.Append(subtag.ToLowerInvariant());
+                }
+            }
+
+            localeId = builder.ToString();
+            isNeutral = !hasRegion;
+            return true;
+        }
+
+        /// <summary>
+        /// Returns the language subtag of a locale id.
+        /// </summary>
+        private static string GetLanguage(string locale)
+        {
+            int index = locale.IndexOf('-', StringComparison.Ordinal);
+            return index == -1 ? locale : locale[..index];
+        }
+
+        /// <summary>
+        /// Returns true if the value contains only ASCII letters.
+        /// </summary>
+        private static bool IsAsciiLetters(string value)
+        {
+            foreach (char c in value)
+            {
+                if (c is not ((>= 'a' and <= 'z') or (>= 'A' and <= 'Z')))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Returns true if the value contains only ASCII digits.
+        /// </summary>
+        private static bool IsAsciiDigits(string value)
+        {
+            foreach (char c in value)
+            {
+                if (c is not (>= '0' and <= '9'))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Returns true if the value contains only ASCII letters and digits.
+        /// </summary>
+        private static bool IsAsciiLettersOrDigits(string value)
+        {
+            foreach (char c in value)
+            {
+                if (c is not ((>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9')))
+                {
+                    return false;
+                }
+            }
+            return true;
         }
 
         /// <summary>
@@ -572,9 +761,9 @@ namespace Opc.Ua.Server
         private string? FindBestTranslation(
             ArrayOf<string> preferredLocales,
             string key,
-            out CultureInfo culture)
+            out string locale)
         {
-            culture = null!;
+            locale = string.Empty;
             TranslationTable? match = null;
 
             if (preferredLocales.Count == 0)
@@ -608,24 +797,24 @@ namespace Opc.Ua.Server
 
                     // all done if exact match found (locale ids are case-insensitive, RFC 5646).
                     if (string.Equals(
-                            translationTable!.Locale!.Name,
+                            translationTable.Locale,
                             preferredLocales[jj],
                             StringComparison.OrdinalIgnoreCase) &&
                         translationTable.Translations.TryGetValue(key, out string? exactMatch))
                     {
-                        culture = translationTable.Locale;
+                        locale = translationTable.Locale;
                         return exactMatch;
                     }
 
                     // check for matching language but different region.
                     if (match == null &&
                         string.Equals(
-                            translationTable.Locale.TwoLetterISOLanguageName,
+                            translationTable.Language,
                             language,
                             StringComparison.OrdinalIgnoreCase) &&
                         translationTable.Translations.TryGetValue(key, out translatedText))
                     {
-                        culture = translationTable.Locale;
+                        locale = translationTable.Locale;
                         match = translationTable;
                     }
                 }
@@ -705,6 +894,9 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+        private readonly Func<string, CultureInfo> m_createCulture;
+        private readonly Dictionary<string, (string LocaleId, bool IsNeutral)> m_localeIds =
+            new(StringComparer.Ordinal);
         private readonly List<TranslationTable> m_translationTables;
         private Dictionary<StatusCode, TranslationInfo>? m_statusCodeMapping;
         private Dictionary<XmlQualifiedName, TranslationInfo>? m_symbolicIdMapping;
