@@ -76,7 +76,7 @@ namespace Quickstarts.ConsoleReferencePubSubClient
         {
             byte[] signingKey = BuildKey(0x10, 32);
             byte[] encryptingKey = BuildKey(0x20, 32);
-            byte[] keyNonce = BuildKey(0x30, 12);
+            byte[] keyNonce = BuildKey(0x30, AesCtrNonceLayout.KeyNonceLength);
 
             PubSubSecurityKey? key = null;
             PubSubSecurityKeyRing? ring = null;

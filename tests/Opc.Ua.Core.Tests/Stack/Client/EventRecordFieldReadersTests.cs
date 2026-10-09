@@ -691,6 +691,40 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             });
         }
 
+        /// <summary>
+        /// The readers convert without boxing and must keep the results of
+        /// Enum.ToObject: values are sign or zero extended from their width
+        /// and then truncated to the underlying type of the enum.
+        /// </summary>
+        [Test]
+        public void EnumReadersConvertLikeEnumToObject()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<TestEnum>([Variant.From((sbyte)-1)], 0),
+                    Is.EqualTo((TestEnum)Enum.ToObject(typeof(TestEnum), (sbyte)-1)));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<TestEnum>([Variant.From(0x1_0000_0002L)], 0),
+                    Is.EqualTo((TestEnum)Enum.ToObject(typeof(TestEnum), 0x1_0000_0002L)));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<ByteFlags>([Variant.From((short)0x1FF)], 0),
+                    Is.EqualTo((ByteFlags)Enum.ToObject(typeof(ByteFlags), (short)0x1FF)));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<UShortFlags>([Variant.From((short)-2)], 0),
+                    Is.EqualTo((UShortFlags)Enum.ToObject(typeof(UShortFlags), (short)-2)));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<ULongFlags>([Variant.From(-1)], 0),
+                    Is.EqualTo((ULongFlags)Enum.ToObject(typeof(ULongFlags), -1)));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<ULongFlags>([Variant.From(ulong.MaxValue)], 0),
+                    Is.EqualTo((ULongFlags)Enum.ToObject(typeof(ULongFlags), ulong.MaxValue)));
+                Assert.That(
+                    EventRecordFieldReaders.GetEnum<UIntFlags>([Variant.From(uint.MaxValue)], 0),
+                    Is.EqualTo((UIntFlags)Enum.ToObject(typeof(UIntFlags), uint.MaxValue)));
+            });
+        }
+
         private enum TestEnum
         {
             None = 0,

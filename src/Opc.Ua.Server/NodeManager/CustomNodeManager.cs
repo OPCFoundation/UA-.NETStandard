@@ -2375,7 +2375,7 @@ namespace Opc.Ua.Server
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             // check for valid handle.
             NodeHandle? handle = IsHandleInNamespace(sourceHandle);
@@ -2486,7 +2486,7 @@ namespace Opc.Ua.Server
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
             lock (Lock)
@@ -2741,7 +2741,7 @@ namespace Opc.Ua.Server
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var nodesToNotify = new List<NodeState>();
 
@@ -3391,7 +3391,7 @@ namespace Opc.Ua.Server
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
             lock (Lock)
@@ -3910,7 +3910,7 @@ namespace Opc.Ua.Server
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToProcess = new List<NodeHandle>();
 
             lock (Lock)
@@ -4420,7 +4420,7 @@ namespace Opc.Ua.Server
             }
 
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
 
             NodeHandle? handle = GetManagerHandle(
                 systemContext,
@@ -4939,7 +4939,7 @@ namespace Opc.Ua.Server
             }
 
             ServerSystemContext systemContext = SystemContext.Copy();
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
 
             for (int ii = 0; ii < itemsToRestore.Count; ii++)
@@ -5098,7 +5098,7 @@ namespace Opc.Ua.Server
         {
             using NodeManagerOperation operation = BeginNodeManagerOperation();
             ServerSystemContext systemContext = SystemContext.Copy(context);
-            IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
+            IDictionary<NodeId, NodeState> operationCache = new Dictionary<NodeId, NodeState>();
             var nodesToValidate = new List<NodeHandle>();
             var createdItems = new List<IMonitoredItem>();
 

@@ -109,8 +109,7 @@ namespace Opc.Ua
                 try
                 {
                     Activity? activity = null;
-                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
-                        .GetActivitySource();
+                    ActivitySource activitySource = m_endpoint.RequestActivitySource;
                     if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
