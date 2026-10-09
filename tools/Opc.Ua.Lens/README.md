@@ -22,7 +22,7 @@ separate from optional HTTP or WebSocket transport authentication.
 same explorer without a server. Lens includes the OPC UA core model, resolves
 local dependencies, and offers approved downloads from OPCFoundation/UA-Nodeset
 or a file picker for missing models. See the
-[offline NodeSet2 guide](../../docs/UaLensNodeSets.md).
+[offline NodeSet2 guide](../../docs/UaLens.md#opening-nodeset2-files).
 
 The explorer's **Namespace** dropdown lists the active server or NodeSet
 namespaces. Select one to highlight its nodes without filtering the tree;
@@ -298,10 +298,7 @@ scoped pragma; do not restore project-wide suppression.
 
 ```powershell
 $env:CustomTestTarget = 'net10.0'
-pwsh .github\scripts\run-dotnet-tests.ps1 `
-  -Projects tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj `
-  -CustomTestTarget net10.0 -Framework net10.0 -Configuration Release `
-  -Filter 'TestCategory!=LongRunning&TestCategory!=Stress' -ResultsDirectory TestResults\lens
+dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0
 dotnet run --project tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0 -- --smoke --endpoint opc.tcp://localhost:62541/Quickstarts/ReferenceServer
 ```
 
@@ -318,8 +315,10 @@ The ordinary test suite also drives real Avalonia windows on Windows and Linux:
 editors, administration dialogs, charts, and document lifetimes share one owned
 dispatcher and use controlled services or temporary certificate stores. These
 tests do not require a running server, access the host PKI, or open native file
-pickers. The runner isolates ordinary and native workflow selections in separate
-processes and uses `xvfb-run -a` on Linux. Cocoa requires the process main thread, so these
+pickers. Native tests are in `Opc.Ua.Lens.Workflow.Tests` and
+`Opc.Ua.Lens.Desktop.Tests`, separate from the unit-test assembly.
+See [Testing UaLens](../../docs/DeveloperGuide.md#testing-ualens).
+The CI runner uses `xvfb-run -a` on Linux. Cocoa requires the process main thread, so these
 dispatcher-thread desktop fixtures do not run on macOS; non-desktop tests still do.
 
 The opt-in `StructuredEditorDialogTests` fixture exercises the real Models,

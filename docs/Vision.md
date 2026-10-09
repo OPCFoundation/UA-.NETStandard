@@ -650,11 +650,9 @@ array is still a valid empty result, and absent optional members remain absent.
 Media status-classification reads retain their separate inline-delivery status
 semantics described in [media gating](#64-media-gating).
 
-[UaLens Companion Tasks](UaLens.md#companion-tasks) provides a managed desktop
+[UaLens Companion specification tasks](UaLens.md#companion-specification-tasks) provides a managed desktop
 consumer of these clients: published inspection, explicitly authorized simulated
-media/inference/feedback and a geometry-only SVG overlay export. It never
-downloads a media URI or treats a simulated sensor declaration as deployment
-authorization.
+media/inference/feedback and a geometry-only SVG overlay export.
 
 ### Discovery
 

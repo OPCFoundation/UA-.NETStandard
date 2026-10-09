@@ -10,6 +10,7 @@ If you are new here, read the sections in order: [Prerequisites](#prerequisites)
 - [Repository layout](#repository-layout)
 - [Building](#building)
 - [Running tests](#running-tests)
+  - [Testing UaLens](#testing-ualens)
 - [Coding standards (dos and don'ts)](#coding-standards-dos-and-donts)
 - [How-to guides](#how-to-guides)
   - [Add a log message (source-generated)](#add-a-log-message-source-generated)
@@ -88,16 +89,8 @@ Run the whole suite from the solution:
 dotnet test UA.slnx
 ```
 
-UaLens requires process-isolated ordinary and native workflow selections. Use
-`.github/scripts/run-dotnet-tests.ps1` for its complete mainline suite, rather
-than running that test project unfiltered. The separate count-gated desktop lane
-remains explicit. See
-[the desktop runner](../tools/Opc.Ua.Lens/DesktopTesting.md) for the supported
-platform commands, expected test count, layout matrix, and manual
-assistive-technology checks. The runner rejects missing, skipped, and zero-test
-results. Native publishing and local installation of the managed tool are
-[separate artifact checks](../tools/Opc.Ua.Lens/README.md); a project build is not
-evidence that either distributed application starts successfully.
+UaLens uses separate test assemblies for ordinary tests, native workflows and
+application-desktop tests. See [Testing UaLens](#testing-ualens) for their commands.
 
 Conventions and requirements:
 
@@ -202,6 +195,47 @@ sleeps. Keep every phase wait bounded. When checking the recreate/drain wiring,
 disable the managed-session channel deadline so outer takeover cannot mask a
 broken drain, and verify the parked Publish attempt has unwound before allowing
 replacement-session creation to finish.
+
+### Testing UaLens
+
+All three assemblies are registered in `UA.slnx` and use the normal NUnit runner:
+
+| Project | Scope |
+| --- | --- |
+| `tests/Opc.Ua.Lens.Tests` | Protocol, model, offline and unit tests; no desktop application |
+| `tests/Opc.Ua.Lens.Workflow.Tests` | Native-window workflows with injected protocol clients and an owned dispatcher |
+| `tests/Opc.Ua.Lens.Desktop.Tests` | Application resources, shell/dialog regressions, NodeSet and namespace UI |
+
+Run from the repository root with an interactive Windows desktop. Linux native
+tests require X11 or `xvfb-run`; the shared CI runner supplies Xvfb. Cocoa requires
+the process main thread, so these dispatcher-thread native assemblies are
+Windows/Linux-only. Their source still builds on macOS.
+
+```powershell
+$env:CustomTestTarget = 'net10.0'
+dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0
+dotnet test tests\Opc.Ua.Lens.Workflow.Tests\Opc.Ua.Lens.Workflow.Tests.csproj -c Release -f net10.0
+dotnet test tests\Opc.Ua.Lens.Desktop.Tests\Opc.Ua.Lens.Desktop.Tests.csproj -c Release -f net10.0
+```
+
+The assemblies isolate native dispatcher lifetimes without category-dependent
+multi-pass handling in the shared runner. Collect coverage with the normal
+`tests/coverlet.runsettings.xml`; results from all applicable assemblies contribute
+to the unchanged coverage gate.
+
+The [desktop count gate](../tools/Opc.Ua.Lens/DesktopTesting.md) also selects
+24 named regressions and rejects missing, skipped, duplicate or failed results.
+It includes pending-write shutdown, dialog cancellation, keyboard navigation,
+inspector publication and minimum-size checks. Native publishing and managed-tool
+installation are [separate artifact checks](../tools/Opc.Ua.Lens/README.md).
+
+Theme checks require 4.5:1 source-text contrast and 3:1 chart-series contrast on
+their defined surfaces. The native lane attaches bounded PNG captures and CSV
+color-vision diagnostics to its TRX. Captures use the rendered client visual;
+they do not qualify an OS compositor, physical display, screen reader or human
+color perception. DPI, physical keyboard and assistive-technology acceptance
+remain separate checks. Historical execution reports belong in
+[the review backlog](../plans/UaLensReview.md), not the user guide.
 
 ## Coding standards (dos and don'ts)
 

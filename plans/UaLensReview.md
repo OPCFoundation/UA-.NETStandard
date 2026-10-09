@@ -137,12 +137,12 @@ replacement of the application architecture.
 
 ## GUI and interaction assessment
 
-All nine checked-in [UaLens screenshots](Images/UaLens) were inspected. They show
+All nine checked-in [UaLens screenshots](../docs/Images/UaLens) were inspected. They show
 a coherent engineering workspace: stable navigation, a persistent primary
 connection strip, a resizable explorer, contextual node actions, and a searchable
-tool catalog. The [workspace](Images/UaLens/workspace.png),
-[catalog](Images/UaLens/tool-catalog.png), and
-[monitor](Images/UaLens/monitoring.png) make this structure visible.
+tool catalog. The [workspace](../docs/Images/UaLens/workspace.png),
+[catalog](../docs/Images/UaLens/tool-catalog.png), and
+[monitor](../docs/Images/UaLens/monitoring.png) make this structure visible.
 Connection state, quality, timestamps, and delivery counters have textual
 representations; the UI does not rely solely on status colors.
 
@@ -692,7 +692,7 @@ field, making the command appear unresponsive.
 
 **Scope:** Share applicable validation rules, preserve entered values, identify
 the invalid field, and focus the first correction target. The
-[screenshot](Images/UaLens/monitored-item.png) establishes the form's appearance,
+[screenshot](../docs/Images/UaLens/monitored-item.png) establishes the form's appearance,
 not its invalid-input behavior.
 
 **Acceptance criteria:**
@@ -893,7 +893,7 @@ pointer cycling as a shortcut over the same state.
 **Evidence:** The application
 [project file](../tools/Opc.Ua.Lens/Opc.Ua.Lens.csproj#L18-L24) globally suppresses
 `CS0618` and `EXTOBS0001`, in addition to `CA1812`. The repository's
-[coding standards](DeveloperGuide.md#coding-standards-dos-and-donts) prohibit
+[coding standards](../docs/DeveloperGuide.md#coding-standards-dos-and-donts) prohibit
 new use of obsolete APIs outside test code. The successful build therefore
 does not establish compliance with that rule.
 
@@ -916,7 +916,7 @@ disabled guard, not an assertion that every suppressed call is defective.
 **Priority:** P2. **Type:** Validation gap. **Confidence:** High.
 
 **Evidence:** The
-[endpoint-picker fixture](../tests/Opc.Ua.Lens.Tests/Connection/EndpointCredentialsPickerDialogTests.cs#L43-L102)
+[endpoint-picker fixture](../tests/Opc.Ua.Lens.Desktop.Tests/Connection/EndpointCredentialsPickerDialogTests.cs)
 is explicitly selected, requires a desktop and STA, and exercises one modal
 accept/cancel path. The ordinary 931-test run does not exercise it. Both
 attempted selections in this review executed zero tests. The
@@ -954,7 +954,7 @@ managed `ualens` tool package. The
 native-publish and managed-pack workflows. The inspected
 [GitHub AOT job](../.github/workflows/buildandtest.yml#L607-L648) names the
 stack, historian, and MCP test applications, while the
-[Azure AOT matrix](../.azurepipelines/test-aot.yml#L45-L50) selects
+[historical Azure AOT matrix](https://github.com/OPCFoundation/UA-.NETStandard/blob/fe612275e/.azurepipelines/test-aot.yml#L45-L50) selects
 `Opc.Ua.Aot.Tests*.csproj`; none of those test projects references Lens.
 
 **Impact and scope:** A normal build does not validate the trimmed desktop,

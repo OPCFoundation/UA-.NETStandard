@@ -34,7 +34,7 @@ paths that match your application, or use the contents list to find a feature.
 - [7. Draft and experimental capabilities](#7-draft-and-experimental-capabilities)
 - [Reference and upgrade](#reference-and-upgrade)
 - [Contributing and maintaining the SDK](#contributing-and-maintaining-the-sdk)
-- [UaLens NodeSet2 explorer](UaLensNodeSets.md)
+- [UaLens NodeSet2 explorer](UaLens.md#opening-nodeset2-files)
 
 ## How to use this index
 
