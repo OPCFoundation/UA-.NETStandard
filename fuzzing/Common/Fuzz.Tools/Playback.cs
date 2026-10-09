@@ -56,7 +56,7 @@ namespace Opc.Ua.Fuzzing
             string directoryPath,
             bool stackTrace,
             ITelemetryContext telemetry,
-            string target)
+            string? target)
         {
             _ = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
             string fullPath;
@@ -69,7 +69,7 @@ namespace Opc.Ua.Fuzzing
             else
             {
                 // .NET Framework rejects wildcards in GetFullPath, so normalize only the parent.
-                string parent = Path.GetDirectoryName(directoryPath);
+                string parent = Path.GetDirectoryName(directoryPath)!;
                 parent = Path.GetFullPath(string.IsNullOrEmpty(parent) ? "." : parent);
                 string pattern = Path.GetFileName(directoryPath);
                 fullPath = Path.Combine(parent, pattern);

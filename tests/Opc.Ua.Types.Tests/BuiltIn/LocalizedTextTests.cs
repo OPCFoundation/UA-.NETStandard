@@ -234,7 +234,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(deepCopy.Text, Is.EqualTo(localizedText.Text), "Text should be the same");
             Assert.That(
                 deepCopy.Translations,
-                Has.Count.EqualTo(localizedText.Translations.Count),
+                Has.Count.EqualTo(localizedText.Translations!.Count),
                 "Translations count should be the same");
             Assert.That(
                 deepCopy.Translations["en-US"],

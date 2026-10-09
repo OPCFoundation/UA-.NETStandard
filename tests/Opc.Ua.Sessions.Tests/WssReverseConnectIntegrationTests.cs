@@ -72,14 +72,6 @@ namespace Opc.Ua.Sessions.Tests
         [OneTimeSetUp]
         public async Task OneTimeSetUpAsync()
         {
-            if (!HttpsTransportListener.IsWssTransportSupported)
-            {
-                Assert.Ignore(
-                    "The WSS transport listener is unavailable in this build of " +
-                    "Opc.Ua.Bindings.Https (the netstandard2.1 Kestrel hosting cannot open a " +
-                    "WebSocket listener on a modern .NET runtime).");
-            }
-
             m_telemetry = NUnitTelemetryContext.Create();
             m_pkiRoot = Path.GetTempPath() + Path.GetRandomFileName();
 
@@ -103,7 +95,7 @@ namespace Opc.Ua.Sessions.Tests
                 UriScheme = Utils.UriSchemeOpcWss,
                 HttpsMutualTls = false,
                 ReverseConnectTimeout = kMaxTimeout,
-                MaxChannelCount = 8,
+                MaxChannelCount = 103,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security,
                 TransportBindingRegistry = registry
             };

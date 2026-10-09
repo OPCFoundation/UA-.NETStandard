@@ -30,6 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
+using System.Xml;
 using Opc.Ua.Schema.Model;
 using Opc.Ua.Types;
 
@@ -112,7 +114,7 @@ namespace Opc.Ua.SourceGeneration
             template.Render();
         }
 
-        private TemplateString LoadTemplate_Imports(ILoadContext context)
+        private TemplateString? LoadTemplate_Imports(ILoadContext context)
         {
             if (context.Target is not Namespace ns)
             {
@@ -148,7 +150,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private TemplateString LoadTemplate_DataType(ILoadContext context)
+        private TemplateString? LoadTemplate_DataType(ILoadContext context)
         {
             if (context.Target is IModelDesign design)
             {
@@ -197,8 +199,22 @@ namespace Opc.Ua.SourceGeneration
 
             BasicDataType basicType = dataType.BasicDataType;
 
-            if (basicType == BasicDataType.UserDefined)
+            if (basicType == BasicDataType.UserDefined &&
+                !dataType.IsEnumeration &&
+                dataType.HasInlineMatrixField())
             {
+                // A structure with an inline matrix field (or nested field)
+                // shall not be included in a DataTypeDictionary, which cannot
+                // describe it (OPC 10000-6 5.2.5).
+                return null;
+            }
+
+            if (basicType == BasicDataType.UserDefined ||
+                IsStructureOptionSet(dataType))
+            {
+                // A subtype of the OptionSet structure is encoded as that
+                // structure (Value and ValidBits ByteStrings), not as an
+                // integer.
                 return BinarySchemaTemplates.ComplexType;
             }
 
@@ -229,7 +245,10 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(Tokens.TypeName, dataType.SymbolicName.Name);
 
-            if (dataType.BasicDataType == BasicDataType.UserDefined)
+            bool isStructure =
+                dataType.BasicDataType == BasicDataType.UserDefined ||
+                IsStructureOptionSet(dataType);
+            if (isStructure)
             {
                 context.Template.AddReplacement(Tokens.BaseType,
                     (dataType.BaseTypeNode as DataTypeDesign).GetBinaryDataType(
@@ -240,11 +259,14 @@ namespace Opc.Ua.SourceGeneration
             List<Parameter> fields = [];
             var parents = new Stack<DataTypeDesign>();
 
-            for (DataTypeDesign parent = dataType;
+            for (DataTypeDesign? parent = dataType;
                 parent != null;
                 parent = parent.BaseTypeNode as DataTypeDesign)
             {
-                if (parent.Fields != null)
+                // The fields of an OptionSet name its bits; a structure
+                // based OptionSet only carries the fields of the structure.
+                if (parent.Fields != null &&
+                    (!isStructure || !parent.IsOptionSet))
                 {
                     parents.Push(parent);
                 }
@@ -283,13 +305,14 @@ namespace Opc.Ua.SourceGeneration
                         AllowSubTypes = field.AllowSubTypes,
                         IsOptional = field.IsOptional,
                         BitMask = field.BitMask,
+                        OptionSetBit = field.OptionSetBit,
                         DefaultValue = field.DefaultValue,
                         ReleaseStatus = field.ReleaseStatus
                     });
                 }
             }
 
-            if (dataType.BasicDataType == BasicDataType.Enumeration)
+            if (!isStructure && dataType.BasicDataType == BasicDataType.Enumeration)
             {
                 uint lengthInBits = 32;
                 bool isOptionSet = false;
@@ -297,36 +320,20 @@ namespace Opc.Ua.SourceGeneration
                 if (dataType.IsOptionSet)
                 {
                     isOptionSet = true;
+                    lengthInBits = GetOptionSetLengthInBits(dataType);
 
-                    switch (dataType.BaseType.Name)
+                    if (fields.Count > 0 && !fields.Any(f => f.Identifier == 0))
                     {
-                        case "SByte":
-                        case "Byte":
-                            lengthInBits = 8;
-                            break;
-                        case "Int16":
-                        case "UInt16":
-                            lengthInBits = 16;
-                            break;
-                        case "Int32":
-                        case "UInt32":
-                            lengthInBits = 32;
-                            break;
-                        case "Int64":
-                        case "UInt64":
-                            lengthInBits = 64;
-                            break;
+                        fields.Insert(0, new Parameter
+                        {
+                            Name = "None",
+                            Identifier = 0,
+                            IdentifierSpecified = true,
+                            DataType = fields[0].DataType,
+                            DataTypeNode = fields[0].DataTypeNode,
+                            Parent = fields[0].Parent
+                        });
                     }
-
-                    fields.Insert(0, new Parameter
-                    {
-                        Name = "None",
-                        Identifier = 0,
-                        IdentifierSpecified = true,
-                        DataType = fields[0].DataType,
-                        DataTypeNode = fields[0].DataTypeNode,
-                        Parent = fields[0].Parent
-                    });
                 }
 
                 context.Template.AddReplacement(Tokens.LengthInBits, lengthInBits);
@@ -342,12 +349,67 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.ListOfFields,
-                dataType.BasicDataType == BasicDataType.UserDefined
+                isStructure
                     ? BuildStructureFields(dataType, fields)
                     : fields,
                 LoadTemplate_Field);
 
             return context.Template.Render();
+        }
+
+        /// <summary>
+        /// True if the data type is a subtype of the OptionSet structure
+        /// (as opposed to an OptionSet based on an unsigned integer).
+        /// </summary>
+        private static bool IsStructureOptionSet(DataTypeDesign dataType)
+        {
+            if (!dataType.IsOptionSet)
+            {
+                return false;
+            }
+            for (var type = dataType.BaseTypeNode as DataTypeDesign;
+                type != null;
+                type = type.BaseTypeNode as DataTypeDesign)
+            {
+                if (type.SymbolicId == new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// The size of an integer based OptionSet is the size of the built-in
+        /// integer it derives from, possibly through other OptionSets.
+        /// </summary>
+        private static uint GetOptionSetLengthInBits(DataTypeDesign dataType)
+        {
+            for (var type = dataType.BaseTypeNode as DataTypeDesign;
+                type != null;
+                type = type.BaseTypeNode as DataTypeDesign)
+            {
+                if (type.SymbolicId?.Namespace != Namespaces.OpcUa)
+                {
+                    continue;
+                }
+                switch (type.SymbolicId.Name)
+                {
+                    case "SByte":
+                    case "Byte":
+                        return 8;
+                    case "Int16":
+                    case "UInt16":
+                        return 16;
+                    case "Int32":
+                    case "UInt32":
+                        return 32;
+                    case "Int64":
+                    case "UInt64":
+                        return 64;
+                }
+            }
+            return 32;
         }
 
         /// <summary>
@@ -429,7 +491,7 @@ namespace Opc.Ua.SourceGeneration
             return expanded;
         }
 
-        private TemplateString LoadTemplate_Field(ILoadContext context)
+        private TemplateString? LoadTemplate_Field(ILoadContext context)
         {
             if (context.Target is BinaryField binaryField)
             {
@@ -463,6 +525,19 @@ namespace Opc.Ua.SourceGeneration
 
             if (dataType.BasicDataType == BasicDataType.Enumeration)
             {
+                // EnumeratedValue Value is an xs:int (OPC 10000-5 C.2.7), so
+                // an OptionSet mask of bit 31 or above has no valid value. The
+                // names only document the type (C.2.4) and the length comes
+                // from LengthInBits, so such a bit is left out and noted.
+                if (field.Identifier > int.MaxValue || field.Identifier < int.MinValue)
+                {
+                    context.Out.WriteLine(
+                        "<!-- {0} = {1}: the value does not fit the xs:int of an EnumeratedValue. -->",
+                        field.Name.Replace('-', '_'),
+                        field.Identifier);
+                    return null;
+                }
+
                 context.Out.WriteLine(
                     "<opc:EnumeratedValue Name=\"{0}\" Value=\"{1}\" />",
                     field.Name.AsXmlAttributeValue(),
@@ -479,18 +554,24 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private void WriteStructureField(ILoadContext context, BinaryField binaryField)
         {
-            Parameter field = binaryField.Field;
+            Parameter? field = binaryField.Field;
 
             // The authored field name lands in XML attributes, so it has to be
             // escaped - a BrowseName may legally contain '&', '<' or a quote,
             // which would otherwise make the served dictionary non-well-formed.
-            string fieldName = field.Name.AsXmlAttributeValue();
+            string fieldName = field!.Name.AsXmlAttributeValue();
 
             string fieldDataType = field.DataTypeNode.GetBinaryDataType(
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces);
 
-            if (field.AllowSubTypes)
+            // Only a Structure field allowing subtypes is written as an
+            // ExtensionObject (OPC 10000-6 5.1.7). A field of any other type
+            // allowing subtypes is encoded like its DataType: an abstract one
+            // (BaseDataType, Number, ...) as a Variant, which GetBinaryDataType
+            // already returns.
+            if (field.AllowSubTypes &&
+                field.DataTypeNode!.BasicDataType is BasicDataType.UserDefined or BasicDataType.Structure)
             {
                 fieldDataType = "ua:ExtensionObject";
             }
@@ -507,6 +588,19 @@ namespace Opc.Ua.SourceGeneration
                         " SwitchValue=\"{0}\"",
                         binaryField.SwitchValue.Value);
                 }
+            }
+
+            // A structure with a multi-dimensional (inline matrix) field is
+            // not part of the dictionary (see LoadTemplate_DataType).
+            if (field.ValueRank is not ValueRank.Scalar and not ValueRank.Array)
+            {
+                // Every other rank is written by the generated Encode as a
+                // Variant (ScalarOrArray, Any, ...).
+                context.Out.WriteLine(
+                    "<opc:Field Name=\"{0}\" TypeName=\"ua:Variant\"{1} />",
+                    fieldName,
+                    switchAttributes);
+                return;
             }
 
             if (field.ValueRank != ValueRank.Scalar)
@@ -557,7 +651,7 @@ namespace Opc.Ua.SourceGeneration
                 Length = length;
             }
 
-            public BinaryField(Parameter field, string switchField, uint? switchValue)
+            public BinaryField(Parameter field, string? switchField, uint? switchValue)
             {
                 Field = field;
                 Name = field.Name;
@@ -565,11 +659,11 @@ namespace Opc.Ua.SourceGeneration
                 SwitchValue = switchValue;
             }
 
-            public Parameter Field { get; }
+            public Parameter? Field { get; }
             public string Name { get; }
-            public string TypeName { get; }
+            public string? TypeName { get; }
             public uint Length { get; }
-            public string SwitchField { get; }
+            public string? SwitchField { get; }
             public uint? SwitchValue { get; }
         }
 
@@ -584,7 +678,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private const string kSpecifiedSuffix = "Specified";
 
-        private TemplateString LoadTemplate_BinaryDocumentation(ILoadContext context)
+        private TemplateString? LoadTemplate_BinaryDocumentation(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign dataType)
             {

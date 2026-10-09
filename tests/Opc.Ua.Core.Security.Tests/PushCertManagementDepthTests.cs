@@ -52,12 +52,12 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId m = await FindMethodAsync(admin, ServerConfigurationNodeId, "CreateSigningRequest").ConfigureAwait(false);
+                NodeId m = await FindMethodAsync(admin!, ServerConfigurationNodeId, "CreateSigningRequest").ConfigureAwait(false);
                 Assert.That(m.IsNull, Is.False, "CreateSigningRequest method should exist.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -72,12 +72,12 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId m = await FindMethodAsync(admin, ServerConfigurationNodeId, "CreateSigningRequest").ConfigureAwait(false);
+                NodeId m = await FindMethodAsync(admin!, ServerConfigurationNodeId, "CreateSigningRequest").ConfigureAwait(false);
                 Assert.That(m.IsNull, Is.False, "CreateSigningRequest must be present.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -92,16 +92,16 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId cg = await FindChildAsync(admin, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
+                NodeId cg = await FindChildAsync(admin!, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
                 Assert.That(cg.IsNull, Is.False);
-                NodeId dg = await FindChildAsync(admin, cg, "DefaultApplicationGroup").ConfigureAwait(false);
+                NodeId dg = await FindChildAsync(admin!, cg, "DefaultApplicationGroup").ConfigureAwait(false);
                 Assert.That(dg.IsNull, Is.False);
-                NodeId tl = await FindChildAsync(admin, dg, "TrustList").ConfigureAwait(false);
+                NodeId tl = await FindChildAsync(admin!, dg, "TrustList").ConfigureAwait(false);
                 Assert.That(tl.IsNull, Is.False, "TrustList should exist.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Security.Tests
         public async Task TrustListNodeExistsAsync()
         {
             ArrayOf<ReferenceDescription> refs = await BrowseChildrenAsync(Session, ServerConfigurationNodeId).ConfigureAwait(false);
-            Assert.That(refs.ToArray().Any(r => r.BrowseName.Name == "CertificateGroups"), Is.True);
+            Assert.That(refs.ToArray()!.Any(r => r.BrowseName.Name == "CertificateGroups"), Is.True);
         }
 
         [Test]
@@ -123,12 +123,12 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId cg = await FindChildAsync(admin, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
+                NodeId cg = await FindChildAsync(admin!, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
                 Assert.That(cg.IsNull, Is.False, "CertificateGroups must exist.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -143,16 +143,16 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId cg = await FindChildAsync(admin, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
-                NodeId dg = await FindChildAsync(admin, cg, "DefaultApplicationGroup").ConfigureAwait(false);
-                NodeId tl = await FindChildAsync(admin, dg, "TrustList").ConfigureAwait(false);
+                NodeId cg = await FindChildAsync(admin!, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
+                NodeId dg = await FindChildAsync(admin!, cg, "DefaultApplicationGroup").ConfigureAwait(false);
+                NodeId tl = await FindChildAsync(admin!, dg, "TrustList").ConfigureAwait(false);
                 Assert.That(tl.IsNull, Is.False);
-                NodeId owm = await FindMethodAsync(admin, tl, "OpenWithMasks").ConfigureAwait(false);
+                NodeId owm = await FindMethodAsync(admin!, tl, "OpenWithMasks").ConfigureAwait(false);
                 Assert.That(owm.IsNull, Is.False, "OpenWithMasks should exist.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -167,13 +167,13 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId cg = await FindChildAsync(admin, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
-                NodeId dg = await FindChildAsync(admin, cg, "DefaultApplicationGroup").ConfigureAwait(false);
+                NodeId cg = await FindChildAsync(admin!, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
+                NodeId dg = await FindChildAsync(admin!, cg, "DefaultApplicationGroup").ConfigureAwait(false);
                 Assert.That(dg.IsNull, Is.False, "DefaultApplicationGroup must exist.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -188,14 +188,14 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId cg = await FindChildAsync(admin, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
+                NodeId cg = await FindChildAsync(admin!, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
                 Assert.That(cg.IsNull, Is.False);
-                ArrayOf<ReferenceDescription> groups = await BrowseChildrenAsync(admin, cg).ConfigureAwait(false);
+                ArrayOf<ReferenceDescription> groups = await BrowseChildrenAsync(admin!, cg).ConfigureAwait(false);
                 Assert.That(groups.Count, Is.GreaterThan(0));
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -218,16 +218,16 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId cg = await FindChildAsync(admin, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
-                NodeId dg = await FindChildAsync(admin, cg, "DefaultApplicationGroup").ConfigureAwait(false);
-                NodeId tl = await FindChildAsync(admin, dg, "TrustList").ConfigureAwait(false);
+                NodeId cg = await FindChildAsync(admin!, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
+                NodeId dg = await FindChildAsync(admin!, cg, "DefaultApplicationGroup").ConfigureAwait(false);
+                NodeId tl = await FindChildAsync(admin!, dg, "TrustList").ConfigureAwait(false);
                 Assert.That(tl.IsNull, Is.False);
-                NodeId sz = await FindChildAsync(admin, tl, "Size").ConfigureAwait(false);
+                NodeId sz = await FindChildAsync(admin!, tl, "Size").ConfigureAwait(false);
                 Assert.That(sz.IsNull, Is.False, "TrustList should have a Size property.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -284,12 +284,12 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                ArrayOf<ReferenceDescription> refs = await BrowseChildrenAsync(admin, ServerConfigurationNodeId).ConfigureAwait(false);
+                ArrayOf<ReferenceDescription> refs = await BrowseChildrenAsync(admin!, ServerConfigurationNodeId).ConfigureAwait(false);
                 Assert.That(refs.Count, Is.GreaterThan(0));
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -304,12 +304,12 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId m = await FindMethodAsync(admin, ServerConfigurationNodeId, "GetRejectedList").ConfigureAwait(false);
+                NodeId m = await FindMethodAsync(admin!, ServerConfigurationNodeId, "GetRejectedList").ConfigureAwait(false);
                 Assert.That(m.IsNull, Is.False, "GetRejectedList should exist.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -324,7 +324,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId m = await FindMethodAsync(admin, ServerConfigurationNodeId, "GetCertificates").ConfigureAwait(false);
+                NodeId m = await FindMethodAsync(admin!, ServerConfigurationNodeId, "GetCertificates").ConfigureAwait(false);
                 if (m.IsNull)
                 {
                     Assert.Fail("GetCertificates not present.");
@@ -333,7 +333,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -348,12 +348,12 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId m = await FindMethodAsync(admin, ServerConfigurationNodeId, "ApplyChanges").ConfigureAwait(false);
+                NodeId m = await FindMethodAsync(admin!, ServerConfigurationNodeId, "ApplyChanges").ConfigureAwait(false);
                 Assert.That(m.IsNull, Is.False, "ApplyChanges should exist.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -407,12 +407,12 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId m = await FindMethodAsync(admin, ServerConfigurationNodeId, "ApplyChanges").ConfigureAwait(false);
+                NodeId m = await FindMethodAsync(admin!, ServerConfigurationNodeId, "ApplyChanges").ConfigureAwait(false);
                 Assert.That(m.IsNull, Is.False, "ApplyChanges should be visible to admin.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -427,16 +427,16 @@ namespace Opc.Ua.Core.Security.Tests
             }
             try
             {
-                NodeId cg = await FindChildAsync(admin, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
-                NodeId dg = await FindChildAsync(admin, cg, "DefaultApplicationGroup").ConfigureAwait(false);
-                NodeId tl = await FindChildAsync(admin, dg, "TrustList").ConfigureAwait(false);
+                NodeId cg = await FindChildAsync(admin!, ServerConfigurationNodeId, "CertificateGroups").ConfigureAwait(false);
+                NodeId dg = await FindChildAsync(admin!, cg, "DefaultApplicationGroup").ConfigureAwait(false);
+                NodeId tl = await FindChildAsync(admin!, dg, "TrustList").ConfigureAwait(false);
                 Assert.That(tl.IsNull, Is.False, "TrustList should be browseable.");
-                ArrayOf<ReferenceDescription> ch = await BrowseChildrenAsync(admin, tl).ConfigureAwait(false);
+                ArrayOf<ReferenceDescription> ch = await BrowseChildrenAsync(admin!, tl).ConfigureAwait(false);
                 Assert.That(ch.Count, Is.GreaterThan(0), "TrustList should have child nodes.");
             }
             finally
             {
-                await admin.CloseAsync(5000, true).ConfigureAwait(false);
+                await admin!.CloseAsync(5000, true).ConfigureAwait(false);
                 admin.Dispose();
             }
         }
@@ -454,7 +454,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException)
             {
-                return null;
+                return null!;
             }
         }
 
@@ -489,8 +489,8 @@ namespace Opc.Ua.Core.Security.Tests
                     CancellationToken.None).ConfigureAwait(false);
                 if (next.Results.Count > 0)
                 {
-                    var more = new List<ReferenceDescription>(refs.ToArray());
-                    more.AddRange(next.Results[0].References.ToArray());
+                    var more = new List<ReferenceDescription>(refs.ToArray()!);
+                    more.AddRange(next.Results[0].References.ToArray()!);
                     refs = more.ToArrayOf();
                     cp = next.Results[0].ContinuationPoint;
                 }

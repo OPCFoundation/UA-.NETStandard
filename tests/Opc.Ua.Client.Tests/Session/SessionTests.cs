@@ -492,7 +492,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = new SessionMock(
                 channel,
                 configuration,
-                new ConfiguredEndpoint(null, endpoint));
+                new ConfiguredEndpoint(null!, endpoint));
 
             CancellationToken ct = CancellationToken.None;
 
@@ -592,7 +592,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = new SessionMock(
                 channel,
                 configuration,
-                new ConfiguredEndpoint(null, endpoint));
+                new ConfiguredEndpoint(null!, endpoint));
 
             CancellationToken ct = CancellationToken.None;
 
@@ -789,7 +789,7 @@ namespace Opc.Ua.Client.Tests
             using var sut = new SessionMock(
                 channel,
                 configuration,
-                new ConfiguredEndpoint(null, endpoint));
+                new ConfiguredEndpoint(null!, endpoint));
 
             CancellationToken ct = CancellationToken.None;
 
@@ -1226,6 +1226,87 @@ namespace Opc.Ua.Client.Tests
             // Assert
             Assert.That(result, Is.EqualTo(StatusCodes.BadUnexpectedError));
             sut.Channel.Verify();
+        }
+
+        /// <summary>
+        /// A request with a null authenticationToken is a session-less
+        /// invocation (OPC 10000-4 §6.3.1). A closed Session must not send
+        /// one through the channel it keeps open.
+        /// </summary>
+        [Test]
+        public async Task RequestAfterCloseFailsLocallyWithBadSessionIdInvalidAsync()
+        {
+            using var sut = SessionMock.Create();
+            sut.SetConnectedAndResponsive();
+            CancellationToken ct = CancellationToken.None;
+            SetupCloseSession(sut);
+            List<ReadRequest> sent = SetupRead(sut);
+
+            StatusCode closed = await sut.CloseAsync(closeChannel: false, ct).ConfigureAwait(false);
+
+            Assert.That(closed, Is.EqualTo(StatusCodes.Good));
+            ServiceResultException? sre = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await ReadServerStateAsync(sut, ct).ConfigureAwait(false));
+            Assert.That(sre!.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+            Assert.That(sent, Is.Empty, "The request must not reach the channel.");
+        }
+
+        [Test]
+        public async Task ActivateSessionIsStillSentAfterCloseAsync()
+        {
+            using var sut = SessionMock.Create();
+            sut.SetConnectedAndResponsive();
+            CancellationToken ct = CancellationToken.None;
+            SetupCloseSession(sut);
+            sut.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ActivateSessionResponse())
+                .Verifiable(Times.Once);
+
+            await sut.CloseAsync(closeChannel: false, ct).ConfigureAwait(false);
+            ActivateSessionResponse response = await sut.ActivateSessionAsync(
+                null,
+                new SignatureData(),
+                default,
+                default,
+                new ExtensionObject(),
+                new SignatureData(),
+                ct).ConfigureAwait(false);
+
+            Assert.That(response, Is.Not.Null);
+            sut.Channel.Verify();
+        }
+
+        [Test]
+        public async Task RequestAfterANewSessionIsCreatedCarriesItsTokenAsync()
+        {
+            using var sut = SessionMock.Create();
+            sut.SetConnectedAndResponsive();
+            CancellationToken ct = CancellationToken.None;
+            SetupCloseSession(sut);
+            List<ReadRequest> sent = SetupRead(sut);
+
+            await sut.CloseAsync(closeChannel: false, ct).ConfigureAwait(false);
+            sut.SessionCreated(NodeId.Parse("s=second"), NodeId.Parse("s=auth2"));
+            await ReadServerStateAsync(sut, ct).ConfigureAwait(false);
+
+            Assert.That(sent, Has.Count.EqualTo(1));
+            Assert.That(sent[0].RequestHeader.AuthenticationToken, Is.EqualTo(NodeId.Parse("s=auth2")));
+        }
+
+        [Test]
+        public async Task RequestBeforeASessionIsCreatedIsNotRefusedAsync()
+        {
+            using var sut = SessionMock.Create();
+            CancellationToken ct = CancellationToken.None;
+            List<ReadRequest> sent = SetupRead(sut);
+
+            await ReadServerStateAsync(sut, ct).ConfigureAwait(false);
+
+            Assert.That(sent, Has.Count.EqualTo(1));
+            Assert.That(sent[0].RequestHeader.AuthenticationToken.IsNull, Is.True);
         }
 
         [Test]
@@ -2416,13 +2497,14 @@ namespace Opc.Ua.Client.Tests
             sut.Channel.Verify();
         }
 
-        [Test]
-        public async Task RecreateInPlaceAsyncReusesTokenWhenEnabledAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RecreateInPlaceAsyncReusesTokenWhenEnabledOrRequiredAsync(bool requireTokenReuse)
         {
             EndpointDescription failoverDescription = CreateSessionEndpointDescription("opc.tcp://failover:4840");
             using var sut = SessionMock.Create();
             sut.SetConnected();
-            sut.EnableTokenReuseFailover = true;
+            sut.EnableTokenReuseFailover = !requireTokenReuse;
             SetServerNonce(sut, [1, 2, 3, 4]);
 
             Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
@@ -2441,10 +2523,11 @@ namespace Opc.Ua.Client.Tests
 
             await InvokeRecreateInPlaceCoreAsync(
                 sut,
-                new ConfiguredEndpoint(null, failoverDescription),
+                new ConfiguredEndpoint(null!, failoverDescription),
                 failoverChannel.Object,
-                requireTokenReuse: false).ConfigureAwait(false);
+                requireTokenReuse).ConfigureAwait(false);
 
+            Assert.That(sut.SessionId, Is.EqualTo(NodeId.Parse("s=connected")));
             failoverChannel.Verify();
             failoverChannel.Verify(
                 c => c.SendRequestAsync(
@@ -2500,7 +2583,7 @@ namespace Opc.Ua.Client.Tests
 
             await InvokeRecreateInPlaceCoreAsync(
                 sut,
-                new ConfiguredEndpoint(null, failoverDescription),
+                new ConfiguredEndpoint(null!, failoverDescription),
                 failoverChannel.Object,
                 requireTokenReuse: false).ConfigureAwait(false);
 
@@ -2509,24 +2592,27 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReactivateMirroredSessionAsyncThrowsWhenTokenReuseIsRequiredButDisabled()
+        public void ReactivateMirroredSessionAsyncRequiresExistingSession()
         {
             EndpointDescription failoverDescription = CreateSessionEndpointDescription("opc.tcp://failover:4840");
             using var sut = SessionMock.Create();
-            sut.SetConnected();
             sut.EnableTokenReuseFailover = false;
-            SetServerNonce(sut, [1, 2, 3, 4]);
 
             Mock<ITransportChannel> failoverChannel = CreateReconnectChannelMock(sut, failoverDescription);
 
             ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await InvokeRecreateInPlaceCoreAsync(
                     sut,
-                    new ConfiguredEndpoint(null, failoverDescription),
+                    new ConfiguredEndpoint(null!, failoverDescription),
                     failoverChannel.Object,
                     requireTokenReuse: true).ConfigureAwait(false))!;
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            failoverChannel.Verify(
+                c => c.SendRequestAsync(
+                    It.IsAny<ActivateSessionRequest>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
             failoverChannel.Verify(
                 c => c.SendRequestAsync(
                     It.IsAny<CreateSessionRequest>(),
@@ -2739,7 +2825,9 @@ namespace Opc.Ua.Client.Tests
                     typeof(CancellationToken),
                     typeof(bool),
                     typeof(bool),
-                    typeof(SessionClient)
+                    typeof(SessionClient),
+                    typeof(bool),
+                    typeof(bool)
                 ],
                 null);
 
@@ -2747,7 +2835,7 @@ namespace Opc.Ua.Client.Tests
 
             var task = (Task?)method!.Invoke(
                 session,
-                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null]);
+                [endpoint, null, channel, null, CancellationToken.None, false, requireTokenReuse, null, false, false]);
 
             Assert.That(task, Is.Not.Null);
             return task!;
@@ -2772,21 +2860,21 @@ namespace Opc.Ua.Client.Tests
         private static void SetClientNonce(Session session, byte[] value)
         {
             typeof(Session)
-                .GetField("m_clientNonce", PrivateInstance)
+                .GetField("m_clientNonce", PrivateInstance)!
                 .SetValue(session, value.ToArray());
         }
 
         private static void SetServerNonce(Session session, byte[] value)
         {
             typeof(Session)
-                .GetField("m_serverNonce", PrivateInstance)
+                .GetField("m_serverNonce", PrivateInstance)!
                 .SetValue(session, ByteString.From(value));
         }
 
         private static byte[] GetClientNonce(Session session)
         {
             return typeof(Session)
-                .GetField("m_clientNonce", PrivateInstance)
+                .GetField("m_clientNonce", PrivateInstance)!
                 .GetValue(session) is byte[] bytes
                 ? [.. bytes]
                 : [];
@@ -2795,8 +2883,8 @@ namespace Opc.Ua.Client.Tests
         private static byte[] GetServerNonce(Session session)
         {
             return ((ByteString)typeof(Session)
-                .GetField("m_serverNonce", PrivateInstance)
-                .GetValue(session)).ToArray();
+                .GetField("m_serverNonce", PrivateInstance)!
+                .GetValue(session)!).ToArray();
         }
 
         private static ArrayOf<DataValue> CreateOperationLimitsRead(uint operationLimit, uint maxArrayLength)
@@ -2834,6 +2922,50 @@ namespace Opc.Ua.Client.Tests
                 new DataValue(new Variant(1000u)),          // MaxWhereClauseParameters
                 new DataValue(new Variant(1000u))           // MaxSelectClauseParameters
             ];
+        }
+
+        private static void SetupCloseSession(SessionMock sut)
+        {
+            sut.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<CloseSessionRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new CloseSessionResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good }
+                }));
+        }
+
+        private static List<ReadRequest> SetupRead(SessionMock sut)
+        {
+            var sent = new List<ReadRequest>();
+            sut.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<ReadRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback((IServiceRequest request, CancellationToken _) => sent.Add((ReadRequest)request))
+                .Returns(new ValueTask<IServiceResponse>(new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader { ServiceResult = StatusCodes.Good },
+                    Results = [new DataValue(new Variant((int)ServerState.Running))]
+                }));
+            return sent;
+        }
+
+        private static async Task ReadServerStateAsync(SessionMock sut, CancellationToken ct)
+        {
+            await sut.ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Neither,
+                [
+                    new ReadValueId
+                    {
+                        NodeId = VariableIds.Server_ServerStatus_State,
+                        AttributeId = Attributes.Value
+                    }
+                ],
+                ct).ConfigureAwait(false);
         }
     }
 }

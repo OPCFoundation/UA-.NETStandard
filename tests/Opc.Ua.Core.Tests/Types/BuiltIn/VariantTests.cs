@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
 
         [DatapointSource]
         public static readonly BuiltInType[] BuiltInTypes =
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
         [
             .. Enum.GetValues<BuiltInType>()
 #else
@@ -162,14 +162,14 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 case BuiltInType.DiagnosticInfo:
                     return DataGenerator.GetRandomDiagnosticInfo();
                 case BuiltInType.Null:
-                    return null;
+                    return null!;
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
                 case BuiltInType.Variant:
                     return DataGenerator.GetRandomScalar(expectedType);
                 default:
-                    return DataGenerator.GetRandomScalar(expectedType).AsBoxedObject();
+                    return DataGenerator.GetRandomScalar(expectedType).AsBoxedObject()!;
             }
         }
 
@@ -242,7 +242,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
                 case BuiltInType.Null:
                 case BuiltInType.DataValue:
                 case BuiltInType.DiagnosticInfo:
-                    return null;
+                    return null!;
                 default:
                     throw ServiceResultException.Unexpected(
                         $"Unexpected BuiltInType {expectedType}");

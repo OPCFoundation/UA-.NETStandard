@@ -2,7 +2,17 @@
 
 > **When to read this:** Read this for NuGet package renames / additions / removals, the new published packages, target-framework changes on `Opc.Ua.Types`, and the Newtonsoft.Json removal from `Opc.Ua.Core`.
 
-### New published packages
+## Contents
+
+- [New published packages](#new-published-packages)
+- [Renamed packages — the GDS libraries drop `.Common`](#renamed-packages--the-gds-libraries-drop-common)
+- [`.Debug` packages are no longer published to nuget.org](#debug-packages-are-no-longer-published-to-nugetorg)
+- [Target Frameworks (only Opc.Ua.Types changes)](#target-frameworks-only-opcuatypes-changes)
+- [NuGet dependency additions and removals](#nuget-dependency-additions-and-removals)
+- [ASP.NET Core packages are versioned per target framework](#aspnet-core-packages-are-versioned-per-target-framework)
+- [Newtonsoft.Json - what really changed](#newtonsoftjson---what-really-changed)
+
+## New published packages
 
 The 2.0 packages are currently prereleases on nuget.org. Use
 `2.0.0-preview.*` to float to the latest published `2.0.0-preview.N` release,
@@ -23,7 +33,7 @@ Two assemblies that previously shipped only as transitive content inside `Opc.Ua
 <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Security.Certificates" Version="2.0.0-preview.*" />
 ```
 
-### Renamed packages — the GDS libraries drop `.Common`
+## Renamed packages — the GDS libraries drop `.Common`
 
 The three GDS packages lose their `.Common` suffix, so the family matches every
 other companion specification in the stack (`Opc.Ua.Di`, `Opc.Ua.ISA95`,
@@ -55,18 +65,90 @@ Assembly names follow the package ids (`Opc.Ua.Gds.Server.dll`, not
 `Opc.Ua.Gds.Server.Common.dll`), so update any binding redirects, ILMerge or
 trimming descriptors, or signing manifests that name the files directly.
 
-### Target Frameworks (only Opc.Ua.Types changes)
+## `.Debug` packages are no longer published to nuget.org
 
-The TFM matrix for the main libraries (Core, Client, Server, Configuration, etc.) is unchanged from 1.5.378: `net472;net48;netstandard2.1;net8.0;net9.0;net10.0`. The only consumer-visible change is the `Opc.Ua.Types` assembly: on 1.5.378 it tracked the dedicated `LibTypesTargetFrameworks` variable (`net472;net48;netstandard2.0;netstandard2.1;net8.0;net9.0;net10.0`); on 2.0 the variable is removed and `Opc.Ua.Types` tracks `LibCoreTargetFrameworks`, the same matrix as every other library. The net effect is that `netstandard2.0` is no longer offered for `Opc.Ua.Types`.
+Up to `1.5.378` and through `2.0.0-preview.5`, every package also had a
+Debug-configuration build on nuget.org under a `.Debug` suffix, for example
+`OPCFoundation.NetStandard.Opc.Ua.Core.Debug`. From `2.0.0-preview.6` on,
+nuget.org receives only the Release packages and their symbol packages
+(`.snupkg`), including the `OPCFoundation.NetStandard.Opc.Ua` meta-package. The
+`.Debug` packages are still built for every release, but they are published
+only to the
+[GitHub Packages feed](https://github.com/orgs/OPCFoundation/packages?repo_name=UA-.NETStandard).
 
-The minimum SDK is the **.NET 10 SDK**, and projects compile with **`LangVersion 14.0`**. Projects that target `netstandard2.0` and pull in `Opc.Ua.Types` will fail to restore with `NU1202` ("package is not compatible") - retarget to `netstandard2.1` or one of the .NET / .NET Framework TFMs above.
+`OPCFoundation.NetStandard.Opc.Ua.Symbols` is discontinued; `2.0.0-preview.5`
+is its last version. It was the Debug counterpart of the meta-package: it
+depended on the `.Debug` package IDs, so it could no longer be restored from
+nuget.org. Reference the individual `.Debug` packages you need instead, as
+described below, or use the `OPCFoundation.NetStandard.Opc.Ua` meta-package.
 
-### NuGet dependency additions and removals
+If you reference a `.Debug` package, do one of the following:
+
+- **Switch to the Release package** by dropping the `.Debug` suffix. For
+  source-level debugging, the symbol packages on nuget.org provide the
+  portable PDBs, and Source Link maps them to this repository.
+
+  ```xml
+  <!-- Before -->
+  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.Debug" Version="1.5.378.176" />
+
+  <!-- After -->
+  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client" Version="2.0.0-preview.*" />
+  ```
+
+- **Keep the `.Debug` package** by adding the GitHub Packages feed as a
+  package source. It requires authentication, even for public packages: use a
+  classic personal access token with the `read:packages` scope.
+
+  ```xml
+  <!-- nuget.config -->
+  <configuration>
+    <packageSources>
+      <add key="nuget.org" value="https://api.nuget.org/v3/index.json" />
+      <add key="opcfoundation" value="https://nuget.pkg.github.com/OPCFoundation/index.json" />
+    </packageSources>
+    <packageSourceCredentials>
+      <opcfoundation>
+        <add key="Username" value="%GITHUB_USER%" />
+        <add key="ClearTextPassword" value="%GITHUB_TOKEN%" />
+      </opcfoundation>
+    </packageSourceCredentials>
+  </configuration>
+  ```
+
+  The feed also carries in-development builds from `master`
+  (`2.0.0-preview.<N>.g<commit>`), which sort above the published previews,
+  so a floating version such as `2.0.0-preview.*` resolves to a `master` build.
+  **Pin an exact version** of each `.Debug` package, matching the Release
+  version you use:
+
+  ```xml
+  <PackageReference Include="OPCFoundation.NetStandard.Opc.Ua.Client.Debug" Version="2.0.0-preview.6" />
+  ```
+
+  Optionally, add [package source mapping](https://learn.microsoft.com/nuget/consume-packages/package-source-mapping)
+  so that only the `.Debug` IDs can come from this feed. Source mapping
+  controls which source provides a package ID, not which versions of it are
+  chosen, so it does not replace pinning.
+
+## Target Frameworks (only Opc.Ua.Types changes)
+
+The main library target matrix includes `net48`, `net8.0`, `net9.0`, and `net10.0`. Version 2.0 drops `net472` and `netstandard2.1`: consumers on .NET Framework 4.7.2 must move to .NET Framework 4.8, and `netstandard2.1` consumers to `net8.0` or later. `Opc.Ua.Types` additionally targets
+`netstandard2.0`: its project uses `$(LibCoreTargetFrameworks);netstandard2.0`.
+A Types-only consumer does not need to retarget merely because it uses
+`netstandard2.0`. Higher-level packages can have different requirements; check
+the target assets of every package your application consumes.
+
+Building this repository requires the **.NET 10 SDK** and **C# 14.0**.
+Those build prerequisites are not the minimum runtime for every NuGet consumer.
+See [platform support](../../DeveloperGuide.md#packages-platform-support-and-versioning).
+
+## NuGet dependency additions and removals
 
 | Package | Status in 2.0 | Referenced by |
 |---|---|---|
 | `Makaretu.Dns.Multicast` 0.27.0 | Added | `src/Opc.Ua.Lds.Server/Opc.Ua.Lds.Server.csproj`; previously vendored in-tree |
-| `Microsoft.Bcl.TimeProvider` 10.0.11 | Added | `src/Opc.Ua.Core`, `src/Opc.Ua.Core.Types`; backs `TimeProvider` on net472/net48 |
+| `Microsoft.Bcl.TimeProvider` 10.0.11 | Added | `src/Opc.Ua.Core`, `src/Opc.Ua.Core.Types`; backs `TimeProvider` on net48 |
 | `Microsoft.CodeAnalysis.Analyzers` 4.14.0 | Added (pinned) | Centralised pin only, no direct reference; holds the analyzer closure on the `roslyn.props` band |
 | `Microsoft.CodeAnalysis.Common` 5.0.0 | Added | `tools/SourceGeneratorVariant.targets`, `tools/MigrationAnalyzerVariant.targets` |
 | `Microsoft.CodeAnalysis.CSharp` 5.0.0 | Added | `tools/SourceGeneratorVariant.targets`, `tools/MigrationAnalyzerVariant.targets` |
@@ -88,18 +170,18 @@ The minimum SDK is the **.NET 10 SDK**, and projects compile with **`LangVersion
 | `System.Reflection.Metadata` 9.0.0 | Added (pinned) | Centralised pin only, no direct reference; tracks `$(RoslynRuntimeVersion)` for the analyzer closure |
 | `Mono.Options` 6.12.0.148 | Removed | Previously referenced by `samples/Reference/ConsoleReferenceServer/MonoReferenceServer.csproj` |
 
-### ASP.NET Core packages are versioned per target framework
+## ASP.NET Core packages are versioned per target framework
 
-`Microsoft.AspNetCore.Authentication.Certificate`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.AspNetCore.Mvc.Testing` and `Microsoft.AspNetCore.TestHost` ship one band per .NET major and, unlike the `Microsoft.Extensions.*` packages, carry no `netstandard2.0` asset and do not roll forward across majors - a `net8.0` project cannot consume the `10.0.x` band. `Directory.Packages.props` therefore selects the version from `$(TargetFramework)`: `net8.0` gets `8.0.30`, `net9.0` gets `9.0.19`, and every other TFM (including `net10.0` and the `net10.0` shell that legacy `netstandard2.0`/`netstandard2.1` `$(CustomTestTarget)` builds fall back to) gets `10.0.11`.
+`Microsoft.AspNetCore.Authentication.Certificate`, `Microsoft.AspNetCore.Authentication.JwtBearer`, `Microsoft.AspNetCore.Mvc.Testing` and `Microsoft.AspNetCore.TestHost` ship one band per .NET major and, unlike the `Microsoft.Extensions.*` packages, carry no `netstandard2.0` asset and do not roll forward across majors - a `net8.0` project cannot consume the `10.0.x` band. `Directory.Packages.props` therefore selects the version from `$(TargetFramework)`: `net8.0` gets `8.0.30`, `net9.0` gets `9.0.19`, and every other TFM (including `net10.0`) gets `10.0.11`.
 
 Consumers that pin these packages themselves are unaffected. Consumers that inherit them transitively through `Opc.Ua.Bindings.Https` receive the band matching their own target framework.
 
-### Newtonsoft.Json - what really changed
+## Newtonsoft.Json - what really changed
 
-`Newtonsoft.Json` was removed as a direct dependency of `src/Opc.Ua.Core/Opc.Ua.Core.csproj` in 2.0. The only direct `<PackageReference Include="Newtonsoft.Json" ... />` remaining anywhere under `src/` and `src/` is in `src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj`. Consequences:
-
-- Consumers that reached `Newtonsoft.Json` only transitively through `Opc.Ua.Core` now need to add their own explicit reference.
-- Consumers of `Opc.Ua.PubSub` continue to receive `Newtonsoft.Json` transitively and are unaffected.
+Neither `Opc.Ua.Core` nor `Opc.Ua.PubSub` directly references `Newtonsoft.Json`
+in 2.0. Consumers that used it only through either package's old dependency
+chain must add an explicit reference if their own code still uses its API.
+Do not depend on an unrelated package to provide it transitively.
 
 ```xml
 <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />

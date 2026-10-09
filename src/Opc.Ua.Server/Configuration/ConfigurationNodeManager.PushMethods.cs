@@ -112,10 +112,6 @@ namespace Opc.Ua.Server
             ByteString privateKey,
             CancellationToken ct)
         {
-            // §7.10.5: UpdateCertificate may transfer private-key material,
-            // so it requires an encrypted SecureChannel.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: true);
-
             // OPC 10000-12 §7.10.3: the private key is sensitive material;
             // it must not be persisted into the
             // CertificateUpdateRequested / CertificateUpdated audit events.
@@ -131,6 +127,27 @@ namespace Opc.Ua.Server
                 privateKeyFormat!,
                 AuditEvents.RedactedPrivateKey
             ];
+
+            // §7.10.26: the CertificateUpdateRequestedAuditEvent is raised
+            // whenever UpdateCertificate is called, so a call refused for an
+            // insufficient SecureChannel or Role is audited with Status=false.
+            // §7.10.5: UpdateCertificate may transfer private-key material,
+            // so it requires an encrypted SecureChannel.
+            try
+            {
+                HasApplicationSecureAdminAccess(context, requireEncryptedChannel: true);
+            }
+            catch (ServiceResultException accessDenied)
+            {
+                Server.ReportCertificateUpdateRequestedAuditEvent(
+                    context,
+                    objectId,
+                    method,
+                    inputArguments,
+                    m_logger,
+                    accessDenied);
+                throw;
+            }
 
             Server.ReportCertificateUpdateRequestedAuditEvent(
                 context,
@@ -182,6 +199,14 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
                         "Certificate data is invalid.");
+                }
+
+                // OPC 10000-6 §6.2.2: application certificates are X.509 v3.
+                if (!X509Utils.IsX509Version3(newCert))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateInvalid,
+                        "The new certificate is not an X.509 version 3 certificate.");
                 }
 
                 // validate certificate type of new certificate
@@ -1235,8 +1260,9 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .CertificatePasswordProvider;
                 certWithPrivateKey = await CertificateIdentifierResolver
-                    .LoadPrivateKeyAsync(
+                    .LoadPrivateKeyWithStoreResolverAsync(
                         existingCertIdentifier,
+                        m_configuration.CertificateManager as ICertificateStoreResolver,
                         passwordProvider,
                         m_configuration.ApplicationUri,
                         Server.Telemetry,

@@ -101,7 +101,7 @@ namespace Opc.Ua.Server.Tests
             uint fileHandle = await OpenForWriteAsync(node, context).ConfigureAwait(false);
             await WriteTrustedCertificateAsync(node, context, fileHandle, trustedCert).ConfigureAwait(false);
 
-            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate.OnCallAsync(
+            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate!.OnCallAsync!(
                 context,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -110,7 +110,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.ApplyChangesRequired, Is.True);
-            Assert.That(node.OpenCount.Value, Is.Zero, "the file handle must close even though the change is staged");
+            Assert.That(node.OpenCount!.Value, Is.Zero, "the file handle must close even though the change is staged");
             Assert.That(m_coordinator.IsTransactionActive, Is.True);
             Assert.That(m_coordinator.HasOpenTrustListWriter, Is.False, "CloseAndUpdate must clear the open-writer flag");
 
@@ -151,7 +151,7 @@ namespace Opc.Ua.Server.Tests
             uint fileHandle = await OpenForWriteAsync(node, context).ConfigureAwait(false);
             await WriteTrustedCertificateAsync(node, context, fileHandle, replacementCert).ConfigureAwait(false);
 
-            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate.OnCallAsync(
+            CloseAndUpdateMethodStateResult result = await node.CloseAndUpdate!.OnCallAsync!(
                 context,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -232,7 +232,7 @@ namespace Opc.Ua.Server.Tests
                 .AddItem(duplicate);
 
             ByteString payload = EncodeTrustListPayload(context, trustListData);
-            await node.Write.OnCallAsync(
+            await node.Write!.OnCallAsync!(
                 context,
                 node.Write,
                 node.NodeId,
@@ -240,7 +240,7 @@ namespace Opc.Ua.Server.Tests
                 payload,
                 CancellationToken.None).ConfigureAwait(false);
 
-            CloseAndUpdateMethodStateResult closeResult = await node.CloseAndUpdate.OnCallAsync(
+            CloseAndUpdateMethodStateResult closeResult = await node.CloseAndUpdate!.OnCallAsync!(
                 context,
                 node.CloseAndUpdate,
                 node.NodeId,
@@ -294,7 +294,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(new NodeId(Guid.NewGuid(), 1));
             using Certificate cert = CreateTestCertificate();
 
-            AddCertificateMethodStateResult result = await node.AddCertificate.OnCallAsync(
+            AddCertificateMethodStateResult result = await node.AddCertificate!.OnCallAsync!(
                 context,
                 node.AddCertificate,
                 node.NodeId,
@@ -336,7 +336,7 @@ namespace Opc.Ua.Server.Tests
                 await seedStore.AddAsync(cert, ct: CancellationToken.None).ConfigureAwait(false);
             }
 
-            RemoveCertificateMethodStateResult removeResult = await node.RemoveCertificate.OnCallAsync(
+            RemoveCertificateMethodStateResult removeResult = await node.RemoveCertificate!.OnCallAsync!(
                 context,
                 node.RemoveCertificate,
                 node.NodeId,
@@ -379,7 +379,7 @@ namespace Opc.Ua.Server.Tests
             });
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await node.Open.OnCallAsync(
+                await node.Open!.OnCallAsync!(
                         otherContext,
                         node.Open,
                         node.NodeId,
@@ -402,7 +402,7 @@ namespace Opc.Ua.Server.Tests
 
             trustList.NotifySessionClosing(context.SessionId());
 
-            Assert.That(node.OpenCount.Value, Is.Zero);
+            Assert.That(node.OpenCount!.Value, Is.Zero);
             Assert.That(m_coordinator.HasOpenTrustListWriter, Is.False);
         }
 
@@ -489,7 +489,7 @@ namespace Opc.Ua.Server.Tests
 
         private static async Task<uint> OpenForWriteAsync(TrustListState node, ISystemContext context)
         {
-            OpenMethodStateResult openResult = await node.Open.OnCallAsync(
+            OpenMethodStateResult openResult = await node.Open!.OnCallAsync!(
                 context,
                 node.Open,
                 node.NodeId,
@@ -511,7 +511,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<ByteString> trustedCertificates = new ByteString[] { trustedCert.RawData.ToByteString() };
             trustListData.TrustedCertificates = trustListData.TrustedCertificates.AddItems(trustedCertificates);
             ByteString payload = EncodeTrustListPayload(context, trustListData);
-            await node.Write.OnCallAsync(
+            await node.Write!.OnCallAsync!(
                 context,
                 node.Write,
                 node.NodeId,

@@ -76,6 +76,22 @@ namespace Opc.Ua.ISA95.Server
         public ushort InstanceNamespaceIndex =>
             (ushort)Server.NamespaceUris.GetIndex(m_options.InstanceNamespaceUri);
 
+        /// <summary>
+        /// The shared Job Control V2 endpoint binder. The same binder wires the
+        /// OPC 40001-3 <c>JobManagementType</c> endpoints, so the eleven job
+        /// verbs behave identically whether a client reaches them through the
+        /// stand-alone ISA-95 root or through a machine.
+        /// </summary>
+        /// <remarks>
+        /// Created once on the startup thread by
+        /// <see cref="CreateAddressSpaceAsync"/>, before anything that runs
+        /// concurrently can reach it.
+        /// </remarks>
+        private Isa95JobControlV2Binder V2Binder =>
+            m_v2Binder ?? throw ServiceResultException.Create(
+                StatusCodes.BadInvalidState,
+                "The ISA-95 address space has not been created yet.");
+
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
             ISystemContext context,
             CancellationToken cancellationToken = default)
@@ -91,8 +107,13 @@ namespace Opc.Ua.ISA95.Server
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+            await LoadPredefinedNodesAsync(SystemContext, externalReferences, cancellationToken)
                 .ConfigureAwait(false);
+
+            m_v2Binder = new Isa95JobControlV2Binder(
+                SystemContext,
+                Server.NamespaceUris,
+                RefreshJobOrderListsAsync);
 
             await CreateV2StatusEventTypeAsync(cancellationToken).ConfigureAwait(false);
             NodeManagerBuilder builder = CreateFluentBuilder(InstanceNamespaceIndex);
@@ -228,10 +249,15 @@ namespace Opc.Ua.ISA95.Server
                             SystemContext,
                             root,
                             browseName);
-                AddV2ReceiverMethods(m_v2OrderReceiver);
+                V2Binder.AddReceiverMethods(m_v2OrderReceiver);
                 AddChild(root, m_v2OrderReceiver);
-                WireV2OrderReceiver(m_v2OrderReceiver, m_providers.JobOrderReceiverV2);
-                InitializeV2OrderVariables(m_v2OrderReceiver);
+                V2Binder.BindOrderReceiver(
+                    m_v2OrderReceiver,
+                    m_providers.JobOrderReceiverV2);
+                V2Binder.InitializeOrderVariables(
+                    m_v2OrderReceiver,
+                    m_providers.JobOrderCatalog?.MaxDownloadableJobOrders ?? 0);
+                m_v2OrderReceiver.JobOrderList!.OnSimpleReadValue = ReadV2JobOrderList;
             }
             if (m_options.ExposeJobResponseProvider &&
                 m_providers.JobResponseProviderV2 != null)
@@ -245,7 +271,7 @@ namespace Opc.Ua.ISA95.Server
                                 $"{m_options.JobControlV2BrowseName}_JobResponseProvider"));
                 m_v2ResponseProvider.EventNotifier = EventNotifiers.SubscribeToEvents;
                 AddChild(root, m_v2ResponseProvider);
-                WireV2ResponseProvider(
+                V2Binder.BindResponseProvider(
                     m_v2ResponseProvider,
                     m_providers.JobResponseProviderV2);
             }
@@ -260,99 +286,10 @@ namespace Opc.Ua.ISA95.Server
                             InstanceBrowseName(
                                 $"{m_options.JobControlV2BrowseName}_JobResponseReceiver"));
                 AddChild(root, m_v2ResponseReceiver);
-                WireV2ResponseReceiver(
+                V2Binder.BindResponseReceiver(
                     m_v2ResponseReceiver,
                     m_providers.JobResponseReceiverV2);
             }
-        }
-
-        private void AddV2ReceiverMethods(V2.ISA95JobOrderReceiverObjectState receiver)
-        {
-            receiver.Store ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(V2.BrowseNames.Store, V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfStoreMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(V2.BrowseNames.Store, V2.Namespaces.ISA95JobControlV2)));
-            receiver.StoreAndStart ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(
-                    V2.BrowseNames.StoreAndStart,
-                    V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfStoreAndStartMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(
-                        V2.BrowseNames.StoreAndStart,
-                        V2.Namespaces.ISA95JobControlV2)));
-            receiver.Start ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(V2.BrowseNames.Start, V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfStartMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(V2.BrowseNames.Start, V2.Namespaces.ISA95JobControlV2)));
-            receiver.Update ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(V2.BrowseNames.Update, V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfUpdateMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(V2.BrowseNames.Update, V2.Namespaces.ISA95JobControlV2)));
-            receiver.Stop ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(V2.BrowseNames.Stop, V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfStopMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(V2.BrowseNames.Stop, V2.Namespaces.ISA95JobControlV2)));
-            receiver.Cancel ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(V2.BrowseNames.Cancel, V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfCancelMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(V2.BrowseNames.Cancel, V2.Namespaces.ISA95JobControlV2)));
-            receiver.Clear ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(V2.BrowseNames.Clear, V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfClearMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(V2.BrowseNames.Clear, V2.Namespaces.ISA95JobControlV2)));
-            receiver.Pause ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(V2.BrowseNames.Pause, V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfPauseMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(V2.BrowseNames.Pause, V2.Namespaces.ISA95JobControlV2)));
-            receiver.Resume ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(V2.BrowseNames.Resume, V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfResumeMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(V2.BrowseNames.Resume, V2.Namespaces.ISA95JobControlV2)));
-            receiver.Abort ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(V2.BrowseNames.Abort, V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfAbortMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(V2.BrowseNames.Abort, V2.Namespaces.ISA95JobControlV2)));
-            receiver.RevokeStart ??= GetOrAddChild(
-                receiver,
-                ModelBrowseName(
-                    V2.BrowseNames.RevokeStart,
-                    V2.Namespaces.ISA95JobControlV2),
-                V2Extensions.CreateInstanceOfRevokeStartMethodType(
-                    SystemContext,
-                    receiver,
-                    ModelBrowseName(
-                        V2.BrowseNames.RevokeStart,
-                        V2.Namespaces.ISA95JobControlV2)));
         }
 
         private T GetOrAddChild<T>(
@@ -467,341 +404,6 @@ namespace Opc.Ua.ISA95.Server
             };
         }
 
-        private void WireV2OrderReceiver(
-            V2.ISA95JobOrderReceiverObjectState endpoint,
-            IIsa95JobOrderReceiverV2 provider)
-        {
-            endpoint.Store!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_Store);
-            endpoint.StoreAndStart!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_StoreAndStart);
-            endpoint.Update!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_Update);
-            endpoint.Start!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_Start);
-            endpoint.Stop!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_Stop);
-            endpoint.Cancel!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_Cancel);
-            endpoint.Clear!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_Clear);
-            endpoint.Pause!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_Pause);
-            endpoint.Resume!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_Resume);
-            endpoint.Abort!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_Abort);
-            endpoint.RevokeStart!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobOrderReceiverObjectType_RevokeStart);
-            endpoint.Store!.OnCallAsync = Store;
-            endpoint.StoreAndStart!.OnCallAsync = StoreAndStart;
-            endpoint.Update!.OnCallAsync = Update;
-            endpoint.Start!.OnCallAsync = Start;
-            endpoint.Stop!.OnCallAsync = Stop;
-            endpoint.Cancel!.OnCallAsync = Cancel;
-            endpoint.Clear!.OnCallAsync = Clear;
-            endpoint.Pause!.OnCallAsync = Pause;
-            endpoint.Resume!.OnCallAsync = Resume;
-            endpoint.Abort!.OnCallAsync = Abort;
-            endpoint.RevokeStart!.OnCallAsync = RevokeStart;
-
-            async ValueTask<V2.StoreMethodStateResult> Store(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                V2.ISA95JobOrderDataType order,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result = await provider.ReceiveJobOrderAsync(
-                    Isa95JobOrderOperationV2.Store,
-                    order,
-                    comment,
-                    ct).ConfigureAwait(false);
-                await RefreshJobOrderListsAsync(ct).ConfigureAwait(false);
-                return new V2.StoreMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<V2.StoreAndStartMethodStateResult> StoreAndStart(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                V2.ISA95JobOrderDataType order,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result = await provider.ReceiveJobOrderAsync(
-                    Isa95JobOrderOperationV2.StoreAndStart,
-                    order,
-                    comment,
-                    ct).ConfigureAwait(false);
-                await RefreshJobOrderListsAsync(ct).ConfigureAwait(false);
-                return new V2.StoreAndStartMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<V2.UpdateMethodStateResult> Update(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                V2.ISA95JobOrderDataType order,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result = await provider.ReceiveJobOrderAsync(
-                    Isa95JobOrderOperationV2.Update,
-                    order,
-                    comment,
-                    ct).ConfigureAwait(false);
-                await RefreshJobOrderListsAsync(ct).ConfigureAwait(false);
-                return new V2.UpdateMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<V2.StartMethodStateResult> Start(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                string id,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result =
-                    await InvokeById(Isa95JobOrderOperationV2.Start, id, comment, ct)
-                        .ConfigureAwait(false);
-                return new V2.StartMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<V2.StopMethodStateResult> Stop(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                string id,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result =
-                    await InvokeById(Isa95JobOrderOperationV2.Stop, id, comment, ct)
-                        .ConfigureAwait(false);
-                return new V2.StopMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<V2.CancelMethodStateResult> Cancel(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                string id,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result =
-                    await InvokeById(Isa95JobOrderOperationV2.Cancel, id, comment, ct)
-                        .ConfigureAwait(false);
-                return new V2.CancelMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<V2.ClearMethodStateResult> Clear(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                string id,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result =
-                    await InvokeById(Isa95JobOrderOperationV2.Clear, id, comment, ct)
-                        .ConfigureAwait(false);
-                return new V2.ClearMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<V2.PauseMethodStateResult> Pause(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                string id,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result =
-                    await InvokeById(Isa95JobOrderOperationV2.Pause, id, comment, ct)
-                        .ConfigureAwait(false);
-                return new V2.PauseMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<V2.ResumeMethodStateResult> Resume(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                string id,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result =
-                    await InvokeById(Isa95JobOrderOperationV2.Resume, id, comment, ct)
-                        .ConfigureAwait(false);
-                return new V2.ResumeMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<V2.AbortMethodStateResult> Abort(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                string id,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result =
-                    await InvokeById(Isa95JobOrderOperationV2.Abort, id, comment, ct)
-                        .ConfigureAwait(false);
-                return new V2.AbortMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<V2.RevokeStartMethodStateResult> RevokeStart(
-                ISystemContext context,
-                MethodState method,
-                NodeId objectId,
-                string id,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result =
-                    await InvokeById(Isa95JobOrderOperationV2.RevokeStart, id, comment, ct)
-                        .ConfigureAwait(false);
-                return new V2.RevokeStartMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            }
-
-            async ValueTask<Isa95JobOrderReceiptV2> InvokeById(
-                Isa95JobOrderOperationV2 operation,
-                string id,
-                ArrayOf<LocalizedText> comment,
-                CancellationToken ct)
-            {
-                Isa95JobOrderReceiptV2 result = await provider.ReceiveJobOrderAsync(
-                    operation,
-                    new V2.ISA95JobOrderDataType { JobOrderID = id },
-                    comment,
-                    ct).ConfigureAwait(false);
-                await RefreshJobOrderListsAsync(ct).ConfigureAwait(false);
-                return result;
-            }
-        }
-
-        private void WireV2ResponseProvider(
-            V2.ISA95JobResponseProviderObjectState endpoint,
-            IIsa95JobResponseProviderV2 provider)
-        {
-            endpoint.RequestJobResponseByJobOrderID!.MethodDeclarationId =
-                ModelNodeId(
-                    V2.MethodIds
-                        .ISA95JobResponseProviderObjectType_RequestJobResponseByJobOrderID);
-            endpoint.RequestJobResponseByJobOrderState!.MethodDeclarationId =
-                ModelNodeId(
-                    V2.MethodIds
-                        .ISA95JobResponseProviderObjectType_RequestJobResponseByJobOrderState);
-            endpoint.RequestJobResponseByJobOrderID!.OnCallAsync = async (
-                _,
-                _,
-                _,
-                jobOrderId,
-                ct) =>
-            {
-                Isa95JobResponseByIdResultV2 result =
-                    await provider.RequestJobResponseByJobOrderIdAsync(
-                        jobOrderId,
-                        ct).ConfigureAwait(false);
-                return new V2.RequestJobResponseByJobOrderIDMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    JobResponse = NormalizeV2Response(
-                        result.Response ?? new V2.ISA95JobResponseDataType()),
-                    ReturnStatus = result.ReturnStatus
-                };
-            };
-            endpoint.RequestJobResponseByJobOrderState!.OnCallAsync = async (
-                _,
-                _,
-                _,
-                state,
-                ct) =>
-            {
-                Isa95JobResponsesByStateResultV2 result =
-                    await provider.RequestJobResponsesByStateAsync(state, ct)
-                        .ConfigureAwait(false);
-                return new V2.RequestJobResponseByJobOrderStateMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    JobResponses = NormalizeV2Responses(result.Responses),
-                    ReturnStatus = result.ReturnStatus
-                };
-            };
-        }
-
-        private void WireV2ResponseReceiver(
-            V2.ISA95JobResponseReceiverObjectState endpoint,
-            IIsa95JobResponseReceiverV2 provider)
-        {
-            endpoint.ReceiveJobResponse!.MethodDeclarationId = ModelNodeId(
-                V2.MethodIds.ISA95JobResponseReceiverObjectType_ReceiveJobResponse);
-            endpoint.ReceiveJobResponse!.OnCallAsync = async (
-                _,
-                _,
-                _,
-                response,
-                ct) =>
-            {
-                Isa95JobResponseReceiptV2 result =
-                    await provider.ReceiveJobResponseAsync(response, ct)
-                        .ConfigureAwait(false);
-                return new V2.ReceiveJobResponseMethodStateResult
-                {
-                    ServiceResult = result.Result,
-                    ReturnStatus = result.ReturnStatus
-                };
-            };
-        }
-
         private void InitializeV1OrderVariables(
             V1.ISA95JobOrderReceiverObjectState endpoint)
         {
@@ -813,22 +415,6 @@ namespace Opc.Ua.ISA95.Server
             endpoint.EquipmentID!.Value = [];
             endpoint.PhysicalAssetID!.Value = [];
             endpoint.PersonnelID!.Value = [];
-        }
-
-        private void InitializeV2OrderVariables(
-            V2.ISA95JobOrderReceiverObjectState endpoint)
-        {
-            endpoint.JobOrderList!.Value = [];
-            endpoint.JobOrderList.OnSimpleReadValue = ReadV2JobOrderList;
-            endpoint.CurrentState!.StatusCode = StatusCodes.BadNotReadable;
-            endpoint.WorkMaster!.Value = [];
-            endpoint.MaterialClassID!.Value = [];
-            endpoint.MaterialDefinitionID!.Value = [];
-            endpoint.EquipmentID!.Value = [];
-            endpoint.PhysicalAssetID!.Value = [];
-            endpoint.PersonnelID!.Value = [];
-            endpoint.MaxDownloadableJobOrders!.Value =
-                m_providers.JobOrderCatalog?.MaxDownloadableJobOrders ?? 0;
         }
 
         private async ValueTask RefreshJobOrderListsAsync(CancellationToken ct)
@@ -852,26 +438,42 @@ namespace Opc.Ua.ISA95.Server
             }
             if (updateV2)
             {
-                v2Orders = NormalizeV2JobOrders(
+                v2Orders = V2Binder.NormalizeJobOrders(
                     await catalog.GetJobOrdersV2Async(ct).ConfigureAwait(false));
             }
 
+            BaseVariableState? v1List = updateV1 ? m_v1OrderReceiver!.JobOrderList : null;
+            BaseVariableState? v2List = updateV2 ? m_v2OrderReceiver!.JobOrderList : null;
             lock (m_jobOrderRefreshLock)
             {
                 if (generation <= m_jobOrderAppliedGeneration)
                 {
                     return;
                 }
+                // The lists serve their value from these snapshots, so nothing
+                // else sets the Value change mask. The new source timestamp
+                // sets it only when it differs from the last one, which two
+                // refreshes within one clock tick do not, so mark it explicitly.
+                DateTimeUtc now = DateTimeUtc.Now;
                 if (updateV1)
                 {
                     m_v1JobOrders = v1Orders;
+                    v1List!.Timestamp = now;
+                    v1List.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 }
                 if (updateV2)
                 {
                     m_v2JobOrders = v2Orders;
+                    v2List!.Timestamp = now;
+                    v2List.UpdateChangeMasks(NodeStateChangeMasks.Value);
                 }
                 m_jobOrderAppliedGeneration = generation;
             }
+
+            // Outside the lock: the change handlers of monitored items read the
+            // lists back through the read callbacks, which take the same lock.
+            v1List?.ClearChangeMasks(SystemContext, includeChildren: false);
+            v2List?.ClearChangeMasks(SystemContext, includeChildren: false);
         }
 
         private ServiceResult ReadV1JobOrderList(
@@ -900,116 +502,6 @@ namespace Opc.Ua.ISA95.Server
             }
             value = Variant.FromStructure(snapshot);
             return ServiceResult.Good;
-        }
-
-        private ArrayOf<V2.ISA95JobOrderAndStateDataType> NormalizeV2JobOrders(
-            ArrayOf<V2.ISA95JobOrderAndStateDataType> orders)
-        {
-            if (orders.IsNull || orders.Count == 0)
-            {
-                return orders;
-            }
-            var normalized = new V2.ISA95JobOrderAndStateDataType[orders.Count];
-            for (int ii = 0; ii < orders.Count; ii++)
-            {
-                V2.ISA95JobOrderAndStateDataType order = orders[ii];
-                var normalizedOrder =
-                    (V2.ISA95JobOrderAndStateDataType)order.Clone();
-                normalizedOrder.State = NormalizeV2State(order.State);
-                normalized[ii] = normalizedOrder;
-            }
-            return normalized.ToArrayOf();
-        }
-
-        private ArrayOf<V2.ISA95JobResponseDataType> NormalizeV2Responses(
-            ArrayOf<V2.ISA95JobResponseDataType> responses)
-        {
-            if (responses.IsNull || responses.Count == 0)
-            {
-                return responses;
-            }
-            var normalized = new V2.ISA95JobResponseDataType[responses.Count];
-            for (int ii = 0; ii < responses.Count; ii++)
-            {
-                normalized[ii] = NormalizeV2Response(responses[ii]);
-            }
-            return normalized.ToArrayOf();
-        }
-
-        private V2.ISA95JobResponseDataType NormalizeV2Response(
-            V2.ISA95JobResponseDataType response)
-        {
-            var normalized = (V2.ISA95JobResponseDataType)response.Clone();
-            normalized.JobState = NormalizeV2State(response.JobState);
-            return normalized;
-        }
-
-        private ArrayOf<V2.ISA95StateDataType> NormalizeV2State(
-            ArrayOf<V2.ISA95StateDataType> state)
-        {
-            if (state.IsNull || state.Count == 0)
-            {
-                return state;
-            }
-            var normalized = new V2.ISA95StateDataType[state.Count];
-            for (int ii = 0; ii < state.Count; ii++)
-            {
-                V2.ISA95StateDataType entry = state[ii];
-                var normalizedEntry = (V2.ISA95StateDataType)entry.Clone();
-                normalizedEntry.BrowsePath = NormalizeV2BrowsePath(
-                    entry.BrowsePath);
-                normalized[ii] = normalizedEntry;
-            }
-            return normalized.ToArrayOf();
-        }
-
-        private RelativePath NormalizeV2BrowsePath(RelativePath browsePath)
-        {
-            if (browsePath == null || browsePath.Elements.Count == 0)
-            {
-                return browsePath ?? new RelativePath();
-            }
-            var normalizedPath = (RelativePath)browsePath.Clone();
-            var normalized = new RelativePathElement[browsePath.Elements.Count];
-            ushort namespaceIndex = (ushort)Server.NamespaceUris.GetIndex(
-                V2.Namespaces.ISA95JobControlV2);
-            for (int ii = 0; ii < browsePath.Elements.Count; ii++)
-            {
-                RelativePathElement element = browsePath.Elements[ii];
-                var normalizedElement = (RelativePathElement)element.Clone();
-                QualifiedName targetName = element.TargetName;
-                if (targetName.NamespaceIndex == 0 &&
-                    IsV2SubstateMachine(targetName.Name))
-                {
-                    targetName = new QualifiedName(
-                        targetName.Name,
-                        namespaceIndex);
-                }
-                normalizedElement.TargetName = targetName;
-                normalized[ii] = normalizedElement;
-            }
-            normalizedPath.Elements = normalized.ToArrayOf();
-            return normalizedPath;
-        }
-
-        private static bool IsV2SubstateMachine(string? browseName)
-        {
-            return string.Equals(
-                    browseName,
-                    V2.BrowseNames.NotAllowedToStartSubstates,
-                    StringComparison.Ordinal) ||
-                string.Equals(
-                    browseName,
-                    V2.BrowseNames.AllowedToStartSubstates,
-                    StringComparison.Ordinal) ||
-                string.Equals(
-                    browseName,
-                    V2.BrowseNames.EndedSubstates,
-                    StringComparison.Ordinal) ||
-                string.Equals(
-                    browseName,
-                    V2.BrowseNames.InterruptedSubstates,
-                    StringComparison.Ordinal);
         }
 
         private async ValueTask ConfigureStatusEventsAsync(
@@ -1152,8 +644,8 @@ namespace Opc.Ua.ISA95.Server
                     new QualifiedName(Ua.BrowseNames.EventType));
                 ev.EventType.Value = m_v2StatusEventTypeId;
                 ev.JobOrder!.Value = status.JobOrder;
-                ev.JobResponse!.Value = NormalizeV2Response(status.JobResponse);
-                ev.JobState!.Value = NormalizeV2State(status.State);
+                ev.JobResponse!.Value = V2Binder.NormalizeResponse(status.JobResponse);
+                ev.JobState!.Value = V2Binder.NormalizeState(status.State);
                 ev.Time = PropertyState<DateTimeUtc>.With<VariantBuilder>(
                     ev,
                     status.Timestamp);
@@ -1269,6 +761,7 @@ namespace Opc.Ua.ISA95.Server
             }
         }
 
+        private Isa95JobControlV2Binder? m_v2Binder;
         private readonly Isa95ServerOptions m_options;
         private readonly Isa95ServerProviders m_providers;
         private readonly IReadOnlyList<IIsa95ModelConfigurator> m_configurators;

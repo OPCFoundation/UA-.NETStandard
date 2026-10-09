@@ -42,7 +42,8 @@ namespace Opc.Ua
         /// Initializes a new instance.
         /// </summary>
         /// <param name="modelUri">The OPC UA model URI.</param>
-        /// <param name="prefix">The C# namespace containing the accessors.</param>
+        /// <param name="prefix">The C# namespace prefix of the model the
+        /// accessors are generated for (the namespace of its state classes).</param>
         public ModelFluentAccessorProviderAttribute(string modelUri, string prefix)
         {
             ModelUri = modelUri;
@@ -55,7 +56,9 @@ namespace Opc.Ua
         public string ModelUri { get; }
 
         /// <summary>
-        /// The C# namespace containing the generated accessors.
+        /// The C# namespace prefix of the model the accessors are generated
+        /// for. The accessors themselves live in that namespace unless a
+        /// <c>[NodeManager]</c> binding placed them in the manager's namespace.
         /// </summary>
         public string Prefix { get; }
     }

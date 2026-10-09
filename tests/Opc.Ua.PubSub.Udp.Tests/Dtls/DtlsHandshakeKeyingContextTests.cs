@@ -1,4 +1,3 @@
-#if NET8_0_OR_GREATER
 /* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
@@ -57,9 +56,9 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             DtlsProfile profile = new("test", DtlsCipherSuite.TlsAes128GcmSha256,
                 DtlsNamedCurve.NistP256, DtlsNamedCurve.NistP256, isMandatory: false);
             byte[] shared = new byte[32];
-            RandomNumberGenerator.Fill(shared);
-            byte[] handshakeHash = SHA256.HashData([1, 2]);
-            byte[] applicationHash = SHA256.HashData([1, 2, 3]);
+            FillRandom(shared);
+            byte[] handshakeHash = DtlsHkdf.HashData(HashAlgorithmName.SHA256, [1, 2]);
+            byte[] applicationHash = DtlsHkdf.HashData(HashAlgorithmName.SHA256, [1, 2, 3]);
             using var client = new DtlsHandshakeKeyingContext(profile, shared, handshakeHash, applicationHash);
             using var server = new DtlsHandshakeKeyingContext(profile, shared, handshakeHash, applicationHash);
 
@@ -77,8 +76,8 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             DtlsProfile profile = new("test", DtlsCipherSuite.TlsAes128GcmSha256,
                 DtlsNamedCurve.NistP256, DtlsNamedCurve.NistP256, isMandatory: false);
             byte[] shared = new byte[32];
-            RandomNumberGenerator.Fill(shared);
-            byte[] hash = SHA256.HashData([7]);
+            FillRandom(shared);
+            byte[] hash = DtlsHkdf.HashData(HashAlgorithmName.SHA256, [7]);
             using var context = new DtlsHandshakeKeyingContext(profile, shared, hash, hash);
             byte[] before = (byte[])context.Secrets.ClientApplicationTrafficSecret.Clone();
 
@@ -86,6 +85,11 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
 
             Assert.That(context.Secrets.ClientApplicationTrafficSecret, Is.Not.EqualTo(before));
         }
+
+        private static void FillRandom(byte[] buffer)
+        {
+            using RandomNumberGenerator random = RandomNumberGenerator.Create();
+            random.GetBytes(buffer);
+        }
     }
 }
-#endif

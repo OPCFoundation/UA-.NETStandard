@@ -83,11 +83,73 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public void HttpsCertificateTypeStringRoundTrips()
+        {
+            // An XML configuration declares the TLS certificate of the
+            // opc.https endpoints with <CertificateTypeString>Https</...>.
+            var id = new CertificateIdentifier { CertificateTypeString = "Https" };
+            Assert.That(id.CertificateType, Is.EqualTo(ObjectTypeIds.HttpsCertificateType));
+
+            var fromType = new CertificateIdentifier { CertificateType = ObjectTypeIds.HttpsCertificateType };
+            Assert.That(fromType.CertificateTypeString, Is.EqualTo("Https"));
+        }
+
+        [Test]
         public void RawDataSetterToNullClearsRawData()
         {
             var id = new CertificateIdentifier { RawData = m_selfSignedCert.RawData };
             id.RawData = null;
             Assert.That(id.RawData, Is.Null);
+        }
+
+        [Test]
+        public void EqualIdentifiersHaveEqualHashCodes()
+        {
+            // Same certificate referenced from two stores, thumbprint in
+            // different case: Equals and GetHashCode must agree.
+            var a = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = "pki/own",
+                Thumbprint = m_selfSignedCert.Thumbprint.ToUpperInvariant()
+            };
+            var b = new CertificateIdentifier
+            {
+                StoreType = CertificateStoreType.Directory,
+                StorePath = "pki/trusted",
+                SubjectName = "CN=CertIdTest",
+                Thumbprint = m_selfSignedCert.Thumbprint.ToLowerInvariant()
+            };
+            Assert.That(a, Is.EqualTo(b));
+            Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+            Assert.That(new HashSet<CertificateIdentifier> { a, b }, Has.Count.EqualTo(1));
+
+            // An identifier by subject only is not equal to one by thumbprint.
+            var bySubject = new CertificateIdentifier { SubjectName = "CN=CertIdTest" };
+            Assert.That(bySubject, Is.Not.EqualTo(b));
+            Assert.That(b, Is.Not.EqualTo(bySubject));
+
+            var bySubject2 = new CertificateIdentifier
+            {
+                StorePath = "pki/other",
+                SubjectName = "CN=CertIdTest"
+            };
+            Assert.That(bySubject, Is.EqualTo(bySubject2));
+            Assert.That(bySubject.GetHashCode(), Is.EqualTo(bySubject2.GetHashCode()));
+        }
+
+        [Test]
+        public void PasswordProviderAcceptsShortRawBytePasswords(
+            [Values(1, 2, 3, 4, 5)] int length)
+        {
+            byte[] password = new byte[length];
+            for (int i = 0; i < length; i++)
+            {
+                password[i] = (byte)(0x41 + i);
+            }
+            var provider = new CertificatePasswordProvider(password, isUtf8String: false);
+            char[] result = provider.GetPassword(new CertificateIdentifier());
+            Assert.That(new string(result), Is.EqualTo(Convert.ToBase64String(password)));
         }
 
         [Test]
@@ -327,7 +389,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void DetermineStoreTypeNullReturnsDirectory()
         {
-            string result = CertificateStoreIdentifier.DetermineStoreType(null);
+            string result = CertificateStoreIdentifier.DetermineStoreType(null!);
             Assert.That(result, Is.EqualTo(CertificateStoreType.Directory));
         }
 
@@ -374,7 +436,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void CreateStoreNullTypeReturnsCertificateIdentifierCollectionStore()
         {
             using ICertificateStore store = CertificateStoreIdentifier
-                .CreateStore(null, NUnitTelemetryContext.Create());
+                .CreateStore(null!, NUnitTelemetryContext.Create());
             Assert.That(store, Is.Not.Null);
         }
 

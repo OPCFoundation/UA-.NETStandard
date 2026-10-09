@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using System.Runtime.ExceptionServices;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
@@ -88,6 +89,16 @@ namespace Opc.Ua.Fuzzing
         ];
 
         /// <summary>
+        /// Deeply nested inputs. They are replayed through every target in a child process,
+        /// because a stack overflow cannot be caught and would end the test host.
+        /// </summary>
+        public static readonly TestcaseAsset[] StackTestcases =
+        [
+            .. AssetCollection<TestcaseAsset>.CreateFromFiles(
+                TestUtils.EnumerateTestAssets("StackTestcases", "*.*"))
+        ];
+
+        /// <summary>
         /// Distinct, sorted encoder suffixes discovered below Testcases and in sibling Testcases.* directories.
         /// </summary>
         [DatapointSource]
@@ -111,12 +122,12 @@ namespace Opc.Ua.Fuzzing
         {
             foreach (FuzzTargetFunction target in CreateFuzzTargetFunctions(FuzzableCodeType))
             {
-                m_targets.Add(Hash(Encoding.UTF8.GetBytes(target.MethodInfo.ToString())));
+                m_targets.Add(Hash(Encoding.UTF8.GetBytes(target.MethodInfo.ToString()!)));
             }
             foreach ((TestcaseAsset[] assets, string category) in new[]
             {
                 (GoodTestcases, "good"), (CrashAssets, "crash"),
-                (TimeoutAssets, "timeout"), (SlowAssets, "slow")
+                (TimeoutAssets, "timeout"), (SlowAssets, "slow"), (StackTestcases, "stack")
             })
             {
                 foreach (TestcaseAsset asset in assets)
@@ -137,7 +148,7 @@ namespace Opc.Ua.Fuzzing
         [OneTimeTearDown]
         public void WriteObservedReplay()
         {
-            string path = Environment.GetEnvironmentVariable("OPCUA_ASSURANCE_REPLAY_PATH");
+            string? path = Environment.GetEnvironmentVariable("OPCUA_ASSURANCE_REPLAY_PATH");
             if (string.IsNullOrEmpty(path))
             {
                 path = Path.Combine(
@@ -145,7 +156,7 @@ namespace Opc.Ua.Fuzzing
                     FuzzableCodeType.Assembly.GetName().Name + ".replay.xml");
             }
             path = Path.GetFullPath(path);
-            Directory.CreateDirectory(Path.GetDirectoryName(path));
+            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
             using (var writer = XmlWriter.Create(path, new XmlWriterSettings { Indent = true }))
             {
                 writer.WriteStartElement("replay");
@@ -284,7 +295,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         private static bool IsFidelityFinding(Exception exception)
         {
-            for (Exception current = exception; current != null; current = current.InnerException)
+            for (Exception current = exception; current != null; current = current.InnerException!)
             {
                 if (string.Equals(
                     current.GetType().FullName,
@@ -334,6 +345,68 @@ namespace Opc.Ua.Fuzzing
             [ValueSource(nameof(SlowAssets))] TestcaseAsset messageEncoder)
         {
             await ReplayWithWatchdogAsync(fuzzableCode, messageEncoder).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Replays deeply nested inputs with every target in an isolated child and records only successful executions.
+        /// </summary>
+        [Test]
+        public async Task FuzzStackTestcasesAsync()
+        {
+            // The child runs each target on the small stack worker of FuzzOracles, so an
+            // unguarded recursion overflows there and fails with a non-zero exit instead of
+            // ending this test host.
+            var failures = new List<string>();
+            FuzzReplayDiagnostics diagnostics = CreatePrivateDiagnostics();
+            foreach (TestcaseAsset stackTestcase in StackTestcases)
+            {
+                string file = Path.Combine(Path.GetTempPath(), $"opcua-fuzz-{Guid.NewGuid():N}.bin");
+                try
+                {
+                    using (var stream = new FileStream(
+                        file, FileMode.CreateNew, FileAccess.Write, FileShare.None, 4096, FileOptions.Asynchronous))
+                    {
+#if NETFRAMEWORK
+                        await stream.WriteAsync(stackTestcase.Testcase, 0, stackTestcase.Testcase.Length)
+                            .ConfigureAwait(false);
+#else
+                        await stream.WriteAsync(stackTestcase.Testcase.AsMemory()).ConfigureAwait(false);
+#endif
+                    }
+#if NETFRAMEWORK
+                    string arguments = string.Empty;
+#else
+                    string arguments = $"\"{FuzzableCodeType.Assembly.Location}\" ";
+#endif
+                    ProcessStartInfo startInfo = CreateReplayStartInfo(
+                        $"{arguments}{FuzzReplayProgram.ReplayAllOption} \"{file}\"");
+                    (int exitCode, bool timedOut, string standardOutput, string standardError) =
+                        await FuzzProcessWatchdog.RunAsync(startInfo, TimeSpan.FromSeconds(120)).ConfigureAwait(false);
+                    if (timedOut || exitCode != 0)
+                    {
+                        bool retained = await diagnostics.TryWriteAsync(
+                            stackTestcase.Testcase,
+                            $"Input: {stackTestcase.Path}{Environment.NewLine}" +
+                            $"Exit: 0x{exitCode:X8}; timed out: {timedOut}{Environment.NewLine}" +
+                            standardOutput + Environment.NewLine + standardError).ConfigureAwait(false);
+                        failures.Add($"Stack replay failed: exit 0x{exitCode:X8}, timed out {timedOut}; " +
+                            $"private diagnostics retained: {retained}.");
+                    }
+                    else
+                    {
+                        foreach (FuzzTargetFunction target in CreateFuzzTargetFunctions(FuzzableCodeType))
+                        {
+                            RecordReplay(target, stackTestcase.Path);
+                        }
+                    }
+                }
+                finally
+                {
+                    File.Delete(file);
+                }
+            }
+
+            Assert.That(failures, Is.Empty, string.Join(Environment.NewLine, failures));
         }
 
         /// <summary>
@@ -460,7 +533,7 @@ namespace Opc.Ua.Fuzzing
             Assert.That(exitCode, Is.Not.Zero);
         }
 
-        private void FuzzTarget(FuzzTargetFunction fuzzableCode, byte[] blob, string path = null)
+        private void FuzzTarget(FuzzTargetFunction fuzzableCode, byte[] blob, string? path = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             OnFuzzTargetSetup(telemetry);
@@ -471,41 +544,61 @@ namespace Opc.Ua.Fuzzing
                 throw new InvalidOperationException(
                     "Fuzzable function must have exactly one parameter.");
             }
-            if (parameters[0].ParameterType == typeof(string))
-            {
-                string text = Encoding.UTF8.GetString(blob);
-                _ = fuzzableCode.MethodInfo.Invoke(null, [text]);
-            }
-            else if (typeof(Stream).IsAssignableFrom(parameters[0].ParameterType))
-            {
-                using var stream = new MemoryStream(blob);
-                _ = fuzzableCode.MethodInfo.Invoke(null, [stream]);
-            }
-            else if (parameters[0].ParameterType == typeof(ReadOnlySpan<byte>))
-            {
-                var span = new ReadOnlySpan<byte>(blob);
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
-                LibFuzzTemplate fuzzFunction = fuzzableCode.MethodInfo
-                    .CreateDelegate<LibFuzzTemplate>();
-#else
-                var fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo
-                    .CreateDelegate(typeof(LibFuzzTemplate));
-#endif
-                fuzzFunction(span);
-            }
-            else
-            {
-                throw new InvalidOperationException("Unsupported fuzz target signature.");
-            }
+            // The same stack and time oracles as the fuzzers, so a curated reproducer of a
+            // resource finding fails here as it did under libFuzzer.
+            FuzzOracles.RunTarget(
+                fuzzableCode.MethodInfo.Name,
+                blob.Length,
+                () => InvokeFuzzTarget(fuzzableCode, parameters[0].ParameterType, blob));
             if (path != null)
             {
                 RecordReplay(fuzzableCode, path);
             }
         }
 
+        private static void InvokeFuzzTarget(FuzzTargetFunction fuzzableCode, Type parameterType, byte[] blob)
+        {
+            try
+            {
+                if (parameterType == typeof(string))
+                {
+                    string text = Encoding.UTF8.GetString(blob);
+                    _ = fuzzableCode.MethodInfo.Invoke(null, [text]);
+                }
+                else if (typeof(Stream).IsAssignableFrom(parameterType))
+                {
+                    using var stream = new MemoryStream(blob);
+                    _ = fuzzableCode.MethodInfo.Invoke(null, [stream]);
+                }
+                else if (parameterType == typeof(ReadOnlySpan<byte>))
+                {
+                    var span = new ReadOnlySpan<byte>(blob);
+#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+                    LibFuzzTemplate fuzzFunction = fuzzableCode.MethodInfo
+                        .CreateDelegate<LibFuzzTemplate>();
+#else
+                    var fuzzFunction = (LibFuzzTemplate)fuzzableCode.MethodInfo
+                        .CreateDelegate(typeof(LibFuzzTemplate));
+#endif
+                    fuzzFunction(span);
+                }
+                else
+                {
+                    throw new InvalidOperationException("Unsupported fuzz target signature.");
+                }
+            }
+            catch (TargetInvocationException ex) when (ex.InnerException != null)
+            {
+                // Report the finding of the target, not the reflection wrapper, so the
+                // resource and fidelity classification sees the exception the target threw.
+                ExceptionDispatchInfo.Capture(ex.InnerException).Throw();
+                throw;
+            }
+        }
+
         private void RecordReplay(FuzzTargetFunction target, string path)
         {
-            string targetId = Hash(Encoding.UTF8.GetBytes(target.MethodInfo.ToString()));
+            string targetId = Hash(Encoding.UTF8.GetBytes(target.MethodInfo.ToString()!));
             lock (m_evidenceLock)
             {
                 m_executions.Add(targetId + "|" + GetInputId(path));

@@ -7,7 +7,6 @@
     <PackageId>SiteCompositionServer</PackageId>
     <Description>Supervisory OPC UA server that composes the machines of several subordinate servers into a single OpenUSD scene, demonstrating cross-server composition at a SCADA level.</Description>
     <RootNamespace>SiteComposition</RootNamespace>
-    <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
   </PropertyGroup>

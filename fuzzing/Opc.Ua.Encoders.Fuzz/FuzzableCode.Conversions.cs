@@ -211,7 +211,7 @@ namespace Opc.Ua.Fuzzing
 
         private static void FuzzBinaryJsonEncoderCore(MemoryStream stream, JsonEncoderOptions options)
         {
-            IEncodeable encodeable = FuzzBinaryDecoderCore(stream);
+            IEncodeable? encodeable = FuzzBinaryDecoderCore(stream);
             if (encodeable != null)
             {
                 FuzzJsonRoundTripCore(encodeable, options);
@@ -220,7 +220,7 @@ namespace Opc.Ua.Fuzzing
 
         private static void FuzzXmlJsonEncoderCore(Stream stream, JsonEncoderOptions options)
         {
-            IEncodeable encodeable = FuzzXmlDecoderCore(stream);
+            IEncodeable? encodeable = FuzzXmlDecoderCore(stream);
             if (encodeable != null)
             {
                 FuzzJsonRoundTripCore(encodeable, options);

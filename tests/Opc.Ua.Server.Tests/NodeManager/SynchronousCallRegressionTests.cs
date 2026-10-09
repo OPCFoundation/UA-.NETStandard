@@ -154,7 +154,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (queues)
             using (var manager = new CallHooks(server.Object))
             {
-                manager.Method.InputArguments.Value =
+                manager.Method.InputArguments!.Value =
                 [
                     new Argument { Name = "Input", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
                 ];
@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Gets the result slot populated by method dispatch.
             /// </summary>
-            public List<CallMethodResult> Results { get; } = [null];
+            public List<CallMethodResult> Results { get; } = [null!];
 
             /// <summary>
             /// Dispatches the request through the synchronous compatibility surface.
@@ -266,7 +266,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Receives the per-operation status independently of the method output.
             /// </summary>
-            private readonly List<ServiceResult> m_errors = [null];
+            private readonly List<ServiceResult> m_errors = [null!];
         }
 
         /// <summary>
@@ -334,7 +334,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Gets or sets the exception thrown before invoking the method callback.
             /// </summary>
-            public InvalidOperationException DispatchFailure { get; set; }
+            public InvalidOperationException DispatchFailure { get; set; } = null!;
 
             /// <summary>
             /// Gets the number of suspending asynchronous hook invocations.

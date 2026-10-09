@@ -1,5 +1,12 @@
 name: Connection Stability Test
 
+# Long-haul connection stability soak (Category=ConnectionStability in
+# Opc.Ua.Sessions.Tests; the tests are [Explicit] and only run here).
+#
+# Opt-in: nightly (90 minutes), manual (choose the duration), and pull requests
+# labelled 'soak' (30 minutes). It is not a required check. Adding the label
+# starts a run; every later push to the labelled pull request starts a new one
+# and cancels the run in progress.
 on:
   schedule:
     # Run nightly at 2:00 AM UTC
@@ -11,13 +18,27 @@ on:
         required: false
         default: '90'
         type: string
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
 
 permissions:
   contents: read
 
+# A pull request run is superseded by the next push. A 'labeled' event for any
+# other label gets a group of its own so it cannot cancel a run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.action == 'labeled' && github.event.label.name != 'soak' && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   stability-test:
     name: Connection Stability Test
+    # On a pull request only when it carries the 'soak' label, and not again
+    # when some other label is added to it.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'soak') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'soak'))
     runs-on: ubuntu-latest
     timeout-minutes: 120  # Allow extra time beyond test duration for setup/teardown
 
@@ -26,7 +47,8 @@ jobs:
       TARGET_FRAMEWORK: 'net10.0'
       CONFIGURATION: 'Release'
       CustomTestTarget: 'net10.0'
-      TEST_DURATION_MINUTES: ${{ github.event.inputs.duration || '90' }}
+      TESTPROJECT: './tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj'
+      TEST_DURATION_MINUTES: ${{ github.event_name == 'pull_request' && '30' || github.event.inputs.duration || '90' }}
 
     steps:
     - name: Checkout code
@@ -46,23 +68,35 @@ jobs:
     - name: Restore dependencies
       run: dotnet restore ./tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj
 
-    - name: Build Session Tests
-      run: dotnet build ./tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj --configuration ${{ env.CONFIGURATION }} --no-restore
+    - name: Build Sessions Tests
+      run: >
+        dotnet build ${{ env.TESTPROJECT }}
+        --framework ${{ env.TARGET_FRAMEWORK }}
+        --configuration ${{ env.CONFIGURATION }}
+        --no-restore
+        /p:CustomTestTarget=${{ env.TARGET_FRAMEWORK }}
 
     - name: Run Connection Stability Test
       run: |
         echo "Starting connection stability test for $TEST_DURATION_MINUTES minutes"
-        dotnet test ./tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj \
+        dotnet test ${{ env.TESTPROJECT }} \
           --configuration ${{ env.CONFIGURATION }} \
           --no-build \
           --framework ${{ env.TARGET_FRAMEWORK }} \
-          --filter "FullyQualifiedName=Opc.Ua.Sessions.Tests.ConnectionStabilityTest.LongHaulStabilityTestAsync" \
+          /p:CustomTestTarget=${{ env.TARGET_FRAMEWORK }} \
+          --filter "Category=ConnectionStability" \
+          --logger "trx;LogFileName=connection-stability.trx" \
           --logger "console;verbosity=detailed" \
-          --logger trx \
           --results-directory ./TestResults
       timeout-minutes: 110  # Slightly longer than expected test duration
-      env:
-        TEST_DURATION_MINUTES: ${{ env.TEST_DURATION_MINUTES }}
+
+    # 'dotnet test' exits 0 when the filter matches nothing; until this check
+    # existed the nightly run stayed green while running no test at all, from the
+    # move of the test to Opc.Ua.Sessions.Tests (#3810, May 2026) until the workflow
+    # was pointed at that project.
+    - name: Check that the stability tests ran
+      shell: pwsh
+      run: ./.github/scripts/assert-tests-ran.ps1 -ResultsDirectory ./TestResults
 
     - name: Upload test results
       uses: actions/upload-artifact@v7

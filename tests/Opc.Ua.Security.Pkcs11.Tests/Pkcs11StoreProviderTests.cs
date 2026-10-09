@@ -179,9 +179,9 @@ namespace Opc.Ua.Security.Pkcs11.Tests
                 Pkcs11TestEnvironment.CreateOptions());
 
             // Returns before any token is opened, so this holds without hardware.
-            Certificate loaded = await store
+            Certificate loaded = (await store
                 .LoadPrivateKeyAsync(null!, null, null, NodeId.Null, null)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(
                 loaded,

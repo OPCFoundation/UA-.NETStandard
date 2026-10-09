@@ -17,9 +17,7 @@
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Redundancy' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Redundancy.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Positioning' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Positioning.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.OpenUsd.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.ISA95' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.ISA95.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.AI' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.AI.'))">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Di' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.Di.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Robotics' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Vision' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer'">true</_IsPreviewPackage>
     <!--
       On a canonical release/M.m branch build (NBGV_PublicRelease == 'True'),
@@ -67,6 +65,19 @@
            to do. -->
       <_PreviewPackageVersion
           Condition="$([System.String]::Copy('$(_PreviewSourceVersion)').Contains('-preview'))">$(_PreviewSourceVersion)</_PreviewPackageVersion>
+      <!-- Case 2a: the root version's only prerelease identifier is a commit
+           id (e.g. "2.0.0-gabcdef0123"). Nerdbank.GitVersioning produces
+           this for a stable version.json built from a non-public-release
+           ref, such as master briefly carrying "2.0.0". Case 2 would turn it
+           into "2.0.0-preview.gabcdef0123", and SemVer 2 ranks the
+           alphanumeric "g..." identifier above every numeric one, so it
+           would outrank every "-preview.N" ever released from that base -
+           permanently, because published versions are immutable. Number it
+           0 instead so it sorts below any committed
+           PreviewPackageBuildNumber. ConvertTo-PreviewPackageVersion in
+           .azurepipelines/nuget/package-version-policy.ps1 applies the same rule. -->
+      <_PreviewPackageVersion
+          Condition="'$(_PreviewPackageVersion)' == '' AND $([System.Text.RegularExpressions.Regex]::IsMatch('$(_PreviewSourceVersion)', '^[^-+]+-g[0-9a-f]+(\+.*)?$'))">$([System.Text.RegularExpressions.Regex]::Replace('$(_PreviewSourceVersion)', '^([^-+]+)-(g[0-9a-f]+)', '$1-preview.0.$2'))</_PreviewPackageVersion>
       <!-- Case 2: the root version carries some other prerelease label
            (for example a hypothetical "-rc.1"). Preserve that label but
            mark the selected families as preview under it too. -->

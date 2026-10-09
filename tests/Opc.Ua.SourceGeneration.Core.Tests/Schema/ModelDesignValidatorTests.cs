@@ -70,13 +70,13 @@ namespace Opc.Ua.Schema.Model.Tests
         public void TearDown()
         {
             m_fileSystem?.Dispose();
-            m_fileSystem = null;
+            m_fileSystem = null!;
         }
 
         [TestCase(null)]
         [TestCase("")]
         [TestCase("AQID")]
-        public void ImportDependencyPreservesOpaqueIdentifier(string opaqueId)
+        public void ImportDependencyPreservesOpaqueIdentifier(string? opaqueId)
         {
             ModelDesignValidator validator = CreateValidator();
             var dependency = new ModelDependencyV1 { ModelUri = TargetNamespaceUri };
@@ -90,15 +90,15 @@ namespace Opc.Ua.Schema.Model.Tests
             });
 
             validator.ImportDependency(
-                ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload()), "Data", "Data");
+                ModelDependencyV1.FromBase64Payload(dependency.ToBase64Payload())!, "Data", "Data");
             validator.ApplyPendingDependencies();
 
             Assert.That(validator.TryFindNode(
                 new XmlQualifiedName("OpaqueType", TargetNamespaceUri),
-                "Test", "Dependency", out NodeDesign node), Is.True);
+                "Test", "Dependency", out NodeDesign? node), Is.True);
             Assert.Multiple(() =>
             {
-                Assert.That(node.OpaqueId,
+                Assert.That(node!.OpaqueId,
                     Is.EqualTo(opaqueId == null ? null : Convert.FromBase64String(opaqueId)));
                 Assert.That(node.HasIdentifier(), Is.EqualTo(opaqueId != null));
             });
@@ -139,7 +139,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidator();
 
-            Assert.Throws<ArgumentException>(() => validator.Validate(null, [], null));
+            Assert.Throws<ArgumentException>(() => validator.Validate(null!, [], null!));
         }
 
         [Test]
@@ -147,7 +147,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidator();
 
-            Assert.Throws<ArgumentException>(() => validator.Validate([], [], null));
+            Assert.Throws<ArgumentException>(() => validator.Validate([], [], null!));
         }
 
         [Test]
@@ -156,7 +156,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ModelDesignValidator validator = CreateValidator();
             string missing = ResourcePath("does-not-exist-model.xml");
 
-            Assert.Throws<FileNotFoundException>(() => validator.Validate([missing], [], null));
+            Assert.Throws<FileNotFoundException>(() => validator.Validate([missing], [], null!));
         }
 
         [Test]
@@ -166,7 +166,7 @@ namespace Opc.Ua.Schema.Model.Tests
             m_fileSystem.Add(path, Encoding.UTF8.GetBytes("this is not xml at all"));
             ModelDesignValidator validator = CreateValidator();
 
-            Assert.Throws<InvalidOperationException>(() => validator.Validate([path], [], null));
+            Assert.Throws<InvalidOperationException>(() => validator.Validate([path], [], null!));
         }
 
         [Test]
@@ -177,7 +177,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ModelDesignValidator validator = CreateValidator();
 
             InvalidOperationException ex = Assert.Throws<InvalidOperationException>(
-                () => validator.Validate([path], [], null));
+                () => validator.Validate([path], [], null!));
             Assert.That(ex.Message, Does.Contain("MyType"));
         }
 
@@ -187,7 +187,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ModelDesignValidator validator = CreateValidator();
 
             Assert.Throws<InvalidOperationException>(
-                () => validator.TryFindNode(null, "source", "reference", out _));
+                () => validator.TryFindNode(null!, "source", "reference", out _));
         }
 
         [Test]
@@ -269,11 +269,11 @@ namespace Opc.Ua.Schema.Model.Tests
             ModelDesignValidator validator = CreateValidatedValidator();
             var symbolicId = new XmlQualifiedName("GenerateValuesEventType", TargetNamespaceUri);
 
-            bool found = validator.TryFindNode(symbolicId, "source", "reference", out NodeDesign node);
+            bool found = validator.TryFindNode(symbolicId, "source", "reference", out NodeDesign? node);
 
             Assert.That(found, Is.True);
             Assert.That(node, Is.Not.Null);
-            Assert.That(node.BrowseName, Is.EqualTo("GenerateValuesEventType"));
+            Assert.That(node!.BrowseName, Is.EqualTo("GenerateValuesEventType"));
             Assert.That(node, Is.TypeOf<ObjectTypeDesign>());
         }
 
@@ -283,7 +283,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ModelDesignValidator validator = CreateValidatedValidator();
             var symbolicId = new XmlQualifiedName("ThereIsNoSuchNode", TargetNamespaceUri);
 
-            bool found = validator.TryFindNode(symbolicId, "source", "reference", out NodeDesign node);
+            bool found = validator.TryFindNode(symbolicId, "source", "reference", out NodeDesign? node);
 
             Assert.That(found, Is.False);
             Assert.That(node, Is.Null);
@@ -327,7 +327,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidator(exclusions: ["Draft"]);
 
-            Assert.That(validator.IsExcluded((NodeDesign)null), Is.False);
+            Assert.That(validator.IsExcluded((NodeDesign)null!), Is.False);
         }
 
         [Test]
@@ -380,7 +380,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             ModelDesignValidator validator = CreateValidator(exclusions: ["Draft"]);
 
-            Assert.That(validator.IsExcluded((Parameter)null), Is.False);
+            Assert.That(validator.IsExcluded((Parameter)null!), Is.False);
         }
 
         [Test]
@@ -429,7 +429,7 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         private ModelDesignValidator CreateValidator(
-            IReadOnlyList<string> exclusions = null,
+            IReadOnlyList<string>? exclusions = null,
             uint startId = 1000,
             SpecificationVersion version = SpecificationVersion.V105)
         {
@@ -437,7 +437,7 @@ namespace Opc.Ua.Schema.Model.Tests
             IFileSystem fileSystem = typeof(ModelDesignValidator).Assembly
                 .AsFileSystem("Opc.Ua.SourceGeneration.Design")
                 .WithFallback(m_fileSystem);
-            return new ModelDesignValidator(fileSystem, startId, exclusions, telemetry, version);
+            return new ModelDesignValidator(fileSystem, startId, exclusions!, telemetry, version);
         }
 
         private ModelDesignValidator CreateValidatedValidator()
@@ -468,7 +468,7 @@ namespace Opc.Ua.Schema.Model.Tests
             m_fileSystem.Add(path, Encoding.UTF8.GetBytes(SubtypeBeforeBaseDesign));
             ModelDesignValidator validator = CreateValidator();
 
-            Assert.DoesNotThrow(() => validator.Validate([path], [], null));
+            Assert.DoesNotThrow(() => validator.Validate([path], [], null!));
 
             NodeDesign derived = validator.GetNodeDesigns()
                 .First(n => n.SymbolicName?.Name == "DerivedType");
@@ -491,7 +491,7 @@ namespace Opc.Ua.Schema.Model.Tests
             m_fileSystem.Add(path, Encoding.UTF8.GetBytes(ExplicitNumericIdDesign));
             ModelDesignValidator validator = CreateValidator();
 
-            Assert.DoesNotThrow(() => validator.Validate([path], [], null));
+            Assert.DoesNotThrow(() => validator.Validate([path], [], null!));
 
             NodeDesign node = validator.GetNodeDesigns()
                 .First(n => n.SymbolicName?.Name == "ReusesStandardId");
@@ -510,7 +510,7 @@ namespace Opc.Ua.Schema.Model.Tests
             m_fileSystem.Add(path, Encoding.UTF8.GetBytes(ExplicitValueRankDesign));
             ModelDesignValidator validator = CreateValidator();
 
-            validator.Validate([path], [], null);
+            validator.Validate([path], [], null!);
 
             var variable = (VariableTypeDesign)validator.GetNodeDesigns()
                 .First(n => n.SymbolicName?.Name == "ArrayVariableType");
@@ -533,7 +533,7 @@ namespace Opc.Ua.Schema.Model.Tests
             m_fileSystem.Add(path, Encoding.UTF8.GetBytes(WideOptionSetDesign));
             ModelDesignValidator validator = CreateValidator();
 
-            validator.Validate([path], [], null);
+            validator.Validate([path], [], null!);
 
             var optionSet = (DataTypeDesign)validator.GetNodeDesigns()
                 .First(n => n.SymbolicName?.Name == "WideOptionSet");
@@ -542,7 +542,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 .OfType<VariableDesign>()
                 .First(v => v.SymbolicName.Name == "OptionSetValues");
 
-            var decoded = (Opc.Ua.LocalizedText[])values.DecodedValue;
+            var decoded = (Opc.Ua.LocalizedText[])values.DecodedValue!;
 
             Assert.That(
                 decoded,
@@ -550,6 +550,139 @@ namespace Opc.Ua.Schema.Model.Tests
                 "the 40th bit is the highest one used, so 40 entries are emitted");
             Assert.That(decoded[31].Text, Is.EqualTo("BitThirtyOne"));
             Assert.That(decoded[39].Text, Is.EqualTo("BitThirtyNine"));
+
+            // D4: "The LocalizedText of undefined bits shall be null"
+            // (OPC 10000-3 5.8.3 Table 16), not a "Reserved" text.
+            Assert.That(decoded[1].IsNull, Is.True);
+            Assert.That(decoded[38].IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// D4: a subtype of the OptionSet structure has as many bits as its
+        /// fields define (OPC 10000-3 8.40); its OptionSetValues stopped at
+        /// bit 31. Fields without a mask get the next bit, not the next
+        /// integer (a third field got 3, which names two bits).
+        /// </summary>
+        [Test]
+        public void ValidateStructureOptionSetEmitsAllBitsAndAssignsImplicitBits()
+        {
+            const string path = "memory://structure-option-set-design.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(OptionSetDesign(
+                """
+                <opc:DataType SymbolicName="BigSet" BaseType="ua:OptionSet" IsOptionSet="true">
+                  <opc:Fields>
+                    <opc:Field Name="First" />
+                    <opc:Field Name="Second" />
+                    <opc:Field Name="Third" />
+                    <opc:Field Name="High" BitMask="10000000000" />
+                    <opc:Field Name="AfterHigh" />
+                  </opc:Fields>
+                </opc:DataType>
+                """)));
+            ModelDesignValidator validator = CreateValidator();
+
+            validator.Validate([path], [], null!);
+
+            var optionSet = (DataTypeDesign)validator.GetNodeDesigns()
+                .First(n => n.SymbolicName?.Name == "BigSet");
+            Assert.That(
+                optionSet.Fields.Select(f => f.Identifier),
+                Is.EqualTo(new decimal[] { 1, 2, 4, 1UL << 40, 1UL << 41 }));
+            var decoded = (Opc.Ua.LocalizedText[])optionSet.Children.Items
+                .OfType<VariableDesign>()
+                .First(v => v.SymbolicName.Name == "OptionSetValues")
+                .DecodedValue!;
+            Assert.That(decoded, Has.Length.EqualTo(42));
+            Assert.That(decoded[2].Text, Is.EqualTo("Third"));
+            Assert.That(decoded[3].IsNull, Is.True);
+            Assert.That(decoded[40].Text, Is.EqualTo("High"));
+            Assert.That(decoded[41].Text, Is.EqualTo("AfterHigh"));
+        }
+
+        /// <summary>
+        /// A subtype of the OptionSet structure has no upper bit (OPC 10000-3
+        /// 8.40): a BitMask beyond 64 bits was ignored (the field got an
+        /// implicit bit) and implicit bits stopped at 95 (decimal masks).
+        /// </summary>
+        [Test]
+        public void ValidateStructureOptionSetSupportsBitsBeyond95()
+        {
+            const string path = "memory://huge-option-set-design.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(OptionSetDesign(
+                $"""
+                <opc:DataType SymbolicName="HugeSet" BaseType="ua:OptionSet" IsOptionSet="true">
+                  <opc:Fields>
+                    <opc:Field Name="First" />
+                    <opc:Field Name="B95" BitMask="8{new string('0', 23)}" />
+                    <opc:Field Name="B96" />
+                    <opc:Field Name="B130" BitMask="4{new string('0', 32)}" />
+                    <opc:Field Name="B131" />
+                  </opc:Fields>
+                </opc:DataType>
+                """)));
+            ModelDesignValidator validator = CreateValidator();
+
+            validator.Validate([path], [], null!);
+
+            var optionSet = (DataTypeDesign)validator.GetNodeDesigns()
+                .First(n => n.SymbolicName?.Name == "HugeSet");
+            Assert.That(
+                optionSet.Fields.Select(f => f.TryGetOptionSetBit(out int bit) ? bit : -1),
+                Is.EqualTo(s_hugeSetBits));
+            var decoded = (Opc.Ua.LocalizedText[])optionSet.Children.Items
+                .OfType<VariableDesign>()
+                .First(v => v.SymbolicName.Name == "OptionSetValues")
+                .DecodedValue!;
+            Assert.That(decoded, Has.Length.EqualTo(132));
+            Assert.That(decoded[95].Text, Is.EqualTo("B95"));
+            Assert.That(decoded[96].Text, Is.EqualTo("B96"));
+            Assert.That(decoded[129].IsNull, Is.True);
+            Assert.That(decoded[130].Text, Is.EqualTo("B130"));
+            Assert.That(decoded[131].Text, Is.EqualTo("B131"));
+        }
+
+        private static readonly int[] s_hugeSetBits = [0, 95, 96, 130, 131];
+
+        /// <summary>
+        /// D4: an OptionSet field names one bit (OPC 10000-3 8.40, 8.52); a
+        /// mask of several bits, or a bit used twice, is rejected.
+        /// </summary>
+        [TestCase("<opc:Field Name=\"Both\" Identifier=\"3\" />", "not a single bit")]
+        [TestCase("<opc:Field Name=\"A\" BitMask=\"0002\" /><opc:Field Name=\"B\" Identifier=\"2\" />", "same bit")]
+        public void ValidateOptionSetFieldThatIsNotOneBitThrows(string fields, string message)
+        {
+            const string path = "memory://bad-option-set-design.xml";
+            m_fileSystem.Add(path, Encoding.UTF8.GetBytes(OptionSetDesign(
+                "<opc:DataType SymbolicName=\"BadSet\" BaseType=\"ua:UInt32\" IsOptionSet=\"true\"><opc:Fields>" +
+                fields +
+                "</opc:Fields></opc:DataType>")));
+            ModelDesignValidator validator = CreateValidator();
+
+            Exception ex = Assert.Catch(() => validator.Validate([path], [], null!));
+
+            Assert.That(ex.Message, Does.Contain("BadSet"));
+            Assert.That(ex.Message, Does.Contain(message));
+        }
+
+        private static string OptionSetDesign(string dataTypes)
+        {
+            return
+                $"""
+                <?xml version="1.0" encoding="utf-8" ?>
+                <opc:ModelDesign
+                    xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                    xmlns:ua="http://opcfoundation.org/UA/"
+                    xmlns="http://test.org/UA/Options/"
+                    TargetNamespace="http://test.org/UA/Options/">
+                  <opc:Namespaces>
+                    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua"
+                        XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd"
+                        >http://opcfoundation.org/UA/</opc:Namespace>
+                    <opc:Namespace Name="Options" Prefix="Options">http://test.org/UA/Options/</opc:Namespace>
+                  </opc:Namespaces>
+                  {dataTypes}
+                </opc:ModelDesign>
+                """;
         }
 
         /// <summary>
@@ -567,7 +700,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 path, Encoding.UTF8.GetBytes(InvalidXmlFieldNameDesign));
             ModelDesignValidator validator = CreateValidator();
 
-            Exception ex = Assert.Catch(() => validator.Validate([path], [], null));
+            Exception ex = Assert.Catch(() => validator.Validate([path], [], null!));
 
             Assert.That(ex.Message, Does.Contain("Read&Write"));
             Assert.That(ex.Message, Does.Contain("legal XML name"));
@@ -587,7 +720,7 @@ namespace Opc.Ua.Schema.Model.Tests
                         "Read&amp;Write", "ReadWrite", StringComparison.Ordinal)));
             ModelDesignValidator validator = CreateValidator();
 
-            Assert.DoesNotThrow(() => validator.Validate([path], [], null));
+            Assert.DoesNotThrow(() => validator.Validate([path], [], null!));
         }
 
         private const string InvalidXmlFieldNameDesign =

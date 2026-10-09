@@ -285,9 +285,8 @@ namespace Opc.Ua
         ///   <item><c>nsu=&lt;escaped-uri&gt;;&lt;id&gt;</c> (namespace URI,
         ///   resolved via <paramref name="namespaceTable"/>)</item>
         /// </list>
-        /// The <c>&lt;id&gt;</c> portion may be typed
-        /// (<c>i=N</c>/<c>s=X</c>/<c>g=GUID</c>/<c>b=BASE64</c>)
-        /// or a bare token, which is treated as a string identifier.
+        /// The <c>&lt;id&gt;</c> portion must be typed
+        /// (<c>i=N</c>/<c>s=X</c>/<c>g=GUID</c>/<c>b=BASE64</c>).
         /// </remarks>
         /// <param name="text">The long-form NodeId text.</param>
         /// <param name="namespaceTable">Namespace table used to resolve the URI to
@@ -382,7 +381,14 @@ namespace Opc.Ua
                     return false;
                 }
 
-                string namespaceUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
+                // "nsu=;" has no namespace uri (Part 6 5.1.12).
+                if (!CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) ||
+                    string.IsNullOrWhiteSpace(namespaceUri))
+                {
+                    error = NodeIdParseError.InvalidNamespaceFormat;
+                    return false;
+                }
+
                 namespaceIndex =
                     options?.UpdateTables == true
                         ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
@@ -409,7 +415,13 @@ namespace Opc.Ua
                     return false;
                 }
 
-                if (!ushort.TryParse(text[3..index], out ushort ns))
+                // <short-index> is 1*DIGIT (Part 6 5.1.12): no sign, no
+                // whitespace and no dependency on the current culture.
+                if (!ushort.TryParse(
+                    text[3..index],
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out ushort ns))
                 {
                     // An unparsable or out of range index must not be silently
                     // dropped - that would land the node id in namespace zero.
@@ -430,7 +442,13 @@ namespace Opc.Ua
 
             NodeIdParseError typedError = NodeIdParseError.InvalidIdentifier;
 
-            if (text.Length >= 2)
+            // The '=' after the identifier type is mandatory (Part 6 5.1.12),
+            // "ns=2;sensor" or "i:42" must not be read as "s=nsor" or "i=42".
+            if (text.Length >= 2 && text[1] != '=')
+            {
+                typedError = NodeIdParseError.InvalidIdentifierType;
+            }
+            else if (text.Length >= 2)
             {
                 char idType = text[0];
                 string idText = text[2..];
@@ -438,7 +456,11 @@ namespace Opc.Ua
                 switch (idType)
                 {
                     case 'i':
-                        if (uint.TryParse(idText, out uint number))
+                        if (uint.TryParse(
+                            idText,
+                            NumberStyles.None,
+                            CultureInfo.InvariantCulture,
+                            out uint number))
                         {
                             value = new NodeId(number, (ushort)namespaceIndex);
                             return true;
@@ -470,7 +492,9 @@ namespace Opc.Ua
 
                         break;
                     case 'g':
-                        if (Guid.TryParse(idText, out Guid guid))
+                        // Only the 5.1.3 form ("D") names a Guid, braces or
+                        // a plain digit run would alias the same identifier.
+                        if (Guid.TryParseExact(idText, "D", out Guid guid))
                         {
                             value = new NodeId(guid, (ushort)namespaceIndex);
                             return true;
@@ -566,7 +590,7 @@ namespace Opc.Ua
             return buffer.ToString();
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         /// <summary>
         /// Formats the node id into a span without allocating a string.
         /// Writes the same text as <see cref="Format(IServiceMessageContext, bool)"/>
@@ -1004,7 +1028,7 @@ namespace Opc.Ua
                 // parse guid node identifier.
                 if (text.StartsWith("g=", StringComparison.Ordinal))
                 {
-                    if (Guid.TryParse(text[2..], out Guid guidId))
+                    if (Guid.TryParseExact(text[2..], "D", out Guid guidId))
                     {
                         value = new NodeId(guidId, namespaceIndex);
                         return true;
@@ -1615,7 +1639,7 @@ namespace Opc.Ua
             }
             return hashCode.ToHashCode();
 #else
-            return (int)m_inner.Numeric ^ (m_inner.NamespaceIdx >> 16);
+            return (int)m_inner.Numeric ^ (m_inner.NamespaceIdx << 16);
 #endif
         }
 

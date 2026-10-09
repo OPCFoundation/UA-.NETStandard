@@ -32,8 +32,10 @@
 Freezes the public replay inventory and optionally verifies the built input copy.
 .DESCRIPTION
 Only committed public input roots from profile jobs or additional replay definitions
-are supported. Additional projects do not join the release profiles. Do not extract
-private archives into these roots. Output contains counts and an aggregate digest,
+are supported. A separate clean checkout pinned by PublicCorpusCommit can supply
+published nightly crash inputs; these are not release-assurance inputs.
+Additional projects do not join the release profiles. Do not extract private
+archives into these roots. Output contains counts and an aggregate digest,
 never input names, content or exception messages. Public input hashes bind replay.
 An absent or
 empty good-seed bucket fails; a frozen zero regression inventory is legitimate.
@@ -46,6 +48,8 @@ param(
     [string] $ProfilesPath = (Join-Path $PSScriptRoot 'profiles.json'),
     [string] $BuildOutput = '',
     [switch] $RequireCommitted,
+    [string] $PublicCorpusCheckout = '',
+    [string] $PublicCorpusCommit = '',
     [Parameter(Mandatory)][string] $OutputPath
 )
 $ErrorActionPreference = 'Stop'
@@ -62,6 +66,42 @@ try {
     $inventory = [System.Collections.Generic.List[string]]::new()
     $destinations = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
     $sources = [ordered]@{}
+    $publishedInputs = @{}
+    if ($PublicCorpusCheckout -or $PublicCorpusCommit) {
+        if (-not $RequireCommitted -or -not $PublicCorpusCheckout -or
+            $PublicCorpusCommit -cnotmatch '^[0-9a-f]{40}$') {
+            throw 'Published replay inputs require a committed source identity.'
+        }
+        $actualCommit = & git -C $PublicCorpusCheckout rev-parse HEAD
+        if ($LASTEXITCODE -ne 0 -or $actualCommit -cne $PublicCorpusCommit) {
+            throw 'Published replay checkout does not match the pinned commit.'
+        }
+        $changes = @(& git -C $PublicCorpusCheckout status --porcelain=v1 --untracked-files=all)
+        if ($LASTEXITCODE -ne 0 -or $changes.Count -ne 0) {
+            throw 'Published replay checkout is not clean.'
+        }
+        $externalRoot = Join-Path $PublicCorpusCheckout (
+            [IO.Path]::GetFileNameWithoutExtension($job.project) + '/Assets')
+        $trackedOutput = @(& git -C $PublicCorpusCheckout ls-files -z -- (
+            [IO.Path]::GetFileNameWithoutExtension($job.project) + '/Assets'))
+        if ($LASTEXITCODE -ne 0) { throw 'Cannot verify published input paths.' }
+        $externalTracked = [Collections.Generic.HashSet[string]]::new(
+            [string[]](($trackedOutput -join "`n").Split([char]0, [StringSplitOptions]::RemoveEmptyEntries)),
+            [StringComparer]::Ordinal)
+        foreach ($file in Get-ChildItem -LiteralPath $externalRoot -File -Recurse) {
+            $relative = [IO.Path]::GetRelativePath($externalRoot, $file.FullName).Replace('\', '/')
+            if ($relative.StartsWith('Repo/', [StringComparison]::OrdinalIgnoreCase) -or
+                $file.Name -notmatch '^(crash|timeout|slow)' -or
+                -not $externalTracked.Contains(
+                    [IO.Path]::GetRelativePath([IO.Path]::GetFullPath($PublicCorpusCheckout), $file.FullName).Replace('\', '/'))) {
+                throw 'Published overlays may not replace curated inputs or add unrecognized files.'
+            }
+            $publishedInputs['Assets/' + $relative] = $file.FullName
+        }
+        if ($publishedInputs.Count -eq 0) { throw 'Published replay corpus is empty.' }
+        $manifest.publicCorpusCommit = $PublicCorpusCommit
+        $manifest.publicCorpusInputs = $publishedInputs.Count
+    }
     foreach ($bucket in $job.corpusBuckets) {
         $source = Join-Path $RepoRoot "$($job.corpusRoot)/$bucket"
         if (-not (Test-Path -LiteralPath $source -PathType Container)) { throw 'Missing good seed bucket.' }
@@ -87,16 +127,35 @@ try {
             $manifest.regressionInputs++
         }
     }
+    if ($job.stackRoot) {
+        $stackRoot = Join-Path $RepoRoot $job.stackRoot
+        $files = @(Get-ChildItem -LiteralPath $stackRoot -File -Recurse)
+        if ($files.Count -eq 0) { throw 'Required stack-regression inventory is empty.' }
+        foreach ($file in $files) {
+            $relative = [IO.Path]::GetRelativePath($stackRoot, $file.FullName).Replace('\', '/')
+            $sources['StackTestcases/' + $relative] = $file.FullName
+            $manifest.regressionInputs++
+        }
+    }
+    foreach ($entry in $publishedInputs.GetEnumerator()) {
+        if (-not $sources.Contains($entry.Key) -or
+            (Get-FileHash -LiteralPath $sources[$entry.Key] -Algorithm SHA256).Hash -cne
+            (Get-FileHash -LiteralPath $entry.Value -Algorithm SHA256).Hash) {
+            throw 'Published corpus input is missing or changed in the overlay.'
+        }
+    }
     if ($RequireCommitted) {
         $inputRoots = @($job.corpusBuckets | ForEach-Object { "$($job.corpusRoot)/$_" }) + @($job.regressionRoot)
+        if ($job.stackRoot) { $inputRoots += $job.stackRoot }
         $trackedOutput = @(& git -C $RepoRoot ls-files -z -- @inputRoots 2>&1)
         if ($LASTEXITCODE -ne 0) { throw 'Cannot verify committed public input paths.' }
         $tracked = [System.Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
         foreach ($path in (($trackedOutput -join "`n").Split([char] 0, [StringSplitOptions]::RemoveEmptyEntries))) {
             $null = $tracked.Add($path)
         }
-        foreach ($source in $sources.Values) {
-            if (-not $tracked.Contains([IO.Path]::GetRelativePath($RepoRoot, $source).Replace('\', '/'))) {
+        foreach ($entry in $sources.GetEnumerator()) {
+            if (-not $tracked.Contains([IO.Path]::GetRelativePath($RepoRoot, $entry.Value).Replace('\', '/')) -and
+                -not $publishedInputs.ContainsKey($entry.Key)) {
                 throw 'An uncommitted overlay is not a public replay input.'
             }
         }
@@ -109,6 +168,7 @@ try {
         $id = 'sha256:' + [Convert]::ToHexString(
             [Security.Cryptography.SHA256]::HashData([Text.Encoding]::UTF8.GetBytes($entry.Key))).ToLowerInvariant()
         $category = 'good'
+        if ($entry.Key.StartsWith('StackTestcases/')) { $category = 'stack' }
         if ($entry.Key.StartsWith('Assets/')) {
             $null = [IO.Path]::GetFileName($entry.Value) -match '^(crash|timeout|slow)'
             $category = $Matches[1]
@@ -124,7 +184,7 @@ try {
         }
     }
     if ($BuildOutput) {
-        foreach ($folder in @('Testcases', 'Assets')) {
+        foreach ($folder in @('Testcases', 'Assets', 'StackTestcases')) {
             $path = Join-Path $BuildOutput $folder
             if (-not (Test-Path -LiteralPath $path)) { continue }
             foreach ($file in Get-ChildItem -LiteralPath $path -File -Recurse) {

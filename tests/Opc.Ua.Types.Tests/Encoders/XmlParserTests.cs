@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Runtime.Serialization;
 using System.Text;
 using System.Xml;
@@ -69,7 +70,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const string xml = "<Root></Root>";
 
             // Act & Assert
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xml, null));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xml, null!));
             Assert.That(ex.ParamName, Is.EqualTo("context"));
         }
 
@@ -116,7 +117,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var xmlElement = XmlElement.From(xmlContent);
 
             // Act & Assert
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xmlElement, null));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xmlElement, null!));
             Assert.That(ex.ParamName, Is.EqualTo("context"));
         }
 
@@ -129,10 +130,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 #pragma warning disable CA3075 // Insecure DTD processing in XML
             doc.LoadXml("<Root>Content</Root>");
 #pragma warning restore CA3075 // Insecure DTD processing in XML
-            System.Xml.XmlElement xmlElement = doc.DocumentElement;
+            System.Xml.XmlElement xmlElement = doc.DocumentElement!;
 
             // Act
-            using var decoder = new XmlParser(xmlElement, messageContext);
+            using var decoder = new XmlParser(xmlElement!, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -147,10 +148,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 #pragma warning disable CA3075 // Insecure DTD processing in XML
             doc.LoadXml("<Root>Content</Root>");
 #pragma warning restore CA3075 // Insecure DTD processing in XML
-            System.Xml.XmlElement xmlElement = doc.DocumentElement;
+            System.Xml.XmlElement xmlElement = doc.DocumentElement!;
 
             // Act & Assert
-            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xmlElement, null));
+            ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() => new XmlParser(xmlElement!, null!));
             Assert.That(ex.ParamName, Is.EqualTo("context"));
         }
 
@@ -163,10 +164,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 #pragma warning disable CA3075 // Insecure DTD processing in XML
             doc.LoadXml("<Root/>");
 #pragma warning restore CA3075 // Insecure DTD processing in XML
-            System.Xml.XmlElement xmlElement = doc.DocumentElement;
+            System.Xml.XmlElement xmlElement = doc.DocumentElement!;
 
             // Act
-            using var decoder = new XmlParser(xmlElement, messageContext);
+            using var decoder = new XmlParser(xmlElement!, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -199,7 +200,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const string xml = "<Root><Value>Test</Value></Root>";
 
             // Act
-            using var decoder = new XmlParser(null, xml, messageContext);
+            using var decoder = new XmlParser(null!, xml, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -218,7 +219,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             """;
 
             // Act
-            using var decoder = new XmlParser(null, xml, messageContext);
+            using var decoder = new XmlParser(null!, xml, messageContext);
 
             // Assert
             Assert.That(decoder, Is.Not.Null);
@@ -1005,7 +1006,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeable));
             encodeableType.Setup(x => x.CreateInstance()).Returns(new TestEncodeable());
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(true);
 
             const string xml = """
@@ -1019,7 +1020,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject result = decoder.ReadExtensionObjectBody(typeId);
 
             // Assert
-            Assert.That(result.TryGetValue(out IEncodeable encodeable), Is.True);
+            Assert.That(result.TryGetValue(out IEncodeable? encodeable), Is.True);
         }
 
         [Test]
@@ -1031,9 +1032,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
 
             var encodeableType = new Mock<IEncodeableType>();
-            encodeableType.SetupGet(x => x.Type).Returns((Type)null);
+            encodeableType.SetupGet(x => x.Type).Returns((Type)null!);
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(false);
 
             const string xml = """
@@ -1048,6 +1049,196 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(result.TryGetAsXml(out XmlElement xmlElement), Is.True);
             Assert.That(xmlElement.OuterXml, Is.EqualTo(xml));
+        }
+
+        [Test]
+        public void ReadExtensionObjectBodyUnknownTypeRejectsDeeplyNestedBody()
+        {
+            var mockFactory = new Mock<IEncodeableFactory>();
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
+            IEncodeableType? type = null;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
+                .Returns(false);
+
+            string xml = "<CustomElement xmlns=\"http://test.namespace\">" +
+                CreateNestedXml(100_000) +
+                "</CustomElement>";
+            using var decoder = new XmlParser(xml, messageContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadExtensionObjectBody(new ExpandedNodeId(999)));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadXmlElementRejectsDeeplyNestedContent()
+        {
+            // ImportNode(deep) recursed once per level and exhausted the stack.
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<XmlElement xmlns=\"{Ns}\">" + CreateNestedXml(100_000) + "</XmlElement>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadXmlElement("XmlElement"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadXmlElementEnforcesMaxEncodingNestingLevelsAsElementDepth()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            ctx.MaxEncodingNestingLevels = 5;
+            string xml = $"<ListOfXmlElement xmlns=\"{Ns}\">" +
+                "<XmlElement>" + CreateNestedXml(6) + "</XmlElement>" +
+                "<XmlElement>" + CreateNestedXml(7) + "</XmlElement>" +
+                "</ListOfXmlElement>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+            decoder.ReadStartElement();
+
+            XmlElement value = decoder.ReadXmlElement("XmlElement");
+            Assert.That(value.ToXElement().Descendants().Count(), Is.EqualTo(5));
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadXmlElement("XmlElement"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadXmlElementIsNotBoundedByMaxStringLength()
+        {
+            // configuration files (e.g. ApplicationConfiguration.Extensions)
+            // hold XmlElement values larger than the default MaxStringLength.
+            ServiceMessageContext ctx = CreateContext();
+            ctx.MaxStringLength = 32;
+            string xml = $"<XmlElement xmlns=\"{Ns}\"><v>" + new string('x', 1024) +
+                "</v></XmlElement>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            XmlElement value = decoder.ReadXmlElement("XmlElement");
+
+            Assert.That(value.OuterXml, Does.Contain(new string('x', 1024)));
+        }
+
+        [Test]
+        public void ReadXmlElementKeepsNamespaceOfPrefixedAttributes()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<XmlElement xmlns=\"{Ns}\">" +
+                "<v xmlns:p=\"urn:p\" p:a=\"1\" b=\"2\"><p:c>text</p:c></v>" +
+                "</XmlElement>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            System.Xml.Linq.XElement element = decoder.ReadXmlElement("XmlElement").ToXElement();
+
+            Assert.That(
+                element.Attribute(System.Xml.Linq.XName.Get("a", "urn:p"))?.Value,
+                Is.EqualTo("1"));
+            Assert.That(element.Attribute("b")?.Value, Is.EqualTo("2"));
+            Assert.That(
+                element.Element(System.Xml.Linq.XName.Get("c", "urn:p"))?.Value,
+                Is.EqualTo("text"));
+        }
+
+        [TestCase("12:30:00Z")]
+        public void ReadDateTimeRejectsValuesThatAreNotDateTime(string text)
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<DateTime xmlns=\"{Ns}\">{text}</DateTime>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadDateTime("DateTime"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [TestCase("c496578a0dfe4b8f870a745238c6aeae")]
+        [TestCase("{c496578a-0dfe-4b8f-870a-745238c6aeae}")]
+        public void ReadGuidRejectsFormatsOtherThanTheSpecStringForm(string text)
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<Guid xmlns=\"{Ns}\"><String>{text}</String></Guid>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadGuid("Guid"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadArrayStopsAtMaxArrayLengthBeforeReadingMoreElements()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            ctx.MaxArrayLength = 2;
+
+            // the third element is malformed: the limit must trip before it is read.
+            string xml = $"<ListOfInt32 xmlns=\"{Ns}\">" +
+                "<Int32>1</Int32><Int32>2</Int32><Int32>x</Int32></ListOfInt32>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadInt32Array("ListOfInt32"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadByteStringChecksMaxByteStringLengthBeforeDecoding()
+        {
+            // not valid base64: the limit is reported before decoding.
+            ServiceMessageContext ctx = CreateContext();
+            ctx.MaxByteStringLength = 3;
+            string xml = $"<ByteString xmlns=\"{Ns}\">AQIDBA==!</ByteString>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadByteString("ByteString"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadStringRejectsNestedElements()
+        {
+            // InnerText flattened the markup (and recursed once per level).
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<String xmlns=\"{Ns}\">a" + CreateNestedXml(100_000) + "b</String>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadString("String"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadInt32RejectsNestedElements()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<Int32 xmlns=\"{Ns}\">1<b>2</b></Int32>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadInt32("Int32"));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void ReadStringJoinsTextAndCDataNodes()
+        {
+            ServiceMessageContext ctx = CreateContext();
+            string xml = $"<String xmlns=\"{Ns}\">a<!-- c --><![CDATA[<b>]]> c</String>";
+            using var decoder = new XmlParser(xml, ctx);
+            decoder.PushNamespace(Namespaces.OpcUaXsd);
+
+            Assert.That(decoder.ReadString("String"), Is.EqualTo("a<b> c"));
         }
 
         [Test]
@@ -1162,8 +1353,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             var mockFactory = new Mock<IEncodeableFactory>();
-            IEncodeableType type = null;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            IEncodeableType? type = null;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(false);
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
@@ -1222,7 +1413,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encodeableType.Setup(type => type.CreateInstance()).Returns(() => new TestEncodeableWithData());
             IEncodeableType registeredType = encodeableType.Object;
             var factory = new Mock<IEncodeableFactory>();
-            factory.Setup(value => value.TryGetEncodeableType(new ExpandedNodeId(99999, 0), out registeredType))
+            factory.Setup(value => value.TryGetEncodeableType(new ExpandedNodeId(99999, 0), out registeredType!))
                 .Returns(true);
             var messageContext = new ServiceMessageContext(NUnitTelemetryContext.Create(), factory.Object);
             const string xml = """
@@ -1292,10 +1483,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            DiagnosticInfo result = decoder.ReadDiagnosticInfo("DiagnosticInfo");
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo("DiagnosticInfo")!;
 
             // Assert
-            Assert.That(result.SymbolicId, Is.EqualTo(42));
+            Assert.That(result!.SymbolicId, Is.EqualTo(42));
         }
 
         [Test]
@@ -1310,7 +1501,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            DiagnosticInfo result = decoder.ReadDiagnosticInfo("DiagnosticInfo");
+            DiagnosticInfo? result = decoder.ReadDiagnosticInfo("DiagnosticInfo");
 
             // Assert
             Assert.That(result, Is.Null);
@@ -1352,7 +1543,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            ArrayOf<DiagnosticInfo> result = decoder.ReadDiagnosticInfoArray("ListOfDiagnosticInfo");
+            ArrayOf<DiagnosticInfo?> result = decoder.ReadDiagnosticInfoArray("ListOfDiagnosticInfo");
 
             // Assert
             Assert.That(result.Count, Is.EqualTo(2));
@@ -1397,7 +1588,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            uint result = decoder.ReadEncodingMask(null);
+            uint result = decoder.ReadEncodingMask(null!);
 
             // Assert
             Assert.That(result, Is.EqualTo(5u));
@@ -1415,7 +1606,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            uint result = decoder.ReadEncodingMask(null);
+            uint result = decoder.ReadEncodingMask(null!);
 
             // Assert
             Assert.That(result, Is.Zero);
@@ -1433,7 +1624,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            uint result = decoder.ReadSwitchField(null, out _);
+            uint result = decoder.ReadSwitchField(null!, out _);
 
             // Assert
             Assert.That(result, Is.EqualTo(7u));
@@ -1451,7 +1642,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
             // Act
-            decoder.ReadSwitchField(null, out string fieldName);
+            decoder.ReadSwitchField(null!, out string? fieldName);
 
             // Assert
             Assert.That(fieldName, Is.Null);
@@ -1686,7 +1877,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 .Returns(new XmlQualifiedName("TestEncodeableWithData", Namespaces.OpcUaXsd));
             encodeableType.Setup(x => x.CreateInstance()).Returns(new TestEncodeableWithData());
             IType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type))
+            mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type!))
                 .Returns(true);
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
@@ -1709,8 +1900,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             // Arrange
             var mockFactory = new Mock<IEncodeableFactory>();
-            IType type = null;
-            mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type))
+            IType? type = null;
+            mockFactory.Setup(f => f.TryGetType(It.IsAny<XmlQualifiedName>(), out type!))
                 .Returns(false);
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
@@ -1867,9 +2058,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
 
             var encodeableType = new Mock<IEncodeableType>();
-            encodeableType.SetupGet(x => x.Type).Returns((Type)null);
+            encodeableType.SetupGet(x => x.Type).Returns((Type)null!);
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(false);
 
             const string xml = """
@@ -1901,7 +2092,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return false;
             }
@@ -1927,7 +2118,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestEncodeableWithTypeId;
             }
@@ -1957,7 +2148,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestEncodeableWithData other && other.Value == Value;
             }
@@ -1972,6 +2163,20 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             return ServiceMessageContext.CreateEmpty(telemetryContext);
+        }
+
+        private static string CreateNestedXml(int depth)
+        {
+            var builder = new StringBuilder(depth * 7);
+            for (int ii = 0; ii < depth; ii++)
+            {
+                builder.Append("<a>");
+            }
+            for (int ii = 0; ii < depth; ii++)
+            {
+                builder.Append("</a>");
+            }
+            return builder.ToString();
         }
 
         private static string CreateDiagnosticInfoWithDepth(int depth)
@@ -2025,7 +2230,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const string xml = "<Root/>";
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
 
-            Assert.Throws<ArgumentNullException>(() => new XmlParser(stream, null));
+            Assert.Throws<ArgumentNullException>(() => new XmlParser(stream, null!));
         }
 
         [Test]
@@ -2072,7 +2277,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             """;
             using var decoder = new XmlParser(typeof(CoverageTestEncodeable), xml, ctx);
 
-            XmlQualifiedName result = decoder.Peek(XmlNodeType.Element);
+            XmlQualifiedName result = decoder.Peek(XmlNodeType.Element)!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("Child"));
@@ -2089,7 +2294,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             """;
             using var decoder = new XmlParser(typeof(CoverageTestEncodeable), xml, ctx);
 
-            XmlQualifiedName result = decoder.Peek(XmlNodeType.None);
+            XmlQualifiedName result = decoder.Peek(XmlNodeType.None)!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("Child"));
@@ -2107,7 +2312,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new XmlParser(typeof(CoverageTestEncodeable), xml, ctx);
 
             // Text node type should return null for DOM-based parser
-            XmlQualifiedName result = decoder.Peek(XmlNodeType.Text);
+            XmlQualifiedName? result = decoder.Peek(XmlNodeType.Text);
 
             Assert.That(result, Is.Null);
         }
@@ -2120,7 +2325,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new XmlParser(xml, ctx);
 
             // No children and Text node type → null
-            XmlQualifiedName result = decoder.Peek(XmlNodeType.Text);
+            XmlQualifiedName? result = decoder.Peek(XmlNodeType.Text);
 
             Assert.That(result, Is.Null);
         }
@@ -2491,7 +2696,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new XmlParser(xml, ctx);
             decoder.PushNamespace(Namespaces.OpcUaXsd);
 
-            ArrayOf<string> result = decoder.ReadStringArray("ListOfString");
+            ArrayOf<string?> result = decoder.ReadStringArray("ListOfString");
 
             Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0], Is.EqualTo("Hello"));
@@ -4529,7 +4734,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return false;
             }
@@ -4559,7 +4764,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is CoverageTestEncodeableWithData other && other.Value == Value;
             }

@@ -598,7 +598,7 @@ namespace Opc.Ua.Lds.Tests
             };
         }
 
-        private async Task<ArrayOf<ApplicationDescription>> FindServersAsync(string[] serverUris = null)
+        private async Task<ArrayOf<ApplicationDescription>> FindServersAsync(string[]? serverUris = null)
         {
             using DiscoveryClient discovery = await CreateDiscoveryClientAsync().ConfigureAwait(false);
             ArrayOf<string> filter = serverUris != null
@@ -618,7 +618,7 @@ namespace Opc.Ua.Lds.Tests
                     return d;
                 }
             }
-            return null;
+            return null!;
         }
 
         private static void AssertServerKnown(ArrayOf<ApplicationDescription> servers, string uri)

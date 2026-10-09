@@ -28,8 +28,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -142,10 +140,13 @@ namespace Opc.Ua.Server.Tests
             return (manager, state);
         }
 
-        private static Mock<ISession> CreateSessionWithUser(string? userName)
+        private static Mock<ISession> CreateSessionWithUser(
+            string? userName,
+            UserTokenType tokenType = UserTokenType.UserName)
         {
             var identity = new Mock<IUserIdentity>();
             identity.Setup(i => i.DisplayName).Returns(userName!);
+            identity.Setup(i => i.TokenType).Returns(tokenType);
 
             var session = new Mock<ISession>();
             session.Setup(s => s.Identity).Returns(identity.Object);
@@ -505,6 +506,38 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
             session.Verify(s => s.Dispose(), Times.Never);
             sessionManager.Verify(m => m.CloseSessionAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+        }
+
+        /// <summary>
+        /// Verifies that deactivating a UserManagement user leaves sessions of other token types with the
+        /// same display name (issued tokens, certificates) open, and closes a USERNAME session identified
+        /// by its token even when the identity display name differs.
+        /// </summary>
+        [Test]
+        public async Task UserDeactivatedClosesOnlyUserNameTokenSessionsAsync()
+        {
+            using TestableAsyncCustomNodeManager manager = CreateNodeManagerWithUserManagementNode();
+            Mock<ISession> issued = CreateSessionWithUser("bob", UserTokenType.IssuedToken);
+            Mock<ISession> certificate = CreateSessionWithUser("bob", UserTokenType.Certificate);
+            Mock<ISession> renamed = CreateSessionWithUser("Bob Builder");
+            renamed.Setup(s => s.IdentityToken).Returns(new UserNameIdentityTokenHandler("bob", [1, 2, 3]));
+            var sessionManager = new Mock<ISessionManager>();
+            sessionManager.Setup(m => m.GetSessions())
+                .Returns([issued.Object, certificate.Object, renamed.Object]);
+            await using UserManagementBinding binding =
+                UserManagementBinding.Bind(manager, m_userManagement.Object, sessionManager.Object)!;
+
+            m_userManagement.Raise(u => u.UserDeactivated += null, new UserDeactivatedEventArgs("bob"));
+            await binding.DisposeAsync().ConfigureAwait(false);
+
+            m_mockServer.Verify(s => s.CloseSessionAsync(
+                It.IsAny<OperationContext>(), renamed.Object.Id, true, CancellationToken.None), Times.Once);
+            m_mockServer.Verify(s => s.CloseSessionAsync(
+                It.IsAny<OperationContext>(), issued.Object.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()),
+                Times.Never);
+            m_mockServer.Verify(s => s.CloseSessionAsync(
+                It.IsAny<OperationContext>(), certificate.Object.Id, It.IsAny<bool>(), It.IsAny<CancellationToken>()),
                 Times.Never);
         }
 

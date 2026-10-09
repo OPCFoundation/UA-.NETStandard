@@ -1,8 +1,29 @@
 # Rate limiting and admission control
 
-The server applies deterministic, configurable admission control so it sheds a connection or session-establishment storm with a fast, standard "busy" signal instead of collapsing (see [Server Session Scalability](ServerScalability.md) for the underlying analysis). Clients react to that signal by backing off adaptively rather than retrying blindly. The primitives are built on `System.Threading.RateLimiting`, so the algorithm is pluggable and configurable through dependency injection.
+Admission control means checking capacity before accepting more work. The server
+applies configurable limits to reject excess connections or Session-establishment
+requests early, reducing the work caused by a connection storm (see
+[Server Session Scalability](ServerScalability.md) for the underlying analysis).
+Clients respond to busy signals by backing off rather than retrying blindly.
+The standard rate-limiting primitives use `System.Threading.RateLimiting`;
+the provider can be replaced through dependency injection.
 
-Rate limiting is **on by default with conservative limits** sized so normal and bulk-but-well-behaved load is unaffected; only a storm is shed. Tune or disable it per deployment, or replace the whole limiter provider via DI.
+Rate limiting is **on by default with conservative limits**. Tune them for the
+deployment: even legitimate clients can be refused during a sufficiently large
+burst. Disabling rate limiting does not disable
+[resource isolation](ResourceIsolation.md) or the incomplete-message budget.
+
+## Contents
+
+- [Server side](#server-side)
+  - [What is limited](#what-is-limited)
+  - [Status codes](#status-codes)
+  - [Configuration](#configuration)
+  - [Incomplete messages](#incomplete-messages)
+- [HTTPS / Kestrel transport](#https--kestrel-transport)
+- [Client side](#client-side)
+- [Server backpressure signals](#server-backpressure-signals)
+- [See also](#see-also)
 
 ## Server side
 
@@ -10,6 +31,7 @@ Rate limiting is **on by default with conservative limits** sized so normal and 
 
 - **Inbound connections** (`opc.tcp` listener): a per-second token bucket (with a burst) admits new connections; beyond the burst a connection is shed cheaply so the CPU-bound secure-channel handshake is protected. The listener socket backlog is configurable and defaults to 512 (raised from the previous hard-coded 10) so a burst of simultaneous connects is absorbed rather than dropped by the OS.
 - **Session establishment** (`CreateSession` / `ActivateSession`): a concurrency limiter bounds the number of in-flight establishment operations so a connect storm cannot saturate every core and starve steady-state publish delivery. When at capacity the server returns `BadServerTooBusy` with a retry-after hint in the fault, before doing the expensive certificate validation / signing.
+- **Incomplete messages**: one `ChunkReassemblyBudget` bounds retained intermediate-message buffers across the server's UA-TCP, Kestrel TCP, and UA Secure Conversation WebSocket listeners. This capacity limit is independent of `ServerRateLimitOptions.Enabled`.
 
 ### Status codes
 
@@ -18,6 +40,8 @@ Rate limiting is **on by default with conservative limits** sized so normal and 
 | Session establishment at capacity | `BadServerTooBusy` (transient — the client should back off and retry) |
 | Hard session cap reached (`MaxSessionCount`) | `BadTooManySessions` |
 | Connection shed at the listener | the connection is dropped; the client sees a transport error and, together with any subsequent `BadServerTooBusy`, backs off |
+| Incomplete-message budget exhausted | `BadTcpNotEnoughResources` followed by channel closure; if the error cannot be sent, the client observes closure |
+| Resource isolation refuses common HTTPS body processing | HTTP 503 (Service Unavailable), distinct from a rate limiter's HTTP 429 |
 
 ### Configuration
 
@@ -25,7 +49,7 @@ The deterministic limits live in `ServerRateLimitOptions`:
 
 | Option | Default | Meaning |
 | --- | --- | --- |
-| `Enabled` | `true` | Master switch for all rate limiting. |
+| `Enabled` | `true` | Switch for this provider's connection and Session-establishment rate limits, not resource isolation or message budgets. |
 | `ListenBacklog` | 512 | Listener socket pending-connection backlog. |
 | `ConnectionRateLimitEnabled` | `true` | Whether inbound connections are rate limited. |
 | `ConnectionsPerSecond` | 500 | Sustained connection admission rate. |
@@ -64,7 +88,140 @@ server.RateLimitOptions = new ServerRateLimitOptions { ConnectionsPerSecond = 20
 // or: server.RateLimiterProvider = new DefaultServerRateLimiterProvider(options);
 ```
 
-The `opc.tcp` listener consumes an `IConnectionRateLimiter` and a backlog value through `TransportListenerSettings`, injected by `StandardServer.ConfigureTransportListenerSettings`. A custom server can override that hook to supply its own limiter. The default `TokenBucketConnectionRateLimiter` wraps a `System.Threading.RateLimiting.TokenBucketRateLimiter`.
+Raw TCP, Kestrel TCP, and UACP WebSocket listeners consume the
+`IConnectionRateLimiter` supplied through `TransportListenerSettings`, injected
+by `StandardServer.ConfigureTransportListenerSettings`. A custom server can
+override that hook to supply its own limiter. The ordinary shared
+`TokenBucketConnectionRateLimiter` wraps a
+`System.Threading.RateLimiting.TokenBucketRateLimiter`. With the default
+isolation provider in Balanced or TrustedReservations, the default rate provider
+instead uses `ResourceIsolationConnectionRateLimiter` to divide the same totals
+between protected and shared traffic, as described below.
+Kestrel and UACP WebSocket listeners also enforce their configured channel cap
+across concurrent admissions and release capacity with the physical connection,
+including reverse handoff. The raw listener retains its existing admission and
+unused-channel reclamation behavior.
+
+### Incomplete messages
+
+`ChunkReassemblyBudget` (`Opc.Ua.Bindings`) counts the backing-array length of
+each retained intermediate chunk, including pool rounding and metadata. All
+listeners of a server share the same budget. Completing, replacing, aborting,
+faulting, or closing a partial message releases its reservation.
+
+The budget applies only while messages await further chunks, not to the whole
+process heap, socket buffers, final chunks, decoded requests, or outgoing
+responses. A request that fits in one chunk can still be served while the
+reassembly budget is full. A chunk that exceeds available capacity is rejected
+without waiting; the partial message is discarded and its channel is closed.
+
+The budget's default is sixteen times `TransportQuotas.MaxMessageSize`, clamped to
+64 MiB through 1 GiB, then raised if necessary to accommodate four maximum-sized
+messages. A configuration with unlimited message size receives a 1 GiB budget.
+Both the stack's 2 MiB and the reference server's 4 MiB message limits select
+**64 MiB**. `ChunkReassemblyBudget.GetDefaultMaxBytes(maxMessageSize)` returns
+this value, and `ChunkReassemblyBudget.CreateDefault(configuration)` creates a
+budget from an `EndpointConfiguration` using the same sizing policy. The budget
+can be used with unlimited message sizes in SharedOnly; the default Balanced
+isolation provider separately requires finite message and buffer limits.
+
+In **SharedOnly**, channels without an activated session may reserve only while
+total usage stays at or below `MaxBytesWithoutSession`, which defaults to half of `MaxBytes`.
+Channels with activated sessions can use the remaining headroom. This is a
+capacity policy, not an authentication boundary: an activated anonymous session
+also qualifies. The two-argument constructor sets the sessionless threshold
+explicitly, including the entire budget for sessionless workloads.
+
+The threshold is not reserved space for new clients. For example, with a
+100 MiB total and 50 MiB sessionless threshold, 60 MiB retained by activated
+sessions prevents further sessionless intermediate chunks. Single-chunk
+requests are still processed, but a large multi-chunk OpenSecureChannel,
+CreateSession, or ActivateSession may be refused until occupancy drops.
+The shared budget alone provides neither request scheduling by caller nor
+reserved startup capacity.
+
+[Server resource isolation](ResourceIsolation.md) limits usage by caller and
+can keep capacity reserved for verified startup/recovery work inside the same
+totals. Direct and hosted `StandardServer` instances use **Balanced by default**.
+With the default isolation provider active, its byte-class reservations replace
+the sessionless occupancy rule above; the shared budget still enforces
+`MaxBytes`. With a 4 MiB message limit and 65,536-byte buffer limit, Balanced
+reserves 16.25 MiB each for startup and reconnect from a 64 MiB budget, leaving
+31.5 MiB shared. These are conservative retained-array bounds, not payload sizes.
+
+**A reserve does not make an unknown caller eligible to use it.** A deployment
+needs trusted ingress classification for protected access before OPC UA
+authentication. Implement `IResourceIsolationClassifier` using a network
+entry path whose access is controlled by your deployment, as shown in the
+[dedicated trusted-ingress example](ResourceIsolation.md#example-dedicated-trusted-ingress).
+An IP address or previous successful connection is not proof of identity.
+Unknown callers can be refused while a reserve is unused because that memory
+is available only to its eligible callers, not to every caller.
+SharedOnly retains the shared occupancy rule without separate startup reserves.
+
+These policies prevent a busy caller population from taking resources set
+aside for eligible recovery or control traffic. They cannot guarantee access
+to every unknown client during a distributed flood. They also do not limit
+unrelated application allocations. See the
+[limits of this protection](ResourceIsolation.md#limitations) when sizing a deployment.
+
+Balanced startup rejects insufficient capacities rather than silently removing
+reserves or increasing totals. See the
+[startup configuration choices](ResourceIsolation.md#startup-validation-and-sizing) and
+[plan inspection example](ResourceIsolation.md#inspect-the-plan-in-application-code)
+for the actual fields and checks. Isolation remains independent of
+`ServerRateLimitOptions.Enabled`.
+
+When the default connection rate limiter is enabled alongside Balanced or
+TrustedReservations, it also reserves one burst token and one token per second
+for startup, reconnect, and each provisioned trusted owner, inside the existing
+`ConnectionBurst` and `ConnectionsPerSecond` totals. At least one shared token
+must remain in each total. Startup rejects totals that cannot fit. Protected
+traffic can also use available shared tokens, but ordinary traffic cannot use
+the reserved tokens. Closing a connection does not refund a token. FairShare
+and SharedOnly use the ordinary shared token bucket. If you supply your own
+rate-limiter provider, the server calls that provider instead. It may reject
+a connection even when the isolation policy has reserved space for it, so
+configure both policies consistently.
+
+Configure the hosted server through its fluent builder:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options => options.ApplicationName = "MyServer")
+    .WithChunkReassemblyBudget(256L * 1024 * 1024);
+```
+
+For direct construction, assign the budget before startup:
+
+```csharp
+var server = new StandardServer(telemetry)
+{
+    ChunkReassemblyBudget = new ChunkReassemblyBudget(256L * 1024 * 1024)
+};
+```
+
+The same instance can be shared by several servers. A host that opens listeners
+itself passes it through `TransportListenerSettings.ChunkReassemblyBudget`;
+otherwise each standalone listener creates its own appropriately sized budget.
+For Dependency Injection (DI), the two-argument builder overload sets the
+sessionless threshold and validates both limits immediately:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options => options.ApplicationName = "MyServer")
+    .WithChunkReassemblyBudget(256L * 1024 * 1024, 64L * 1024 * 1024);
+```
+
+A directly constructed `ChunkReassemblyBudget(maxBytes, maxBytesWithoutSession)`
+can also be registered as a singleton when several servers should share it.
+
+Server channels also enforce a fixed assembly deadline using `ChannelLifetime`.
+Continuation traffic cannot restart it. A shared quota/clock timer schedules
+asynchronous cleanup independently of listener inactivity sweeps. Non-positive
+lifetimes use the 30-second default for assembly, and expiration reports
+`BadTimeout` before closure when possible; see
+[incomplete-message resource limits](Transports.md#incomplete-message-resource-limits).
 
 ## HTTPS / Kestrel transport
 
@@ -80,7 +237,14 @@ Pass an `Action<RateLimiterOptions>` to fully configure the limiter with any `Sy
 
 ## Client side
 
-A client that gets a "server busy" signal must not hammer the server with retries — that is exactly what amplifies a connect storm. The default `ReconnectPolicy` (used by `ManagedSession`) is **server-signal-aware**: when the previous attempt failed with an overload signal (`BadServerTooBusy`, `BadTcpServerTooBusy`, `BadTooManySessions`, `BadTooManyOperations`, `BadTooManyPublishRequests`, or a transient timeout) it backs off more aggressively (4× the computed delay, capped at `MaxDelay`) and honors a server-provided retry-after hint as a lower bound.
+A client that receives a "server busy" signal must not hammer the server
+with retries; that would amplify a connect storm. The default
+`ReconnectPolicy` used by `ManagedSession` is **server-signal-aware**. When
+an attempt fails with an overload signal—`BadServerTooBusy`,
+`BadTcpServerTooBusy`, `BadTooManySessions`, `BadTooManyOperations`,
+`BadTooManyPublishRequests`, or a transient timeout—it backs off more
+aggressively. It multiplies the computed delay by four, caps it at
+`MaxDelay`, and honors any server-provided retry-after hint as a lower bound.
 
 This is exposed through `IReconnectPolicy.TryGetNextDelay`, which adapts the backoff to the previous attempt's status code and any server-provided retry-after hint. The connection state machine calls it automatically; a policy that returns `false` opts out of adaptive behavior and the state machine falls back to the basic attempt-based `GetNextDelay`, so a minimal custom policy only has to implement the plain delay. Because a failed initial connect funnels into the same reconnect loop, the adaptive backoff applies to both initial connects and reconnects.
 

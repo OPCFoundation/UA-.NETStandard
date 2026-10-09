@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Runtime.CompilerServices;
 using System.Text;
 using System.Threading;
 
@@ -52,6 +53,8 @@ namespace Opc.Ua.Fuzzing
         internal static ReadOnlySpan<byte> CompletedInput => "opcua-fuzz-watchdog-control"u8;
 
         internal static ReadOnlySpan<byte> LargeOutputInput => "opcua-fuzz-output-control"u8;
+
+        internal static ReadOnlySpan<byte> DeepRecursionInput => "opcua-fuzz-deep-recursion"u8;
 
         internal static string[] InvalidTargetNames =>
         [
@@ -126,6 +129,27 @@ namespace Opc.Ua.Fuzzing
                 Console.Out.Write(new string('o', OutputLength));
                 Console.Error.Write(new string('e', OutputLength));
             }
+        }
+
+        /// <summary>
+        /// Recurses about 400 KB deep for <see cref="DeepRecursionInput"/>: within the stack of a
+        /// 1 MB thread, beyond the stack of the fuzz worker thread.
+        /// </summary>
+        public static void DeepRecursionSpanTarget(ReadOnlySpan<byte> input)
+        {
+            Invocations.Add((nameof(DeepRecursionSpanTarget), input.ToArray()));
+            if (input.SequenceEqual(DeepRecursionInput))
+            {
+                Console.WriteLine(TargetCompleted + " " + Recurse(DeepRecursionLevels));
+            }
+        }
+
+        [MethodImpl(MethodImplOptions.NoInlining)]
+        private static int Recurse(int levels)
+        {
+            Span<byte> frame = stackalloc byte[RecursionFrameBytes];
+            frame[levels % RecursionFrameBytes] = (byte)levels;
+            return levels == 0 ? frame[0] : Recurse(levels - 1) + frame[levels % RecursionFrameBytes];
         }
 
         public static int ReturningStreamTarget(Stream input)
@@ -205,6 +229,8 @@ namespace Opc.Ua.Fuzzing
         internal const string HangingTargetEntered = "Injected hanging target entered.";
         internal const string TargetCompleted = "Injected target completed.";
         internal const int OutputLength = 128 * 1024;
+        internal const int DeepRecursionLevels = 400;
+        internal const int RecursionFrameBytes = 1024;
 
         private const string kInvalidTargetMessage = "An invalid fuzz target must not be invoked.";
     }

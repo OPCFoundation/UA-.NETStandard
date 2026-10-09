@@ -316,11 +316,9 @@ namespace Opc.Ua
             }
 
             var buffer = new StringBuilder();
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             // check for special folder.
             if (!Enum.TryParse(folder, out Environment.SpecialFolder specialFolder))
             {
-#endif
                 folder = ReplaceSpecialFolderWithEnvVar(folder);
                 string? value = Environment.GetEnvironmentVariable(folder);
                 if (value != null)
@@ -331,13 +329,11 @@ namespace Opc.Ua
                 {
                     buffer.Append(DefaultLocalFolder);
                 }
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             }
             else
             {
                 buffer.Append(Environment.GetFolderPath(specialFolder));
             }
-#endif
             // construct new path.
             buffer.Append(path);
             return buffer.ToString();
@@ -754,7 +750,7 @@ namespace Opc.Ua
 
             // construct new uri.
             var buffer = new StringBuilder();
-#if NET5_0_OR_GREATER || NETSTANDARD2_1
+#if NET5_0_OR_GREATER
             buffer
                 .Append(uri.AsSpan(0, index))
                 .Append(hostname ?? GetHostName())
@@ -795,7 +791,7 @@ namespace Opc.Ua
 
             // construct new uri.
             var buffer = new StringBuilder();
-#if NET5_0_OR_GREATER || NETSTANDARD2_1
+#if NET5_0_OR_GREATER
             buffer
                 .Append(subjectName.AsSpan(0, index + 3))
                 .Append(hostname ?? GetHostName())
@@ -1071,7 +1067,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
             return CoreUtils.ToHexString(buffer, invertEndian);
@@ -1163,7 +1159,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats a message using the invariant locale.
         /// </summary>
-        public static string Format(string text, params object[] args)
+        public static string Format(string text, params object?[] args)
         {
             return CoreUtils.Format(text, args);
         }
@@ -1720,9 +1716,7 @@ namespace Opc.Ua
         {
             try
             {
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
                 return File.GetLastWriteTimeUtc(typeof(Utils).GetTypeInfo().Assembly.Location);
-#endif
             }
             catch
             {
@@ -1848,41 +1842,22 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a X509 certificate collection object from the DER encoded bytes.
+        /// Creates a collection of at most 16 X509 certificates from concatenated DER encoded bytes.
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
+        /// <param name="useAsnParser">
+        /// Retained for compatibility. DER framing is always validated before loading each certificate.
+        /// </param>
         /// <exception cref="ServiceResultException"></exception>
         public static CertificateCollection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
             ITelemetryContext? telemetry,
             bool useAsnParser = false)
         {
-            CertificateCollection? certificateChain = [];
             try
             {
-                int offset = 0;
-                int length = certificateData.Length;
-                while (offset < length)
-                {
-                    ReadOnlyMemory<byte> certBlob = certificateData[offset..];
-#if !NETFRAMEWORK
-                    // macOS X509Certificate2 constructor throws exception if a certchain is encoded
-                    // use AsnParser on macOS to parse for byteblobs,
-                    if (useAsnParser || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                    {
-                        certBlob = AsnUtils.ParseX509Blob(certBlob);
-                    }
-#endif
-                    using var certificate = Certificate.FromRawData(certBlob);
-                    certificateChain.Add(certificate);
-                    offset += certificate.RawData.Length;
-                }
-
-                CertificateCollection result = certificateChain;
-                certificateChain = null;
-                return result;
+                return DefaultCertificateFactory.Instance.ParseChainBlob(certificateData);
             }
             catch (Exception e)
             {
@@ -1894,10 +1869,6 @@ namespace Opc.Ua
                     StatusCodes.BadCertificateInvalid,
                     "Could not parse DER encoded form of a X509 certificate.",
                     e);
-            }
-            finally
-            {
-                certificateChain?.Dispose();
             }
         }
 

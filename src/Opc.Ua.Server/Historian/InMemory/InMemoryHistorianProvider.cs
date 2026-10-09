@@ -1983,7 +1983,9 @@ namespace Opc.Ua.Server.Historian.InMemory
 
             var source = archive.ModifiedLog
                 .Where(entry =>
-                    request.IsForward
+                    lo == hi
+                        ? entry.Value.SourceTimestamp == lo
+                        : request.IsForward
                         ? entry.Value.SourceTimestamp >= lo &&
                             entry.Value.SourceTimestamp < hi
                         : entry.Value.SourceTimestamp > lo &&

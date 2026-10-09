@@ -129,7 +129,8 @@ namespace Opc.Ua.Server.Fluent
     /// Strongly-typed fluent builder for an alarm/condition state
     /// instance. Returned by the <c>CreateLimitAlarm</c> /
     /// <c>CreateExclusiveLimitAlarm</c> / <c>CreateOffNormalAlarm</c>
-    /// helpers on <see cref="INodeBuilder"/>.
+    /// helpers on <see cref="INodeBuilder"/>, and by <c>CreateAlarm</c> for
+    /// any other condition type.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -179,9 +180,11 @@ namespace Opc.Ua.Server.Fluent
             double lowLow = double.NaN);
 
         /// <summary>
-        /// Sets the alarm's <c>SourceNode</c> reference and
-        /// <c>SourceName</c> to the supplied target. Equivalent to
-        /// setting the alarm's "InputNode" semantics from the spec.
+        /// Sets the alarm's <c>SourceNode</c> and <c>SourceName</c> to the
+        /// supplied target. A Variable target also becomes the alarm's
+        /// <c>InputNode</c> (Part 9 5.8.2) and a ConditionSource: it gets a
+        /// HasCondition reference to the alarm and the Object the alarm was
+        /// created on gets a HasEventSource reference to it (Part 9 5.5.2).
         /// </summary>
         /// <param name="source">The source node monitored by the alarm.</param>
         /// <returns>This builder for further alarm configuration.</returns>
@@ -250,6 +253,46 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Creates an alarm of any condition type under the resolved
+        /// parent, for the types the dedicated helpers do not cover - a
+        /// companion specification's alarm or condition type, or a server
+        /// specific subtype. The alarm is attached and registered exactly
+        /// as the dedicated helpers attach theirs: it is enabled, the
+        /// parent becomes its <c>SourceNode</c>, <c>SourceName</c> and
+        /// event notifier, and a fluent node manager releases all of that
+        /// again on teardown.
+        /// </summary>
+        /// <typeparam name="TState">The condition state the factory creates.</typeparam>
+        /// <param name="parent">The Object the alarm is created on.</param>
+        /// <param name="browseName">The browse name of the alarm.</param>
+        /// <param name="factory">
+        /// Creates the uninitialized alarm for the parent it is handed, for
+        /// example <c>parent =&gt; new OffNormalAlarmState(parent)</c>. The
+        /// builder assigns the identity and initializes the alarm.
+        /// </param>
+        /// <returns>A builder for further configuration of the alarm.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="parent"/>, <paramref name="browseName"/> or
+        /// <paramref name="factory"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadTypeMismatch"/> when the parent is not an
+        /// Object.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// <paramref name="factory"/> returned <c>null</c>.
+        /// </exception>
+        public static IAlarmBuilder<TState> CreateAlarm<TState>(
+            this INodeBuilder parent,
+            QualifiedName browseName,
+            Func<NodeState, TState> factory)
+            where TState : ConditionState
+        {
+            TState alarm = AttachAlarm(parent, browseName, factory);
+            return new AlarmBuilder<TState>(parent, alarm);
+        }
+
+        /// <summary>
         /// Escape hatch: directly mutate the underlying alarm state.
         /// Use for properties not covered by the narrow MVP surface
         /// (e.g. severity table, retain flag, branches).
@@ -296,6 +339,7 @@ namespace Opc.Ua.Server.Fluent
         /// <typeparam name="TState">The concrete alarm state created by the factory.</typeparam>
         /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="InvalidOperationException">The factory returned <c>null</c>.</exception>
         private static TState AttachAlarm<TState>(
             INodeBuilder parent,
             QualifiedName browseName,
@@ -323,7 +367,8 @@ namespace Opc.Ua.Server.Fluent
                     parent.Node.NodeClass);
             }
             string symbolicName = browseName.Name ?? string.Empty;
-            TState alarm = factory(parent.Node);
+            TState alarm = factory(parent.Node)
+                ?? throw new InvalidOperationException("The alarm factory returned no alarm.");
             alarm.SymbolicName = symbolicName;
             alarm.BrowseName = browseName;
             alarm.DisplayName = new LocalizedText(symbolicName);
@@ -419,12 +464,9 @@ namespace Opc.Ua.Server.Fluent
                 alarm.ConditionName.Value = alarm.BrowseName.Name ?? string.Empty;
             }
 
-            if (alarm is AlarmConditionState alarmCondition &&
-                alarmCondition.InputNode != null &&
-                alarmCondition.InputNode.Value.IsNull)
-            {
-                alarmCondition.InputNode.Value = source.NodeId;
-            }
+            // The source is always an Object here (AttachAlarm rejects any
+            // other parent), so InputNode stays NULL until MonitorVariable
+            // supplies the Variable (Part 9 5.8.2).
         }
     }
 
@@ -506,6 +548,34 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(source));
             }
+
+            if (source is BaseVariableState)
+            {
+                // Part 9 5.8.2: a monitored Variable is the alarm's InputNode.
+                if (Alarm is AlarmConditionState alarmCondition &&
+                    alarmCondition.InputNode != null)
+                {
+                    alarmCondition.InputNode.Value = source.NodeId;
+                }
+
+                // Part 9 5.5.2: SourceNode names the ConditionSource. Make the Variable
+                // one: HasCondition to the alarm, and HasEventSource from the Object
+                // that owns the notifier chain, so the source the events name leads to
+                // the condition. Deleting the alarm removes these references again.
+                if (!source.ReferenceExists(ReferenceTypeIds.HasCondition, false, Alarm.NodeId))
+                {
+                    source.AddReference(ReferenceTypeIds.HasCondition, false, Alarm.NodeId);
+                    Alarm.AddReference(ReferenceTypeIds.HasCondition, true, source.NodeId);
+                }
+                NodeState? owner = Alarm.Parent;
+                if (owner != null &&
+                    !owner.ReferenceExists(ReferenceTypeIds.HasEventSource, false, source.NodeId))
+                {
+                    owner.AddReference(ReferenceTypeIds.HasEventSource, false, source.NodeId);
+                    source.AddReference(ReferenceTypeIds.HasEventSource, true, owner.NodeId);
+                }
+            }
+
             Alarm.SourceNode!.Value = source.NodeId;
             QualifiedName srcName = source.BrowseName;
             Alarm.SourceName!.Value = srcName.IsNull ? string.Empty : (srcName.Name ?? string.Empty);

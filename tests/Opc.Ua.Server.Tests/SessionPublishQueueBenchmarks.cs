@@ -42,10 +42,10 @@ namespace Opc.Ua.Server.Tests
     [MemoryDiagnoser]
     public class SessionPublishQueueBenchmarks
     {
-        private Mock<IServerInternal> m_serverMock;
-        private Mock<ISession> m_sessionMock;
-        private Mock<ISubscriptionManager> m_subscriptionManagerMock;
-        private ITelemetryContext m_telemetry;
+        private Mock<IServerInternal> m_serverMock = null!;
+        private Mock<ISession> m_sessionMock = null!;
+        private Mock<ISubscriptionManager> m_subscriptionManagerMock = null!;
+        private ITelemetryContext m_telemetry = null!;
 
         [Params(50, 500)]
         public int NumItems { get; set; }
@@ -77,7 +77,7 @@ namespace Opc.Ua.Server.Tests
                 var subMock = new Mock<ISubscriptionPublishPipeline>();
                 subMock.Setup(s => s.Id).Returns((uint)(i + 1));
                 subMock.Setup(s => s.Priority).Returns((byte)(i % 5));
-                subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+                subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
                 subs.Add(subMock);
                 queue.Add(subMock.Object);
             }

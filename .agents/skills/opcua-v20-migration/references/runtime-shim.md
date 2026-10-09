@@ -1,7 +1,7 @@
 # Runtime compatibility shim — `Opc.Ua.MigrationAnalyzer.Core.dll`
 
 The migration NuGet ships a multi-TFM runtime shim assembly
-(`Opc.Ua.MigrationAnalyzer.Core.dll`, `net472` / `net48` / `netstandard2.1` /
+(`Opc.Ua.MigrationAnalyzer.Core.dll`, `net48` /
 `net8.0` / `net9.0` / `net10.0`) that re-exposes the 1.5.378 obsolete extension
 surface so 1.5.378-style call sites continue to compile against 2.0.
 
@@ -108,9 +108,7 @@ no `Opc.Ua.MigrationAnalyzer.Core.dll` is shipped or loaded at runtime.
 
 | TFM | Shim ships? | Notes |
 |---|---|---|
-| `net472` | ✅ | Lowest legacy TFM supported by the migration window |
-| `net48` | ✅ | Recommended for legacy WinForms consumers |
-| `netstandard2.1` | ✅ | Covers Xamarin / Unity / other non-.NET-Framework legacy |
+| `net48` | ✅ | Lowest legacy TFM supported; recommended for legacy WinForms consumers |
 | `net8.0` | ✅ | LTS |
 | `net9.0` | ✅ | STS |
 | `net10.0` | ✅ | LTS (current) |

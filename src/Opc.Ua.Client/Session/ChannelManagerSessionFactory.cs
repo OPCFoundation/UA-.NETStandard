@@ -476,16 +476,28 @@ namespace Opc.Ua.Client
 
         private sealed class ChannelOnlyReconnectParticipant : IReconnectParticipant
         {
+            /// <summary>
+            /// Creates the temporary participant used until a session acquires the channel.
+            /// </summary>
             public ChannelOnlyReconnectParticipant(ConfiguredEndpoint endpoint)
             {
                 Endpoint = endpoint ?? throw new ArgumentNullException(nameof(endpoint));
                 Id = nameof(ChannelManagerSessionFactory) + "-" + Guid.NewGuid().ToString("N");
             }
 
+            /// <inheritdoc/>
             public string Id { get; }
 
+            /// <inheritdoc/>
             public ConfiguredEndpoint Endpoint { get; }
 
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
+
+            /// <inheritdoc/>
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,
                 int reconnectAttempt,

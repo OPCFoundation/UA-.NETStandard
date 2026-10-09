@@ -80,6 +80,32 @@ namespace Opc.Ua.Server.Tests.Fluent
         }
 
         [Test]
+        public async Task CreateAlarmIsBrowsableAndFindableAsync()
+        {
+            using Harness h = CreateHarness();
+
+            IAlarmBuilder<DiscrepancyAlarmState> alarm = h.Builder.Node(h.Source.NodeId)
+                .CreateAlarm(
+                    new QualifiedName("ValveDiscrepancy", h.NamespaceIndex),
+                    parent => new DiscrepancyAlarmState(parent));
+
+            IList<ReferenceDescription> references = await BrowseAsync(h, h.Source.NodeId).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    references.Select(reference => reference.BrowseName),
+                    Has.Member(alarm.Alarm.BrowseName));
+                Assert.That(
+                    h.Manager.FindPredefinedNodePublic<DiscrepancyAlarmState>(alarm.Alarm.NodeId),
+                    Is.SameAs(alarm.Alarm));
+                Assert.That(
+                    h.Root.EventNotifier & EventNotifiers.SubscribeToEvents,
+                    Is.EqualTo(EventNotifiers.SubscribeToEvents));
+            });
+        }
+
+        [Test]
         public void CreateLimitAlarmPromotesParentAndAncestorsAsEventNotifiers()
         {
             using Harness h = CreateHarness();
@@ -347,10 +373,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
             var references = new List<ReferenceDescription>();
 
-            ContinuationPoint result = await harness.Manager.BrowsePublicAsync(
+            ContinuationPoint result = (await harness.Manager.BrowsePublicAsync(
                 operationContext,
                 continuationPoint,
-                references).ConfigureAwait(false);
+                references).ConfigureAwait(false))!;
 
             Assert.That(result, Is.Null);
             return references;
@@ -458,7 +484,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 defaultNamespaceIndex: ns,
                 rootResolver: q => manager.PredefinedNodes.Values
                     .FirstOrDefault(node => node.BrowseName == q)!,
-                nodeIdResolver: id => manager.PredefinedNodes.TryGetValue(id, out NodeState node) ? node : null!,
+                nodeIdResolver: id => manager.PredefinedNodes.TryGetValue(id, out NodeState? node) ? node : null!,
                 typeIdResolver: _ => []);
 
             return new Harness(server, serverObject, manager, builder, root, source, flag, ns);
@@ -551,7 +577,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return GetManagerHandleAsync(nodeId);
             }
 
-            public ValueTask<ContinuationPoint> BrowsePublicAsync(
+            public ValueTask<ContinuationPoint?> BrowsePublicAsync(
                 OperationContext context,
                 ContinuationPoint continuationPoint,
                 IList<ReferenceDescription> references)

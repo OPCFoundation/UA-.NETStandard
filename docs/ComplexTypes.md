@@ -2,18 +2,89 @@
 
 ## Overview
 
-The `Opc.Ua.Client` and `Opc.Ua.Client.ComplexTypes` libraries provide support for handling custom data types (complex types) in OPC UA client applications. Complex types include:
+The `Opc.Ua.Client` and `Opc.Ua.Client.ComplexTypes` libraries let client
+applications handle custom data types (complex types) in Open Platform
+Communications Unified Architecture (OPC UA). Complex types include:
 
 - **Custom Structures**: User-defined structured data types with multiple fields
 - **Custom Enumerations**: User-defined enumeration types with custom values
 
-The library allows OPC UA clients to automatically discover, load, and work with server-specific custom types, enabling seamless reading and writing of structured data without manual type definitions.
+The libraries let clients discover and load server-specific types. Clients
+can then read and write structured values without manually defining each type.
+
+## Contents
+
+- [Overview](#overview)
+- [Key Concepts](#key-concepts)
+  - [What are Complex Types?](#what-are-complex-types)
+  - [Type Discovery and Loading](#type-discovery-and-loading)
+  - [Supported Type Systems](#supported-type-systems)
+- [Getting Started](#getting-started)
+  - [Type builders](#type-builders)
+    - [Default type builder](#default-type-builder)
+    - [Reflection.Emit based type builder](#reflectionemit-based-type-builder)
+  - [Basic Usage](#basic-usage)
+    - [1. Loading All Custom Types from a Server](#1-loading-all-custom-types-from-a-server)
+    - [2. Reading Values with Complex Types](#2-reading-values-with-complex-types)
+    - [3. Writing Values with Complex Types](#3-writing-values-with-complex-types)
+- [Approaches for Working with Custom Types](#approaches-for-working-with-custom-types)
+  - [Approach 1: Hand-Written IEncodeable + EncodeableFactory Registration](#approach-1-hand-written-iencodeable--encodeablefactory-registration)
+    - [Step 1 – Implement IEncodeable](#step-1--implement-iencodeable)
+    - [Step 2 – Register the Type Before Reading](#step-2--register-the-type-before-reading)
+  - [Approach 2: Source-Generated IEncodeable (Recommended for New Code)](#approach-2-source-generated-iencodeable-recommended-for-new-code)
+  - [Approach 3: Runtime IStructure (No Pre-defined Types Required)](#approach-3-runtime-istructure-no-pre-defined-types-required)
+- [Advanced Usage](#advanced-usage)
+  - [Loading Specific Types](#loading-specific-types)
+    - [Load a Specific Type](#load-a-specific-type)
+    - [Load a Specific Type with Subtypes](#load-a-specific-type-with-subtypes)
+    - [Load All Types from a Namespace](#load-all-types-from-a-namespace)
+  - [Working with Complex Type Properties](#working-with-complex-type-properties)
+    - [Access by Name](#access-by-name)
+    - [Access by Index](#access-by-index)
+    - [Enumerate Properties](#enumerate-properties)
+  - [Handling Enumeration Types](#handling-enumeration-types)
+  - [Type Information and Introspection](#type-information-and-introspection)
+    - [Get All Loaded Types](#get-all-loaded-types)
+    - [Get Type Definitions](#get-type-definitions)
+    - [Get Loaded Data Type IDs](#get-loaded-data-type-ids)
+  - [Using Custom Type Factories](#using-custom-type-factories)
+  - [Working with Telemetry and Logging](#working-with-telemetry-and-logging)
+- [Common Patterns](#common-patterns)
+  - [Pattern 1: One-Time Type Loading at Session Start](#pattern-1-one-time-type-loading-at-session-start)
+  - [Pattern 2: Lazy Loading on Demand](#pattern-2-lazy-loading-on-demand)
+  - [Pattern 3: Reading Multiple Complex Values](#pattern-3-reading-multiple-complex-values)
+- [Error Handling](#error-handling)
+  - [Handling Type Loading Failures](#handling-type-loading-failures)
+  - [Handling Missing Type Definitions](#handling-missing-type-definitions)
+- [Performance Considerations](#performance-considerations)
+  - [Type System Caching](#type-system-caching)
+  - [Minimizing Load Time](#minimizing-load-time)
+  - [Batch Operations](#batch-operations)
+- [Troubleshooting](#troubleshooting)
+  - [Types Not Loading](#types-not-loading)
+  - [Values Still Encoded as ExtensionObject](#values-still-encoded-as-extensionobject)
+  - [Performance Issues](#performance-issues)
+- [Server-Side Complex Types](#server-side-complex-types)
+  - [How compiled types reach the factory](#how-compiled-types-reach-the-factory)
+  - [Configuring via dependency injection (recommended)](#configuring-via-dependency-injection-recommended)
+  - [Direct usage without dependency injection](#direct-usage-without-dependency-injection)
+- [API Reference](#api-reference)
+  - [ComplexTypeSystem Class](#complextypesystem-class)
+    - [Constructors](#constructors)
+    - [Methods](#methods)
+    - [Properties](#properties)
+  - [IStructure Interface](#istructure-interface)
+  - [IStructureField Interface](#istructurefield-interface)
+- [Known Limitations](#known-limitations)
+- [Additional Resources](#additional-resources)
+- [See Also](#see-also)
 
 ## Key Concepts
 
 ### What are Complex Types?
 
-In OPC UA, complex types are custom data types defined by the server that extend beyond the built-in OPC UA data types. These types are commonly used to represent structured data such as:
+In OPC UA, complex types are custom data types that a server defines beyond
+the built-in data types. They commonly represent structured data such as:
 
 - Configuration structures with multiple parameters
 - Device status information with multiple fields
@@ -21,11 +92,12 @@ In OPC UA, complex types are custom data types defined by the server that extend
 
 ### Type Discovery and Loading
 
-The `ComplexTypeSystem` class manages the discovery and loading of custom types from an OPC UA server. It:
+The `ComplexTypeSystem` class discovers and loads custom types from an OPC UA
+server. It:
 
 1. Browses the server's type system to discover custom types
 2. Loads type definitions (using DataTypeDefinition attribute or binary/XML dictionaries)
-3. Registers types complying to the type definitions in the session's type factory for encoding/decoding
+3. Registers types that match those definitions in the session's type factory for encoding and decoding.
 
 ### Supported Type Systems
 
@@ -75,29 +147,19 @@ using Opc.Ua.Client.ComplexTypes; // client Create(...) helpers + NodeCacheResol
 // Create and connect session
 var session = await Session.Create(...);
 
-// Create and load the complex type system
-ComplexTypeSystem complexTypeSystem;
-if (!useReflectionEmitTypeBuilder)
-{
-    // Uses the default (NativeAOT friendly) type builder
-    complexTypeSystem = ComplexTypeSystem.Create(session, session.MessageContext.Telemetry);
-}
-else
-{
-    // Uses the Reflection.Emit type builder. Only works if the
-    // OPCFoundation.NetStandard.Opc.Ua.Client.ComplexTypes nuget is referenced.
-    complexTypeSystem = ComplexTypeSystem.Create(
-        session, new ComplexTypeBuilderFactory(), session.MessageContext.Telemetry);
-}
-
+// Uses the default NativeAOT-friendly builder.
+using var complexTypeSystem = ComplexTypeSystem.Create(
+    session, session.MessageContext.Telemetry);
 await complexTypeSystem.LoadAsync();
 
 Console.WriteLine($"Loaded {complexTypeSystem.GetDefinedTypes().Count} custom types");
-
-// The type system owns the node cache it resolves through; dispose it once no
-// more types are loaded. Types already loaded stay registered with the session.
-complexTypeSystem.Dispose();
 ```
+
+The type system owns its resolver; the `using` declaration releases it even when
+loading fails. Types already loaded remain registered with the session. The
+optional Reflection.Emit builder is selected through the
+[custom factory overload](#using-custom-type-factories), using
+`new ComplexTypeBuilderFactory()` from the separate Client.ComplexTypes package.
 
 After loading, the session can automatically encode and decode custom types when reading or writing values.
 
@@ -356,7 +418,7 @@ Instead of loading all types, you can load specific types or namespaces:
 #### Load a Specific Type
 
 ```csharp
-var complexTypeSystem = new ComplexTypeSystem(session);
+using var complexTypeSystem = ComplexTypeSystem.Create(session, session.MessageContext.Telemetry);
 
 // Load a specific type by NodeId
 ExpandedNodeId typeNodeId = new ExpandedNodeId("ns=2;i=3001");
@@ -379,7 +441,7 @@ IType? systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId, subTypes: 
 #### Load All Types from a Namespace
 
 ```csharp
-var complexTypeSystem = new ComplexTypeSystem(session);
+using var complexTypeSystem = ComplexTypeSystem.Create(session, session.MessageContext.Telemetry);
 
 // Load all custom types from a specific namespace
 string namespaceUri = "http://mycompany.com/MyCustomTypes";
@@ -464,7 +526,7 @@ if (dataValue.WrappedValue.TryGetValue(out EnumValue enumValue))
 #### Get All Loaded Types
 
 ```csharp
-var complexTypeSystem = new ComplexTypeSystem(session);
+using var complexTypeSystem = ComplexTypeSystem.Create(session, session.MessageContext.Telemetry);
 await complexTypeSystem.LoadAsync();
 
 // Get all types that were dynamically created
@@ -511,77 +573,61 @@ You can provide a custom type factory for advanced scenarios:
 IComplexTypeFactory customFactory = new MyCustomComplexTypeFactory();
 
 // Use it with the ComplexTypeSystem
-var complexTypeSystem = new ComplexTypeSystem(session, customFactory);
+using var complexTypeSystem = ComplexTypeSystem.Create(
+    session, customFactory, session.MessageContext.Telemetry);
 await complexTypeSystem.LoadAsync();
 ```
 
 ### Working with Telemetry and Logging
 
-The ComplexTypeSystem supports the OPC UA telemetry context for observability:
+Pass the session's telemetry context, or an application-provided `ITelemetryContext`,
+to the factory. The type system logs loading diagnostics through that context.
 
 ```csharp
-// Use the session's telemetry context (default)
-var complexTypeSystem = new ComplexTypeSystem(session);
-
-// Or provide a custom telemetry context
-ITelemetryContext telemetry = myCustomTelemetryContext;
-var complexTypeSystem = new ComplexTypeSystem(session, telemetry);
-
-// The system will log type loading information
+ITelemetryContext telemetry = session.MessageContext.Telemetry;
+using var complexTypeSystem = ComplexTypeSystem.Create(session, telemetry);
 await complexTypeSystem.LoadAsync();
 ```
+
+Keep the type system alive while loading types, and dispose it afterward even if
+loading fails. Loaded types remain registered with the session's factory.
 
 ## Common Patterns
 
 ### Pattern 1: One-Time Type Loading at Session Start
 
+After establishing a session with the [managed client API](Sessions.md), load
+its types before reading custom values:
+
 ```csharp
-public async Task<ISession> CreateSessionWithTypes(string endpointUrl)
-{
-    var session = await Session.Create(
-        configuration,
-        new ConfiguredEndpoint(null, new EndpointDescription(endpointUrl)),
-        false,
-        "MyClient",
-        60000,
-        null,
-        null
-    );
-
-    // Load all custom types immediately after connection
-    var complexTypeSystem = new ComplexTypeSystem(session);
-    await complexTypeSystem.LoadAsync();
-
-    return session;
-}
+await using ManagedSession session = await new ManagedSessionBuilder(configuration, telemetry)
+    .UseEndpoint(endpoint)
+    .ConnectAsync(ct);
+using var complexTypeSystem = ComplexTypeSystem.Create(session, telemetry);
+await complexTypeSystem.LoadAsync(ct: ct);
 ```
+
+Keep the session alive for subsequent reads. Disposing the loader releases its
+resolver, not the types registered in the session.
 
 ### Pattern 2: Lazy Loading on Demand
 
+Load a known DataType only when needed, then read its value. This avoids keeping
+a loader field alive merely to retain registered types:
+
 ```csharp
-public class OpcUaClient
+using var complexTypeSystem = ComplexTypeSystem.Create(session, session.MessageContext.Telemetry);
+IType? loadedType = await complexTypeSystem.LoadTypeAsync(typeNodeId);
+if (loadedType == null)
 {
-    private ISession _session;
-    private ComplexTypeSystem _complexTypeSystem;
-    private bool _typesLoaded;
-
-    public async Task EnsureTypesLoadedAsync()
-    {
-        if (!_typesLoaded)
-        {
-            _complexTypeSystem = new ComplexTypeSystem(_session);
-            await _complexTypeSystem.LoadAsync();
-            _typesLoaded = true;
-        }
-    }
-
-    public async Task<DataValue> ReadComplexValueAsync(NodeId nodeId)
-    {
-        await EnsureTypesLoadedAsync();
-        return await _session.ReadValueAsync(nodeId);
-    }
+    throw new InvalidOperationException("The server DataType could not be loaded.");
 }
+DataValue value = await session.ReadValueAsync(variableNodeId);
 ```
+
+Coordinate concurrent loading at the application's session boundary rather than
+using an unsynchronized Boolean flag. See [type system caching](#type-system-caching)
+for reuse guidance.
 
 ### Pattern 3: Reading Multiple Complex Values
 
@@ -589,7 +635,7 @@ public class OpcUaClient
 public async Task ReadMultipleComplexValuesAsync(IList<NodeId> nodeIds)
 {
     // Load types once
-    var complexTypeSystem = new ComplexTypeSystem(session);
+    using var complexTypeSystem = ComplexTypeSystem.Create(session, session.MessageContext.Telemetry);
     await complexTypeSystem.LoadAsync();
 
     // Read all values
@@ -631,7 +677,7 @@ public async Task ReadMultipleComplexValuesAsync(IList<NodeId> nodeIds)
 ```csharp
 try
 {
-    var complexTypeSystem = new ComplexTypeSystem(session);
+    using var complexTypeSystem = ComplexTypeSystem.Create(session, session.MessageContext.Telemetry);
     bool success = await complexTypeSystem.LoadAsync(throwOnError: true);
 
     if (success)
@@ -654,7 +700,7 @@ catch (ServiceResultException ex)
 
 ```csharp
 // Try to load a specific type
-var complexTypeSystem = new ComplexTypeSystem(session);
+using var complexTypeSystem = ComplexTypeSystem.Create(session, session.MessageContext.Telemetry);
 IType? systemType = await complexTypeSystem.LoadTypeAsync(typeNodeId, throwOnError: false);
 
 if (systemType == null)
@@ -676,7 +722,7 @@ if (systemType == null)
 
 ```csharp
 // Load only enumerations (faster)
-var complexTypeSystem = new ComplexTypeSystem(session);
+using var complexTypeSystem = ComplexTypeSystem.Create(session, session.MessageContext.Telemetry);
 await complexTypeSystem.LoadAsync(onlyEnumTypes: true);
 
 // Or load only specific namespaces
@@ -713,7 +759,7 @@ var response = await session.ReadAsync(
 ```csharp
 // Enable detailed logging through telemetry context
 var telemetry = session.MessageContext.Telemetry;
-var complexTypeSystem = new ComplexTypeSystem(session, telemetry);
+using var complexTypeSystem = ComplexTypeSystem.Create(session, telemetry);
 
 // The ComplexTypeSystem will log detailed information during type loading
 await complexTypeSystem.LoadAsync();
@@ -747,15 +793,37 @@ await complexTypeSystem.LoadAsync();
 
 ## Server-Side Complex Types
 
-Servers can build the same dynamic stand-in encodeables for the custom DataTypes in their address space. This is useful when a server loads a NodeSet2 at **runtime** whose DataTypes were never compiled into a .NET type: without a matching encodeable the server cannot encode or decode instances of those DataTypes. Server-side complex types prime the server's `IEncodeableFactory` with stand-ins built from the `DataTypeDefinition` attribute of every custom DataType, reusing exactly the same NativeAOT friendly path as the client (`ComplexTypeSystem`, in `Opc.Ua.Core.Schema`). This runs by default in `StandardServer` (controlled by `LoadComplexTypes`).
+Servers can build the same dynamic stand-in encodeables for custom DataTypes
+in their address space. This is useful when a server loads a NodeSet2 at
+**runtime** and its DataTypes have no compiled .NET types. Without a matching
+encodeable, the server cannot encode or decode instances of those DataTypes.
 
-DataTypes that are already backed by a compiled, source-generated type are **already registered in the server's `IEncodeableFactory` and used as-is** for encoding and decoding; the server only builds stand-ins for the DataTypes that are still missing from the factory (i.e. those loaded from a NodeSet at runtime).
+Server-side complex types prime the server's `IEncodeableFactory` with
+stand-ins built from each custom DataType's `DataTypeDefinition` attribute.
+This reuses the client's NativeAOT-friendly `ComplexTypeSystem` path in
+`Opc.Ua.Core.Schema`. `StandardServer` runs this by default; control it with
+`LoadComplexTypes`.
+
+The server uses compiled, source-generated DataTypes as-is because the
+generator already registers them in `IEncodeableFactory`. It builds stand-ins
+only for DataTypes missing from the factory, such as types loaded from a
+NodeSet at runtime.
 
 If you are using [Runtime NodeSets](RuntimeNodeSets.md), the server-side complex-type pass runs automatically after startup imports and before each live lifecycle generation is published. No extra configuration is needed. See [RuntimeNodeSets.md](RuntimeNodeSets.md) for startup and live add/reload/remove semantics, compatible DataType rules, and the stream ownership contract.
 
 ### How compiled types reach the factory
 
-Compiled DataTypes are registered explicitly, not by reflection: the OPC UA source generator emits one `Add<Namespace>(this IEncodeableFactoryBuilder)` extension per namespace, and a node manager calls it while it builds its address space (for example `Server.Factory.Builder.AddTestData().Commit()`). Node managers finish starting before `OnNodeManagerStartedAsync` runs, so every source-generated type is already present in `server.Factory` when the complex-type pass executes — `ComplexTypeSystem` finds them via `TryGetType` / `TryGetEncodeableType` and skips them, creating stand-ins only for the remaining runtime-loaded DataTypes.
+Compiled DataTypes register explicitly, not through reflection. The OPC UA
+source generator emits an `Add<Namespace>(this IEncodeableFactoryBuilder)`
+extension for each namespace. A node manager calls the extension while it
+builds its address space, for example
+`Server.Factory.Builder.AddTestData().Commit()`.
+
+Node managers finish starting before `OnNodeManagerStartedAsync` runs.
+Therefore, all source-generated types are already in `server.Factory` when
+the complex-type pass executes. `ComplexTypeSystem` finds these types with
+`TryGetType` or `TryGetEncodeableType` and skips them. It creates stand-ins
+only for runtime-loaded DataTypes that remain.
 
 ### Configuring via dependency injection (recommended)
 
@@ -771,7 +839,17 @@ builder.Services
     .AddComplexTypeSystem();  // build stand-ins for runtime-loaded DataTypes
 ```
 
-The pass runs once, after the address space is fully built and before the server starts accepting connections, so clients never observe a window where custom values cannot be decoded. The primed `IEncodeableFactory` is also exposed as the schema `IDataTypeDefinitionResolver` (via `EncodeableFactoryDefinitionSource`), so schemas can be produced directly from the factory — no separate registry population or address-space walk is required. If a `DataTypeDefinitionRegistry` is registered (for example by `AddSchemaGeneration()` for schema-only types that have no encodeable), it is composed as a fallback.
+The pass runs once after the server builds its address space and before it
+accepts connections. Clients therefore do not encounter custom values that
+they cannot decode.
+
+The server also exposes the primed `IEncodeableFactory` as a schema
+`IDataTypeDefinitionResolver` through `EncodeableFactoryDefinitionSource`.
+This lets the server produce schemas directly from the factory without
+populating a separate registry or walking the address space. If a
+`DataTypeDefinitionRegistry` is registered, for example through
+`AddSchemaGeneration()` for schema-only types without an encodeable, the
+server composes it as a fallback.
 
 Options can be configured:
 

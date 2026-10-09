@@ -320,10 +320,70 @@ namespace Opc.Ua.Encoders
                     BuiltInType.UInteger when property.TypeInfo.IsScalar:
                     encoder.WriteVariant(name, variant);
                     break;
+                case BuiltInType.DiagnosticInfo when property.TypeInfo.IsScalar:
+                    // A Variant cannot hold a DiagnosticInfo, so the field is
+                    // null. All fields are written also when null (OPC
+                    // 10000-6 5.2.1): the null DiagnosticInfo is the single
+                    // encoding mask byte 0x00 in binary (5.2.2.12).
+                    encoder.WriteDiagnosticInfo(name, null);
+                    break;
                 default:
-                    encoder.WriteVariantValue(name, variant);
+                    // A raw binary value is written without type
+                    // information, so a null Variant must still carry the
+                    // field's type and shape: the default scalar, a null
+                    // array (length -1) or a null inline matrix (OPC 10000-6
+                    // 5.2.5), never nothing at all.
+                    // XML writes a field like the typed writer of its type
+                    // (OPC 10000-6 5.3.5), which needs the type of a null
+                    // value too. (Json writes a null Variant as a null field.)
+                    if (property.TypeInfo.BuiltInType is BuiltInType.Variant or
+                        BuiltInType.Number or
+                        BuiltInType.Integer or
+                        BuiltInType.UInteger)
+                    {
+                        variant = ToVariantElements(variant);
+                    }
+                    if (variant.IsNull &&
+                        (encoder.EncodingType == EncodingType.Binary ||
+                        (encoder.EncodingType == EncodingType.Xml && !property.TypeInfo.IsMatrix)))
+                    {
+                        variant = Variant.CreateDefault(property.TypeInfo);
+                    }
+                    if (property.TypeInfo.IsMatrix)
+                    {
+                        encoder.WriteInlineMatrixValue(name, variant);
+                    }
+                    else
+                    {
+                        encoder.WriteVariantValue(name, variant);
+                    }
                     break;
             }
+        }
+
+        /// <summary>
+        /// OPC 10000-6 5.1.6: the elements of a BaseDataType, Number, Integer
+        /// or UInteger array or matrix field are Variants, which is how every
+        /// decoder reads them. A value of a concrete type (e.g. Int32[]) is
+        /// lifted into Variants so it is not written as a raw typed array.
+        /// </summary>
+        private static Variant ToVariantElements(in Variant value)
+        {
+            if (value.IsNull ||
+                value.TypeInfo.IsScalar ||
+                value.TypeInfo.BuiltInType is BuiltInType.Variant or
+                    BuiltInType.Number or
+                    BuiltInType.Integer or
+                    BuiltInType.UInteger)
+            {
+                return value;
+            }
+            ArrayOf<Variant> elements = value.Expand();
+            if (value.TypeInfo.IsMatrix && value.Raw is IMatrixOf matrix)
+            {
+                return Variant.From(elements.ToMatrix(matrix.Dimensions));
+            }
+            return Variant.From(elements);
         }
 
         /// <summary>
@@ -368,6 +428,12 @@ namespace Opc.Ua.Encoders
                     BuiltInType.UInteger when property.TypeInfo.IsScalar:
                     variant = decoder.ReadVariant(name);
                     break;
+                case BuiltInType.DiagnosticInfo when property.TypeInfo.IsScalar:
+                    // Consume the DiagnosticInfo (OPC 10000-6 5.2.2.12); a
+                    // Variant cannot hold it, so the field value stays null.
+                    _ = decoder.ReadDiagnosticInfo(name);
+                    variant = Variant.Null;
+                    break;
                 default:
                     variant = decoder.ReadVariantValue(name, property.TypeInfo);
                     break;
@@ -397,6 +463,12 @@ namespace Opc.Ua.Encoders
                     {
                         variant = Variant.From(values.ConvertAll(value => new EnumValue(value.Value, enumeratedType)));
                     }
+                }
+                else if (variant.TypeInfo.BuiltInType == BuiltInType.Int32)
+                {
+                    // The XML encoding carries enumerations as Int32.
+                    variant = Variant.From(variant.GetInt32Matrix()
+                        .ConvertAll(value => new EnumValue(value, enumeratedType)));
                 }
                 else
                 {

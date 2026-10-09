@@ -107,6 +107,12 @@ namespace Opc.Ua.Client
             if (copyClientHandle)
             {
                 ClientHandle = template.ClientHandle;
+
+                // The triggering links reference client handles, which stay
+                // valid, so a recreated subscription can restore them. The
+                // server id of the triggering item does not carry over.
+                TriggeredItems = template.TriggeredItems;
+                TriggeringItemId = 0;
             }
             else
             {
@@ -492,14 +498,17 @@ namespace Opc.Ua.Client
             {
                 lock (m_cache)
                 {
+                    // The last notification is stored whatever its kind, so a
+                    // notification of the other kind (a buggy server or a
+                    // client handle clash) must not throw here.
                     if (m_dataCache != null)
                     {
-                        return ((MonitoredItemNotification?)m_lastNotification)?.Message;
+                        return (m_lastNotification as MonitoredItemNotification)?.Message;
                     }
 
                     if (m_eventCache != null)
                     {
-                        return ((EventFieldList?)m_lastNotification)?.Message;
+                        return (m_lastNotification as EventFieldList)?.Message;
                     }
 
                     return null;

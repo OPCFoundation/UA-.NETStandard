@@ -134,7 +134,7 @@ namespace Opc.Ua.Tests
         /// </exception>
         public static string[] EnumerateTestAssets(string folder, string searchPattern, bool requireNonEmpty = false)
         {
-            string assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
+            string? assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
             string[] files = [];
             if (assetsPath != null)
             {
@@ -155,7 +155,7 @@ namespace Opc.Ua.Tests
         /// <returns>Encoder suffixes, or an empty array when the testcase root is missing.</returns>
         public static string[] DiscoverTestcaseEncoderSuffixes(string folder)
         {
-            string assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
+            string? assetsPath = Utils.GetAbsoluteDirectoryPath(folder, true, false, false);
             if (assetsPath == null)
             {
                 return [];
@@ -177,7 +177,7 @@ namespace Opc.Ua.Tests
 
             if (string.Equals(rootName, "Testcases", StringComparison.OrdinalIgnoreCase))
             {
-                string parent = Path.GetDirectoryName(testcasesRoot);
+                string parent = Path.GetDirectoryName(testcasesRoot)!;
                 if (parent != null)
                 {
                     sourceDirectories = sourceDirectories.Concat(

@@ -14,6 +14,11 @@ Supported encodings:
 - **JSON Schema** (Part 6 Annex C) for the JSON encoding, in both *compact*
   (reversible) and *verbose* flavors.
 
+It also generates the **OpenAPI 3.0 document of the REST binding**
+(`WebApiOpenApiGenerator`, Part 6 G.3) from the route table and the request
+and response types, either with a JSON object as every body or with a
+component schema per message and structure.
+
 ## Usage
 
 ```csharp

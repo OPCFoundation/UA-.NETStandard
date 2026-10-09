@@ -98,9 +98,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             using var encoder = new BinaryEncoder(messageContext);
             original.Encode(encoder);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
             var decoded = new StructureDefinition();
             decoded.Decode(decoder);
 
@@ -120,9 +120,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             using var encoder = new BinaryEncoder(messageContext);
             original.Encode(encoder);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
             var decoded = new StructureDefinition();
             decoded.Decode(decoder);
 
@@ -143,9 +143,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             using var encoder = new BinaryEncoder(messageContext);
             original.Encode(encoder);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
             var decoded = new StructureDefinition();
             decoded.Decode(decoder);
 
@@ -261,7 +261,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             StructureDefinition definition = CreatePopulatedDefinition();
 
-            Assert.That(definition.Equals((object)null), Is.False);
+            Assert.That(definition.Equals((object)null!), Is.False);
         }
 
         [Test]
@@ -297,7 +297,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             StructureDefinition definition = CreatePopulatedDefinition();
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(definition.Equals((StructureDefinition)null), Is.False);
+            Assert.That(definition.Equals((StructureDefinition)null!), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
@@ -309,6 +309,17 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             int hash2 = definition.GetHashCode();
 
             Assert.That(hash1, Is.EqualTo(hash2));
+        }
+
+        [Test]
+        public void GetHashCodeEqualObjectsReturnSameHash()
+        {
+            StructureDefinition def1 = CreatePopulatedDefinition();
+            StructureDefinition def2 = CreatePopulatedDefinition();
+            def2.FirstExplicitFieldIndex = def1.FirstExplicitFieldIndex + 1;
+
+            Assert.That(def1.Equals(def2), Is.True);
+            Assert.That(def1.GetHashCode(), Is.EqualTo(def2.GetHashCode()));
         }
 
         [Test]
@@ -331,8 +342,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualWithBothNullReturnsTrue()
         {
-            StructureDefinition def1 = null;
-            StructureDefinition def2 = null;
+            StructureDefinition? def1 = null;
+            StructureDefinition? def2 = null;
 
             Assert.That(def1 == def2, Is.True);
         }
@@ -341,7 +352,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorEqualWithOneNullReturnsFalse()
         {
             StructureDefinition def1 = CreatePopulatedDefinition();
-            StructureDefinition def2 = null;
+            StructureDefinition? def2 = null;
 
             Assert.That(def1 == def2, Is.False);
             Assert.That(def2 == def1, Is.False);
@@ -423,7 +434,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dataEncoding = new QualifiedName(BrowseNames.DefaultBinary);
 
             Assert.Throws<ArgumentNullException>(
-                () => definition.SetDefaultEncodingId(null, typeId, dataEncoding));
+                () => definition.SetDefaultEncodingId(null!, typeId, dataEncoding));
         }
 
         [Test]
@@ -445,7 +456,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             IEncodeableType outType = mockType.Object;
             var mockFactory = new Mock<IEncodeableFactory>();
             mockFactory
-                .Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out outType))
+                .Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out outType!))
                 .Returns(true);
 
             var contextMock = new Mock<ISystemContext>();
@@ -477,7 +488,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             IEncodeableType outType = mockType.Object;
             var mockFactory = new Mock<IEncodeableFactory>();
             mockFactory
-                .Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out outType))
+                .Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out outType!))
                 .Returns(true);
 
             var contextMock = new Mock<ISystemContext>();
@@ -509,7 +520,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             IEncodeableType outType = mockType.Object;
             var mockFactory = new Mock<IEncodeableFactory>();
             mockFactory
-                .Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out outType))
+                .Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out outType!))
                 .Returns(true);
 
             var contextMock = new Mock<ISystemContext>();
@@ -532,10 +543,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             var namespaceUris = new NamespaceTable();
 
-            IEncodeableType outType = null;
+            IEncodeableType? outType = null;
             var mockFactory = new Mock<IEncodeableFactory>();
             mockFactory
-                .Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out outType))
+                .Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out outType!))
                 .Returns(false);
 
             var contextMock = new Mock<ISystemContext>();

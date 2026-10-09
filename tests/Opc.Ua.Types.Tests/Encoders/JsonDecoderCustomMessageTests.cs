@@ -121,7 +121,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 decoder.PopNamespace();
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is OptionalEncodeable other &&
                     EncodingMask == other.EncodingMask &&

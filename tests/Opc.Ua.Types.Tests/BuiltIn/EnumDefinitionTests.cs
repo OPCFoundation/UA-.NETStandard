@@ -90,9 +90,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 NUnitTelemetryContext.Create());
             using var encoder = new BinaryEncoder(messageContext);
             original.Encode(encoder);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
             var decoded = new EnumDefinition();
             decoded.Decode(decoder);
 
@@ -119,9 +119,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 NUnitTelemetryContext.Create());
             using var encoder = new BinaryEncoder(messageContext);
             original.Encode(encoder);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
             var decoded = new EnumDefinition();
             decoded.Decode(decoder);
 
@@ -160,6 +160,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             EnumDefinition def2 = CreatePopulatedDefinition();
 
             Assert.That(def1.IsEqual(def2), Is.True);
+        }
+
+        [Test]
+        public void GetHashCodeEqualObjectsReturnSameHash()
+        {
+            EnumDefinition def1 = CreatePopulatedDefinition();
+            EnumDefinition def2 = CreatePopulatedDefinition();
+
+            Assert.That(def1.GetHashCode(), Is.EqualTo(def2.GetHashCode()));
         }
 
         [Test]
@@ -206,7 +215,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             EnumDefinition definition = CreatePopulatedDefinition();
 
-            Assert.That(definition.Equals((object)null), Is.False);
+            Assert.That(definition.Equals((object)null!), Is.False);
         }
 
         [Test]
@@ -224,7 +233,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             EnumDefinition definition = CreatePopulatedDefinition();
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(definition.Equals((EnumDefinition)null), Is.False);
+            Assert.That(definition.Equals((EnumDefinition)null!), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
@@ -262,8 +271,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualWithBothNullReturnsTrue()
         {
-            EnumDefinition def1 = null;
-            EnumDefinition def2 = null;
+            EnumDefinition? def1 = null;
+            EnumDefinition? def2 = null;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(def1 == def2, Is.True);
@@ -274,7 +283,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorEqualWithOneNullReturnsFalse()
         {
             EnumDefinition def1 = CreatePopulatedDefinition();
-            EnumDefinition def2 = null;
+            EnumDefinition? def2 = null;
 
             Assert.That(def1 == def2, Is.False);
             Assert.That(def2 == def1, Is.False);

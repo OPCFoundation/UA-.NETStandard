@@ -45,7 +45,10 @@ namespace Opc.Ua.Bindings
     /// (Part 6 §6.7.2) is mapped to exactly one WebSocket binary frame
     /// (<c>EndOfMessage = true</c>) per Part 6 §7.5.2 (opcua+uacp).
     /// </summary>
-    internal abstract class WebSocketByteTransportBase : IUaSCByteTransport, IDisposable
+    internal abstract class WebSocketByteTransportBase :
+        IUaSCByteTransport,
+        IUaSCByteTransportLimits,
+        IDisposable
     {
         protected WebSocketByteTransportBase(
             BufferManager bufferManager,
@@ -77,12 +80,12 @@ namespace Opc.Ua.Bindings
         public async ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
         {
             WebSocket socket = RequireOpenSocket();
-            await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+            using CancellationTokenSource linkedCts = await EnterSendAsync(ct).ConfigureAwait(false);
             try
             {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 await socket
-                    .SendAsync(chunk, WebSocketMessageType.Binary, endOfMessage: true, ct)
+                    .SendAsync(chunk, WebSocketMessageType.Binary, endOfMessage: true, linkedCts.Token)
                     .ConfigureAwait(false);
 #else
                 ArraySegment<byte> segment;
@@ -97,9 +100,15 @@ namespace Opc.Ua.Bindings
                     segment = new ArraySegment<byte>(tmp, 0, tmp.Length);
                 }
                 await socket
-                    .SendAsync(segment, WebSocketMessageType.Binary, endOfMessage: true, ct)
+                    .SendAsync(segment, WebSocketMessageType.Binary, endOfMessage: true, linkedCts.Token)
                     .ConfigureAwait(false);
 #endif
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "Transport closed while writing chunk.");
             }
             finally
             {
@@ -115,7 +124,7 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(buffers));
             }
             WebSocket socket = RequireOpenSocket();
-            await m_sendLock.WaitAsync(ct).ConfigureAwait(false);
+            using CancellationTokenSource linkedCts = await EnterSendAsync(ct).ConfigureAwait(false);
             try
             {
                 // WebSocket does not support a vectored send out of the box; concat the
@@ -124,7 +133,7 @@ namespace Opc.Ua.Bindings
                 byte[] frame = m_bufferManager.TakeBuffer(
                     totalSize,
                     nameof(SendChunkAsync),
-                    ct);
+                    linkedCts.Token);
                 try
                 {
                     int offset = 0;
@@ -138,13 +147,13 @@ namespace Opc.Ua.Bindings
                         offset += segment.Count;
                     }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     await socket
                         .SendAsync(
                             new ReadOnlyMemory<byte>(frame, 0, totalSize),
                             WebSocketMessageType.Binary,
                             endOfMessage: true,
-                            ct)
+                            linkedCts.Token)
                         .ConfigureAwait(false);
 #else
                     await socket
@@ -152,7 +161,7 @@ namespace Opc.Ua.Bindings
                             new ArraySegment<byte>(frame, 0, totalSize),
                             WebSocketMessageType.Binary,
                             endOfMessage: true,
-                            ct)
+                            linkedCts.Token)
                         .ConfigureAwait(false);
 #endif
                 }
@@ -160,6 +169,12 @@ namespace Opc.Ua.Bindings
                 {
                     m_bufferManager.ReturnBuffer(frame, nameof(SendChunkAsync));
                 }
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "Transport closed while writing buffer collection.");
             }
             finally
             {
@@ -171,8 +186,9 @@ namespace Opc.Ua.Bindings
         public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
         {
             WebSocket socket = RequireOpenSocket();
+            int receiveBufferSize = Volatile.Read(ref m_receiveBufferSize);
             byte[] buffer = m_bufferManager.TakeBuffer(
-                m_receiveBufferSize,
+                receiveBufferSize,
                 nameof(ReceiveChunkAsync),
                 ct);
             int totalRead = 0;
@@ -181,7 +197,7 @@ namespace Opc.Ua.Bindings
                 while (true)
                 {
                     ValueWebSocketReceiveResult result;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     System.Net.WebSockets.ValueWebSocketReceiveResult r = await socket
                         .ReceiveAsync(
                             new Memory<byte>(buffer, totalRead, buffer.Length - totalRead),
@@ -213,13 +229,13 @@ namespace Opc.Ua.Bindings
                     }
 
                     totalRead += result.Count;
-                    if (totalRead > m_receiveBufferSize)
+                    if (totalRead > receiveBufferSize)
                     {
                         // Map to OPC UA error and tear down per Part 6 §7.5.2 (1009 too-big).
                         throw ServiceResultException.Create(
                             StatusCodes.BadTcpMessageTooLarge,
                             "WebSocket frame exceeds the negotiated max message size ({0} bytes).",
-                            m_receiveBufferSize);
+                            receiveBufferSize);
                     }
                     if (result.EndOfMessage)
                     {
@@ -233,13 +249,13 @@ namespace Opc.Ua.Bindings
                     // ever terminating the UASC chunk. Without this the next
                     // ReceiveAsync would get a zero-length destination and spin
                     // the loop (CPU DoS), because the size check above uses '>'.
-                    if (result.Count == 0 || totalRead >= m_receiveBufferSize)
+                    if (result.Count == 0 || totalRead >= receiveBufferSize)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadTcpMessageTooLarge,
                             "WebSocket continuation frame made no progress or exceeds the " +
                             "negotiated max message size ({0} bytes).",
-                            m_receiveBufferSize);
+                            receiveBufferSize);
                     }
                 }
             }
@@ -260,6 +276,18 @@ namespace Opc.Ua.Bindings
             {
                 return;
             }
+            // Wake queued and in-flight senders first so they fail with
+            // BadConnectionClosed and release their buffers. The semaphore
+            // is deliberately not disposed: disposing it would orphan queued
+            // waiters forever (as in TcpByteTransport).
+            try
+            {
+                m_sendCancellation.Cancel();
+            }
+            catch
+            {
+                // Best-effort.
+            }
             WebSocket? socket = Interlocked.Exchange(ref m_socket, null);
             if (socket != null)
             {
@@ -273,7 +301,16 @@ namespace Opc.Ua.Bindings
                 }
                 socket.Dispose();
             }
-            m_sendLock.Dispose();
+            OnClosed();
+        }
+
+        /// <summary>
+        /// Releases resources a derived transport must keep alive for the
+        /// lifetime of the WebSocket. Called once from <see cref="Close"/>
+        /// after the WebSocket has been torn down.
+        /// </summary>
+        protected virtual void OnClosed()
+        {
         }
 
         /// <summary>
@@ -283,6 +320,21 @@ namespace Opc.Ua.Bindings
         public void Dispose()
         {
             Close();
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Also sizes the buffers later frames are received into, so that a
+        /// channel which negotiated small chunks does not keep a buffer of the
+        /// listener's maximum size alive for each chunk of an incomplete message.
+        /// </remarks>
+        void IUaSCByteTransportLimits.SetReceiveBufferSize(int receiveBufferSize)
+        {
+            if (receiveBufferSize <= TcpMessageLimits.MessageTypeAndSize)
+            {
+                throw new ArgumentOutOfRangeException(nameof(receiveBufferSize));
+            }
+            Volatile.Write(ref m_receiveBufferSize, receiveBufferSize);
         }
 
         /// <summary>
@@ -300,6 +352,60 @@ namespace Opc.Ua.Bindings
             if (Interlocked.CompareExchange(ref m_socket, socket, null) != null)
             {
                 throw new InvalidOperationException("WebSocket transport is already attached.");
+            }
+        }
+
+        /// <summary>
+        /// Aborts and releases a socket attached after <see cref="Close"/>
+        /// already ran. Returns <c>true</c> when the transport is closed; the
+        /// caller then also releases what it attached besides the socket.
+        /// </summary>
+        protected bool ReleaseSocketIfClosed()
+        {
+            if (Volatile.Read(ref m_closed) == 0)
+            {
+                return false;
+            }
+            WebSocket? socket = Interlocked.Exchange(ref m_socket, null);
+            if (socket != null)
+            {
+                try
+                {
+                    socket.Abort();
+                }
+                catch
+                {
+                    // Best-effort.
+                }
+                socket.Dispose();
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Waits for the send lock, failing with <see cref="StatusCodes.BadConnectionClosed"/>
+        /// when the transport closes while queued. Returns the linked token source
+        /// the caller uses for the send and disposes afterwards.
+        /// </summary>
+        private async ValueTask<CancellationTokenSource> EnterSendAsync(CancellationToken ct)
+        {
+            var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token);
+            try
+            {
+                await m_sendLock.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+                return linkedCts;
+            }
+            catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+            {
+                linkedCts.Dispose();
+                throw ServiceResultException.Create(
+                    StatusCodes.BadConnectionClosed,
+                    "The WebSocket transport is closed.");
+            }
+            catch
+            {
+                linkedCts.Dispose();
+                throw;
             }
         }
 
@@ -329,13 +435,24 @@ namespace Opc.Ua.Bindings
         private WebSocket? m_socket;
         private int m_closed;
         private readonly BufferManager m_bufferManager;
-        private readonly int m_receiveBufferSize;
+        private int m_receiveBufferSize;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "The semaphore must remain undisposed so queued send waiters can observe transport cancellation and unwind.")]
         private readonly SemaphoreSlim m_sendLock;
+
+        [System.Diagnostics.CodeAnalysis.SuppressMessage(
+            "Usage",
+            "CA2213:Disposable fields should be disposed",
+            Justification = "The lifetime token remains available to concurrent send setup while close cancellation unwinds those sends.")]
+        private readonly CancellationTokenSource m_sendCancellation = new();
     }
 
     /// <summary>
     /// Local copy of <c>System.Net.WebSockets.ValueWebSocketReceiveResult</c> for
-    /// platforms (net472 / net48) where the type is not available.
+    /// platforms (net48) where the type is not available.
     /// </summary>
     internal readonly struct ValueWebSocketReceiveResult
     {
@@ -401,6 +518,7 @@ namespace Opc.Ua.Bindings
             Uri wsUrl = NormalizeUrl(url);
 
             var ws = new ClientWebSocket();
+            X509Certificate2? clientCert = null;
             try
             {
                 ws.Options.AddSubProtocol(Profiles.OpcUaWsSubProtocolUacp);
@@ -418,12 +536,16 @@ namespace Opc.Ua.Bindings
                 }
                 if (ClientTlsCertificate != null)
                 {
-                    using X509Certificate2 clientCert = ClientTlsCertificate.AsX509Certificate2();
+                    // AsX509Certificate2 returns a caller-owned copy. SslStream
+                    // reads its private key during the handshake (and possibly
+                    // later for post-handshake authentication), so keep it alive
+                    // until the transport is closed instead of disposing it here.
+                    clientCert = ClientTlsCertificate.AsX509Certificate2();
                     ws.Options.ClientCertificates ??= [];
                     ws.Options.ClientCertificates.Add(clientCert);
                 }
 #else
-                // net472 / net48 / netstandard2.1: ClientWebSocketOptions does not
+                // net48: ClientWebSocketOptions does not
                 // expose RemoteCertificateValidationCallback or per-connection client
                 // certificates, so the configured OPC UA certificate validator cannot
                 // be attached at the TLS layer here. TLS server validation falls back
@@ -452,6 +574,18 @@ namespace Opc.Ua.Bindings
                     wsUrl.IdnHost,
                     wsUrl.Port > 0 ? wsUrl.Port : Utils.UaWebSocketsDefaultPort);
                 ws = null; // ownership transferred
+                Interlocked.Exchange(ref m_clientCertificate, clientCert)?.Dispose();
+                clientCert = null; // released in OnClosed
+
+                // Close() may have run while the connect was in flight; it
+                // then found nothing to release (as in TcpByteTransport).
+                if (ReleaseSocketIfClosed())
+                {
+                    OnClosed();
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "The WebSocket transport was closed while connecting.");
+                }
             }
             catch (Exception ex)
             {
@@ -461,7 +595,16 @@ namespace Opc.Ua.Bindings
             finally
             {
                 ws?.Dispose();
+#if NET5_0_OR_GREATER
+                clientCert?.Dispose();
+#endif
             }
+        }
+
+        /// <inheritdoc/>
+        protected override void OnClosed()
+        {
+            Interlocked.Exchange(ref m_clientCertificate, null)?.Dispose();
         }
 
 #if NET5_0_OR_GREATER
@@ -520,6 +663,7 @@ namespace Opc.Ua.Bindings
         }
 
         private EndPoint? m_remoteEndpoint;
+        private X509Certificate2? m_clientCertificate;
     }
 
     /// <summary>

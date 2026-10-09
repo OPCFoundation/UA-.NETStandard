@@ -99,6 +99,9 @@ namespace Opc.Ua.Tools.Tests
         /// </summary>
         /// <param name="scenario">The runner scope, privacy or applicability scenario.</param>
         [TestCase("runner-private-publication")]
+        [TestCase("runner-corpus-assurance")]
+        [TestCase("runner-corpus-coverage")]
+        [TestCase("runner-corpus-missing-pin")]
         [TestCase("runner-stale-results")]
         [TestCase("runner-legacy-coverage")]
         [TestCase("runner-restricted")]
@@ -139,7 +142,7 @@ namespace Opc.Ua.Tools.Tests
         private static async Task RunFixtureAsync(string scenario)
         {
             string? root = TestContext.CurrentContext.TestDirectory;
-            while (!string.IsNullOrEmpty(root) && !File.Exists(Path.Combine(root, "azure-pipelines.yml")))
+            while (!string.IsNullOrEmpty(root) && !File.Exists(Path.Combine(root, "UA.slnx")))
             {
                 root = Directory.GetParent(root)?.FullName;
             }

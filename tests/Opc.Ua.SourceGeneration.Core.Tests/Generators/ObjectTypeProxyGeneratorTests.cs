@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Text;
 using System.Xml;
@@ -49,12 +50,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
     {
         private const string kTestNamespaceUri = "http://test.org/UA/";
         private const string kTestNamespacePrefix = "Test";
+        private const string kForeignNamespaceUri = "http://foreign.org/UA/";
+        private const string kForeignNamespacePrefix = "Foreign";
 
         private Mock<IFileSystem> m_mockFileSystem;
         private Mock<IModelDesign> m_mockModelDesign;
         private Mock<ITelemetryContext> m_mockTelemetry;
         private Namespace m_targetNamespace;
-        private GeneratorContext m_context;
+        private GeneratorContext m_context = null!;
 
         [SetUp]
         public void SetUp()
@@ -79,7 +82,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Constructor_NullContext_ThrowsArgumentNullException()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new ObjectTypeProxyGenerator(null));
+                () => new ObjectTypeProxyGenerator(null!));
         }
 
         [Test]
@@ -165,7 +168,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
 
             using var stream = new MemoryStream();
-            string capturedPath = null;
+            string? capturedPath = null;
             m_mockFileSystem
                 .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
                 .Callback<string>(p => capturedPath = p)
@@ -496,7 +499,323 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 "public partial class RootTypeClient : global::Opc.Ua.ObjectTypeClient"));
         }
 
-        private GeneratorContext CreateContext(GeneratorOptions options = null)
+        /// <summary>
+        /// Regression: the child accessor asked the server for the child's
+        /// SymbolicName instead of its BrowseName, so any child whose two names
+        /// differ (e.g. BrowseName "Axis 1", SymbolicName "Axis1") never resolved.
+        /// </summary>
+        [Test]
+        public void EmitObjectChildWithDistinctBrowseNameResolvesByBrowseName()
+        {
+            ObjectTypeDesign childType = CreateObjectType("AxisType");
+            ObjectTypeDesign parent = CreateObjectType("RobotType");
+            parent.Children = new ListOfChildren
+            {
+                Items = [CreateObjectChild("Axis1", "Axis 1", childType)]
+            };
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([childType, parent]);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain("GetAxis1Async("));
+                Assert.That(content, Does.Contain($"\"{kTestNamespaceUri}\", \"Axis 1\", ct"));
+                Assert.That(content, Does.Not.Contain("\"Axis1\""));
+            });
+        }
+
+        /// <summary>
+        /// Regression: a placeholder child (<c>&lt;MotorIdentifier&gt;</c>, SymbolicName
+        /// <c>MotorIdentifier_Placeholder</c>) got a single-child accessor that asked for
+        /// a child named "MotorIdentifier_Placeholder" and therefore always returned null.
+        /// Instances expose placeholder children under their own names, so no accessor
+        /// is emitted.
+        /// </summary>
+        [TestCase(ModellingRule.OptionalPlaceholder)]
+        [TestCase(ModellingRule.MandatoryPlaceholder)]
+        public void EmitPlaceholderObjectChildEmitsNoAccessor(ModellingRule rule)
+        {
+            ObjectTypeDesign childType = CreateObjectType("MotorType");
+            ObjectTypeDesign parent = CreateObjectType("PowerTrainType");
+            ObjectDesign placeholder = CreateObjectChild(
+                "MotorIdentifier_Placeholder", "<MotorIdentifier>", childType);
+            placeholder.ModellingRule = rule;
+            parent.Children = new ListOfChildren
+            {
+                Items = [placeholder, CreateObjectChild("Brake", null!, childType)]
+            };
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([childType, parent]);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Not.Contain("MotorIdentifier"));
+                Assert.That(content, Does.Contain("GetBrakeAsync("), "ordinary children keep their accessor");
+            });
+        }
+
+        /// <summary>
+        /// The Bad_MethodInvalid fallback resolves the instance method by browse
+        /// name, so it must be given the BrowseName, not the SymbolicName.
+        /// </summary>
+        [Test]
+        public void EmitMethodWithDistinctBrowseNamePassesBrowseNameToFallback()
+        {
+            MethodDesign method = CreateMethod("StartMotion");
+            method.BrowseName = "Start Motion";
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain("StartMotionAsync("));
+                Assert.That(content, Does.Contain("\"Start Motion\","));
+            });
+        }
+
+        /// <summary>
+        /// Regression: no proxy is emitted for an excluded ObjectType, but a child
+        /// accessor returning it was, which does not compile (CS0246).
+        /// </summary>
+        [Test]
+        public void EmitObjectChildOfExcludedTypeEmitsNoAccessor()
+        {
+            ObjectTypeDesign draftType = CreateObjectType("DiagnosticsType");
+            ObjectTypeDesign motorType = CreateObjectType("MotorType");
+            ObjectTypeDesign machineType = CreateObjectType("MachineType");
+            machineType.Children = new ListOfChildren
+            {
+                Items =
+                [
+                    CreateObjectChild("Diagnostics", null!, draftType),
+                    CreateObjectChild("Motor", null!, motorType)
+                ]
+            };
+            m_mockModelDesign
+                .Setup(m => m.GetNodeDesigns())
+                .Returns([draftType, motorType, machineType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(draftType)).Returns(true);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Not.Contain("DiagnosticsTypeClient"));
+                Assert.That(content, Does.Not.Contain("GetDiagnosticsAsync"));
+                Assert.That(content, Does.Contain("GetMotorAsync("));
+            });
+        }
+
+        /// <summary>
+        /// Regression: a proxy derived from the (never emitted) proxy of an
+        /// excluded supertype. It now derives from the nearest emitted ancestor.
+        /// </summary>
+        [Test]
+        public void EmitExcludedSupertypeDerivesFromNearestEmittedAncestor()
+        {
+            ObjectTypeDesign rootType = CreateObjectType("MachineBaseType", CreateMethod("Ping"));
+            ObjectTypeDesign draftType = CreateObjectType("DraftMachineType", CreateMethod("Ping"));
+            draftType.BaseTypeNode = rootType;
+            ObjectTypeDesign machineType = CreateObjectType("MachineType");
+            machineType.BaseTypeNode = draftType;
+            m_mockModelDesign
+                .Setup(m => m.GetNodeDesigns())
+                .Returns([rootType, draftType, machineType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(draftType)).Returns(true);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Not.Contain("DraftMachineTypeClient"));
+                Assert.That(content, Does.Contain(
+                    "public partial class MachineTypeClient : global::" + kTestNamespacePrefix +
+                    ".MachineBaseTypeClient"));
+            });
+        }
+
+        /// <summary>
+        /// Regression: this model's exclusions were applied to a supertype and a child
+        /// type from a referenced model. The referenced assembly emitted their proxies
+        /// under its own exclusions (its payload lists them), so the proxy must keep
+        /// deriving from, and returning, the referenced proxies.
+        /// </summary>
+        [Test]
+        public void EmitForeignTypeEmittedByReferenceIgnoresLocalExclusions()
+        {
+            ObjectTypeDesign foreignRoot = CreateObjectType("DeviceBaseType", kForeignNamespaceUri);
+            ObjectTypeDesign foreignType = CreateObjectType("DeprecatedDeviceType", kForeignNamespaceUri);
+            foreignType.BaseTypeNode = foreignRoot;
+            ObjectTypeDesign machineType = CreateObjectType("MachineType");
+            machineType.BaseTypeNode = foreignType;
+            machineType.Children = new ListOfChildren
+            {
+                Items = [CreateObjectChild("Legacy", null!, foreignType)]
+            };
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([machineType]);
+            m_mockModelDesign.Setup(m => m.IsExcluded(foreignType)).Returns(true);
+
+            string content = EmitToString(ReferenceForeignModel("DeviceBaseType", "DeprecatedDeviceType"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain(
+                    "public partial class MachineTypeClient : global::" + kForeignNamespacePrefix +
+                    ".DeprecatedDeviceTypeClient"));
+                Assert.That(content, Does.Contain("GetLegacyAsync("));
+            });
+        }
+
+        /// <summary>
+        /// Regression (inverse case): a referenced model that excluded a type emitted
+        /// no proxy for it although this model does not exclude it. The payload of
+        /// the reference omits the type, so the proxy derives from the nearest ancestor
+        /// the reference did emit and no accessor returns the missing proxy.
+        /// </summary>
+        [Test]
+        public void EmitForeignTypeExcludedByReferenceSkipsItsProxy()
+        {
+            ObjectTypeDesign foreignRoot = CreateObjectType("DeviceBaseType", kForeignNamespaceUri);
+            ObjectTypeDesign foreignType = CreateObjectType("DraftDeviceType", kForeignNamespaceUri);
+            foreignType.BaseTypeNode = foreignRoot;
+            ObjectTypeDesign machineType = CreateObjectType("MachineType");
+            machineType.BaseTypeNode = foreignType;
+            machineType.Children = new ListOfChildren
+            {
+                Items = [CreateObjectChild("Draft", null!, foreignType)]
+            };
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([machineType]);
+
+            string content = EmitToString(ReferenceForeignModel("DeviceBaseType"));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain(
+                    "public partial class MachineTypeClient : global::" + kForeignNamespacePrefix +
+                    ".DeviceBaseTypeClient"));
+                Assert.That(content, Does.Not.Contain("DraftDeviceTypeClient"));
+                Assert.That(content, Does.Not.Contain("GetDraftAsync("));
+            });
+        }
+
+        private Dictionary<string, ModelDependencyReference> ReferenceForeignModel(
+            params string[] emittedObjectTypes)
+        {
+            m_mockModelDesign.Setup(m => m.Namespaces).Returns(
+            [
+                m_targetNamespace,
+                new Namespace
+                {
+                    Value = kForeignNamespaceUri,
+                    Prefix = kForeignNamespacePrefix,
+                    Name = "Foreign"
+                }
+            ]);
+            var payload = new Dependency.ModelDependencyV1 { ModelUri = kForeignNamespaceUri };
+            foreach (string name in emittedObjectTypes)
+            {
+                payload.Nodes.Add(new Dependency.DependencyNode
+                {
+                    SymbolicName = name,
+                    SymbolicNamespace = kForeignNamespaceUri,
+                    ClassName = name,
+                    Kind = Dependency.DependencyNodeKind.ObjectType
+                });
+            }
+            return new Dictionary<string, ModelDependencyReference>
+            {
+                [kForeignNamespaceUri] = new ModelDependencyReference(
+                    "Foreign.Assembly",
+                    kForeignNamespaceUri,
+                    kForeignNamespacePrefix,
+                    "1.0.0",
+                    "2024-01-01",
+                    "Foreign",
+                    payload.ToBase64Payload())
+            };
+        }
+
+        /// <summary>
+        /// Optional value-type method arguments stay non-nullable (only string and
+        /// structure references get a nullable annotation), so the emitted
+        /// <c>Variant.From(x)</c> / <c>TryGetValue(out x)</c> calls bind to the
+        /// existing overloads. Guards against introducing <c>int?</c> etc., for which
+        /// Variant has no overloads.
+        /// </summary>
+        [Test]
+        public void EmitOptionalValueTypeArgumentsAreNotNullable()
+        {
+            MethodDesign method = CreateMethod(
+                "Configure",
+                inputs:
+                [
+                    CreateParameter("count", BasicDataType.Int32, isOptional: true),
+                    CreateParameter("when", BasicDataType.DateTime, isOptional: true)
+                ],
+                outputs:
+                [
+                    CreateParameter("result", BasicDataType.Double, isOptional: true)
+                ]);
+            ObjectTypeDesign objectType = CreateObjectType("FooType", method);
+            m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
+
+            string content = EmitToString();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(content, Does.Contain("int count,"));
+                Assert.That(content, Does.Contain("global::Opc.Ua.DateTimeUtc when,"));
+                Assert.That(content, Does.Contain("ValueTask<double> ConfigureAsync("));
+                Assert.That(content, Does.Not.Contain("? count"));
+                Assert.That(content, Does.Contain("global::Opc.Ua.Variant.From(count)"));
+            });
+        }
+
+        private string EmitToString(
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels = null)
+        {
+            using var stream = new MemoryStream();
+            m_mockFileSystem
+                .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
+                .Returns(stream);
+            GeneratorContext context = CreateContext();
+            if (referencedModels != null)
+            {
+                context = new GeneratorContext
+                {
+                    FileSystem = context.FileSystem,
+                    OutputFolder = context.OutputFolder,
+                    ModelDesign = context.ModelDesign,
+                    Telemetry = context.Telemetry,
+                    Options = context.Options,
+                    ReferencedModels = referencedModels
+                };
+            }
+            new ObjectTypeProxyGenerator(context).Emit();
+            return Encoding.UTF8.GetString(stream.ToArray());
+        }
+
+        private static ObjectDesign CreateObjectChild(
+            string symbolicName,
+            string browseName,
+            ObjectTypeDesign typeDefinition)
+        {
+            return new ObjectDesign
+            {
+                SymbolicName = new XmlQualifiedName(symbolicName, kTestNamespaceUri),
+                SymbolicId = new XmlQualifiedName(symbolicName, kTestNamespaceUri),
+                BrowseName = browseName,
+                TypeDefinition = typeDefinition.SymbolicName,
+                TypeDefinitionNode = typeDefinition,
+                ModellingRule = ModellingRule.Mandatory
+            };
+        }
+
+        private GeneratorContext CreateContext(GeneratorOptions? options = null)
         {
             m_context = new GeneratorContext
             {
@@ -507,6 +826,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Options = options ?? new GeneratorOptions()
             };
             return m_context;
+        }
+
+        private static ObjectTypeDesign CreateObjectType(string name, string namespaceUri)
+        {
+            var qname = new XmlQualifiedName(name, namespaceUri);
+            return new ObjectTypeDesign
+            {
+                SymbolicName = qname,
+                SymbolicId = qname
+            };
         }
 
         private static ObjectTypeDesign CreateObjectType(
@@ -537,8 +866,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static MethodDesign CreateMethod(
             string name,
-            Parameter[] inputs = null,
-            Parameter[] outputs = null)
+            Parameter[]? inputs = null,
+            Parameter[]? outputs = null)
         {
             var qname = new XmlQualifiedName(name, kTestNamespaceUri);
             return new MethodDesign
@@ -553,7 +882,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private static Parameter CreateParameter(
             string name,
             BasicDataType basicDataType,
-            string symbolicName = null,
+            string? symbolicName = null,
             ValueRank valueRank = ValueRank.Scalar,
             bool isOptional = false)
         {

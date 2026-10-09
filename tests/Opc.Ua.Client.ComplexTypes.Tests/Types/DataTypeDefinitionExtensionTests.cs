@@ -620,7 +620,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         private static StructureDefinition Convert(
             Schema.Binary.StructuredType structuredType,
-            Dictionary<XmlQualifiedName, NodeId> typeDictionary = null)
+            Dictionary<XmlQualifiedName, NodeId>? typeDictionary = null)
         {
             return structuredType.ToStructureDefinition(
                 new ExpandedNodeId(EncodingNumericId),
@@ -644,12 +644,12 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         private static Schema.Binary.FieldType Field(
             string name,
             XmlQualifiedName typeName,
-            string lengthField = null,
-            string switchField = null,
+            string? lengthField = null,
+            string? switchField = null,
             uint switchValue = 0,
             uint length = 0,
             bool isLengthInBytes = false,
-            byte[] terminator = null)
+            byte[]? terminator = null)
         {
             return new Schema.Binary.FieldType
             {

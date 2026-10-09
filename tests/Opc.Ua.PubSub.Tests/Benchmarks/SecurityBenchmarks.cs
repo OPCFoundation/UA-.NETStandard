@@ -76,7 +76,7 @@ namespace Opc.Ua.PubSub.Tests.Benchmarks
             const uint tokenId = 7U;
             byte[] signing = new byte[policy.SigningKeyLength];
             byte[] encrypting = new byte[policy.EncryptingKeyLength];
-            byte[] keyNonce = new byte[policy.NonceLength];
+            byte[] keyNonce = new byte[AesCtrNonceLayout.KeyNonceLength];
             for (int i = 0; i < signing.Length; i++)
             {
                 signing[i] = (byte)(((tokenId * 31u) + (uint)i) & 0xFF);

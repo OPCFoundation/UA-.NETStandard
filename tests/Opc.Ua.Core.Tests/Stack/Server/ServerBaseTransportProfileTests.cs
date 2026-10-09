@@ -224,6 +224,34 @@ namespace Opc.Ua.Core.Tests.Stack.Server
             Assert.That(filtered, Is.Empty);
         }
 
+        /// <summary>
+        /// OPC 10000-4 7.2: the translated ApplicationDescription keeps the
+        /// GatewayServerUri and DiscoveryProfileUri in their own fields.
+        /// </summary>
+        [Test]
+        public void TranslateApplicationDescriptionKeepsGatewayAndDiscoveryProfileUri()
+        {
+            var description = new ApplicationDescription
+            {
+                ApplicationUri = m_application.ApplicationUri,
+                ApplicationName = m_application.ApplicationName,
+                ApplicationType = ApplicationType.Server,
+                GatewayServerUri = "urn:localhost:Gateway",
+                DiscoveryProfileUri = "http://opcfoundation.org/UA/Profile/Discovery"
+            };
+
+            ApplicationDescription copy = TranslateApplicationDescription(
+                new Uri(kHttpsUrl),
+                description,
+                [HttpsBaseAddress()],
+                LocalizedText.Null);
+
+            Assert.That(copy.GatewayServerUri, Is.EqualTo("urn:localhost:Gateway"));
+            Assert.That(
+                copy.DiscoveryProfileUri,
+                Is.EqualTo("http://opcfoundation.org/UA/Profile/Discovery"));
+        }
+
         public static readonly string[] HttpsProfileUris =
         [
             Profiles.HttpsBinaryTransport,
@@ -244,7 +272,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
 
             foreach (EndpointDescription endpoint in endpoints)
             {
-                profileUris.Add(endpoint.TransportProfileUri);
+                profileUris.Add(endpoint.TransportProfileUri!);
             }
 
             return profileUris;

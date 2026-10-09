@@ -47,7 +47,7 @@ namespace Opc.Ua.Server.Tests
                 SecurityNone = true
             };
             await m_fixture.LoadConfigurationAsync().ConfigureAwait(false);
-            m_fixture.Config.ServerConfiguration.MaxSessionCount = 1;
+            m_fixture.Config.ServerConfiguration!.MaxSessionCount = 1;
             m_server = await m_fixture.StartAsync().ConfigureAwait(false);
             EndpointDescription endpoint = m_server.GetEndpoints().Find(
                 description => description.SecurityPolicyUri == SecurityPolicies.None);
@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Tests
             var provider = new MutableProvider(initialLevel);
             var startup = new ServiceLevelStartupTask(provider);
             await startup.OnServerStartedAsync(m_server.CurrentInstance).ConfigureAwait(false);
-            Assert.That(m_server.CurrentInstance.ServerObject.ServiceLevel.Value, Is.EqualTo(initialLevel));
+            Assert.That(m_server.CurrentInstance.ServerObject.ServiceLevel!.Value, Is.EqualTo(initialLevel));
 
             CreateSessionResponse created = await CreateSessionAsync().ConfigureAwait(false);
             Assert.That(m_server.CurrentInstance.ServerObject.ServiceLevel.Value, Is.EqualTo(initialLevel));
@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests
                 await new ServiceLevelStartupTask(second).OnServerStartedAsync(m_server.CurrentInstance)
                     .ConfigureAwait(false));
             second.SetLevel(255);
-            Assert.That(m_server.CurrentInstance.ServerObject.ServiceLevel.Value, Is.EqualTo((byte)210));
+            Assert.That(m_server.CurrentInstance.ServerObject.ServiceLevel!.Value, Is.EqualTo((byte)210));
             first.SetLevel(215);
             Assert.That(m_server.CurrentInstance.ServerObject.ServiceLevel.Value, Is.EqualTo((byte)215));
         }
@@ -98,7 +98,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task UnownedServiceLevelStillTracksSessionHeadroomAsync()
         {
-            Assert.That(m_server.CurrentInstance.ServerObject.ServiceLevel.Value, Is.EqualTo((byte)255));
+            Assert.That(m_server.CurrentInstance.ServerObject.ServiceLevel!.Value, Is.EqualTo((byte)255));
             CreateSessionResponse created = await CreateSessionAsync().ConfigureAwait(false);
             Assert.That(m_server.CurrentInstance.ServerObject.ServiceLevel.Value, Is.EqualTo((byte)200));
             await CloseSessionAsync(created).ConfigureAwait(false);
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.Tests
 
         private sealed class MutableProvider(byte level) : IServiceLevelProvider
         {
-            public event Action<byte> ServiceLevelChanged;
+            public event Action<byte>? ServiceLevelChanged;
 
             public byte GetServiceLevel()
             {

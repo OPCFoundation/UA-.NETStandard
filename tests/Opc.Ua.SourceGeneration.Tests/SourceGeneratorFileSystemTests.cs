@@ -58,11 +58,11 @@ namespace Opc.Ua.SourceGeneration
             var first = new StubAdditionalText("design.xml", "<first/>");
             var duplicate = new StubAdditionalText("design.xml", "<duplicate/>");
 
-            SourceGeneratorFileSystem fileSystem = null;
+            SourceGeneratorFileSystem? fileSystem = null;
             Assert.DoesNotThrow(
                 () => fileSystem = new SourceGeneratorFileSystem([first, duplicate]));
 
-            Assert.That(fileSystem.Exists("design.xml"), Is.True);
+            Assert.That(fileSystem!.Exists("design.xml"), Is.True);
 
             using Stream stream = fileSystem.OpenRead("design.xml");
             using var reader = new StreamReader(stream);

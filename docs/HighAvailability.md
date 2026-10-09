@@ -1,10 +1,47 @@
 # High Availability and OPC UA Redundancy
 
-This guide maps the OPC UA .NET Standard high-availability APIs to OPC 10000-4 §6.6 Redundancy. It documents the implemented server, client, subscription, session, [Kubernetes](Kubernetes.md), and active/active extension seams; the worked examples are `samples/Redundancy/RedundantServer` and `samples/Redundancy/RedundantClient`.
+This guide explains how the OPC UA .NET Standard high-availability APIs
+implement OPC 10000-4 §6.6 Redundancy. It covers server, client,
+subscription, and session redundancy, plus [Kubernetes](Kubernetes.md)
+and active/active extensions. Worked examples are in
+`samples/Redundancy/RedundantServer` and
+`samples/Redundancy/RedundantClient`.
 
-Redundancy and high availability are opt-in and require adding the extra `OPCFoundation.NetStandard.Opc.Ua.Redundancy.*` NuGet packages (for example `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server` or `.Client`) to your application. A server or client built only with the standard `OPCFoundation.NetStandard.Opc.Ua.Client` and `OPCFoundation.NetStandard.Opc.Ua.Server` libraries does not support OPC UA redundancy.
+Redundancy and high availability are opt-in. Add the relevant
+`OPCFoundation.NetStandard.Opc.Ua.Redundancy.*` NuGet package to your
+application, such as `OPCFoundation.NetStandard.Opc.Ua.Redundancy.Server`
+or `.Client`. The standard `OPCFoundation.NetStandard.Opc.Ua.Client` and
+`OPCFoundation.NetStandard.Opc.Ua.Server` libraries alone do not provide
+OPC UA redundancy.
 
 For distributed PubSub active/standby publishers and subscribers, see the PubSub counterpart: [PubSub High Availability](PubSubHighAvailability.md).
+
+## Contents
+
+- [Redundancy overview (as per Part 4 §6.6.1)](#redundancy-overview-as-per-part-4-661)
+- [Server redundancy (as per Part 4 §6.6.2)](#server-redundancy-as-per-part-4-662)
+  - [Server.ServerRedundancy model](#serverserverredundancy-model)
+  - [Add* and Use* API convention](#add-and-use-api-convention)
+- [ServiceLevel and load balancing (as per Part 4 §6.6.2.4.2 and §6.6.2.4.3)](#servicelevel-and-load-balancing-as-per-part-4-66242-and-66243)
+- [Non-transparent failover modes and client actions (as per Part 4 §6.6.2.4.5)](#non-transparent-failover-modes-and-client-actions-as-per-part-4-66245)
+- [Manual failover and Maintenance (as per Part 4 §6.6.5)](#manual-failover-and-maintenance-as-per-part-4-665)
+- [HotAndMirrored and Transparent state mirroring](#hotandmirrored-and-transparent-state-mirroring)
+  - [Active/passive address-space consistency](#activepassive-address-space-consistency)
+  - [Strong active/passive historian](#strong-activepassive-historian)
+- [Client redundancy (as per Part 4 §6.6.3)](#client-redundancy-as-per-part-4-663)
+- [Network redundancy (as per Part 4 §6.6.4)](#network-redundancy-as-per-part-4-664)
+- [Beyond §6.6: distributed extensions](#beyond-66-distributed-extensions)
+  - [Dynamic peer discovery (beyond §6.6, opt-in)](#dynamic-peer-discovery-beyond-66-opt-in)
+  - [Sharing values across replicas: distributed value cache (beyond §6.6, opt-in)](#sharing-values-across-replicas-distributed-value-cache-beyond-66-opt-in)
+  - [Shared certificate stores (distributed trust lists) (beyond §6.6, opt-in)](#shared-certificate-stores-distributed-trust-lists-beyond-66-opt-in)
+  - [Distributed PushManagement transactions (beyond §6.6, opt-in)](#distributed-pushmanagement-transactions-beyond-66-opt-in)
+  - [GetEndpoints load direction (beyond §6.6, opt-in)](#getendpoints-load-direction-beyond-66-opt-in)
+  - [Client-side high availability (replica sets)](#client-side-high-availability-replica-sets)
+- [Kubernetes deployment](#kubernetes-deployment)
+- [Samples](#samples)
+- [Security considerations](#security-considerations)
+  - [Record context and plaintext ownership](#record-context-and-plaintext-ownership)
+  - [Shared application identity](#shared-application-identity)
 
 ## Redundancy overview (as per Part 4 §6.6.1)
 
@@ -139,11 +176,15 @@ when read, without invoking application callbacks. The expiry timer raises
 failures are logged without interrupting other subscribers or lease operations.
 Lease validity starts at the write attempt, not at receipt of
 its reply; an expired or superseded operation cannot restore leadership. A
-fresh, confirmed acquisition is required after expiry. The UTC lease record is
-also bounded by local elapsed time, so moving the local clock backwards cannot
-extend authority. Replicas still require unique identities, suitably synchronized
-clocks and a linearizable compare-and-swap store; this local safety mechanism
-does not replace backend fencing or provide consensus.
+fresh, confirmed acquisition is required after expiry. Overlapping successful
+calls can confirm the same owned lease without waiting for one another.
+A failed store observation started before a newer successful confirmation cannot
+revoke or reschedule that confirmed lease; a fresh ownership-loss observation
+still revokes authority. Expiry and disposal invalidate all outstanding attempts.
+The UTC lease record is also bounded by local elapsed time, so moving the local
+clock backwards cannot extend authority. Replicas still require unique identities,
+suitably synchronized clocks and a linearizable compare-and-swap store; this local
+safety mechanism does not replace backend fencing or provide consensus.
 
 Client-side, `DefaultServerRedundancyHandler.FetchRedundancyInfoAsync` reads `RedundancySupport`, `ServiceLevel`, `EstimatedReturnTime`, `RedundantServerArray`, `ServerUriArray`, and `CurrentServerId` as applicable. `ServerRedundancyInfo.ServiceLevelSubrange` is calculated with `ServiceLevels.GetSubrange`.
 
@@ -285,8 +326,13 @@ flowchart LR
 You enable mirroring by registering the seams below on the server builder; each one mirrors one category of state and is independently opt-in:
 
 - `UseDistributedSessions(...)` installs `DistributedSessionManager` and `ISharedSessionStore`. Session records include the session id, authentication token, nonces, client certificate chain, security policy/mode, endpoint URL, session timeout, client description, and user identity material. `EnableFastReconnect` defaults to `false`; when enabled, a failover reconnect still performs full `ActivateSession` signature validation against the mirrored server nonce. (`UseDistributedSessionMirroring(...)` is the mirroring-only variant: it mirrors the session record — keyed by a digest of the authentication token and protected by the configured `IRecordProtector` — without replacing the session manager.)
-- `ISingleUseNonceRegistry` and `SharedSingleUseNonceRegistry` enforce the security boundary: the mirrored `serverNonce` is consumed exactly once across the replica set, and the authentication token is only a lookup key.
-- Mirrored session records carry a `SecurityStateVersion`. A replica only restores a Session from a record written at the version it understands; a record written by a peer running an older version is treated as missing security state and fails closed, so a rolling upgrade degrades to a normal Session recreate rather than comparing identity state it cannot interpret. The stored user identity is an encoded continuity key (token type plus a delimited issuer and subject), not the human-readable `ClientUserIdOfSession` diagnostic value. Activation records are stamped with a per-Session activation sequence so that when two activations overlap the mirror keeps the newest `serverNonce` instead of whichever write happens to land last.
+- `ISingleUseNonceRegistry` and `SharedSingleUseNonceRegistry` enforce the security boundary: the mirrored `serverNonce` is consumed exactly once across the replica set, and the authentication token is only a lookup key. The nonce is consumed only after the restored activation has passed the client signature, user identity and continuity checks, so a failed or abandoned attempt (a wrong identity, a slow identity provider, a client-side timeout) leaves the session restorable on this or another replica; a restored session whose first activation fails is discarded again without touching the shared entry.
+- The replica that serves a session owns its record. While the client uses the session, the owner mirrors a liveness heartbeat (`DistributedSessionOptions.LivenessInterval`, default one second; written at most once per quarter of the session timeout), so a session in normal use stays restorable long after its last activation — a session times out after its last Service request, not its last activation (OPC 10000-4 5.7.2.1). Only the owner mirrors activations and deletes the record. A restore takes ownership with a conditional (compare-and-swap) write; the previous replica then drops its stale copy without deleting the record, also when the client fails back to it. Over a store without compare-and-swap (the CRDT gossip store) the conditional writes fall back to compare-then-write.
+- A restored session keeps the `SessionId` the client received from `CreateSession`, so its diagnostics nodes, audit events and mirrored continuation points stay addressable across any number of failovers. To make that safe, `DistributedSessionManager` assigns new sessions a GUID `SessionId` that is unique across the replica set instead of a per-process counter value.
+- Replicas of a non-transparent (HotAndMirrored) set have their own ApplicationUri and certificate. The record carries the certificate of the server that created the session, and a restored session accepts a client signature over either that certificate or the restoring replica's own one (the stack's client signs the failover server's certificate). Encrypted user tokens must still be decryptable by the restoring replica: with RSA user token policies the client encrypts for the certificate it signs, and a session whose user token is encrypted with an ECC or RSA-DH `EphemeralKey` is not restored at all, because the private part of that key never leaves the replica that issued it — the reconnect is rejected before anything is consumed and the client re-creates the session.
+- A periodic sweep (`SweepInterval`, default five minutes) removes the records of sessions that can no longer be restored — for example those of a replica that crashed or shut down, which nobody closes — and the consumed-nonce markers that no live record references and that are older than `NonceMarkerRetention` (default one hour). A restore that finds an expired record deletes it as well.
+- `SharedKeyValueSessionStore` and `DistributedSessionManagerFactory` refuse an external (non in-memory) store without an `IRecordProtector`, like the dependency injection registration; pass `NullRecordProtector.Instance` explicitly to knowingly store session secrets unprotected.
+- Mirrored session records carry a `SecurityStateVersion`. A replica only restores a Session from a record written at the version it understands; a record written by a peer running an older version is treated as missing security state and fails closed, so a rolling upgrade degrades to a normal Session recreate rather than comparing identity state it cannot interpret. Version 4 also mirrors whether the client application certificate passed validation when the Session was created; a Session whose certificate error an `OnApplicationCertificateError` override accepted is restored without the `TrustedApplication` role or application-based role mappings, like the original. A version 3 record is still restored, with its certificate treated as not validated. Version 5 adds the liveness heartbeat, the owning replica, the original server certificate and whether the user token needs an `EphemeralKey`; version 3 and 4 records are still restored, without an owner. The stored user identity is an encoded continuity key (token type plus a delimited issuer and subject), not the human-readable `ClientUserIdOfSession` diagnostic value. Activation records are stamped with a per-Session activation sequence so that when two activations overlap the mirror keeps the newest `serverNonce` instead of whichever write happens to land last.
 - `UseDistributedSubscriptionMirroring(...)` registers `SharedKeyValueSubscriptionStore` as `ISubscriptionStore`. It mirrors subscription definitions and monitored-item definitions: publishing interval, lifetime, keepalive, priority, node id, attribute id, monitoring mode, sampling interval, queue size, filters, discard policy, and related metadata. It also installs `SharedKeyValueMonitoredItemQueueFactory` as the `IMonitoredItemQueueFactory`, which continuously mirrors each monitored item's data/event queue contents to the shared store through a non-blocking, coalesced background drain (protected at rest by the configured `IRecordProtector`); on promotion the store's asynchronous restore members re-hydrate those queues so queued-but-unpublished notifications survive a failover.
 - The same store also implements `ISubscriptionRetransmissionStore`. Retransmission state is mirrored asynchronously through a non-blocking background drain: `NextSequenceNumber`, sent `NotificationMessage` entries, acknowledgements, and deletes are coalesced and persisted so `Republish` can continue after failover without blocking the publishing path.
 - `IContinuationPointStore` mirrors the generic Browse continuation envelope.
@@ -394,6 +440,11 @@ The redundancy samples exercise both guarantees: the client writes and reads a d
 
 OPC UA client redundancy is implemented with `TransferSubscriptions` plus server diagnostics. `ClientFailoverCoordinator` helps a backup client find the active client's session by `ActiveSessionId` or `ActiveSessionName`, discover subscription ids from diagnostics, verify the backup uses the same user display name when configured, and call `TransferSubscriptionsAsync` with `SendInitialValues` defaulting to `true`.
 
+Name-based discovery excludes the backup's own session and rejects multiple
+matching active sessions rather than selecting an arbitrary client. Supply
+`ActiveSessionId` when names are not unique; that explicit identity bypasses
+name-based discovery.
+
 ```csharp
 var coordinator = new ClientFailoverCoordinator();
 ArrayOf<TransferResult> results = await coordinator.TransferActiveSubscriptionsAsync(
@@ -406,6 +457,8 @@ ArrayOf<TransferResult> results = await coordinator.TransferActiveSubscriptionsA
     },
     ct);
 ```
+
+A transferred subscription needs a client-side owner on the backup session, otherwise the backup's publish engine sees an unknown `SubscriptionId` and deletes it (or never publishes and it expires). Prepare the backup before the takeover: restore the active client's subscriptions with `ISession.Load` (or add `Subscription` objects whose `TransferId` is the active client's subscription id and whose monitored items carry the same client handles). The coordinator then transfers those through the session, which binds them and resumes publishing; ids without a prepared subscription are still moved with the raw service and are left to the caller.
 
 OPC UA does not standardize how active and backup clients exchange `SessionId` or subscription ids. In this stack the client replica set coordinates through the registered client-side shared store (`AddRedundantClientSharedStore` / `AddRaftClientSharedStore` — a CRDT- or [Raft](https://raft.github.io/)-backed `ISharedKeyValueStore` that the `ClientReplicaCoordinator` consumes).
 
@@ -620,7 +673,7 @@ builder
     });
 ```
 
-Give every replica a distinct `ReplicaId`, keep `RenewInterval` well below `LeaseDuration`, and share the same `KeyPrefix` and record-protection key across the set. See [Certificate Manager — PushManagement Transactions](CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-71027101) for the underlying transaction model.
+Give every replica a distinct `ReplicaId`, keep `RenewInterval` well below `LeaseDuration`, and share the same `KeyPrefix` and record-protection key across the set. See [Certificate Manager — PushManagement Transactions](CertificateManager.md#pushmanagement-transactions-opc-ua-part-12-7102-71011) for the underlying transaction model.
 
 ### GetEndpoints load direction (beyond §6.6, opt-in)
 

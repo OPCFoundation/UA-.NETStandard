@@ -30,8 +30,6 @@
 //  Copyright (c) Microsoft Corporation.  All rights reserved.
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 
-#nullable enable
-
 using System;
 using System.IO;
 using System.Reflection;
@@ -615,6 +613,41 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
             {
                 Directory.Delete(pkiRoot, recursive: true);
             }
+        }
+
+        [Test]
+        public async Task ManagedSessionAccessorReconnectsAfterCallerDisposesSharedSessionAsync()
+        {
+            Client.ManagedSession first = CreateUnconnectedManagedSession();
+            Client.ManagedSession second = CreateUnconnectedManagedSession();
+            int connects = 0;
+            await using var accessor = new OpcUaClientBuilderExtensions.ManagedSessionAccessor(
+                _ => Task.FromResult(++connects == 1 ? first : second));
+
+            Client.ManagedSession a = await accessor.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+            Client.ManagedSession b = await accessor.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+            await a.DisposeAsync().ConfigureAwait(false);
+            Client.ManagedSession c = await accessor.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(b, Is.SameAs(a));
+            Assert.That(c, Is.SameAs(second), "a disposed shared session must not be handed out again");
+            Assert.That(connects, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task ManagedSessionAccessorDisposesCachedSessionOnDisposeAsync()
+        {
+            Client.ManagedSession session = CreateUnconnectedManagedSession();
+            var accessor = new OpcUaClientBuilderExtensions.ManagedSessionAccessor(
+                _ => Task.FromResult(session));
+            await accessor.ConnectAsync(CancellationToken.None).ConfigureAwait(false);
+
+            await accessor.DisposeAsync().ConfigureAwait(false);
+
+            Assert.That(session.Disposed, Is.True);
+            Assert.That(
+                () => accessor.ConnectAsync(CancellationToken.None),
+                Throws.TypeOf<ObjectDisposedException>());
         }
 
         private static Client.ManagedSession CreateUnconnectedManagedSession()

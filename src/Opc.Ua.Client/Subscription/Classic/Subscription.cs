@@ -180,13 +180,20 @@ namespace Opc.Ua.Client
         /// </summary>
         private void ResetPublishTimerAndWorkerState()
         {
-            ResetPublishTimerAndWorkerStateAsync().GetAwaiter().GetResult();
+            // Do not wait for a running keep-alive callback: its
+            // PublishStatusChanged handler may be the one that (through the
+            // session, possibly on another flow such as the managed session's
+            // state machine worker) disposes this subscription.
+            ResetPublishTimerAndWorkerStateAsync(waitForTimerCallbacks: false)
+                .GetAwaiter().GetResult();
         }
 
         /// <summary>
         /// Resets the state of the publish timer and associated message worker.
         /// </summary>
-        private async Task ResetPublishTimerAndWorkerStateAsync()
+        /// <param name="waitForTimerCallbacks">Whether to wait for a keep-alive
+        /// callback that is running while the publish timer is disposed.</param>
+        private async Task ResetPublishTimerAndWorkerStateAsync(bool waitForTimerCallbacks = true)
         {
             Task? workerTask;
             CancellationTokenSource? workerCts;
@@ -208,6 +215,7 @@ namespace Opc.Ua.Client
 
                 if (m_messageWorkerTask == null)
                 {
+                    publishTimer?.Dispose();
                     m_messageWorkerCts?.Dispose();
                     m_messageWorkerCts = null;
                     return;
@@ -245,7 +253,14 @@ namespace Opc.Ua.Client
             {
                 if (publishTimer != null)
                 {
-                    await publishTimer.DisposeAsync().ConfigureAwait(false);
+                    if (waitForTimerCallbacks)
+                    {
+                        await publishTimer.DisposeAsync().ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        publishTimer.Dispose();
+                    }
                 }
                 try
                 {
@@ -272,9 +287,31 @@ namespace Opc.Ua.Client
         /// e.g. the user explicitly initiating a transfer-away — runs
         /// through the spec-strict path.
         /// </para>
+        /// <para>
+        /// A notification that arrived while this client was transferring
+        /// the subscription itself (or that predates such a transfer) only
+        /// reports that transfer to the old session. It is ignored: the old
+        /// session's reconnecting flag does not reveal the transfer, and
+        /// stopping or recreating here would kill the subscription on the
+        /// session it was just moved to.
+        /// </para>
         /// </summary>
-        private void HandleGoodSubscriptionTransferred()
+        /// <param name="savedDuringTransfer">The message was received while a
+        /// transfer of this subscription was in progress.</param>
+        /// <param name="transferGeneration">The transfer generation at the
+        /// time the message was received.</param>
+        private void HandleGoodSubscriptionTransferred(
+            bool savedDuringTransfer,
+            int transferGeneration)
         {
+            if (savedDuringTransfer ||
+                Volatile.Read(ref m_transfersInProgress) != 0 ||
+                transferGeneration != Volatile.Read(ref m_transferGeneration))
+            {
+                m_logger.SubscriptionIdIgnoredGoodSubscriptionTransferredOwnTransfer(Id);
+                return;
+            }
+
             ISession? session = Session;
             bool unsolicited = session != null &&
                 !session.Reconnecting &&
@@ -294,6 +331,27 @@ namespace Opc.Ua.Client
             // publish loop is shut down. Applications can subscribe to
             // PublishStatusChanged with the Transferred flag to react.
             _ = ResetPublishTimerAndWorkerStateAsync(); // Do not block on ourselves but exit
+        }
+
+        /// <summary>
+        /// Called by the session before it asks the server to transfer this
+        /// subscription, so the <c>Good_SubscriptionTransferred</c> the server
+        /// sends to the old session is not taken for an unsolicited one.
+        /// Must be paired with <see cref="OnTransferFinished"/>.
+        /// </summary>
+        internal void OnTransferStarting()
+        {
+            Interlocked.Increment(ref m_transferGeneration);
+            Interlocked.Increment(ref m_transfersInProgress);
+        }
+
+        /// <summary>
+        /// Called by the session once a transfer started with
+        /// <see cref="OnTransferStarting"/> has completed or failed.
+        /// </summary>
+        internal void OnTransferFinished()
+        {
+            Interlocked.Decrement(ref m_transfersInProgress);
         }
 
         /// <summary>
@@ -951,8 +1009,9 @@ namespace Opc.Ua.Client
             {
                 TimeSpan timeSinceLastNotification = m_timeProvider
                     .GetElapsedTime(m_lastNotificationTimestamp);
+                // add in double: the interval may be capped at int.MaxValue.
                 return timeSinceLastNotification.TotalMilliseconds >
-                    m_keepAliveInterval + kKeepAliveTimerMargin;
+                    (double)m_keepAliveInterval + kKeepAliveTimerMargin;
             }
         }
 
@@ -963,6 +1022,12 @@ namespace Opc.Ua.Client
         {
             using Activity? activity = m_telemetry.StartActivity();
             VerifySessionAndSubscriptionState(false);
+
+            // The subscription is not created, so a server id an item still
+            // carries (restored from storage, or left by a failed transfer)
+            // belongs to another server subscription. Reset it, otherwise the
+            // item is taken as created and never created on the new one.
+            ResetMonitoredItemServerIds(createdOnly: true);
 
             // create the subscription.
             uint revisedMaxKeepAliveCount = KeepAliveCount;
@@ -1277,6 +1342,23 @@ namespace Opc.Ua.Client
                             ii,
                             response.DiagnosticInfos,
                             response.ResponseHeader);
+                }
+
+                // An item removed while its create request was in flight was
+                // not queued for deletion (it was not created yet), but it now
+                // exists on the server: queue it so it is not leaked.
+                lock (m_cache)
+                {
+                    foreach (MonitoredItem monitoredItem in itemsToCreate)
+                    {
+                        if (monitoredItem.Status.Created &&
+                            (!m_monitoredItems.TryGetValue(monitoredItem.ClientHandle, out MonitoredItem? current) ||
+                                !ReferenceEquals(current, monitoredItem)) &&
+                            !m_deletedItems.Contains(monitoredItem))
+                        {
+                            m_deletedItems.Add(monitoredItem);
+                        }
+                    }
                 }
             }
             catch
@@ -1735,13 +1817,41 @@ namespace Opc.Ua.Client
             ArrayOf<uint> availableSequenceNumbers,
             CancellationToken ct = default)
         {
+            // The caller may not have transferred anything to the session
+            // (e.g. ReactivateSubscriptionsAsync adopts the session's own
+            // subscriptions), so a failed adoption must never delete the
+            // server subscription here.
+            (bool transferred, _) = await TransferWithAcknowledgementsAsync(
+                session, id, availableSequenceNumbers, false, ct).ConfigureAwait(false);
+            return transferred;
+        }
+
+        /// <summary>
+        /// Transfers the subscription and returns only sequence numbers not claimed for republish.
+        /// </summary>
+        /// <param name="session">The session to which the subscription is transferred.</param>
+        /// <param name="id">Id of the transferred subscription.</param>
+        /// <param name="availableSequenceNumbers">The available sequence numbers on the server.</param>
+        /// <param name="deleteOnDefinitiveFailure">Set only when the caller just
+        /// moved the server subscription to <paramref name="session"/> with a
+        /// TransferSubscriptions call. The server subscription is then deleted
+        /// when it definitively cannot be adopted, so it does not live on as
+        /// an orphan. Transient failures never delete it.</param>
+        /// <param name="ct">The cancellation token.</param>
+        internal async Task<(bool Transferred, ArrayOf<uint> Acknowledgements)> TransferWithAcknowledgementsAsync(
+            ISession session,
+            uint id,
+            ArrayOf<uint> availableSequenceNumbers,
+            bool deleteOnDefinitiveFailure,
+            CancellationToken ct)
+        {
             using Activity? activity = m_telemetry.StartActivity();
             if (Created)
             {
                 // handle the case when the client has the subscription template and reconnects
                 if (id != Id)
                 {
-                    return false;
+                    return (false, default);
                 }
 
                 // remove the subscription from disconnected session
@@ -1750,7 +1860,7 @@ namespace Opc.Ua.Client
                     m_logger.SubscriptionIdSubscriptionIdFailedRemoveTransferredSubscription(
                         Id,
                         Session?.SessionId);
-                    return false;
+                    return (false, default);
                 }
 
                 // remove default subscription template which was copied in Session.Create()
@@ -1766,25 +1876,84 @@ namespace Opc.Ua.Client
                     m_logger.SubscriptionIdSubscriptionIdFailedAddTransferredSubscription(
                         Id,
                         session.SessionId);
-                    return false;
+                    return (false, default);
                 }
             }
             else
             {
                 // handle the case when the client restarts and loads the saved subscriptions from storage
-                (bool success, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) = await GetMonitoredItemsAsync(ct)
-                    .ConfigureAwait(false);
-                if (!success)
+                (StatusCode status, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
+                    await CallGetMonitoredItemsAsync(ct).ConfigureAwait(false);
+
+                // The server must hold every item that was created, but items
+                // that were never created (e.g. failed with BadNodeIdUnknown
+                // before the state was saved) do not exist on the server. A
+                // clone of a live subscription has no server ids at all, so
+                // the created items only give the lower bound.
+                int monitoredItemsCount;
+                int createdItemsCount;
+                lock (m_cache)
+                {
+                    monitoredItemsCount = m_monitoredItems.Count;
+                    createdItemsCount = m_monitoredItems.Values.Count(item => item.Status.Created);
+                }
+
+                if (StatusCode.IsNotGood(status))
                 {
                     m_logger.SubscriptionIdSubscriptionIdServerFailedRespondGetMonitoredItems(
                         Id,
                         Session?.SessionId);
-                    return false;
-                }
 
-                int monitoredItemsCount = m_monitoredItems.Count;
-                if (serverHandles.Count != monitoredItemsCount ||
-                    clientHandles.Count != monitoredItemsCount)
+                    // A transient error (timeout, busy server, lost
+                    // connection) leaves the subscription in place for a
+                    // retry, and a rejected subscription id cannot be
+                    // adopted by any mapping.
+                    if (!GetMonitoredItemsFallback.IsMethodUnavailable(status))
+                    {
+                        return (false, default);
+                    }
+
+                    // Otherwise the server does not provide a usable
+                    // GetMonitoredItems, an optional method of ServerType
+                    // (OPC 10000-5, 6.3.1 and 9.1), while the transfer itself
+                    // already succeeded. A transfer keeps the item ids and
+                    // client handles, which is why a client is expected to
+                    // store them (OPC 10000-4, 6.8): the ids this client
+                    // already knows (e.g. restored from a saved state) are as
+                    // good as the answer of the method.
+                    if (createdItemsCount > 0 || monitoredItemsCount == 0)
+                    {
+                        m_logger.SubscriptionIdUsingCachedHandlesAfterTransfer(
+                            id,
+                            status,
+                            createdItemsCount,
+                            session.SessionId);
+                        (serverHandles, clientHandles) = GetCachedItemHandles();
+                    }
+                    else if (deleteOnDefinitiveFailure)
+                    {
+                        // Without server ids (a clone of a live subscription)
+                        // the items can never be modified or deleted, and
+                        // creating them again would duplicate them on the
+                        // server. Replace the transferred subscription by a
+                        // fresh one with the same items and client handles.
+                        m_logger.SubscriptionIdRecreatingAfterTransfer(
+                            id,
+                            status,
+                            session.SessionId);
+                        return await RecreateTransferredSubscriptionAsync(session, id, ct)
+                            .ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        // Nothing was moved to the session by the caller, so
+                        // its server subscription must not be replaced.
+                        return (false, default);
+                    }
+                }
+                if (serverHandles.Count != clientHandles.Count ||
+                    serverHandles.Count > monitoredItemsCount ||
+                    serverHandles.Count < createdItemsCount)
                 {
                     // invalid state
                     m_logger.SubscriptionIdSubscriptionIdNumberMonitoredItemsClient(
@@ -1792,7 +1961,16 @@ namespace Opc.Ua.Client
                         serverHandles.Count,
                         monitoredItemsCount,
                         Session?.SessionId);
-                    return false;
+
+                    // When the caller just moved the server subscription to
+                    // this session, nothing on the client owns it (Id stays
+                    // 0), so it would live on and consume publish requests:
+                    // delete it.
+                    if (deleteOnDefinitiveFailure)
+                    {
+                        await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false);
+                    }
+                    return (false, default);
                 }
 
                 // sets state to 'Created'
@@ -1803,7 +1981,7 @@ namespace Opc.Ua.Client
             }
 
             // add available sequence numbers to incoming
-            ProcessTransferredSequenceNumbers(availableSequenceNumbers);
+            ArrayOf<uint> acknowledgements = ProcessTransferredSequenceNumbers(availableSequenceNumbers);
 
             m_changeMask |= SubscriptionChangeMask.Transferred;
             ChangesCompleted();
@@ -1816,7 +1994,101 @@ namespace Opc.Ua.Client
 
             TraceState("TRANSFERRED ASYNC");
 
-            return true;
+            return (true, acknowledgements);
+        }
+
+        /// <summary>
+        /// Replaces a transferred server subscription whose items cannot be
+        /// mapped by a newly created one with the same items and client
+        /// handles. The notifications the server still queued for the old
+        /// subscription are lost.
+        /// </summary>
+        private async Task<(bool Transferred, ArrayOf<uint> Acknowledgements)> RecreateTransferredSubscriptionAsync(
+            ISession session,
+            uint id,
+            CancellationToken ct)
+        {
+            // Creating the replacement while the old subscription lives on
+            // would deliver every notification twice.
+            if (!await DeleteTransferredSubscriptionAsync(session, id, ct).ConfigureAwait(false))
+            {
+                return (false, default);
+            }
+
+            try
+            {
+                // Also restores the triggering relationships on the new items.
+                await CreateAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                m_logger.SubscriptionIdFailedRecreateAfterTransfer(ex, id, session.SessionId);
+                return (false, default);
+            }
+
+            TraceState("RECREATED AFTER TRANSFER");
+
+            return (Created, default);
+        }
+
+        /// <summary>
+        /// The server and client handles of the items this client already
+        /// knows to exist on the server.
+        /// </summary>
+        private (ArrayOf<uint> ServerHandles, ArrayOf<uint> ClientHandles) GetCachedItemHandles()
+        {
+            lock (m_cache)
+            {
+                var serverHandles = new List<uint>(m_monitoredItems.Count);
+                var clientHandles = new List<uint>(m_monitoredItems.Count);
+                foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+                {
+                    if (monitoredItem.Status.Created)
+                    {
+                        serverHandles.Add(monitoredItem.Status.Id);
+                        clientHandles.Add(monitoredItem.ClientHandle);
+                    }
+                }
+                return (serverHandles.ToArrayOf(), clientHandles.ToArrayOf());
+            }
+        }
+
+        /// <summary>
+        /// Best effort delete of a server subscription that was transferred
+        /// to <paramref name="session"/> but could not be adopted, so it does
+        /// not stay alive as an orphan for the lifetime of the session.
+        /// Returns whether the server confirmed the delete.
+        /// </summary>
+        private async Task<bool> DeleteTransferredSubscriptionAsync(
+            ISession session,
+            uint id,
+            CancellationToken ct)
+        {
+            try
+            {
+                DeleteSubscriptionsResponse response = await session
+                    .DeleteSubscriptionsAsync(null, [id], ct)
+                    .ConfigureAwait(false);
+                StatusCode result = response?.Results.Count == 1
+                    ? response.Results[0]
+                    : StatusCodes.BadUnexpectedError;
+                if (StatusCode.IsGood(result))
+                {
+                    return true;
+                }
+                m_logger.SubscriptionIdFailedDeleteTransferredSubscription(
+                    new ServiceResultException(result),
+                    id,
+                    session.SessionId);
+            }
+            catch (Exception ex)
+            {
+                m_logger.SubscriptionIdFailedDeleteTransferredSubscription(
+                    ex,
+                    id,
+                    session.SessionId);
+            }
+            return false;
         }
 
         /// <summary>
@@ -1826,11 +2098,34 @@ namespace Opc.Ua.Client
             ArrayOf<uint> availableSequenceNumbers,
             NotificationMessage message)
         {
+            SaveMessageInCache(availableSequenceNumbers, message, true);
+        }
+
+        /// <summary>
+        /// Adds a notification message received in a Republish response to
+        /// the internal cache. A Republish response carries no available
+        /// sequence numbers, so the ones from the last Publish response are
+        /// kept: otherwise every other missing message would be given up
+        /// while the server still holds it.
+        /// </summary>
+        internal void SaveRepublishedMessageInCache(NotificationMessage message)
+        {
+            SaveMessageInCache(default, message, false);
+        }
+
+        private void SaveMessageInCache(
+            ArrayOf<uint> availableSequenceNumbers,
+            NotificationMessage message,
+            bool updateAvailableSequenceNumbers)
+        {
             PublishStateChangedEventHandler? callback = null;
 
             lock (m_cache)
             {
-                m_availableSequenceNumbers = availableSequenceNumbers;
+                if (updateAvailableSequenceNumbers)
+                {
+                    m_availableSequenceNumbers = availableSequenceNumbers;
+                }
 
                 if (message == null)
                 {
@@ -1853,15 +2148,38 @@ namespace Opc.Ua.Client
                 // create queue for the first time.
                 m_incomingMessages ??= new LinkedList<IncomingMessage>();
 
-                // find or create an entry for the incoming sequence number.
-                IncomingMessage entry = FindOrCreateEntry(now, monotonicTimestamp, message.SequenceNumber);
-
-                // check for keep alive.
-                if (message.NotificationData.Count > 0)
+                // A late copy of a message that was already processed or given
+                // up (the original Publish response racing its Republish, or a
+                // message arriving after its placeholder expired) has no entry
+                // any more. Creating one would deliver it a second time and
+                // fill placeholders for messages that were already processed.
+                if (message.SequenceNumber != 0 &&
+                    !m_resyncLastSequenceNumberProcessed &&
+                    !IsNewerSequenceNumber(message.SequenceNumber, m_lastSequenceNumberProcessed) &&
+                    FindEntry(message.SequenceNumber) == null)
                 {
-                    entry.Message = message;
-                    entry.Processed = false;
+                    m_logger.SubscriptionIdIgnoredAlreadyProcessedSequenceNumber(
+                        Id,
+                        message.SequenceNumber,
+                        m_lastSequenceNumberProcessed,
+                        Session?.SessionId);
                 }
+                else
+                {
+                    // find or create an entry for the incoming sequence number.
+                    IncomingMessage newEntry = FindOrCreateEntry(now, monotonicTimestamp, message.SequenceNumber);
+
+                    // check for keep alive, and never hand a message that was
+                    // already processed to the worker again.
+                    if (message.NotificationData.Count > 0 && !newEntry.Processed)
+                    {
+                        newEntry.Message = message;
+                        newEntry.SavedDuringTransfer = Volatile.Read(ref m_transfersInProgress) != 0;
+                        newEntry.TransferGeneration = Volatile.Read(ref m_transferGeneration);
+                    }
+                }
+
+                IncomingMessage entry;
 
                 // fill in any gaps in the queue
                 LinkedListNode<IncomingMessage>? node = m_incomingMessages.First;
@@ -2177,6 +2495,21 @@ namespace Opc.Ua.Client
             )> GetMonitoredItemsAsync(CancellationToken ct = default)
         {
             using Activity? activity = m_telemetry.StartActivity();
+            (StatusCode status, ArrayOf<uint> serverHandles, ArrayOf<uint> clientHandles) =
+                await CallGetMonitoredItemsAsync(ct).ConfigureAwait(false);
+            return (StatusCode.IsGood(status), serverHandles, clientHandles);
+        }
+
+        /// <summary>
+        /// Calls GetMonitoredItems and keeps the status of a failed call, so
+        /// a transient error can be told apart from a definitive one.
+        /// </summary>
+        private async Task<(
+            StatusCode Status,
+            ArrayOf<uint> ServerHandles,
+            ArrayOf<uint> ClientHandles
+            )> CallGetMonitoredItemsAsync(CancellationToken ct)
+        {
             VerifySession();
             try
             {
@@ -2185,12 +2518,17 @@ namespace Opc.Ua.Client
                     MethodIds.Server_GetMonitoredItems,
                     ct,
                     TransferId).ConfigureAwait(false);
-                if (outputArguments.Count == 2)
+                if (outputArguments.Count == 2 &&
+                    outputArguments[0].TryGetValue(out ArrayOf<uint> serverHandles) &&
+                    outputArguments[1].TryGetValue(out ArrayOf<uint> clientHandles) &&
+                    serverHandles.Count == clientHandles.Count)
                 {
-                    var serverHandles = (ArrayOf<uint>)outputArguments[0];
-                    var clientHandles = (ArrayOf<uint>)outputArguments[1];
-                    return (true, serverHandles, clientHandles);
+                    return (StatusCodes.Good, serverHandles, clientHandles);
                 }
+
+                // The server answered, but not with two handle arrays of the
+                // same length.
+                return (StatusCodes.BadTypeMismatch, default, default);
             }
             catch (ServiceResultException sre)
             {
@@ -2198,8 +2536,8 @@ namespace Opc.Ua.Client
                     sre,
                     Id,
                     Session?.SessionId);
+                return (sre.StatusCode, default, default);
             }
-            return (false, default, default);
         }
 
         /// <summary>
@@ -2250,13 +2588,14 @@ namespace Opc.Ua.Client
         /// </remarks>
         /// <param name="availableSequenceNumbers">The list of available sequence
         /// numbers on the server.</param>
-        private void ProcessTransferredSequenceNumbers(ArrayOf<uint> availableSequenceNumbers)
+        private ArrayOf<uint> ProcessTransferredSequenceNumbers(ArrayOf<uint> availableSequenceNumbers)
         {
             lock (m_cache)
             {
                 // reset incoming state machine and clear cache
                 m_lastSequenceNumberProcessed = 0;
                 m_resyncLastSequenceNumberProcessed = true;
+                ArrayOf<uint> acknowledgements = availableSequenceNumbers;
 
                 if (!availableSequenceNumbers.IsEmpty && RepublishAfterTransfer)
                 {
@@ -2318,10 +2657,12 @@ namespace Opc.Ua.Client
                         republishMessages,
                         m_lastSequenceNumberProcessed,
                         Session?.SessionId);
+                    acknowledgements = availableSequenceNumberList.ToArrayOf();
                 }
 
                 // save available sequence numbers
                 m_availableSequenceNumbers = availableSequenceNumbers;
+                return acknowledgements;
             }
         }
 
@@ -2395,7 +2736,19 @@ namespace Opc.Ua.Client
                 return;
             }
 
-            HandleOnKeepAliveStopped();
+            // The PublishStatusChanged handlers run on the timer callback.
+            // Disposing the timer waits for its running callbacks, so a
+            // Dispose from such a handler must take the non-blocking path.
+            bool dispatchContext = m_dispatchContext.Value;
+            m_dispatchContext.Value = true;
+            try
+            {
+                HandleOnKeepAliveStopped();
+            }
+            finally
+            {
+                m_dispatchContext.Value = dispatchContext;
+            }
         }
 
         /// <summary>
@@ -2418,6 +2771,13 @@ namespace Opc.Ua.Client
 
                 PublishingStateChanged(callback,
                     PublishStateChangedMask.Stopped);
+
+                // The handler may have disposed the subscription or its
+                // session; the timer no longer waits for this callback then.
+                if (m_disposed)
+                {
+                    return;
+                }
 
                 // try to send a publish to recover stopped publishing.
                 session.BeginPublish(BeginPublishTimeout());
@@ -2499,8 +2859,10 @@ namespace Opc.Ua.Client
         /// </summary>
         private int BeginPublishTimeout()
         {
+            // multiply in long: three keep-alive intervals of more than about
+            // 8.3 days overflow an int.
             return Math.Max(
-                Math.Min(m_keepAliveInterval * 3, int.MaxValue),
+                (int)Math.Min(3L * m_keepAliveInterval, int.MaxValue),
                 MinKeepAliveTimerInterval);
         }
 
@@ -2559,6 +2921,17 @@ namespace Opc.Ua.Client
             }
             else
             {
+                // A new server subscription numbers its messages from 1 again:
+                // forget the sequence state of a previous one (this object may
+                // be recreated in place or cloned from a template), otherwise
+                // its first messages look like late copies of processed ones.
+                lock (m_cache)
+                {
+                    m_lastSequenceNumberProcessed = 0;
+                    m_resyncLastSequenceNumberProcessed = false;
+                    m_incomingMessages?.Clear();
+                }
+
                 CurrentPublishingEnabled = PublishingEnabled;
                 TransferId = Id = subscriptionId;
                 m_changeMask |= SubscriptionChangeMask.Created;
@@ -2614,11 +2987,11 @@ namespace Opc.Ua.Client
         private int CalculateKeepAliveInterval()
         {
             int keepAliveInterval = (int)
-                Math.Min(CurrentPublishingInterval * (CurrentKeepAliveCount + 1), int.MaxValue);
+                Math.Min(CurrentPublishingInterval * (CurrentKeepAliveCount + 1.0), int.MaxValue);
             if (keepAliveInterval < MinKeepAliveTimerInterval)
             {
                 keepAliveInterval = (int)Math.Min(
-                    PublishingInterval * (KeepAliveCount + 1),
+                    PublishingInterval * (KeepAliveCount + 1.0),
                     int.MaxValue);
                 keepAliveInterval = Math.Max(MinKeepAliveTimerInterval, keepAliveInterval);
             }
@@ -2638,21 +3011,32 @@ namespace Opc.Ua.Client
             CurrentPriority = 0;
 
             // update items.
+            ResetMonitoredItemServerIds();
+
+            m_changeMask |= SubscriptionChangeMask.Deleted;
+        }
+
+        /// <summary>
+        /// Marks the monitored items as not created on the server and drops
+        /// pending deletions, whose server ids no longer exist.
+        /// </summary>
+        /// <param name="createdOnly">Leave items that are not created (and
+        /// their last error) untouched.</param>
+        private void ResetMonitoredItemServerIds(bool createdOnly = false)
+        {
             lock (m_cache)
             {
                 foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
                 {
-                    monitoredItem.SetDeleteResult(StatusCodes.Good, -1, default, null);
+                    if (!createdOnly || monitoredItem.Status.Created)
+                    {
+                        monitoredItem.SetDeleteResult(StatusCodes.Good, -1, default, null);
+                    }
                 }
-            }
 
-            lock (m_cache)
-            {
                 m_deletedItems.Clear();
                 m_deletingItems.Clear();
             }
-
-            m_changeMask |= SubscriptionChangeMask.Deleted;
         }
 
         /// <summary>
@@ -2745,7 +3129,8 @@ namespace Opc.Ua.Client
                 PublishStateChangedEventHandler? callback = null;
 
                 // list of new messages to process.
-                List<NotificationMessage>? messagesToProcess = null;
+                List<(NotificationMessage Message, bool SavedDuringTransfer, int TransferGeneration)>?
+                    messagesToProcess = null;
 
                 // list of keep alive messages to process.
                 List<IncomingMessage>? keepAliveToProcess = null;
@@ -2771,10 +3156,13 @@ namespace Opc.Ua.Client
                             !ii.Value.Processed &&
                             (!State.SequentialPublishing || ValidSequentialPublishMessage(ii.Value)))
                         {
-                            (messagesToProcess ??= []).Add(ii.Value.Message);
+                            (messagesToProcess ??= []).Add(
+                                (ii.Value.Message, ii.Value.SavedDuringTransfer, ii.Value.TransferGeneration));
 
-                            // remove the oldest items.
-                            while (m_messageCache.Count > MaxMessageCount)
+                            // remove the oldest items. The emptiness check keeps a
+                            // negative MaxMessageCount from throwing on RemoveFirst.
+                            while (m_messageCache.Count > 0 &&
+                                m_messageCache.Count > MaxMessageCount)
                             {
                                 m_messageCache.RemoveFirst();
                             }
@@ -2876,7 +3264,8 @@ namespace Opc.Ua.Client
                         = FastDataChangeCallback;
                     FastEventNotificationEventHandler? eventCallback = FastEventCallback;
 
-                    foreach (NotificationMessage message in messagesToProcess)
+                    foreach ((NotificationMessage message, bool savedDuringTransfer, int transferGeneration)
+                        in messagesToProcess)
                     {
                         noNotificationsReceived = 0;
                         try
@@ -2958,7 +3347,9 @@ namespace Opc.Ua.Client
                                         publishStateChangedMask
                                             |= PublishStateChangedMask.Transferred;
 
-                                        HandleGoodSubscriptionTransferred();
+                                        HandleGoodSubscriptionTransferred(
+                                            savedDuringTransfer,
+                                            transferGeneration);
                                     }
                                     else if (statusChanged.Status == StatusCodes.BadTimeout)
                                     {
@@ -3398,6 +3789,24 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Returns the entry for the sequence number, or null if there is none.
+        /// </summary>
+        private IncomingMessage? FindEntry(uint sequenceNumber)
+        {
+            Debug.Assert(m_cache.IsHeldByCurrentThread);
+            for (LinkedListNode<IncomingMessage>? node = m_incomingMessages?.Last;
+                node != null;
+                node = node.Previous)
+            {
+                if (node.Value.SequenceNumber == sequenceNumber)
+                {
+                    return node.Value;
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
         /// Find or create an entry for the incoming sequence number.
         /// </summary>
         /// <param name="utcNow">The current Utc time.</param>
@@ -3504,6 +3913,8 @@ namespace Opc.Ua.Client
         /// </summary>
         private readonly AsyncLocal<bool> m_dispatchContext = new();
         private int m_recreateAfterTransferInProgress;
+        private int m_transfersInProgress;
+        private int m_transferGeneration;
         private readonly Lock m_cache = new();
         private readonly LinkedList<NotificationMessage> m_messageCache = new();
         private ArrayOf<uint> m_availableSequenceNumbers;
@@ -3532,6 +3943,8 @@ namespace Opc.Ua.Client
             public bool Republished;
             public bool RepublishImmediately;
             public StatusCode RepublishStatus;
+            public bool SavedDuringTransfer;
+            public int TransferGeneration;
         }
     }
 
@@ -4159,6 +4572,62 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception,
             string state,
+            uint subscriptionId,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 68, Level = LogLevel.Warning,
+            Message = "SubscriptionId {SubscriptionId}: Failed to delete the transferred subscription that" +
+                " could not be adopted, SessionId={SessionId}.")]
+        public static partial void SubscriptionIdFailedDeleteTransferredSubscription(
+            this ILogger logger,
+            Exception? exception,
+            uint subscriptionId,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 69, Level = LogLevel.Debug,
+            Message = "SubscriptionId {SubscriptionId}: Ignored late message with sequence number" +
+                " {SequenceNumber}, last processed is {LastSequenceNumber}. SessionId={SessionId}.")]
+        public static partial void SubscriptionIdIgnoredAlreadyProcessedSequenceNumber(
+            this ILogger logger,
+            uint subscriptionId,
+            uint sequenceNumber,
+            uint lastSequenceNumber,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 70, Level = LogLevel.Information,
+            Message = "SubscriptionId {SubscriptionId}: Good_SubscriptionTransferred reports a transfer this" +
+                " client made itself; the subscription is kept running.")]
+        public static partial void SubscriptionIdIgnoredGoodSubscriptionTransferredOwnTransfer(
+            this ILogger logger,
+            uint subscriptionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 71, Level = LogLevel.Warning,
+            Message = "SubscriptionId {SubscriptionId}: GetMonitoredItems is not available after transfer" +
+                " ({StatusCode}), using the {Count} monitored item ids known to the client." +
+                " SessionId={SessionId}")]
+        public static partial void SubscriptionIdUsingCachedHandlesAfterTransfer(
+            this ILogger logger,
+            uint subscriptionId,
+            StatusCode statusCode,
+            int count,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 72, Level = LogLevel.Warning,
+            Message = "SubscriptionId {SubscriptionId}: GetMonitoredItems is not available after transfer" +
+                " ({StatusCode}) and the monitored item ids are unknown, recreating the subscription." +
+                " SessionId={SessionId}")]
+        public static partial void SubscriptionIdRecreatingAfterTransfer(
+            this ILogger logger,
+            uint subscriptionId,
+            StatusCode statusCode,
+            NodeId? sessionId);
+
+        [LoggerMessage(EventId = ClientEventIds.Subscription + 73, Level = LogLevel.Error,
+            Message = "SubscriptionId {SubscriptionId}: Failed to recreate the subscription after transfer." +
+                " SessionId={SessionId}")]
+        public static partial void SubscriptionIdFailedRecreateAfterTransfer(
+            this ILogger logger,
+            Exception? exception,
             uint subscriptionId,
             NodeId? sessionId);
     }

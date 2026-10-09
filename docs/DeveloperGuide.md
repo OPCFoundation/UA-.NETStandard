@@ -4,6 +4,32 @@ This guide is the starting point for contributing to the OPC UA .NET Standard st
 
 If you are new here, read the sections in order: [Prerequisites](#prerequisites) → [Repository layout](#repository-layout) → [Building](#building) → [Running tests](#running-tests) → [Coding standards](#coding-standards-dos-and-donts). The [How-to guides](#how-to-guides) and [Packages, platform support, and versioning](#packages-platform-support-and-versioning) sections are reference material you can jump to as needed.
 
+## Contents
+
+- [Prerequisites](#prerequisites)
+- [Repository layout](#repository-layout)
+- [Building](#building)
+- [Running tests](#running-tests)
+- [Coding standards (dos and don'ts)](#coding-standards-dos-and-donts)
+- [How-to guides](#how-to-guides)
+  - [Add a log message (source-generated)](#add-a-log-message-source-generated)
+  - [Other common tasks](#other-common-tasks)
+- [Packages, platform support, and versioning](#packages-platform-support-and-versioning)
+  - [Released packages](#released-packages)
+  - [Supported target frameworks](#supported-target-frameworks)
+  - [Supported analyzer and source generator hosts](#supported-analyzer-and-source-generator-hosts)
+  - [Versioning](#versioning)
+- [Continuous integration](#continuous-integration)
+  - [What runs where](#what-runs-where)
+  - [Test tiers](#test-tiers)
+  - [Running the full scope](#running-the-full-scope)
+  - [Required checks and coverage](#required-checks-and-coverage)
+  - [Reproducing a CI leg locally](#reproducing-a-ci-leg-locally)
+  - [Pull requests from outside contributors](#pull-requests-from-outside-contributors)
+  - [Azure Pipelines on other branches](#azure-pipelines-on-other-branches)
+- [Contributing and pull requests](#contributing-and-pull-requests)
+- [Related documentation](#related-documentation)
+
 ## Prerequisites
 
 - **.NET SDK 10.0** — the whole repository builds and restores with the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0). Older SDKs are not supported for building `main`. The class libraries still *target* older frameworks (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)), but you build them with the .NET 10 SDK.
@@ -44,7 +70,7 @@ dotnet build UA.slnx
 
 Notes:
 
-- **Warnings are errors.** `TreatWarningsAsErrors` is enabled, so compiler (`CSxxxx`) and Roslynator (`RCSxxxx`) diagnostics fail the build. Microsoft Code Analysis (`CAxxxx`) diagnostics are emitted as non-fatal warnings unless a rule is promoted to error in `.editorconfig`. Fix all of them before opening a pull request.
+- **Warnings are errors.** `TreatWarningsAsErrors` and `CodeAnalysisTreatWarningsAsErrors` are enabled, so compiler (`CSxxxx`), Roslynator (`RCSxxxx`) and Microsoft Code Analysis (`CAxxxx`) warnings all fail the build. Fix them rather than suppressing them; a suppression must carry a comment explaining why and a TODO to remove it.
 - **Building a single target framework.** By default the libraries multi-target the whole matrix (see [Packages, platform support, and versioning](#packages-platform-support-and-versioning)). To restrict a local build to one framework, pass `-p:CustomTargetFrameworks`, for example:
 
   ```bash
@@ -68,7 +94,7 @@ Conventions and requirements:
 - **Frameworks.** Test projects use either **NUnit** (with `Assert.That` assertions and **Moq** for mocking) or **TUnit** (with its own assertions and mock helpers). Do not mix the two in one project, and do not use the classic NUnit asserts (`Assert.AreEqual`, …).
 - **Coverage.** Coverage is measured with **Coverlet** and must not regress; every non-application, non-test project should stay at or above **80 %**. Two gates enforce this in CI — see [Continuous integration](#continuous-integration).
 - **Integration tests.** Client/server and pub/sub features need integration tests as well as unit tests. A feature library's integration tests normally live with its unit tests in `<Component>.Tests`, for example `Opc.Ua.Robotics.Tests`, and every test project name ends in `.Tests`. Split integration tests into a separate project only when they run long, destabilise the unit tests, or the suite needs further division. Keep them deterministic: allocate a free port per fixture rather than hard-coding one, wait on the actual signal instead of using `Thread.Sleep` as a synchronisation primitive, and dispose every session, subscription and server in teardown including on failure. A flaky integration test is worse than none.
-- **Test output.** Do not write per-test diagnostics to `TestContext.Out` (or the console) unconditionally. The NUnit adapter forwards every captured line to the test runner as its own message over the socket it shares with the test host, so output that is harmless in one test becomes a bottleneck when a data-driven fixture repeats it thousands of times — it inflates the published results artifact, slows the run, and can wedge that socket until the CI job times out with no output at all (issue #4213). Buffer the dump and emit it only when the test does not pass; `EncoderCommon.TestOutput` in [`tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs`](../tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs) does exactly that and is the pattern to copy.
+- **Test output.** Keep successful-test output compact. NUnit and the test runner retain captured output and create additional copies when forwarding and serializing it to TRX; repeated exhaustive dumps can consume gigabytes of memory, inflate results artifacts, and stall the runner's shared socket (issue #4213). For small failure-only diagnostics, buffer the dump and emit it only when the test does not pass; see `EncoderCommon.TestOutput` in [`tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs`](../tests/Opc.Ua.Core.TestFramework/EncoderCommon.cs). Stream large dumps to files and register them with `TestContext.AddTestAttachment` instead of building a large string or writing every line to `TestContext.Out`. `CommonTestWorkers.BrowseFullAddressSpaceWorkerAsync(..., outputResult: true)` follows this pattern: the full listing is a test-result attachment, while inline output contains only the reference count. Keep attachment files until the runner has collected them.
 - **Certificate leak diagnostics.** Set `OPCUA_CERTIFICATE_LEAK_TRACKING=1` before starting a
   test process to capture allocation stacks for `Certificate` handles that are not explicitly
   disposed. The assembly-level leak detector includes live and unreachable outstanding handles,
@@ -85,8 +111,87 @@ Conventions and requirements:
       -p:CustomTestTarget=net10.0
   ```
 - **Before a pull request** the `UA.slnx` suite must pass on at least **.NET Framework 4.8** and **.NET 10.0**.
-- **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `netstandard2.0`, `netstandard2.1`, `net472`, `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
-- **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8, .NET Framework 4.7.2, netstandard) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
+- **Testing a specific target framework.** The libraries multi-target, but the test executables run on one framework at a time. To run the suite against a non-default framework, set `CustomTestTarget` (supported values: `net48`, `net8.0`, `net9.0`, `net10.0`). The batch file [`tests/customtest.bat`](../tests/customtest.bat) cleans, restores, and runs the tests for a chosen target; in Visual Studio, uncomment and set the `CustomTestTarget` property in [`targets.props`](../targets.props). A clean build for the target is recommended when switching.
+- **CI matrix.** The pull-request gate runs the test suite on **net48** and **net10.0**, and compiles the solution for *every* supported target framework; the remaining test matrices (Debug, .NET 9/8) run in scheduled or manual CI. Fix all failing, flaky, and CodeQL findings in the pipelines. See [Continuous integration](#continuous-integration).
+
+Wire compatibility with the released 1.5 stack is covered by
+[`tests/Opc.Ua.Interop.Tests`](../tests/Opc.Ua.Interop.Tests), in both
+directions (2.0 client to 1.5 server and 1.5 client to 2.0 server):
+
+- sessions over None, the RSA policies and the ECC policies, with anonymous and
+  user name logon, and the read, write, browse, call and subscription services;
+- the existing 2.0 `ClientTest` workers that do not depend on the in-process
+  server, run against the 1.5 Quickstarts reference server
+  (`ClientTestFramework.ExternalServerUrl`);
+- custom data types (structures, unions, optional fields, enumerations) loaded,
+  decoded and written back with the other side's complex type system;
+- certificate trust with auto-accept off: untrusted peers, CA-issued
+  certificates, revoked certificates;
+- message sizes and service limits: multi-chunk messages, values above the
+  peer's encoding limits, responses above the client's MaxMessageSize,
+  operation limits, browse continuation points and security token renewal;
+- events and alarms: event subscriptions with select and where clauses,
+  ConditionRefresh and acknowledging an alarm of the reference server;
+- subscription features: absolute and percent deadbands, queue overflow with
+  DiscardOldest, triggering, Republish and TransferSubscriptions;
+- identities and services: wrong passwords, X509 user tokens, RegisterNodes,
+  HistoryRead, AddNodes/DeleteNodes, IndexRange, FindServers and reactivating
+  a session on a new secure channel (`ServerFeatureInteropTests` and the
+  feature checks of `LegacyClientInteropTests`).
+
+The 1.5 side is
+[`tests/Opc.Ua.Interop.LegacyPeer`](../tests/Opc.Ua.Interop.LegacyPeer), a
+console application built from the `OPCFoundation.NetStandard.Opc.Ua.*` NuGet
+packages and started as a child process, because the two stacks share assembly
+names and cannot be loaded into one process. It deliberately does not import the
+repository build settings. In server mode it hosts either a small interop server
+with deliberately tight limits or the 1.5 Quickstarts reference server; in client
+mode it runs named checks and prints one JSON result line per check, which the
+tests report as separate results. The test project builds it and copies it to
+`legacy-peer/` next to the tests; pass `-p:LegacyStackVersion=<version>` to test
+another 1.5 release, or set `OPCUA_INTEROP_LEGACY_PEER` to the path of a
+prebuilt `Opc.Ua.Interop.LegacyPeer.dll`. 1.5.378 cannot reload a certificate it
+has just created in a long store path, so the tests keep their PKI folders
+directly below the temp folder. The project is a `*.Tests.csproj`, so CI runs it
+on every pull-request test leg like any other test project.
+
+The same `LegacyServerInteropTests`, `LegacyClientInteropTests`,
+`ServerFeatureInteropTests` and `EccInteropTests` also run against peers built
+on other OPC UA stacks, in
+[`tests/Opc.Ua.Interop.Peers`](../tests/Opc.Ua.Interop.Peers): `node-opcua`
+(Node.js), `milo` (Eclipse Milo, Java), `asyncua` (Python), `open62541` (C),
+`async-opcua` (Rust) and `gopcua` (Go, client only). The
+[peer README](../tests/Opc.Ua.Interop.Peers/README.md) describes how to install
+the toolchains, build each peer and run the fixtures against it. A peer speaks the same command line and
+output protocol as the 1.5 peer: `server` prints `PEER-INFO {json}` (stack,
+version, application URI, software version and, optionally, `policies`: the
+security policy URIs the peer implements; `EccInteropTests` runs the policies
+beyond the four 1.5 ECC policies, e.g. `ECC_nistP256_AesGcm`, only against a
+peer that declares them) and then the ready line; `client`
+prints one `RESULT {json}` line per check. Select a peer with three variables:
+
+| Variable | node-opcua | Milo | asyncua | open62541, async-opcua, gopcua |
+| --- | --- | --- | --- | --- |
+| `OPCUA_INTEROP_PEER_HOST` | path of `node` | path of `java` | path of `python` | (unset) |
+| `OPCUA_INTEROP_PEER_HOST_ARGUMENTS` | (unset) | `-jar` | (unset) | (unset) |
+| `OPCUA_INTEROP_LEGACY_PEER` | `.../node-opcua/peer.mjs` | `.../milo/target/milo-peer.jar` | `.../asyncua/peer.py` | path of the executable |
+
+Known defects of a stack are listed in the peer's `expected-differences.json`,
+keyed by check name or `Fixture.Test`; a listed failure is reported as
+inconclusive with its reason, a listed test that passes as a warning. The
+[`Foreign stack interop`](../.github/workflows/interop-foreign.yml) workflow
+runs every peer on Windows, Linux and macOS (open62541 on Linux only) nightly, on demand and for pull
+requests labelled `interop`; it is not a required check.
+
+Channel recovery regressions use `ManagedSessionReconnectTests` in the client
+test project and `ClientChannelManagerManagedTests` / `ReconnectDeadlineTests`
+in the core test project. The composed fixture scripts an in-process transport
+while retaining the real session, V2 publishing workers and channel ready gate.
+Use phase signals and the injected clock rather than a server-process kill or
+sleeps. Keep every phase wait bounded. When checking the recreate/drain wiring,
+disable the managed-session channel deadline so outer takeover cannot mask a
+broken drain, and verify the parked Publish attempt has unwound before allowing
+replacement-session creation to finish.
 
 ## Coding standards (dos and don'ts)
 
@@ -97,7 +202,7 @@ All rules apply to new code and to existing code you touch. The `.editorconfig` 
 - Add the OPC Foundation MIT license header to every new source file.
 - 4-space indentation, max line length 120, CRLF line endings, UTF-8, final newline, no trailing whitespace.
 - Allman braces; always specify access modifiers explicitly; member order is constructors → properties/events → methods → fields, each `public` → `protected` → `internal` → `private`.
-- Do **not** use `#region`/`#endregion` or comment-only section dividers. Do **not** add `#nullable enable` to a file when the project already sets `<Nullable>enable</Nullable>`.
+- Do **not** use `#region`/`#endregion` or comment-only section dividers. Nullable reference types are enabled for every project in `common.props`: do **not** add `<Nullable>` to a project or `#nullable enable` to a file (only `<auto-generated>` files need the directive).
 - Put every XML-doc `<summary>` text on its own line (never a single-line `/// <summary> … </summary>`).
 - Follow standard C# naming; no underscores in method or test-method names (tests use PascalCase).
 
@@ -240,11 +345,11 @@ cadence or security-patch deadline.
 
 For improved source-level debugging, symbol packages for non-`.Debug` package IDs are published on nuget.org in `snupkg` format. `Debug`-compiled packages are retained with a `.Debug` suffix on GitHub Packages but are not published to nuget.org.
 
-In-development previews are published **only** to the [GitHub Packages feed](https://nuget.pkg.github.com/OPCFoundation/index.json) — nothing in this repository pushes a preview to nuget.org. nuget.org receives a version only through the manually approved [promotion](ReleaseProcess.md#approved-promotion) of a stable candidate built from a `release/<major>.<minor>` branch, which is where the `2.0.0-preview.N` packages currently on nuget.org came from (the earlier `release/2.0.0` line). To consume those, use `2.0.0-preview.*` to float to the latest published `2.0.0-preview.N` release, pass `--prerelease` to `dotnet add package`, or
+In-development builds from `master` (`2.0.0-preview.<N>.g<commit>`) are published **only** to the [GitHub Packages feed](https://nuget.pkg.github.com/OPCFoundation/index.json). nuget.org receives a version only through a manually dispatched `release.yml` run from a `release/<major>.<minor>` branch: an [approved promotion](ReleaseProcess.md#approved-promotion) of a stable release, or a numbered [preview release](ReleaseProcess.md#preview-release) such as `2.0.0-preview.6`. `2.0.0-preview.2` to `.5` came from the earlier, retired `release/2.0.0` line and are the last previews that also put `.Debug` packages on nuget.org; see [`.Debug` packages are no longer published to nuget.org](migrate/2.0.x/packages.md#debug-packages-are-no-longer-published-to-nugetorg). To consume the nuget.org previews, use `2.0.0-preview.*` to float to the latest published `2.0.0-preview.N` release, pass `--prerelease` to `dotnet add package`, or
 select *Include prerelease* in Visual Studio. No additional package source or
 credentials are required for nuget.org; the GitHub Packages feed needs a classic PAT with `read:packages`.
 
-The full set of packages the preview pipeline produces is pinned in [`.azurepipelines/nuget/expected-packages.txt`](../.azurepipelines/nuget/expected-packages.txt). `.azurepipelines/nuget/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
+The full set of packages `nuget-publish.yml` produces is pinned in [`.azurepipelines/nuget/expected-packages.txt`](../.azurepipelines/nuget/expected-packages.txt). `.azurepipelines/nuget/validate-source-generator-packages.ps1` fails the build when the packed output does not match it, so adding, removing or renaming a shipped package has to be done deliberately in the same pull request. That script also validates the analyzer packages: their `analyzers/dotnet/roslyn<major>.<minor>/cs` layout, that they carry their runtime closure privately, that the model generator's auto-imported `build/<PackageId>.props` is named after the package id, and — end to end — that a standalone project consuming the packed generator with a NodeSet actually gets code generated.
 
 ### Release assurance and stewardship
 
@@ -282,15 +387,13 @@ attach them to public PRs or CI artifacts.
 
 The class libraries currently target:
 
-1. .NET Standard 2.0 (`Opc.Ua.Types` only)
-2. .NET Standard 2.1
-3. .NET Framework 4.7.2 (limited support)
-4. .NET Framework 4.8
-5. .NET 8.0
-6. .NET 9.0
-7. .NET 10.0
+1. .NET Standard 2.0 (`Opc.Ua.Types` and `Opc.Ua.SourceGeneration.Core` only, because the source generators load them)
+2. .NET Framework 4.8
+3. .NET 8.0
+4. .NET 9.0
+5. .NET 10.0
 
-The pull-request gate *compiles* every one of these targets, but only runs the test suite on (4) and (7) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
+The pull-request gate *compiles* every one of these targets, but only runs the test suite on (2) and (5) to keep the feedback loop short; the remaining test matrices are covered by scheduled or manual CI. See [Running tests](#running-tests) for how to build and test a specific framework locally with `CustomTestTarget` / `tests/customtest.bat`, and [Continuous integration](#continuous-integration) for how the matrices are split.
 
 ### Supported analyzer and source generator hosts
 
@@ -304,7 +407,7 @@ The analyzer and source generator packages ship under `analyzers/dotnet/roslyn<m
 The version is declared once in `roslyn.props`.
 
 > **Adding a band below 4.14 is not just another entry in that file.** The analyzer closure — the generator, `Opc.Ua.SourceGeneration.Core` **and** `Opc.Ua.Types` — must bind against the Roslyn host's own `System.Collections.Immutable` and `System.Reflection.Metadata`. .NET satisfies a reference from a *higher* assembly version but never from a lower one, and those assemblies are supplied by the compiler, so the closure must reference the lowest version across every supported band and must never ship a copy of its own. Roslyn 4.14 and 5.0 both depend on 9.0.0, which is why `$(RoslynRuntimeVersion)` in `roslyn.props` drives the central pin and one build of the non-Roslyn closure serves both bands. Going lower — Roslyn 4.8 wants 7.x — would mean building that whole closure, `Opc.Ua.Types` included, a second time.
->
+
 > Get it wrong and the failure is silent: the generator is skipped (`CS9057`), fails to load (`CS8032`) or throws `MissingMethodException` while initializing (`CS8784`) — all *warnings*, so the consumer just gets no generated code. `validate-source-generator-packages.ps1` therefore refuses any package that ships `Microsoft.CodeAnalysis*`, `System.Collections.Immutable` or `System.Reflection.Metadata`, and runs the packed down-level payload through a real compiler of that band.
 
 ### Versioning
@@ -314,7 +417,7 @@ From **2.0** onward, package versions are produced by [Nerdbank.GitVersioning](h
 Stable (public-release) versions are produced **only** from a canonical `release/<major>.<minor>` branch (e.g. `release/2.0`, `release/2.1`) — never from `master`, a tag, or any other branch — and only at the exact commit whose `version.json` carries the plain `<major>.<minor>.<patch>` version with no prerelease label (e.g. `2.0.0`). Patch numbers increase by exactly one per release on their line (`2.0.0` → `2.0.1` → `2.0.2`); a new minor line resets the patch to zero (`2.1.0`). See **[Release process](ReleaseProcess.md)** for the full branch/version model and the step-by-step procedure for cutting a release, shipping a patch or minor version, backporting a fix, and promoting a stable candidate.
 
 The XRegistry, WoT Connectivity, Vision, Robotics, Redundancy, Positioning,
-OpenUSD, ISA95, AI, and DI package families remain preview packages even when
+OpenUSD, and AI package families remain preview packages even when
 the root version is stable. Their numeric version follows the root version:
 for example, a stable `2.0.0` root produces `2.0.0-preview.N` for these
 families (`N` a committed, manually curated number in `preview-version.props`
@@ -336,11 +439,9 @@ as `latest` establishes eligibility for a stable-release profile.
 
 ## Continuous integration
 
-**GitHub Actions owns pull-request validation and the weekly full-scope validation.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on the weekly schedule and on demand. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress and stability suites.
+**GitHub Actions runs all CI for `master`.** [`.github/workflows/buildandtest.yml`](../.github/workflows/buildandtest.yml) runs the complete build and test workload on GitHub-hosted runners for every triggering branch, and [`.github/workflows/nightly.yml`](../.github/workflows/nightly.yml) runs the full-scope workload on the weekly schedule and on demand. [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml) builds, signs and publishes the packages. The other workflows in [`.github/workflows/`](../.github/workflows) cover CodeQL, container images and the opt-in stress, stability and long-haul suites.
 
-Azure Pipelines ([`azure-pipelines.yml`](../azure-pipelines.yml) plus the templates in [`.azurepipelines/`](../.azurepipelines)) no longer runs on pull requests or on the weekly full-scope schedule: the Azure context was dropped from the master ruleset, the pipeline's PR trigger is `pr: none`, and the YAML `schedules:` block has been retired. Azure still runs on pushes to `master` and can be queued manually for recovery, where it **duplicates** coverage rather than supplying any of it; see [Migration status](#migration-status) for what remains to switch off.
-
-Pull requests targeting `master378` or a `release/*` line are unaffected — Azure Pipelines evaluates a pull request against the *target* branch's copy of `azure-pipelines.yml`, and those branches keep their own copy and their own required Azure context.
+The only Azure Pipelines definition left on `master` is the manually queued, opt-in [`.azurepipelines/onefuzz.yml`](../.azurepipelines/onefuzz.yml), kept because submission to the internal OneFuzz service requires the Azure DevOps-only `onefuzz-task`; it has no push, PR or schedule trigger. The other PowerShell helpers that remain under [`.azurepipelines/`](../.azurepipelines) are used by the GitHub Actions workflows; the directory keeps its historical name so those paths stay stable. Branches that still carry their own `azure-pipelines.yml` (`master378`, the 1.x `release/*` lines and the frozen `release/2.0.0`) keep their Azure validation; see [Azure Pipelines on other branches](#azure-pipelines-on-other-branches).
 
 ### What runs where
 
@@ -348,15 +449,24 @@ One table describes the entire migrated workload: `$Profiles` and `$BuildProfile
 
 | | Pull request (`buildandtest.yml`) | Full scope (`nightly.yml`) |
 | --- | --- | --- |
-| Test profiles | Windows net48, Windows/Linux/macOS net10.0 | the above plus net472, net9.0, net8.0, netstandard2.0, netstandard2.1, the Debug legs, and the tiers that lift the category filter |
-| Solution builds | every `.slnx` on Windows for net48/net10.0 × Debug/Release, `UA.slnx` for net472/netstandard2.0 and the Linux TFMs | every `.slnx` on Windows for all seven TFMs × Debug/Release, plus the Linux legs |
-| Native AoT | linux-x64, osx-x64, osx-arm64; win-x64 on current master/release-2 targets for the release profile | all four RIDs |
+| Test profiles | Windows net48, Windows/Linux/macOS net10.0 | the above plus net9.0, net8.0, the Debug legs, and the tiers that lift the category filter |
+| Solution builds | every `.slnx` on Windows for net48/net10.0 × Debug/Release, `UA.slnx` on Linux for net8.0/net9.0/net10.0 | every `.slnx` on Windows for all four TFMs × Debug/Release, plus the Linux legs |
+| Native AoT | linux-x64, osx-x64, osx-arm64; win-x64 for current release-profile targets | all four RIDs |
 | Coverage | project floors and the graduated patch gate | project floors only |
 | Trigger | every push and pull request | weekly schedule and `workflow_dispatch` |
 
-A profile pins its target framework through `CustomTestTarget`, not `--framework`, because that is the mechanism [`targets.props`](../targets.props) uses. Two profiles are not runnable target frameworks at all: `netstandard2.0` hosts its tests on net48 and `netstandard2.1` hosts them on net8.0, so each profile records both what it builds with and what its tests run on.
+A profile pins its target framework through `CustomTestTarget`, not `--framework`, because that is the mechanism [`targets.props`](../targets.props) uses.
 
-GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. The project fan-out is therefore **batched**: each matrix entry carries several projects that [`.github/scripts/run-dotnet-tests.ps1`](../.github/scripts/run-dotnet-tests.ps1) runs in sequence, keeping per-project results and per-project timeouts. The batch size is the smallest one that fits the budget, so it grows by itself as test projects are added instead of silently truncating the matrix. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) asserts that both scopes fit, that every `*.Tests.csproj` on disk is either scheduled or explicitly excluded, and that a narrowed matrix can never expand to nothing.
+The project fan-out is **batched**: each matrix entry carries several projects that [`.github/scripts/run-dotnet-tests.ps1`](../.github/scripts/run-dotnet-tests.ps1) runs in sequence, keeping per-project results and per-project timeouts. Batches are packed by **duration**, not by count. Every batch pays a fixed cost of several minutes (checkout, SDK install and the cold build of the shared dependency graph), while each further project in it only adds an incremental build of under a minute plus its tests. So projects are packed, in path order, up to `BatchTargetMinutes` (30) of weight from [`.github/ci-test-durations.json`](../.github/ci-test-durations.json), with at most as many projects as the job timeout can budget for. Path order keeps related projects (`PubSub.*`, `Redundancy.*`, `WotCon.*`) together. Packing two projects per job, as before, spent almost half of the pull-request matrix recompiling the same assemblies.
+
+The weights only steer balance, never what runs: a project missing from the table is weighted with its `defaultMinutes`. Each weight is the slowest pull-request profile's test minutes, rounded up, plus one minute of incremental build. The executor records every project's build and test seconds in `batch-summary.json` and in the job summary, so the table can be refreshed from any run:
+
+```bash
+gh run download <run-id> --pattern 'dotnet-results-*' --dir ./ci-results
+./.github/scripts/update-test-durations.ps1 -ResultsPath ./ci-results -Source 'Run <run-id>'
+```
+
+GitHub refuses to start a run whose matrices expand past 256 jobs, and the limit cannot be raised. If the packed matrix would not fit, the target is raised until it does, so the matrix adapts as test projects are added instead of silently truncating. [`CiMatrixScriptTests`](../tests/Opc.Ua.Tools.Tests/CiMatrixScriptTests.cs) asserts that both scopes fit, that every `*.Tests.csproj` on disk is either scheduled or explicitly excluded, that each profile runs each of its projects exactly once, that only a project heavier than the target exceeds it, and that a narrowed matrix can never expand to nothing.
 
 The executor fails a project when its build fails, when the TRX counters report any failure, when it produces **no** TRX at all, when nothing in it actually ran, or when it outlives its per-project ceiling. A "no tests ran" outcome is a failure, not a pass — and that includes a suite whose tests were *all* skipped, which records a non-zero total while verifying nothing.
 
@@ -377,8 +487,9 @@ The shared runner freezes committed public replay inputs before building, verifi
 the copied bytes before execution, and stages only allow-listed public proof and
 coverage files for fuzz projects. Untracked or modified overlays cannot earn
 public replay credit. Dedicated Windows net10 jobs retain the exact job/artifact
-identities used by the seven-job release profile; broader batched CI results do
-not implicitly substitute for those unfiltered profile runs.
+identities used by the seven-job release profile; CodeQL uses the upstream Linux
+net10 analysis with exact source and definition binding. Broader batched CI
+results do not implicitly substitute for those unfiltered profile runs.
 
 #### Why a project can be skipped
 
@@ -399,9 +510,21 @@ The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategor
 | --- | --- |
 | `LongRunning` categories in mainline projects | `linux-long-running` profile, `nightly.yml` only |
 | `Opc.Ua.Subscriptions.Durable.Tests` | `windows-durable` / `linux-durable` profiles, `nightly.yml` only |
-| `Opc.Ua.Stress.Tests` | [`.github/workflows/stress-test.yml`](../.github/workflows/stress-test.yml), opt-in |
+| `Opc.Ua.Stress.Tests` (`ChaosTCP`) | [`.github/workflows/stress-test.yml`](../.github/workflows/stress-test.yml), opt-in |
+| `ConnectionStability` in `Opc.Ua.Sessions.Tests` | [`.github/workflows/stability-test.yml`](../.github/workflows/stability-test.yml), opt-in |
+| `SampleHaLongHaul` in `Opc.Ua.Redundancy.Samples.Tests` | [`.github/workflows/sample-ha-longhaul.yml`](../.github/workflows/sample-ha-longhaul.yml), opt-in |
 | `Opc.Ua.Aot.Tests` and the `.Historian` / `.Mcp` companions | `aot-test` job (both workflows) — published and run as native executables, not through `dotnet test` |
 | `Opc.Ua.OneFuzz.Validator.Tests` | `fuzz-drop` job — it pins net10.0 to match the drop it validates |
+
+The opt-in workflows run on their schedule, on demand from the Actions tab, and on a pull request that carries their label. Like `interop` for the [foreign stack interop](../.github/workflows/interop-foreign.yml) run, the label is not a required check: add it to start a run, and each later push to the pull request restarts it, cancelling the run in progress. Adding an unrelated label does not restart it.
+
+| Label | Workflows | Pull-request run |
+| --- | --- | --- |
+| `stress` | Stress Tests | ChaosTCP with a random seed (in `chaos-seed.txt` of the results artifact) |
+| `soak` | Connection Stability Test, Sample HA Long-Haul Test | 30 minutes stability; 15 minutes per HA scenario (the schedules run 90 and 60) |
+| `interop` | Foreign stack interop | Every peer, as nightly |
+
+Each opt-in workflow fails when its filter matched no test, so a moved or renamed test cannot leave it green while testing nothing.
 
 ### Running the full scope
 
@@ -410,31 +533,19 @@ The pull-request profiles filter out `TestCategory=LongRunning` and `TestCategor
 | Input | Effect |
 | --- | --- |
 | `include_macos` | Include the macOS profiles (default `true`) |
-| `run_private_corpus` | Additionally replay the private fuzz crash corpus (default `false`, requires the protected environment below) |
 
 It uploads a `workload-manifest` artifact recording every (project × profile) tuple the run intended to cover, so a run's scope can be compared against another inventory instead of inferred from job names.
 
-#### The private fuzz corpus
+#### The fuzz crash corpus
 
-The checked-in corpus under [`fuzzing/`](../fuzzing) runs on every pull request. The **private crash corpus** — inputs that reproduce unfixed findings — is deliberately not public, so it is replayed only by the `private-corpus` job in `nightly.yml`, which:
+The checked-in corpus under [`fuzzing/`](../fuzzing) runs on every pull request. The full **crash corpus** — about 22k inputs from earlier fuzzing campaigns, formerly the Azure secure file `FuzzingArtifacts.zip` — lives on the orphan branch `fuzz-corpus` and takes too long to replay per pull request. The `crash-corpus` job in `nightly.yml` checks out a commit of that branch pinned in the workflow (`FUZZ_CORPUS_COMMIT`), overlays it onto the matching `fuzzing/` projects and runs `Opc.Ua.Encoders.Fuzz.Tests` on every non-macOS profile. It needs no secrets, and the nightly summary fails if it was skipped. See [`fuzzing/CrashCorpus.md`](../fuzzing/CrashCorpus.md) for how to add inputs and update the pin.
 
-- runs in the protected `fuzz-private-corpus` environment, so a reviewer approves each run;
-- never runs from a fork or from an unreviewed ref;
-- verifies the downloaded archive against a pinned SHA-256 before extracting it;
-- runs the executor with `-QuietOutput -InputScope private`, so raw reproducer
-  data and result files remain in the runner-private directory;
-- emits no public coverage or release-assurance proof from private overlays,
-  and discards the extracted inputs after the approved run.
-
-It is skipped unless a maintainer has provisioned the environment:
-
-| Kind | Name | Purpose |
-| --- | --- | --- |
-| Secret | `AZURE_CLIENT_ID`, `AZURE_TENANT_ID`, `AZURE_SUBSCRIPTION_ID` | Federated (OIDC) login — no stored storage key |
-| Variable | `FUZZ_CORPUS_ACCOUNT`, `FUZZ_CORPUS_CONTAINER`, `FUZZ_CORPUS_BLOB` | Where the archive lives |
-| Variable | `FUZZ_CORPUS_SHA256` | Expected digest of the archive |
-
-The job fails loudly when any of them is missing, and the nightly summary labels a run that did not replay the corpus as **INCOMPLETE**, so its absence is never mistaken for a pass.
+The shared runner verifies the clean pinned checkout, the exact overlay bytes and
+the build-output copies. Its `public-corpus` scope publishes only sanitized
+robustness results and corpus identity, not coverage or release-assurance credit.
+Raw diagnostics remain runner-private even for published inputs; newly discovered
+findings still follow confidential intake. Curated replay separately accounts for
+every target/input pair, including stack-regression inputs executed in child processes.
 
 ### Required checks and coverage
 
@@ -457,11 +568,11 @@ For the same reason the workflow carries no `paths:` filter. A workflow filtered
 
 That decision is a **deny-list**, not an allow-list of build inputs, and it lives in [`.github/scripts/get-path-relevance.ps1`](../.github/scripts/get-path-relevance.ps1) so it can be tested — see [`CiPathRelevanceTests`](../tests/Opc.Ua.Tools.Tests/CiPathRelevanceTests.cs). It fails dangerously in one direction only: calling a real change irrelevant skips the build, test and AoT jobs while the required summary still reports **success**, so a broken change merges behind a green check. An allow-list of extensions cannot be kept complete — the source generators consume `.xml` and `.csv` design files (the `AdditionalFiles` items in [`src/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj`](../src/Opc.Ua.WotCon/Opc.Ua.WotCon.csproj)), test projects carry XML and JSON fixtures, and `.editorconfig` is enforced at build time. Only Markdown and the `docs/` tree, which holds nothing but Markdown and images, are skippable; everything else builds.
 
-[`.github/workflows/docker-image.yml`](../.github/workflows/docker-image.yml) (`Images CI`) follows the identical pattern for the sample container images. Its build legs are named `build-and-push-image (refserver)`, `(boilerserver)` and so on, so they cannot be pinned in a ruleset either; **`images summary`** is the fixed name that rolls all of them up. One broken image fails it, because a matrix job aggregates to `success` only when every leg succeeded. Its `pull_request` trigger carries the same branch list as the `CI` workflow and no `paths-ignore`, so both gates report on exactly the same set of pull requests; the docs/tests exclusion moved into its own `discover` job. Add `images summary` to the ruleset alongside `build-and-test summary`.
+[`.github/workflows/docker-image.yml`](../.github/workflows/docker-image.yml) (`Images CI`) follows the identical pattern for the sample container images. Its build legs are named `build-and-push-image (refserver)`, `(boilerserver)` and so on, so they cannot be pinned in a ruleset either; **`images summary`** is the fixed name that rolls all of them up. One broken image fails it, because a matrix job aggregates to `success` only when every leg succeeded. Its `pull_request` trigger carries the same branch list as the `CI` workflow and no `paths-ignore`, so both gates report on exactly the same set of pull requests; the docs/tests exclusion moved into its own `discover` job. A `publish-samples` job compiles every sample once, natively, and the image legs only copy that output into the multi-platform images. See [Container support](ContainerReferenceServer.md#other-published-sample-images). Add `images summary` to the ruleset alongside `build-and-test summary`.
 
 The coverage check reports a clean failure when the thresholds are missed, so a miss is visible on the pull request, but it never blocks the merge. Do not add it to the ruleset — that would make a coverage dip unmergeable, which is not the intent.
 
-> Azure Pipelines no longer posts any check on a pull request targeting `master`; `build-and-test summary` is the only required check. On the branches where Azure still validates pull requests (`master378`, `release/*`), note that its `Tests passed` context is fail-*closed* rather than fail-red: the verdict lives in the stage `condition`, so when a test stage fails the stage is skipped and Azure posts **no check at all** — the required check stays unfulfilled and the merge stays blocked. You will see the failing test job in red and `Tests passed` still waiting, rather than two red checks. Verified on build 16613.
+> `build-and-test summary` is the only required check on `master`.
 
 #### How coverage is measured
 
@@ -484,7 +595,7 @@ The evaluation is [`.azurepipelines/coverage/check.ps1`](../.azurepipelines/cove
 
 Ratchet `minimumLineRate`, `minimumBranchRate` and `baselineLineRate` **upward** as coverage improves; never lower them to turn a red check green.
 
-> The script still lives under `.azurepipelines/` because it is shared, not because it is Azure-specific. The directory keeps its name so the reusable PowerShell helpers there do not all have to move at once.
+> The script lives under `.azurepipelines/` for historical reasons only; it is not Azure-specific.
 
 Two things about the `ignore` globs regularly catch people out. `samples/**` is ignored, so a sample can carry
 tests for its own sake — a wrong kinematics solver would make a sample lie — without those lines counting
@@ -513,27 +624,15 @@ Remember that the coverage check as a whole is advisory and stays out of the bra
 
 The merged report is also uploaded to [codecov.io](https://codecov.io), which is where the pull-request comment, the file-by-file diff view and the coverage trend live. **Codecov does not gate.** Both of its status checks are `informational: true` in [`codecov.yml`](../codecov.yml), because two gates with two sets of thresholds would eventually disagree about the same pull request and the easier one to silence would win. The rules that actually decide are the ones above.
 
-Each CI system uploads the report it merged, under its own flag (`azure`, `actions`), since the two matrices deliberately cover different legs.
-
-The upload is optional on both systems and never fails a build:
-
-| | Turn it off with | Also skipped when |
-| --- | --- | --- |
-| GitHub Actions | the `ENABLE_CODECOV` workflow `env` (default `'true'`) | the `CODECOV_TOKEN` secret is unavailable, as on fork pull requests |
-| Azure Pipelines | the `enableCodecov` pipeline parameter (default `true`) | the `CODECOV_TOKEN` secret variable is unset |
+The upload carries the `actions` flag. It is optional and never fails a build: turn it off with the `ENABLE_CODECOV` workflow `env` (default `'true'`); it is also skipped when the `CODECOV_TOKEN` secret is unavailable, as on fork pull requests.
 
 Keep the `ignore` list in `codecov.yml` in step with the one in `coverage-thresholds.json`, or the two will report on different code.
 
 #### Where the numbers appear
 
-The script renders a markdown summary that both systems surface, so you never have to open a raw log to see why coverage moved:
+The script renders a markdown summary, so you never have to open a raw log to see why coverage moved. It is appended to the run's job summary and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork** the token is read-only, so the comment is skipped and only the job summary is written. The merged HTML report is published as a `coverage-report` artifact.
 
-- **GitHub Actions** — appended to the run's job summary, and posted as a single sticky pull-request comment that is updated in place on each run. Threshold misses additionally appear as run annotations. On a pull request **from a fork** the token is read-only, so the comment is skipped and only the job summary is written.
-- **Azure Pipelines** — attached to the build summary via `##vso[task.uploadsummary]`, alongside the usual Code Coverage tab and the Codacy upload.
-
-Both also publish the merged HTML report as a `coverage-report` artifact.
-
-> The two systems report **different numbers**, and that is expected. GitHub Actions merges every profile that collects coverage, whereas Azure Pipelines merges only its own fast legs. The GitHub figure is the representative one — and now the only one a pull request sees, since Azure no longer runs on pull requests — and a full-scope run reads differently again because it covers different profiles.
+> A full-scope `nightly.yml` run reports different numbers from a pull-request run, and that is expected: it merges a different set of profiles.
 
 To reproduce a coverage failure locally, generate the same report with [`tests/codecoverage.cmd`](../tests/codecoverage.cmd) (or [`tests/codecoverage.sh`](../tests/codecoverage.sh)) and run the script against it:
 
@@ -563,34 +662,15 @@ Then run one entry's projects exactly as CI would:
 
 Add `-Coverage` to collect Cobertura fragments, and `-QuietOutput` to redirect child output to a log file instead of the console.
 
-### Triggering a pipeline run on a pull request
+### Pull requests from outside contributors
 
-Azure Pipelines no longer builds pull requests targeting `master` (`pr: none`). If you need an Azure run for comparison while the migration finishes, a repository owner or a collaborator with `Write` permission can still start one by commenting:
+GitHub Actions applies its "Approve and run workflows" gate to outside contributors and to the **GitHub Copilot coding agent**: a maintainer reviews the change and then approves the workflow run.
 
-```text
-/azp run
-```
+### Azure Pipelines on other branches
 
-`/azp run <pipeline-name>` targets a single pipeline. If a comment appears to do nothing, check that your GitHub organization membership is **public** — Azure Pipelines cannot see private organization members unless they are direct repository collaborators, and it silently ignores their commands.
+`master` no longer carries `azure-pipelines.yml`, `azure-pipelines-preview.yml` or the Azure CI templates, so a push to `master` (or to a branch cut from it) gives those Azure definitions nothing to run. The OneFuzz definition, which points at `.azurepipelines/onefuzz.yml`, is unaffected and stays manual. The Azure DevOps definitions themselves live in the Azure DevOps portal, not in this repository. Disabling their `master` triggers there (definition 14's push trigger and service-side schedule, definition 16's build-completion trigger, and the stale definition 13) is an administrator task and stops any residual "file not found" runs. Preserve the definitions, their artifacts, feeds, secure files, pools and service connections — `master378`, the 1.x `release/*` lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and still use them.
 
-On the branches where Azure still validates pull requests (`master378` and the `release/*` lines, each governed by its own copy of `azure-pipelines.yml`), the definition is configured with **Require a team member's comment before building a pull request**, scoped to *pull requests from non-team members*. That setting lives in the Azure DevOps portal (pipeline → **More actions** → **Triggers** → **Pull request validation**), not in YAML. GitHub Actions applies its own equivalent "Approve and run workflows" gate to outside contributors and to the **GitHub Copilot coding agent**.
-
-### Migration status
-
-The Actions workflows were added while Azure Pipelines kept every trigger and required context it had, so a gap in the new system could not leave a change untested. Since then the master ruleset has dropped the Azure context, leaving `build-and-test summary` as the only required check, and this repository's PR trigger has been set to `pr: none`.
-
-What is still outstanding — each needing repository- or organization-administrator access, and therefore **not** part of the source change:
-
-1. Run `nightly.yml` on a trusted SHA with the private corpus provisioned and compare its manifest against a full-scope Azure run.
-2. Confirm definition 14's service-side **Pull request validation** setting is off. `pr: none` covers the YAML trigger, but an enabled "Override the YAML PR trigger from here" would still queue builds.
-3. Confirm definition 14's service-side schedule is off and retire the push trigger once the GitHub replacement has proven stable. The YAML `cron` has already moved to `nightly.yml`.
-4. Retire `azure-pipelines-preview.yml` and definition 16's build-completion trigger. Development packages already publish to GitHub Packages from [`.github/workflows/nuget-publish.yml`](../.github/workflows/nuget-publish.yml), so that publisher is a duplicate. Ensure the stale definition 13 cannot restart it.
-
-> **Before cutting a canonical `release/2.<minor>` branch:** the `Release` ruleset requires `OPCFoundation.UA-.NETStandard` for *every* `refs/heads/release/*`. A new 2.x branch inherits `pr: none` from `master`, so that Azure context would never report and would block every pull request into the new line. Exclude the new ref from that ruleset — or add a 2.x ruleset requiring `build-and-test summary` — as part of creating the branch. The existing 1.x lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and must keep the Azure requirement.
-
-Preserve the Azure definitions, their artifacts, feeds, secure files, pools and service connections — retiring a trigger is not the same as deleting history. The `master378` and 1.x pipelines are out of scope entirely.
-
-The weekly full-scope schedule now lives in `nightly.yml`; keep Azure's service-side schedule disabled so both systems do not run the same nightly workload.
+> **Before cutting a canonical `release/2.<minor>` branch:** the `Release` ruleset requires `OPCFoundation.UA-.NETStandard` for *every* `refs/heads/release/*`. A new 2.x branch is cut from `master` and has no Azure pipeline, so that Azure context would never report and would block every pull request into the new line. Exclude the new ref from that ruleset — or add a 2.x ruleset requiring `build-and-test summary` — as part of creating the branch. The existing 1.x lines and the frozen `release/2.0.0` keep their own copy of `azure-pipelines.yml` and must keep the Azure requirement.
 
 
 ## Contributing and pull requests

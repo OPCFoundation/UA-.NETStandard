@@ -100,7 +100,8 @@ namespace Opc.Ua.Schema.Tests
                 Assert.That(PropertyValue(properties, "ByteString", "contentEncoding"), Is.EqualTo("base64"));
                 Assert.That(TypeName(properties, "XmlElement"), Is.EqualTo("string"));
                 Assert.That(Reference(properties, "NodeId"), Is.EqualTo("#/$defs/Ua_NodeId"));
-                Assert.That(TypeName(properties, "StatusCode"), Is.EqualTo("integer"));
+                // Part 6 5.4.2.12: {"Code", "Symbol"} in both flavors.
+                Assert.That(Reference(properties, "StatusCode"), Is.EqualTo("#/$defs/Ua_StatusCode"));
                 Assert.That(Reference(properties, "QualifiedName"), Is.EqualTo("#/$defs/Ua_QualifiedName"));
                 Assert.That(Reference(properties, "LocalizedText"), Is.EqualTo("#/$defs/Ua_LocalizedText"));
                 Assert.That(Reference(properties, "ExtensionObject"), Is.EqualTo("#/$defs/Ua_ExtensionObject"));

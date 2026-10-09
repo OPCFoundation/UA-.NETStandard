@@ -166,17 +166,17 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.Nodes))]
         public async Task NodeIdentityMatchesAcrossPipelinesAsync(CoverageTestCatalogue.ExpectedNode expected)
         {
-            NodeState sourceGen = await FindAsync(m_sourceGen, m_sourceGenNs, expected.Id).ConfigureAwait(false);
-            NodeState runtime = await FindAsync(m_runtime, m_runtimeNs, expected.Id).ConfigureAwait(false);
-            NodeState fluentGen = await FindAsync(m_fluentGen, m_fluentGenNs, expected.Id).ConfigureAwait(false);
+            NodeState sourceGen = (await FindAsync(m_sourceGen, m_sourceGenNs, expected.Id).ConfigureAwait(false))!;
+            NodeState runtime = (await FindAsync(m_runtime, m_runtimeNs, expected.Id).ConfigureAwait(false))!;
+            NodeState fluentGen = (await FindAsync(m_fluentGen, m_fluentGenNs, expected.Id).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
                 Assert.That(sourceGen, Is.Not.Null, $"source-gen missing {expected.BrowseName}");
                 Assert.That(runtime, Is.Not.Null, $"runtime missing {expected.BrowseName}");
                 Assert.That(fluentGen, Is.Not.Null, $"fluent-gen missing {expected.BrowseName}");
-                Assert.That(sourceGen.BrowseName, Is.EqualTo(runtime.BrowseName));
-                Assert.That(fluentGen.BrowseName, Is.EqualTo(runtime.BrowseName));
+                Assert.That(sourceGen!.BrowseName, Is.EqualTo(runtime!.BrowseName));
+                Assert.That(fluentGen!.BrowseName, Is.EqualTo(runtime.BrowseName));
                 Assert.That(sourceGen.NodeClass, Is.EqualTo(runtime.NodeClass));
                 Assert.That(fluentGen.NodeClass, Is.EqualTo(runtime.NodeClass));
                 Assert.That(sourceGen.DisplayName.Text, Is.EqualTo(runtime.DisplayName.Text));
@@ -209,7 +209,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
             ushort ns,
             CoverageTestCatalogue.ExpectedReference expected)
         {
-            NodeState source = await FindAsync(server, ns, expected.Source).ConfigureAwait(false);
+            NodeState? source = await FindAsync(server, ns, expected.Source).ConfigureAwait(false);
             if (source == null)
             {
                 return false;
@@ -226,7 +226,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
             using INodeBrowser browser = source.CreateBrowser(
                 context, null, NodeId.Null, false, BrowseDirection.Both, QualifiedName.Null, null, true);
 
-            for (IReference reference = browser.Next(); reference != null; reference = browser.Next())
+            for (IReference reference = browser.Next()!; reference != null; reference = browser.Next()!)
             {
                 if (reference.ReferenceTypeId != referenceTypeId ||
                     reference.IsInverse == expected.IsForward)
@@ -253,18 +253,18 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
         [TestCaseSource(typeof(CoverageTestCatalogue), nameof(CoverageTestCatalogue.SecondaryNodes))]
         public async Task SecondaryNodeIdentityMatchesAcrossPipelinesAsync(CoverageTestCatalogue.ExpectedNode expected)
         {
-            NodeState sourceGen = await FindAsync(m_sourceGen, SecondaryNs(m_sourceGen), expected.Id).ConfigureAwait(false);
-            NodeState runtime = await FindAsync(m_runtime, SecondaryNs(m_runtime), expected.Id).ConfigureAwait(false);
-            NodeState fluentGen = await FindAsync(m_fluentGen, SecondaryNs(m_fluentGen), expected.Id).ConfigureAwait(false);
+            NodeState sourceGen = (await FindAsync(m_sourceGen, SecondaryNs(m_sourceGen), expected.Id).ConfigureAwait(false))!;
+            NodeState runtime = (await FindAsync(m_runtime, SecondaryNs(m_runtime), expected.Id).ConfigureAwait(false))!;
+            NodeState fluentGen = (await FindAsync(m_fluentGen, SecondaryNs(m_fluentGen), expected.Id).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
                 Assert.That(sourceGen, Is.Not.Null, $"source-gen missing secondary {expected.BrowseName}");
                 Assert.That(runtime, Is.Not.Null, $"runtime missing secondary {expected.BrowseName}");
                 Assert.That(fluentGen, Is.Not.Null, $"fluent-gen missing secondary {expected.BrowseName}");
-                Assert.That(sourceGen.BrowseName.Name, Is.EqualTo(expected.BrowseName));
-                Assert.That(runtime.BrowseName.Name, Is.EqualTo(expected.BrowseName));
-                Assert.That(fluentGen.BrowseName.Name, Is.EqualTo(expected.BrowseName));
+                Assert.That(sourceGen!.BrowseName.Name, Is.EqualTo(expected.BrowseName));
+                Assert.That(runtime!.BrowseName.Name, Is.EqualTo(expected.BrowseName));
+                Assert.That(fluentGen!.BrowseName.Name, Is.EqualTo(expected.BrowseName));
                 Assert.That(sourceGen.NodeClass, Is.EqualTo(expected.NodeClass));
                 Assert.That(runtime.NodeClass, Is.EqualTo(expected.NodeClass));
                 Assert.That(fluentGen.NodeClass, Is.EqualTo(expected.NodeClass));
@@ -289,7 +289,7 @@ namespace Opc.Ua.Server.Tests.CoverageNodeSet
             return (ushort)namespaceIndex;
         }
 
-        private static ValueTask<NodeState> FindAsync(
+        private static ValueTask<NodeState?> FindAsync(
             global::Quickstarts.ReferenceServer.ReferenceServer server,
             ushort ns,
             uint id)

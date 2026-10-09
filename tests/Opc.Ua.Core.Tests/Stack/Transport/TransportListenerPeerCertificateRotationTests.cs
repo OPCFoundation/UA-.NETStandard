@@ -146,7 +146,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             RevalidationTestChannel trusted = CreateOpenChannel("trusted", 1, trustedCert);
             RevalidationTestChannel untrusted = CreateOpenChannel("untrusted", 2, untrustedCert);
-            RevalidationTestChannel noCert = CreateOpenChannel("nocert", 3, peerCertificate: null);
+            RevalidationTestChannel noCert = CreateOpenChannel("nocert", 3, peerCertificate: null!);
 
             var channels = new List<RevalidationTestChannel> { trusted, untrusted, noCert };
             try
@@ -170,6 +170,61 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             finally
             {
                 DisposeChannels(channels);
+            }
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+#if HAS_KESTREL_TCP_LISTENER
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+#endif
+        public async Task PeerChainSweepPreservesIntermediatesAndClosesOnlyRejectedChannelsAsync(
+            bool kestrel,
+            bool reject)
+        {
+            using Certificate issuer = CertificateBuilder.Create("CN=Sweep Issuer").SetCAConstraint().CreateForRSA();
+            using Certificate leaf = CertificateBuilder.Create("CN=Sweep Leaf").SetIssuer(issuer).CreateForRSA();
+            using var original = new CertificateCollection { leaf, issuer };
+            using RevalidationTestChannel channel = CreateOpenChannel("chain", 1, leaf.AddRef());
+            channel.RetainPeerCertificateChain(new ByteString(Utils.CreateCertificateChainBlob(original)));
+#if HAS_KESTREL_TCP_LISTENER
+            await using ITransportListener listener = kestrel
+                ? new KestrelTcpTransportListener(m_telemetry)
+                : new TcpTransportListener(m_telemetry);
+            if (listener is KestrelTcpTransportListener kestrelListener)
+            {
+                InjectKestrelChannels(kestrelListener, (1, channel));
+            }
+            else
+#else
+            Assert.That(kestrel, Is.False);
+            await using var listener = new TcpTransportListener(m_telemetry);
+#endif
+            {
+                InjectClassicChannels((TcpTransportListener)listener, (1, channel));
+            }
+            int callbacks = 0;
+            string[] observed = [];
+            ArrayOf<string> closed = await ((ITransportListenerPeerCertificateChainRotation)listener)
+                .CloseChannelsForUntrustedPeerChainsAsync((chain, _) =>
+            {
+                callbacks++;
+                observed = new string[chain.Count];
+                for (int i = 0; i < chain.Count; i++)
+                {
+                    observed[i] = chain[i].Thumbprint;
+                }
+                return new ValueTask<bool>(!reject);
+            }).ConfigureAwait(false);
+
+            Assert.That(callbacks, Is.EqualTo(1));
+            Assert.That(observed, Is.EqualTo([leaf.Thumbprint, issuer.Thumbprint]));
+            Assert.That(closed.Count, Is.EqualTo(reject ? 1 : 0));
+            Assert.That(channel.CurrentState, Is.EqualTo(reject ? TcpChannelState.Faulted : TcpChannelState.Open));
+            if (reject)
+            {
+                Assert.That(closed[0], Is.EqualTo(channel.GlobalChannelId));
             }
         }
 
@@ -276,7 +331,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private RevalidationTestChannel CreateOpenChannel(
             string contextId,
             uint channelId,
-            Certificate peerCertificate)
+            Certificate? peerCertificate)
         {
             var listenerMock = new Mock<ITcpChannelListener>();
             listenerMock.Setup(l => l.EndpointUrl).Returns(new Uri("opc.tcp://localhost:4840"));
@@ -381,7 +436,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 ChannelId = channelId;
             }
 
-            public void SetPeerCertificate(Certificate peerCertificate)
+            public void SetPeerCertificate(Certificate? peerCertificate)
             {
                 ClientCertificate = peerCertificate;
             }

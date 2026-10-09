@@ -3,9 +3,10 @@ name: Images CI
 on:
   push:
     branches: [ master, release/*, docker* ]
-    paths-ignore:
-    - 'docs/**'
-    - 'tests/**'
+    # No paths-ignore here either: every push to master or release/* must
+    # report `images summary`, which the Release ruleset requires before a
+    # release branch can be cut from that commit. The discover job skips the
+    # image builds for documentation- or test-only pushes instead.
   pull_request:
     branches: [ master, main, master378, develop/*, release/* ]
     # NOTE: deliberately no `paths-ignore` filter, and the same branch list as
@@ -21,9 +22,16 @@ on:
   # image security update that changes nothing in this repository.
   workflow_dispatch:
 
+# Pull requests and feature branches cancel a superseded run: only the newest
+# commit's result matters there. A push to a protected line (master, main,
+# master378, release/*) never cancels, and each commit gets its own group,
+# because a queued run in a shared group is replaced as well as a running one
+# being cancelled. Every protected commit therefore finishes its required
+# checks ('build-and-test summary', 'images summary'), which the Release
+# ruleset demands before a release/<major>.<minor> branch can be cut from it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event_name }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || ((github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) && github.sha) || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || !(github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) }}
 
 env:
   REGISTRY: ghcr.io
@@ -51,22 +59,38 @@ jobs:
       env:
         EVENT_NAME: ${{ github.event_name }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        BEFORE_SHA: ${{ github.event.before }}
       run: |
-        # Reproduces the `paths-ignore` allow-list that used to sit on the
-        # pull_request trigger: an image is rebuilt for any change that is not
-        # purely documentation or test code. Filtering the whole workflow out
-        # would stop `images summary` from ever reporting, which would block
-        # every documentation-only pull request once it becomes required.
+        # Reproduces the `paths-ignore` allow-list that used to sit on both
+        # triggers: an image is rebuilt for any change that is not purely
+        # documentation or test code. Filtering the whole workflow out would
+        # stop `images summary` from ever reporting, which would block every
+        # documentation-only pull request, and every documentation-only push
+        # as a release-branch cut point, since the check is required.
         $relevantChanges = $true
+        $range = $null
         if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
             # Triple-dot: diff from the merge base, not from the current base
             # branch head, so a change that landed on the base branch after
             # this one was cut is not misread as an image-relevant change.
-            $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
+            $range = "$($env:BASE_SHA)...HEAD"
+        }
+        elseif ($env:EVENT_NAME -eq 'push' -and $env:BEFORE_SHA -match '^[0-9a-f]{40}$' -and
+            $env:BEFORE_SHA -notmatch '^0+$') {
+            # A new branch has an all-zero 'before', and a force push can name
+            # a commit this clone does not have: build everything in both cases
+            # rather than guess what changed.
+            & git cat-file -e "$($env:BEFORE_SHA)^{commit}" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $range = "$($env:BEFORE_SHA)..HEAD"
+            }
+        }
+        if ($range) {
+            $changed = @(& git diff --name-only $range)
             if ($LASTEXITCODE -ne 0) {
                 throw (
-                    "Could not diff pull-request base '$($env:BASE_SHA)' against HEAD " +
-                    "(git exit code $LASTEXITCODE). Refusing to skip required image builds.")
+                    "Could not diff '$range' (git exit code $LASTEXITCODE). " +
+                    'Refusing to skip required image builds.')
             }
             $relevantChanges = $false
             foreach ($file in $changed) {
@@ -102,9 +126,112 @@ jobs:
         "images=$(ConvertTo-Json -InputObject $selection.images -Depth 8 -Compress)" >> $env:GITHUB_OUTPUT
         "groups=$(ConvertTo-Json -InputObject $selection.groups -Depth 8 -Compress)" >> $env:GITHUB_OUTPUT
 
-  build-and-push-image:
+  publish-samples:
+    # Publish each catalog project once, natively. Portable IL without a RID
+    # or app host serves both runtime platforms.
+    name: Publish sample applications
     needs: select-images
     if: ${{ needs.select-images.result == 'success' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      artifact-id: ${{ steps.upload.outputs.artifact-id }}
+      run-attempt: ${{ steps.publish.outputs.run-attempt }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Set up .NET 10
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.401'
+
+    - name: Set Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Publish samples
+      id: publish
+      shell: pwsh
+      env:
+        IMAGES: ${{ needs.select-images.outputs.images }}
+        SOURCE_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+      run: |
+        Set-StrictMode -Version Latest
+        $ErrorActionPreference = 'Stop'
+        $version = $env:NBGV_NuGetPackageVersion.Split('+')[0]
+        if ($version -cnotmatch '^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$') {
+            throw 'Version does not yield a usable Docker tag.'
+        }
+        # Match the Dockerfile source builds, including numeric file versions.
+        $options = @(
+            '-c', 'Release',
+            '-f', 'net10.0',
+            '-p:PublishAot=false',
+            '-p:UseAppHost=false',
+            '-p:SelfContained=false',
+            '-p:CustomTestTarget=net10.0',
+            '-p:Dockerbuild=true',
+            "-p:Version=$version",
+            "-p:AssemblyVersion=$env:NBGV_SimpleVersion",
+            "-p:FileVersion=$env:NBGV_SimpleVersion",
+            "-p:InformationalVersion=$env:NBGV_AssemblyInformationalVersion",
+            "-p:SourceRevisionId=$env:GITHUB_SHA",
+            "-p:RepositoryUrl=$env:SOURCE_REPOSITORY_URL")
+        $published = @()
+        foreach ($entry in @((ConvertFrom-Json $env:IMAGES).include)) {
+            Write-Host "::group::$($entry.image) ($($entry.project))"
+            $directory = "artifacts/docker/publish/$($entry.image)"
+            & dotnet publish $entry.project @options -o $directory
+            $exitCode = $LASTEXITCODE
+            Write-Host '::endgroup::'
+            if ($exitCode -ne 0) {
+                throw "Publishing $($entry.project) failed (exit code $exitCode)."
+            }
+            $dockerfile = Get-Content -LiteralPath $entry.dockerfile -Raw
+            $entrypoint = [regex]::Match($dockerfile,
+                '(?m)^ENTRYPOINT \["dotnet",\s*"(?<assembly>[^"/\\]+\.dll)"\]\r?$')
+            $assemblyPath = Join-Path $directory $entrypoint.Groups['assembly'].Value
+            if (-not $entrypoint.Success -or -not (Test-Path -LiteralPath $assemblyPath -PathType Leaf)) {
+                throw "Publishing $($entry.project) did not produce its Docker entry assembly."
+            }
+            $base = (Resolve-Path -LiteralPath $directory).Path
+            $files = @(Get-ChildItem -LiteralPath $base -File -Recurse | Sort-Object FullName |
+                ForEach-Object {
+                    @{
+                        path = [IO.Path]::GetRelativePath($base, $_.FullName).Replace('\', '/')
+                        sha256 = (Get-FileHash -LiteralPath $_.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+                    }
+                })
+            $published += @{
+                image = $entry.image; project = $entry.project; dockerfile = $entry.dockerfile; files = $files
+            }
+        }
+        @{
+            schemaVersion = 1; repository = $env:GITHUB_REPOSITORY
+            sourceRepository = $env:SOURCE_REPOSITORY_URL; sourceRevision = $env:GITHUB_SHA
+            runId = $env:GITHUB_RUN_ID; runAttempt = $env:GITHUB_RUN_ATTEMPT
+            version = $version; assemblyVersion = $env:NBGV_SimpleVersion; fileVersion = $env:NBGV_SimpleVersion
+            informationalVersion = $env:NBGV_AssemblyInformationalVersion; images = $published
+        } | ConvertTo-Json -Depth 8 |
+            Set-Content -LiteralPath artifacts/docker/publish/publish-manifest.json
+        "run-attempt=$env:GITHUB_RUN_ATTEMPT" >> $env:GITHUB_OUTPUT
+
+    - name: Upload published samples
+      id: upload
+      uses: actions/upload-artifact@v7
+      with:
+        name: docker-publish
+        path: artifacts/docker/publish
+        if-no-files-found: error
+        retention-days: 1
+
+  build-and-push-image:
+    name: build-and-push-image (${{ matrix.image }})
+    needs: [select-images, publish-samples]
+    if: ${{ needs.select-images.result == 'success' && needs.publish-samples.result == 'success' }}
     runs-on: ubuntu-latest
     concurrency:
       group: container-image-${{ github.repository }}-${{ matrix.image }}-${{ github.ref }}
@@ -264,18 +391,68 @@ jobs:
       with:
         images: ${{ env.IMAGE_REPOSITORY }}
 
-    - name: Set up QEMU
-      if: contains(matrix.platforms, 'arm64')
-      uses: docker/setup-qemu-action@v4
+    - name: Download published samples
+      uses: actions/download-artifact@v8
+      with:
+        artifact-ids: ${{ needs.publish-samples.outputs.artifact-id }}
+        path: artifacts/docker/publish
+        merge-multiple: true
+
+    - name: Validate published sample identity
+      shell: pwsh
+      env:
+        IMAGE_PROJECT: ${{ matrix.project }}
+        IMAGE_DOCKERFILE: ${{ matrix.dockerfile }}
+        SOURCE_REPOSITORY_URL: ${{ github.server_url }}/${{ github.repository }}
+        PUBLISH_RUN_ATTEMPT: ${{ needs.publish-samples.outputs.run-attempt }}
+      run: |
+        Set-StrictMode -Version Latest
+        $ErrorActionPreference = 'Stop'
+        $manifest = Get-Content -LiteralPath artifacts/docker/publish/publish-manifest.json -Raw | ConvertFrom-Json
+        $expected = @{
+            schemaVersion = 1; repository = $env:GITHUB_REPOSITORY
+            sourceRepository = $env:SOURCE_REPOSITORY_URL; sourceRevision = $env:GITHUB_SHA
+            runId = $env:GITHUB_RUN_ID; runAttempt = $env:PUBLISH_RUN_ATTEMPT
+            version = $env:IMAGE_VERSION; assemblyVersion = $env:NBGV_SimpleVersion
+            fileVersion = $env:NBGV_SimpleVersion; informationalVersion = $env:NBGV_AssemblyInformationalVersion
+        }
+        foreach ($field in $expected.GetEnumerator()) {
+            if ($manifest.($field.Key) -cne $field.Value) {
+                throw "Native publish identity mismatch: $($field.Key)."
+            }
+        }
+        $entries = @($manifest.images | Where-Object image -CEQ $env:IMAGE_NAME)
+        if ($entries.Count -ne 1 -or $entries[0].project -cne $env:IMAGE_PROJECT -or
+            $entries[0].dockerfile -cne $env:IMAGE_DOCKERFILE) {
+            throw 'Native publish image does not match the selected catalog entry.'
+        }
+        $base = (Resolve-Path -LiteralPath "artifacts/docker/publish/$env:IMAGE_NAME").Path
+        $files = @(Get-ChildItem -LiteralPath $base -File -Recurse)
+        if ($files.Count -eq 0 -or $files.Count -ne @($entries[0].files).Count) {
+            throw 'Native publish payload membership changed.'
+        }
+        foreach ($file in $files) {
+            $path = [IO.Path]::GetRelativePath($base, $file.FullName).Replace('\', '/')
+            $records = @($entries[0].files | Where-Object path -CEQ $path)
+            $hash = (Get-FileHash -LiteralPath $file.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+            if ($records.Count -ne 1 -or $records[0].sha256 -cne $hash) {
+                throw "Native publish payload mismatch: $path."
+            }
+        }
 
     # Build and push Docker image with Buildx (don't push on PR)
     # https://github.com/docker/build-push-action
+    # The "prebuilt" stage only copies the output of publish-samples into the
+    # runtime base image, so no instruction runs for a foreign platform and
+    # QEMU is not needed for the arm64 image.
     - name: Build and push Docker image
       id: build-and-push
       uses: docker/build-push-action@v7
       with:
         context: .
         build-args: |
+          PUBLISH_SOURCE=prebuilt
+          PUBLISH_DIR=artifacts/docker/publish/${{ matrix.image }}
           Version=${{ env.IMAGE_VERSION }}
           SimpleVersion=${{ env.NBGV_SimpleVersion }}
           FileVersion=${{ env.NBGV_SimpleVersion }}
@@ -449,6 +626,7 @@ jobs:
     needs:
     - discover
     - select-images
+    - publish-samples
     - build-and-push-image
     steps:
     - name: Evaluate job results
@@ -457,10 +635,15 @@ jobs:
         RELEVANT_CHANGES: ${{ needs.discover.outputs.relevant_changes }}
         DISCOVER_RESULT: ${{ needs.discover.result }}
         SELECTION_RESULT: ${{ needs.select-images.result }}
+        PUBLISH_RESULT: ${{ needs.publish-samples.result }}
         IMAGES_RESULT: ${{ needs.build-and-push-image.result }}
       run: |
+        if ($env:RELEVANT_CHANGES -notin @('true', 'false')) {
+          Write-Host '::error::Image path relevance did not report a valid result.'
+          exit 1
+        }
         if ($env:RELEVANT_CHANGES -eq 'true') {
-          Write-Host 'This change is image-relevant; every sample image was built.'
+          Write-Host 'This change is image-relevant; native publication and every image build are required.'
         }
         else {
           Write-Host 'Only documentation or test code changed; the image matrix is expected to be skipped.'
@@ -469,6 +652,7 @@ jobs:
         $results = [ordered]@{
           'discover'             = $env:DISCOVER_RESULT
           'select-images'        = $env:SELECTION_RESULT
+          'publish-samples'      = $env:PUBLISH_RESULT
           'build-and-push-image' = $env:IMAGES_RESULT
         }
 

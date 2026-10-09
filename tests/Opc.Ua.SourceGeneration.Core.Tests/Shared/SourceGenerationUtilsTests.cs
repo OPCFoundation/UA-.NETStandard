@@ -29,6 +29,8 @@
 
 using System.Collections.Generic;
 using System.Xml;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration.Shared.Tests
@@ -76,9 +78,9 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         [TestCase("class", "@class")]
         [TestCase("", "Value")]
         [TestCase(null, "Value")]
-        public void ToCSharpIdentifierPreserveCaseKeepsCasing(string input, string expected)
+        public void ToCSharpIdentifierPreserveCaseKeepsCasing(string? input, string expected)
         {
-            Assert.That(input.ToCSharpIdentifierPreserveCase(), Is.EqualTo(expected));
+            Assert.That(input!.ToCSharpIdentifierPreserveCase(), Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -91,9 +93,9 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         [TestCase("plain", "plain")]
         [TestCase("", "")]
         [TestCase(null, "")]
-        public void AsXmlTextEscapesMarkupCharacters(string input, string expected)
+        public void AsXmlTextEscapesMarkupCharacters(string? input, string expected)
         {
-            Assert.That(input.AsXmlText(), Is.EqualTo(expected));
+            Assert.That(input!.AsXmlText(), Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -121,9 +123,9 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         [TestCase("a<b", false)]
         [TestCase("", false)]
         [TestCase(null, false)]
-        public void IsValidXmlNameAcceptsOnlyNCNames(string input, bool expected)
+        public void IsValidXmlNameAcceptsOnlyNCNames(string? input, bool expected)
         {
-            Assert.That(input.IsValidXmlName(), Is.EqualTo(expected));
+            Assert.That(input!.IsValidXmlName(), Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -152,6 +154,32 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
                 Is.EqualTo("\"Next\\u0085Line\\u2028Paragraph\\u2029End\""));
         }
 
+        /// <summary>
+        /// Regression: Escape() only escaped backslash and quote, so a
+        /// [DataTypeField(Name = ...)] or namespace string containing a line
+        /// terminator produced an unterminated literal (CS1010). Escape() and
+        /// AsStringLiteral() must round-trip any value through a C# literal.
+        /// </summary>
+        [TestCase("a\nb")]
+        [TestCase("a\r\nb")]
+        [TestCase("Next\u0085Line\u2028Paragraph\u2029End")]
+        [TestCase("tab\there \"quoted\" back\\slash \u0001 \u007f")]
+        public void EscapeAndAsStringLiteralRoundTripThroughACSharpLiteral(string value)
+        {
+            Assert.Multiple(() =>
+            {
+                AssertParsesAsLiteralOf("\"" + value.Escape() + "\"", value);
+                AssertParsesAsLiteralOf(value.AsStringLiteral(), value);
+            });
+        }
+
+        private static void AssertParsesAsLiteralOf(string code, string expected)
+        {
+            ExpressionSyntax expression = SyntaxFactory.ParseExpression(code);
+            Assert.That(expression.GetDiagnostics(), Is.Empty, code);
+            Assert.That(expression, Is.InstanceOf<LiteralExpressionSyntax>(), code);
+            Assert.That(((LiteralExpressionSyntax)expression).Token.ValueText, Is.EqualTo(expected), code);
+        }
         /// <summary>
         /// Tests that IsNull returns the expected result for various XmlQualifiedName inputs.
         /// </summary>
@@ -186,10 +214,10 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         public void ToLowerCamelCase_NullInput_ReturnsNull()
         {
             // Arrange
-            const string input = null;
+            const string? input = null;
 
             // Act
-            string result = input.ToLowerCamelCase();
+            string result = input!.ToLowerCamelCase();
 
             // Assert
             Assert.That(result, Is.Null);

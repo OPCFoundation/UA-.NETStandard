@@ -182,13 +182,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that direct and live percentage aggregates honor the explicit uncertain-value configuration.
+        /// Verifies that direct and live percentage aggregates count an Uncertain region as neither Good
+        /// nor Bad, whatever TreatUncertainAsBad is (Part 13 §5.4.3.33/34, Mantis 11425 ~0025847).
         /// </summary>
-        [TestCase("PercentGood", false, 50.0)]
+        [TestCase("PercentGood", false, 25.0)]
         [TestCase("PercentBad", false, 50.0)]
         [TestCase("PercentGood", true, 25.0)]
-        [TestCase("PercentBad", true, 75.0)]
-        public async Task DirectAndLivePercentAggregatesHonorExplicitUncertainConfigurationAsync(
+        [TestCase("PercentBad", true, 50.0)]
+        public async Task DirectAndLivePercentAggregatesCountUncertainForNeitherAsync(
             string aggregateName,
             bool treatUncertainAsBad,
             double expected)
@@ -224,6 +225,59 @@ namespace Opc.Ua.Server.Tests
 
             AssertSingleNumericResult(direct, expected, s_baseTime, AggregateBits.Calculated);
             AssertSingleNumericResult(live, expected, s_baseTime, AggregateBits.Calculated);
+        }
+
+        /// <summary>
+        /// Verifies that the value-based status counts Uncertain values as Good when
+        /// TreatUncertainAsBad is false and as Bad otherwise (Part 13 §4.2.1.2, §5.4.3.2.1).
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task DirectAndLiveCountValueBasedStatusHonorsTreatUncertainAsBadAsync(
+            bool treatUncertainAsBad)
+        {
+            // Two Good values and one Uncertain value: without TreatUncertainAsBad the
+            // Uncertain value is equivalent to Good, so it is counted and the interval is
+            // 100% Good; otherwise it is excluded, 67% Good and 33% Bad meets neither threshold.
+            StatusCode expectedCodeBits = treatUncertainAsBad
+                ? StatusCodes.UncertainDataSubNormal
+                : StatusCodes.Good;
+            int expectedCount = treatUncertainAsBad ? 2 : 3;
+            List<DataValue> rawValues =
+            [
+                CreateValue(1, StatusCodes.Good, 0),
+                CreateValue(2, StatusCodes.UncertainSubstituteValue, 5),
+                CreateValue(3, StatusCodes.Good, 10),
+                CreateValue(4, StatusCodes.Good, 20)
+            ];
+            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad);
+            DateTimeUtc endTime = AtSeconds(15);
+
+            List<DataValue> direct = RunDirect(
+                ObjectIds.AggregateFunction_Count,
+                rawValues,
+                s_baseTime,
+                endTime,
+                15_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                ObjectIds.AggregateFunction_Count,
+                rawValues,
+                s_baseTime,
+                endTime,
+                15_000,
+                configuration).ConfigureAwait(false);
+
+            foreach (List<DataValue> results in new[] { direct, live })
+            {
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(results[0].WrappedValue.TryGetValue(out int count), Is.True);
+                Assert.That(count, Is.EqualTo(expectedCount));
+                Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(expectedCodeBits));
+                Assert.That(results[0].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+            }
         }
 
         /// <summary>
@@ -312,6 +366,69 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that the status of the duration-in-state aggregates takes the region ending at an
+        /// Uncertain simple end bound into account when sloped interpolation is used
+        /// (Part 13 §5.4.3.2.2), while the duration itself still includes that region because it
+        /// starts at a Good raw value (Part 13 §5.4.3.22-.23).
+        /// </summary>
+        [TestCase("DurationInStateZero", true, 15_000.0)]
+        [TestCase("DurationInStateNonZero", true, 5_000.0)]
+        [TestCase("DurationInStateZero", false, 15_000.0)]
+        [TestCase("DurationInStateNonZero", false, 5_000.0)]
+        public async Task DirectAndLiveDurationInStateUncertainEndBoundMakesLastRegionUncertainAsync(
+            string aggregateName,
+            bool treatUncertainAsBad,
+            double expected)
+        {
+            // Interval [5 s, 25 s): the raw data in the interval is Good, but the simple end bound
+            // at 25 s is Uncertain_DataSubNormal because the raw value after it (30 s) is Bad.
+            // The region 20-25 s therefore ends in an Uncertain value. With TreatUncertainAsBad it
+            // counts as Bad (25%, neither threshold is met); otherwise it counts as Good.
+            List<DataValue> rawValues =
+            [
+                CreateValue(0, StatusCodes.Good, 0),
+                CreateValue(0, StatusCodes.Good, 10),
+                CreateValue(1, StatusCodes.Good, 20),
+                CreateValue(1, StatusCodes.BadDataUnavailable, 30),
+                CreateValue(1, StatusCodes.Good, 40)
+            ];
+            NodeId aggregateId = GetAggregateId(aggregateName);
+            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad);
+            DateTimeUtc startTime = AtSeconds(5);
+            DateTimeUtc endTime = AtSeconds(25);
+            StatusCode expectedCodeBits = treatUncertainAsBad
+                ? StatusCodes.UncertainDataSubNormal
+                : StatusCodes.Good;
+
+            List<DataValue> direct = RunDirect(
+                aggregateId,
+                rawValues,
+                startTime,
+                endTime,
+                20_000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                aggregateId,
+                rawValues,
+                startTime,
+                endTime,
+                20_000,
+                configuration).ConfigureAwait(false);
+
+            foreach (List<DataValue> results in new[] { direct, live })
+            {
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(
+                    results[0].WrappedValue.ConvertToDouble().GetDouble(),
+                    Is.EqualTo(expected).Within(0.000_001));
+                Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(expectedCodeBits));
+                Assert.That(results[0].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
+            }
+        }
+
+        /// <summary>
         /// Verifies that direct and live transition counts follow Part 13 boundary rules.
         /// </summary>
         [TestCase(false)]
@@ -351,10 +468,16 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that direct and live transition counts include uncertain values.
+        /// Verifies that direct and live transition counts include uncertain values whatever
+        /// TreatUncertainAsBad is: only Bad values are not counted (Part 13 §5.4.3.24 speaks of non-Bad
+        /// values; the aggregate definition wins over TreatUncertainAsBad, Mantis 11425 ~0025847,
+        /// 11426 ~0025852).
         /// </summary>
-        [Test]
-        public async Task DirectAndLiveNumberOfTransitionsCountUncertainValuesAsync()
+        [TestCase(false, 22)]
+        [TestCase(true, 22)]
+        public async Task DirectAndLiveNumberOfTransitionsCountUncertainValuesAsync(
+            bool treatUncertainAsBad,
+            int expectedTransitions)
         {
             var rawValues = new List<DataValue>(25);
             for (int index = 0; index <= 24; index++)
@@ -368,7 +491,7 @@ namespace Opc.Ua.Server.Tests
                 rawValues.Add(CreateValue(index, status, index));
             }
             DateTimeUtc endTime = AtSeconds(24);
-            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad: true);
+            AggregateConfiguration configuration = CreateConfiguration(treatUncertainAsBad);
 
             List<DataValue> direct = RunDirect(
                 ObjectIds.AggregateFunction_NumberOfTransitions,
@@ -387,8 +510,8 @@ namespace Opc.Ua.Server.Tests
                 24_000,
                 configuration).ConfigureAwait(false);
 
-            AssertNumberOfTransitionsWithMixedQuality(direct);
-            AssertNumberOfTransitionsWithMixedQuality(live);
+            AssertNumberOfTransitionsWithMixedQuality(direct, expectedTransitions);
+            AssertNumberOfTransitionsWithMixedQuality(live, expectedTransitions);
         }
 
         /// <summary>
@@ -411,6 +534,159 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
+
+        /// <summary>
+        /// Verifies that an interval starting on a Bad raw value uses the Good value before it for
+        /// the interpolated start bound (Part 13 §3.1.8). The live read must pass the calculator
+        /// the raw values up to that Good value, not only the raw value at the start time.
+        /// </summary>
+        [TestCase("TimeAverage", 6.0, 10.0)]
+        [TestCase("Total", 24.0, 40.0)]
+        public async Task DirectAndLiveIntervalStartingOnBadValueUsesEarlierGoodBoundAsync(
+            string aggregateName,
+            double expectedFirst,
+            double expectedSecond)
+        {
+            NodeId aggregateId = aggregateName == "Total"
+                ? ObjectIds.AggregateFunction_Total
+                : ObjectIds.AggregateFunction_TimeAverage;
+            var rawValues = new List<DataValue>(14);
+            for (int index = 0; index <= 13; index++)
+            {
+                StatusCode status = index is >= 4 and <= 7
+                    ? StatusCodes.BadDataUnavailable
+                    : StatusCodes.Good;
+                rawValues.Add(CreateValue(index, status, index));
+            }
+            AggregateConfiguration configuration = CreateConfiguration(true);
+
+            List<DataValue> direct = RunDirect(
+                aggregateId,
+                rawValues,
+                AtSeconds(4),
+                AtSeconds(12),
+                4000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                aggregateId,
+                rawValues,
+                AtSeconds(4),
+                AtSeconds(12),
+                4000,
+                configuration).ConfigureAwait(false);
+
+            foreach (List<DataValue> results in new[] { direct, live })
+            {
+                Assert.That(results, Has.Count.EqualTo(2));
+                Assert.That(results[0].WrappedValue.TryGetValue(out double first), Is.True);
+                Assert.That(first, Is.EqualTo(expectedFirst).Within(1e-9));
+                Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+                Assert.That(results[1].WrappedValue.TryGetValue(out double second), Is.True);
+                Assert.That(second, Is.EqualTo(expectedSecond).Within(1e-9));
+                Assert.That(StatusCode.IsGood(results[1].StatusCode), Is.True);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a stored BadNoData raw value at the interval start does not stop the live
+        /// read from passing the Good value before it, so the interpolated start bound exists.
+        /// </summary>
+        [Test]
+        public async Task DirectAndLiveIntervalStartingOnStoredBadNoDataUsesEarlierGoodBoundAsync()
+        {
+            var rawValues = new List<DataValue>(13);
+            for (int index = 0; index <= 12; index++)
+            {
+                rawValues.Add(CreateValue(
+                    index,
+                    index == 4 ? StatusCodes.BadNoData : StatusCodes.Good,
+                    index));
+            }
+            AggregateConfiguration configuration = CreateConfiguration(true);
+
+            List<DataValue> direct = RunDirect(
+                ObjectIds.AggregateFunction_TimeAverage,
+                rawValues,
+                AtSeconds(4),
+                AtSeconds(8),
+                4000,
+                configuration);
+
+            using var harness = new AggregateHarness();
+            List<DataValue> live = await harness.ReadProcessedAsync(
+                ObjectIds.AggregateFunction_TimeAverage,
+                rawValues,
+                AtSeconds(4),
+                AtSeconds(8),
+                4000,
+                configuration).ConfigureAwait(false);
+
+            foreach (List<DataValue> results in new[] { direct, live })
+            {
+                Assert.That(results, Has.Count.EqualTo(1));
+                Assert.That(results[0].WrappedValue.TryGetValue(out double average), Is.True);
+                Assert.That(average, Is.EqualTo(6.0).Within(1e-9));
+                Assert.That(StatusCode.IsBad(results[0].StatusCode), Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that Interpolative returns an Uncertain raw value at the interval start whatever
+        /// TreatUncertainAsBad is: a non-Bad raw value at the timestamp is the bounding value
+        /// (Part 13 §3.1.8) and TreatUncertainAsBad does not apply to bounds (Mantis 11462).
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void InterpolativeReturnsUncertainRawValueAtStart(bool treatUncertainAsBad)
+        {
+            List<DataValue> rawValues =
+            [
+                CreateValue(0, StatusCodes.Good, 0),
+                CreateValue(1, StatusCodes.Good, 10),
+                CreateValue(5, StatusCodes.UncertainSubstituteValue, 20),
+                CreateValue(3, StatusCodes.Good, 30)
+            ];
+
+            List<DataValue> results = RunDirect(
+                ObjectIds.AggregateFunction_Interpolative,
+                rawValues,
+                AtSeconds(20),
+                AtSeconds(30),
+                10_000,
+                CreateConfiguration(treatUncertainAsBad));
+
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].WrappedValue.TryGetValue(out double value), Is.True);
+            Assert.That(value, Is.EqualTo(5.0), $"TreatUncertainAsBad = {treatUncertainAsBad}");
+            Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainSubstituteValue));
+        }
+
+        /// <summary>
+        /// Verifies that a Bad NumberOfTransitions result carries no aggregate bits, like Count.
+        /// </summary>
+        [Test]
+        public void NumberOfTransitionsBadResultHasNoAggregateBits()
+        {
+            var rawValues = new List<DataValue>(11);
+            for (int index = 0; index < 10; index++)
+            {
+                rawValues.Add(CreateValue(index, StatusCodes.BadDataUnavailable, index));
+            }
+            rawValues.Add(CreateValue(10, StatusCodes.Good, 10));
+
+            List<DataValue> results = RunDirect(
+                ObjectIds.AggregateFunction_NumberOfTransitions,
+                rawValues,
+                s_baseTime,
+                AtSeconds(10),
+                10_000,
+                CreateConfiguration(true));
+
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.Bad));
         }
 
         /// <summary>
@@ -524,14 +800,14 @@ namespace Opc.Ua.Server.Tests
         /// value at or before the interval start rather than of the simple bound
         /// (Part 13 §5.4.3.31-.32).
         /// </summary>
-        [TestCase("DurationBad", true, 15_000.0)]
+        [TestCase("DurationBad", true, 10_000.0)]
         [TestCase("DurationGood", true, 15_000.0)]
         [TestCase("DurationBad", false, 10_000.0)]
-        [TestCase("DurationGood", false, 20_000.0)]
-        [TestCase("PercentBad", true, 50.0)]
+        [TestCase("DurationGood", false, 15_000.0)]
+        [TestCase("PercentBad", true, 100.0 / 3.0)]
         [TestCase("PercentGood", true, 50.0)]
         [TestCase("PercentBad", false, 100.0 / 3.0)]
-        [TestCase("PercentGood", false, 200.0 / 3.0)]
+        [TestCase("PercentGood", false, 50.0)]
         public async Task DirectAndLiveDurationFirstRegionUsesRawStatusBeforeIntervalAsync(
             string aggregateName,
             bool treatUncertainAsBad,
@@ -539,7 +815,7 @@ namespace Opc.Ua.Server.Tests
         {
             // Interval [5 s, 35 s): the simple start bound is Uncertain because Bad data follows
             // the Good value at 0 s, but the first region (5-10 s) is Good. 10-20 s is Bad,
-            // 20-30 s Good, and 30-35 s Uncertain (Bad only with TreatUncertainAsBad).
+            // 20-30 s Good, and 30-35 s Uncertain (neither Good nor Bad, Mantis 11425 ~0025847).
             List<DataValue> rawValues =
             [
                 CreateValue(0, StatusCodes.Good, 0),
@@ -816,12 +1092,14 @@ namespace Opc.Ua.Server.Tests
                 Is.EqualTo(AggregateBits.Calculated | AggregateBits.MultipleValues));
         }
 
-        private static void AssertNumberOfTransitionsWithMixedQuality(List<DataValue> results)
+        private static void AssertNumberOfTransitionsWithMixedQuality(
+            List<DataValue> results,
+            int expectedTransitions)
         {
             Assert.That(results, Has.Count.EqualTo(1));
             DataValue result = results[0];
             Assert.That(result.WrappedValue.TryGetValue(out int transitions), Is.True);
-            Assert.That(transitions, Is.EqualTo(22));
+            Assert.That(transitions, Is.EqualTo(expectedTransitions));
             Assert.That(result.SourceTimestamp, Is.EqualTo(s_baseTime));
             Assert.That(result.StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
             Assert.That(result.StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Calculated));
@@ -989,7 +1267,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(ServiceResult.IsGood(error), Is.True, error.ToString());
                 Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(result.HistoryData.TryGetValue(out HistoryData historyData), Is.True);
+                Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
                 return [.. historyData!.DataValues];
             }
 
@@ -1005,7 +1283,7 @@ namespace Opc.Ua.Server.Tests
                 QualifiedName aggregateName = Aggregators.GetNameForStandardAggregate(aggregateId);
                 await AggregateManager.RegisterFactoryAsync(
                     aggregateId,
-                    aggregateName.Name,
+                    aggregateName.Name!,
                     Aggregators.CreateStandardCalculator,
                     CancellationToken.None).ConfigureAwait(false);
 

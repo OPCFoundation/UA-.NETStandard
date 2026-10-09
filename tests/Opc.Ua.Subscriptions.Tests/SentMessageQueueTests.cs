@@ -36,8 +36,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server;
 
-#nullable enable
-
 namespace Opc.Ua.Subscriptions.Tests
 {
     /// <summary>
@@ -181,15 +179,41 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public void FillAvailableSequenceNumbersReturnsUpToCursor()
+        public void FillAvailableSequenceNumbersReturnsOnlySentMessages()
         {
+            // 8 and 9 are still queued for a Publish response and not yet retransmittable.
             SentMessageQueue queue = NewRestoredQueue(
                 Messages(7, 8, 9), nextSequenceNumber: 10, lastSentMessage: 1);
             var available = new List<uint>();
 
             queue.FillAvailableSequenceNumbers(available);
 
-            Assert.That(available, Is.EqualTo(new List<uint> { 7, 8 }));
+            Assert.That(available, Is.EqualTo(new List<uint> { 7 }));
+            Assert.That(queue.KeepAliveSequenceNumber, Is.EqualTo(8u));
+        }
+
+        [Test]
+        public void KeepAliveSequenceNumberIsTheNextNumberWhenEverythingWasSent()
+        {
+            SentMessageQueue queue = NewRestoredQueue(
+                Messages(7, 8, 9), nextSequenceNumber: 10, lastSentMessage: 3);
+            var available = new List<uint>();
+
+            queue.FillAvailableSequenceNumbers(available);
+
+            Assert.That(available, Is.EqualTo(new List<uint> { 7, 8, 9 }));
+            Assert.That(queue.KeepAliveSequenceNumber, Is.EqualTo(10u));
+        }
+
+        [Test]
+        public void FindForRepublishDoesNotReturnUnsentMessages()
+        {
+            SentMessageQueue queue = NewRestoredQueue(
+                Messages(7, 8, 9), nextSequenceNumber: 10, lastSentMessage: 1);
+
+            Assert.That(queue.FindForRepublish(7), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(8), Is.Null);
+            Assert.That(queue.FindForRepublish(9), Is.Null);
         }
 
         [Test]
@@ -233,14 +257,33 @@ namespace Opc.Ua.Subscriptions.Tests
             NotificationMessage returned = queue.Enqueue(
                 Messages(1, 2, 3, 4, 5), available, out bool moreNotifications, out uint newlyUnacknowledged);
 
-            // The two oldest messages are dropped to respect the capacity of three.
+            // The two oldest messages are dropped to respect the capacity of three,
+            // and they count as discarded before acknowledgement.
             Assert.That(queue.SentCount, Is.EqualTo(3));
             Assert.That(returned.SequenceNumber, Is.EqualTo(3u));
             Assert.That(moreNotifications, Is.True);
-            Assert.That(newlyUnacknowledged, Is.Zero);
+            Assert.That(newlyUnacknowledged, Is.EqualTo(2u));
             Assert.That(queue.FindForRepublish(1), Is.Null);
             Assert.That(queue.FindForRepublish(2), Is.Null);
             Assert.That(queue.FindForRepublish(3), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Verifies that unsent overflow drops and retransmission evictions are both reported as discarded.
+        /// </summary>
+        [Test]
+        public void EnqueueReportsOverflowAndEvictionAsDiscarded()
+        {
+            SentMessageQueue queue = NewQueue(maxMessageCount: 2);
+            queue.Enqueue(Messages(1, 2), [], out _, out _);
+
+            queue.Enqueue(Messages(3, 4, 5, 6, 7), [], out _, out uint discarded);
+
+            // 3 unsent messages dropped (3, 4, 5) plus 2 retained ones evicted (1, 2).
+            Assert.That(discarded, Is.EqualTo(5u));
+            Assert.That(queue.SentCount, Is.EqualTo(2));
+            Assert.That(queue.FindForRepublish(6), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(7), Is.Null, "7 is still queued for a Publish response.");
         }
 
         [Test]
@@ -260,7 +303,7 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(queue.FindForRepublish(1), Is.Null);
             Assert.That(queue.FindForRepublish(2), Is.Null);
             Assert.That(queue.FindForRepublish(3), Is.Not.Null);
-            Assert.That(queue.FindForRepublish(4), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(4), Is.Null, "4 is still queued for a Publish response.");
         }
 
         /// <summary>
@@ -283,7 +326,8 @@ namespace Opc.Ua.Subscriptions.Tests
             Assert.That(queue.FindForRepublish(1), Is.Null);
             Assert.That(queue.FindForRepublish(2), Is.Not.Null);
             Assert.That(queue.FindForRepublish(3), Is.Not.Null);
-            Assert.That(queue.FindForRepublish(6), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(5), Is.Not.Null);
+            Assert.That(queue.FindForRepublish(6), Is.Null, "6 is still queued for a Publish response.");
         }
 
         [Test]
@@ -292,11 +336,12 @@ namespace Opc.Ua.Subscriptions.Tests
             SentMessageQueue queue = NewQueue(maxMessageCount: 10);
             queue.Enqueue(Messages(1, 2, 3), [], out _, out _);
 
-            bool acknowledged = queue.TryAcknowledge(2);
+            // Enqueue returns message 1; only a sent message can be acknowledged.
+            bool acknowledged = queue.TryAcknowledge(1);
 
             Assert.That(acknowledged, Is.True);
             Assert.That(queue.SentCount, Is.EqualTo(2));
-            Assert.That(queue.FindForRepublish(2), Is.Null);
+            Assert.That(queue.FindForRepublish(1), Is.Null);
         }
 
         [Test]
@@ -313,16 +358,17 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public void TryAcknowledgeKeepsCursorWhenAtOrAfterIt()
+        public void TryAcknowledgeRejectsUnsentMessageAndKeepsCursor()
         {
             SentMessageQueue queue = NewRestoredQueue(
                 Messages(1, 2, 3), nextSequenceNumber: 4, lastSentMessage: 1);
 
+            // 3 is still queued for Publish: unknown to the client, so it is kept.
             bool acknowledged = queue.TryAcknowledge(3);
 
-            Assert.That(acknowledged, Is.True);
+            Assert.That(acknowledged, Is.False);
             Assert.That(queue.LastSentMessage, Is.EqualTo(1));
-            Assert.That(queue.SentCount, Is.EqualTo(2));
+            Assert.That(queue.SentCount, Is.EqualTo(3));
         }
 
         [Test]
@@ -359,17 +405,18 @@ namespace Opc.Ua.Subscriptions.Tests
         }
 
         [Test]
-        public void AvailableSequenceNumbersForRetransmissionReturnsAll()
+        public void AvailableSequenceNumbersForRetransmissionReturnsAllSentMessages()
         {
             SentMessageQueue queue = NewRestoredQueue(
-                Messages(4, 5, 6), nextSequenceNumber: 7, lastSentMessage: 1);
+                Messages(4, 5, 6), nextSequenceNumber: 7, lastSentMessage: 2);
 
             ArrayOf<uint> result = queue.AvailableSequenceNumbersForRetransmission();
 
-            Assert.That(result.Count, Is.EqualTo(3));
+            // 6 is still queued for a Publish response; offering it for republish
+            // would deliver the sequence number twice.
+            Assert.That(result.Count, Is.EqualTo(2));
             Assert.That(result[0], Is.EqualTo(4u));
             Assert.That(result[1], Is.EqualTo(5u));
-            Assert.That(result[2], Is.EqualTo(6u));
         }
 
         [Test]

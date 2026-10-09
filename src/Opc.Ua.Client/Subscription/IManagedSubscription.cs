@@ -47,6 +47,12 @@ namespace Opc.Ua.Client.Subscriptions
         bool IsCreationInProgress { get; }
 
         /// <summary>
+        /// Gets whether intentional deletion retired this subscription's publish demand.
+        /// Recovery resets do not retire demand.
+        /// </summary>
+        bool IsIntentionallyDeleted { get; }
+
+        /// <summary>
         /// Completes a successful server transfer by synchronizing monitored-item handles and recovering notifications.
         /// </summary>
         /// <param name="availableSequenceNumbers">

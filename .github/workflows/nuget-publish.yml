@@ -1,6 +1,8 @@
 name: NuGet Publish
 
-# Builds the complete signed NuGet package set on every branch. Release
+# Builds the complete signed NuGet package set on every branch (a feature branch
+# that only changes documentation is skipped, and a superseded feature-branch
+# run is cancelled; see `concurrency` and `changes`). Release
 # configuration supplies all normal package IDs; Debug configuration supplies
 # only package IDs ending in .Debug.
 #
@@ -25,13 +27,63 @@ on:
 permissions:
   contents: read
 
+# A newer push to a feature branch supersedes the package set of the previous
+# one, which nothing consumes, so that run is cancelled. Protected lines and
+# tags are never cancelled: their runs publish previews, and release.yml
+# promotes a release branch's run by ID, so every such commit has to finish.
+# A manual run gets a group of its own, so a later push to the same branch
+# cannot cancel a package build someone asked for.
 concurrency:
-  group: nuget-publish-${{ github.ref }}
-  cancel-in-progress: false
+  group: nuget-publish-${{ github.ref }}${{ github.event_name == 'workflow_dispatch' && format('-dispatch-{0}', github.run_id) || '' }}
+  cancel-in-progress: ${{ !(github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/develop/') || startsWith(github.ref, 'refs/tags/')) }}
 
 jobs:
+  # Skips the two signed Windows builds for a feature branch that, as a whole,
+  # changes only documentation, using the same rule that gates the build in
+  # buildandtest.yml (.github/scripts/get-path-relevance.ps1). The comparison
+  # is against the branch's merge base with master, not against the previous
+  # push: a superseded run is cancelled, so a documentation-only follow-up must
+  # not be able to mask the code change of the push it cancelled. Protected
+  # lines, tags and manual runs are always packed, and so is any branch whose
+  # merge base cannot be resolved; a branch cut from another line diverges from
+  # master in code and is packed as well.
+  changes:
+    name: Detect package-relevant changes
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.relevance.outputs.relevant }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Resolve path relevance
+        id: relevance
+        shell: pwsh
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PROTECTED_REF: ${{ github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/') || startsWith(github.ref, 'refs/heads/develop/') || startsWith(github.ref, 'refs/tags/') }}
+        run: |
+          $relevant = $true
+          if ($env:EVENT_NAME -eq 'push' -and $env:PROTECTED_REF -ne 'true') {
+              # Triple-dot: everything the branch changed since it left master,
+              # ignoring what landed on master afterwards.
+              $changed = @(& git diff --name-only "origin/master...$($env:GITHUB_SHA)" 2>$null)
+              if ($LASTEXITCODE -eq 0) {
+                  $relevant = [bool](& ./.github/scripts/get-path-relevance.ps1 -ChangedFile $changed)
+                  Write-Host "Changed files since the merge base with master: $($changed.Count); package-relevant: $relevant"
+              }
+              else {
+                  Write-Host 'Could not resolve the merge base with master; packing.'
+              }
+          }
+          "relevant=$($relevant.ToString().ToLowerInvariant())" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
   pack:
     name: Build and sign ${{ matrix.configuration }}
+    needs: changes
+    if: ${{ needs.changes.outputs.relevant == 'true' }}
     runs-on: windows-2025
     strategy:
       fail-fast: false
@@ -100,11 +152,11 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Force -Path "$env:TOOLS_DIR" | Out-Null
-          dotnet tool install --version 3.0.0 --tool-path "$env:TOOLS_DIR" AzureSignTool
+          dotnet tool install --version 7.0.1 --tool-path "$env:TOOLS_DIR" AzureSignTool
           if ($LASTEXITCODE -ne 0) {
               throw 'AzureSignTool installation failed.'
           }
-          dotnet tool install --version 3.0.45 --tool-path "$env:TOOLS_DIR" NuGetKeyVaultSignTool
+          dotnet tool install --version 3.2.3 --tool-path "$env:TOOLS_DIR" NuGetKeyVaultSignTool
           if ($LASTEXITCODE -ne 0) {
               throw 'NuGetKeyVaultSignTool installation failed.'
           }

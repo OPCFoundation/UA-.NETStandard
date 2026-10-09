@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Xml;
 
@@ -97,7 +98,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static string ToCSharpIdentifierCore(string name, bool? upperCamelCase)
         {
-            string source = name?.TrimStart('@');
+            string? source = name?.TrimStart('@');
             if (string.IsNullOrEmpty(source))
             {
                 return upperCamelCase == false ? "value" : "Value";
@@ -146,7 +147,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ToSafeSymbolName(
             this string name,
             bool toLowerCamelCase = false,
-            string prefix = null)
+            string? prefix = null)
         {
             if (string.IsNullOrEmpty(name))
             {
@@ -249,22 +250,13 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public static string AsStringLiteral(this string value)
+        public static string AsStringLiteral(this string? value)
         {
             if (string.IsNullOrEmpty(value))
             {
                 return "string.Empty";
             }
-            value = value
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal)
-                .Replace("\n", "\\n", StringComparison.Ordinal)
-                .Replace("\r", "\\r", StringComparison.Ordinal)
-                .Replace("\t", "\\t", StringComparison.Ordinal)
-                .Replace("\u0085", "\\u0085", StringComparison.Ordinal)
-                .Replace("\u2028", "\\u2028", StringComparison.Ordinal)
-                .Replace("\u2029", "\\u2029", StringComparison.Ordinal);
-            return $"\"{value}\"";
+            return $"\"{Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value)}\"";
         }
 
         /// <summary>
@@ -291,7 +283,7 @@ namespace Opc.Ua.SourceGeneration
         /// at all, and both <c>xs:element/@name</c> in the generated XSD and the
         /// element the XML encoder writes require this.
         /// </summary>
-        public static bool IsValidXmlName(this string value)
+        public static bool IsValidXmlName([NotNullWhen(true)] this string? value)
         {
             if (string.IsNullOrEmpty(value))
             {
@@ -328,21 +320,17 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        internal static string Escape(this string value)
+        internal static string Escape(this string? value)
         {
-            if (value == null)
-            {
-                return string.Empty;
-            }
-            return value
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
+            // Line-terminator characters (CR, LF, NEL, LS, PS) end a regular
+            // string literal (CS1010), so escape with the shared rule.
+            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
         }
 
         /// <summary>
         /// Checks for a null qualified name.
         /// </summary>
-        public static bool IsNull(this XmlQualifiedName qname)
+        public static bool IsNull([NotNullWhen(false)] this XmlQualifiedName? qname)
         {
             if (qname == null)
             {

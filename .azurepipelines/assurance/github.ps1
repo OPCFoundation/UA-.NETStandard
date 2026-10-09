@@ -29,7 +29,8 @@
 
 # Internal read-only transport. Fixtures replace gh on PATH, not validation.
 function Invoke-AssuranceApiFile([string] $Endpoint, [string] $Destination, [long] $Limit = 4194304) {
-    if ($Endpoint -notmatch '^repos/OPCFoundation/UA-\.NETStandard/[A-Za-z0-9._/?=&%-]+$') {
+    if ($Endpoint -cne 'repos/OPCFoundation/UA-.NETStandard' -and
+        $Endpoint -notmatch '^repos/OPCFoundation/UA-\.NETStandard/[A-Za-z0-9._/?=&%-]+$') {
         throw 'API_ENDPOINT_REJECTED'
     }
     $command = Get-Command gh -CommandType Application -ErrorAction Stop | Select-Object -First 1

@@ -17,8 +17,7 @@ inputs:
     required: true
   framework:
     description: >-
-      Target framework the tests execute on. Differs from custom-test-target for
-      netstandard2.0 (hosted on net48) and netstandard2.1 (hosted on net8.0).
+      Target framework the tests execute on.
     required: true
   configuration:
     description: Debug or Release.
@@ -35,7 +34,7 @@ inputs:
     required: false
     default: 10m
   per-project-timeout:
-    description: Wall-clock ceiling in minutes for one project's build or test run.
+    description: Combined wall-clock ceiling in minutes for one project's build and test run.
     required: false
     default: '30'
   coverage:
@@ -57,6 +56,14 @@ inputs:
     description: Require complete unfiltered evidence for one selected release-profile project.
     required: false
     default: 'false'
+  public-corpus-checkout:
+    description: Clean checkout of the published nightly corpus; never release-assurance input.
+    required: false
+    default: ''
+  public-corpus-commit:
+    description: Exact reviewed commit of the published nightly corpus.
+    required: false
+    default: ''
 
 runs:
   using: composite
@@ -212,6 +219,9 @@ runs:
       CI_COVERAGE: ${{ inputs.coverage }}
       CI_ASSURANCE_WORKFLOW: ${{ inputs.assurance-workflow }}
       CI_REQUIRE_ASSURANCE: ${{ inputs.require-assurance }}
+      CI_ASSURANCE_ARTIFACT: ${{ inputs.assurance-artifact-name }}
+      CI_PUBLIC_CORPUS_CHECKOUT: ${{ inputs.public-corpus-checkout }}
+      CI_PUBLIC_CORPUS_COMMIT: ${{ inputs.public-corpus-commit }}
     run: |
       # The core_pattern set by 'Enable native core dumps' only takes effect for
       # a process whose RLIMIT_CORE is non-zero, and the limit is inherited, not
@@ -229,7 +239,20 @@ runs:
         Write-Host "RLIMIT_CORE (soft) for this shell: $(& bash -c 'ulimit -c')"
       }
 
-      ./.github/scripts/run-dotnet-tests.ps1 `
+      $corpusArguments = @{}
+      $assuranceDirectory = 'AssuranceResults'
+      if ($env:CI_PUBLIC_CORPUS_CHECKOUT -or $env:CI_PUBLIC_CORPUS_COMMIT) {
+        if ($env:CI_ASSURANCE_ARTIFACT) {
+          throw 'Published corpus replay cannot upload release assurance.'
+        }
+        $corpusArguments = @{
+          InputScope = 'public-corpus'
+          PublicCorpusCheckout = $env:CI_PUBLIC_CORPUS_CHECKOUT
+          PublicCorpusCommit = $env:CI_PUBLIC_CORPUS_COMMIT
+        }
+        $assuranceDirectory = ''
+      }
+      ./.github/scripts/run-dotnet-tests.ps1 @corpusArguments `
         -Projects $env:CI_PROJECTS `
         -CustomTestTarget $env:CI_CUSTOM_TEST_TARGET `
         -Framework $env:CI_FRAMEWORK `
@@ -239,7 +262,7 @@ runs:
         -PerProjectTimeoutMinutes ([int]$env:CI_PER_PROJECT_TIMEOUT) `
         -ResultsDirectory (Join-Path $env:RUNNER_TEMP 'ci-test-results') `
         -PublicResultsDirectory 'TestResults' `
-        -AssuranceDirectory 'AssuranceResults' `
+        -AssuranceDirectory $assuranceDirectory `
         -AssuranceWorkflow $env:CI_ASSURANCE_WORKFLOW `
         -RequireAssurance:($env:CI_REQUIRE_ASSURANCE -eq 'true') `
         -Coverage:($env:CI_COVERAGE -eq 'true')

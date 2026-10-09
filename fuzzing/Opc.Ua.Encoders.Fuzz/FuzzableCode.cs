@@ -79,7 +79,39 @@ namespace Opc.Ua.Fuzzing
             context.NamespaceUris.Append("urn:opcfoundation:fuzzing:diagnostics");
             context.NamespaceUris.Append("urn:opcfoundation:fuzzing:types");
             context.ServerUris.Append("urn:opcfoundation:fuzzing:server");
+
+            // Limits a mutated input of a few KB can exceed, so the limit oracle can observe a
+            // decoder that does not enforce them (the defaults need 64 KB strings). Every seed
+            // stays well within them.
+            context.MaxStringLength = FuzzMaxStringLength;
+            context.MaxByteStringLength = FuzzMaxByteStringLength;
+            context.MaxArrayLength = FuzzMaxArrayLength;
+
+            // Decimal is not in the default factory, so an ExtensionObject Decimal body is kept
+            // raw and never decoded. Register it so the targets exercise Decimal.Decode, which
+            // the T1-3 octet cap guards (OPC 10000-6 5.1.10).
+            context.Factory.AddEncodeableType(typeof(Decimal));
             return context;
+        }
+
+        internal const int FuzzMaxStringLength = 4096;
+        internal const int FuzzMaxByteStringLength = 8192;
+        internal const int FuzzMaxArrayLength = 4096;
+
+        /// <summary>
+        /// Runs a decode under the allocation oracle and checks the decoded value against the
+        /// limits of <see cref="MessageContext"/>.
+        /// </summary>
+        internal static T DecodeWithOracles<T>(string decoder, long inputLength, Func<T> decode)
+        {
+            T value = FuzzOracles.MeasureAllocation(decoder, inputLength, decode);
+            FuzzOracles.CheckDecodedLimits(value!, MessageContext, decoder);
+            return value;
+        }
+
+        private static long GetRemainingLength(Stream stream)
+        {
+            return stream.CanSeek ? stream.Length - stream.Position : -1;
         }
 
         /// <summary>

@@ -32,7 +32,7 @@
 Selects Docker image and independent evidence-group matrices from the release catalog.
 .DESCRIPTION
 All supported events build both container groups. The groups retain independent
-evidence manifests while sharing image selection, registry layout and platforms.
+evidence manifests while sharing native project publication, registry layout and platforms.
 Pull requests validate the images without granting publication authority.
 #>
 [CmdletBinding()]
@@ -84,6 +84,12 @@ foreach ($groupId in $selected) {
             -not (Test-Path -LiteralPath (Join-Path $RepositoryRoot $image.dockerfile) -PathType Leaf)) {
             throw "Container group '$groupId' contains an invalid image or missing Dockerfile."
         }
+        if ($image.project -cnotmatch '\.csproj$' -or
+            $image.project -match '(^/|\\|:|(^|/)\.\.?(/|$))' -or
+            [IO.Path]::GetDirectoryName($image.project) -cne [IO.Path]::GetDirectoryName($image.dockerfile) -or
+            -not (Test-Path -LiteralPath (Join-Path $RepositoryRoot $image.project) -PathType Leaf)) {
+            throw "Container image '$($image.id)' must name an existing project beside its Dockerfile."
+        }
         $repositoryName = $definition.repositoryTemplate.
             Replace('{normalizedRepository}', $normalizedRepository).
             Replace('{owner}', $owner).
@@ -94,6 +100,7 @@ foreach ($groupId in $selected) {
         $images += @{
             group = $groupId
             image = $image.id
+            project = $image.project
             dockerfile = './' + $image.dockerfile
             platforms = $definition.platforms -join ','
             repository = $repositoryName
@@ -108,6 +115,9 @@ foreach ($groupId in $selected) {
             'container-artifact-group-manifest'
         }
     }
+}
+if (@($images.image | Sort-Object -Unique).Count -ne $images.Count) {
+    throw 'Container groups must not share image identities or native publish directories.'
 }
 @{
     images = @{ include = @($images) }

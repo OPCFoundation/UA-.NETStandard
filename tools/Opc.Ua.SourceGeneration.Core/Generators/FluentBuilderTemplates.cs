@@ -61,9 +61,7 @@ namespace Opc.Ua.SourceGeneration
             // argument in a project that builds warnings as errors.
             #nullable enable annotations
 
-            [assembly: global::Opc.Ua.ModelFluentAccessorProviderAttribute(
-                "{{Tokens.ModelUri}}",
-                "{{Tokens.NamespacePrefix}}")]
+            {{Tokens.AssemblyAttributes}}
 
             namespace {{Tokens.NamespacePrefix}}
             {

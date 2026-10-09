@@ -36,6 +36,21 @@ ConsoleReferencePubSubClient subscriber --profile udp-uadp
 Options: `--profile`, `--config-file <xml>`, `--publisher-id-filter`,
 `--writer-group-id-filter`, `--data-set-writer-id-filter`, `--endpoint`.
 
+### Publisher and subscriber on one computer
+
+The default UDP endpoint, `opc.udp://239.0.0.1:4840`, is a multicast address.
+Multicast loopback is disabled by default, so a subscriber on the publisher's
+computer can miss the messages. To run both on one computer, give both the
+unicast loopback endpoint:
+
+```bash
+ConsoleReferencePubSubClient subscriber --profile udp-uadp --endpoint opc.udp://127.0.0.1:4840
+ConsoleReferencePubSubClient publisher --profile udp-uadp --endpoint opc.udp://127.0.0.1:4840
+```
+
+See [Run a first publisher and subscriber](../../../docs/PubSub.md#run-a-first-publisher-and-subscriber)
+for the expected output and the settings that must match.
+
 ### `external`
 
 Bridges an external OPC UA server (defaults to the repository's ConsoleReferenceServer

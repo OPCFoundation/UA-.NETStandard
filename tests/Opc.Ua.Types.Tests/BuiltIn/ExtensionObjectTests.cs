@@ -63,10 +63,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.That(extensionObject.TypeId, Is.EqualTo(ExpandedNodeId.Null));
             Assert.That(extensionObject.Encoding, Is.EqualTo(ExtensionObjectEncoding.None));
-            Assert.That(extensionObject.TryGetValue(out IEncodeable enc), Is.False);
+            Assert.That(extensionObject.TryGetValue(out IEncodeable? enc), Is.False);
             Assert.That(extensionObject.TryGetAsBinary(out ByteString _), Is.False);
             Assert.That(extensionObject.TryGetAsXml(out XmlElement _), Is.False);
-            Assert.That(extensionObject.TryGetAsJson(out string _), Is.False);
+            Assert.That(extensionObject.TryGetAsJson(out string? _), Is.False);
             Assert.That(extensionObject.IsNull, Is.True);
             // static extensions
             Assert.That(ExtensionObject.ToEncodeable(default), Is.Null);
@@ -74,8 +74,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             extensionObject = new ExtensionObject(ExpandedNodeId.Null);
             Assert.That(extensionObject.GetHashCode(), Is.Zero);
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.That(ExtensionObject.ToArray(null, typeof(object)), Is.Null);
-            Assert.That(ExtensionObject.ToList<object>(null), Is.Null);
+            Assert.That(ExtensionObject.ToArray(null!, typeof(object)), Is.Null);
+            Assert.That(ExtensionObject.ToList<object>(null!), Is.Null);
             Assert.Throws<ServiceResultException>(
                 () => new ExtensionObject(default, new object()));
             Assert.Throws<ServiceResultException>(
@@ -137,7 +137,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestEncodeable other && other.Value == Value;
             }
@@ -147,7 +147,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 return Value;
             }
 
-            public override bool Equals(object obj)
+            public override bool Equals(object? obj)
             {
                 return obj is TestEncodeable other && other.Value == Value;
             }
@@ -176,7 +176,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is OtherEncodeable;
             }
@@ -408,7 +408,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var argument = new Argument();
             ExtensionObject extension = CreateBinaryArgument(context, "Binary", argument.BinaryEncodingId);
 
-            bool success = extension.TryGetValue(out Argument actual, context);
+            bool success = extension.TryGetValue(out Argument? actual, context);
 
             Assert.That(success, Is.True);
             Assert.That(actual!.Name, Is.EqualTo("Binary"));
@@ -421,7 +421,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             IServiceMessageContext context = CreateMessageContext();
             ExtensionObject extension = CreateXmlArgument(context, "Xml");
 
-            bool success = extension.TryGetValue(out Argument actual, context);
+            bool success = extension.TryGetValue(out Argument? actual, context);
 
             Assert.That(success, Is.True);
             Assert.That(actual!.Name, Is.EqualTo("Xml"));
@@ -434,7 +434,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             IServiceMessageContext context = CreateMessageContext();
             ExtensionObject extension = CreateJsonArgument(context, "Json");
 
-            bool success = extension.TryGetValue(out Argument actual, context);
+            bool success = extension.TryGetValue(out Argument? actual, context);
 
             Assert.That(success, Is.True);
             Assert.That(actual!.Name, Is.EqualTo("Json"));
@@ -448,7 +448,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var argument = new Argument();
             ExtensionObject extension = CreateBinaryArgument(context, "Binary", argument.BinaryEncodingId);
 
-            bool success = extension.TryGetValue(out Argument actual);
+            bool success = extension.TryGetValue(out Argument? actual);
 
             Assert.That(success, Is.False);
             Assert.That(actual, Is.Null);
@@ -463,7 +463,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(known.TryGetAsBinary(out ByteString binary), Is.True);
             var unknown = new ExtensionObject(new ExpandedNodeId(999_999u), binary);
 
-            bool success = unknown.TryGetValue(out IEncodeable actual, context);
+            bool success = unknown.TryGetValue(out IEncodeable? actual, context);
 
             Assert.That(success, Is.False);
             Assert.That(actual, Is.Null);
@@ -476,7 +476,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var argument = new Argument();
             ExtensionObject extension = CreateBinaryArgument(context, "DataType", argument.TypeId);
 
-            bool success = extension.TryGetValue(out Argument actual, context);
+            bool success = extension.TryGetValue(out Argument? actual, context);
 
             Assert.That(success, Is.True);
             Assert.That(actual!.Name, Is.EqualTo("DataType"));
@@ -488,10 +488,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             IServiceMessageContext context = CreateMessageContext();
             var variant = new Variant(CreateJsonArgument(context, "Variant"));
 
-            bool success = variant.TryGetStructure(context, out Argument actual);
+            bool success = variant.TryGetStructure<Argument>(context, out Argument? actual);
 
             Assert.That(success, Is.True);
-            Assert.That(actual.Name, Is.EqualTo("Variant"));
+            Assert.That(actual!.Name, Is.EqualTo("Variant"));
         }
 
         [Test]
@@ -506,7 +506,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 argument.BinaryEncodingId,
                 ByteString.From(binary.Span[..2].ToArray()));
 
-            bool success = truncated.TryGetValue(out Argument actual, context);
+            bool success = truncated.TryGetValue(out Argument? actual, context);
 
             Assert.That(success, Is.False);
             Assert.That(actual, Is.Null);
@@ -520,7 +520,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(known.TryGetAsXml(out XmlElement body), Is.True);
             var unknown = new ExtensionObject(new ExpandedNodeId(999_998u), body);
 
-            bool success = unknown.TryGetValue(out IEncodeable actual, context);
+            bool success = unknown.TryGetValue(out IEncodeable? actual, context);
 
             Assert.That(success, Is.False);
             Assert.That(actual, Is.Null);
@@ -535,7 +535,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 argument.XmlEncodingId,
                 XmlElement.From("<Argument><Name>unterminated"));
 
-            bool success = malformed.TryGetValue(out Argument actual, context);
+            bool success = malformed.TryGetValue(out Argument? actual, context);
 
             Assert.That(success, Is.False);
             Assert.That(actual, Is.Null);
@@ -546,13 +546,79 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             IServiceMessageContext context = CreateMessageContext();
             ExtensionObject known = CreateJsonArgument(context, "Json");
-            Assert.That(known.TryGetAsJson(out string body), Is.True);
-            var unknown = new ExtensionObject(new ExpandedNodeId(999_997u), body);
+            Assert.That(known.TryGetAsJson(out string? body), Is.True);
+            var unknown = new ExtensionObject(new ExpandedNodeId(999_997u), body!);
 
-            bool success = unknown.TryGetValue(out IEncodeable actual, context);
+            bool success = unknown.TryGetValue(out IEncodeable? actual, context);
 
             Assert.That(success, Is.False);
             Assert.That(actual, Is.Null);
+        }
+
+        [Test]
+        public void TryGetValueReturnsFalseWhenTheBinaryBodyHasTrailingBytes()
+        {
+            // The eager decoder rejects a body its encodeable does not consume
+            // exactly; the lazy path must not accept it later.
+            IServiceMessageContext context = CreateMessageContext();
+            var argument = new Argument();
+            ExtensionObject complete = CreateBinaryArgument(
+                context, "Trailing", argument.BinaryEncodingId);
+            Assert.That(complete.TryGetAsBinary(out ByteString binary), Is.True);
+            byte[] padded = new byte[binary.Length + 3];
+            binary.Span.CopyTo(padded);
+            var trailing = new ExtensionObject(argument.BinaryEncodingId, ByteString.From(padded));
+
+            bool success = trailing.TryGetValue(out Argument? actual, context);
+
+            Assert.That(success, Is.False);
+            Assert.That(actual, Is.Null);
+        }
+
+        [Test]
+        public void TryGetValueReturnsFalseWhenTheEncodeableThrowsAnyException()
+        {
+            ServiceMessageContext context = CreateMessageContext();
+            context.Factory.AddEncodeableType(typeof(ThrowingEncodeable));
+            Assert.That(context.Factory.TryGetEncodeableType(
+                new ThrowingEncodeable().BinaryEncodingId, out _), Is.True);
+            var extension = new ExtensionObject(
+                new ThrowingEncodeable().BinaryEncodingId,
+                ByteString.From([1, 2, 3, 4]));
+
+            bool success = false;
+            Assert.DoesNotThrow(() => success = extension.TryGetValue(out IEncodeable? _, context));
+            Assert.That(success, Is.False);
+        }
+
+        /// <summary>
+        /// An encodeable whose decoding fails with an exception that is not
+        /// one of the decoders' own.
+        /// </summary>
+        private sealed class ThrowingEncodeable : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(500000);
+            public ExpandedNodeId BinaryEncodingId => new(500001);
+            public ExpandedNodeId XmlEncodingId => new(500002);
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                throw new ArgumentOutOfRangeException(nameof(decoder));
+            }
+
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return encodeable is ThrowingEncodeable;
+            }
+
+            public object Clone()
+            {
+                return new ThrowingEncodeable();
+            }
         }
 
         private static ServiceMessageContext CreateMessageContext()

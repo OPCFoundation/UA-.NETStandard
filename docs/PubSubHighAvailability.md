@@ -1,8 +1,25 @@
 # PubSub High Availability
 
-This guide maps OPC UA Part 14 §9.1.6 PubSub redundancy to the OPC UA .NET Standard stack's distributed PubSub high-availability seams. It is the PubSub counterpart to [High Availability and OPC UA Redundancy](HighAvailability.md), which covers OPC 10000-4 §6.6 server, client, subscription, session, and network redundancy. For the base publisher/subscriber runtime, transports, encodings, discovery, diagnostics, and SKS concepts, see [Part 14 PubSub](PubSub.md).
+This guide explains how the OPC UA .NET Standard stack implements
+distributed PubSub high availability under OPC UA Part 14 §9.1.6. It
+complements [High Availability and OPC UA Redundancy](HighAvailability.md),
+which covers OPC 10000-4 §6.6 server, client, subscription, session, and
+network redundancy. For the base publisher/subscriber runtime, transports,
+encodings, discovery, diagnostics, and Security Key Service (SKS), see
+[Part 14 PubSub](PubSub.md).
 
 PubSub redundancy is implemented by the opt-in `Opc.Ua.Redundancy.PubSub` library and package `OPCFoundation.NetStandard.Opc.Ua.Redundancy.PubSub`. A deployment that uses only the standard `OPCFoundation.NetStandard.Opc.Ua.PubSub` package runs with the default process-local stores and `AlwaysActiveCoordinator`, so every configured PubSub component is active.
+
+## Contents
+
+- [Overview](#overview-as-per-part-14-916)
+- [How it maps onto the stack](#how-it-maps-onto-the-stack)
+- [Sequence-number continuity](#sequence-number-continuity-hot-standby)
+- [Shared security keys](#shared-security-keys-sks)
+- [Consistency: eventual vs strong](#consistency-eventual-vs-strong)
+- [Kubernetes](#kubernetes)
+- [Security considerations](#security-considerations)
+- [See also](#see-also)
 
 ## Overview (as per Part 14 §9.1.6)
 
@@ -84,11 +101,25 @@ PubSub leases and leader election need compare-and-swap and therefore a strong k
 
 ## Kubernetes
 
-Use the Kubernetes high-availability package when the redundant PubSub set runs as replicas in a cluster. `Opc.Ua.Redundancy.Kubernetes` provides Kubernetes Lease-based leader election for whole-instance active/standby deployments, so one pod in a `ReplicaSet` or `Deployment` drives the PubSub transports while the other pods remain standby. For the full server/client HA deployment pattern, RBAC, probes, time synchronization, peer discovery, and secret-management guidance, see [Kubernetes High Availability Deployment](Kubernetes.md).
+Use the Kubernetes high-availability package when a redundant PubSub set runs
+as replicas in a cluster. `Opc.Ua.Redundancy.Kubernetes` provides
+Kubernetes-Lease leader election for whole-instance active/standby
+deployments. One pod drives the PubSub transports; the others remain on
+standby.
+
+For the full server/client deployment pattern, including role-based access
+control (RBAC), probes, time synchronization, peer discovery, and secret
+management, see [Kubernetes High Availability Deployment](Kubernetes.md).
 
 ## Security considerations
 
-Treat the shared store as part of the PubSub trust boundary. Authenticate and encrypt the store channel, restrict network access to the redundant set, apply quotas and retention to PubSub key prefixes, and monitor lease, checkpoint, runtime-state, and SKS write failures as availability signals.
+Treat the shared store as part of the PubSub trust boundary:
+
+- Authenticate and encrypt the store connection.
+- Restrict network access to the redundant set.
+- Apply quotas and retention to PubSub key prefixes.
+- Monitor lease, checkpoint, runtime-state, and SKS write failures as
+  availability signals.
 
 Any shared secret or key material must be protected with `IRecordProtector` before it reaches a networked store. This is mandatory for SKS SecurityGroup records and for any future PubSub state that contains secrets. Never run production networked stores with `NullRecordProtector`; use a real protector such as an authenticated-encryption key-ring implementation and rotate its keys through the same operational controls used for OPC UA certificates and secrets.
 

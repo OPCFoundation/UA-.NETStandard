@@ -126,7 +126,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void SendRequestAsyncShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
-            Assert.That(() => sut.SendRequestAsync(null, CancellationToken.None),
+            Assert.That(() => sut.SendRequestAsync(null!, CancellationToken.None),
                 Throws.TypeOf<ServiceResultException>().With.Message
                     .Contains("SendRequestAsync called in unexpected state"));
         }
@@ -146,10 +146,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void OpenAsyncWithWaitingConnectionShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
-            ITransportWaitingConnection connection = null; // should throw before dereference
+            ITransportWaitingConnection? connection = null; // should throw before dereference
             var settings = new TransportChannelSettings();
             Assert.That(async () => await sut.OpenAsync(
-                connection,
+                connection!,
                 settings,
                 CancellationToken.None).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>().With.Message
@@ -160,7 +160,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         public void ReconnectAsyncShouldThrowNotSupported()
         {
             using var sut = new NullChannel();
-            ITransportWaitingConnection connection = null;
+            ITransportWaitingConnection? connection = null;
             Assert.That(async () => await sut.ReconnectAsync(
                 connection,
                 CancellationToken.None).ConfigureAwait(false),

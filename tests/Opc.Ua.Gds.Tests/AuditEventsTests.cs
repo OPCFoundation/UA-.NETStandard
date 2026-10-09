@@ -154,6 +154,44 @@ namespace Opc.Ua.Gds.Tests
         }
 
         [Test]
+        public void RedactUserIdentityTokenRemovesPassword()
+        {
+            var token = new UserNameIdentityToken
+            {
+                PolicyId = "username",
+                UserName = "alice",
+                Password = ByteString.From([1, 2, 3, 4]),
+                EncryptionAlgorithm = SecurityAlgorithms.RsaOaep
+            };
+
+            Variant redacted = GdsAuditEvents.RedactUserIdentityToken(token);
+
+            Assert.That(redacted.TryGetStructure<UserNameIdentityToken>(out UserNameIdentityToken? redactedToken), Is.True);
+            Assert.That(redactedToken!.UserName, Is.EqualTo("alice"));
+            Assert.That(redactedToken.PolicyId, Is.EqualTo("username"));
+            Assert.That(redactedToken.Password.IsEmpty, Is.True);
+            Assert.That(redactedToken.EncryptionAlgorithm, Is.Null);
+            Assert.That(token.Password.Length, Is.EqualTo(4), "The caller's token must not be modified.");
+        }
+
+        [Test]
+        public void RedactUserIdentityTokenRemovesIssuedTokenData()
+        {
+            var token = new IssuedIdentityToken
+            {
+                PolicyId = "jwt",
+                TokenData = ByteString.From([5, 6, 7])
+            };
+
+            Variant redacted = GdsAuditEvents.RedactUserIdentityToken(token);
+
+            Assert.That(redacted.TryGetStructure<IssuedIdentityToken>(out IssuedIdentityToken? redactedToken), Is.True);
+            Assert.That(redactedToken!.PolicyId, Is.EqualTo("jwt"));
+            Assert.That(redactedToken.TokenData.IsEmpty, Is.True);
+            Assert.That(GdsAuditEvents.RedactUserIdentityToken(null).IsNull, Is.True);
+        }
+
+        [Test]
         public void KeyCredentialSuccessAuditReportsGoodStatus()
         {
             var auditServer = new CapturingAuditEventServer();

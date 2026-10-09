@@ -61,12 +61,8 @@ namespace Opc.Ua.OpenUsd.Connector
         /// <param name="host">The loaded host, or <c>null</c> when unavailable.</param>
         /// <param name="reason">A user-facing explanation when <paramref name="host"/> is <c>null</c>.</param>
         /// <returns><c>true</c> when a host was loaded.</returns>
-        // The trim/AOT annotations are omitted on net8.0. The netstandard2.1 build
-        // variant pairs a net8.0 app with netstandard2.1 libraries, and those carry
-        // public RequiresUnreferencedCode/RequiresDynamicCode polyfills that collide
-        // with net8.0's own BCL definitions (CS0433). net8.0 is only ever an app
-        // target in that variant, and this tool is not trim- or AOT-published, so
-        // the annotations stay where they carry weight: net9.0 and later.
+        // The trim/AOT annotations are only applied on net9.0 and later; this tool
+        // is not trim- or AOT-published.
 #if NET9_0_OR_GREATER
         [RequiresUnreferencedCode(
             "The viewport is discovered by assembly and type name, so trimming cannot see it.")]

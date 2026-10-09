@@ -34,7 +34,7 @@
     Sum of every TRX counter that represents a failed, non-passing, or
     unfinished test: failed, error, timeout, aborted, passedButRunAborted,
     inconclusive, notRunnable, disconnected, warning, completed, inProgress,
-    and pending. This is the same fail-closed set the Azure gate uses.
+    and pending - a fail-closed set.
 
  .PARAMETER ExitCode
     Exit code of the 'dotnet test' process.

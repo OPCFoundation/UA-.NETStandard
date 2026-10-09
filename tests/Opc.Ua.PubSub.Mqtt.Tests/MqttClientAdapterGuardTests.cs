@@ -219,7 +219,7 @@ namespace Opc.Ua.PubSub.Mqtt.Tests
                     Is.EqualTo(options.ResourceUri));
             });
 #else
-            // MQTTnet 4.x (used by the net48 / net472 / netstandard2.1 target
+            // MQTTnet 4.x (used by the net48 target
             // frameworks) exposes no enhanced-authentication API, so the adapter
             // fails closed instead of silently dropping the AuthenticationProfileUri.
             Assert.That(

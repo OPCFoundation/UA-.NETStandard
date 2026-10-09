@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -75,10 +76,23 @@ namespace Opc.Ua.Client
         private readonly AsyncManualResetEvent m_closed = new(false);
 
         /// <summary>
-        /// True inside the worker loop and everything it calls, notably the
-        /// synchronously raised <see cref="StateChanged"/> handlers.
+        /// Set to an active scope while the worker runs one state step and
+        /// everything it calls, notably the synchronously raised
+        /// <see cref="StateChanged"/> handlers. Work spawned during the step
+        /// (keep-alive, publish and identity loops, timers) captures the scope
+        /// with the execution context, so it is deactivated once the step ends:
+        /// otherwise that long-lived work would pass as the worker for the life
+        /// of the session.
         /// </summary>
-        private readonly AsyncLocal<bool> m_inWorkerFlow = new();
+        private readonly AsyncLocal<WorkerScope?> m_inWorkerFlow = new();
+
+        /// <summary>
+        /// Marks one worker step, see <see cref="m_inWorkerFlow"/>.
+        /// </summary>
+        private sealed class WorkerScope
+        {
+            public volatile bool Active = true;
+        }
 
         /// <summary>
         /// Set once the current connect cycle has settled, i.e. the machine
@@ -100,6 +114,8 @@ namespace Opc.Ua.Client
         private bool m_hasConnected;
         private readonly ITimer m_recoveryTimer;
         private ConnectionStateBudgetOperation? m_requestedReconnect;
+        private readonly Queue<ConnectionStateChangedEventArgs> m_stateChanges = new();
+        private bool m_dispatchingStateChanges;
 
         /// <summary>
         /// Delegate invoked to perform the actual session connect.
@@ -166,13 +182,35 @@ namespace Opc.Ua.Client
             m_logger = logger
                 ?? throw new ArgumentNullException(nameof(logger));
             m_timeProvider = timeProvider ?? TimeProvider.System;
-            m_maxTotalReconnectTime = maxTotalReconnectTime
-                ?? ReconnectPolicy.DefaultMaxTotalReconnectTime;
+            m_maxTotalReconnectTime = NormalizeMaxTotalReconnectTime(maxTotalReconnectTime);
             m_recoveryTimer = m_timeProvider.CreateTimer(
                 static state => ((ConnectionStateMachine)state!).TriggerReconnect(),
                 this,
                 Timeout.InfiniteTimeSpan,
                 Timeout.InfiniteTimeSpan);
+        }
+
+        /// <summary>
+        /// Validates the reconnect budget up front so an invalid value fails at
+        /// construction instead of crashing the worker on the first reconnect.
+        /// Zero means unlimited, consistent with <see cref="ReconnectPolicy.MaxRetries"/>.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        private static TimeSpan NormalizeMaxTotalReconnectTime(TimeSpan? maxTotalReconnectTime)
+        {
+            TimeSpan value = maxTotalReconnectTime ?? ReconnectPolicy.DefaultMaxTotalReconnectTime;
+            if (value == TimeSpan.Zero)
+            {
+                return Timeout.InfiniteTimeSpan;
+            }
+            if (value < TimeSpan.Zero && value != Timeout.InfiniteTimeSpan)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(maxTotalReconnectTime),
+                    value,
+                    "The maximum total reconnect time must be positive, zero or infinite.");
+            }
+            return value;
         }
 
         /// <summary>
@@ -195,7 +233,7 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Whether the caller is executing from the state-machine worker.
         /// </summary>
-        internal bool IsWorkerFlow => m_inWorkerFlow.Value;
+        internal bool IsWorkerFlow => m_inWorkerFlow.Value is { Active: true };
 
         /// <summary>
         /// Event raised when the state changes.
@@ -332,6 +370,7 @@ namespace Opc.Ua.Client
             }
 
             m_trigger.Set();
+            DispatchStateChanges();
             return true;
         }
 
@@ -363,6 +402,7 @@ namespace Opc.Ua.Client
             CancelCloseRequested();
 
             m_trigger.Set();
+            DispatchStateChanges();
         }
 
         /// <summary>
@@ -389,6 +429,7 @@ namespace Opc.Ua.Client
             }
 
             m_trigger.Set();
+            DispatchStateChanges();
         }
 
         /// <inheritdoc/>
@@ -402,7 +443,7 @@ namespace Opc.Ua.Client
             RequestClose();
             m_trigger.Set();
 
-            if (m_inWorkerFlow.Value)
+            if (IsWorkerFlow)
             {
                 // Disposed from a StateChanged handler (or work it spawned):
                 // the worker is the caller, so waiting for the close or for
@@ -506,10 +547,6 @@ namespace Opc.Ua.Client
         /// </summary>
         private async Task WorkerLoopAsync(CancellationToken ct)
         {
-            // Flows into every StateChanged handler the loop raises, so
-            // DisposeAsync can tell when it is being called by its own worker.
-            m_inWorkerFlow.Value = true;
-
             m_logger.ConnectionStateMachineWorkerStarted();
 
             try
@@ -524,20 +561,32 @@ namespace Opc.Ua.Client
                         current = m_state;
                     }
 
-                    switch (current)
+                    // Flows into every StateChanged handler the step raises, so
+                    // DisposeAsync can tell when it is being called by its own
+                    // worker. Deactivated when the step ends, see m_inWorkerFlow.
+                    var scope = new WorkerScope();
+                    m_inWorkerFlow.Value = scope;
+                    try
                     {
-                        case ConnectionState.Connecting:
-                            await HandleConnectingAsync(ct).ConfigureAwait(false);
-                            break;
-                        case ConnectionState.Reconnecting:
-                            await HandleReconnectingAsync(ct).ConfigureAwait(false);
-                            break;
-                        case ConnectionState.Failover:
-                            await HandleFailoverAsync(ct).ConfigureAwait(false);
-                            break;
-                        case ConnectionState.Closing:
-                            await HandleClosingAsync(ct).ConfigureAwait(false);
-                            return;
+                        switch (current)
+                        {
+                            case ConnectionState.Connecting:
+                                await HandleConnectingAsync(ct).ConfigureAwait(false);
+                                break;
+                            case ConnectionState.Reconnecting:
+                                await HandleReconnectingAsync(ct).ConfigureAwait(false);
+                                break;
+                            case ConnectionState.Failover:
+                                await HandleFailoverAsync(ct).ConfigureAwait(false);
+                                break;
+                            case ConnectionState.Closing:
+                                await HandleClosingAsync(ct).ConfigureAwait(false);
+                                return;
+                        }
+                    }
+                    finally
+                    {
+                        scope.Active = false;
                     }
                 }
             }
@@ -564,6 +613,17 @@ namespace Opc.Ua.Client
                     m_closed.Set();
                 }
 
+                // The final Closed notification is raised by the worker as well.
+                var finalScope = new WorkerScope();
+                m_inWorkerFlow.Value = finalScope;
+                try
+                {
+                    DispatchStateChanges();
+                }
+                finally
+                {
+                    finalScope.Active = false;
+                }
                 m_logger.ConnectionStateMachineWorkerExiting();
             }
         }
@@ -620,6 +680,7 @@ namespace Opc.Ua.Client
                     m_trigger.Set();
                 }
             }
+            DispatchStateChanges();
         }
 
         /// <summary>
@@ -710,6 +771,7 @@ namespace Opc.Ua.Client
                             m_settled.Set();
                         }
 
+                        DispatchStateChanges();
                         return;
                     }
 
@@ -725,7 +787,7 @@ namespace Opc.Ua.Client
                             return;
                         }
 
-                        OnStateChanged(new ConnectionStateChangedEventArgs
+                        m_stateChanges.Enqueue(new ConnectionStateChangedEventArgs
                         {
                             PreviousState = ConnectionState.Reconnecting,
                             NewState = ConnectionState.Reconnecting,
@@ -733,6 +795,7 @@ namespace Opc.Ua.Client
                             ReconnectAttempt = attempt
                         });
                     }
+                    DispatchStateChanges();
                 }
             }
             catch (OperationCanceledException) when (!ct.IsCancellationRequested)
@@ -816,13 +879,20 @@ namespace Opc.Ua.Client
 
             lock (m_lock)
             {
-                TransitionTo(
-                    ConnectionState.Failover,
-                    error: null,
-                    reconnectAttempt: attempt);
+                // A close requested while the policy ran out wins: overwriting
+                // Closing would skip HandleClosingAsync and lose the close.
+                if (m_state is not ConnectionState.Closing
+                    and not ConnectionState.Closed)
+                {
+                    TransitionTo(
+                        ConnectionState.Failover,
+                        error: null,
+                        reconnectAttempt: attempt);
+                }
             }
 
             m_trigger.Set();
+            DispatchStateChanges();
         }
 
         /// <summary>
@@ -902,6 +972,7 @@ namespace Opc.Ua.Client
                     m_settled.Set();
                 }
             }
+            DispatchStateChanges();
         }
 
         /// <summary>
@@ -934,6 +1005,7 @@ namespace Opc.Ua.Client
                 m_settled.Set();
                 m_closed.Set();
             }
+            DispatchStateChanges();
         }
 
         /// <summary>
@@ -1085,7 +1157,7 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
-        /// Transition to a new state and raise the <see cref="StateChanged"/> event.
+        /// Transition to a new state and enqueue the <see cref="StateChanged"/> event.
         /// Must be called under <see cref="m_lock"/>.
         /// </summary>
         private void TransitionTo(
@@ -1120,7 +1192,7 @@ namespace Opc.Ua.Client
                 previous,
                 newState);
 
-            OnStateChanged(new ConnectionStateChangedEventArgs
+            m_stateChanges.Enqueue(new ConnectionStateChangedEventArgs
             {
                 PreviousState = previous,
                 NewState = newState,
@@ -1128,6 +1200,36 @@ namespace Opc.Ua.Client
                 ReconnectAttempt = reconnectAttempt,
                 UnderlyingChannelState = underlyingChannelState
             });
+        }
+
+        /// <summary>
+        /// Delivers ordered notifications outside the state lock. Reentrant transitions enqueue
+        /// behind the current notification rather than interrupting its remaining observers.
+        /// </summary>
+        private void DispatchStateChanges()
+        {
+            lock (m_lock)
+            {
+                if (m_dispatchingStateChanges)
+                {
+                    return;
+                }
+                m_dispatchingStateChanges = true;
+            }
+            while (true)
+            {
+                ConnectionStateChangedEventArgs change;
+                lock (m_lock)
+                {
+                    if (m_stateChanges.Count == 0)
+                    {
+                        m_dispatchingStateChanges = false;
+                        return;
+                    }
+                    change = m_stateChanges.Dequeue();
+                }
+                OnStateChanged(change);
+            }
         }
 
         /// <summary>

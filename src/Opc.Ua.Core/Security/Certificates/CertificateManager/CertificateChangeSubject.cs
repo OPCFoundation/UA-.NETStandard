@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Security.Certificates;
 
 namespace Opc.Ua
@@ -41,6 +42,15 @@ namespace Opc.Ua
     /// </summary>
     internal sealed class CertificateChangeSubject : IObservable<CertificateChangeEvent>
     {
+        /// <summary>
+        /// Creates a subject. Exceptions thrown by observers are logged to
+        /// <paramref name="logger"/> (if any) and never propagated.
+        /// </summary>
+        public CertificateChangeSubject(ILogger? logger = null)
+        {
+            m_logger = logger;
+        }
+
         /// <inheritdoc/>
         public IDisposable Subscribe(IObserver<CertificateChangeEvent> observer)
         {
@@ -63,7 +73,17 @@ namespace Opc.Ua
             }
             foreach (IObserver<CertificateChangeEvent> observer in snapshot)
             {
-                observer.OnNext(evt);
+                // Isolate observers: one throwing subscriber must neither
+                // starve later subscribers nor fail the operation that
+                // already committed the change being announced.
+                try
+                {
+                    observer.OnNext(evt);
+                }
+                catch (Exception ex)
+                {
+                    m_logger?.CertificateChangeObserverFailed(ex, evt.Kind);
+                }
             }
         }
 
@@ -80,7 +100,14 @@ namespace Opc.Ua
             }
             foreach (IObserver<CertificateChangeEvent> observer in snapshot)
             {
-                observer.OnCompleted();
+                try
+                {
+                    observer.OnCompleted();
+                }
+                catch (Exception ex)
+                {
+                    m_logger?.CertificateChangeObserverFailed(ex, null);
+                }
             }
         }
 
@@ -99,5 +126,6 @@ namespace Opc.Ua
 
         private readonly List<IObserver<CertificateChangeEvent>> m_observers = [];
         private readonly Lock m_lock = new();
+        private readonly ILogger? m_logger;
     }
 }

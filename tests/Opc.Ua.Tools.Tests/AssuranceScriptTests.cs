@@ -31,6 +31,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -46,23 +47,20 @@ namespace Opc.Ua.Tools.Tests
     public sealed class AssuranceScriptTests
     {
         /// <summary>
-        /// Verifies that matrix generation rejects a missing explicitly selected project even when another exists.
+        /// Verifies that discovery rejects a missing required project even when other selected projects exist.
         /// </summary>
         [Test]
-        public async Task MissingExplicitProjectFailsEvenWhenAnotherExistsAsync()
+        public async Task MissingRequiredProjectFailsEvenWhenOthersExistAsync()
         {
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
                 root,
                 "-File",
-                Path.Combine(root, ".azurepipelines", "get-matrix.ps1"),
-                "-BuildRoot",
-                root,
-                "-Files",
-                "tests/Opc.Ua.Tools.Tests/Opc.Ua.Tools.Tests.csproj,tests/Missing.Tests.csproj")
+                Path.Combine(root, "tests", "Opc.Ua.Tools.Tests", "Fixtures", "CiOrchestration.fixture.ps1"),
+                "-Scenario", "selection-missing-replay")
                 .ConfigureAwait(false);
 
-            Assert.That(exitCode, Is.Not.Zero, output);
+            Assert.That(exitCode, Is.Zero, output);
         }
 
         /// <summary>
@@ -70,31 +68,35 @@ namespace Opc.Ua.Tools.Tests
         /// </summary>
         [TestCase("net48", "tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj", false)]
         [TestCase("net9.0", "tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj", false)]
-        [TestCase("netstandard2.1", "tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj", false)]
         [TestCase("net48", "tests/Opc.Ua.ReleaseEvidence.Tests/Opc.Ua.ReleaseEvidence.Tests.csproj", false)]
         [TestCase("net9.0", "tests/Opc.Ua.ReleaseEvidence.Tests/Opc.Ua.ReleaseEvidence.Tests.csproj", false)]
         [TestCase("net10.0", "tests/Opc.Ua.ReleaseEvidence.Tests/Opc.Ua.ReleaseEvidence.Tests.csproj", true)]
         [TestCase("net48", "fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj", false)]
-        [TestCase("netstandard2.1", "fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj", false)]
         [TestCase("net8.0", "fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj", true)]
         [TestCase("net9.0", "fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj", true)]
         [TestCase("net10.0", "fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj", true)]
-        public async Task MatrixUsesEvaluatedFrameworkApplicabilityAsync(string tfm, string project, bool supported)
+        public async Task ProjectsDeclareEvaluatedFrameworkApplicabilityAsync(string tfm, string project, bool supported)
         {
             string root = FindRepositoryRoot();
             (int exitCode, string output) = await RunAsync(
-                root, "-File", Path.Combine(root, ".azurepipelines", "get-matrix.ps1"),
-                "-BuildRoot", root,
-                "-Files", project,
-                "-TestHostTfm", tfm, "-LibraryTfm", tfm, "-AllowEmpty").ConfigureAwait(false);
+                root, "-Command",
+                $"dotnet msbuild '{project}' -nologo -p:CustomTestTarget={tfm} " +
+                "-getProperty:IsTestProject,_RestrictedToLegacyTfm,SupportedTestTargets")
+                .ConfigureAwait(false);
 
+            Assert.That(exitCode, Is.Zero, output);
+            using var document = JsonDocument.Parse(output);
+            JsonElement properties = document.RootElement.GetProperty("Properties");
             Assert.Multiple(() =>
             {
-                Assert.That(exitCode, Is.Zero, output);
-                Assert.That(output.Contains("Not applicable:", StringComparison.Ordinal), Is.EqualTo(!supported));
                 Assert.That(
-                    output.Contains("jobMatrix;isOutput=true] {}", StringComparison.Ordinal),
-                    Is.EqualTo(!supported));
+                    properties.GetProperty("IsTestProject").GetString() != "false", Is.EqualTo(supported));
+                if (!supported)
+                {
+                    Assert.That(
+                        properties.GetProperty("_RestrictedToLegacyTfm").GetString() == "true" ||
+                        properties.GetProperty("SupportedTestTargets").GetString() == "net10.0", Is.True);
+                }
             });
         }
 
@@ -140,6 +142,15 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("pubsub-output-collision")]
         [TestCase("pubsub-missing-seeds")]
         [TestCase("pubsub-empty-seeds")]
+        [TestCase("published-complete")]
+        [TestCase("published-wrong-commit")]
+        [TestCase("published-modified-checkout")]
+        [TestCase("published-untracked-checkout")]
+        [TestCase("published-missing-overlay")]
+        [TestCase("published-altered-overlay")]
+        [TestCase("published-unapproved-overlay")]
+        [TestCase("published-wrong-copy")]
+        [TestCase("published-missing-stack")]
         public async Task FuzzInputsKeepTheirBucketIdentityAsync(string scenario)
         {
             string root = FindRepositoryRoot();
@@ -161,6 +172,8 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("empty-good")]
         [TestCase("empty-regressions")]
         [TestCase("unrelated-skip")]
+        [TestCase("stack-complete")]
+        [TestCase("stack-omitted-target")]
         public async Task ReplayRequiresObservedTargetInputCoverageAsync(string scenario)
         {
             string root = FindRepositoryRoot();
@@ -306,6 +319,10 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("push-definition")]
         [TestCase("push-definition-missing")]
         [TestCase("push-definition-contradiction")]
+        [TestCase("scheduled-definition")]
+        [TestCase("scheduled-definition-missing")]
+        [TestCase("scheduled-definition-wrong-branch")]
+        [TestCase("scheduled-definition-contradiction")]
         [TestCase("run-in-progress")]
         [TestCase("missing-current-run")]
         [TestCase("missing-selected-project")]

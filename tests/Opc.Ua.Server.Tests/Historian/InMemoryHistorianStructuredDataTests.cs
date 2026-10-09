@@ -1088,7 +1088,7 @@ namespace Opc.Ua.Server.Tests.Historian
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
 
-            HistorianUpdateOutcome<Annotation> outcome = default;
+            HistorianUpdateOutcome<Annotation>? outcome = default;
             Assert.That(
                 async () => outcome = await provider.InsertAnnotationsAsync(
                     context,
@@ -1231,7 +1231,7 @@ namespace Opc.Ua.Server.Tests.Historian
             provider.Register(nodeId);
             HistorianOperationContext context = CreateContext();
 
-            HistorianUpdateOutcome<Annotation> outcome = default;
+            HistorianUpdateOutcome<Annotation>? outcome = default;
             Assert.That(
                 async () => outcome = await provider.UpdateAnnotationsAsync(
                     context,
@@ -1416,7 +1416,7 @@ namespace Opc.Ua.Server.Tests.Historian
         private static KeyValuePair ReadPair(DataValue value)
         {
             Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
-            Assert.That(extension.TryGetValue(out IEncodeable body), Is.True);
+            Assert.That(extension.TryGetValue(out IEncodeable? body), Is.True);
             Assert.That(body, Is.InstanceOf<KeyValuePair>());
             return (KeyValuePair)body;
         }

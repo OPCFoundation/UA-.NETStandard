@@ -206,18 +206,18 @@ namespace Opc.Ua.Types.Tests.State
                 done.Dispose();
             }
 
-            m_objectNode = null;
-            m_eventTarget = null;
-            m_syncEventNode = null;
-            m_asyncEventNode = null;
-            m_eventSynchronizationContext = null;
-            m_browseNode = null;
-            m_contendedBrowseNode = null;
-            m_browseBarrier = null;
-            m_browseStart = null;
-            m_browseDone = null;
-            m_browseWorkers = null;
-            m_browseWorkerErrors = null;
+            m_objectNode = null!;
+            m_eventTarget = null!;
+            m_syncEventNode = null!;
+            m_asyncEventNode = null!;
+            m_eventSynchronizationContext = null!;
+            m_browseNode = null!;
+            m_contendedBrowseNode = null!;
+            m_browseBarrier = null!;
+            m_browseStart = null!;
+            m_browseDone = null!;
+            m_browseWorkers = null!;
+            m_browseWorkerErrors = null!;
         }
 
         /// <summary>
@@ -336,7 +336,7 @@ namespace Opc.Ua.Types.Tests.State
         [Benchmark]
         public void ReportEventCompletedAsyncSink()
         {
-            SynchronizationContext previous = SynchronizationContext.Current;
+            SynchronizationContext previous = SynchronizationContext.Current!;
             try
             {
                 SynchronizationContext.SetSynchronizationContext(null);
@@ -355,7 +355,7 @@ namespace Opc.Ua.Types.Tests.State
         [Benchmark]
         public void ReportEventAsyncSinkWithContext()
         {
-            SynchronizationContext previous = SynchronizationContext.Current;
+            SynchronizationContext previous = SynchronizationContext.Current!;
             try
             {
                 SynchronizationContext.SetSynchronizationContext(m_eventSynchronizationContext);
@@ -399,8 +399,8 @@ namespace Opc.Ua.Types.Tests.State
         [Benchmark]
         public void CreateBrowserConcurrent()
         {
-            m_browseWorkerErrors[0] = null;
-            m_browseWorkerErrors[1] = null;
+            m_browseWorkerErrors[0] = null!;
+            m_browseWorkerErrors[1] = null!;
             m_browseStart[0].Set();
             m_browseStart[1].Set();
             if (!m_browseBarrier.SignalAndWait(k_browseOperationTimeoutMilliseconds))

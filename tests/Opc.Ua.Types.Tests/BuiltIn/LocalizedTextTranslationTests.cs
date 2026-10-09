@@ -55,6 +55,90 @@ namespace Opc.Ua.Types.Tests
         }
 
         [Test]
+        public void NullAndEmptyLocaleHashAlike()
+        {
+            var a = new LocalizedText(null, "Hi");
+            var b = new LocalizedText(string.Empty, "Hi");
+
+            Assert.That(a, Is.EqualTo(b));
+            Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+            Assert.That(new HashSet<LocalizedText> { a, b }, Has.Count.EqualTo(1));
+        }
+
+        [TestCase("{}")]
+        [TestCase("{\"t\":[]}")]
+        [TestCase("{\"t\":[[\"\",\"x\"]]}")]
+        [TestCase("{\"t\":[[\"en\"]]}")]
+        public void MulLocaleWithoutTranslationsDoesNotThrow(string text)
+        {
+            // Every decoder creates wire LocalizedText values this way; an
+            // ArgumentException here failed the whole message.
+            LocalizedText value = default;
+            Assert.DoesNotThrow(() => value = new LocalizedText("mul", text));
+            Assert.That(value.Locale, Is.EqualTo("mul"));
+            Assert.That(value.Text, Is.EqualTo(text));
+        }
+
+        [TestCase("x")]
+        [TestCase("  [\"t\"]")]
+        [TestCase("{\"t\":")]
+        [TestCase("{}")]
+        public void MalformedMulLocaleBehavesAsPlainText(string text)
+        {
+            // The "mul" JSON is decoded on first use, not when the value is
+            // created; malformed text must still behave as plain text.
+            var value = new LocalizedText("mul", text);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.IsNullOrEmpty, Is.False);
+                Assert.That(value.Translations, Is.Null);
+                Assert.That(value.TranslationInfo.IsNull, Is.True);
+                Assert.That(value.AsMultiLanguage(), Is.EqualTo(value));
+                Assert.That(value.FilterByPreferredLocales(["mul"]), Is.EqualTo(value));
+                Assert.That(value.FilterByPreferredLocales(["de-DE"]), Is.EqualTo(value));
+            });
+        }
+
+        [Test]
+        public void DecodedMulLocaleResolvesTranslationsOnFirstUse()
+        {
+            const string text = "{\"t\":[[\"en-US\",\"Hello\"],[\"de-DE\",\"Hallo\"]]}";
+            var value = new LocalizedText("mul", text);
+            LocalizedText copy = value;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.Text, Is.EqualTo(text));
+                Assert.That(value.Translations, Has.Count.EqualTo(2));
+                Assert.That(copy.Translations, Is.SameAs(value.Translations));
+                Assert.That(value.TranslationInfo.Locale, Is.EqualTo("en-US"));
+                Assert.That(value.FilterByPreferredLocales(["de-DE"]).Text, Is.EqualTo("Hallo"));
+            });
+        }
+
+        [Test]
+        public void FilteringSkipsNullAndEmptyLocaleIds()
+        {
+            var original = new LocalizedText(new Dictionary<string, string>
+            {
+                ["en-US"] = "Hello",
+                ["de-DE"] = "Hallo"
+            }, default);
+
+            LocalizedText german = original.FilterByPreferredLocales([null!, string.Empty, "de-DE"]);
+            LocalizedText first = original.FilterByPreferredLocales([null!]);
+            LocalizedText multi = original.FilterByPreferredLocales(["mul", null!, "de-DE", "de-DE"]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(german.Locale, Is.EqualTo("de-DE"));
+                Assert.That(first.IsNullOrEmpty, Is.False);
+                Assert.That(multi.Translations, Has.Count.EqualTo(1));
+            });
+        }
+
+        [Test]
         public void SelectedTemplateUsesSelectedCultureAndRetainsFallbackArguments()
         {
             var fallback = new TranslationInfo("measurement", "en-US", "Value {0:N1}", 1234.5);
@@ -190,6 +274,67 @@ namespace Opc.Ua.Types.Tests
             Assert.That(selected.Locale, Is.EqualTo("de-DE"));
             Assert.That(selected.Text, Is.Empty);
             Assert.That(selected.TranslationInfo, Is.EqualTo(fallback));
+        }
+
+        [Test]
+        public void FilterByPreferredLocalesMatchesLocaleCaseInsensitively()
+        {
+            // RFC 5646 language tags are case-insensitive: "DE-de" is "de-DE",
+            // not just any German region.
+            var text = new LocalizedText(new Dictionary<string, string>
+            {
+                { "de-AT", "Servus" },
+                { "de-DE", "Hallo" }
+            });
+
+            LocalizedText selected = text.FilterByPreferredLocales(["DE-de"]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(selected.Locale, Is.EqualTo("de-DE"));
+                Assert.That(selected.Text, Is.EqualTo("Hallo"));
+            });
+        }
+
+        [Test]
+        public void FilterByPreferredLocalesMulMatchesLocaleCaseInsensitively()
+        {
+            var text = new LocalizedText(new Dictionary<string, string>
+            {
+                { "en-US", "Hello" },
+                { "de-DE", "Hallo" },
+                { "fr-FR", "Bonjour" }
+            });
+
+            LocalizedText selected = text.FilterByPreferredLocales(["mul", "DE-DE", "FR-fr"]);
+
+            Assert.That(selected.IsMultiLanguage, Is.True);
+            Assert.That(selected.Translations, Is.EquivalentTo(new Dictionary<string, string>
+            {
+                { "de-DE", "Hallo" },
+                { "fr-FR", "Bonjour" }
+            }));
+        }
+
+        [Test]
+        public void FilterByPreferredLocalesMulFallsBackToRegionOfSameLanguage()
+        {
+            var text = new LocalizedText(new Dictionary<string, string>
+            {
+                { "en-US", "Hello" },
+                { "de-DE", "Hallo" },
+                { "fr-FR", "Bonjour" }
+            });
+
+            LocalizedText selected = text.FilterByPreferredLocales(["mul", "de-AT", "fr-CA"]);
+
+            // each text keeps the locale it is written in.
+            Assert.That(selected.IsMultiLanguage, Is.True);
+            Assert.That(selected.Translations, Is.EquivalentTo(new Dictionary<string, string>
+            {
+                { "de-DE", "Hallo" },
+                { "fr-FR", "Bonjour" }
+            }));
         }
     }
 }

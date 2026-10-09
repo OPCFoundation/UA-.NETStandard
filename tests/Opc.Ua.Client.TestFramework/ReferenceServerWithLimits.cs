@@ -62,13 +62,13 @@ namespace Opc.Ua.Client.TestFramework
         }
 
         public uint TestMaxBrowseReferencesPerNode { get; set; } = 10u;
-        private MasterNodeManager MasterNodeManagerReference { get; set; }
-        private SessionManagerWithLimits SessionManagerForTest { get; set; }
+        private MasterNodeManager MasterNodeManagerReference { get; set; } = null!;
+        private SessionManagerWithLimits SessionManagerForTest { get; set; } = null!;
 
         public override ValueTask<BrowseResponse> BrowseAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
-            ViewDescription view,
+            RequestHeader? requestHeader,
+            ViewDescription? view,
             uint requestedMaxReferencesPerNode,
             ArrayOf<BrowseDescription> nodesToBrowse,
             RequestLifetime requestLifetime)
@@ -84,7 +84,7 @@ namespace Opc.Ua.Client.TestFramework
 
         public void SetMaxNumberOfContinuationPoints(uint maxNumberOfContinuationPoints)
         {
-            Configuration.ServerConfiguration.MaxBrowseContinuationPoints
+            Configuration!.ServerConfiguration!.MaxBrowseContinuationPoints
                 = (int)maxNumberOfContinuationPoints;
             ((MasterNodeManagerWithLimits)MasterNodeManagerReference)
                 .MaxContinuationPointsPerBrowseForUnitTest =
@@ -128,7 +128,7 @@ namespace Opc.Ua.Client.TestFramework
             MasterNodeManagerReference = new MasterNodeManagerWithLimits(
                 server,
                 configuration,
-                null,
+                null!,
                 asyncNodeManagers,
                 [.. nodeManagers]);
             // create master node manager.
@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.TestFramework
             : base(server, configuration)
         {
             m_4TestServer = server;
-            m_4TestMaxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
+            m_4TestMaxRequestAge = configuration.ServerConfiguration!.MaxRequestAge;
             m_4TestMaxBrowseContinuationPoints = configuration.ServerConfiguration
                 .MaxBrowseContinuationPoints;
             m_4TestMaxHistoryContinuationPoints = configuration.ServerConfiguration
@@ -292,7 +292,7 @@ namespace Opc.Ua.Client.TestFramework
 
             if (view != null && !view.ViewId.IsNull)
             {
-                (object viewHandle, IAsyncNodeManager viewManager) =
+                (object? viewHandle, IAsyncNodeManager? viewManager) =
                     await GetManagerHandleAsync(view.ViewId, cancellationToken)
                     .ConfigureAwait(false);
 
@@ -347,8 +347,8 @@ namespace Opc.Ua.Client.TestFramework
                         if (current != null && !current.ContinuationPoint.IsEmpty)
                         {
                             ContinuationPoint cp = context.Session
-                                .ContinuationPoints.RestoreBrowse(current.ContinuationPoint);
-                            cp.Dispose();
+                                .ContinuationPoints.RestoreBrowse(current.ContinuationPoint)!;
+                            cp!.Dispose();
                         }
                     }
 
@@ -395,15 +395,15 @@ namespace Opc.Ua.Client.TestFramework
 
                 if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                 {
-                    DiagnosticInfo diagnosticInfo = null;
+                    DiagnosticInfo? diagnosticInfo = null;
 
                     if (error != null && error.Code != StatusCodes.Good)
                     {
-                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger);
+                        diagnosticInfo = ServerUtils.CreateDiagnosticInfo(Server, context, error, m_logger)!;
                         diagnosticsExist = true;
                     }
 
-                    diagnosticInfos.Add(diagnosticInfo);
+                    diagnosticInfos.Add(diagnosticInfo!);
                 }
             }
 

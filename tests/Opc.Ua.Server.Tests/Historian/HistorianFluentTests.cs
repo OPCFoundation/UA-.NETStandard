@@ -42,8 +42,6 @@ using Opc.Ua.Server.Fluent;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Historian
 {
     /// <summary>
@@ -155,10 +153,33 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(v.Historizing, Is.True);
             Assert.That((byte)(v.AccessLevel & AccessLevels.HistoryRead),
                 Is.EqualTo(AccessLevels.HistoryRead));
-            Assert.That((byte)(v.AccessLevel & AccessLevels.HistoryWrite),
-                Is.EqualTo(AccessLevels.HistoryWrite));
             Assert.That((byte)(v.UserAccessLevel & AccessLevels.HistoryRead),
                 Is.EqualTo(AccessLevels.HistoryRead));
+            Assert.That((byte)(v.AccessLevel & AccessLevels.HistoryWrite),
+                Is.Zero,
+                "The default historian must be read-only.");
+            Assert.That((byte)(v.UserAccessLevel & AccessLevels.HistoryWrite),
+                Is.Zero,
+                "The default historian must not grant HistoryWrite to every user.");
+        }
+
+        /// <summary>
+        /// Verifies that HistoryWrite is granted only on explicit opt-in.
+        /// </summary>
+        [Test]
+        public void HistorizeGrantsHistoryWriteOnlyWhenRequested()
+        {
+            (NodeManagerBuilder b, BaseDataVariableState v) = CreateBuilderWithVariable();
+            v.AccessLevel = AccessLevels.CurrentRead;
+            v.UserAccessLevel = AccessLevels.CurrentRead;
+
+            b.Variable<int>(v.NodeId).Historize(
+                historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+
+            Assert.That((byte)(v.AccessLevel & AccessLevels.HistoryWrite),
+                Is.EqualTo(AccessLevels.HistoryWrite));
+            Assert.That((byte)(v.UserAccessLevel & AccessLevels.HistoryWrite),
+                Is.EqualTo(AccessLevels.HistoryWrite));
         }
 
         /// <summary>
@@ -198,8 +219,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 (byte)(v.AccessLevel & AccessLevels.HistoryRead),
                 Is.EqualTo(AccessLevels.HistoryRead));
             Assert.That(
-                (byte)(v.UserAccessLevel & AccessLevels.HistoryWrite),
-                Is.EqualTo(AccessLevels.HistoryWrite));
+                (byte)(v.UserAccessLevel & AccessLevels.HistoryRead),
+                Is.EqualTo(AccessLevels.HistoryRead));
             Assert.That(registry.Resolve(v.NodeId), Is.Not.Null);
         }
 

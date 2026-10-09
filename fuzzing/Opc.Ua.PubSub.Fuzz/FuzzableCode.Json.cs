@@ -50,7 +50,10 @@ namespace Opc.Ua.Fuzzing
             ReadOnlyMemory<byte> input,
             PubSubNetworkMessageContext context)
         {
-            return PubSubJsonDecoder.DecodeCore(input, context);
+            return FuzzOracles.MeasureAllocation(
+                "PubSubJsonDecoder",
+                input.Length,
+                () => PubSubJsonDecoder.DecodeCore(input, context))!;
         }
     }
 }

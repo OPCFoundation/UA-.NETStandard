@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -134,6 +133,182 @@ namespace Opc.Ua.Types.Tests.Schema
                     nodeSet.ServerUris.All(uri => uri is not null),
                 Is.True,
                 "no null entry may be appended to the export table");
+        }
+
+        [Test]
+        public void ValueServerIndexesUseTheNodeSetServerUriNumbering()
+        {
+            // Part 6 F.2: ServerUris starts at index 1, index 0 is the local server.
+            // The value decoder mapped index 0 to ServerUris[0] and index 1 to the
+            // entry after it.
+            const string xml =
+                "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\" " +
+                "xmlns:uax=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">" +
+                "<NamespaceUris><Uri>urn:test:audit</Uri></NamespaceUris>" +
+                "<ServerUris><Uri>urn:test:remote</Uri></ServerUris>" +
+                "<Models><Model ModelUri=\"urn:test:audit\" /></Models>" +
+                "<UAVariable NodeId=\"ns=1;s=Local\" BrowseName=\"1:Local\" DataType=\"i=18\">" +
+                "<DisplayName>Local</DisplayName>" +
+                "<References><Reference ReferenceType=\"i=40\">i=63</Reference>" +
+                "<Reference ReferenceType=\"i=35\">svr=1;i=85</Reference></References>" +
+                "<Value><uax:ExpandedNodeId><uax:Identifier>i=85</uax:Identifier></uax:ExpandedNodeId></Value>" +
+                "</UAVariable>" +
+                "<UAVariable NodeId=\"ns=1;s=Remote\" BrowseName=\"1:Remote\" DataType=\"i=18\">" +
+                "<DisplayName>Remote</DisplayName>" +
+                "<References><Reference ReferenceType=\"i=40\">i=63</Reference></References>" +
+                "<Value><uax:ExpandedNodeId><uax:Identifier>svr=1;i=85</uax:Identifier></uax:ExpandedNodeId></Value>" +
+                "</UAVariable>" +
+                "</UANodeSet>";
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            UANodeSet nodeSet = UANodeSet.Read(stream)!;
+
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
+            context.NamespaceUris.GetIndexOrAppend("urn:test:audit");
+            context.ServerUris.Append("urn:test:local");
+            context.ServerUris.Append("urn:test:other");
+            ushort remoteIndex = context.ServerUris.GetIndexOrAppend("urn:test:remote");
+
+            var nodes = new NodeStateCollection();
+            nodeSet.Import(context, nodes);
+
+            ExpandedNodeId local = nodes.OfType<BaseVariableState>()
+                .Single(v => v.BrowseName.Name == "Local").Value.GetExpandedNodeId();
+            ExpandedNodeId remote = nodes.OfType<BaseVariableState>()
+                .Single(v => v.BrowseName.Name == "Remote").Value.GetExpandedNodeId();
+
+            Assert.That(local.ServerIndex, Is.Zero, "svr=0 is the local server");
+            Assert.That(remote.ServerIndex, Is.EqualTo((uint)remoteIndex));
+
+            // exporting again must keep the local id local instead of writing an unmapped index.
+            var exported = new UANodeSet
+            {
+                NamespaceUris = ["urn:test:audit"],
+                ServerUris = ["urn:test:remote"]
+            };
+            foreach (BaseVariableState variable in nodes.OfType<BaseVariableState>())
+            {
+                exported.Export(context, variable);
+            }
+
+            string Written(string name)
+            {
+                return exported.Items!.OfType<UAVariable>()
+                    .Single(v => v.BrowseName!.EndsWith(name, System.StringComparison.Ordinal))
+                    .Value!.OuterXml;
+            }
+
+            Assert.That(Written("Local"), Does.Not.Contain("svr="));
+            Assert.That(Written("Remote"), Does.Contain("svr=1;i=85"));
+        }
+
+        [Test]
+        public void ValueExportWithoutServerUrisKeepsLocalIdsLocal()
+        {
+            // Without ServerUris in the NodeSet the server table was empty, so the
+            // local server index 0 was not found and written as svr=65535.
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
+            context.NamespaceUris.GetIndexOrAppend("urn:test:audit");
+            context.ServerUris.Append("urn:test:local");
+
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("Local", 1),
+                BrowseName = new QualifiedName("Local", 1),
+                DisplayName = new LocalizedText("Local"),
+                DataType = DataTypeIds.ExpandedNodeId,
+                ValueRank = ValueRanks.Scalar,
+                Value = new Variant(new ExpandedNodeId(new NodeId(85)))
+            };
+
+            var exported = new UANodeSet { NamespaceUris = ["urn:test:audit"] };
+            exported.Export(context, variable);
+
+            string written = exported.Items!.OfType<UAVariable>().Single().Value!.OuterXml;
+
+            Assert.That(written, Does.Contain("i=85"));
+            Assert.That(written, Does.Not.Contain("svr="));
+        }
+
+        [Test]
+        public void ImportFillsStructureBaseDataTypeFromTheSupertype()
+        {
+            // Part 3 8.48 / Part 6 F.12: baseDataType is the direct supertype, taken
+            // from the HasSubtype reference; Definition/@BaseType is not used.
+            const string xml =
+                "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
+                "<NamespaceUris><Uri>urn:test:audit</Uri></NamespaceUris>" +
+                "<Models><Model ModelUri=\"urn:test:audit\" /></Models>" +
+                "<UADataType NodeId=\"ns=1;i=3001\" BrowseName=\"1:MyStructure\">" +
+                "<DisplayName>MyStructure</DisplayName>" +
+                "<References><Reference ReferenceType=\"i=45\" IsForward=\"false\">i=22</Reference></References>" +
+                "<Definition Name=\"1:MyStructure\"><Field Name=\"Value\" DataType=\"i=6\" /></Definition>" +
+                "</UADataType>" +
+                "</UANodeSet>";
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+            UANodeSet nodeSet = UANodeSet.Read(stream)!;
+
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = new NamespaceTable(),
+                ServerUris = new StringTable()
+            };
+            context.NamespaceUris.GetIndexOrAppend("urn:test:audit");
+
+            var nodes = new NodeStateCollection();
+            nodeSet.Import(context, nodes);
+
+            DataTypeState dataType = nodes.OfType<DataTypeState>().Single();
+            Assert.That(
+                dataType.DataTypeDefinition.TryGetValue(out IEncodeable? body) &&
+                    body is StructureDefinition,
+                Is.True);
+            Assert.That(
+                ((StructureDefinition)body!).BaseDataType,
+                Is.EqualTo(DataTypeIds.Structure));
+        }
+
+        [Test]
+        public void CompareEquivalentResolvesAliasesInRolePermissionsAndBaseType()
+        {
+            static UANodeSet Read(string aliases, string role, string baseType)
+            {
+                string xml =
+                    "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
+                    "<NamespaceUris><Uri>urn:test:audit</Uri></NamespaceUris>" +
+                    "<Models><Model ModelUri=\"urn:test:audit\" /></Models>" +
+                    aliases +
+                    "<UADataType NodeId=\"ns=1;i=3001\" BrowseName=\"1:MyStructure\">" +
+                    "<DisplayName>MyStructure</DisplayName>" +
+                    "<References><Reference ReferenceType=\"i=45\" IsForward=\"false\">ns=1;i=3000</Reference></References>" +
+                    "<RolePermissions><RolePermission Permissions=\"3\">" + role + "</RolePermission></RolePermissions>" +
+                    "<Definition Name=\"1:MyStructure\" BaseType=\"" + baseType + "\">" +
+                    "<Field Name=\"Value\" DataType=\"i=6\" /></Definition>" +
+                    "</UADataType>" +
+                    "</UANodeSet>";
+                using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
+                return UANodeSet.Read(stream)!;
+            }
+
+            UANodeSet aliased = Read(
+                "<Aliases><Alias Alias=\"AdminRole\">ns=1;i=5</Alias>" +
+                "<Alias Alias=\"MyBase\">ns=1;i=3000</Alias></Aliases>",
+                "AdminRole",
+                "MyBase");
+            UANodeSet explicitIds = Read(string.Empty, "ns=1;i=5", "ns=1;i=3000");
+
+            NodeSetComparisonResult result = NodeSetComparer.CompareEquivalent(aliased, explicitIds);
+
+            Assert.That(result.AreEquivalent, Is.True, string.Join("\n", result.Differences));
         }
 
         [Test]

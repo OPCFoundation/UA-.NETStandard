@@ -54,16 +54,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
     [NonParallelizable]
     public class TypeSystemClientTest : IUAClient
     {
-        public ISession Session { get; private set; }
-        private ServerFixture<ReferenceServer> m_serverFixture;
+        public ISession Session { get; private set; } = null!;
+        private ServerFixture<ReferenceServer> m_serverFixture = null!;
 #pragma warning disable NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
-        private ClientFixture m_clientFixture;
+        private ClientFixture m_clientFixture = null!;
 #pragma warning restore NUnit1032 // An IDisposable field/property should be Disposed in a TearDown method
-        private ReferenceServer m_server;
+        private ReferenceServer m_server = null!;
         private readonly string m_uriScheme;
-        private ITelemetryContext m_telemetry;
-        private string m_pkiRoot;
-        private Uri m_url;
+        private ITelemetryContext m_telemetry = null!;
+        private string m_pkiRoot = null!;
+        private Uri m_url = null!;
 
         /// <summary>
         /// for test that fetched and browsed node count match
@@ -119,7 +119,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             m_clientFixture = new ClientFixture(telemetry);
 
             await m_clientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            m_clientFixture.Config.TransportQuotas.MaxMessageSize = 4 * 1024 * 1024;
+            m_clientFixture.Config.TransportQuotas!.MaxMessageSize = 4 * 1024 * 1024;
             m_url = new Uri(
                 m_uriScheme +
                 "://localhost:" +
@@ -147,7 +147,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             {
                 await Session.CloseAsync().ConfigureAwait(false);
                 Session.Dispose();
-                Session = null;
+                Session = null!;
             }
             await m_serverFixture.StopAsync().ConfigureAwait(false);
             m_clientFixture?.Dispose();
@@ -186,7 +186,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     .GetDataTypeDefinitionsForDataType(
                         dataTypeId);
                 Assert.That(definitions, Is.Not.Empty);
-                Type type = Session.Factory.GetSystemType(dataTypeId);
+                Type type = Session.Factory.GetSystemType(dataTypeId)!;
                 Assert.That(type, Is.Not.Null);
 
                 var localTypeId = ExpandedNodeId.ToNodeId(dataTypeId, Session.NamespaceUris);
@@ -293,7 +293,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     var fullTypeId = NodeId.ToExpandedNodeId(
                         variableNode.DataType,
                         Session.NamespaceUris);
-                    Type type = Session.Factory.GetSystemType(fullTypeId);
+                    Type? type = Session.Factory.GetSystemType(fullTypeId);
                     if (type == null)
                     {
                         // check for opaque type
@@ -332,7 +332,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     }
 
                     if (value.WrappedValue.TryGetValue(out ExtensionObject extensionObject) &&
-                        extensionObject.TryGetValue(out IEncodeable encodeable))
+                        extensionObject.TryGetValue(out IEncodeable? encodeable))
                     {
                         Type valueType = encodeable.GetType();
                         if (valueType != type)
@@ -352,7 +352,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                     {
                         foreach (ExtensionObject valueItem in array.ToList())
                         {
-                            if (valueItem.TryGetValue(out encodeable))
+                            if (valueItem.TryGetValue(out encodeable!))
                             {
                                 Type valueType = encodeable.GetType();
                                 if (valueType != type)
@@ -420,7 +420,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             // test the accessor to the complex types
             Assert.That(dataValue.WrappedValue.TryGetValue(out ExtensionObject extensionObject), Is.True);
-            Assert.That(extensionObject.TryGetValue(out IEncodeable encodeable), Is.True);
+            Assert.That(extensionObject.TryGetValue(out IEncodeable? encodeable), Is.True);
             Assert.That(encodeable, Is.Not.Null);
             var complexType = encodeable as IComplexTypeProperties;
             Assert.That(complexType, Is.Not.Null);
@@ -444,10 +444,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             complexType["IntegerValue"] = new Variant((long)54321);
             complexType["UIntegerValue"] = new Variant((ulong)12345);
 
+            // without the TimestampWrite access level bit only a null
+            // SourceTimestamp may be written (OPC 10000-3 8.57).
             var dataWriteValue = new DataValue(
                 dataValue.WrappedValue,
-                StatusCodes.Good,
-                DateTime.UtcNow);
+                StatusCodes.Good);
 
             // write value back
             ArrayOf<WriteValue> writeValues =
@@ -474,7 +475,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             Assert.That(dataValue.IsNull, Is.False);
 
             Assert.That(dataValue.WrappedValue.TryGetValue(out extensionObject), Is.True);
-            Assert.That(extensionObject.TryGetValue(out encodeable), Is.True);
+            Assert.That(extensionObject.TryGetValue(out encodeable!), Is.True);
             Assert.That(encodeable, Is.Not.Null);
             complexType = encodeable as IComplexTypeProperties;
             Assert.That(complexType, Is.Not.Null);

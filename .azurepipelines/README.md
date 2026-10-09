@@ -1,13 +1,13 @@
 # Pipeline helpers and contracts
 
-Azure YAML pipelines and templates stay at this directory's root. Supporting
-scripts and data are grouped by task and are also used by GitHub Actions, local
-commands, and the release-evidence tooling.
+Supporting scripts and data are grouped by task and used by GitHub Actions,
+local commands and the release-evidence tooling. The Azure CI and publishing
+definitions are retired on this branch; only the opt-in OneFuzz definition remains.
 
 | Location | Responsibility |
 | --- | --- |
-| Root | YAML pipelines/templates and cross-cutting `get-root.ps1`, `get-matrix.ps1`, `set-version.ps1`, `generate-slnx.ps1`, and `validate-migration-plugin.ps1` |
-| `assurance/` | Discovery, fuzz-input identity, result and proof collection, NativeAOT and CodeQL helpers, authenticated retrieval/review, and `profiles.json` |
+| Root | Opt-in `onefuzz.yml` and cross-cutting `set-version.ps1`, `generate-slnx.ps1`, and `validate-migration-plugin.ps1` |
+| `assurance/` | Discovery, fuzz-input identity, strict TRX evaluation shared by Actions, result/proof collection, NativeAOT and CodeQL helpers, authenticated retrieval/review, and `profiles.json` |
 | `containers/` | Container matrix selection and `evidence.ps1` for OCI evidence collection and offline evaluation |
 | `nuget/` | `evidence.ps1`, its shared `evidence-functions.ps1`, package/version policy, preview ordering and published-content checks, package validators, `expected-packages.txt`, and Debug/Release signing lists |
 | `release/` | `promotion.ps1`, `policy.json`, `artifacts.json`, readiness progress, and all release/verification/readiness/review/delivery JSON schemas |

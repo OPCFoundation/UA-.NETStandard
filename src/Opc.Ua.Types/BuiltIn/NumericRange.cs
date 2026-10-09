@@ -128,7 +128,8 @@ namespace Opc.Ua
                     return 1;
                 }
 
-                return End - Begin + 1;
+                // "0:2147483647" has more elements than an int can count.
+                return (int)Math.Min((long)End - Begin + 1, int.MaxValue);
             }
         }
 
@@ -414,6 +415,17 @@ namespace Opc.Ua
 
             if (index >= 0)
             {
+                // A trailing ',' ("1:2,") is an empty last dimension, which the
+                // loop below never visits.
+                if (textToParse[^1] == ',')
+                {
+                    range = Null;
+                    return ServiceResult.Create(
+                        StatusCodes.BadIndexRangeInvalid,
+                        "NumericRange has an empty dimension ({0}).",
+                        textToParse);
+                }
+
                 int start = 0;
                 var subranges = new List<NumericRange>();
 
@@ -1659,23 +1671,14 @@ namespace Opc.Ua
             int numDims = srcDimensions.Length;
 
             // create the dimensions of the target.
-            int[] dstDimensions = new int[numDims];
-
-            for (int ii = 0; ii < numDims; ii++)
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                srcDimensions,
+                out int[] dstDimensions,
+                out int dstLength))
             {
-                if (SubRanges[ii].m_begin >= srcDimensions[ii])
-                {
-                    value = default;
-                    return StatusCodes.BadIndexRangeNoData;
-                }
-
-                dstDimensions[ii] = SubRanges[ii].Count;
-            }
-
-            int dstLength = 1;
-            for (int ii = 0; ii < numDims; ii++)
-            {
-                dstLength *= dstDimensions[ii];
+                value = default;
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // pre-compute source strides for row-major flat index calculation.
@@ -1764,22 +1767,33 @@ namespace Opc.Ua
             int numDims = dstDimensions.Length;
             int[] sliceDimensions = slice.Dimensions;
 
-            // Validate the slice has the same number of dimensions.
-            if (sliceDimensions.Length != numDims)
+            // No data exists within the range when a lower bound lies
+            // beyond the destination (Part 4 7.27); report that before a
+            // size mismatch of the written data.
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                dstDimensions,
+                out int[] rangeDimensions,
+                out _))
             {
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            // Validate each dimension: the slice placed at SubRange
-            // begin must fit within the destination.
-            for (int ii = 0; ii < numDims; ii++)
+            // The slice must have the dimensions specified by the range
+            // itself, not the range clipped to the destination (Part 4
+            // 7.27); otherwise the data does not match the IndexRange
+            // (Part 4 5.11.4.4).
+            if (sliceDimensions.Length != numDims ||
+                !MatchesUnclippedDimensions(SubRanges, sliceDimensions))
             {
-                int start = SubRanges[ii].m_begin;
+                return StatusCodes.BadIndexRangeDataMismatch;
+            }
 
-                if (start + sliceDimensions[ii] > dstDimensions[ii])
-                {
-                    return StatusCodes.BadIndexRangeNoData;
-                }
+            // The range must lie within the destination so that all
+            // elements can be written (Part 4 7.27).
+            if (!rangeDimensions.AsSpan().SequenceEqual(sliceDimensions))
+            {
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // Copy destination data to a mutable array.
@@ -1861,23 +1875,14 @@ namespace Opc.Ua
             }
 
             // create the dimensions of the target.
-            int[] dstDimensions = new int[numDims];
-
-            for (int ii = 0; ii < numDims; ii++)
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                srcDimensions,
+                out int[] dstDimensions,
+                out int dstLength))
             {
-                if (SubRanges[ii].Begin >= srcDimensions[ii])
-                {
-                    value = default;
-                    return StatusCodes.BadIndexRangeNoData;
-                }
-
-                dstDimensions[ii] = SubRanges[ii].Count;
-            }
-
-            int dstLength = 1;
-            for (int ii = 0; ii < numDims; ii++)
-            {
-                dstLength *= dstDimensions[ii];
+                value = default;
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // pre-compute source strides for row-major flat index calculation.
@@ -2009,22 +2014,46 @@ namespace Opc.Ua
 
             int[] sliceDimensions = slice.Dimensions;
 
-            // Validate the slice has the same number of dimensions.
-            if (sliceDimensions.Length != numDims)
+            // No data exists within the range when a lower bound lies
+            // beyond the destination (Part 4 7.27); report that before a
+            // size mismatch of the written data.
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                dstDimensions,
+                out int[] rangeDimensions,
+                out _))
             {
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            // Validate each dimension: the slice placed at SubRange
-            // begin must fit within the destination.
-            for (int ii = 0; ii < numDims; ii++)
+            // The same holds when the substring range starts beyond one of
+            // the selected elements.
+            if (finalRange != null &&
+                FinalRangeSelectsNoData(
+                    value.Span,
+                    dstDimensions,
+                    rangeDimensions,
+                    finalRange.Value,
+                    s => s?.Length ?? 0))
             {
-                int start = SubRanges[ii].m_begin;
+                return StatusCodes.BadIndexRangeNoData;
+            }
 
-                if (start + sliceDimensions[ii] > dstDimensions[ii])
-                {
-                    return StatusCodes.BadIndexRangeNoData;
-                }
+            // The slice must have the dimensions specified by the range
+            // itself, not the range clipped to the destination (Part 4
+            // 7.27); otherwise the data does not match the IndexRange
+            // (Part 4 5.11.4.4).
+            if (sliceDimensions.Length != numDims ||
+                !MatchesUnclippedDimensions(SubRanges, sliceDimensions))
+            {
+                return StatusCodes.BadIndexRangeDataMismatch;
+            }
+
+            // The range must lie within the destination so that all
+            // elements can be written (Part 4 7.27).
+            if (!rangeDimensions.AsSpan().SequenceEqual(sliceDimensions))
+            {
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // Copy destination data to a mutable array.
@@ -2133,23 +2162,14 @@ namespace Opc.Ua
             }
 
             // create the dimensions of the target.
-            int[] dstDimensions = new int[numDims];
-
-            for (int ii = 0; ii < numDims; ii++)
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                srcDimensions,
+                out int[] dstDimensions,
+                out int dstLength))
             {
-                if (SubRanges[ii].Begin >= srcDimensions[ii])
-                {
-                    value = default;
-                    return StatusCodes.BadIndexRangeNoData;
-                }
-
-                dstDimensions[ii] = SubRanges[ii].Count;
-            }
-
-            int dstLength = 1;
-            for (int ii = 0; ii < numDims; ii++)
-            {
-                dstLength *= dstDimensions[ii];
+                value = default;
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // pre-compute source strides for row-major flat index calculation.
@@ -2279,22 +2299,46 @@ namespace Opc.Ua
 
             int[] sliceDimensions = slice.Dimensions;
 
-            // Validate the slice has the same number of dimensions.
-            if (sliceDimensions.Length != numDims)
+            // No data exists within the range when a lower bound lies
+            // beyond the destination (Part 4 7.27); report that before a
+            // size mismatch of the written data.
+            if (!TryGetMatrixSliceDimensions(
+                SubRanges,
+                dstDimensions,
+                out int[] rangeDimensions,
+                out _))
             {
                 return StatusCodes.BadIndexRangeNoData;
             }
 
-            // Validate each dimension: the slice placed at SubRange
-            // begin must fit within the destination.
-            for (int ii = 0; ii < numDims; ii++)
+            // The same holds when the substring range starts beyond one of
+            // the selected elements.
+            if (finalRange != null &&
+                FinalRangeSelectsNoData(
+                    value.Span,
+                    dstDimensions,
+                    rangeDimensions,
+                    finalRange.Value,
+                    s => s.IsNull ? 0 : s.Length))
             {
-                int start = SubRanges[ii].m_begin;
+                return StatusCodes.BadIndexRangeNoData;
+            }
 
-                if (start + sliceDimensions[ii] > dstDimensions[ii])
-                {
-                    return StatusCodes.BadIndexRangeNoData;
-                }
+            // The slice must have the dimensions specified by the range
+            // itself, not the range clipped to the destination (Part 4
+            // 7.27); otherwise the data does not match the IndexRange
+            // (Part 4 5.11.4.4).
+            if (sliceDimensions.Length != numDims ||
+                !MatchesUnclippedDimensions(SubRanges, sliceDimensions))
+            {
+                return StatusCodes.BadIndexRangeDataMismatch;
+            }
+
+            // The range must lie within the destination so that all
+            // elements can be written (Part 4 7.27).
+            if (!rangeDimensions.AsSpan().SequenceEqual(sliceDimensions))
+            {
+                return StatusCodes.BadIndexRangeNoData;
             }
 
             // Copy destination data to a mutable array.
@@ -2412,12 +2456,33 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeNoData;
             }
 
+            // No data exists within the range when the outer range or the
+            // substring range starts beyond the selected elements (Part 4
+            // 7.27); report that before a size mismatch of the written data.
             if (!TryGetRange(
                 value.Count,
-                slice.Count,
                 out int start,
                 out int length,
                 out StatusCode statusCode))
+            {
+                value = default;
+                return statusCode;
+            }
+            for (int i = start; i < start + length; i++)
+            {
+                if (SubRanges![1].SelectsNoData(value[i].IsNull ? 0 : value[i].Length))
+                {
+                    value = default;
+                    return StatusCodes.BadIndexRangeNoData;
+                }
+            }
+
+            if (!TryGetRange(
+                value.Count,
+                slice.Count,
+                out start,
+                out length,
+                out statusCode))
             {
                 value = default;
                 return statusCode;
@@ -2501,12 +2566,33 @@ namespace Opc.Ua
                 return StatusCodes.BadIndexRangeNoData;
             }
 
+            // No data exists within the range when the outer range or the
+            // substring range starts beyond the selected elements (Part 4
+            // 7.27); report that before a size mismatch of the written data.
             if (!TryGetRange(
                 value.Count,
-                slice.Count,
                 out int start,
                 out int length,
                 out StatusCode statusCode))
+            {
+                value = default;
+                return statusCode;
+            }
+            for (int i = start; i < start + length; i++)
+            {
+                if (SubRanges![1].SelectsNoData(value[i]?.Length ?? 0))
+                {
+                    value = default;
+                    return StatusCodes.BadIndexRangeNoData;
+                }
+            }
+
+            if (!TryGetRange(
+                value.Count,
+                slice.Count,
+                out start,
+                out length,
+                out statusCode))
             {
                 value = default;
                 return statusCode;
@@ -2630,17 +2716,13 @@ namespace Opc.Ua
 
             if (!TryGetRange(
                 value.Length,
+                slice.Length,
                 out int start,
-                out int length,
+                out _,
                 out StatusCode statusCode))
             {
                 value = default;
                 return statusCode;
-            }
-
-            if (slice.Length != length)
-            {
-                return StatusCodes.BadIndexRangeNoData;
             }
 
             Span<byte> dst = value.ToArray().AsSpan();
@@ -2704,17 +2786,13 @@ namespace Opc.Ua
 
             if (!TryGetRange(
                 value.Length,
+                slice.Length,
                 out int start,
-                out int length,
+                out _,
                 out StatusCode statusCode))
             {
                 value = null!;
                 return statusCode;
-            }
-
-            if (slice.Length != length)
-            {
-                return StatusCodes.BadIndexRangeNoData;
             }
 
             Span<char> dst = value.ToCharArray().AsSpan();
@@ -2809,21 +2887,109 @@ namespace Opc.Ua
             out int length,
             out StatusCode statusCode)
         {
-            if (count == 0)
-            {
-                begin = default;
-                length = default;
-                statusCode = StatusCodes.BadIndexRangeNoData;
-                return false;
-            }
+            // No data exists within the range when it starts beyond the
+            // end of the target (Part 4 7.27); report that before a size
+            // mismatch of the written data.
             if (!TryGetRange(count, out begin, out length, out statusCode))
             {
                 return false;
             }
+
+            // The written data must have the size specified by the range
+            // itself, not the range clipped to the target (Part 4 7.27);
+            // a mismatch is Bad_IndexRangeDataMismatch (Part 4 5.11.4.4).
+            if (countReplace != UnclippedLength)
+            {
+                statusCode = StatusCodes.BadIndexRangeDataMismatch;
+                return false;
+            }
+
+            // The range reaches beyond the end of the target, so not all
+            // elements can be written (Part 4 7.27).
             if (countReplace != length)
             {
                 statusCode = StatusCodes.BadIndexRangeNoData;
                 return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// The number of elements the range specifies, before it is
+        /// clipped to the size of a value.
+        /// </summary>
+        private long UnclippedLength
+            => m_end == -1 ? 1 : (long)m_end - m_begin + 1;
+
+        /// <summary>
+        /// True if the range starts beyond a value of the given length, so
+        /// that no data exists within it (Part 4 7.27).
+        /// </summary>
+        private bool SelectsNoData(int count)
+        {
+            return !TryGetRange(count, out _, out _, out _);
+        }
+
+        /// <summary>
+        /// True if the substring range selects no data in one of the matrix
+        /// elements selected by the sub ranges.
+        /// </summary>
+        /// <typeparam name="T">The String or ByteString element type.</typeparam>
+        private bool FinalRangeSelectsNoData<T>(
+            ReadOnlySpan<T> values,
+            int[] dimensions,
+            int[] rangeDimensions,
+            NumericRange finalRange,
+            Func<T, int> getLength)
+        {
+            int numDims = dimensions.Length;
+            int[] strides = new int[numDims];
+            strides[numDims - 1] = 1;
+            for (int ii = numDims - 2; ii >= 0; ii--)
+            {
+                strides[ii] = strides[ii + 1] * dimensions[ii + 1];
+            }
+
+            int count = 1;
+            foreach (int length in rangeDimensions)
+            {
+                count *= length;
+            }
+
+            for (int ii = 0; ii < count; ii++)
+            {
+                int divisor = count;
+                int flat = 0;
+                for (int jj = 0; jj < numDims; jj++)
+                {
+                    divisor /= rangeDimensions[jj];
+                    int index = ii / divisor % rangeDimensions[jj];
+                    flat += (index + SubRanges![jj].m_begin) * strides[jj];
+                }
+
+                if (finalRange.SelectsNoData(getLength(values[flat])))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks that the dimensions of a slice written to a matrix match
+        /// the dimensions specified by the sub ranges, before they are
+        /// clipped to the matrix (Part 4 7.27).
+        /// </summary>
+        private static bool MatchesUnclippedDimensions(
+            NumericRange[] subRanges,
+            int[] sliceDimensions)
+        {
+            for (int ii = 0; ii < sliceDimensions.Length; ii++)
+            {
+                if (sliceDimensions[ii] != subRanges[ii].UnclippedLength)
+                {
+                    return false;
+                }
             }
             return true;
         }
@@ -2864,6 +3030,40 @@ namespace Opc.Ua
 
             length = end - begin + 1;
             statusCode = StatusCodes.Good;
+            return true;
+        }
+
+        /// <summary>
+        /// Computes the dimensions of the part of a matrix selected by the
+        /// sub ranges. Upper bounds beyond the matrix are clipped (partial
+        /// results per Part 4 7.27), so the result never exceeds the matrix.
+        /// Returns false if a lower bound is out of range.
+        /// </summary>
+        private static bool TryGetMatrixSliceDimensions(
+            NumericRange[] subRanges,
+            int[] matrixDimensions,
+            out int[] sliceDimensions,
+            out int sliceLength)
+        {
+            sliceDimensions = new int[matrixDimensions.Length];
+            sliceLength = 1;
+            for (int ii = 0; ii < matrixDimensions.Length; ii++)
+            {
+                if (!subRanges[ii].TryGetRange(
+                    matrixDimensions[ii],
+                    out _,
+                    out int length,
+                    out _))
+                {
+                    sliceLength = 0;
+                    return false;
+                }
+
+                // each length is bounded by the matrix dimension, so the
+                // product is bounded by the matrix length.
+                sliceDimensions[ii] = length;
+                sliceLength *= length;
+            }
             return true;
         }
 

@@ -7,13 +7,12 @@
     <PackageId>IntentEnabledRobot</PackageId>
     <Description>Minimal self-contained OPC UA Robot Intent server sample with a simulated UR5e-style arm and OpenUSD assets.</Description>
     <RootNamespace>Robotics.IntentEnabledRobot</RootNamespace>
-    <Nullable>enable</Nullable>
     <NoWarn>$(NoWarn);CA1014;CA1822</NoWarn>
     <PublishAot>true</PublishAot>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
     <!-- Pinned to net10.0, so it cannot take part directly in solution builds
          pinned to a different CustomTestTarget. In legacy pins the referenced
-         libraries build for net472/net48/netstandard2.1 while this project would
+         libraries build for net48 while this project would
          otherwise keep its net10.0 BCL surface, causing public polyfills such as
          System.Threading.Lock or nullable attributes to collide. -->
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>

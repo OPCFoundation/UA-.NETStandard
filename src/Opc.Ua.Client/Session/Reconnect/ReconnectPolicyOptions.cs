@@ -67,6 +67,8 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Maximum total elapsed time for one reconnect cycle across
         /// outer ManagedSession retries and channel-manager retries.
+        /// <see cref="TimeSpan.Zero"/> or <see cref="System.Threading.Timeout.InfiniteTimeSpan"/>
+        /// means unlimited; other negative values are rejected.
         /// </summary>
         public TimeSpan MaxTotalReconnectTime { get; init; } = TimeSpan.FromMinutes(5);
     }

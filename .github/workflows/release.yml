@@ -3,14 +3,15 @@ name: Release to nuget.org
 # Manual promotion of the exact signed package bytes produced by a successful
 # nuget-publish.yml run on a canonical "release/<major>.<minor>" branch (e.g.
 # release/2.0). The release environment and NuGet trusted publishing identity
-# require administrator-verified ref restrictions and approval records.
-# This workflow additionally requires the
-# candidate's base package version to be an exact stable release (no
-# prerelease label or build metadata, e.g. "2.0.0") - a preview candidate is
-# already published automatically by nuget-publish.yml and must never be
-# promoted here. See docs/ReleaseProcess.md ("Approved promotion") for the
-# full procedure, including how to pick a release_run_id and how to recover
-# from a partial or failed promotion.
+# require administrator-verified branch restrictions and approval records. The "channel" input states what is being
+# promoted and must match the candidate: "stable" (the default) requires an
+# exact stable release (no prerelease label or build metadata, e.g. "2.0.0");
+# "preview" requires a public release-line preview (e.g. "2.0.0-preview.6").
+# nuget-publish.yml only ever pushes previews to GitHub Packages, so this is
+# the one path that puts a preview on nuget.org. See docs/ReleaseProcess.md
+# ("Approved promotion" and "Preview release") for the full procedures,
+# including how to pick a release_run_id and how to recover from a partial or
+# failed promotion.
 #
 # One-time nuget.org trusted publishing policy:
 #   Repository Owner: OPCFoundation
@@ -25,6 +26,14 @@ on:
         description: Successful nuget-publish.yml run ID from a release/<major>.<minor> branch
         required: true
         type: string
+      channel:
+        description: What the candidate is - an exact stable release, or a release-line preview (e.g. 2.0.0-preview.6)
+        required: false
+        type: choice
+        options:
+          - stable
+          - preview
+        default: stable
       dry_run:
         description: Validate the selected package set without publishing
         required: false
@@ -261,6 +270,7 @@ jobs:
           RELEASE_RUN_ID: ${{ inputs.release_run_id }}
           RELEASE_BRANCH: ${{ steps.source.outputs.branch }}
           RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
         run: |
           . ./.azurepipelines/nuget/package-version-policy.ps1
           $manifestPath = 'promotion/release-manifest.json'
@@ -286,24 +296,53 @@ jobs:
               $manifest.packageVersion
           }
 
-          # This workflow exists solely to promote a stable release (e.g.
-          # "2.0.0", "2.0.1", "2.1.0") to nuget.org. In-development preview
-          # candidates are already published automatically by
-          # nuget-publish.yml and must never be promoted here. See
-          # docs/ReleaseProcess.md ("Approved promotion").
-          if (-not (Test-StablePackageVersion -Version $expectedBaseVersion)) {
+          # The dispatcher states which kind of release this is, and the
+          # candidate must be exactly that: a stable promotion can never
+          # publish a preview by accident, nor the reverse. A preview must be
+          # a public release-line build ("M.m.p-preview.N", no commit id), so
+          # master or feature-branch previews can never reach nuget.org. See
+          # docs/ReleaseProcess.md ("Approved promotion", "Preview release").
+          $channel = $env:RELEASE_CHANNEL
+          if ($channel -cne 'stable' -and $channel -cne 'preview') {
+              throw "channel must be 'stable' or 'preview', not '$channel'."
+          }
+          if ($channel -ceq 'stable' -and
+              -not (Test-StablePackageVersion -Version $expectedBaseVersion)) {
               throw (
                   "Run $($env:RELEASE_RUN_ID) produced base version " +
                   "'$expectedBaseVersion', which is not an exact stable release. Only a " +
                   'stable candidate (no prerelease label or build metadata) may be ' +
-                  'promoted through this workflow.')
+                  "promoted with channel 'stable'; dispatch with channel 'preview' to " +
+                  'publish a release-line preview.')
+          }
+          if ($channel -ceq 'preview' -and
+              -not (Test-PromotablePreviewPackageVersion -Version $expectedBaseVersion)) {
+              throw (
+                  "Run $($env:RELEASE_RUN_ID) produced base version " +
+                  "'$expectedBaseVersion', which is not a release-line preview. Only an " +
+                  "'M.m.p-preview.N' candidate without a commit id may be promoted with " +
+                  "channel 'preview'.")
+          }
+          # schemaVersion 1 manifests predate the recorded channel. They stay
+          # promotable as stable, but a preview must prove its channel.
+          if ($channel -ceq 'preview' -and $manifest.schemaVersion -ne 2) {
+              throw (
+                  "The promotion manifest is schemaVersion $($manifest.schemaVersion), which " +
+                  "records no channel. Only a schemaVersion 2 candidate may be promoted " +
+                  "with channel 'preview'.")
+          }
+          if ($manifest.schemaVersion -eq 2 -and $manifest.channel -cne $channel) {
+              throw (
+                  "The promotion manifest records channel '$($manifest.channel)', but this " +
+                  "promotion was dispatched with channel '$channel'.")
           }
           if (-not (Test-CanonicalReleaseBranchForPackageVersion `
               -Ref $expectedRef `
-              -Version $expectedBaseVersion)) {
+              -Version $expectedBaseVersion `
+              -AllowPreview:($channel -ceq 'preview'))) {
               throw (
                   "Candidate version '$expectedBaseVersion' does not match release branch " +
-                  "'$expectedRef'. A stable M.m.p candidate must be promoted only from " +
+                  "'$expectedRef'. An M.m.p candidate must be promoted only from " +
                   'the matching release/M.m branch.')
           }
 
@@ -442,7 +481,7 @@ jobs:
               } |
               Sort-Object Name)
           if ($packages.Count -eq 0) {
-              throw 'The stable candidate contains no non-Debug packages to push to nuget.org.'
+              throw 'The candidate contains no non-Debug packages to push to nuget.org.'
           }
           Write-Host (
               "Publishing $($packages.Count) non-Debug package(s) to nuget.org. " +
@@ -488,7 +527,9 @@ jobs:
         # any feed automatically (see its "Skip feed publication" step); this
         # is the one place a stable release also gets mirrored to GitHub
         # Packages, gated behind the same approval and dry-run switch as the
-        # nuget.org push above.
+        # nuget.org push above. A preview candidate was already pushed here by
+        # its own nuget-publish.yml run, so this loop is a verified no-op for
+        # it: the preflight and post-push checks prove those are its bytes.
         if: ${{ !inputs.dry_run }}
         shell: pwsh
         env:
@@ -539,6 +580,111 @@ jobs:
             -Destination NugetOrg -Output promotion\nugetorg-receipt.json `
             -Work "$env:RUNNER_TEMP\nuget-feed"
 
+      - name: Tag published package candidate
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: |
+          $manifest = Get-Content -LiteralPath 'promotion/release-manifest.json' -Raw | ConvertFrom-Json
+          $tag = if ($manifest.schemaVersion -eq 2) {
+             [string]$manifest.basePackageVersion
+          }
+          else {
+             [string]$manifest.packageVersion
+          }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+             throw 'The promotion manifest does not contain a package version for the release tag.'
+          }
+
+          $tagRef = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$tag" 2>&1
+          if ($LASTEXITCODE -eq 0) {
+             $tagObject = $tagRef | ConvertFrom-Json
+             if ($tagObject.object.type -cne 'commit' -or
+                 $tagObject.object.sha -cne $env:RELEASE_COMMIT) {
+                 throw "Existing tag '$tag' does not point to candidate commit $env:RELEASE_COMMIT."
+             }
+          }
+          elseif ($tagRef -match 'HTTP 404') {
+             gh api --method POST "repos/$env:GITHUB_REPOSITORY/git/refs" `
+                 -f "ref=refs/tags/$tag" `
+                 -f "sha=$env:RELEASE_COMMIT"
+             if ($LASTEXITCODE -ne 0) {
+                 throw "Failed to create tag '$tag' for candidate commit $env:RELEASE_COMMIT."
+             }
+          }
+          else {
+             throw "Unable to determine whether tag '$tag' already exists: $tagRef"
+          }
+
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" 2>&1
+          $isPrerelease = $env:RELEASE_CHANNEL -ceq 'preview'
+          if ($LASTEXITCODE -eq 0) {
+             $releaseObject = $release | ConvertFrom-Json
+             if ($releaseObject.draft -or
+                 $releaseObject.target_commitish -cne $env:RELEASE_COMMIT -or
+                 [bool]$releaseObject.prerelease -ne $isPrerelease) {
+                 throw "Existing GitHub Release '$tag' does not match the promoted candidate."
+             }
+          }
+          elseif ($release -match 'HTTP 404') {
+             # GitHub generates notes against the latest release when no
+             # previous tag is given. That is a 1.5.378 maintenance release
+             # on another branch, so the 2.0.0 notes listed every commit
+             # since the branches split and exceeded the 125000-character
+             # body limit (HTTP 422). Start from the greatest lower release
+             # of the same major (see Get-PreviousReleaseTag) and cap the
+             # body regardless.
+             . ./.azurepipelines/nuget/package-version-policy.ps1
+             $releaseTags = @(gh api --paginate "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" `
+                 --jq '.[] | select(.draft | not) | .tag_name')
+             if ($LASTEXITCODE -ne 0) {
+                 throw 'Unable to list existing GitHub Releases.'
+             }
+             $previousTag = Get-PreviousReleaseTag -Tag $tag -ReleaseTags $releaseTags
+
+             $notesRequest = @('--method', 'POST', "repos/$env:GITHUB_REPOSITORY/releases/generate-notes",
+                 '-f', "tag_name=$tag", '-f', "target_commitish=$env:RELEASE_COMMIT")
+             if ($previousTag) {
+                 $notesRequest += @('-f', "previous_tag_name=$previousTag")
+             }
+             $notes = gh api @notesRequest | ConvertFrom-Json
+             if ($LASTEXITCODE -ne 0) {
+                 throw "Failed to generate release notes for '$tag'."
+             }
+
+             $body = [string]$notes.body
+             $maxBodyLength = 120000
+             if ($body.Length -gt $maxBodyLength) {
+                 $compare = if ($previousTag) {
+                     "https://github.com/$env:GITHUB_REPOSITORY/compare/$previousTag...$tag"
+                 }
+                 else {
+                     "https://github.com/$env:GITHUB_REPOSITORY/commits/$tag"
+                 }
+                 $cut = $body.LastIndexOf("`n", $maxBodyLength)
+                 $body = $body.Substring(0, [Math]::Max($cut, 0)) +
+                     "`n`n_The generated notes were truncated to fit the GitHub Release size limit. Full changelog: $($compare)_`n"
+             }
+             $notesFile = Join-Path $env:RUNNER_TEMP 'release-notes.md'
+             Set-Content -LiteralPath $notesFile -Value $body -Encoding utf8NoBOM
+
+             $arguments = @('release', 'create', $tag, '--target', $env:RELEASE_COMMIT,
+                 '--title', [string]$notes.name, '--notes-file', $notesFile)
+             if ($isPrerelease) {
+                 $arguments += '--prerelease'
+             }
+             gh @arguments
+             if ($LASTEXITCODE -ne 0) {
+                 throw "Failed to create GitHub Release '$tag'."
+             }
+          }
+          else {
+             throw "Unable to determine whether GitHub Release '$tag' already exists: $release"
+          }
+
       - name: Attach sanitized evidence to an existing matching release
         if: ${{ success() && !inputs.dry_run }}
         shell: pwsh
@@ -575,6 +721,7 @@ jobs:
         env:
           RELEASE_RUN_ID: ${{ inputs.release_run_id }}
           RELEASE_BRANCH: ${{ steps.source.outputs.branch }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
           RELEASE_DRY_RUN: ${{ inputs.dry_run }}
         run: |
           $manifestPath = 'promotion/release-manifest.json'
@@ -597,6 +744,7 @@ jobs:
 
           - Source run: ``$($env:RELEASE_RUN_ID)``
           - Source branch: ``$($env:RELEASE_BRANCH)``
+          - Channel: ``$($env:RELEASE_CHANNEL)``
           - Version: ``$version``
           - Packages: ``$count``
           - Dry run: ``$($env:RELEASE_DRY_RUN)``

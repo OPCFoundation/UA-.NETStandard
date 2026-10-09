@@ -808,13 +808,15 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Rejects arguments no canonical path can be built from.
         /// </summary>
+        /// <exception cref="ServiceResultException">The browse name is null or empty.</exception>
         private static void ValidatePathArguments(
             QualifiedName browseName,
             NamespaceTable namespaceUris)
         {
             if (browseName.IsNull || string.IsNullOrEmpty(browseName.Name))
             {
-                throw new ArgumentException("The browse name is null.", nameof(browseName));
+                throw new ServiceResultException(
+                    StatusCodes.BadBrowseNameInvalid, "The browse name is null or empty.");
             }
             if (namespaceUris is null)
             {
@@ -1109,7 +1111,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         private static string ToStringValue(ReadOnlySpan<char> value)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             return new string(value);
 #else
             return new string(value.ToArray());
@@ -1126,7 +1128,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         private static void ComputeHash(ReadOnlySpan<char> canonicalPath, Span<byte> destination)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             int byteCount = Encoding.UTF8.GetByteCount(canonicalPath);
 
             Span<byte> stack = stackalloc byte[kMaxStackallocBytes];
@@ -1271,7 +1273,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         private const int kMaxStackallocChars = 256;
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         /// <summary>
         /// The longest UTF-8 encoding of a path hashed on the stack.
         /// </summary>

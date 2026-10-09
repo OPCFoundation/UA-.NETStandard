@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -285,6 +283,64 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(
                 async () => await host.DisposeAsync().ConfigureAwait(false),
                 Throws.Nothing);
+        }
+
+        /// <summary>
+        /// The reverse connect listener accepts connections from anyone who
+        /// can reach its port, so it is opened with a bounded channel count
+        /// and a connection rate limiter instead of unlimited admission.
+        /// </summary>
+        [Test]
+        public async Task OpenAsyncBoundsPendingConnectionsAndRateAsync()
+        {
+            TransportListenerSettings? captured = null;
+            var listener = new Mock<ITransportListener>();
+            listener
+                .Setup(l => l.OpenAsync(
+                    It.IsAny<Uri>(),
+                    It.IsAny<TransportListenerSettings>(),
+                    It.IsAny<ITransportListenerCallback>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<Uri, TransportListenerSettings, ITransportListenerCallback, CancellationToken>(
+                    (_, settings, _, _) => captured = settings)
+                .Returns(default(ValueTask));
+            listener
+                .Setup(l => l.CloseAsync(It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            listener
+                .Setup(l => l.DisposeAsync())
+                .Returns(default(ValueTask));
+            var registry = new Mock<ITransportBindingRegistry>();
+            registry
+                .Setup(r => r.CreateListener("opc.test", m_telemetry))
+                .Returns(listener.Object);
+            var host = new ReverseConnectHost(m_telemetry, registry.Object);
+            host.CreateListener(
+                new Uri("opc.test://localhost:4840"),
+                IgnoreConnectionWaitingAsync,
+                IgnoreConnectionStatusChanged);
+
+            await host.OpenAsync().ConfigureAwait(false);
+
+            Assert.That(captured, Is.Not.Null);
+            Assert.That(captured!.ReverseConnectListener, Is.True);
+            Assert.That(captured.MaxChannelCount, Is.EqualTo(ReverseConnectHost.kDefaultMaxChannelCount));
+            Assert.That(captured.MaxChannelCount, Is.GreaterThan(0));
+            Assert.That(captured.ConnectionRateLimiter, Is.Not.Null);
+            Assert.That(captured.HandshakeTimeout, Is.LessThanOrEqualTo(TimeSpan.FromMinutes(2)));
+
+            IConnectionRateLimiter limiter = captured.ConnectionRateLimiter!;
+            int admitted = 0;
+            for (int ii = 0; ii < ReverseConnectHost.kDefaultConnectionBurst + 10; ii++)
+            {
+                if (limiter.TryAdmitConnection(null, out _))
+                {
+                    admitted++;
+                }
+            }
+            Assert.That(admitted, Is.LessThan(ReverseConnectHost.kDefaultConnectionBurst + 10));
+
+            await host.DisposeAsync().ConfigureAwait(false);
         }
 
         [Test]

@@ -47,6 +47,51 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     public sealed class EccSecretBufferLifetimeRegressionTests
     {
         /// <summary>
+        /// Verifies ECC decryption uses the negotiated policy rather than the policy selected by the token header.
+        /// </summary>
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task EccSecretRejectsDifferentNegotiatedPolicyAsync(bool differentPolicy, bool asynchronous)
+        {
+            const string negotiatedPolicy = SecurityPolicies.ECC_nistP256;
+            string encodedPolicy = differentPolicy ? SecurityPolicies.ECC_nistP256_AesGcm : negotiatedPolicy;
+            Assert.That(SecurityPolicies.Default.GetInfo(negotiatedPolicy), Is.Not.Null);
+            if (SecurityPolicies.Default.GetInfo(encodedPolicy) == null)
+            {
+                Assert.Ignore($"{encodedPolicy} needs AES-GCM, which this platform does not supply.");
+            }
+            using Certificate sender = CertificateBuilder.Create("CN=Policy Sender")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using Certificate receiver = CertificateBuilder.Create("CN=Policy Receiver")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using var senderNonce = Nonce.CreateNonce(encodedPolicy);
+            using var receiverNonce = Nonce.CreateNonce(negotiatedPolicy);
+            using var issuers = new CertificateCollection();
+            IServiceMessageContext context = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            using var encryptor = EncryptedSecret.CreateForEcc(
+                context, encodedPolicy, issuers, receiver, receiverNonce, sender, senderNonce,
+                doNotEncodeSenderCertificate: true);
+            byte[] encoded = encryptor.Encrypt(s_secret, s_nonce);
+            using var decryptor = new EncryptedSecret(
+                context, negotiatedPolicy, issuers, receiver, receiverNonce, sender, senderNonce);
+            bool success;
+            byte[]? secret;
+            if (asynchronous)
+            {
+                (success, secret) = await decryptor.TryDecryptAsync(encoded, s_nonce).ConfigureAwait(false);
+            }
+            else
+            {
+                success = decryptor.TryDecrypt(encoded, s_nonce, out secret!);
+            }
+            Assert.That(success, Is.EqualTo(!differentPolicy));
+            Assert.That(decryptor.SecurityPolicy.Uri, Is.EqualTo(negotiatedPolicy));
+            Assert.That(secret, differentPolicy ? Is.Null : Is.EqualTo(s_secret));
+        }
+
+        /// <summary>
         /// Verifies decryption erases derived keys and owned payload bytes without changing headers or the returned
         /// secret.
         /// </summary>
@@ -58,18 +103,6 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             ECCurve curve = p384 ? ECCurve.NamedCurves.nistP384 : ECCurve.NamedCurves.nistP256;
             string policy = p384 ? SecurityPolicies.ECC_nistP384 : SecurityPolicies.ECC_nistP256;
-            if (!SecurityPolicies.SupportsRawEccSecretAgreement())
-            {
-                Assert.That(SecurityPolicies.Default.GetInfo(policy), Is.Null);
-                Assert.That(() => Nonce.CreateNonce(policy),
-                    Throws.ArgumentNullException.With.Property("ParamName").EqualTo("securityPolicy"));
-                SecurityPolicyInfo unsupported = p384
-                    ? SecurityPolicyInfo.ECC_nistP384 : SecurityPolicyInfo.ECC_nistP256;
-                using var local = Nonce.CreateNonce(unsupported);
-                using var remote = Nonce.CreateNonce(unsupported);
-                Assert.That(() => local.GenerateSecret(remote, null), Throws.TypeOf<NotSupportedException>());
-                return;
-            }
             Assert.That(SecurityPolicies.Default.GetInfo(policy), Is.Not.Null);
             using Certificate sender = CertificateBuilder.Create("CN=Buffer Sender").SetECCurve(curve).CreateForECDsa();
             using Certificate receiver = CertificateBuilder.Create("CN=Buffer Receiver").SetECCurve(curve).CreateForECDsa();
@@ -83,10 +116,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             byte[] encoded = encryptor.Encrypt(s_secret, s_nonce);
             byte[] buffer = [.. Enumerable.Repeat((byte)0x7A, offset + encoded.Length + 13)];
             encoded.CopyTo(buffer, offset);
-            byte[] key = null;
-            byte[] iv = null;
-            byte[] prefix = null;
-            byte[] suffix = null;
+            byte[]? key = null;
+            byte[]? iv = null;
+            byte[]? prefix = null;
+            byte[]? suffix = null;
             ArraySegment<byte> working = default;
             using var decryptor = new EncryptedSecret(
                 context, policy, issuers, receiver, receiverNonce, sender, null, null, false,

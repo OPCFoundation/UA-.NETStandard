@@ -46,7 +46,7 @@ namespace Opc.Ua.Gds.Tests
             var database = new TestApplicationsDatabase();
 
             Assert.That(
-                () => database.RegisterApplication(null),
+                () => database.RegisterApplication(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -133,10 +133,10 @@ namespace Opc.Ua.Gds.Tests
                 () => database.QueryApplications(
                     0,
                     10,
-                    null,
-                    null,
+                    null!,
+                    null!,
                     99,
-                    null,
+                    null!,
                     [],
                     out _,
                     out _),
@@ -223,12 +223,12 @@ namespace Opc.Ua.Gds.Tests
             var database = new TestApplicationsDatabase();
 
             foreach (Action query in new Action[] {
-                () => database.QueryServers(0, 0, pattern, null, null, [], out _),
-                () => database.QueryServers(0, 0, null, pattern, null, [], out _),
-                () => database.QueryServers(0, 0, null, null, pattern, [], out _),
-                () => database.QueryApplications(0, 0, pattern, null, 0, null, [], out _, out _),
-                () => database.QueryApplications(0, 0, null, pattern, 0, null, [], out _, out _),
-                () => database.QueryApplications(0, 0, null, null, 0, pattern, [], out _, out _)
+                () => database.QueryServers(0, 0, pattern, null!, null!, [], out _),
+                () => database.QueryServers(0, 0, null!, pattern, null!, [], out _),
+                () => database.QueryServers(0, 0, null!, null!, pattern, [], out _),
+                () => database.QueryApplications(0, 0, pattern, null!, 0, null!, [], out _, out _),
+                () => database.QueryApplications(0, 0, null!, pattern, 0, null!, [], out _, out _),
+                () => database.QueryApplications(0, 0, null!, null!, 0, pattern, [], out _, out _)
             })
             {
                 Assert.That(

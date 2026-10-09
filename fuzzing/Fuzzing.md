@@ -129,7 +129,7 @@ public class EncoderTests : FuzzTargetTestsBase
    to cross-target malformed-input replay. Validate both the local host and published callback.
 9. **Update this `Fuzzing.md`.** Add a row to the area table.
 
-The Azure pipeline test template recursively discovers fuzz test projects. GitHub Actions
+The CI test matrix discovers fuzz test projects like any other test project. GitHub Actions
 also has an explicit fuzz replay matrix, including changes only to seeds, dictionaries and
 scripts. `Scripts/test-fuzzing.ps1` runs the applicable projects and rejects empty or skipped
 test runs. `fuzz-parity.runsettings` includes generated protocol methods in fuzz-only production
@@ -137,6 +137,45 @@ coverage; it does not change the repository-wide coverage policy.
 Fuzz scripts pass `-p:FuzzCoverage=true` so generated protocol data types omit their
 `ExcludeFromCodeCoverage` attributes in that build only. A runsettings include filter
 cannot override those compiled attributes. Ordinary builds retain the exclusions.
+
+## Resource oracles
+
+Crash, exception and fidelity checks never flag an input that makes a decoder allocate
+gigabytes, recurse close to the stack limit or run for seconds, as long as it finally returns
+or throws the documented error. [`FuzzOracles`](Common/Fuzz/FuzzOracles.cs) turns those into
+findings for every host (libFuzzer, AFL, `--replay`, Tools playback and the NUnit replay):
+
+| Oracle | Where | Finding |
+|---|---|---|
+| Stack | `FuzzMethods`, NUnit replay | Every input runs on a worker thread with a 256 KB stack. Recursion that is unguarded, or guarded only by `MaxEncodingNestingLevels`, overflows at a depth mutation can reach instead of only past about 200 levels on a 1 MB thread. The overflow ends the process like any crash. |
+| Time | `FuzzMethods`, NUnit replay | An input over 1 s + 100 ms per KB is re-run twice; it is a `ResourceBudgetException` only if the fastest run is still over budget, so JIT, GC and CI noise are not reported. |
+| Allocation | decode cores (Binary/JSON/XML, built-in types, PubSub UADP/JSON, UADP reassembler) | The decode allocated more than 64x its input + 8 MB, whether it returned or threw. It uses the per-thread allocation counter, or the AppDomain counter on .NET Framework. |
+| Limit | Encoders decode cores | A decoded string, NodeId/QualifiedName/LocalizedText text, ByteString or array is longer than the limits of the context. Matrices are also boxed the legacy way, so a value no consumer can materialise fails. |
+
+The Encoders fuzz `MessageContext` uses `MaxStringLength` 4096, `MaxByteStringLength` 8192 and
+`MaxArrayLength` 4096, so the limit oracle is reachable with inputs of a few KB. Raw
+ExtensionObject bodies and XmlElement values are bounded by the message size, not checked.
+
+Overrides for local investigation: `OPCUA_FUZZ_TIME_BUDGET_SCALE` scales the time budget (`0`
+disables it) and `OPCUA_FUZZ_STACK_KB` sets the worker stack (`0` runs on the calling thread).
+Do not relax them in CI.
+
+Deeply nested inputs belong in `Opc.Ua.Encoders.Fuzz.Corpus/StackTestcases/` (copied to the `StackTestcases` output folder).
+`FuzzStackTestcasesAsync` replays each one through every target with `--fuzz-replay-all` in a
+child process, because a stack overflow cannot be caught and would end the test host.
+Raw input and finding details stay in bounded private runner-local storage, never
+public logs or test attachments: a new finding may be an unfixed resource-abuse regression.
+
+Regenerate the three reviewed encoder resource inputs with the existing fuzz tools,
+not an explicit test that would leave release replay incomplete:
+
+```powershell
+dotnet run --project fuzzing\Opc.Ua.Encoders.Fuzz.Tools -- regenerate-resource-corpus --repository-root .
+```
+
+The command preserves the libFuzzer filenames and writes only those three inputs.
+Normal tests verify regeneration against the checked-in bytes in a temporary
+repository and never rewrite the real corpus.
 
 ## Areas in detail
 
@@ -296,6 +335,9 @@ The local host also supports `--list` and `--replay <target> <file-or-directory>
 SharpFuzz. The NUnit slow/timeout regressions run in child processes with a 30-second watchdog;
 `CancelAfter` alone cannot stop a synchronous callback. Tools playback itself is in-process,
 so use the isolated replay gate for suspected hangs.
+
+The full crash corpus (about 22k inputs) lives on the orphan branch `fuzz-corpus` and is replayed
+nightly; see [CrashCorpus.md](CrashCorpus.md) for how to replay it locally and how to add inputs.
 
 ## Recreate or improve seeds
 

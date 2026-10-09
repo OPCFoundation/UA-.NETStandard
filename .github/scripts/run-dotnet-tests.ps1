@@ -38,9 +38,7 @@
     (see targets.props).
 
  .PARAMETER Framework
-    The target framework the tests actually execute on. It differs from
-    CustomTestTarget for the standard profiles: netstandard2.0 hosts its tests on
-    net48 and netstandard2.1 hosts them on net8.0.
+    The target framework the tests actually execute on.
 
  .PARAMETER Configuration
     Debug or Release.
@@ -74,8 +72,16 @@
 
  .PARAMETER InputScope
     Public replays require frozen inventories and copied-input verification.
+    Public-corpus replay additionally binds a published, pinned checkout and
+    reports robustness results only, never coverage or release assurance.
     Private replays may consume approved overlays, but cannot publish results,
     collect public coverage, or produce release assurance.
+
+ .PARAMETER PublicCorpusCheckout
+    Clean checkout of the separately published corpus used only by public-corpus replay.
+
+ .PARAMETER PublicCorpusCommit
+    Exact reviewed commit of PublicCorpusCheckout, verified before freezing and after building.
 
  .PARAMETER Coverage
     Collect Cobertura coverage. Never set for a .NET Framework test host:
@@ -84,10 +90,10 @@
 
  .PARAMETER QuietOutput
     Write each project's build and test output to a log file under the results
-    directory instead of the console. Required by the private-fuzz-corpus job:
-    a failing fuzz test prints a base64 reproducer, and a public repository's
-    job log is world-readable, so that output has to stay inside the results
-    tree the job keeps private.
+    directory instead of the console. Use it for inputs that must not reach a
+    world-readable job log: a failing fuzz test prints a base64 reproducer, so
+    a replay of unpublished crash inputs has to keep its output in the results
+    tree.
 #>
 
 Param(
@@ -108,8 +114,10 @@ Param(
     [string] $AssuranceDirectory = '',
     [string] $AssuranceWorkflow = '',
     [switch] $RequireAssurance,
-    [ValidateSet('public', 'private')]
+    [ValidateSet('public', 'public-corpus', 'private')]
     [string] $InputScope = 'public',
+    [string] $PublicCorpusCheckout = '',
+    [string] $PublicCorpusCommit = '',
     [switch] $Coverage,
     [switch] $QuietOutput
 )
@@ -137,6 +145,16 @@ if ($Coverage -and $Framework.StartsWith('net4')) {
 if ($InputScope -eq 'private' -and ($PublicResultsDirectory -or $AssuranceDirectory -or
     $AssuranceWorkflow -or $RequireAssurance -or $Coverage)) {
     throw 'Private replay cannot publish results, collect public coverage, or produce release assurance.'
+}
+if ($InputScope -eq 'public-corpus') {
+    if (-not $PublicCorpusCheckout -or $PublicCorpusCommit -cnotmatch '^[0-9a-f]{40}$' -or
+        $AssuranceDirectory -or $AssuranceWorkflow -or $RequireAssurance -or $Coverage -or
+        $projectList.Count -ne 1 -or -not $projectList[0].StartsWith('fuzzing/')) {
+        throw 'Published corpus replay requires a pinned checkout and cannot produce coverage or release assurance.'
+    }
+}
+elseif ($PublicCorpusCheckout -or $PublicCorpusCommit) {
+    throw 'Published corpus inputs require the explicit public-corpus scope.'
 }
 if ($RequireAssurance -and ($projectList.Count -ne 1 -or -not $AssuranceDirectory -or -not $AssuranceWorkflow)) {
     throw 'A required assurance entry must select exactly one project and an evidence destination.'
@@ -344,6 +362,7 @@ foreach ($project in $projectList) {
     $previousReplayPath = $env:OPCUA_ASSURANCE_REPLAY_PATH
     $replay = @($replayDefinitions | Where-Object { $_.project -ceq $project })
     $kind = if ($replay.Count -eq 1 -and $InputScope -eq 'public') { 'fuzz-replay' } else { 'trx' }
+    $verifyInputs = $InputScope -ne 'private' -and $replay.Count -eq 1
     Write-Host "::group::$stem ($CustomTestTarget / $Framework / $Configuration)"
 
     $record = [ordered]@{
@@ -358,6 +377,10 @@ foreach ($project in $projectList) {
         failed        = 0
         notApplicableRule = ''
         supportedTestTargets = @()
+        # Wall-clock seconds, read by update-test-durations.ps1 to refresh
+        # the weights get-ci-matrix.ps1 packs batches with.
+        buildSeconds  = 0
+        testSeconds   = 0
     }
 
     try {
@@ -405,11 +428,12 @@ foreach ($project in $projectList) {
         }
 
         if ($replay.Count -gt 1 -or
-            ($InputScope -eq 'public' -and $project.EndsWith('.Fuzz.Tests.csproj') -and $replay.Count -ne 1)) {
+            ($InputScope -ne 'private' -and $project.EndsWith('.Fuzz.Tests.csproj') -and $replay.Count -ne 1)) {
             throw 'The selected replay project has no unique committed-public input definition.'
         }
-        if ($kind -eq 'fuzz-replay') {
+        if ($verifyInputs) {
             & (Join-Path $assuranceScripts 'fuzz-inputs.ps1') -Project $project `
+                -PublicCorpusCheckout $PublicCorpusCheckout -PublicCorpusCommit $PublicCorpusCommit `
                 -OutputPath (Join-Path $projectResults 'public-inputs.json') -RequireCommitted
             if ($LASTEXITCODE -ne 0) { throw 'The public replay inventory could not be frozen.' }
         }
@@ -437,6 +461,7 @@ foreach ($project in $projectList) {
         $projectBudget = [System.Diagnostics.Stopwatch]::StartNew()
 
         $build = Invoke-Dotnet $buildArguments $projectBudget $PerProjectTimeoutMinutes $logPath
+        $record.buildSeconds = [int]$projectBudget.Elapsed.TotalSeconds
         if ($build.TimedOut) {
             throw ("The build exhausted the $PerProjectTimeoutMinutes-minute per-project ceiling, " +
                 'which the build and the test share.')
@@ -444,10 +469,11 @@ foreach ($project in $projectList) {
         if ($build.ExitCode -ne 0) {
             throw "The build failed with exit code $($build.ExitCode)."
         }
-        if ($kind -eq 'fuzz-replay') {
+        if ($verifyInputs) {
             $builtProperties = Get-ProjectProperties $project -InnerBuild
             if (-not $builtProperties.TargetDir) { throw 'The evaluated build output directory is missing.' }
             & (Join-Path $assuranceScripts 'fuzz-inputs.ps1') -Project $project `
+                -PublicCorpusCheckout $PublicCorpusCheckout -PublicCorpusCommit $PublicCorpusCommit `
                 -BuildOutput $builtProperties.TargetDir -OutputPath (Join-Path $projectResults 'copied-inputs.json') `
                 -RequireCommitted
             if ($LASTEXITCODE -ne 0) { throw 'The built public replay inputs could not be verified.' }
@@ -491,6 +517,7 @@ foreach ($project in $projectList) {
         }
 
         $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath
+        $record.testSeconds = [int]$projectBudget.Elapsed.TotalSeconds - $record.buildSeconds
 
         $results = Measure-TestResults $projectResults $kind
         $record.total = $results.Total
@@ -616,11 +643,11 @@ if ($publicRoot) {
 $lines = @(
     "### $CustomTestTarget / $Framework / $Configuration",
     '',
-    '| Project | Outcome | Passed | Total | Detail |',
-    '| --- | --- | ---: | ---: | --- |')
+    '| Project | Outcome | Passed | Total | Build (s) | Test (s) | Detail |',
+    '| --- | --- | ---: | ---: | ---: | ---: | --- |')
 foreach ($record in $records) {
     $detail = $record.reason -replace '\r?\n', ' '
-    $lines += "| $([System.IO.Path]::GetFileNameWithoutExtension($record.project)) | $($record.outcome) | $($record.passed) | $($record.total) | $detail |"
+    $lines += "| $([System.IO.Path]::GetFileNameWithoutExtension($record.project)) | $($record.outcome) | $($record.passed) | $($record.total) | $($record.buildSeconds) | $($record.testSeconds) | $detail |"
 }
 $lines += ''
 if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {

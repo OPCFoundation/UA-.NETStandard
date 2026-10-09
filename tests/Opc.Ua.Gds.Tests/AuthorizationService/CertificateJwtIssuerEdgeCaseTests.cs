@@ -160,7 +160,7 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             Assert.That(signature, Has.Length.EqualTo(96));
 
 #if NET5_0_OR_GREATER
-            using ECDsa publicKey = certificate.GetECDsaPublicKey();
+            using ECDsa publicKey = certificate.GetECDsaPublicKey()!;
             byte[] signingInput = Encoding.ASCII.GetBytes(parts[0] + "." + parts[1]);
             Assert.That(
                 publicKey.VerifyData(
@@ -198,10 +198,10 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             JsonElement header = headerDocument.RootElement;
             Assert.That(header.GetProperty("alg").GetString(), Is.EqualTo("RS256"));
 
-            using RSA publicKey = certificate.GetRSAPublicKey();
+            using RSA publicKey = certificate.GetRSAPublicKey()!;
             byte[] signingInput = Encoding.ASCII.GetBytes(parts[0] + "." + parts[1]);
             Assert.That(
-                publicKey.VerifyData(
+                publicKey!.VerifyData(
                     signingInput,
                     Base64UrlDecode(parts[2]),
                     HashAlgorithmName.SHA256,

@@ -58,6 +58,10 @@ namespace Opc.Ua.Server
             : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration, telemetry)
         {
             SetPartialBit = aggregateId != ObjectIds.AggregateFunction_Average;
+
+            // TimeAverage and Total return a Double: interpolated bounds stay real values
+            // instead of being converted to the raw data type (Part 13 §3.1.8, Table 50).
+            CastBoundsToSourceType = false;
         }
 
         /// <summary>
@@ -104,9 +108,11 @@ namespace Opc.Ua.Server
             int count = 0;
             double total = 0;
 
+            // Part 13 §4.2.1.2: with TreatUncertainAsBad = false an Uncertain value is
+            // equivalent to Good, so it is included in the average (IsGood applies the setting).
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (StatusCode.IsGood(values[ii].StatusCode))
+                if (IsGood(values[ii]))
                 {
                     try
                     {
@@ -191,6 +197,19 @@ namespace Opc.Ua.Server
             // check if no good data.
             if (totalDuration == 0)
             {
+                // Part 13 §5.4.3.7, §5.4.3.9: with Simple Bounding Values the non-Good data is
+                // omitted; when the interval holds only such data the result is not Bad_NoData
+                // (there is data in the interval, §5.4.3.2.1) but the PercentTime status, i.e. Bad.
+                if (useSimpleBounds && regions.Exists(region => region.Duration > 0))
+                {
+                    return new DataValue(
+                        Variant.Null,
+                        GetTimeBasedStatusCode(regions, StatusCodes.Good)
+                            .WithAggregateBits(AggregateBits.Calculated),
+                        GetTimestamp(slice),
+                        GetTimestamp(slice));
+                }
+
                 return GetNoDataValue(slice);
             }
 

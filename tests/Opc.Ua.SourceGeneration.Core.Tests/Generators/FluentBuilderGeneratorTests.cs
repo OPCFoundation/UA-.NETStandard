@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -515,12 +516,26 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 @"global::Opc\.Ua\.Server\.Fluent\.INodeBuilder<global::Opc\.Ua\.MethodState>\s+Blue\("),
                 "Method child accessor must return INodeBuilder<MethodState>");
 
-            // Variable children (Red, Pink_Placeholder) sit under
-            // HasComponent in the TestModel; the generator must emit
-            // them as IVariableBuilder<T> on IComponentAccessor.
+            // Variable children (Red) sit under HasComponent in the
+            // TestModel; the generator must emit them as
+            // IVariableBuilder<T> on IComponentAccessor.
             Assert.That(fb, Does.Match(
                 @"global::Opc\.Ua\.Server\.Fluent\.IVariableBuilder<\w+>\s+Red\("),
                 "Variable HasComponent child accessor must return IVariableBuilder<T>");
+        }
+
+        /// <summary>
+        /// Regression: the placeholder child Pink_Placeholder (browse name
+        /// <c>&lt;Pink&gt;</c>) got an accessor walking to a child that no
+        /// instance carries, so it could never resolve.
+        /// </summary>
+        [Test]
+        public void EmittedFluentBuildersPlaceholderChildHasNoAccessor()
+        {
+            string fb = GetFluentBuilders();
+
+            Assert.That(fb, Does.Not.Contain("Pink_Placeholder("));
+            Assert.That(fb, Does.Match(@"\s+Red\("), "ordinary children keep their accessor");
         }
 
         [Test]
@@ -597,7 +612,62 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
         }
 
-        private static Dictionary<string, string> GenerateForDeclarationBackedNodeSet()
+        /// <summary>
+        /// Regression: the typed top-level accessor built the root's NodeId with the
+        /// namespace of its BrowseName instead of the namespace of its NodeId. A NodeSet
+        /// instance <c>ns=1;i=2000</c> whose BrowseName is in a companion namespace
+        /// (<c>2:Device</c>) then resolved <c>ns=Companion;i=2000</c>, a node that does
+        /// not exist.
+        /// </summary>
+        [Test]
+        public void TopLevelAccessorUsesTheNodeIdNamespaceNotTheBrowseNameNamespace()
+        {
+            const string companionUri = "http://test.org/UA/Companion/";
+            Dictionary<string, string> files = GenerateForDeclarationBackedNodeSet(
+                xml => xml
+                    .Replace(
+                        "<Uri>http://test.org/UA/DeclarationBackedMethod/</Uri>",
+                        "<Uri>http://test.org/UA/DeclarationBackedMethod/</Uri>" +
+                            "<Uri>" + companionUri + "</Uri>",
+                        StringComparison.Ordinal)
+                    .Replace(
+                        "BrowseName=\"1:Device\"",
+                        "BrowseName=\"2:Device\"",
+                        StringComparison.Ordinal)
+                    .Replace(
+                        "<RequiredModel ModelUri=\"http://opcfoundation.org/UA/\"",
+                        "<RequiredModel ModelUri=\"" + companionUri +
+                            "\" PublicationDate=\"2024-01-01T00:00:00Z\" Version=\"1.0.0\"/>" +
+                            "<RequiredModel ModelUri=\"http://opcfoundation.org/UA/\"",
+                        StringComparison.Ordinal),
+                ("Companion.NodeSet2.xml",
+                    "<?xml version=\"1.0\" encoding=\"utf-8\"?>" +
+                    "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
+                    "<NamespaceUris><Uri>" + companionUri + "</Uri></NamespaceUris>" +
+                    "<Models><Model ModelUri=\"" + companionUri +
+                    "\" PublicationDate=\"2024-01-01T00:00:00Z\" Version=\"1.0.0\">" +
+                    "<RequiredModel ModelUri=\"http://opcfoundation.org/UA/\"" +
+                    " PublicationDate=\"2024-01-01T00:00:00Z\" Version=\"1.05.03\"/>" +
+                    "</Model></Models>" +
+                    "<UAObjectType NodeId=\"ns=1;i=1\" BrowseName=\"1:CompanionType\">" +
+                    "<DisplayName>CompanionType</DisplayName><References>" +
+                    "<Reference ReferenceType=\"i=45\" IsForward=\"false\">i=58</Reference>" +
+                    "</References></UAObjectType></UANodeSet>"));
+            string fb = files
+                .Single(kv => kv.Key.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal)).Value;
+
+            int nodeId = fb.IndexOf("(new global::Opc.Ua.NodeId(2000u, __ns))", StringComparison.Ordinal);
+            Assert.That(nodeId, Is.GreaterThan(0), "Typed root accessor for Device not found:\n" + fb);
+            const string lookup = "__inner.Context.NamespaceUris.GetIndexOrAppend(\"";
+            int start = fb.LastIndexOf(lookup, nodeId, StringComparison.Ordinal) + lookup.Length;
+            string ns = fb[start..fb.IndexOf('"', start)];
+            Assert.That(ns, Is.EqualTo("http://test.org/UA/DeclarationBackedMethod/"),
+                "The root NodeId must use the namespace of the NodeId, not of the BrowseName.");
+        }
+
+        private static Dictionary<string, string> GenerateForDeclarationBackedNodeSet(
+            Func<string, string>? transform = null,
+            (string FileName, string Content)? ignoredDependency = null)
         {
             const string nodeSetFile = "DeclarationBackedMethod.NodeSet2.xml";
             const string namespaceUri = "http://test.org/UA/DeclarationBackedMethod/";
@@ -605,8 +675,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             using var fileSystem = new VirtualFileSystem();
             string resources = Path.Combine(Directory.GetCurrentDirectory(), "Resources");
             string path = Path.Combine(resources, nodeSetFile);
+            if (transform != null)
+            {
+                path = Path.Combine(resources, "Transformed." + nodeSetFile);
+                fileSystem.Add(
+                    path,
+                    Encoding.UTF8.GetBytes(transform(File.ReadAllText(
+                        Path.Combine(resources, nodeSetFile)))));
+            }
 
-            var nodesets = new NodesetFileCollection(
+            ImmutableArray<(string, NodesetFileOptions)> inputs =
                 [
                     (path, new NodesetFileOptions
                     {
@@ -614,7 +692,16 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         Name = "DeclarationBackedMethod",
                         Prefix = "DeclarationBackedMethod"
                     })
-                ],
+                ];
+            if (ignoredDependency is (string fileName, string content))
+            {
+                string dependencyPath = Path.Combine(resources, fileName);
+                fileSystem.Add(dependencyPath, Encoding.UTF8.GetBytes(content));
+                inputs = inputs.Add((dependencyPath, new NodesetFileOptions { Ignore = true }));
+            }
+
+            var nodesets = new NodesetFileCollection(
+                inputs,
                 [],
                 fileSystem,
                 telemetry);
@@ -666,9 +753,173 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         [Test]
         public void EmitChildWithANonCollidingName_Generates()
         {
-            string builders = null;
+            string? builders = null;
             Assert.DoesNotThrow(() => builders = GenerateWrapperWithChildNamed("Setpoint"));
             Assert.That(builders, Does.Contain("Setpoint"));
+        }
+
+        /// <summary>
+        /// Regression: the wrapper collision check ran (and threw) even when no
+        /// manager wrappers are emitted, failing models that only get the
+        /// per-type accessors over names nothing uses.
+        /// </summary>
+        [Test]
+        public void EmitWithoutManagerWrappersDoesNotValidateWrapperNames()
+        {
+            Assert.DoesNotThrow(() => GenerateWrappers(
+                "Device",
+                [("Node", NewObject("Node"))],
+                generateManagerWrappers: false));
+        }
+
+        /// <summary>
+        /// Regression: collisions that break compilation of the emitted wrappers
+        /// were not detected - a nested wrapper named after its enclosing wrapper
+        /// (CS0542), and a nested wrapper type colliding with a sibling accessor
+        /// or another nested type (CS0102).
+        /// </summary>
+        [Test]
+        public void EmitNestedWrapperCollisionsAreReported()
+        {
+            // Object Boiler inside object Boiler: nested BoilerBuilder in BoilerBuilder.
+            Assert.That(
+                () => GenerateWrappers("Plant", [("Boiler", NewObject("Boiler")), ("Boiler_Boiler", NewObject("Boiler"))]),
+                Throws.InvalidOperationException.With.Message.Contains("BoilerBuilder"));
+            // Variable FooBuilder next to object Foo: property and nested type FooBuilder.
+            Assert.That(
+                () => GenerateWrappers("Plant", [("Foo", NewObject("Foo")), ("FooBuilder", NewVariable("FooBuilder"))]),
+                Throws.InvalidOperationException.With.Message.Contains("FooBuilder"));
+            // Method Foo next to object FooMethod: both nest FooMethodBuilder.
+            Assert.That(
+                () => GenerateWrappers("Plant", [("Foo", NewMethod("Foo")), ("FooMethod", NewObject("FooMethod"))]),
+                Throws.InvalidOperationException.With.Message.Contains("FooMethodBuilder"));
+        }
+
+        /// <summary>
+        /// Regression: a predefined instance named after a member the typed
+        /// manager builder forwards (e.g. <c>Context</c>) produced two members of
+        /// that name in the typed builder (CS0102).
+        /// </summary>
+        [TestCase("Context")]
+        [TestCase("AddObject")]
+        public void EmitRootNamedAfterATypedBuilderMemberReportsTheCollision(string rootName)
+        {
+            Assert.That(
+                () => GenerateWrappers(rootName, []),
+                Throws.InvalidOperationException.With.Message.Contains(rootName));
+        }
+
+        [Test]
+        public void EmitDistinctNestedWrappersGenerates()
+        {
+            string builders = GenerateWrappers(
+                "Plant",
+                [("Boiler", NewObject("Boiler")), ("Boiler_Pump", NewObject("Pump")), ("Start", NewMethod("Start"))]);
+
+            Assert.That(builders, Does.Contain("class PumpBuilder"));
+            Assert.That(builders, Does.Contain("class StartMethodBuilder"));
+        }
+
+        private const string kWrapperNamespaceUri = "http://test.org/UA/Wrappers/";
+
+        private static ObjectDesign NewObject(string name)
+        {
+            return new ObjectDesign
+            {
+                SymbolicName = new XmlQualifiedName(name, kWrapperNamespaceUri),
+                SymbolicId = new XmlQualifiedName("Id_" + name, kWrapperNamespaceUri),
+                BrowseName = name
+            };
+        }
+
+        private static MethodDesign NewMethod(string name)
+        {
+            return new MethodDesign
+            {
+                SymbolicName = new XmlQualifiedName(name, kWrapperNamespaceUri),
+                SymbolicId = new XmlQualifiedName("Id_" + name, kWrapperNamespaceUri),
+                BrowseName = name,
+                InputArguments = [],
+                OutputArguments = []
+            };
+        }
+
+        private static VariableDesign NewVariable(string name)
+        {
+            var floatType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Float", "http://opcfoundation.org/UA/"),
+                SymbolicId = new XmlQualifiedName("Float", "http://opcfoundation.org/UA/"),
+                BasicDataType = BasicDataType.Float
+            };
+            return new VariableDesign
+            {
+                SymbolicName = new XmlQualifiedName(name, kWrapperNamespaceUri),
+                SymbolicId = new XmlQualifiedName("Id_" + name, kWrapperNamespaceUri),
+                BrowseName = name,
+                DataTypeNode = floatType,
+                DataType = floatType.SymbolicId,
+                ValueRank = ValueRank.Scalar
+            };
+        }
+
+        private static string GenerateWrappers(
+            string rootName,
+            (string Path, NodeDesign Node)[] children,
+            bool generateManagerWrappers = true)
+        {
+            var targetNamespace = new Namespace
+            {
+                Value = kWrapperNamespaceUri,
+                Prefix = "Wrappers",
+                Name = "Wrappers"
+            };
+            var root = new ObjectDesign
+            {
+                SymbolicName = new XmlQualifiedName(rootName, kWrapperNamespaceUri),
+                SymbolicId = new XmlQualifiedName(rootName, kWrapperNamespaceUri),
+                BrowseName = rootName,
+                Hierarchy = new Hierarchy()
+            };
+            root.Hierarchy.Nodes[string.Empty] = new HierarchyNode
+            {
+                RelativePath = string.Empty,
+                Instance = root
+            };
+            foreach ((string path, NodeDesign node) in children)
+            {
+                root.Hierarchy.Nodes[path] = new HierarchyNode
+                {
+                    RelativePath = path,
+                    Instance = node
+                };
+            }
+
+            var model = new Mock<IModelDesign>();
+            model.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            model.Setup(m => m.Namespaces).Returns([targetNamespace]);
+            model.Setup(m => m.GetNodeDesigns()).Returns([root]);
+            model.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+
+            using var fileSystem = new VirtualFileSystem();
+            var context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = string.Empty,
+                ModelDesign = model.Object,
+                Telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error),
+                Options = new GeneratorOptions()
+            };
+            new FluentBuilderGenerator(context)
+            {
+                GenerateManagerWrappers = generateManagerWrappers,
+                EmitFluentAccessors = false
+            }.Emit();
+
+            return fileSystem.CreatedFiles
+                .Where(c => c.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
+                .Select(c => Encoding.UTF8.GetString(fileSystem.Get(c)))
+                .Single();
         }
 
         private static string GenerateWrapperWithChildNamed(string childName)
@@ -737,6 +988,77 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 .Where(c => c.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
                 .Select(c => Encoding.UTF8.GetString(fileSystem.Get(c)))
                 .Single();
+        }
+
+        /// <summary>
+        /// Regression: a per-type accessor was emitted for an Object child whose
+        /// TypeDefinition is excluded (e.g. a Draft type), returning
+        /// <c>INodeBuilder&lt;DiagnosticsState&gt;</c> for a state class that is
+        /// never generated (CS0246).
+        /// </summary>
+        [Test]
+        public void EmitTypeAccessorsChildOfExcludedTypeIsSkipped()
+        {
+            const string namespaceUri = "http://test.org/UA/Excluded/";
+            var targetNamespace = new Namespace
+            {
+                Value = namespaceUri,
+                Prefix = "Excluded",
+                Name = "Excluded"
+            };
+            ObjectTypeDesign NewType(string name) => new()
+            {
+                SymbolicName = new XmlQualifiedName(name, namespaceUri),
+                SymbolicId = new XmlQualifiedName(name, namespaceUri)
+            };
+            ObjectDesign NewChild(string name, ObjectTypeDesign type) => new()
+            {
+                SymbolicName = new XmlQualifiedName(name, namespaceUri),
+                SymbolicId = new XmlQualifiedName("MachineType_" + name, namespaceUri),
+                BrowseName = name,
+                TypeDefinition = type.SymbolicName,
+                TypeDefinitionNode = type,
+                ModellingRule = ModellingRule.Mandatory
+            };
+            ObjectTypeDesign draftType = NewType("DiagnosticsType");
+            ObjectTypeDesign motorType = NewType("MotorType");
+            ObjectTypeDesign machineType = NewType("MachineType");
+            machineType.Children = new ListOfChildren
+            {
+                Items = [NewChild("Diagnostics", draftType), NewChild("Motor", motorType)]
+            };
+
+            var model = new Mock<IModelDesign>();
+            model.Setup(m => m.TargetNamespace).Returns(targetNamespace);
+            model.Setup(m => m.Namespaces).Returns([targetNamespace]);
+            model.Setup(m => m.GetNodeDesigns()).Returns([draftType, motorType, machineType]);
+            model.Setup(m => m.IsExcluded(It.IsAny<NodeDesign>())).Returns(false);
+            model.Setup(m => m.IsExcluded(draftType)).Returns(true);
+
+            using var fileSystem = new VirtualFileSystem();
+            var context = new GeneratorContext
+            {
+                FileSystem = fileSystem,
+                OutputFolder = string.Empty,
+                ModelDesign = model.Object,
+                Telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error),
+                Options = new GeneratorOptions()
+            };
+            new FluentBuilderGenerator(context)
+            {
+                GenerateManagerWrappers = false,
+                EmitFluentAccessors = true
+            }.Emit();
+            string fb = fileSystem.CreatedFiles
+                .Where(c => c.EndsWith(".FluentBuilders.g.cs", StringComparison.Ordinal))
+                .Select(c => Encoding.UTF8.GetString(fileSystem.Get(c)))
+                .Single();
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(fb, Does.Not.Contain("DiagnosticsState"));
+                Assert.That(fb, Does.Contain("INodeBuilder<global::Excluded.MotorState> Motor("));
+            });
         }
 
         private static string GenerateForDeclarationBackedModel()

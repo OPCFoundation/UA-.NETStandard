@@ -133,7 +133,7 @@ namespace OpcUaPubSubJsonTests
         {
             const string json =
                 "{\"MessageType\":\"ua-data\",\"Messages\":[{\"DataSetWriterId\":1,\"Payload\":{" +
-                "\"Running\":{\"UaType\":1,\"Valueoseconds\":10,\"ServerTimestamp\":\"2026-06-15T12:00:01Z\"}" +
+                "\"Running\":{\"UaType\":1,\"Value\":\"not-a-boolean\",\"ServerTimestamp\":\"2026-06-15T12:00:01Z\"}" +
                 "}}]}";
             PubSubNetworkMessageContext ctx = JsonTestUtilities.NewContext();
             var decoder = new Opc.Ua.PubSub.Encoding.Json.JsonDecoder();

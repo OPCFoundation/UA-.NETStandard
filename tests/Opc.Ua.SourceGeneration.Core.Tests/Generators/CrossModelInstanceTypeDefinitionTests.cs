@@ -205,13 +205,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     Dependencies = [m_modelAPath],
                     Options = new DesignFileOptions()
                 },
-                exclusions: null,
+                exclusions: null!,
                 telemetry,
                 useAllowSubtypes: false);
 
             ObjectDesign widget = model.Nodes
                 .OfType<ObjectDesign>()
-                .FirstOrDefault(n => n.SymbolicName.Name == "Widget1");
+                .FirstOrDefault(n => n.SymbolicName.Name == "Widget1")!;
             Assert.That(widget, Is.Not.Null);
             Assert.That(widget.TypeDefinitionNode, Is.Not.Null,
                 "The instance's own type definition must resolve to the " +
@@ -241,14 +241,14 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var ownedLabels =
                 widget.Hierarchy.Nodes["OwnedLabels"].Instance as VariableDesign;
             Assert.That(ownedLabels, Is.Not.Null);
-            var decodedLabels = (string[])ownedLabels.DecodedValue;
+            var decodedLabels = (string[])ownedLabels.DecodedValue!;
             Assert.Multiple(() =>
             {
                 Assert.That(ownedLabels.DefaultValue, Is.Not.Null);
                 Assert.That(ownedLabels.DefaultValue.OuterXml, Does.Contain("First"));
                 Assert.That(ownedLabels.DefaultValue.OuterXml, Does.Contain("Second"));
                 Assert.That(decodedLabels, Has.Length.EqualTo(2));
-                Assert.That(decodedLabels[0], Is.EqualTo("First"));
+                Assert.That(decodedLabels![0], Is.EqualTo("First"));
                 Assert.That(decodedLabels[1], Is.EqualTo("Second"));
             });
 
@@ -272,11 +272,11 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             var reset = widget.Hierarchy.Nodes["Reset"].Instance as MethodDesign;
             Assert.That(reset, Is.Not.Null);
             Parameter hard = reset.InputArguments
-                .FirstOrDefault(a => a.Name == "Hard");
+                .FirstOrDefault(a => a.Name == "Hard")!;
             Parameter config = reset.InputArguments
-                .FirstOrDefault(a => a.Name == "Config");
+                .FirstOrDefault(a => a.Name == "Config")!;
             Parameter result = reset.OutputArguments
-                .FirstOrDefault(a => a.Name == "Result");
+                .FirstOrDefault(a => a.Name == "Result")!;
             Assert.Multiple(() =>
             {
                 Assert.That(hard?.DataTypeNode?.SymbolicName.Name, Is.EqualTo("Boolean"),
@@ -298,7 +298,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string code = generated.Keys
                 .Where(f => f.EndsWith(".NodeStates.ex.g.cs", StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(code, Is.Not.Null, "No node state extensions generated.");
             return code;
         }
@@ -341,15 +341,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     OmitEventRecords = true
                 },
                 useAllowSubtypes: false,
-                identifierFiles: null,
-                referencedModels: null,
-                nodeManagerBindings: null,
-                reportBindingDiagnostic: null,
-                sharedUsedBindings: null,
+                identifierFiles: null!,
+                referencedModels: null!,
+                nodeManagerBindings: null!,
+                reportBindingDiagnostic: null!,
+                sharedUsedBindings: null!,
                 bindingModelCount: 0,
-                reportFluentAccessorsOnlyDiagnostic: null,
-                referencedModelProviders: null,
-                referencedAccessorProviders: null);
+                reportFluentAccessorsOnlyDiagnostic: null!,
+                referencedModelProviders: null!,
+                referencedAccessorProviders: null!);
             return fileSystem.CreatedFiles
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
         }

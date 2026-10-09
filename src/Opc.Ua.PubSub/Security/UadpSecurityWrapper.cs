@@ -198,10 +198,14 @@ namespace Opc.Ua.PubSub.Security
             int payloadOffset = outerPrefix.Length + headerSize;
             if (encrypt && Policy.EncryptingKeyLength > 0)
             {
+                // OPC 10000-14 7.2.4.4.3.2 (Table 157): the counter block is
+                // KeyNonce || MessageNonce || BlockCounter.
+                byte[] counterNonce = new byte[key.KeyNonce.Length + nonceBytes.Length];
+                AesCtrNonceLayout.WriteCounterNonce(key.KeyNonce.Span, nonceBytes, counterNonce);
                 Policy.Encrypt(
                     innerPayload.Span,
                     key.EncryptingKey.Span,
-                    nonceBytes,
+                    counterNonce,
                     result.AsSpan(payloadOffset, innerPayload.Length));
             }
             else
@@ -292,6 +296,17 @@ namespace Opc.Ua.PubSub.Security
             {
                 return UnwrapResult.Failure(StatusCodes.BadDecodingError, "Truncated signed body");
             }
+            // The SecurityFooter follows the Payload (Part 14 §7.2.4.4.2
+            // Table 154); it is not part of the payload handed to the decoder.
+            int footerSize = (flagsMask & UadpSecurityFlagsEncodingMask.SecurityFooterEnabled) != 0
+                ? header.SecurityFooterSize
+                : 0;
+            if (footerSize > payloadAndFooterLength)
+            {
+                return UnwrapResult.Failure(
+                    StatusCodes.BadDecodingError,
+                    "SecurityFooterSize exceeds the secured body");
+            }
 
             PubSubSecurityKey? key = await m_keyProvider
                 .TryGetKeyAsync(header.SecurityTokenId, cancellationToken)
@@ -352,16 +367,32 @@ namespace Opc.Ua.PubSub.Security
                 byte[] plaintext = new byte[payloadAndFooterLength];
                 if (encrypted && Policy.EncryptingKeyLength > 0)
                 {
+                    if (header.MessageNonce.Length != Policy.NonceLength)
+                    {
+                        return UnwrapResult.Failure(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "SecurityHeader nonce length does not match the SecurityPolicy");
+                    }
+
+                    // OPC 10000-14 7.2.4.4.3.2 (Table 157): the counter block is
+                    // KeyNonce || MessageNonce || BlockCounter.
+                    byte[] counterNonce = new byte[key.KeyNonce.Length + header.MessageNonce.Length];
+                    AesCtrNonceLayout.WriteCounterNonce(
+                        key.KeyNonce.Span,
+                        header.MessageNonce.Span,
+                        counterNonce);
                     try
                     {
                         Policy.Decrypt(
                             securityAndPayload.Span.Slice(headerLength, payloadAndFooterLength),
                             key.EncryptingKey.Span,
-                            header.MessageNonce.Span,
+                            counterNonce,
                             plaintext);
                     }
-                    catch (CryptographicException)
+                    catch (Exception ex) when (ex is CryptographicException or ArgumentException)
                     {
+                        // ArgumentException: key material of the wrong length
+                        // for the policy (for example a KeyNonce that is not 4 bytes).
                         Array.Clear(plaintext, 0, plaintext.Length);
                         return UnwrapResult.Failure(
                             StatusCodes.BadSecurityChecksFailed,
@@ -442,7 +473,9 @@ namespace Opc.Ua.PubSub.Security
                         "Replay or nonce reuse detected");
                 }
 
-                return UnwrapResult.Success(plaintext, header);
+                return UnwrapResult.Success(
+                    plaintext.AsMemory(0, payloadAndFooterLength - footerSize),
+                    header);
             }
             finally
             {

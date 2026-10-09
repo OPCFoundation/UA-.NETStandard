@@ -53,6 +53,10 @@ function Add-Response([string] $Endpoint, $Value) {
 }
 
 try {
+    Add-Response $prefix @{
+        full_name = 'OPCFoundation/UA-.NETStandard'
+        default_branch = if ($Scenario -eq 'scheduled-definition-wrong-branch') { 'main' } else { 'master' }
+    }
     Add-Response "$prefix/branches/$queryBranch" @{
         name = if ($Scenario -eq 'release-policy-wrong-ref') { 'master' } else { $sourceBranch }
         protected = $Scenario -ne 'release-policy-unprotected'
@@ -94,11 +98,18 @@ try {
                 'push-definition' { $run.referenced_workflows=@() }
                 'push-definition-missing' { $run.referenced_workflows=@() }
                 'push-definition-contradiction' { $run.referenced_workflows[0].sha='b'*40 }
+                { $_.StartsWith('scheduled-definition') } {
+                    $run.event = 'schedule'
+                    if ($_ -eq 'scheduled-definition-contradiction') {
+                        $run.referenced_workflows[0].sha = 'b' * 40
+                    }
+                    else { $run.referenced_workflows = @() }
+                }
                 'run-in-progress' { $run.status='in_progress';$run.conclusion=$null }
                 { $_ -in @('failed-result', 'native-crash') } { $run.conclusion='failure' }
             }
         }
-        if ($Scenario -eq 'push-definition' -and $workflow.id -eq 101) {
+        if ($Scenario -in @('push-definition', 'scheduled-definition') -and $workflow.id -eq 101) {
             $definitionBytes = [Text.Encoding]::UTF8.GetBytes("name: Synthetic assurance`non: push`njobs: {}`n")
             Add-Response "$prefix/contents/$($workflow.path)?ref=$sha" @{
                 type='file'; path=$workflow.path; encoding='base64'; size=$definitionBytes.Length
@@ -121,7 +132,7 @@ try {
                 $jobName = "assurance-$($definition.id)"
                 $artifactName = "assurance-$($definition.id)-$($workflow.run)-2-$producerJob"
                 if ($definition.id -eq 'codeql-csharp') {
-                    $producerJob='analyze';$jobName='Analyze (csharp)'
+                    $producerJob='analyze';$jobName='Analyze'
                     $artifactName="assurance-codeql-csharp-$($workflow.run)-2-analyze"
                 }
                 if ($definition.id -eq 'native-aot') {
@@ -203,7 +214,7 @@ try {
                 $proof | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $proofFile
                 $record = @{
                     id=$definition.id;profile=$profile.id;project=$definition.project;configuration='Release'
-                    host='windows';hostTfm='net10.0';libraryTfm='net10.0';platform='windows/amd64'
+                    host=$profile.host;hostTfm='net10.0';libraryTfm='net10.0';platform=$profile.platform
                     shard='all';filter='';selected=$true;status='completed';sourceSha=$sha;profileDigest=$profileDigest
                     producer=@{
                         system='github-actions';workflow=$workflow.path;definitionSha=$definitionSha
@@ -322,9 +333,10 @@ try {
     $completed = switch ($Scenario) {
         { $_ -in @('wrong-repository','wrong-sha','wrong-event','wrong-ref','wrong-workflow','wrong-attempt',
             'definition-unverified','push-definition-missing','push-definition-contradiction',
+            'scheduled-definition-missing','scheduled-definition-wrong-branch','scheduled-definition-contradiction',
             'run-in-progress','missing-current-run','release-policy-wrong-ref','release-policy-unprotected') } { 0; break }
         'manifest-only-fuzz' { 2; break }
-        { $_ -in @('complete', 'release-branch', 'push-definition') } { 5; break }
+        { $_ -in @('complete', 'release-branch', 'push-definition', 'scheduled-definition') } { 5; break }
         'verified-seven' { 7; break }
         'native-positive' { 6; break }
         'wait-success' { 5; break }
@@ -334,6 +346,12 @@ try {
         default { 4 }
     }
     $failed = if ($Scenario -in @('failed-result', 'native-crash')) { 1 } else { 0 }
+    if ($Scenario -eq 'scheduled-definition' -and
+        ($receipt.workflows[0].definitionStatus -cne 'schedule-event-commit' -or
+         $receipt.workflows[0].definitionSha -cne $sha -or
+         $receipt.workflows[0].definitionDigest -cnotmatch '^sha256:[0-9a-f]{64}$')) {
+        throw "Scheduled definition was not bound to the actual event commit and fetched bytes. Receipt: $receiptText"
+    }
     if ($Scenario -in @('release-policy-wrong-ref', 'release-policy-unprotected') -and
         ('POLICY_REF_UNVERIFIED' -notin $receipt.reasons -or $actual.selected -ne 0)) {
         throw 'Unprotected or misbound release policy received assurance credit.'

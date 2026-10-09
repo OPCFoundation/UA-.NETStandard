@@ -588,7 +588,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override bool Equals(object? obj)
         {
-            return m_type.Equals((obj as IEncodeableType)?.Type);
+            // Only equal to a reflection based wrapper of the same kind: this
+            // keeps Equals reflexive for enumerated types and symmetric and
+            // consistent with GetHashCode across IType implementations.
+            return obj is ReflectionBasedType other &&
+                other.GetType() == GetType() &&
+                m_type == other.m_type;
         }
 
         /// <inheritdoc/>

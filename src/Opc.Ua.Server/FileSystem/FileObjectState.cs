@@ -149,6 +149,7 @@ namespace Opc.Ua.Server.FileSystem
             Write = new WriteMethodState(this)
             {
                 OnCall = OnWrite,
+                OnReadUserExecutable = OnReadWriteUserExecutable,
                 Executable = true,
                 UserExecutable = true
             };
@@ -231,8 +232,10 @@ namespace Opc.Ua.Server.FileSystem
                 BrowseNames.Size => new Variant((ulong)entry.Value.Length),
                 BrowseNames.LastModifiedTime => new Variant((DateTimeUtc)entry.Value.LastModifiedUtc),
                 BrowseNames.MimeType => new Variant(entry.Value.MimeType),
-                BrowseNames.Writable or BrowseNames.UserWritable =>
+                BrowseNames.Writable =>
                     new Variant(host.Provider.IsWritable && entry.Value.IsWritable),
+                BrowseNames.UserWritable =>
+                    new Variant(host.Provider.IsWritable && entry.Value.IsWritable && host.CanUserWrite(context)),
                 _ => throw new ServiceResultException(StatusCodes.BadAttributeIdInvalid)
             };
             return new AttributeReadResult(ServiceResult.Good, value,
@@ -266,6 +269,10 @@ namespace Opc.Ua.Server.FileSystem
                     context,
                     out NodeId sessionId,
                     out ServiceResult result))
+            {
+                return result;
+            }
+            if (!CanOpen(host, context, mode, out result))
             {
                 return result;
             }
@@ -327,7 +334,8 @@ namespace Opc.Ua.Server.FileSystem
                 return new OpenMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
             }
             if (!FileSystemNodeManager.TryGetSessionId(
-                context, out NodeId sessionId, out ServiceResult result))
+                context, out NodeId sessionId, out ServiceResult result) ||
+                !CanOpen(host, context, mode, out result))
             {
                 return new OpenMethodStateResult { ServiceResult = result };
             }
@@ -421,7 +429,7 @@ namespace Opc.Ua.Server.FileSystem
                 return new ReadMethodStateResult { ServiceResult = result };
             }
             byte[] buffer = new byte[count];
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             int read = await stream!.ReadAsync(buffer.AsMemory(0, count), cancellationToken).ConfigureAwait(false);
 #else
             int read = await stream!.ReadAsync(buffer, 0, count, cancellationToken).ConfigureAwait(false);
@@ -607,6 +615,31 @@ namespace Opc.Ua.Server.FileSystem
             Close?.OnCall = null;
             GetPosition?.OnCall = null;
             SetPosition?.OnCall = null;
+        }
+
+        /// <summary>
+        /// Rejects an open for writing by a user who may not modify the hosted file system.
+        /// </summary>
+        private static bool CanOpen(IFileSystemHost host, ISystemContext context, byte mode, out ServiceResult result)
+        {
+            if ((mode & 0x2) != 0 && !host.CanUserWrite(context))
+            {
+                result = ServiceResult.Create(StatusCodes.BadUserAccessDenied,
+                    "The user is not allowed to open the file for writing.");
+                return false;
+            }
+            result = ServiceResult.Good;
+            return true;
+        }
+
+        /// <summary>
+        /// Reports the Write method as executable only for users who may modify the hosted file system.
+        /// </summary>
+        private ServiceResult OnReadWriteUserExecutable(ISystemContext context, NodeState node, ref bool value)
+        {
+            IFileSystemHost? host = ResolveHost(context);
+            value = host != null && host.Provider.IsWritable && host.CanUserWrite(context);
+            return ServiceResult.Good;
         }
 
         private IFileSystemHost? ResolveHost(ISystemContext context)

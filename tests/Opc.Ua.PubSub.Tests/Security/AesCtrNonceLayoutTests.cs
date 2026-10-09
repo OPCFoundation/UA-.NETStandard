@@ -42,9 +42,22 @@ namespace Opc.Ua.PubSub.Tests.Security
     public class AesCtrNonceLayoutTests
     {
         [Test]
+        public void Lengths_MatchTable157()
+        {
+            // OPC 10000-14 7.2.4.4.3.2: "For AES-CTR mode the length of the
+            // SecurityHeader Nonce shall be 8 Bytes"; KeyNonce is Byte[4].
+            Assert.Multiple(() =>
+            {
+                Assert.That(AesCtrNonceLayout.NonceLength, Is.EqualTo(8));
+                Assert.That(AesCtrNonceLayout.KeyNonceLength, Is.EqualTo(4));
+                Assert.That(AesCtrNonceLayout.CounterNonceLength, Is.EqualTo(12));
+            });
+        }
+
+        [Test]
         public void Build_PlacesMessageRandomBigEndianFirst()
         {
-            byte[] nonce = new byte[12];
+            byte[] nonce = new byte[8];
             AesCtrNonceLayout.Build(0x01020304U, 0UL, nonce);
             Assert.That(nonce[0], Is.EqualTo(0x01));
             Assert.That(nonce[1], Is.EqualTo(0x02));
@@ -53,10 +66,10 @@ namespace Opc.Ua.PubSub.Tests.Security
         }
 
         [Test]
-        public void Build_PlacesSequenceNumberLittleEndianAtOffsetFour()
+        public void Build_PlacesUInt32SequenceNumberLittleEndianAtOffsetFour()
         {
-            byte[] nonce = new byte[12];
-            AesCtrNonceLayout.Build(0U, 0xAABBCCDDEEFF0011UL, nonce);
+            byte[] nonce = new byte[8];
+            AesCtrNonceLayout.Build(0U, 0xEEFF0011UL, nonce);
             Assert.That(nonce[4], Is.EqualTo(0x11));
             Assert.That(nonce[5], Is.Zero);
             Assert.That(nonce[6], Is.EqualTo(0xFF));
@@ -64,16 +77,36 @@ namespace Opc.Ua.PubSub.Tests.Security
         }
 
         [Test]
+        public void Build_RejectsSequenceNumberBeyondUInt32()
+        {
+            Assert.That(
+                () => AesCtrNonceLayout.Build(0U, (ulong)uint.MaxValue + 1, new byte[8]),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        [Test]
         public void Parse_RoundTrips()
         {
-            byte[] nonce = new byte[12];
-            AesCtrNonceLayout.Build(0xCAFEBABEU, 0xDEADBEEFCAFEBABEUL, nonce);
+            byte[] nonce = new byte[8];
+            AesCtrNonceLayout.Build(0xCAFEBABEU, 0xDEADBEEFUL, nonce);
             (uint random, ulong messageSequenceNumber) = AesCtrNonceLayout.Parse(nonce);
             Assert.Multiple(() =>
             {
                 Assert.That(random, Is.EqualTo(0xCAFEBABEU));
-                Assert.That(messageSequenceNumber, Is.EqualTo(0xDEADBEEFCAFEBABEUL));
+                Assert.That(messageSequenceNumber, Is.EqualTo(0xDEADBEEFUL));
             });
+        }
+
+        [Test]
+        public void WriteCounterNonce_PlacesKeyNonceBeforeMessageNonce()
+        {
+            byte[] keyNonce = [0xA0, 0xA1, 0xA2, 0xA3];
+            byte[] messageNonce = [1, 2, 3, 4, 5, 6, 7, 8];
+            byte[] counterNonce = new byte[AesCtrNonceLayout.CounterNonceLength];
+            AesCtrNonceLayout.WriteCounterNonce(keyNonce, messageNonce, counterNonce);
+            Assert.That(
+                counterNonce,
+                Is.EqualTo(new byte[] { 0xA0, 0xA1, 0xA2, 0xA3, 1, 2, 3, 4, 5, 6, 7, 8 }));
         }
 
         [Test]
@@ -144,13 +177,13 @@ namespace Opc.Ua.PubSub.Tests.Security
         [Test]
         public void ToDiagnosticString_ProducesHexString()
         {
-            byte[] nonce = new byte[12];
+            byte[] nonce = new byte[8];
             for (int i = 0; i < nonce.Length; i++)
             {
                 nonce[i] = (byte)i;
             }
             string hex = AesCtrNonceLayout.ToDiagnosticString(nonce);
-            Assert.That(hex, Is.EqualTo("000102030405060708090a0b"));
+            Assert.That(hex, Is.EqualTo("0001020304050607"));
         }
 
         [Test]

@@ -421,6 +421,25 @@ namespace Opc.Ua.Client
         }
 
         /// <summary>
+        /// Sets the channel recovery deadline. Null selects the automatic session-derived bound;
+        /// <see cref="Timeout.InfiniteTimeSpan"/> explicitly disables it.
+        /// </summary>
+        /// <param name="timeout">The maximum duration of a channel recovery cycle.</param>
+        /// <returns>This builder.</returns>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// The finite duration is not a supported positive timeout.
+        /// </exception>
+        public ManagedSessionBuilder WithChannelReconnectTimeout(TimeSpan? timeout)
+        {
+            if (!ManagedSessionOptions.IsValidChannelReconnectTimeout(timeout))
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+            m_options = m_options with { ChannelReconnectTimeout = timeout };
+            return this;
+        }
+
+        /// <summary>
         /// Use the supplied <see cref="IReconnectPolicy"/> directly. Overrides
         /// any options-based reconnect configuration.
         /// </summary>
@@ -520,6 +539,23 @@ namespace Opc.Ua.Client
             m_redundancyHandler = handler
                 ?? throw new ArgumentNullException(nameof(handler));
             m_options = m_options with { EnableServerRedundancy = true };
+            return this;
+        }
+
+        /// <summary>
+        /// Sets the timeouts the default server redundancy handler uses for the
+        /// redundancy metadata read and peer endpoint lookup. Raise them on a
+        /// high-latency link. Takes effect when server redundancy is enabled and
+        /// no custom handler is supplied.
+        /// </summary>
+        /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
+        public ManagedSessionBuilder WithServerRedundancyOptions(ServerRedundancyOptions options)
+        {
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+            m_options = m_options with { ServerRedundancy = options };
             return this;
         }
 
@@ -738,14 +774,14 @@ namespace Opc.Ua.Client
                     opts.ServerRedundancy);
 
             IClientChannelManager? channelManager = m_channelManager;
+            ClientChannelManager? ownedChannelManager = null;
             ServiceProviderHttpClientFactory? ownedHttpClientFactory = null;
             try
             {
-#pragma warning disable CA2000 // Channel manager lifetime follows the managed session; TODO: model owned disposal explicitly.
                 if (channelManager == null && m_httpsResilience != null)
                 {
                     ownedHttpClientFactory = CreateHttpsHttpClientFactory(m_httpsResilience);
-                    channelManager = new ClientChannelManager(
+                    ownedChannelManager = new ClientChannelManager(
                         m_configuration,
                         m_telemetry,
                         BuildChannelBindings(
@@ -756,11 +792,11 @@ namespace Opc.Ua.Client
                         timeProvider: opts.TimeProvider,
                         options: null,
                         securityPolicies: m_securityPolicies);
-                    ownedHttpClientFactory = null;
+                    channelManager = ownedChannelManager;
                 }
                 else if (channelManager == null && IsWebApiEndpoint(opts.Endpoint))
                 {
-                    channelManager = new ClientChannelManager(
+                    ownedChannelManager = new ClientChannelManager(
                         m_configuration,
                         m_telemetry,
                         BuildChannelBindings(DefaultTransportBindingRegistry.WithDefaultTcp()),
@@ -768,76 +804,37 @@ namespace Opc.Ua.Client
                         timeProvider: opts.TimeProvider,
                         options: null,
                         securityPolicies: m_securityPolicies);
+                    channelManager = ownedChannelManager;
                 }
-#pragma warning restore CA2000
-            }
-            finally
-            {
-                ownedHttpClientFactory?.Dispose();
-            }
 
-            ArrayOf<string> preferredLocales = default;
-            if (opts.PreferredLocales is { Count: > 0 } locales)
-            {
-                string[] arr = new string[locales.Count];
-                for (int i = 0; i < locales.Count; i++)
-                {
-                    arr[i] = locales[i];
-                }
-                preferredLocales = new ArrayOf<string>(arr);
-            }
-
-#pragma warning disable CS0618 // Legacy eager identity remains supported when no provider is configured.
-            IUserIdentity? identity = opts.Identity;
-#pragma warning restore CS0618
-            ManagedSession session = await ManagedSession.CreateAsync(
-                m_configuration,
-                opts.Endpoint,
-                sessionFactory,
-                identity,
-                reconnect,
-                redundancy,
-                m_telemetry,
-                opts.SessionName,
-                (uint)opts.SessionTimeout.TotalMilliseconds,
-                preferredLocales,
-                opts.CheckDomain,
-                engineFactory,
-                opts.TransferSubscriptionsOnRecreate,
-                opts.PoolNotifications,
-                opts.EnableTokenReuseFailover,
-                opts.IdentityProvider,
-                opts.TimeProvider,
-                channelManager,
-                opts.NetworkRedundancy,
-                opts.ServerRedundancy,
-                m_reverseConnectManager,
-                opts.ConnectGate,
-                ct: ct).ConfigureAwait(false);
-
-            try
-            {
-                if (opts.ModelChangeTracking)
-                {
-                    await session.EnableModelChangeTrackingAsync(ct).ConfigureAwait(false);
-                }
-                if (opts.LoadComplexTypes)
-                {
-                    // The type system owns a resolver whose NodeCache registers a
-                    // Meter; it is only needed for this one-shot load, so dispose
-                    // it rather than leaving it rooted for the process lifetime.
-                    using ComplexTypeSystem complexTypeSystem =
-                        ComplexTypes.ComplexTypeSystemClientExtensions.Create(session, m_telemetry);
-                    await complexTypeSystem.LoadAsync(ct: ct).ConfigureAwait(false);
-                }
+                ManagedSession session = await ManagedSession.CreateAsync(
+                    opts with { SubscriptionEngineFactory = engineFactory },
+                    m_configuration,
+                    sessionFactory,
+                    reconnect,
+                    redundancy,
+                    m_telemetry,
+                    channelManager,
+                    m_reverseConnectManager,
+                    ct: ct).ConfigureAwait(false);
+                session.OwnTransportResources(ownedChannelManager, ownedHttpClientFactory);
+                return session;
             }
             catch
             {
-                await session.DisposeAsync().ConfigureAwait(false);
+                try
+                {
+                    if (ownedChannelManager != null)
+                    {
+                        await ownedChannelManager.DisposeAsync().ConfigureAwait(false);
+                    }
+                }
+                finally
+                {
+                    ownedHttpClientFactory?.Dispose();
+                }
                 throw;
             }
-
-            return session;
         }
 
         private void ApplyReverseConnectEndpoint()

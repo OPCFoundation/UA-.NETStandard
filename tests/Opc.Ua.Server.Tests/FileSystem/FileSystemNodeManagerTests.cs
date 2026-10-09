@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -436,7 +434,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             var session = new Mock<ISession>();
             session.Setup(s => s.Id).Returns(sessionId);
-            session.Setup(s => s.Identity).Returns(new Mock<IUserIdentity>().Object);
+            session.Setup(s => s.Identity).Returns(Mock.Of<IUserIdentity>(i => i.TokenType == UserTokenType.UserName));
             session.Setup(s => s.PreferredLocales).Returns([]);
             var operationContext = new OperationContext(session.Object, DiagnosticsMasks.None);
 

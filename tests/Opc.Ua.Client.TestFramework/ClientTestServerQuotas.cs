@@ -96,10 +96,10 @@ namespace Opc.Ua.Client.TestFramework
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
-            ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ServerFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = MaxByteStringLengthForTest;
             ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+            ServerFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate);

@@ -31,8 +31,6 @@
 // UTF-8 "..."u8 literal would misrepresent their intent, so keep the explicit byte arrays.
 #pragma warning disable IDE0230 // Use UTF-8 string literal
 
-#nullable enable
-
 using System;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;

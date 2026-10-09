@@ -47,11 +47,27 @@ namespace System
     {
 #if NETSTANDARD2_0 || NETFRAMEWORK
         /// <summary>
-        /// Return hash code assuming ordinal
+        /// Return the hash code of the string under the specified comparison, so strings
+        /// that are equal under that comparison get the same hash code.
         /// </summary>
+        /// <exception cref="ArgumentException"><paramref name="comparisonType"/> is not
+        /// a <see cref="StringComparison"/> value.</exception>
         public static int GetHashCode(this string target, StringComparison comparisonType)
         {
-            return target.GetHashCode();
+            return comparisonType switch
+            {
+                StringComparison.CurrentCulture => StringComparer.CurrentCulture.GetHashCode(target),
+                StringComparison.CurrentCultureIgnoreCase
+                    => StringComparer.CurrentCultureIgnoreCase.GetHashCode(target),
+                StringComparison.InvariantCulture => StringComparer.InvariantCulture.GetHashCode(target),
+                StringComparison.InvariantCultureIgnoreCase
+                    => StringComparer.InvariantCultureIgnoreCase.GetHashCode(target),
+                StringComparison.Ordinal => StringComparer.Ordinal.GetHashCode(target),
+                StringComparison.OrdinalIgnoreCase => StringComparer.OrdinalIgnoreCase.GetHashCode(target),
+                _ => throw new ArgumentException(
+                    "The string comparison type passed in is currently not supported.",
+                    nameof(comparisonType))
+            };
         }
 
         /// <summary>

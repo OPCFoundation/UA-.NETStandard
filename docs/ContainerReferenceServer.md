@@ -2,17 +2,33 @@
 
 ## Overview
 
-There are multiple options to run the reference server in a Docker container:
+Run the Reference Server in a Docker container using a published image or a
+local build:
 
-- Latest and release builds from the GitHub container registry [here](https://github.com/OPCFoundation/UA-.NETStandard/pkgs/container/uanetstandard%2Frefserver). These builds support only Linux targets.
-- Since [this](https://github.com/OPCFoundation/UA-.NETStandard/commit/61a61081f6060804b12b8f351e32a8075703263d) commit the container image has amd64 and arm64 support. The build of the sample has been moved to containers, no more need to install the .NET SDK.
-- Local build without .NET 6.0 SDK on Linux or Windows with Docker Desktop. The target OS is chosen based on the settings in Docker Desktop for Linux or Windows containers.
-- Although with VS 2019 and greater there is built in Container support, so far issues in the UA Reference solution prevent build/startup/connection (under investigation).
-- VS2022 supports native debugging on a Linux distribution with WSL.
+- Pull the latest or a release image from the [GitHub Container Registry](https://github.com/OPCFoundation/UA-.NETStandard/pkgs/container/uanetstandard%2Frefserver). These images support Linux targets.
+- The image supports `amd64` and `arm64`. Local source builds run the SDK inside Docker; published images use the native `publish-samples` CI job described below.
+- Build locally with Docker Desktop on Linux or Windows. Docker Desktop settings select the target container OS.
+- Visual Studio 2019 and later include container support, but issues in the UA Reference solution currently prevent build, startup, or connection.
+- Visual Studio 2022 supports native debugging of a Linux distribution through WSL.
+
+## Contents
+
+- [Overview](#overview)
+- [Other published sample images](#other-published-sample-images)
+- [Building the local containers](#building-the-local-containers)
+- [Run the reference server container](#run-the-reference-server-container)
+  - [Run the local build of the Docker container](#run-the-local-build-of-the-docker-container)
+  - [Run the prebuilt Docker container hosted on GitHub](#run-the-prebuilt-docker-container-hosted-on-github)
+- [Known limitations and issues](#known-limitations-and-issues)
 
 ## Other published sample images
 
-In addition to the reference server (`refserver`), the [`Images CI`](../.github/workflows/docker-image.yml) workflow builds and publishes every other sample image — the sample servers, the device-integration pump server, the redundant client and both PubSub samples — to the GitHub container registry (`ghcr.io/opcfoundation/uanetstandard/<image>`). All are `linux/amd64` + `linux/arm64`, and all are built by that one workflow:
+The [`Images CI`](../.github/workflows/docker-image.yml) workflow builds
+and publishes the sample images below to the GitHub Container Registry
+(`ghcr.io/opcfoundation/uanetstandard/<image>`). It builds each image for
+`linux/amd64` and `linux/arm64/v8`. Image identities, project paths, Dockerfiles,
+platforms and independent evidence groups come from one
+[release artifact catalog](../.azurepipelines/release/artifacts.json).
 
 | Image | Sample application |
 | --- | --- |
@@ -27,13 +43,62 @@ In addition to the reference server (`refserver`), the [`Images CI`](../.github/
 | `pubsubclient` | `samples/PubSub/ConsoleReferencePubSubClient` |
 | `pumpserver` | `samples/DI/PumpDeviceIntegrationServer` |
 
+The workflow does not compile anything under emulation. Its
+`publish-samples` job publishes every sample above once, natively, as
+framework-dependent portable IL (no runtime identifier and no app host). The
+same output then runs on both platforms. Each application has its own
+`artifacts/docker/publish/<image>` directory. Each `build-and-push-image` leg
+downloads the immutable artifact ID returned by the native job, checks its
+source repository, commit, originating run/attempt, version metadata and
+selected payload hashes, and builds its Dockerfile with
+`--build-arg PUBLISH_SOURCE=prebuilt --build-arg PUBLISH_DIR=artifacts/docker/publish/<image>`.
+The target-platform stages only copy files onto their .NET runtime base image,
+so QEMU is not needed. The transfer manifest is not an independent provenance
+attestation or publication authorization.
+
+The ten catalog Dockerfiles use immutable version-and-digest pins for the
+.NET `10.0.401` SDK and `10.0.12` runtime or ASP.NET bases. Pump uses the
+Azure Linux 3 variants and prepares its OpenSSL configuration and writable
+`/app` and `/diag` directories in a `$BUILDPLATFORM` layout stage. Its final
+stage copies the parent directory tree, retaining ownership and group-write
+modes without running target-architecture commands.
+
+A local `docker build` without these arguments compiles from source in the
+Dockerfile's `build` stage. That stage is pinned to `$BUILDPLATFORM`, so a
+multi-platform `docker buildx build --platform linux/amd64,linux/arm64/v8` also
+compiles natively.
+
 Image tags follow the [release-branch-only publication model](ReleaseProcess.md):
 
-- **`<image>:latest`, `:release`, and the exact `<major>.<minor>` / `<major>.<minor>.<patch>` version tags** are updated only from a stable commit on a canonical `release/<major>.<minor>` branch (see [Release process](ReleaseProcess.md)). A build from that branch that is not yet stable (still `-preview.N`) does **not** move these tags.
+- **Stable tags** include `<image>:latest`, `<image>:release`, and version
+  tags such as `<major>.<minor>` and `<major>.<minor>.<patch>`. Update them
+  only from a stable commit on a canonical `release/<major>.<minor>` branch
+  (see [Release process](ReleaseProcess.md)). A preview build (`-preview.N`)
+  does **not** move these tags.
 - **`<image>:latest-<branch>`** (for example `refserver:latest-master`) tracks the most recent development build on that branch. `Images CI` builds these from `master` and from `release/*` branches while they are pre-release.
-- **`<image>:<version>`** (for example `refserver:2.0.0-preview.6` or `refserver:2.0.0`) always identifies the exact package version the image was built with, on every branch.
+- **`<image>:<version>[-<branch>]`** identifies the source-derived NBGV version
+  used for the assemblies and image metadata. Preview/development builds
+  retain the branch suffix; stable release builds use the unqualified version.
+  SemVer build metadata is removed for Docker tag compatibility.
 
-For example: `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest` gets the most recently approved stable release; `docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest-master` gets the most recent development build. Each image has a Dockerfile under its application folder that is built from the repository root as context (for example `docker build -f samples/Lds/ConsoleLdsServer/Dockerfile -t opcua-lds-server .`).
+For example, pull the most recently approved stable Lds server image with:
+
+```sh
+docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest
+```
+
+Pull the most recent development build with:
+
+```sh
+docker pull ghcr.io/opcfoundation/uanetstandard/ldsserver:latest-master
+```
+
+Each application folder contains a Dockerfile. Build it from the repository
+root so the build can use the repository as context, for example:
+
+```sh
+docker build -f samples/Lds/ConsoleLdsServer/Dockerfile -t opcua-lds-server .
+```
 
 Pump is the **tenth image**, in the independent `pump` group:
 `ghcr.io/opcfoundation/uanetstandard/pumpserver`, built by the same
@@ -80,9 +145,10 @@ attestation descriptor (`unknown/unknown`) is never counted as a platform.
 Successful live cryptographic verification is recorded as
 `verified-identity-boundary-pending`, **not** release authorization.
 
-The Dockerfiles consume full version, assembly/file version, informational
-version and source revision inputs, and label the output with the source and
-version. Their relationship to NuGet is **same-source**, not
+The native publisher and local Dockerfile builds use matching version,
+numeric assembly/file version, informational version, source revision and
+repository URL inputs. The final images retain the source and version labels
+even when their assemblies come from the prebuilt artifact. Their relationship to NuGet is **same-source**, not
 built-from-published-package. Base-image digest updates need reviewed
 multi-platform availability; a tag is not an immutable base pin.
 
@@ -151,9 +217,11 @@ Missing ownership or unclaimed payload remains incomplete. Native SLSA source,
 builder, invocation, materials, Dockerfile and scanner checks use independently
 authenticated expectations, not signed self-annotations alone.
 
-Only `public\status.json` and `artifact-group-manifest.json` are uploaded.
-Build records, full OCI layouts, raw predicates, tool logs and cosign output
-remain runner-local and are not artifacts. Native BuildKit attestations remain
+The short-lived `docker-publish` artifact contains only the native application
+outputs and their transfer manifest. Evidence uploads remain restricted to
+`public\status.json`, `artifact-group-manifest.json` and explicit per-subject
+public signature bundles. Build records, full OCI layouts, raw predicates,
+tool logs and raw cosign output remain runner-local and are not artifacts. Native BuildKit attestations remain
 attached to their registry image; transitive public-payload review remains
 unmet. Cross-workflow Pump/main observations are not silently combined as one
 authenticated attempt, and absent/cancelled matrix results remain missing.
@@ -191,6 +259,21 @@ The dedicated NUnit fixture is
 `Opc.Ua.Tools.Tests.ContainerEvidencePipelineTests` (net10.0 only). These fixtures
 cover local behavior and required stable refusals, not production qualification.
 
+The workflow fixtures check all ten catalog project/Dockerfile pairs, immutable
+pins, native stage selection, source-bound payload transfer and selected-job
+summary failures. Native publication uses synthetic `dotnet` output; no sample
+build or registry access occurs:
+
+```powershell
+pwsh -NoProfile -File .\tests\Opc.Ua.Tools.Tests\Fixtures\ContainerWorkflow.fixture.ps1 -Scenario native-publish
+pwsh -NoProfile -File .\tests\Opc.Ua.Tools.Tests\Fixtures\ContainerWorkflow.fixture.ps1 -Scenario docker-stages
+pwsh -NoProfile -File .\tests\Opc.Ua.Tools.Tests\Fixtures\ContainerWorkflow.fixture.ps1 -Scenario workflow-wiring
+```
+
+Tag-guard cases execute the workflow's Bash scripts with synthetic release refs
+(Git Bash on Windows). A passing fixture does not establish a successful native
+sample publish, multi-platform Docker build or hosted workflow run.
+
 In the [configured release process](ReleaseEvidence.md#configured-release-workflow),
 the controller authenticates producer/tool approval, provenance, complete
 inventories and assurance, release intent, the current policy, public-data review
@@ -224,21 +307,25 @@ On Linux,
 
 ## Run the reference server container
 
-The following samples run the server in interactive mode, hostname is the same as the host, the certificate store, the log output and the configuration file (see option `-s`) are mapped to a folder called `./OPC Foundation`.
+Run the container in interactive mode with the host's hostname. The
+certificate store, log output, and configuration file (when you use `-s`)
+are mounted in `./OPC Foundation`.
 
-the following defaults are used:
+The container uses these paths by default:
 
-- the certificate store is mapped to './OPC Foundation/pki'
-- A log file is created in './OPC Foundation/Logs'
-- The shadow configuration file is created in './OPC Foundation/Quickstarts.ReferenceServer.Config.xml'
+- Certificate store: `./OPC Foundation/pki`
+- Log file: `./OPC Foundation/Logs`
+- Shadow configuration: `./OPC Foundation/Quickstarts.ReferenceServer.Config.xml`
 
-With the option `-s` the configuration file is first copied to the root of the mapped folders. In subsequent restarts the shadowed configuration file is used when the server is started and all settings can be changed from the mapped configuration file.
+With `-s`, the container first copies the configuration file to the mounted
+folder. On later restarts, the server reads this copy, so you can change the
+settings there.
 
 ### Run the local build of the Docker container
 
 To run the local containers, batch files are provided called `dockerrun.bat` for Windows and `dockerrun.sh` for Linux.
 
-### Run the prebuilt Docker container hosted on Github
+### Run the prebuilt Docker container hosted on GitHub
 
 On Windows, open a command prompt and execute the following commands:
 

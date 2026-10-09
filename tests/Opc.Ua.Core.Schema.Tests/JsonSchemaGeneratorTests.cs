@@ -61,8 +61,8 @@ namespace Opc.Ua.Schema.Tests
                 Assert.That(definition["additionalProperties"]!.GetValue<bool>(), Is.False);
                 Assert.That(properties["Id"]!["type"]!.GetValue<string>(), Is.EqualTo("integer"));
                 Assert.That(properties["Name"]!["type"]!.GetValue<string>(), Is.EqualTo("string"));
-                Assert.That(RequiredNames(definition), Does.Contain("Id"));
-                Assert.That(RequiredNames(definition), Does.Contain("Name"));
+                // Part 6 5.4.1: the compact encoding omits default and null fields.
+                Assert.That(RequiredNames(definition), Is.Empty);
             });
         }
 
@@ -76,7 +76,7 @@ namespace Opc.Ua.Schema.Tests
                 SchemaTestData.Field("Note", SchemaTestData.BuiltIn(BuiltInType.String), optional: true));
             ISchemaProvider provider = SchemaTestData.CreateProvider(type);
 
-            IUaSchema schema = provider.CreateSchema(type, UaSchemaFormat.JsonCompact);
+            IUaSchema schema = provider.CreateSchema(type, UaSchemaFormat.JsonVerbose);
 
             JsonObject definition = Definition(schema, "SampleType");
             Assert.Multiple(() =>
@@ -311,7 +311,9 @@ namespace Opc.Ua.Schema.Tests
             IUaSchema schema = provider.CreateSchema(type, UaSchemaFormat.JsonCompact);
 
             JsonObject definition = Definition(schema, "Choice");
-            Assert.That(definition["oneOf"]!.AsArray(), Has.Count.EqualTo(2));
+
+            // one option per field plus the empty object of an unset union (SwitchField 0).
+            Assert.That(definition["oneOf"]!.AsArray(), Has.Count.EqualTo(3));
         }
 
         [Test]
@@ -410,7 +412,8 @@ namespace Opc.Ua.Schema.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(definition["properties"]!.AsObject().ContainsKey("EncodingMask"), Is.True);
-                Assert.That(RequiredNames(definition), Does.Contain("EncodingMask"));
+                // a zero EncodingMask is the default value and omitted by the encoder.
+                Assert.That(RequiredNames(definition), Does.Not.Contain("EncodingMask"));
                 Assert.That(RequiredNames(definition), Does.Not.Contain("Note"));
             });
         }

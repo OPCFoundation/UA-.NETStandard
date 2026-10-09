@@ -7,7 +7,6 @@
     <PackageId>PumpDeviceIntegrationServer</PackageId>
     <Description>Self-contained .NET console OPC UA server demonstrating the OPC 40223 Pumps companion specification end-to-end, including full simulation and additive OPC 10000-100 topology-element builder integration.</Description>
     <RootNamespace>Pumps</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>

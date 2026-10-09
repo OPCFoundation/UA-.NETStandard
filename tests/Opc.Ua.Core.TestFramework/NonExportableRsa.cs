@@ -93,7 +93,7 @@ namespace Opc.Ua.Core.TestFramework
         public int PrivateKeyExportAttempts => m_privateKeyExportAttempts;
 
         /// <inheritdoc/>
-        public override string KeyExchangeAlgorithm => m_key.KeyExchangeAlgorithm;
+        public override string KeyExchangeAlgorithm => m_key.KeyExchangeAlgorithm!;
 
         /// <inheritdoc/>
         public override string SignatureAlgorithm => m_key.SignatureAlgorithm;

@@ -66,12 +66,12 @@ namespace Opc.Ua.Fuzzing
             PubSubNetworkMessageContext publicContext = FuzzableCode.NewContext();
 
             PubSubNetworkMessage coreResult = FuzzableCode.DecodePubSubJson(seed, coreContext);
-            PubSubNetworkMessage publicResult = await new PubSubJsonDecoder()
-                .TryDecodeAsync(seed, publicContext).ConfigureAwait(false);
+            PubSubNetworkMessage publicResult = (await new PubSubJsonDecoder()
+                .TryDecodeAsync(seed, publicContext).ConfigureAwait(false))!;
 
             // Agreement alone is insufficient: both paths must preserve the actual seed values.
             PubSubSeedAssertions.AssertJsonSeed(coreResult, messageId, encoding);
-            PubSubSeedAssertions.AssertJsonSeed(publicResult, messageId, encoding);
+            PubSubSeedAssertions.AssertJsonSeed(publicResult!, messageId, encoding);
             PubSubSeedAssertions.AssertDiagnostics(coreContext, received: 1, dataSets: 1);
             PubSubSeedAssertions.AssertDiagnostics(publicContext, received: 1, dataSets: 1);
             PubSubSeedAssertions.ReplayJsonAdapters(seed);
@@ -219,16 +219,16 @@ namespace Opc.Ua.Fuzzing
             {
                 JsonElement wrapped = verbosePayload.GetProperty(names[i]);
                 Assert.That(wrapped.ValueKind, Is.EqualTo(JsonValueKind.Object), names[i]);
-                Assert.That(wrapped.GetProperty("Type").GetInt32(), Is.EqualTo(typeCodes[i]), names[i]);
-                Assert.That(wrapped.GetProperty("Body").ValueKind, Is.EqualTo(bareKinds[i]), names[i]);
+                Assert.That(wrapped.GetProperty("UaType").GetInt32(), Is.EqualTo(typeCodes[i]), names[i]);
+                Assert.That(wrapped.GetProperty("Value").ValueKind, Is.EqualTo(bareKinds[i]), names[i]);
                 Assert.That(compactPayload.GetProperty(names[i]).ValueKind, Is.EqualTo(bareKinds[i]), names[i]);
                 Assert.That(rawPayload.GetProperty(names[i]).ValueKind, Is.EqualTo(bareKinds[i]), names[i]);
                 Assert.That(
                     compactPayload.GetProperty(names[i]).GetRawText(),
-                    Is.EqualTo(wrapped.GetProperty("Body").GetRawText()), names[i]);
+                    Is.EqualTo(wrapped.GetProperty("Value").GetRawText()), names[i]);
                 Assert.That(
                     rawPayload.GetProperty(names[i]).GetRawText(),
-                    Is.EqualTo(wrapped.GetProperty("Body").GetRawText()), names[i]);
+                    Is.EqualTo(wrapped.GetProperty("Value").GetRawText()), names[i]);
             }
             Assert.That(compactPayload.GetProperty("Running").GetBoolean(), Is.True);
             Assert.That(compactPayload.GetProperty("Count").GetInt32(), Is.EqualTo(42));
@@ -255,8 +255,8 @@ namespace Opc.Ua.Fuzzing
                 .ConfigureAwait(false);
             PubSubSeedAssertions.AssertDiagnostics(context);
 
-            PubSubNetworkMessage decoded = await decoder.TryDecodeAsync(seed, context).ConfigureAwait(false);
-            PubSubSeedAssertions.AssertJsonSeed(decoded, "retained-RawData-Variant", PubSubFieldEncoding.RawData);
+            PubSubNetworkMessage decoded = (await decoder.TryDecodeAsync(seed, context).ConfigureAwait(false))!;
+            PubSubSeedAssertions.AssertJsonSeed(decoded!, "retained-RawData-Variant", PubSubFieldEncoding.RawData);
             PubSubSeedAssertions.AssertDiagnostics(context, received: 1, dataSets: 1);
         }
     }

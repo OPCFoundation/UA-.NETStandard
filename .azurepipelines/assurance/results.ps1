@@ -192,7 +192,7 @@ if ($files.Count -gt 0) {
                 $digest = $replayInput.GetAttribute('digest')
                 $category = $replayInput.GetAttribute('category')
                 if ($id -notmatch '^sha256:[0-9a-f]{64}$' -or $digest -notmatch '^sha256:[0-9a-f]{64}$' -or
-                    $category -notin @('good', 'crash', 'timeout', 'slow') -or -not $inputIds.Add($id) -or
+                    $category -notin @('good', 'crash', 'timeout', 'slow', 'stack') -or -not $inputIds.Add($id) -or
                     @($before.inputs | Where-Object { $_.id -ceq $id -and $_.digest -ceq $digest -and $_.category -ceq $category }).Count -ne 1 -or
                     @($copy.inputs | Where-Object { $_.id -ceq $id -and $_.digest -ceq $digest -and $_.category -ceq $category }).Count -ne 1) {
                     throw 'Replay input identity mismatch.'

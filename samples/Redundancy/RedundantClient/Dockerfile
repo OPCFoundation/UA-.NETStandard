@@ -4,7 +4,15 @@
 # Build directly:
 #   docker build -f samples/Redundancy/RedundantClient/Dockerfile -t opcua-redundant-client .
 # Or via docker compose (see samples/Redundancy/RedundantServer/docker-compose.*.yml).
-FROM mcr.microsoft.com/dotnet/sdk:10.0.401@sha256:35d40304542c8689331f8cab17c65926cdf48fe711e289321d71924b230a7d29 AS build
+#
+# The SDK stage always runs on the build platform ($BUILDPLATFORM): the
+# publish output is portable IL, so a multi-platform build never compiles
+# under emulation. Images CI publishes every sample once in a native pre-job
+# and selects the "prebuilt" stage instead, so the image legs only copy files:
+#   --build-arg PUBLISH_SOURCE=prebuilt --build-arg PUBLISH_DIR=<folder>
+ARG PUBLISH_SOURCE=build
+
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0.401@sha256:35d40304542c8689331f8cab17c65926cdf48fe711e289321d71924b230a7d29 AS build
 WORKDIR /src
 ENV DOTNET_EnableWriteXorExecute=0
 COPY . .
@@ -16,10 +24,17 @@ ARG SourceRevisionId
 ARG SourceRepositoryUrl=https://github.com/OPCFoundation/UA-.NETStandard
 RUN dotnet publish "samples/Redundancy/RedundantClient/RedundantClient.csproj" \
     -c Release -f net10.0 -p:PublishAot=false -p:CustomTestTarget=net10.0 \
+    -p:UseAppHost=false -p:SelfContained=false \
     -p:Dockerbuild=true -p:Version="$Version" -p:AssemblyVersion="$SimpleVersion" \
     -p:FileVersion="$FileVersion" -p:InformationalVersion="$InformationalVersion" \
     -p:SourceRevisionId="$SourceRevisionId" -p:RepositoryUrl="$SourceRepositoryUrl" \
     -o /app/publish
+
+FROM scratch AS prebuilt
+ARG PUBLISH_DIR=artifacts/docker/publish/redundantclient
+COPY ${PUBLISH_DIR}/ /app/publish/
+
+FROM ${PUBLISH_SOURCE} AS publish
 
 FROM mcr.microsoft.com/dotnet/runtime:10.0.12@sha256:ff17a18b639a0327e52c7c296fa2e1abe6e03eb61d8121a8ef67cc6aa430a27e AS final
 ARG Version=0.0.0-local
@@ -29,5 +44,5 @@ LABEL org.opencontainers.image.version=$Version \
       org.opencontainers.image.revision=$SourceRevisionId \
       org.opencontainers.image.source=$SourceRepositoryUrl
 WORKDIR /app
-COPY --from=build /app/publish .
+COPY --from=publish /app/publish .
 ENTRYPOINT ["dotnet", "RedundantClient.dll"]

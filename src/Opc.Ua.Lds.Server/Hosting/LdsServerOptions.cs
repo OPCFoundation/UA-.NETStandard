@@ -32,8 +32,6 @@ using System.Collections.Generic;
 using Microsoft.Extensions.DependencyInjection;
 using Opc.Ua.Configuration;
 
-#nullable enable
-
 namespace Opc.Ua.Lds.Server.Hosting
 {
     /// <summary>
@@ -82,7 +80,8 @@ namespace Opc.Ua.Lds.Server.Hosting
 
         /// <summary>
         /// Filesystem root used for the certificate stores. When empty, defaults
-        /// to <c>%TEMP%/OPC Foundation/{ApplicationName}/pki</c>.
+        /// to <c>{LocalApplicationData}/OPC Foundation/{ApplicationName}/pki</c> (per-user;
+        /// the shared temp directory is not used).
         /// </summary>
         public string PkiRoot { get; set; } = string.Empty;
 

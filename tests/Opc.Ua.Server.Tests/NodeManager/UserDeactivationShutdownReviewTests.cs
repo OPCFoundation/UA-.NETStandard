@@ -93,6 +93,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var closeReady = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var identity = new Mock<IUserIdentity>();
             identity.SetupGet(value => value.DisplayName).Returns("bob");
+            // Only sessions that logged in as the UserManagement user are revoked (S6-6).
+            identity.SetupGet(value => value.TokenType).Returns(UserTokenType.UserName);
             var session = new Mock<ISession>();
             var sessionId = new NodeId("revoked-session", 1);
             session.SetupGet(value => value.Id).Returns(sessionId);
@@ -112,7 +114,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await master.StartupAsync(CancellationToken.None).ConfigureAwait(false);
                 configManager.CreateServerConfiguration(data.DefaultSystemContext, configuration);
-                var state = (UserManagementState)configManager.Find(ObjectIds.UserManagement);
+                var state = (UserManagementState)configManager.Find(ObjectIds.UserManagement)!;
                 Assert.That(state, Is.Not.Null);
                 int snapshots = 0;
                 sessions.Setup(value => value.GetSessions())
@@ -129,7 +131,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 shutdown = disposeMaster
                     ? master.DisposeAsync().AsTask()
                     : master.ShutdownAsync(CancellationToken.None).AsTask();
-                ServiceResult rejected = await RemoveUserAsync(state, telemetry).ConfigureAwait(false);
+                ServiceResult rejected = await RemoveUserAsync(state!, telemetry).ConfigureAwait(false);
                 Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadShutdown));
                 Assert.That(shutdown.IsCompleted, Is.False, "Accepted session revocation must still be drained.");
                 repeatedShutdown = disposeMaster
@@ -189,7 +191,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NamespaceUris = new NamespaceTable(),
                 ServerUris = new StringTable()
             };
-            RemoveUserMethodStateResult result = await state.RemoveUser.OnCallAsync(
+            RemoveUserMethodStateResult result = await state.RemoveUser!.OnCallAsync!(
                 context, state.RemoveUser, state.NodeId, "bob", CancellationToken.None).ConfigureAwait(false);
             return result.ServiceResult;
         }

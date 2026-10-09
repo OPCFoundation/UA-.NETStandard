@@ -90,8 +90,14 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("wrong-producer")]
         [TestCase("missing-dockerfile")]
         [TestCase("duplicate-image")]
+        [TestCase("duplicate-cross-group-image")]
         [TestCase("empty-platforms")]
         [TestCase("unsafe-dockerfile")]
+        [TestCase("missing-project")]
+        [TestCase("missing-project-field")]
+        [TestCase("unsafe-project")]
+        [TestCase("foreign-project")]
+        [TestCase("project-paths")]
         [TestCase("workflow-wiring")]
         public async Task ContainerWorkflowPreservesImageContractsAsync(string scenario)
         {
@@ -99,12 +105,79 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// Keeps every published image's immutable SDK reference aligned with the repository's pinned SDK.
+        /// Keeps every catalog image on its approved SDK and runtime digests with the SDK matching global.json.
         /// </summary>
         [Test]
         public async Task ContainerSdkPinsMatchRepositorySdkAsync()
         {
             await RunFixtureAsync("ContainerWorkflow.fixture.ps1", "sdk-pins").ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Keeps local source builds native and routes each final image through its selected publish stage.
+        /// </summary>
+        [Test]
+        public async Task ContainerDockerStagesUseNativeBuildAndSelectedPayloadAsync()
+        {
+            await RunFixtureAsync("ContainerWorkflow.fixture.ps1", "docker-stages").ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Executes the native publisher and payload checks with synthetic dotnet output and no real builds.
+        /// </summary>
+        /// <param name="scenario">The publication, identity, or payload boundary to exercise.</param>
+        [TestCase("native-publish")]
+        [TestCase("native-publish-failure")]
+        [TestCase("native-missing-assembly")]
+        [TestCase("native-invalid-version")]
+        [TestCase("native-consumer-rerun")]
+        [TestCase("native-source-mismatch")]
+        [TestCase("native-repository-mismatch")]
+        [TestCase("native-run-mismatch")]
+        [TestCase("native-attempt-mismatch")]
+        [TestCase("native-version-mismatch")]
+        [TestCase("native-file-version-mismatch")]
+        [TestCase("native-project-mismatch")]
+        [TestCase("native-dockerfile-mismatch")]
+        [TestCase("native-duplicate-entry")]
+        [TestCase("native-file-mismatch")]
+        [TestCase("native-file-missing")]
+        [TestCase("native-file-extra")]
+        public async Task ContainerNativePublicationBindsSourceAndPayloadAsync(string scenario)
+        {
+            await RunFixtureAsync("ContainerWorkflow.fixture.ps1", scenario).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Executes the summary gate and rejects failed or skipped publication of selected images.
+        /// </summary>
+        /// <param name="scenario">The expected or invalid job-result combination.</param>
+        [TestCase("summary-success")]
+        [TestCase("summary-docs-skipped")]
+        [TestCase("summary-selected-publish-skipped")]
+        [TestCase("summary-selected-images-skipped")]
+        [TestCase("summary-publish-failed")]
+        [TestCase("summary-selection-failed")]
+        [TestCase("summary-discover-cancelled")]
+        [TestCase("summary-invalid-relevance")]
+        public async Task ContainerSummaryRequiresSelectedPublicationAsync(string scenario)
+        {
+            await RunFixtureAsync("ContainerWorkflow.fixture.ps1", scenario).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Executes branch sanitization and release-line alias guards without registry or network access.
+        /// </summary>
+        /// <param name="scenario">The branch, version, or release-precedence boundary.</param>
+        [TestCase("tag-preview")]
+        [TestCase("tag-injection")]
+        [TestCase("tag-invalid-version")]
+        [TestCase("tag-newest-release")]
+        [TestCase("tag-maintenance-release")]
+        [TestCase("tag-unknown-release-line")]
+        public async Task ContainerTagsPreserveBranchAndReleaseOwnershipAsync(string scenario)
+        {
+            await RunFixtureAsync("ContainerWorkflow.fixture.ps1", scenario).ConfigureAwait(false);
         }
 
         private static async Task RunFixtureAsync(string fixture, string scenario)

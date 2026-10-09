@@ -35,7 +35,7 @@
           "id": "metapackages",
           "configuration": "Release",
           "membership": "root-nuget-Opc-dot-star-nuspec",
-          "sources": ["nuget/Opc.Ua.nuspec", "nuget/Opc.Ua.Symbols.nuspec"],
+          "sources": ["nuget/Opc.Ua.nuspec"],
           "identity": "nuspec-metadata-id-with-actual-pack-version",
           "payload": "metadata-license-icon-readme-and-declared-consumer-dependencies",
           "symbolsNamedMetapackageIsNotSnupkg": true,
@@ -84,15 +84,15 @@
       "upstreamRepositoryPrefix": "ghcr.io/opcfoundation/uanetstandard",
       "platforms": ["linux/amd64", "linux/arm64/v8"],
       "images": [
-        {"id": "refserver", "dockerfile": "samples/Reference/ConsoleReferenceServer/Dockerfile"},
-        {"id": "ldsserver", "dockerfile": "samples/Lds/ConsoleLdsServer/Dockerfile"},
-        {"id": "boilerserver", "dockerfile": "samples/MinimalApi/MinimalBoilerServer/Dockerfile"},
-        {"id": "calcserver", "dockerfile": "samples/MinimalApi/MinimalCalcServer/Dockerfile"},
-        {"id": "mcpserver", "dockerfile": "tools/Opc.Ua.Mcp/Dockerfile"},
-        {"id": "redundantserver", "dockerfile": "samples/Redundancy/RedundantServer/Dockerfile"},
-        {"id": "redundantclient", "dockerfile": "samples/Redundancy/RedundantClient/Dockerfile"},
-        {"id": "redundantpubsub", "dockerfile": "samples/Redundancy/RedundantPubSub/Dockerfile"},
-        {"id": "pubsubclient", "dockerfile": "samples/PubSub/ConsoleReferencePubSubClient/Dockerfile"}
+        {"id": "refserver", "project": "samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj", "dockerfile": "samples/Reference/ConsoleReferenceServer/Dockerfile"},
+        {"id": "ldsserver", "project": "samples/Lds/ConsoleLdsServer/ConsoleLdsServer.csproj", "dockerfile": "samples/Lds/ConsoleLdsServer/Dockerfile"},
+        {"id": "boilerserver", "project": "samples/MinimalApi/MinimalBoilerServer/MinimalBoilerServer.csproj", "dockerfile": "samples/MinimalApi/MinimalBoilerServer/Dockerfile"},
+        {"id": "calcserver", "project": "samples/MinimalApi/MinimalCalcServer/MinimalCalcServer.csproj", "dockerfile": "samples/MinimalApi/MinimalCalcServer/Dockerfile"},
+        {"id": "mcpserver", "project": "tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj", "dockerfile": "tools/Opc.Ua.Mcp/Dockerfile"},
+        {"id": "redundantserver", "project": "samples/Redundancy/RedundantServer/RedundantServer.csproj", "dockerfile": "samples/Redundancy/RedundantServer/Dockerfile"},
+        {"id": "redundantclient", "project": "samples/Redundancy/RedundantClient/RedundantClient.csproj", "dockerfile": "samples/Redundancy/RedundantClient/Dockerfile"},
+        {"id": "redundantpubsub", "project": "samples/Redundancy/RedundantPubSub/RedundantPubSub.csproj", "dockerfile": "samples/Redundancy/RedundantPubSub/Dockerfile"},
+        {"id": "pubsubclient", "project": "samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj", "dockerfile": "samples/PubSub/ConsoleReferencePubSubClient/Dockerfile"}
       ],
       "nugetRelationship": "same-source",
       "inventory": "native-buildkit-spdx-record-actual-supported-version",
@@ -109,7 +109,7 @@
       "upstreamRepositoryPrefix": "ghcr.io/opcfoundation/uanetstandard",
       "platforms": ["linux/amd64", "linux/arm64/v8"],
       "images": [
-        {"id": "pumpserver", "dockerfile": "samples/DI/PumpDeviceIntegrationServer/Dockerfile"}
+        {"id": "pumpserver", "project": "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj", "dockerfile": "samples/DI/PumpDeviceIntegrationServer/Dockerfile"}
       ],
       "nugetRelationship": "same-source",
       "inventory": "native-buildkit-spdx-record-actual-supported-version",

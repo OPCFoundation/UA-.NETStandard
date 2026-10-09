@@ -73,7 +73,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConstructStaticFactory()
         {
-            NodeState node = DataTypeState.Construct(null);
+            NodeState node = DataTypeState.Construct(null!);
             Assert.That(node, Is.InstanceOf<DataTypeState>());
         }
 
@@ -81,7 +81,7 @@ namespace Opc.Ua.Types.Tests.State
         public void DataTypeDefinitionPropertySetterTriggersChangeMask()
         {
             var dt = new DataTypeState();
-            dt.ClearChangeMasks(null, false);
+            dt.ClearChangeMasks(null!, false);
 
             var definition = new ExtensionObject(new StructureDefinition());
             dt.DataTypeDefinition = definition;
@@ -98,10 +98,238 @@ namespace Opc.Ua.Types.Tests.State
             {
                 DataTypeDefinition = definition
             };
-            dt.ClearChangeMasks(null, false);
+            dt.ClearChangeMasks(null!, false);
 
             dt.DataTypeDefinition = definition;
             Assert.That(dt.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        [Test]
+        public void WriteDataTypeDefinitionRejectsWrongType()
+        {
+            var definition = new ExtensionObject(new StructureDefinition());
+            var dt = new DataTypeState
+            {
+                DataTypeDefinition = definition,
+                WriteMask = AttributeWriteMask.DataTypeDefinition
+            };
+
+            ServiceResult result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(42)));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+
+            result = dt.WriteAttribute(
+                m_context,
+                Attributes.DataTypeDefinition,
+                default,
+                new DataValue(new Variant(new ExtensionObject(new Argument()))));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+
+            var enumDefinition = new ExtensionObject(new EnumDefinition());
+            result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(enumDefinition)));
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(enumDefinition));
+
+            result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(Variant.Null));
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dt.DataTypeDefinition.IsNull, Is.True);
+        }
+
+        [Test]
+        public void WriteDataTypeDefinitionRejectsUndecodedBody()
+        {
+            var definition = new ExtensionObject(new StructureDefinition());
+            var dt = new DataTypeState
+            {
+                DataTypeDefinition = definition,
+                WriteMask = AttributeWriteMask.DataTypeDefinition
+            };
+
+            // a binary body of a type the factory does not know stays opaque.
+            var opaque = new ExtensionObject(
+                new ExpandedNodeId(9999u, 1),
+                ByteString.From([1, 2, 3, 4]));
+            ServiceResult result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(opaque)));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+
+            // a TypeId without a body is not a DataTypeDefinition either.
+            var typeIdOnly = new ExtensionObject(new ExpandedNodeId(ObjectIds.Argument_Encoding_DefaultBinary));
+            result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(typeIdOnly)));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+        }
+
+        [Test]
+        public void ReadDataTypeDefinitionReportsDefaultEncodingWithoutMutatingTheStoredValue()
+        {
+            var stored = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                Fields = [new StructureField { Name = "Name", DataType = DataTypeIds.String, ValueRank = -1 }]
+            };
+            var dt = new DataTypeState
+            {
+                NodeId = DataTypeIds.Argument,
+                SuperTypeId = DataTypeIds.Structure,
+                DataTypeDefinition = new ExtensionObject(stored)
+            };
+
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = m_context.NamespaceUris,
+                ServerUris = m_context.ServerUris,
+                EncodeableFactory = EncodeableFactory.Create()
+            };
+
+            DataValue value = new();
+            ServiceResult result = dt.ReadAttribute(
+                context, Attributes.DataTypeDefinition, default, default, ref value);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
+            Assert.That(extension.TryGetValue(out StructureDefinition? read), Is.True);
+            Assert.That(read!.DefaultEncodingId, Is.EqualTo(
+                ExpandedNodeId.ToNodeId(ObjectIds.Argument_Encoding_DefaultBinary, context.NamespaceUris)));
+            Assert.That(stored.DefaultEncodingId.IsNull, Is.True,
+                "A read must not modify the definition shared by all readers.");
+
+            // Part 3 8.48: an abstract DataType has no DefaultEncodingId.
+            dt.IsAbstract = true;
+            value = new DataValue();
+            result = dt.ReadAttribute(
+                context, Attributes.DataTypeDefinition, default, default, ref value);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(value.WrappedValue.TryGetValue(out extension), Is.True);
+            Assert.That(extension.TryGetValue(out read!), Is.True);
+            Assert.That(read!.DefaultEncodingId.IsNull, Is.True);
+        }
+
+        [Test]
+        public void WriteDataTypeDefinitionChecksWriteMaskFirst()
+        {
+            var dt = new DataTypeState
+            {
+                SuperTypeId = DataTypeIds.Structure,
+                DataTypeDefinition = new ExtensionObject(new StructureDefinition())
+            };
+
+            ServiceResult result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(42)));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+
+            result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(Variant.Null));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+        }
+
+        [Test]
+        public void WriteDataTypeDefinitionRequiresStructureDefinitionForStructures()
+        {
+            // Part 3 5.8.3: mandatory StructureDefinition for DataTypes derived from
+            // Structure and Union.
+            var definition = new ExtensionObject(new StructureDefinition());
+            var dt = new DataTypeState
+            {
+                SuperTypeId = DataTypeIds.Structure,
+                DataTypeDefinition = definition,
+                WriteMask = AttributeWriteMask.DataTypeDefinition
+            };
+
+            ServiceResult result = dt.WriteAttribute(
+                m_context,
+                Attributes.DataTypeDefinition,
+                default,
+                new DataValue(new Variant(new ExtensionObject(new EnumDefinition()))));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+
+            result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(Variant.Null));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+
+            var replacement = new ExtensionObject(
+                new StructureDefinition { StructureType = StructureType.StructureWithOptionalFields });
+            result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(replacement)));
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(replacement));
+        }
+
+        [Test]
+        public void WriteDataTypeDefinitionRequiresEnumDefinitionForEnumerations()
+        {
+            // Part 3 5.8.3: mandatory EnumDefinition for DataTypes derived from
+            // Enumeration and OptionSet.
+            var definition = new ExtensionObject(new EnumDefinition());
+            var dt = new DataTypeState
+            {
+                SuperTypeId = DataTypeIds.Enumeration,
+                DataTypeDefinition = definition,
+                WriteMask = AttributeWriteMask.DataTypeDefinition
+            };
+
+            ServiceResult result = dt.WriteAttribute(
+                m_context,
+                Attributes.DataTypeDefinition,
+                default,
+                new DataValue(new Variant(new ExtensionObject(new StructureDefinition()))));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+
+            result = dt.WriteAttribute(
+                m_context, Attributes.DataTypeDefinition, default, new DataValue(Variant.Null));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+
+            dt.SuperTypeId = DataTypeIds.OptionSet;
+            result = dt.WriteAttribute(
+                m_context,
+                Attributes.DataTypeDefinition,
+                default,
+                new DataValue(new Variant(new ExtensionObject(new StructureDefinition()))));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+        }
+
+        [Test]
+        public void WriteDataTypeDefinitionResolvesSuperTypesThroughTypeTable()
+        {
+            var typeTable = new TypeTable(m_context.NamespaceUris);
+            typeTable.AddSubtype(DataTypeIds.Structure, NodeId.Null);
+            // a custom abstract structure, as a DataType of a companion model would be.
+            var baseStructure = new NodeId(1000u, 1);
+            typeTable.AddSubtype(baseStructure, DataTypeIds.Structure);
+            var context = new SystemContext(m_context.Telemetry)
+            {
+                NamespaceUris = m_context.NamespaceUris,
+                ServerUris = m_context.ServerUris,
+                EncodeableFactory = m_context.EncodeableFactory,
+                TypeTable = typeTable
+            };
+            var dt = new DataTypeState
+            {
+                SuperTypeId = baseStructure,
+                WriteMask = AttributeWriteMask.DataTypeDefinition
+            };
+
+            ServiceResult result = dt.WriteAttribute(
+                context,
+                Attributes.DataTypeDefinition,
+                default,
+                new DataValue(new Variant(new ExtensionObject(new EnumDefinition()))));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+
+            // an abstract DataType may have no definition.
+            dt.IsAbstract = true;
+            result = dt.WriteAttribute(
+                context, Attributes.DataTypeDefinition, default, new DataValue(Variant.Null));
+            Assert.That(ServiceResult.IsGood(result), Is.True);
         }
 
         [Test]

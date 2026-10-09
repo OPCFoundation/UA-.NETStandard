@@ -103,7 +103,7 @@ namespace Opc.Ua.SourceGeneration
                 WriteTemplate_ListOfDataTypeActivators);
             template.Render();
 
-            Resource initializers = EmbedInitializers();
+            Resource? initializers = EmbedInitializers();
             if (initializers != null)
             {
                 return [fileName.AsTextFileResource(), initializers];
@@ -111,7 +111,7 @@ namespace Opc.Ua.SourceGeneration
             return [fileName.AsTextFileResource()];
         }
 
-        private TemplateString LoadTemplate_ListOfActivatorClasses(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfActivatorClasses(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign datatype)
             {
@@ -146,7 +146,7 @@ namespace Opc.Ua.SourceGeneration
         /// poolable — this includes service request/response types and
         /// notification payload types.
         /// </summary>
-        private TemplateString LoadTemplate_ListOfPooledExtensions(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfPooledExtensions(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign datatype ||
                 datatype.IsPartOfOpcUaTypesLibrary())
@@ -157,46 +157,64 @@ namespace Opc.Ua.SourceGeneration
                 datatype.IsStructure &&
                 !datatype.IsAbstract)
             {
-                return HasPoolableBase(datatype)
+                DataTypeDesign? poolableBase = GetPoolableBase(datatype);
+                if (poolableBase == null)
+                {
+                    return DataTypeTemplates.PooledExtensionClass;
+                }
+                // Only a base generated in this compilation is known to have
+                // the overridable ResetForReuse(); a base from another model
+                // may come from an assembly built by an older generator.
+                return IsGeneratedInThisModel(poolableBase)
                     ? DataTypeTemplates.DerivedPooledExtensionClass
-                    : DataTypeTemplates.PooledExtensionClass;
+                    : DataTypeTemplates.ForeignDerivedPooledExtensionClass;
             }
             return null;
         }
 
         /// <summary>
-        /// Returns true when the data type derives from another
-        /// concrete structure type that will itself receive a pooled
-        /// extension in this compilation — meaning the sentinel field,
-        /// <c>Reuse()</c> and <c>ClearPooledSentinel()</c> are
-        /// inherited from that base and the derived type must use
-        /// <c>new</c> to hide them. Walks up the inheritance chain
-        /// to find the first non-abstract ancestor that is a
-        /// generated structure (not in the Opc.Ua.Types library).
+        /// True if the data type is declared by the target model, i.e. its
+        /// class is generated in this compilation.
         /// </summary>
-        private static bool HasPoolableBase(DataTypeDesign datatype)
+        private bool IsGeneratedInThisModel(DataTypeDesign dataType)
+        {
+            return string.Equals(
+                dataType.SymbolicId?.Namespace,
+                m_context.ModelDesign.TargetNamespace?.Value,
+                StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// Returns the nearest ancestor that is a concrete generated
+        /// structure (not in the Opc.Ua.Types library) and therefore has a
+        /// pooled extension of its own - meaning the sentinel field,
+        /// <c>Reuse()</c> and <c>ClearPooledSentinel()</c> are inherited
+        /// from that base and the derived type must use <c>new</c> to hide
+        /// them - or <c>null</c> if there is none.
+        /// </summary>
+        private static DataTypeDesign? GetPoolableBase(DataTypeDesign datatype)
         {
             var current = datatype.BaseTypeNode as DataTypeDesign;
             while (current is not null)
             {
                 if (current.BasicDataType == BasicDataType.Structure)
                 {
-                    return false;
+                    return null;
                 }
                 if (current.BasicDataType == BasicDataType.UserDefined &&
                     current.IsStructure &&
                     !current.IsAbstract &&
                     !current.IsPartOfOpcUaTypesLibrary())
                 {
-                    return true;
+                    return current;
                 }
 
                 current = current.BaseTypeNode as DataTypeDesign;
             }
-            return false;
+            return null;
         }
 
-        private TemplateString LoadTemplate_ListOfActivatorRegistrations(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfActivatorRegistrations(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign datatype)
             {
@@ -237,7 +255,7 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_ListOfDataTypeDefinitions(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfDataTypeDefinitions(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign datatype)
             {
@@ -275,38 +293,20 @@ namespace Opc.Ua.SourceGeneration
                 context.Template.AddReplacement(
                     Tokens.IsOptionSet,
                     dataType.IsOptionSet);
+                // The fields of an OptionSet are its bits (OPC 10000-3 8.52):
+                // a zero ("no bits set") value names no bit and is left out.
                 context.Template.AddReplacement(
                     Tokens.ListOfFields,
                     DataTypeTemplates.EnumField,
-                    dataType.Fields ?? [],
+                    dataType.IsOptionSet
+                        ? (dataType.Fields ?? []).Where(
+                            f => f.TryGetOptionSetBit(out _)).ToArray()
+                        : dataType.Fields ?? [],
                     WriteTemplate_ListOfEnumDefinitionFields);
             }
             else
             {
                 // Structure definition
-                StructureType structureType = StructureType.Structure;
-                if (dataType.IsUnion)
-                {
-                    structureType = StructureType.Union;
-                }
-                foreach (Parameter field in dataType.Fields ?? [])
-                {
-                    if (field.IsOptional)
-                    {
-                        structureType = StructureType.StructureWithOptionalFields;
-                        break;
-                    }
-                    if (field.AllowSubTypes)
-                    {
-                        if (dataType.IsUnion)
-                        {
-                            structureType = StructureType.UnionWithSubtypedValues;
-                            break;
-                        }
-                        structureType = StructureType.StructureWithSubtypedValues;
-                        break;
-                    }
-                }
                 List<Parameter> fields = [];
                 context.Template.AddReplacement(
                     Tokens.BaseType,
@@ -315,7 +315,29 @@ namespace Opc.Ua.SourceGeneration
                         kNamespaceTableContextVariable));
                 context.Template.AddReplacement(
                     Tokens.FirstExplicitFieldIndex,
-                    CollectStructureDefinitionFields(dataType, ref structureType, fields));
+                    CollectStructureDefinitionFields(dataType, fields));
+
+                // The kind is a property of the whole encoding, inherited
+                // fields included: the base Encode writes an inherited
+                // AllowSubTypes field as an ExtensionObject and an inherited
+                // optional field under the encoding mask. No StructureType
+                // expresses optional and subtyped fields together, the
+                // validator rejects that (OPC 10000-6 F.13). IsOptional is
+                // ignored for a union (OPC 10000-3 8.51), which is encoded
+                // with a switch field, never an encoding mask.
+                StructureType structureType = dataType.IsUnion
+                    ? StructureType.Union
+                    : StructureType.Structure;
+                if (!dataType.IsUnion && fields.Any(f => f.IsOptional))
+                {
+                    structureType = StructureType.StructureWithOptionalFields;
+                }
+                else if (fields.Any(f => f.AllowSubTypes))
+                {
+                    structureType = dataType.IsUnion
+                        ? StructureType.UnionWithSubtypedValues
+                        : StructureType.StructureWithSubtypedValues;
+                }
                 context.Template.AddReplacement(
                     Tokens.StructureType,
                     structureType);
@@ -327,32 +349,23 @@ namespace Opc.Ua.SourceGeneration
 
                 static int CollectStructureDefinitionFields(
                     DataTypeDesign dataType,
-                    ref StructureType structureType,
                     List<Parameter> fields)
                 {
-                    if (dataType == null || dataType.Fields == null)
+                    if (dataType == null)
                     {
                         return fields.Count;
                     }
+
+                    // Always walk the base chain first: a type in the chain
+                    // without own fields still inherits (and encodes) all
+                    // fields of its ancestors.
                     if (dataType.BaseTypeNode is DataTypeDesign baseType)
                     {
-                        CollectStructureDefinitionFields(
-                            baseType,
-                            ref structureType,
-                            fields);
+                        CollectStructureDefinitionFields(baseType, fields);
                     }
 
                     int start = fields.Count;
-                    foreach (Parameter field in dataType.Fields)
-                    {
-                        if (field.IsOptional)
-                        {
-                            // inherit optional fields flag if derived structure
-                            // contains no optional fields
-                            structureType = StructureType.StructureWithOptionalFields;
-                        }
-                        fields.Add(field);
-                    }
+                    fields.AddRange(dataType.Fields ?? []);
                     return start;
                 }
             }
@@ -369,19 +382,14 @@ namespace Opc.Ua.SourceGeneration
 
             if (dataType.IsOptionSet)
             {
-                long bit = 1;
-                int value = 0;
-
-                while (field.Identifier > 0 && bit <= long.MaxValue)
-                {
-                    if ((bit & (long)field.Identifier) != 0)
-                    {
-                        break;
-                    }
-
-                    bit <<= 1;
-                    value++;
-                }
+                // The EnumField value of an OptionSet is the bit position
+                // (OPC 10000-3 8.52). The identifier is the single-bit mask
+                // (the validator rejects others) which, for a UInt64 based
+                // OptionSet, can use bit 63 and, for a subtype of the
+                // OptionSet structure, any bit (kept as the explicit bit
+                // position beyond what the decimal mask holds) - so the
+                // position is never derived through a long.
+                field.TryGetOptionSetBit(out int value);
                 context.Template.AddReplacement(
                     Tokens.ValueCode,
                     value);
@@ -417,15 +425,42 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.FieldName,
                 field.Name.AsStringLiteral());
-            context.Template.AddReplacement(
-                Tokens.DataType,
-                GetNodeIdConstantForDataType(field, m_context.ModelDesign.Namespaces));
-            context.Template.AddReplacement(
-                Tokens.ValueRank,
-                field.ValueRank.GetValueRankAsCode(field.ArrayDimensions));
-            context.Template.AddReplacement(
-                Tokens.ArrayDimensions,
-                field.ValueRank.GetArrayDimensionsAsCode(field.ArrayDimensions) ?? "default");
+            if (IsEncodedAsVariant(field))
+            {
+                // Encode writes the field as a Variant (and the dictionary
+                // declares ua:Variant). A StructureField ValueRank is -1 or
+                // >= 1 (OPC 10000-3 8.51), so -2/-3 cannot be published:
+                // describe the field as it is written, a scalar Variant.
+                context.Template.AddReplacement(
+                    Tokens.DataType,
+                    m_context.ModelDesign.FindNode<DataTypeDesign>(
+                        new XmlQualifiedName("BaseDataType", Namespaces.OpcUa),
+                        field.Name,
+                        "DataType").GetNodeIdAsCode(
+                            m_context.ModelDesign.Namespaces,
+                            kNamespaceTableContextVariable));
+                context.Template.AddReplacement(
+                    Tokens.ValueRank,
+                    "global::Opc.Ua.ValueRanks.Scalar");
+                context.Template.AddReplacement(
+                    Tokens.ArrayDimensions,
+                    "default");
+            }
+            else
+            {
+                context.Template.AddReplacement(
+                    Tokens.DataType,
+                    GetNodeIdConstantForDataType(field, m_context.ModelDesign.Namespaces));
+                // Never ValueRank 0 (OneOrMoreDimensions) for a StructureField
+                // (OPC 10000-3 8.51).
+                string arrayDimensions = field.GetStructureFieldArrayDimensions();
+                context.Template.AddReplacement(
+                    Tokens.ValueRank,
+                    field.ValueRank.GetValueRankAsCode(arrayDimensions));
+                context.Template.AddReplacement(
+                    Tokens.ArrayDimensions,
+                    field.ValueRank.GetArrayDimensionsAsCode(arrayDimensions) ?? "default");
+            }
             if (structureType == StructureType.StructureWithOptionalFields)
             {
                 context.Template.AddReplacement(Tokens.IsOptional, field.IsOptional);
@@ -446,7 +481,23 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_ListOfTypes(ILoadContext context)
+        /// <summary>
+        /// True if the generated Encode writes the field as a Variant because
+        /// its ValueRank is neither scalar, array nor an inline matrix
+        /// (ScalarOrArray, ScalarOrOneDimension, Any, or a multi-dimensional
+        /// field whose data type has no matrix form).
+        /// </summary>
+        internal static bool IsEncodedAsVariant(Parameter field)
+        {
+            return field.ValueRank switch
+            {
+                ValueRank.Scalar or ValueRank.Array => false,
+                ValueRank.OneOrMoreDimensions => !field.DataTypeNode!.SupportsMatrixOf(),
+                _ => true
+            };
+        }
+
+        private TemplateString? LoadTemplate_ListOfTypes(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign datatype ||
                 datatype.IsPartOfOpcUaTypesLibrary())
@@ -531,7 +582,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.NamespacePrefix,
                 m_context.ModelDesign.Namespaces.GetNamespacePrefix(
                     dataType.SymbolicId.Namespace));
-            string xmlNamespaceUri =
+            string? xmlNamespaceUri =
                 m_context.ModelDesign.Namespaces.GetConstantForXmlNamespace(
                     dataType.SymbolicId.Namespace);
             context.Template.AddReplacement(
@@ -561,13 +612,13 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.BaseTypeNamespacePrefix,
                 m_context.ModelDesign.Namespaces.GetNamespacePrefix(
-                    dataType.BaseTypeNode.SymbolicId.Namespace));
+                    dataType.BaseTypeNode!.SymbolicId.Namespace));
             context.Template.AddReplacement(
                 Tokens.BaseTypeNamespaceUri,
                 m_context.ModelDesign.Namespaces.GetConstantSymbolForNamespace(
                     dataType.BaseTypeNode.SymbolicId.Namespace));
 
-            List<Parameter> completeListOfFields = null;
+            List<Parameter>? completeListOfFields = null;
             bool hasAncestorWithOptionalFields = false;
 
             if (dataType.IsStructure)
@@ -653,14 +704,14 @@ namespace Opc.Ua.SourceGeneration
 
                 if (baseType?.SymbolicId != new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                 {
-                    var first = (Parameter)fields.GetValue(0);
+                    var first = (Parameter?)fields.GetValue(0);
 
                     clone.Add(new Parameter
                     {
                         Name = "None",
                         Identifier = 0,
                         IdentifierSpecified = true,
-                        DataTypeNode = first.DataTypeNode,
+                        DataTypeNode = first!.DataTypeNode,
                         DataType = first.DataType,
                         Parent = first.Parent,
                         Description = new Schema.Model.LocalizedText
@@ -711,7 +762,7 @@ namespace Opc.Ua.SourceGeneration
                 Tokens.ListOfChildHashes,
                 DataTypeTemplates.HashProperty,
                 fields,
-                WriteTemplate_ListOfProperties);
+                WriteTemplate_ListOfChildHashes);
 
             context.Template.AddReplacement(
                 Tokens.ListOfAppendStringFields,
@@ -736,7 +787,7 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.ListOfFieldResets,
-                fields,
+                GetInheritedFieldResets(dataType),
                 LoadTemplate_ListOfFieldResets);
 
             context.Template.AddReplacement(
@@ -753,7 +804,7 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_ListOfFields(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfFields(ILoadContext context)
         {
             if (context.Target is not Parameter field)
             {
@@ -761,18 +812,18 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Out.WriteLine(
                 "private {0} {1};",
-                field.DataTypeNode.GetDotNetTypeName(
+                field.DataTypeNode!.GetDotNetTypeName(
                     field.ValueRank,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
                     nullable: NullableAnnotation.NullableExceptDataTypes,
-                    useMatrixTypeInsteadOfVariant: field.DataTypeNode.SupportsMatrixOf()),
+                    useMatrixTypeInsteadOfVariant: field.DataTypeNode!.SupportsMatrixOf()),
                 field.GetChildFieldName());
 
             return null;
         }
 
-        private TemplateString LoadTemplate_ListOfSwitchFields(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfSwitchFields(ILoadContext context)
         {
             if (context.Target is not Parameter field)
             {
@@ -804,7 +855,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private TemplateString LoadTemplate_ListOfEncodingMaskFields(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfEncodingMaskFields(ILoadContext context)
         {
             if (context.Target is not Parameter field)
             {
@@ -842,7 +893,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private TemplateString LoadTemplate_ListOfEncodedFields(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfEncodedFields(ILoadContext context)
         {
             if (context.Target is not Parameter field)
             {
@@ -865,7 +916,7 @@ namespace Opc.Ua.SourceGeneration
                     $"{field.GetFieldsEnumMemberName()}) != 0) ");
             }
 
-            string functionName = field.DataTypeNode.BasicDataType.ToString();
+            string functionName = field.DataTypeNode!.BasicDataType.ToString();
             // Escaped, not interpolated raw: the wire name is authored data and
             // a quote or backslash in it would break the emitted literal.
             string wireName = field.Name.AsStringLiteral();
@@ -904,7 +955,7 @@ namespace Opc.Ua.SourceGeneration
 
                     if (field.DataTypeNode.IsOptionSet)
                     {
-                        if (field.DataTypeNode.BaseTypeNode.SymbolicId ==
+                        if (field.DataTypeNode.BaseTypeNode!.SymbolicId ==
                             new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                         {
                             functionName = "Encodeable";
@@ -1020,7 +1071,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private TemplateString LoadTemplate_ListOfDecodedFields(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfDecodedFields(ILoadContext context)
         {
             if (context.Target is not Parameter field)
             {
@@ -1048,7 +1099,7 @@ namespace Opc.Ua.SourceGeneration
             string fieldName = isUnion ? $"fieldName ?? {wireName}" : wireName;
 
             if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
-                field.DataTypeNode.SupportsMatrixOf())
+                field.DataTypeNode!.SupportsMatrixOf())
             {
                 EmitMatrixReadCall(context, field, valueName, fieldName);
                 if (isUnion)
@@ -1061,7 +1112,7 @@ namespace Opc.Ua.SourceGeneration
 
             string typeName = field.ValueRank == ValueRank.Array ? "Array" : string.Empty;
             string functionName;
-            switch (field.DataTypeNode.BasicDataType)
+            switch (field.DataTypeNode!.BasicDataType)
             {
                 case BasicDataType.Number:
                 case BasicDataType.Integer:
@@ -1082,7 +1133,7 @@ namespace Opc.Ua.SourceGeneration
 
                     if (field.DataTypeNode.IsOptionSet)
                     {
-                        if (field.DataTypeNode.BaseTypeNode.SymbolicId ==
+                        if (field.DataTypeNode.BaseTypeNode!.SymbolicId ==
                             new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
                         {
                             functionName = CoreUtils.Format(
@@ -1186,12 +1237,14 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Emit the encoder call for a structure field whose ValueRank is
         /// <see cref="ValueRank.OneOrMoreDimensions"/>. The field is
-        /// generated as a typed <c>MatrixOf&lt;T&gt;</c> and either passes
-        /// through a dedicated <c>WriteEncodeableMatrix</c> call (for
-        /// concrete <see cref="IEncodeable"/> matrices) or is packed into a
-        /// <see cref="Variant"/> via <c>Variant.From</c> /
-        /// <c>Variant.FromStructure</c> before being written through
-        /// <c>WriteVariant</c>.
+        /// generated as a typed <c>MatrixOf&lt;T&gt;</c> and encoded as the
+        /// inline matrix OPC 10000-6 5.2.5 prescribes for a structure field -
+        /// the dimensions followed by the flattened values, without any
+        /// Variant framing - exactly as the DataTypeDefinition driven codec
+        /// (<c>Structure.EncodeProperty</c>) writes the same field: through
+        /// <c>WriteEncodeableMatrix</c> for concrete <see cref="IEncodeable"/>
+        /// matrices and through <c>EncoderExtensions.WriteInlineMatrixValue</c>
+        /// (which keeps an empty matrix at two dimensions) for everything else.
         /// </summary>
         private static void EmitMatrixWriteCall(
             ILoadContext context,
@@ -1208,13 +1261,16 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
 
-            if (field.DataTypeNode.BasicDataType == BasicDataType.UserDefined &&
+            if (field.DataTypeNode!.BasicDataType == BasicDataType.UserDefined &&
                 !field.DataTypeNode.IsEnumeration)
             {
-                // UserDefined structure with AllowSubTypes - wrap as Variant
-                // of extension objects via FromStructure.
+                // UserDefined structure with AllowSubTypes - a matrix of
+                // extension objects. FromStructure turns a null matrix into a
+                // null Variant, which carries no shape; keep a null matrix.
                 context.Out.WriteLine(
-                    "encoder.WriteVariant({0}, global::Opc.Ua.Variant.FromStructure({1}));",
+                    "global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, {0}, {1}.IsNull ? " +
+                    "global::Opc.Ua.Variant.From(default(global::Opc.Ua.MatrixOf<global::Opc.Ua.ExtensionObject>)) : " +
+                    "global::Opc.Ua.Variant.FromStructure({1}));",
                     fieldName,
                     valueName);
                 return;
@@ -1224,7 +1280,7 @@ namespace Opc.Ua.SourceGeneration
             // Number/Integer/UInteger/BaseDataType (Variant) all flow
             // through the typed Variant.From overloads.
             context.Out.WriteLine(
-                "encoder.WriteVariant({0}, global::Opc.Ua.Variant.From({1}));",
+                "global::Opc.Ua.EncoderExtensions.WriteInlineMatrixValue(encoder, {0}, global::Opc.Ua.Variant.From({1}));",
                 fieldName,
                 valueName);
         }
@@ -1232,7 +1288,8 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Emit the decoder call for a structure field whose ValueRank is
         /// <see cref="ValueRank.OneOrMoreDimensions"/>. Mirrors
-        /// <see cref="EmitMatrixWriteCall"/>.
+        /// <see cref="EmitMatrixWriteCall"/> and <c>Structure.DecodeProperty</c>,
+        /// which reads the inline matrix with the field's type info.
         /// </summary>
         private void EmitMatrixReadCall(
             ILoadContext context,
@@ -1242,7 +1299,7 @@ namespace Opc.Ua.SourceGeneration
         {
             if (IsConcreteEncodeableMatrix(field))
             {
-                string elementName = field.DataTypeNode.GetDotNetTypeName(
+                string elementName = field.DataTypeNode!.GetDotNetTypeName(
                     ValueRank.Scalar,
                     m_context.ModelDesign.TargetNamespace.Value,
                     m_context.ModelDesign.Namespaces,
@@ -1257,10 +1314,66 @@ namespace Opc.Ua.SourceGeneration
 
             string getter = GetMatrixVariantGetter(field);
             context.Out.WriteLine(
-                "{0} = decoder.ReadVariant({1}).{2};",
+                "{0} = decoder.ReadVariantValue({1}, global::Opc.Ua.TypeInfo.Create(" +
+                "global::Opc.Ua.BuiltInType.{2}, {3})).{4};",
                 valueName,
                 fieldName,
+                GetMatrixBuiltInType(field),
+                GetMatrixValueRankAsCode(field),
                 getter);
+        }
+
+        /// <summary>
+        /// The built-in type the elements of a matrix field are encoded with.
+        /// Matches the type a DataTypeDefinition driven decoder resolves for
+        /// the field (enumerations, subtyped structures as extension objects,
+        /// abstract numbers as Variants).
+        /// </summary>
+        private static string GetMatrixBuiltInType(Parameter field)
+        {
+            DataTypeDesign? type = field.DataTypeNode;
+            switch (type!.BasicDataType)
+            {
+                case BasicDataType.UserDefined:
+                    return type.IsEnumeration ? "Enumeration" : "ExtensionObject";
+                case BasicDataType.Enumeration:
+                    if (type.SymbolicId ==
+                        new XmlQualifiedName("Enumeration", Namespaces.OpcUa))
+                    {
+                        return "Int32";
+                    }
+                    if (type.IsOptionSet &&
+                        type.BaseTypeNode is DataTypeDesign optionSetBase)
+                    {
+                        return optionSetBase.BasicDataType.ToString();
+                    }
+                    return "Enumeration";
+                case BasicDataType.Structure:
+                    return "ExtensionObject";
+                case BasicDataType.BaseDataType:
+                case BasicDataType.Number:
+                case BasicDataType.Integer:
+                case BasicDataType.UInteger:
+                    return "Variant";
+                default:
+                    return type.BasicDataType.ToString();
+            }
+        }
+
+        /// <summary>
+        /// The value rank of a matrix field: the number of ArrayDimensions
+        /// entries. Without them the rank is unknown and the field is read as
+        /// a two dimensional matrix; the decoders take the actual rank from
+        /// the encoded dimensions.
+        /// </summary>
+        private static string GetMatrixValueRankAsCode(Parameter field)
+        {
+            int rank = string.IsNullOrWhiteSpace(field.ArrayDimensions)
+                ? 0
+                : field.ArrayDimensions.Split([','], StringSplitOptions.RemoveEmptyEntries).Length;
+            return rank > 2
+                ? rank.ToString(CultureInfo.InvariantCulture)
+                : "global::Opc.Ua.ValueRanks.TwoDimensions";
         }
 
         /// <summary>
@@ -1270,14 +1383,14 @@ namespace Opc.Ua.SourceGeneration
         /// <c>OptionSet</c> whose base type is the abstract
         /// <c>OptionSet</c> structure).
         /// </summary>
-        private static bool IsConcreteEncodeableMatrix(Parameter field)
+        internal static bool IsConcreteEncodeableMatrix(Parameter field)
         {
-            DataTypeDesign type = field.DataTypeNode;
+            DataTypeDesign? type = field.DataTypeNode;
             if (field.AllowSubTypes)
             {
                 return false;
             }
-            if (type.BasicDataType == BasicDataType.UserDefined &&
+            if (type!.BasicDataType == BasicDataType.UserDefined &&
                 !type.IsEnumeration)
             {
                 return true;
@@ -1299,8 +1412,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string GetMatrixVariantGetter(Parameter field)
         {
-            DataTypeDesign type = field.DataTypeNode;
-            BasicDataType basic = type.BasicDataType;
+            DataTypeDesign? type = field.DataTypeNode;
+            BasicDataType basic = type!.BasicDataType;
 
             // UserDefined structure with AllowSubTypes - decode through
             // GetStructureMatrix<T> which unwraps extension objects.
@@ -1374,7 +1487,7 @@ namespace Opc.Ua.SourceGeneration
             return CoreUtils.Format("Get{0}Matrix()", basic);
         }
 
-        private TemplateString LoadTemplate_ListOfComparedFields(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfComparedFields(ILoadContext context)
         {
             if (context.Target is not Parameter field)
             {
@@ -1396,7 +1509,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (IsFloatingPointScalar(field) ||
-                !field.DataTypeNode.IsDotNetEqualityComparable(field.ValueRank))
+                !field.DataTypeNode!.IsDotNetEqualityComparable(field.ValueRank))
             {
                 context.Out.WriteLine(
                     "if (!global::Opc.Ua.CoreUtils.IsEqual({0}, value.{0}))",
@@ -1432,7 +1545,7 @@ namespace Opc.Ua.SourceGeneration
                     field.DataTypeNode.BasicDataType == BasicDataType.Double);
         }
 
-        private TemplateString LoadTemplate_ListOfClonedFields(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfClonedFields(ILoadContext context)
         {
             if (context.Target is not Parameter field)
             {
@@ -1453,16 +1566,16 @@ namespace Opc.Ua.SourceGeneration
                     $"{field.GetFieldsEnumMemberName()}) != 0) ");
             }
 
-            if (field.DataTypeNode.NeedsCloning())
+            if (field.DataTypeNode!.NeedsCloning())
             {
                 context.Out.WriteLine("clone.{0} = ({1})global::Opc.Ua.CoreUtils.Clone(this.{0});",
                     field.GetChildFieldName(),
-                    field.DataTypeNode.GetDotNetTypeName(
+                    field.DataTypeNode!.GetDotNetTypeName(
                         field.ValueRank,
                         m_context.ModelDesign.TargetNamespace.Value,
                         m_context.ModelDesign.Namespaces,
                         nullable: NullableAnnotation.NullableExceptDataTypes,
-                        useMatrixTypeInsteadOfVariant: field.DataTypeNode.SupportsMatrixOf()));
+                        useMatrixTypeInsteadOfVariant: field.DataTypeNode!.SupportsMatrixOf()));
             }
             else
             {
@@ -1479,13 +1592,26 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private TemplateString LoadTemplate_ListOfFieldInitializers(ILoadContext context)
+        private TemplateString? LoadTemplate_ListOfFieldInitializers(ILoadContext context)
         {
             if (context.Target is not Parameter field)
             {
                 return null;
             }
 
+            context.Out.WriteLine(
+                "{0} = {1};",
+                field.GetChildFieldName(),
+                GetFieldInitializerAsCode(field));
+            return null;
+        }
+
+        /// <summary>
+        /// Returns the code of the value a newly constructed instance
+        /// assigns to the field.
+        /// </summary>
+        private string GetFieldInitializerAsCode(Parameter field)
+        {
             if (IsRecursiveStructureField(field))
             {
                 // A structure field with no declared default value is normally
@@ -1495,11 +1621,10 @@ namespace Opc.Ua.SourceGeneration
                 // assigns it on demand. Optional fields are absent by default
                 // anyway, and a mandatory recursive field has no finite
                 // default value.
-                context.Out.WriteLine("{0} = default;", field.GetChildFieldName());
-                return null;
+                return "default";
             }
 
-            string value = field.DataTypeNode.GetValueAsCode(
+            return field.DataTypeNode!.GetValueAsCode(
                 field.ValueRank,
                 field.DefaultValue,
                 null,
@@ -1510,34 +1635,129 @@ namespace Opc.Ua.SourceGeneration
                 () => AddXmlInitializerForComplexValue(
                     field,
                     field.ValueRank,
-                    field.DataTypeNode,
-                    field.DefaultValue));
-
-            context.Out.WriteLine("{0} = {1};", field.GetChildFieldName(), value);
-            return null;
+                    field.DataTypeNode!,
+                    field.DefaultValue)!);
         }
 
         /// <summary>
-        /// Emits one assignment per declared field in the form
-        /// <c>m_field = default;</c>. Used by the
-        /// <c>PooledExtensionClass</c> template to reset all fields
-        /// before returning the instance to its activator's pool.
-        /// <c>default</c> covers reference types (assigns <c>null</c>),
-        /// value types (zero), and <see cref="ArrayOf{T}"/> /
-        /// <c>ReadOnlyMemory&lt;T&gt;</c>-backed structs (drops the
-        /// backing reference).
+        /// Returns the fields a pooled instance must reset in addition to
+        /// what its own <c>Initialize()</c> and the base type's
+        /// <c>ResetForReuse()</c> restore: the fields of the ancestors that
+        /// do not have a pooled extension of their own (abstract structures
+        /// and structures of the Opc.Ua.Types library). They are reset
+        /// through their public properties. A string entry is emitted as is.
+        /// When the nearest pooled ancestor is generated by another model
+        /// its <c>ResetForReuse()</c> is not relied upon (see
+        /// <see cref="DataTypeTemplates.ForeignDerivedPooledExtensionClass"/>),
+        /// so the fields of the whole chain are reset.
         /// </summary>
-        private TemplateString LoadTemplate_ListOfFieldResets(ILoadContext context)
+        private List<object> GetInheritedFieldResets(DataTypeDesign dataType)
         {
+            DataTypeDesign? poolableBase = GetPoolableBase(dataType);
+            bool resetWholeChain = poolableBase != null && !IsGeneratedInThisModel(poolableBase);
+            var ancestors = new List<DataTypeDesign>();
+            for (var current = dataType.BaseTypeNode as DataTypeDesign;
+                current != null &&
+                current.IsStructure &&
+                current.BasicDataType == BasicDataType.UserDefined;
+                current = current.BaseTypeNode as DataTypeDesign)
+            {
+                if (!resetWholeChain &&
+                    !current.IsAbstract &&
+                    !current.IsPartOfOpcUaTypesLibrary())
+                {
+                    // Has a pooled extension that resets its own chain.
+                    break;
+                }
+                ancestors.Insert(0, current);
+            }
+
+            var resets = new List<object>();
+            foreach (DataTypeDesign ancestor in ancestors)
+            {
+                foreach (Parameter field in GetFields(ancestor))
+                {
+                    resets.Add(field);
+                }
+            }
+            if (!dataType.IsUnion &&
+                ancestors.Any(a => a.Fields != null && a.Fields.Any(f => f.IsOptional)))
+            {
+                resets.Add("EncodingMask = 0;");
+            }
+            return resets;
+        }
+
+        /// <summary>
+        /// Emits one property assignment per inherited field that
+        /// <see cref="GetInheritedFieldResets"/> selected, restoring the
+        /// value a newly constructed instance has.
+        /// </summary>
+        private TemplateString? LoadTemplate_ListOfFieldResets(ILoadContext context)
+        {
+            if (context.Target is string line)
+            {
+                context.Out.WriteLine(line);
+                return null;
+            }
             if (context.Target is not Parameter field)
             {
                 return null;
             }
-            context.Out.WriteLine("{0} = default;", field.GetChildFieldName());
+            context.Out.WriteLine(
+                "{0} = {1};",
+                field.GetPropertyName(),
+                GetFieldInitializerAsCode(field));
             return null;
         }
 
-        private TemplateString LoadTemplate_ListOfProperties(ILoadContext context)
+        /// <summary>
+        /// Writes the hash code contribution of a field. It is guarded the
+        /// same way IsEqual compares the field: an optional field only when
+        /// its encoding mask bit is set, a union member only while it is the
+        /// active switch field. Otherwise equal instances could hash
+        /// differently.
+        /// </summary>
+        private bool WriteTemplate_ListOfChildHashes(IWriteContext context)
+        {
+            if (context.Target is not Parameter field)
+            {
+                return false;
+            }
+            var dataType = (DataTypeDesign)field.Parent;
+            string condition = string.Empty;
+            if (dataType.IsUnion)
+            {
+                condition =
+                    $"if (SwitchField == {dataType.SymbolicName.Name}Fields." +
+                    $"{field.GetFieldsEnumMemberName()}) ";
+            }
+            else if (field.IsOptional)
+            {
+                condition =
+                    $"if ((EncodingMask & (uint){dataType.SymbolicName.Name}Fields." +
+                    $"{field.GetFieldsEnumMemberName()}) != 0) ";
+            }
+            context.Template.AddReplacement(Tokens.HashCondition, condition);
+
+            // IsEqual treats all NaNs as equal (CoreUtils.IsEqual), but on
+            // .NET Framework double/float.GetHashCode hash the raw bits, so
+            // NaNs with different payloads would hash differently. Hash a
+            // canonical NaN, as Variant.GetHashCode does.
+            string hashValue = field.GetChildFieldName();
+            if (field.ValueRank == ValueRank.Scalar &&
+                field.DataTypeNode?.BasicDataType is BasicDataType.Float or BasicDataType.Double)
+            {
+                string type = field.DataTypeNode.BasicDataType == BasicDataType.Float
+                    ? "float"
+                    : "double";
+                hashValue = $"({type}.IsNaN({hashValue}) ? {type}.NaN : {hashValue})";
+            }
+            context.Template.AddReplacement(Tokens.HashValue, hashValue);
+            return WriteTemplate_ListOfProperties(context);
+        }
+
+        private TemplateString? LoadTemplate_ListOfProperties(ILoadContext context)
         {
             if (context.Target is not Parameter field)
             {
@@ -1545,9 +1765,9 @@ namespace Opc.Ua.SourceGeneration
             }
             var dataType = field.Parent as DataTypeDesign;
 
-            if (dataType.BasicDataType != BasicDataType.Enumeration)
+            if (dataType!.BasicDataType != BasicDataType.Enumeration)
             {
-                if (field.DataTypeNode.BasicDataType == BasicDataType.UserDefined ||
+                if (field.DataTypeNode!.BasicDataType == BasicDataType.UserDefined ||
                     field.ValueRank == ValueRank.Array)
                 {
                     if (field.AllowSubTypes ||
@@ -1572,7 +1792,7 @@ namespace Opc.Ua.SourceGeneration
             const bool isRequired = false;
             var dataType = (DataTypeDesign)field.Parent;
             bool emitDefaultValue =
-                !field.DataTypeNode.IsDotNetReferenceType(field.ValueRank);
+                !field.DataTypeNode!.IsDotNetReferenceType(field.ValueRank);
 
             context.Template.AddReplacement(
                 Tokens.Description,
@@ -1592,12 +1812,12 @@ namespace Opc.Ua.SourceGeneration
                 field.EnsureUniqueEnumName());
             context.Template.AddReplacement(
                 Tokens.TypeName,
-                field.DataTypeNode.GetDotNetTypeName(
+                field.DataTypeNode!.GetDotNetTypeName(
                 field.ValueRank,
                 m_context.ModelDesign.TargetNamespace.Value,
                 m_context.ModelDesign.Namespaces,
                 nullable: NullableAnnotation.NullableExceptDataTypes,
-                useMatrixTypeInsteadOfVariant: field.DataTypeNode.SupportsMatrixOf()));
+                useMatrixTypeInsteadOfVariant: field.DataTypeNode!.SupportsMatrixOf()));
             context.Template.AddReplacement(
                 Tokens.FieldName,
                 field.GetChildFieldName());
@@ -1612,7 +1832,7 @@ namespace Opc.Ua.SourceGeneration
                 CoreUtils.Format("{0}", context.Index + 1));
             context.Template.AddReplacement(
                 Tokens.DefaultValue,
-                field.DataTypeNode.GetValueAsCode(
+                field.DataTypeNode!.GetValueAsCode(
                     field.ValueRank,
                     null,
                     null,
@@ -1623,8 +1843,8 @@ namespace Opc.Ua.SourceGeneration
                     () => AddXmlInitializerForComplexValue(
                         field,
                         field.ValueRank,
-                        field.DataTypeNode,
-                        field.DefaultValue)));
+                        field.DataTypeNode!,
+                        field.DefaultValue)!));
             context.Template.AddReplacement(
                 Tokens.Identifier,
                 field.Identifier.ToString(CultureInfo.InvariantCulture));
@@ -1641,7 +1861,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             if (field.Name == "NodeId" &&
-                dataType.BaseTypeNode.SymbolicName.Name == BrowseNames.HistoryUpdateDetails)
+                dataType.BaseTypeNode!.SymbolicName.Name == BrowseNames.HistoryUpdateDetails)
             {
                 context.Template.AddReplacement(
                     Tokens.AccessorSymbol,
@@ -1730,7 +1950,7 @@ namespace Opc.Ua.SourceGeneration
         {
             if (!m_context.ModelDesign.UseAllowSubtypes)
             {
-                DataTypeDesign dataType = m_context.ModelDesign.FindNode<DataTypeDesign>(
+                DataTypeDesign? dataType = m_context.ModelDesign.FindNode<DataTypeDesign>(
                     field.DataType,
                     field.Name,
                     "DataType");
@@ -1739,13 +1959,13 @@ namespace Opc.Ua.SourceGeneration
             return field.DataTypeNode.GetNodeIdAsCode(namespaceUris, kNamespaceTableContextVariable);
         }
 
-        private string AddXmlInitializerForComplexValue(
+        private string? AddXmlInitializerForComplexValue(
             Parameter field,
             ValueRank valueRank,
             DataTypeDesign dataType,
             System.Xml.XmlElement element)
         {
-            string xml = element?.OuterXml;
+            string? xml = element?.OuterXml;
             if (string.IsNullOrEmpty(xml))
             {
                 return null;
@@ -1778,7 +1998,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Embed all initializers as source code
         /// </summary>
-        private Resource EmbedInitializers()
+        private Resource? EmbedInitializers()
         {
             if (m_initializers.Count == 0)
             {
@@ -1817,7 +2037,7 @@ namespace Opc.Ua.SourceGeneration
         /// derived from <paramref name="target"/> re-enters it as well.
         /// </summary>
         private static bool CanReach(
-            DataTypeDesign from,
+            DataTypeDesign? from,
             DataTypeDesign target,
             HashSet<XmlQualifiedName> visited)
         {
@@ -1829,7 +2049,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return true;
             }
-            for (TypeDesign type = from; type != null; type = type.BaseTypeNode)
+            for (TypeDesign? type = from; type != null; type = type.BaseTypeNode)
             {
                 if (type is not DataTypeDesign structure ||
                     structure.Fields == null)
@@ -1860,7 +2080,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-            for (TypeDesign current = type;
+            for (TypeDesign? current = type;
                 current != null;
                 current = current.BaseTypeNode)
             {

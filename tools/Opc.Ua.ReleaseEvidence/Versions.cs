@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers;
 using System.Globalization;
 using System.IO;
 using NuGet.Versioning;
@@ -75,6 +76,12 @@ namespace Opc.Ua.ReleaseEvidence
             }
             if (root.IsPrerelease)
             {
+                string label = root.Release;
+                if (label.Length > 1 && label[0] == 'g' &&
+                    label.AsSpan(1).IndexOfAnyExcept(s_hexCharacters) < 0)
+                {
+                    return package.Release == "preview.0." + label;
+                }
                 return package.Release == "preview." + root.Release;
             }
             string[] labels = package.Release.Split('.');
@@ -134,5 +141,8 @@ namespace Opc.Ua.ReleaseEvidence
             }
             return true;
         }
+
+        /// <summary>Lowercase hexadecimal characters used by commit-only prerelease labels.</summary>
+        private static readonly SearchValues<char> s_hexCharacters = SearchValues.Create("0123456789abcdef");
     }
 }

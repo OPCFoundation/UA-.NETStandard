@@ -50,6 +50,23 @@ namespace Opc.Ua.ReleaseEvidence.Tests
     public sealed class CiCoverageTests
     {
         /// <summary>
+        /// Accepts only the exact preview transformation of a commit-only prerelease root.
+        /// </summary>
+        [TestCase("2.0.0-gabcdef", "2.0.0-preview.0.gabcdef", true)]
+        [TestCase("2.0.0-gabcdef", "2.0.0-preview.gabcdef", false)]
+        [TestCase("2.0.0-gabcdef", "2.0.0-preview.1.gabcdef", false)]
+        [TestCase("2.0.0-gabcdef", "2.0.0-preview.0.g123456", false)]
+        [TestCase("2.0.0-gabcdef", "2.0.1-preview.0.gabcdef", false)]
+        [TestCase("2.0.0-gabcdef+build", "2.0.0-preview.0.gabcdef+build", true)]
+        [TestCase("2.0.0-gabcdef+build", "2.0.0-preview.0.gabcdef+other", false)]
+        [TestCase("2.0.0-rc.1", "2.0.0-preview.rc.1", true)]
+        [TestCase("2.0.0", "2.0.0-preview.6", true)]
+        public void CapturedPreviewVersionMatchesRootTransformation(string root, string package, bool accepted)
+        {
+            Assert.That(Versions.IsPackageVersionForRelease(package, root), Is.EqualTo(accepted));
+        }
+
+        /// <summary>
         /// Verifies evaluated project closure, target-specific ownership, frozen bytes, and immutable capture output.
         /// </summary>
         [Test]
@@ -1068,7 +1085,7 @@ namespace Opc.Ua.ReleaseEvidence.Tests
             {
                 ".azurepipelines/release/policy.json", ".azurepipelines/release/artifacts.json",
                 ".azurepipelines/assurance/profiles.json", ".azurepipelines/release/evidence.schema.json",
-                ".azurepipelines/nuget/expected-packages.txt", "nuget/Opc.Ua.nuspec", "nuget/Opc.Ua.Symbols.nuspec"
+                ".azurepipelines/nuget/expected-packages.txt", "nuget/Opc.Ua.nuspec"
             })
             {
                 byte[] bytes = await File.ReadAllBytesAsync(Path.Combine(RepositoryRoot, relative))

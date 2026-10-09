@@ -45,7 +45,8 @@ signal. A new attempt, superseding run, cancellation or policy change invalidate
 the snapshot; there is no older-success fallback.
 
 Workflow head_sha is not a general substitute for definition SHA. An explicit
-matching referenced_workflows entry supplies it. For a same-repository push,
+matching referenced_workflows entry supplies it. For a same-repository push or
+scheduled run on the API-confirmed default branch,
 GitHub uses the workflow from the event commit; additionally retrieve that exact
 file from the authenticated Contents API. Other unproven event/definition cases
 remain DEFINITION_UNVERIFIED. This is not a publication approval.
@@ -251,8 +252,16 @@ try {
                         $_.ref -ceq $ExpectedSourceRef -and $_.sha -cmatch '^[0-9a-f]{40}([0-9a-f]{24})?$'
                     })
                     $definitionSha = $null
+                    $eventCommitDefinition = $attempt.event -cin @('push', 'schedule')
+                    if ($attempt.event -ceq 'schedule') {
+                        $repositoryInfo = Invoke-AssuranceApi $prefix
+                        if ($repositoryInfo.full_name -cne $repository -or
+                            $repositoryInfo.default_branch -cne $sourceBranch) {
+                            throw 'DEFINITION_UNVERIFIED'
+                        }
+                    }
                     if ($references.Count -eq 1) {
-                        if ($attempt.event -ceq 'push' -and $references[0].sha -cne $attempt.head_sha) {
+                        if ($eventCommitDefinition -and $references[0].sha -cne $attempt.head_sha) {
                             throw 'CONTRADICTORY_DEFINITION'
                         }
                         $definitionSha = $references[0].sha
@@ -262,8 +271,8 @@ try {
                     elseif ($references.Count -gt 1) {
                         throw 'CONTRADICTORY_DEFINITION'
                     }
-                    elseif ($attempt.event -ceq 'push') {
-                        # Push definitions come from the event commit, unlike arbitrary dispatch/reusable definitions.
+                    elseif ($eventCommitDefinition) {
+                        # Push/default-branch schedule definitions use the event commit, not the current tip.
                         $file = Invoke-AssuranceApi "$prefix/contents/$($definition.path)?ref=$($attempt.head_sha)"
                         if ($file.type -cne 'file' -or $file.path -cne $definition.path -or
                             $file.encoding -cne 'base64' -or $file.sha -cnotmatch '^[0-9a-f]{40}([0-9a-f]{24})?$') {
@@ -273,7 +282,7 @@ try {
                         if ($bytes.Length -eq 0 -or $bytes.Length -ne $file.size) { throw 'DEFINITION_UNVERIFIED' }
                         $definitionSha = $attempt.head_sha
                         $entry.definitionSha = $definitionSha
-                        $entry.definitionStatus = 'push-event-commit'
+                        $entry.definitionStatus = "$($attempt.event)-event-commit"
                         $entry.definitionBlobSha = $file.sha
                         $entry.definitionDigest = 'sha256:' + [Convert]::ToHexString(
                             [Security.Cryptography.SHA256]::HashData($bytes)).ToLowerInvariant()
@@ -290,7 +299,7 @@ try {
                     foreach ($profile in $profiles.profiles | Where-Object { $_.id -in $definition.profiles }) {
                         foreach ($expected in $profile.jobs) {
                             $producerJob = if ($profile.id -eq 'codeql-net10') { 'analyze' } else { 'assurance-windows' }
-                            $jobName = if ($producerJob -eq 'analyze') { 'Analyze (csharp)' } else { "assurance-$($expected.id)" }
+                            $jobName = if ($producerJob -eq 'analyze') { 'Analyze' } else { "assurance-$($expected.id)" }
                             $name = "assurance-$($expected.id)-$($run.id)-$($run.run_attempt)-$producerJob"
                             if ($profile.id -eq 'aot-net10') {
                                 $producerJob = 'aot-test'

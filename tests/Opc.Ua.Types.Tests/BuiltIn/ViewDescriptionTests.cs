@@ -120,11 +120,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             using (var encoder = new BinaryEncoder(context))
             {
                 original.Encode(encoder);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             var decoded = new ViewDescription();
-            using (var decoder = new BinaryDecoder(buffer, context))
+            using (var decoder = new BinaryDecoder(buffer!, context))
             {
                 decoded.Decode(decoder);
             }
@@ -142,11 +142,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             using (var encoder = new BinaryEncoder(context))
             {
                 original.Encode(encoder);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             var decoded = new ViewDescription();
-            using (var decoder = new BinaryDecoder(buffer, context))
+            using (var decoder = new BinaryDecoder(buffer!, context))
             {
                 decoded.Decode(decoder);
             }
@@ -224,7 +224,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ViewDescription vd = CreatePopulated();
 
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(vd.Equals((object)null), Is.False);
+            Assert.That(vd.Equals((object)null!), Is.False);
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 
@@ -261,7 +261,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
 #pragma warning disable CA1508 // Avoid dead conditional code
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(vd.Equals((ViewDescription)null), Is.False);
+            Assert.That(vd.Equals((ViewDescription)null!), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
@@ -317,8 +317,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualWithBothNullReturnsTrue()
         {
-            ViewDescription vd1 = null;
-            ViewDescription vd2 = null;
+            ViewDescription? vd1 = null;
+            ViewDescription? vd2 = null;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(vd1 == vd2, Is.True);
@@ -329,7 +329,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorEqualWithOneNullReturnsFalse()
         {
             ViewDescription vd1 = CreatePopulated();
-            ViewDescription vd2 = null;
+            ViewDescription? vd2 = null;
 
 #pragma warning disable CA1508 // Avoid dead conditional code
             Assert.That(vd1 == vd2, Is.False);
@@ -419,11 +419,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             using (var encoder = new BinaryEncoder(context))
             {
                 original.Encode(encoder);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
             var decoded = new ViewDescription();
-            using (var decoder = new BinaryDecoder(buffer, context))
+            using (var decoder = new BinaryDecoder(buffer!, context))
             {
                 decoded.Decode(decoder);
             }

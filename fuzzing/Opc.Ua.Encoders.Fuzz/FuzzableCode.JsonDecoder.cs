@@ -183,12 +183,15 @@ namespace Opc.Ua.Fuzzing
         /// The fuzz target for the JsonDecoder.
         /// </summary>
         /// <param name="json">A string with fuzz content.</param>
-        internal static IEncodeable FuzzJsonDecoderCore(string json, bool throwAll = false)
+        internal static IEncodeable? FuzzJsonDecoderCore(string json, bool throwAll = false)
         {
             try
             {
-                using var decoder = new JsonDecoder(json, MessageContext);
-                return decoder.DecodeMessage<IEncodeable>();
+                return DecodeWithOracles(nameof(JsonDecoder), json?.Length ?? 0, () =>
+                {
+                    using var decoder = new JsonDecoder(json!, MessageContext);
+                    return decoder.DecodeMessage<IEncodeable>();
+                });
             }
             catch (ServiceResultException sre) when (!throwAll && IsExpectedDecodingError(sre))
             {
@@ -203,8 +206,8 @@ namespace Opc.Ua.Fuzzing
         internal static void FuzzJsonEncoderIndempotentCore(
             string serialized,
             IEncodeable encodeable,
-            JsonEncoderOptions options = null,
-            IServiceMessageContext context = null)
+            JsonEncoderOptions? options = null,
+            IServiceMessageContext? context = null)
         {
             if (serialized == null || encodeable == null)
             {
@@ -222,7 +225,7 @@ namespace Opc.Ua.Fuzzing
             string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
             bool firstGenerationNormalized = !Utils.IsEqual(encodeable, encodeable2);
             if (firstGenerationNormalized &&
-                !IsExpectedJsonSemanticLoss(encodeable, encodeable2, options, context))
+                !IsExpectedJsonSemanticLoss(encodeable, encodeable2!, options, context))
             {
                 throw new EncodingFidelityException(
                     $"JSON semantic round-trip failed. Type={encodeableTypeName}, Mode={options.Name}.");
@@ -230,9 +233,9 @@ namespace Opc.Ua.Fuzzing
 
             if (serialized2 == null || !serialized.SequenceEqual(serialized2))
             {
-                if (!IsExpectedJsonEncodingNormalization(serialized, serialized2, context) &&
+                if (!IsExpectedJsonEncodingNormalization(serialized, serialized2!, context) &&
                     !(firstGenerationNormalized &&
-                        IsStableFromSecondGeneration(serialized2, encodeable3, options, context)))
+                        IsStableFromSecondGeneration(serialized2!, encodeable3, options, context)))
                 {
                     throw new EncodingFidelityException(
                         Utils.Format("Idempotent JSON encoding failed. Type={0}.", encodeableTypeName));
@@ -240,7 +243,7 @@ namespace Opc.Ua.Fuzzing
             }
 
             if (!Utils.IsEqual(encodeable2, encodeable3) &&
-                !IsExpectedJsonSemanticLoss(encodeable2, encodeable3, options, context))
+                !IsExpectedJsonSemanticLoss(encodeable2!, encodeable3, options, context))
             {
                 throw new EncodingFidelityException(Utils.Format(
                     "Idempotent JSON 3rd gen decoding failed. Type={0}.",
@@ -251,7 +254,7 @@ namespace Opc.Ua.Fuzzing
         internal static void FuzzJsonRoundTripCore(
             IEncodeable encodeable,
             JsonEncoderOptions options,
-            IServiceMessageContext context = null)
+            IServiceMessageContext? context = null)
         {
             context ??= MessageContext;
             try
@@ -268,7 +271,7 @@ namespace Opc.Ua.Fuzzing
         internal static string EncodeJsonMessage(
             IEncodeable encodeable,
             JsonEncoderOptions options,
-            IServiceMessageContext context = null)
+            IServiceMessageContext? context = null)
         {
             using var memoryStream = new MemoryStream(0x1000);
             using var encoder = new JsonEncoder(memoryStream, context ?? MessageContext, options);
@@ -298,7 +301,8 @@ namespace Opc.Ua.Fuzzing
 
             try
             {
-                return decoder.ReadEncodeable<IEncodeable>("UaBody", encodeable.TypeId);
+                // The message body is inline next to the UaTypeId (Part 6 5.4.9, 5.4.2.16).
+                return decoder.DecodeMessage<IEncodeable>();
             }
             catch (ServiceResultException exception)
             {
@@ -329,7 +333,7 @@ namespace Opc.Ua.Fuzzing
 
         private static void FuzzJsonEncoderCore(string input, JsonEncoderOptions options)
         {
-            IEncodeable encodeable = FuzzJsonDecoderCore(input);
+            IEncodeable? encodeable = FuzzJsonDecoderCore(input);
             if (encodeable != null)
             {
                 FuzzJsonRoundTripCore(encodeable, options);
@@ -357,11 +361,13 @@ namespace Opc.Ua.Fuzzing
                 context);
         }
 
-        private static bool HasUnpairedPicoseconds(in DataValue value)
+        /// <summary>
+        /// Picoseconds without their timestamp are ignored (Part 6 5.2.2.17), and the
+        /// JSON encoder drops them like the binary encoder does.
+        /// </summary>
+        private static ushort GetEncodedPicoseconds(DateTimeUtc timestamp, ushort picoseconds)
         {
-            return !value.IsNull &&
-                ((value.SourceTimestamp == DateTimeUtc.MinValue && value.SourcePicoseconds != 0) ||
-                    (value.ServerTimestamp == DateTimeUtc.MinValue && value.ServerPicoseconds != 0));
+            return timestamp == DateTimeUtc.MinValue ? (ushort)0 : picoseconds;
         }
 
         /// <summary>
@@ -419,8 +425,7 @@ namespace Opc.Ua.Fuzzing
 
             if (value is DataValue dataValue)
             {
-                return HasUnpairedPicoseconds(in dataValue) ||
-                    HasJsonUnencodableValue(dataValue.WrappedValue, seen, context);
+                return HasJsonUnencodableValue(dataValue.WrappedValue, seen, context);
             }
 
             if (value is Variant variant)
@@ -431,7 +436,7 @@ namespace Opc.Ua.Fuzzing
             if (value is ExtensionObject extensionObject)
             {
                 return IsJsonUnencodableExtensionObjectTypeId(in extensionObject, context) ||
-                    (extensionObject.TryGetValue(out IEncodeable encodeable) &&
+                    (extensionObject.TryGetValue(out IEncodeable? encodeable) &&
                         HasJsonUnencodableValue(encodeable, seen, context));
             }
 
@@ -471,7 +476,7 @@ namespace Opc.Ua.Fuzzing
 
             foreach (PropertyInfo property in GetComparableProperties(type))
             {
-                if (HasJsonUnencodableValue(property.GetValue(value), seen, context))
+                if (HasJsonUnencodableValue(property.GetValue(value)!, seen, context))
                 {
                     return true;
                 }
@@ -558,6 +563,12 @@ namespace Opc.Ua.Fuzzing
                 return AreJsonEquivalentExpandedNodeIds(leftExpandedNodeId, rightExpandedNodeId, context);
             }
 
+            if (left is LocalizedText leftLocalizedText &&
+                right is LocalizedText rightLocalizedText)
+            {
+                return IsJsonEquivalentLocalizedText(leftLocalizedText, rightLocalizedText);
+            }
+
             if (IsArrayOf(type))
             {
                 return IsJsonEquivalentArrayOf(left, right, type, seen, options, context);
@@ -595,8 +606,8 @@ namespace Opc.Ua.Fuzzing
             {
                 comparedProperty = true;
                 if (!IsJsonEquivalent(
-                    property.GetValue(left),
-                    property.GetValue(right),
+                    property.GetValue(left)!,
+                    property.GetValue(right)!,
                     seen,
                     options,
                     context))
@@ -630,8 +641,10 @@ namespace Opc.Ua.Fuzzing
                 left.StatusCode.Equals(right.StatusCode, StatusCodeComparison.AllBits) &&
                 left.SourceTimestamp == right.SourceTimestamp &&
                 left.ServerTimestamp == right.ServerTimestamp &&
-                left.SourcePicoseconds == right.SourcePicoseconds &&
-                left.ServerPicoseconds == right.ServerPicoseconds &&
+                GetEncodedPicoseconds(left.SourceTimestamp, left.SourcePicoseconds) ==
+                    GetEncodedPicoseconds(right.SourceTimestamp, right.SourcePicoseconds) &&
+                GetEncodedPicoseconds(left.ServerTimestamp, left.ServerPicoseconds) ==
+                    GetEncodedPicoseconds(right.ServerTimestamp, right.ServerPicoseconds) &&
                 IsJsonEquivalent(left.WrappedValue, right.WrappedValue, seen, options, context);
         }
 
@@ -658,8 +671,8 @@ namespace Opc.Ua.Fuzzing
                 return true;
             }
 
-            if (left.TryGetAsJson(out string leftJson) &&
-                right.TryGetAsJson(out string rightJson))
+            if (left.TryGetAsJson(out string? leftJson) &&
+                right.TryGetAsJson(out string? rightJson))
             {
                 try
                 {
@@ -673,8 +686,8 @@ namespace Opc.Ua.Fuzzing
                 }
             }
 
-            return left.TryGetValue(out IEncodeable leftEncodeable) &&
-                right.TryGetValue(out IEncodeable rightEncodeable) &&
+            return left.TryGetValue(out IEncodeable? leftEncodeable) &&
+                right.TryGetValue(out IEncodeable? rightEncodeable) &&
                 IsJsonEquivalent(leftEncodeable, rightEncodeable, seen, options, context);
         }
 
@@ -695,8 +708,8 @@ namespace Opc.Ua.Fuzzing
         {
             if (left.Encoding != ExtensionObjectEncoding.None ||
                 left.TypeId.IsNull ||
-                left.TryGetValue(out IEncodeable _) ||
-                !right.TryGetValue(out IEncodeable decoded) ||
+                left.TryGetValue(out IEncodeable? _) ||
+                !right.TryGetValue(out IEncodeable? decoded) ||
                 decoded == null ||
                 !AreJsonEquivalentExpandedNodeIds(left.TypeId, right.TypeId, context))
             {
@@ -706,7 +719,7 @@ namespace Opc.Ua.Fuzzing
             IEncodeable prototype;
             try
             {
-                prototype = Activator.CreateInstance(decoded.GetType()) as IEncodeable;
+                prototype = (Activator.CreateInstance(decoded.GetType()) as IEncodeable)!;
             }
             catch (MissingMethodException)
             {
@@ -714,6 +727,17 @@ namespace Opc.Ua.Fuzzing
             }
 
             return prototype != null && Utils.IsEqual(prototype, decoded);
+        }
+
+        /// <summary>
+        /// Null and empty strings are semantically the same (Part 6 5.1.11), and the JSON
+        /// encoding does not encode either for Text or Locale (Part 6 5.4.2.15).
+        /// </summary>
+        private static bool IsJsonEquivalentLocalizedText(LocalizedText left, LocalizedText right)
+        {
+            return left.Equals(right) ||
+                (string.Equals(left.Text ?? string.Empty, right.Text ?? string.Empty, StringComparison.Ordinal) &&
+                    string.Equals(left.Locale ?? string.Empty, right.Locale ?? string.Empty, StringComparison.Ordinal));
         }
 
         private static bool IsJsonEquivalentQualifiedName(QualifiedName left, QualifiedName right)
@@ -783,10 +807,10 @@ namespace Opc.Ua.Fuzzing
                 case JsonValueKind.Array:
                     return IsJsonEquivalentArrayText(left, right, context);
                 case JsonValueKind.String:
-                    string leftString = left.GetString();
-                    string rightString = right.GetString();
+                    string leftString = left.GetString()!;
+                    string rightString = right.GetString()!;
                     return StringComparer.Ordinal.Equals(leftString, rightString) ||
-                        AreJsonEquivalentIdentifierStrings(leftString, rightString, context);
+                        AreJsonEquivalentIdentifierStrings(leftString!, rightString!, context);
                 default:
                     return StringComparer.Ordinal.Equals(left.GetRawText(), right.GetRawText());
             }
@@ -916,7 +940,9 @@ namespace Opc.Ua.Fuzzing
             int leftCount = (int)type.GetProperty(nameof(ArrayOf<int>.Count))!.GetValue(left)!;
             int rightCount = (int)type.GetProperty(nameof(ArrayOf<int>.Count))!.GetValue(right)!;
 
-            if (options.IgnoreNullValues && leftCount == 0 && rightCount == 0)
+            // Null, empty and zero length arrays are semantically the same for all
+            // DataEncodings, and a conversion may turn one into the other (Part 6 5.1.11).
+            if (leftCount == 0 && rightCount == 0)
             {
                 return true;
             }

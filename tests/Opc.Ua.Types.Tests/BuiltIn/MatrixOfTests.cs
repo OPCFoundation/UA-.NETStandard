@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -270,6 +268,19 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 new int[,] { { 1, 2 }, { 3, 4 } });
             Assert.That(matrix.GetHashCode(), Is.EqualTo(
                 matrix.GetHashCode(EqualityComparer<int>.Default)));
+        }
+
+        [Test]
+        public void EqualEmptyMatricesWithDifferentDimensionsHashAlike()
+        {
+            MatrixOf<int> empty = MatrixOf<int>.Empty;
+            MatrixOf<int> empty2D = new int[0, 0].ToMatrixOf();
+            MatrixOf<int> empty0x3 = new int[0, 3].ToMatrixOf();
+
+            Assert.That(empty2D, Is.EqualTo(empty));
+            Assert.That(empty0x3, Is.EqualTo(empty));
+            Assert.That(empty2D.GetHashCode(), Is.EqualTo(empty.GetHashCode()));
+            Assert.That(empty0x3.GetHashCode(), Is.EqualTo(empty.GetHashCode()));
         }
 
         [Test]

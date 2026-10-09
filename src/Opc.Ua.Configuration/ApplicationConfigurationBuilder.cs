@@ -322,7 +322,7 @@ namespace Opc.Ua.Configuration
                     StoreType = trustedRootType,
                     StorePath = DefaultCertificateStorePath(
                         TrustlistType.TrustedHttps,
-                        trustedRootType)
+                        trustedRoot)
                 };
             ApplicationConfiguration.SecurityConfiguration.HttpsIssuerCertificates
                 = new CertificateTrustList

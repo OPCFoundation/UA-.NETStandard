@@ -925,7 +925,6 @@ namespace Opc.Ua
         /// </summary>
         internal void ValidateSecurityPolicies()
         {
-            string[] supportedPolicies = Ua.SecurityPolicies.Default.GetDisplayNames();
             var newPolicies = new List<ServerSecurityPolicy>();
             foreach (ServerSecurityPolicy securityPolicy in m_securityPolicies)
             {
@@ -951,25 +950,20 @@ namespace Opc.Ua
                         }
                     }
                 }
-                else
+                else if (string.Equals(
+                    Ua.SecurityPolicies.Default.GetInfo(securityPolicy.SecurityPolicyUri)?.Uri,
+                    securityPolicy.SecurityPolicyUri,
+                    StringComparison.Ordinal))
                 {
-                    for (int i = 0; i < supportedPolicies.Length; i++)
+                    if (newPolicies.Find(s =>
+                            s.SecurityMode == securityPolicy.SecurityMode &&
+                            string.Equals(
+                                s.SecurityPolicyUri,
+                                securityPolicy.SecurityPolicyUri,
+                                StringComparison.Ordinal)
+                        ) == null)
                     {
-                        if (securityPolicy.SecurityPolicyUri
-                            .Contains(supportedPolicies[i], StringComparison.Ordinal))
-                        {
-                            if (newPolicies.Find(s =>
-                                    s.SecurityMode == securityPolicy.SecurityMode &&
-                                    string.Equals(
-                                        s.SecurityPolicyUri,
-                                        securityPolicy.SecurityPolicyUri,
-                                        StringComparison.Ordinal)
-                                ) == null)
-                            {
-                                newPolicies.Add(securityPolicy);
-                            }
-                            break;
-                        }
+                        newPolicies.Add(securityPolicy);
                     }
                 }
             }
@@ -1399,6 +1393,30 @@ namespace Opc.Ua
         /// <value>The maximum number of failed authentication attempts before lockout.</value>
         [DataTypeField(Order = 40)]
         public int MaxFailedAuthenticationAttempts { get; set; } = 5;
+
+        /// <summary>
+        /// The maximum number of monitored items the server supports across all
+        /// subscriptions. CreateMonitoredItems returns Bad_TooManyMonitoredItems for the
+        /// items that exceed it (Part 4 §5.13.2.4). The value is published in
+        /// <c>Server.ServerCapabilities.MaxMonitoredItems</c>.
+        /// A value of zero or less means the server does not impose a limit (the default,
+        /// compatible with earlier versions).
+        /// </summary>
+        /// <value>The maximum number of monitored items in the server.</value>
+        [DataTypeField(Order = 41)]
+        public int MaxMonitoredItemCount { get; set; }
+
+        /// <summary>
+        /// The maximum number of monitored items per subscription. CreateMonitoredItems
+        /// returns Bad_TooManyMonitoredItems for the items that exceed it (Part 4
+        /// §5.13.2.4). The value is published in
+        /// <c>Server.ServerCapabilities.MaxMonitoredItemsPerSubscription</c>.
+        /// A value of zero or less means the server does not impose a limit (the default,
+        /// compatible with earlier versions).
+        /// </summary>
+        /// <value>The maximum number of monitored items per subscription.</value>
+        [DataTypeField(Order = 42)]
+        public int MaxMonitoredItemsPerSubscription { get; set; }
 
         private ArrayOf<UserTokenPolicy> m_userTokenPolicies;
         private ArrayOf<string> m_serverProfileArray;
@@ -1965,7 +1983,7 @@ namespace Opc.Ua
         /// <summary>
         /// The string representation of the certificate
         /// </summary>
-        /// <value>Rsa, RsaMin, RsaSha256, NistP256, NistP384, BrainpoolP256r1, BrainpoolP384r1, Curve25519, Curve448</value>
+        /// <value>Rsa, RsaMin, RsaSha256, NistP256, NistP384, BrainpoolP256r1, BrainpoolP384r1, Curve25519, Curve448, Https</value>
         [DataTypeField(Order = 6)]
         public string? CertificateTypeString
         {

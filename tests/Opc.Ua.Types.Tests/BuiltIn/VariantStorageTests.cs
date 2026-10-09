@@ -60,7 +60,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     yield return new QualifiedName("different", ns);
                     yield return new NodeId(0u, ns);
                     yield return new NodeId(uint.MaxValue, ns);
-                    yield return new NodeId(null, ns);
+                    yield return new NodeId(null!, ns);
                     yield return new NodeId(string.Empty, ns);
                     yield return new NodeId("same", ns);
                     yield return new NodeId(Guid.Empty, ns);
@@ -78,7 +78,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 yield return new LocalizedText(string.Empty, "same");
                 yield return new LocalizedText("en", "same");
                 yield return new LocalizedText("key", "en", "Value {0}", 7);
-                yield return new LocalizedText("key", null, "Value {0}", 7);
+                yield return new LocalizedText("key", null!, "Value {0}", 7);
                 yield return new LocalizedText(new Dictionary<string, string>
                 {
                     ["en"] = "same",
@@ -302,11 +302,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             foreach (NodeId input in Values.OfType<NodeId>())
             {
-                input.GetRawState(out object identifier, out NodeId.Inner inner);
+                input.GetRawState(out object? identifier, out NodeId.Inner inner);
                 inner.Reserved = 173;
                 NodeId raw = NodeId.SetRawState(identifier, inner);
                 NodeId extracted = new Variant(raw).GetNodeId();
-                extracted.GetRawState(out object restoredIdentifier, out NodeId.Inner restored);
+                extracted.GetRawState(out object? restoredIdentifier, out NodeId.Inner restored);
                 Assert.That(restoredIdentifier, Is.SameAs(identifier));
                 Assert.That(restored.Numeric, Is.EqualTo(inner.Numeric));
                 Assert.That(restored.NamespaceIdx, Is.EqualTo(inner.NamespaceIdx));
@@ -319,16 +319,16 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void TextOnlyEligibilityUsesRawLocaleAndTranslationState()
         {
-            foreach (string text in new[] { null, string.Empty, "raw" })
+            foreach (string? text in new[] { null, string.Empty, "raw" })
             {
                 var plain = new LocalizedText(text);
-                Assert.That(plain.TryGetTextOnly(out string raw), Is.True);
+                Assert.That(plain.TryGetTextOnly(out string? raw), Is.True);
                 Assert.That(raw, Is.SameAs(text));
                 var emptyLocale = new LocalizedText(string.Empty, text);
                 Assert.That(emptyLocale.TryGetTextOnly(out _), Is.False);
                 Assert.That(new Variant(emptyLocale).GetLocalizedText().Locale, Is.EqualTo(string.Empty));
             }
-            var formatted = new LocalizedText("key", null, "Value {0}", 7);
+            var formatted = new LocalizedText("key", null!, "Value {0}", 7);
             Assert.That(formatted.TryGetTextOnly(out _), Is.False);
             LocalizedText extracted = new Variant(formatted).GetLocalizedText();
             Assert.That(extracted.TranslationInfo, Is.EqualTo(formatted.TranslationInfo));
@@ -372,7 +372,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             using var encoder = new BinaryEncoder(context);
             encoder.WriteVariant(null, value);
-            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer(), context);
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, context);
             Variant decoded = decoder.ReadVariant(null);
             Assert.That(decoded.TypeInfo, Is.EqualTo(value.TypeInfo));
             Assert.That(decoded, Is.EqualTo(value));
@@ -402,7 +402,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             IVariantBuilder<MatrixOf<T>> matrixBuilder)
             where TBuilder : struct, IVariantBuilder<T>
         {
-            var property = PropertyState<T>.With<TBuilder>(null, input);
+            var property = PropertyState<T>.With<TBuilder>(null!, input);
             Assert.That(property.Value, Is.EqualTo(input));
             Assert.That(((BaseVariableState)property).Value, Is.EqualTo(scalarBuilder.WithValue(input)));
             ArrayOf<T> array = [input, input];
@@ -422,7 +422,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(decoder.ReadVariant("matrix"), Is.EqualTo(matrixValue));
         }
 
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
         [Test]
         public void PinnedArrayMemoryRetainsRawOwnerIndexAndLength()
         {
@@ -436,18 +436,6 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(after.Object, Is.SameAs(before.Object));
             Assert.That(after.Index, Is.EqualTo(before.Index));
             Assert.That(after.Length, Is.EqualTo(before.Length));
-            Assert.That(actual[0], Is.EqualTo(42));
-        }
-#elif NET_STANDARD_TESTS
-        [Test]
-        public void NetStandardByteStringFallbackPreservesTheOriginalSlice()
-        {
-            byte[] buffer = [8, 1, 2, 9];
-            var input = new ByteString(buffer.AsMemory(1, 2));
-
-            Assert.That(Variant.From(input).TryGetValue(out ByteString actual), Is.True);
-            Assert.That(actual.Memory, Is.EqualTo(input.Memory));
-            buffer[1] = 42;
             Assert.That(actual[0], Is.EqualTo(42));
         }
 #endif
@@ -523,7 +511,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             try
             {
-                return operation();
+                return operation()!;
             }
             catch (Exception exception)
             {

@@ -423,8 +423,18 @@ self-contained stage and streams the live OPC UA values into
 ## Running in Docker
 
 A [`Dockerfile`](./Dockerfile) is provided that builds the Release
-publish output on the .NET **AzureLinux 3** base images and runs it as a
-non-root user.
+publish output with the immutable .NET **10.0.401 Azure Linux 3** SDK
+and runs it on the pinned **10.0.12 Azure Linux 3** runtime as a non-root user.
+Local builds default to `PUBLISH_SOURCE=build`; the SDK stage runs on
+`$BUILDPLATFORM` and emits framework-dependent IL with no app host.
+
+Images CI publishes the catalog's ten applications once on its native runner.
+Pump consumes only `artifacts/docker/publish/pumpserver`, selected with
+`PUBLISH_SOURCE=prebuilt` and `PUBLISH_DIR`, after checking the artifact's
+source/run identity, version metadata and payload hashes. A native layout stage
+prepares `openssl.cnf` and the `/app` and `/diag` ownership and permissions;
+the final stage copies the directory tree without target-architecture `RUN`
+instructions. Both `linux/amd64` and `linux/arm64/v8` use the same portable output.
 
 > **Build from the repository root**, not from this folder. The image
 > needs the full source tree (`src/`, `samples/`, `tools/`), so the
@@ -466,7 +476,7 @@ The image is built and published to the GitHub Container Registry as
 `ghcr.io/opcfoundation/uanetstandard/pumpserver` by the
 [`docker-image.yml`](../../../.github/workflows/docker-image.yml) (`Images CI`)
 workflow, alongside every other sample image: built without publishing on
-every pull request, and published on pushes to `master` and `release/*`
+image-relevant pull request, and published on pushes to `master`, `release/*` and `docker*`
 and on manual dispatch. See
 [Container support](../../../docs/ContainerReferenceServer.md) for the
 tag scheme.

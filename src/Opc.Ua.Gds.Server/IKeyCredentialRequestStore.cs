@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Concurrent;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -186,7 +187,7 @@ namespace Opc.Ua.Gds.Server
             ArrayOf<NodeId> requestedRoles,
             CancellationToken cancellationToken = default);
 
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         /// <summary>
         /// Starts a request bound to the initiating SecureChannel client
         /// certificate.
@@ -224,7 +225,7 @@ namespace Opc.Ua.Gds.Server
             bool cancelRequest,
             CancellationToken cancellationToken = default);
 
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         /// <summary>
         /// Finishes a request only when it is bound to the supplied
         /// SecureChannel client certificate fingerprint.
@@ -262,7 +263,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Starts a request bound to the supplied client-certificate fingerprint.
         /// </summary>
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         new ValueTask<NodeId> StartBoundRequestAsync(
 #else
         ValueTask<NodeId> StartBoundRequestAsync(
@@ -277,7 +278,7 @@ namespace Opc.Ua.Gds.Server
         /// <summary>
         /// Finishes a request bound to the supplied client-certificate fingerprint.
         /// </summary>
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
         new ValueTask<FinishKeyCredentialRequestResult> FinishBoundRequestAsync(
 #else
         ValueTask<FinishKeyCredentialRequestResult> FinishBoundRequestAsync(
@@ -353,7 +354,7 @@ namespace Opc.Ua.Gds.Server
             ByteString clientCertificateFingerprint,
             CancellationToken cancellationToken)
         {
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return store.StartBoundRequestAsync(
                 applicationUri,
                 publicKey,
@@ -386,7 +387,7 @@ namespace Opc.Ua.Gds.Server
             ByteString clientCertificateFingerprint,
             CancellationToken cancellationToken)
         {
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return store.FinishBoundRequestAsync(
                 requestId,
                 cancelRequest,
@@ -450,6 +451,18 @@ namespace Opc.Ua.Gds.Server
         {
             m_secretStore = secretStore ?? throw new ArgumentNullException(nameof(secretStore));
         }
+
+        /// <summary>
+        /// Decides which of the requested roles the key credential of an
+        /// application is granted. Called with the ApplicationUri and the
+        /// requested roles; the result is intersected with the request.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-12 §8.5.5: the Server ignores Roles it does not recognize
+        /// or the caller is not authorized to request. The store fails closed:
+        /// when no callback is set, no roles are granted.
+        /// </remarks>
+        public Func<string, IReadOnlyList<NodeId>, IReadOnlyList<NodeId>>? AuthorizeRoles { get; set; }
 
         /// <inheritdoc/>
         public ValueTask<NodeId> StartRequestAsync(
@@ -542,14 +555,52 @@ namespace Opc.Ua.Gds.Server
                 CredentialId = credentialId,
                 CredentialSecret = ByteString.From(secretBytes),
                 CertificateThumbprint = null,
-                GrantedSecurityPolicyUri = securityPolicyUri,
-                GrantedRoles = requestedRoles,
+                // The secret is returned as is (over the encrypted SecureChannel),
+                // not encrypted with the PublicKey, so no SecurityPolicyUri is
+                // reported as applied (OPC 10000-12 §8.5.6).
+                GrantedSecurityPolicyUri = null,
+                GrantedRoles = AuthorizeRequestedRoles(applicationUri, requestedRoles),
                 ClientCertificateFingerprint = clientCertificateFingerprint
             };
 
             m_requests[requestId] = record;
             m_credentials[record.CredentialId] = record;
             return requestId;
+        }
+
+        private ArrayOf<NodeId> AuthorizeRequestedRoles(
+            string applicationUri,
+            ArrayOf<NodeId> requestedRoles)
+        {
+            if (requestedRoles.IsEmpty || AuthorizeRoles == null)
+            {
+                return [];
+            }
+
+            var requested = new List<NodeId>();
+            foreach (NodeId role in requestedRoles)
+            {
+                if (!role.IsNull && !requested.Contains(role))
+                {
+                    requested.Add(role);
+                }
+            }
+
+            IReadOnlyList<NodeId>? granted = AuthorizeRoles(applicationUri, requested);
+            if (granted == null || granted.Count == 0)
+            {
+                return [];
+            }
+
+            var result = new List<NodeId>();
+            foreach (NodeId role in granted)
+            {
+                if (requested.Contains(role) && !result.Contains(role))
+                {
+                    result.Add(role);
+                }
+            }
+            return result.ToArrayOf();
         }
 
         /// <inheritdoc/>

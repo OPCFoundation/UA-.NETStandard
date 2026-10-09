@@ -360,11 +360,11 @@ namespace Opc.Ua.Client.Tests
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null, r.AttributeId, ref value);
+                                nodes[0].Read(null!, r.AttributeId, ref value);
                             }
                             else
                             {
-                                nodes[1].Read(null, r.AttributeId, ref value);
+                                nodes[1].Read(null!, r.AttributeId, ref value);
                             }
                             return value;
                         });
@@ -443,11 +443,11 @@ namespace Opc.Ua.Client.Tests
                             }
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null, r.AttributeId, ref value);
+                                nodes[0].Read(null!, r.AttributeId, ref value);
                             }
                             else
                             {
-                                nodes[1].Read(null, r.AttributeId, ref value);
+                                nodes[1].Read(null!, r.AttributeId, ref value);
                             }
                             return value;
                         });
@@ -498,7 +498,7 @@ namespace Opc.Ua.Client.Tests
                         .ConvertAll(r =>
                         {
                             var value = new DataValue();
-                            node.Read(null, r.AttributeId, ref value);
+                            node.Read(null!, r.AttributeId, ref value);
                             return value;
                         });
                     return new ValueTask<IServiceResponse>(new ReadResponse
@@ -622,7 +622,7 @@ namespace Opc.Ua.Client.Tests
                         if (r.NodeId == nodeIds[0])
                         {
                             var value = new DataValue();
-                            nodes[0].Read(null, r.AttributeId, ref value);
+                            nodes[0].Read(null!, r.AttributeId, ref value);
                             return value;
                         }
                         return DataValue.FromStatusCode(StatusCodes.BadUnexpectedError);
@@ -700,11 +700,11 @@ namespace Opc.Ua.Client.Tests
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null, r.AttributeId, ref value);
+                                nodes[0].Read(null!, r.AttributeId, ref value);
                             }
                             else
                             {
-                                nodes[1].Read(null, r.AttributeId, ref value);
+                                nodes[1].Read(null!, r.AttributeId, ref value);
                             }
                             return value;
                         });
@@ -726,6 +726,75 @@ namespace Opc.Ua.Client.Tests
             Assert.That(result.Errors.Count, Is.EqualTo(2));
             Assert.That(result.Errors[0].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
             Assert.That(result.Errors[1].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        /// <summary>
+        /// L9-7: reading with a NodeClass hint that does not match the node's
+        /// real NodeClass threw KeyNotFoundException out of the whole batch
+        /// instead of failing just that node.
+        /// </summary>
+        [Test]
+        public async Task FetchNodesAsyncWithMismatchedNodeClassFailsOnlyThatNodeAsync()
+        {
+            using var session = SessionMock.Create();
+            var sut = new NodeCacheContext(session);
+            ArrayOf<NodeId> nodeIds =
+            [
+                NodeId.Parse("ns=2;s=Object"),
+                NodeId.Parse("ns=2;s=Variable")
+            ];
+            Node[] nodes =
+            [
+                new ObjectNode
+                {
+                    NodeId = nodeIds[0],
+                    NodeClass = NodeClass.Object,
+                    DisplayName = LocalizedText.From("Object"),
+                    BrowseName = QualifiedName.From("Object")
+                },
+                new VariableNode
+                {
+                    NodeId = nodeIds[1],
+                    NodeClass = NodeClass.Variable,
+                    AccessLevel = 1,
+                    DataType = NodeId.Parse("ns=2;s=TestDataType"),
+                    DisplayName = LocalizedText.From("Variable"),
+                    BrowseName = QualifiedName.From("Variable"),
+                    UserAccessLevel = 1
+                }
+            ];
+
+            session.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<ReadRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<ReadRequest, CancellationToken>((request, ct) =>
+                {
+                    ArrayOf<DataValue> results = request.NodesToRead
+                        .ConvertAll(r =>
+                        {
+                            var value = new DataValue();
+                            (r.NodeId == nodeIds[0] ? nodes[0] : nodes[1])
+                                .Read(null!, r.AttributeId, ref value);
+                            return value;
+                        });
+                    return new ValueTask<IServiceResponse>(new ReadResponse
+                    {
+                        Results = results,
+                        DiagnosticInfos = results.ConvertAll(r => new DiagnosticInfo())
+                    });
+                });
+
+            ResultSet<Node> result = await sut
+                .FetchNodesAsync(null, nodeIds, NodeClass.Variable)
+                .ConfigureAwait(false);
+
+            Assert.That(result.Errors.Count, Is.EqualTo(2));
+            Assert.That(
+                result.Errors[0].StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadNodeClassInvalid));
+            Assert.That(ServiceResult.IsGood(result.Errors[1]), Is.True);
+            Assert.That(result.Results[1].NodeClass, Is.EqualTo(NodeClass.Variable));
         }
 
         [Test]
@@ -805,7 +874,7 @@ namespace Opc.Ua.Client.Tests
                         .ConvertAll(r =>
                         {
                             var value = new DataValue();
-                            node.Read(null, r.AttributeId, ref value);
+                            node.Read(null!, r.AttributeId, ref value);
                             return value;
                         });
                     return new ValueTask<IServiceResponse>(new ReadResponse
@@ -874,11 +943,11 @@ namespace Opc.Ua.Client.Tests
                             var value = new DataValue();
                             if (r.NodeId == nodeIds[0])
                             {
-                                nodes[0].Read(null, r.AttributeId, ref value);
+                                nodes[0].Read(null!, r.AttributeId, ref value);
                             }
                             else
                             {
-                                nodes[1].Read(null, r.AttributeId, ref value);
+                                nodes[1].Read(null!, r.AttributeId, ref value);
                             }
                             return value;
                         });

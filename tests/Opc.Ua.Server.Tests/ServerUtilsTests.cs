@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Tests
         public void CreateErrorByIndex_WithDiagnostics_SetsDiagnosticInfo()
         {
             OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
-            var diagnosticInfos = new List<DiagnosticInfo> { null, null };
+            var diagnosticInfos = new List<DiagnosticInfo> { null!, null! };
 
             uint code = ServerUtils.CreateError(
                 StatusCodes.BadNodeIdInvalid.Code, context, diagnosticInfos, 0, m_logger);
@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests
         public void CreateErrorByIndex_WithoutDiagnostics_LeavesNull()
         {
             OperationContext context = CreateContext(DiagnosticsMasks.None);
-            var diagnosticInfos = new List<DiagnosticInfo> { null };
+            var diagnosticInfos = new List<DiagnosticInfo> { null! };
 
             uint code = ServerUtils.CreateError(
                 StatusCodes.BadNodeIdInvalid.Code, context, diagnosticInfos, 0, m_logger);
@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests
         {
             OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
             var results = new List<StatusCode> { StatusCodes.Good, StatusCodes.Good };
-            var diagnosticInfos = new List<DiagnosticInfo> { null, null };
+            var diagnosticInfos = new List<DiagnosticInfo> { null!, null! };
 
             bool hasDiag = ServerUtils.CreateError(
                 StatusCodes.BadAttributeIdInvalid.Code, results, diagnosticInfos, 1, context, m_logger);
@@ -141,7 +141,7 @@ namespace Opc.Ua.Server.Tests
         {
             OperationContext context = CreateContext(DiagnosticsMasks.None);
             var results = new List<StatusCode> { StatusCodes.Good };
-            var diagnosticInfos = new List<DiagnosticInfo> { null };
+            var diagnosticInfos = new List<DiagnosticInfo> { null! };
 
             bool hasDiag = ServerUtils.CreateError(
                 StatusCodes.BadAttributeIdInvalid.Code, results, diagnosticInfos, 0, context, m_logger);
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             List<DiagnosticInfo> result =
-                ServerUtils.CreateDiagnosticInfoCollection(context, errors, m_logger);
+                ServerUtils.CreateDiagnosticInfoCollection(context, errors, m_logger)!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Count.EqualTo(3));
@@ -211,7 +211,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             List<DiagnosticInfo> result =
-                ServerUtils.CreateDiagnosticInfoCollection(context, errors, m_logger);
+                ServerUtils.CreateDiagnosticInfoCollection(context, errors, m_logger)!;
 
             Assert.That(result, Is.Null);
         }
@@ -259,7 +259,7 @@ namespace Opc.Ua.Server.Tests
             OperationContext context = CreateContext(DiagnosticsMasks.OperationAll);
 
             DiagnosticInfo result = ServerUtils.CreateDiagnosticInfo(
-                serverMock.Object, context, null, m_logger);
+                serverMock.Object, context, null!, m_logger)!;
 
             Assert.That(result, Is.Null);
         }
@@ -270,26 +270,28 @@ namespace Opc.Ua.Server.Tests
             var serverMock = new Mock<IServerInternal>();
             using var resourceMgr = new ResourceManager(new ApplicationConfiguration());
             serverMock.Setup(s => s.ResourceManager).Returns(resourceMgr);
-            OperationContext context = CreateContext(DiagnosticsMasks.ServiceLocalizedText);
+            OperationContext context = CreateContext(DiagnosticsMasks.OperationLocalizedText);
 
             var error = new ServiceResult(StatusCodes.BadNodeIdInvalid);
 
             DiagnosticInfo result = ServerUtils.CreateDiagnosticInfo(
-                serverMock.Object, context, error, m_logger);
+                serverMock.Object, context, error, m_logger)!;
 
             Assert.That(result, Is.Not.Null);
+            serverMock.Verify(s => s.ResourceManager, Times.Once);
         }
 
         [Test]
-        public void CreateDiagnosticInfo_WithoutServiceLocalizedText_SkipsTranslation()
+        public void CreateDiagnosticInfo_WithoutOperationLocalizedText_SkipsTranslation()
         {
             var serverMock = new Mock<IServerInternal>();
-            OperationContext context = CreateContext(DiagnosticsMasks.OperationSymbolicId);
+            OperationContext context = CreateContext(
+                DiagnosticsMasks.OperationSymbolicId | DiagnosticsMasks.ServiceLocalizedText);
 
             var error = new ServiceResult(StatusCodes.BadNodeIdInvalid);
 
             DiagnosticInfo result = ServerUtils.CreateDiagnosticInfo(
-                serverMock.Object, context, error, m_logger);
+                serverMock.Object, context, error, m_logger)!;
 
             Assert.That(result, Is.Not.Null);
             serverMock.Verify(s => s.ResourceManager, Times.Never);

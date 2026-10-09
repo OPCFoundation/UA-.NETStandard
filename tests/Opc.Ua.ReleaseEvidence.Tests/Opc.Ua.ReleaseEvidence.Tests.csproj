@@ -4,7 +4,6 @@
     <SupportedTestTargets>net10.0</SupportedTestTargets>
     <IsPackable>false</IsPackable>
     <IsTestProject>true</IsTestProject>
-    <Nullable>enable</Nullable>
     <IsTestProject Condition="'$(CustomTestTarget)' != '' and '$(CustomTestTarget)' != 'net10.0'">false</IsTestProject>
   </PropertyGroup>
   <ItemGroup>

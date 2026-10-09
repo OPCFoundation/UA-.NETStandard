@@ -53,7 +53,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
                 builder, ObjectTypeIds.RsaSha256ApplicationCertificateType, 2048);
 
             Assert.That(certificate.HasPrivateKey, Is.True);
-            using RSA key = certificate.GetRSAPublicKey();
+            using RSA key = certificate.GetRSAPublicKey()!;
             Assert.That(key, Is.Not.Null);
             Assert.That(key.KeySize, Is.EqualTo(2048));
         }
@@ -73,7 +73,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
                 builder, ObjectTypeIds.EccNistP256ApplicationCertificateType, 0);
 
             Assert.That(certificate.HasPrivateKey, Is.True);
-            using ECDsa key = certificate.GetECDsaPublicKey();
+            using ECDsa key = certificate.GetECDsaPublicKey()!;
             Assert.That(key, Is.Not.Null);
         }
 
@@ -89,8 +89,8 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             using Certificate certificate = DefaultKeyPairGenerator.Instance.CreateCertificate(
                 builder, ObjectTypeIds.RsaSha256ApplicationCertificateType, 0);
 
-            using RSA key = certificate.GetRSAPublicKey();
-            Assert.That(key.KeySize, Is.EqualTo(CertificateFactory.DefaultKeySize));
+            using RSA key = certificate.GetRSAPublicKey()!;
+            Assert.That(key!.KeySize, Is.EqualTo(CertificateFactory.DefaultKeySize));
         }
 
         [Test]
@@ -109,7 +109,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         {
             Assert.That(
                 () => DefaultKeyPairGenerator.Instance.CreateCertificate(
-                    null, ObjectTypeIds.RsaSha256ApplicationCertificateType, 2048),
+                    null!, ObjectTypeIds.RsaSha256ApplicationCertificateType, 2048),
                 Throws.TypeOf<ArgumentNullException>());
         }
 

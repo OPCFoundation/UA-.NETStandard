@@ -19,5 +19,13 @@
     <SourceGeneratorVariant Include="..\Opc.Ua.SourceGeneration.Stack.Roslyn4_14\Opc.Ua.SourceGeneration.Stack.Roslyn4_14.csproj"
                             RoslynAnalyzerFolder="$(RoslynAnalyzerFolderVS2022)" />
   </ItemGroup>
+  <ItemGroup>
+    <!-- NuGet only auto-imports build\<PackageId>.props, so the file has to be
+         renamed on the way into the package (the id gains a .Debug suffix in
+         Debug configuration). Without it StackSourceGeneratorMode never reaches
+         the compiler and the generator silently emits nothing. -->
+    <None Include="..\Opc.Ua.SourceGeneration.Stack\OPCFoundation.Opc.Ua.SourceGeneration.Stack.props"
+          Visible="false" Pack="true" PackagePath="build\$(PackageId).props" />
+  </ItemGroup>
   <Import Project="..\SourceGeneratorPack.targets" />
 </Project>

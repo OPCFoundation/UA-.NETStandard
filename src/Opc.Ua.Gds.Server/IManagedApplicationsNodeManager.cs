@@ -181,8 +181,19 @@ namespace Opc.Ua.Gds.Server
                   server.Telemetry.CreateLogger<DefaultManagedApplicationsNodeManager>())
         {
             ConfigurationDataStore = dataStore ?? throw new System.ArgumentNullException(nameof(dataStore));
-            NamespaceUris = [Namespaces.OpcUa];
+            // Namespace 0 is reserved for the OPC UA namespace (OPC 10000-5
+            // §6.3.1): the application nodes are minted in an own namespace,
+            // only the reference from the ns=0 ManagedApplications folder is
+            // added through the external references.
+            NamespaceUris = [ManagedApplicationsNamespaceUri];
         }
+
+        /// <summary>
+        /// The namespace of the <see cref="ApplicationConfigurationState"/>
+        /// nodes created by this node manager.
+        /// </summary>
+        public const string ManagedApplicationsNamespaceUri =
+            Namespaces.OpcUaGds + "ManagedApplications/";
 
         /// <inheritdoc/>
         public IConfigurationDataStore ConfigurationDataStore { get; }
@@ -227,20 +238,25 @@ namespace Opc.Ua.Gds.Server
             ManagedApplicationInfo info,
             IDictionary<NodeId, IList<IReference>> externalReferences)
         {
-            // Build a deterministic NodeId from the ApplicationUri.
-            string safeId = info.ApplicationUri.Replace(':', '_').Replace('/', '_');
+            // Build a deterministic NodeId from the ApplicationUri. The URI
+            // itself is the identifier, so distinct URIs never collide.
+            var nodeId = new NodeId(info.ApplicationUri, NamespaceIndexes[0]);
 
-            var nodeId = new NodeId(safeId, NamespaceIndexes[0]);
-
-            var appNode = new ApplicationConfigurationState(null)
-            {
-                NodeId = nodeId,
-                BrowseName = new QualifiedName(info.ApplicationUri, NamespaceIndexes[0]),
-                DisplayName = new LocalizedText(info.ApplicationUri),
-                TypeDefinitionId = ApplicationConfigurationTypeId,
-                WriteMask = AttributeWriteMask.None,
-                UserWriteMask = AttributeWriteMask.None
-            };
+            // Create instantiates the mandatory children of the type
+            // (ApplicationUri, ApplicationType, ...); the optional ones
+            // this node manager populates are added explicitly.
+            var appNode = new ApplicationConfigurationState(null);
+            appNode.Create(
+                SystemContext,
+                nodeId,
+                new QualifiedName(info.ApplicationUri, NamespaceIndexes[0]),
+                new LocalizedText(info.ApplicationUri),
+                true);
+            appNode.TypeDefinitionId = ApplicationConfigurationTypeId;
+            appNode.WriteMask = AttributeWriteMask.None;
+            appNode.UserWriteMask = AttributeWriteMask.None;
+            appNode.AddProductUri(SystemContext);
+            appNode.AddIsNonUaApplication(SystemContext);
 
             // Populate properties from the ManagedApplicationInfo.
             appNode.ApplicationUri?.Value = info.ApplicationUri;

@@ -177,7 +177,7 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
         /// <summary>
         /// AES counter mode is its own inverse, and the counter layout is fixed
         /// by Part 14 §7.2.4.4.3.2: a twelve byte nonce followed by a big endian
-        /// block counter starting at zero.
+        /// block counter starting at one.
         /// </summary>
         [Test]
         public void PlatformSymmetricProviderRoundTripsCounterMode()
@@ -206,6 +206,32 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
                 Assert.That(ciphertext, Is.Not.EqualTo(plaintext));
                 Assert.That(recovered, Is.EqualTo(plaintext));
             });
+        }
+
+        /// <summary>
+        /// Part 14 §7.2.4.4.3.2 (Table 157) uses the RFC 3686 counter block
+        /// KeyNonce | MessageNonce | BlockCounter with the counter starting at 1,
+        /// so RFC 3686 test vector #2 must reproduce exactly.
+        /// </summary>
+        [Test]
+        public void PlatformSymmetricProviderCounterModeMatchesRfc3686Vector()
+        {
+            byte[] key = CoreUtils.FromHexString("7E24067817FAE0D743D6CE1F32539163");
+            byte[] nonce = CoreUtils.FromHexString("006CB6DBC0543B59DA48D90B");
+            byte[] plaintext = CoreUtils.FromHexString(
+                "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F");
+            byte[] expected = CoreUtils.FromHexString(
+                "5104A106168A72D9790D41EE8EDAD388EB2E1EFC46DA57C8FCE630DF9141BE28");
+            byte[] ciphertext = new byte[plaintext.Length];
+            byte[] recovered = new byte[plaintext.Length];
+
+            PlatformSymmetricCryptoProvider.Instance.Encrypt(
+                SymmetricEncryptionAlgorithm.Aes128Ctr, key, nonce, plaintext, ciphertext);
+            PlatformSymmetricCryptoProvider.Instance.Decrypt(
+                SymmetricEncryptionAlgorithm.Aes128Ctr, key, nonce, ciphertext, recovered);
+
+            Assert.That(ciphertext, Is.EqualTo(expected));
+            Assert.That(recovered, Is.EqualTo(plaintext));
         }
 
         /// <summary>
@@ -672,6 +698,73 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
                 Assert.That(counting.Verifies, Is.EqualTo(1), "the provider must verify");
                 Assert.That(plaintext, Is.EqualTo(body), "the round trip must recover the body");
             });
+        }
+
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.5.1: CBC encrypted data is a whole number of cipher
+        /// blocks, so a misaligned length is rejected before decrypting.
+        /// </summary>
+        [Test]
+        public void DecryptRejectsCbcDataThatIsNotBlockAligned()
+        {
+            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
+
+            byte[] encryptingKey = new byte[policy.SymmetricEncryptionKeyLength];
+            byte[] iv = new byte[policy.InitializationVectorLength];
+            FillRandom(encryptingKey);
+            FillRandom(iv);
+
+            byte[] buffer = new byte[kHeaderSize + 70];
+            FillRandom(buffer);
+
+            Assert.That(
+                () => CryptoUtils.SymmetricDecryptAndVerify(
+                    new ArraySegment<byte>(buffer, kHeaderSize, 70),
+                    policy, encryptingKey, iv, null, false, 1, 1, null, null),
+                Throws.TypeOf<CryptographicException>());
+        }
+
+        /// <summary>
+        /// Counter mode is a stream cipher: its data need not be a whole number of
+        /// blocks, so the CBC block alignment check must not reject it.
+        /// </summary>
+        [Test]
+        public void DecryptAcceptsCounterModeDataThatIsNotBlockAligned()
+        {
+            var policy = new SecurityPolicyInfo(
+                SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!)
+            {
+                SymmetricEncryptionAlgorithm = SymmetricEncryptionAlgorithm.Aes256Ctr
+            };
+            PlatformSymmetricCryptoProvider provider = PlatformSymmetricCryptoProvider.Instance;
+
+            byte[] key = new byte[32];
+            byte[] nonce = new byte[12];
+            // Deliberately not a whole number of blocks nor of the nonce length.
+            byte[] plaintext = new byte[70];
+            FillRandom(key);
+            FillRandom(nonce);
+            FillRandom(plaintext);
+            // A PaddingSize byte of zero: no padding follows the body.
+            plaintext[plaintext.Length - 1] = 0;
+
+            byte[] buffer = new byte[kHeaderSize + plaintext.Length];
+            provider.Encrypt(
+                SymmetricEncryptionAlgorithm.Aes256Ctr,
+                key,
+                nonce,
+                plaintext,
+                buffer.AsSpan(kHeaderSize, plaintext.Length));
+
+            ArraySegment<byte> recovered = CryptoUtils.SymmetricDecryptAndVerify(
+                new ArraySegment<byte>(buffer, kHeaderSize, plaintext.Length),
+                policy, key, nonce, null, false, 1, 1, null, provider);
+
+            // The result starts at the header; the PaddingSize byte is stripped.
+            Assert.That(recovered, Has.Count.EqualTo(kHeaderSize + plaintext.Length - 1));
+            Assert.That(
+                recovered.Array.AsSpan(kHeaderSize, plaintext.Length - 1).ToArray(),
+                Is.EqualTo(plaintext.AsSpan(0, plaintext.Length - 1).ToArray()));
         }
 
         /// <summary>

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -75,9 +73,11 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(published.SequenceNumber, Is.EqualTo(oldCount + 1));
                 Assert.That(queue.SentCount, Is.EqualTo(capacity));
+                // only the sent messages are retransmittable; the rest of the new batch is
+                // still queued for Publish responses.
                 Assert.That(
                     queue.AvailableSequenceNumbersForRetransmission(),
-                    Is.EqualTo(Enumerable.Range(2, (int)capacity).Select(i => (uint)i)));
+                    Is.EqualTo(Enumerable.Range(2, oldCount).Select(i => (uint)i)));
                 Assert.That(available, Is.EqualTo(Enumerable.Range(2, oldCount).Select(i => (uint)i)));
                 Assert.That(newlyUnacknowledgedCount, Is.EqualTo(1u));
                 Assert.That(moreNotifications, Is.True);

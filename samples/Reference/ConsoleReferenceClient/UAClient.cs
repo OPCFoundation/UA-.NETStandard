@@ -240,7 +240,8 @@ namespace Quickstarts
                                     useSecurity,
                                     m_telemetry,
                                     ct
-                                ).ConfigureAwait(false);
+                                ).ConfigureAwait(false) ??
+                                    throw NoMatchingEndpoint(useSecurity);
                                 connection = null;
                             }
                         } while (connection == null);
@@ -253,7 +254,8 @@ namespace Quickstarts
                             serverUrl,
                             useSecurity,
                             m_telemetry,
-                            ct).ConfigureAwait(false);
+                            ct).ConfigureAwait(false) ??
+                            throw NoMatchingEndpoint(useSecurity);
                     }
 
                     // Get the endpoint by connecting to server's discovery endpoint.
@@ -320,6 +322,21 @@ namespace Quickstarts
                 Console.WriteLine($"Create Session Error : {ex.Message}");
                 return false;
             }
+        }
+
+        /// <summary>
+        /// The error reported when discovery found no endpoint that satisfies
+        /// the security requirement (SelectEndpoint returned null).
+        /// </summary>
+        private static ServiceResultException NoMatchingEndpoint(bool useSecurity)
+        {
+            return useSecurity
+                ? new ServiceResultException(
+                    StatusCodes.BadSecurityPolicyRejected,
+                    "The server offers no secure endpoint supported by this client.")
+                : new ServiceResultException(
+                    StatusCodes.BadNotFound,
+                    "The server offers no matching endpoint.");
         }
 
         private ValueTask<IUserIdentity> CreateUserIdentityAsync(

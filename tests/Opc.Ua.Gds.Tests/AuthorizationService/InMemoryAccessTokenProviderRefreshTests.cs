@@ -231,6 +231,33 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
             Assert.That(tasks.Count(IsRejectedReplay), Is.EqualTo(7));
         }
 
+        /// <summary>
+        /// OPC 10000-12 §9.6.6: unused request ids are cleaned up; a client
+        /// that never calls FinishRequestToken cannot grow the table forever.
+        /// </summary>
+        [Test]
+        public async Task StartRequestTokenAsyncLimitsPendingRequests()
+        {
+            using Certificate certificate = CreateCertificate();
+            using var certificateProvider = new InProcessCertificateProvider(certificate);
+            AuthorizationServiceOptions options = CreateOptions(certificate);
+            InMemoryAccessTokenProvider provider = CreateProvider(certificateProvider, options);
+
+            for (int ii = 0; ii < InMemoryAccessTokenProvider.MaxPendingRequests; ii++)
+            {
+                await provider
+                    .StartRequestTokenAsync(Audience, "jwt", ByteString.Empty)
+                    .ConfigureAwait(false);
+            }
+
+            Assert.That(provider.PendingRequestCount, Is.EqualTo(InMemoryAccessTokenProvider.MaxPendingRequests));
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await provider
+                    .StartRequestTokenAsync(Audience, "jwt", ByteString.Empty)
+                    .ConfigureAwait(false));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadTooManyOperations));
+        }
+
         private static Certificate CreateCertificate()
         {
             return CertificateBuilder
@@ -263,8 +290,8 @@ namespace Opc.Ua.Gds.Tests.AuthorizationService
         private static async Task<AccessTokenResult> IssueTokenAsync(
             InMemoryAccessTokenProvider provider,
             string resourceId = Audience,
-            string[] scopes = null,
-            string[] roles = null)
+            string[]? scopes = null,
+            string[]? roles = null)
         {
             scopes ??= ["read", "write"];
             roles ??= ["operator"];

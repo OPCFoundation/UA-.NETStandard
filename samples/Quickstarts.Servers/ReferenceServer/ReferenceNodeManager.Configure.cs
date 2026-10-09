@@ -140,8 +140,11 @@ namespace Quickstarts.ReferenceServer
             // here through the fluent .Node escape hatch (Prio 2). The divergent
             // UserAccessLevel values, in contrast, are now baked directly into
             // the NodeSet2 model (Prio 1) and loaded by the source generator.
+            // The bits are added to the AccessLevel loaded from the model (and
+            // the StatusWrite / TimestampWrite bits added after loading), so the
+            // low byte stays consistent with AccessLevel and UserAccessLevel.
             builder.CTT.Scalar.Scalar_Static
-                .Scalar_Static_NonatomicReadWrite.Node.AccessLevelEx =
+                .Scalar_Static_NonatomicReadWrite.Node.AccessLevelEx |=
                 AccessLevels.CurrentReadOrWrite |
                 (uint)AccessLevelExType.NonatomicRead |
                 (uint)AccessLevelExType.NonatomicWrite;
@@ -151,7 +154,7 @@ namespace Quickstarts.ReferenceServer
             // variables sort before Scalar_Static_*, so a second non-atomic variable lives in
             // the AccessRights folder, which sorts first.
             builder.CTT.AccessRights.AccessRights_AccessAll
-                .AccessRights_AccessAll_NonatomicReadWrite.Node.AccessLevelEx =
+                .AccessRights_AccessAll_NonatomicReadWrite.Node.AccessLevelEx |=
                 AccessLevels.CurrentReadOrWrite |
                 (uint)AccessLevelExType.NonatomicRead |
                 (uint)AccessLevelExType.NonatomicWrite;

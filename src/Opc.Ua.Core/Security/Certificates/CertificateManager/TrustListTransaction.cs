@@ -110,6 +110,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
+            m_addTrusted.RemoveAll(candidate =>
+                string.Equals(candidate.Thumbprint, certificate.Thumbprint, StringComparison.OrdinalIgnoreCase));
             m_addTrusted.Add(certificate);
             return Task.CompletedTask;
         }
@@ -125,7 +127,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(thumbprint));
             }
 
-            m_removeTrusted.Add(thumbprint);
+            m_addTrusted.RemoveAll(certificate =>
+                string.Equals(certificate.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase));
+            m_removeTrusted.Add(thumbprint.ToUpperInvariant());
             return Task.CompletedTask;
         }
 
@@ -140,6 +144,8 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(certificate));
             }
 
+            m_addIssuer.RemoveAll(candidate =>
+                string.Equals(candidate.Thumbprint, certificate.Thumbprint, StringComparison.OrdinalIgnoreCase));
             m_addIssuer.Add(certificate);
             return Task.CompletedTask;
         }
@@ -155,7 +161,9 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(thumbprint));
             }
 
-            m_removeIssuer.Add(thumbprint);
+            m_addIssuer.RemoveAll(certificate =>
+                string.Equals(certificate.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase));
+            m_removeIssuer.Add(thumbprint.ToUpperInvariant());
             return Task.CompletedTask;
         }
 
@@ -168,6 +176,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
+            m_addCrls.RemoveAll(candidate => candidate.RawData.AsSpan().SequenceEqual(crl.RawData));
             m_addCrls.Add(crl);
             return Task.CompletedTask;
         }
@@ -181,6 +190,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(crl));
             }
 
+            m_addCrls.RemoveAll(candidate => candidate.RawData.AsSpan().SequenceEqual(crl.RawData));
             m_removeCrls.Add(crl);
             return Task.CompletedTask;
         }
@@ -193,60 +203,94 @@ namespace Opc.Ua
             bool trustChanged = false;
             bool crlChanged = false;
 
-            // Apply trusted-store operations.
-            using (ICertificateStore trustedStore = m_manager.OpenTrustedStore(TrustList))
+            using ICertificateStore? issuerStore = m_manager.OpenIssuerStore(TrustList);
+            if (issuerStore == null && (m_removeIssuer.Count > 0 || m_addIssuer.Count > 0))
             {
-                foreach (Certificate cert in m_addTrusted)
+                throw ServiceResultException.ConfigurationError(
+                    "The trust list has no issuer store for the staged issuer changes.");
+            }
+
+            try
+            {
+                using ICertificateStore trustedStore = m_manager.OpenTrustedStore(TrustList);
+
+                // Route every staged CRL to the store that holds (or will hold) its
+                // issuer, the TrustedCrls or the IssuerCrls of the trust list
+                // (OPC 10000-12 7.8.2.8), and reject a CRL without an issuer before
+                // any store is changed.
+                List<(X509CRL Crl, ICertificateStore Store)> crlAdds = await RouteCrlsAsync(
+                    trustedStore,
+                    issuerStore,
+                    ct).ConfigureAwait(false);
+
+                bool trustedSupportsCrls = trustedStore.SupportsCRLs;
+                bool issuerSupportsCrls = issuerStore?.SupportsCRLs ?? false;
+                if (m_removeCrls.Count > 0 && !trustedSupportsCrls && !issuerSupportsCrls)
                 {
-                    await trustedStore.AddAsync(cert, ct: ct).ConfigureAwait(false);
-                    trustChanged = true;
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "The trust list stores do not support CRLs.");
                 }
 
                 foreach (string thumbprint in m_removeTrusted)
                 {
-                    await trustedStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
                     trustChanged = true;
+                    await trustedStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
                 }
 
-                // CRLs are stored alongside trusted certificates.
-                foreach (X509CRL crl in m_addCrls)
+                foreach (Certificate cert in m_addTrusted)
                 {
-                    await trustedStore.AddCRLAsync(crl, ct).ConfigureAwait(false);
-                    crlChanged = true;
+                    ct.ThrowIfCancellationRequested();
+                    trustChanged = true;
+                    await AddCertificateIfMissingAsync(trustedStore, cert, ct).ConfigureAwait(false);
                 }
 
-                foreach (X509CRL crl in m_removeCrls)
+                if (issuerStore != null)
                 {
-                    await trustedStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
-                    crlChanged = true;
-                }
-            }
-
-            // Apply issuer-store operations if an issuer store is configured.
-            ICertificateStore? issuerStore = m_manager.OpenIssuerStore(TrustList);
-            if (issuerStore != null)
-            {
-                using (issuerStore)
-                {
-                    foreach (Certificate cert in m_addIssuer)
-                    {
-                        await issuerStore.AddAsync(cert, ct: ct).ConfigureAwait(false);
-                        trustChanged = true;
-                    }
-
                     foreach (string thumbprint in m_removeIssuer)
                     {
-                        await issuerStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
+                        ct.ThrowIfCancellationRequested();
                         trustChanged = true;
+                        await issuerStore.DeleteAsync(thumbprint, ct).ConfigureAwait(false);
+                    }
+
+                    foreach (Certificate cert in m_addIssuer)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        trustChanged = true;
+                        await AddCertificateIfMissingAsync(issuerStore, cert, ct).ConfigureAwait(false);
                     }
                 }
+
+                // Issuer certificates are in place now, so the stores can link
+                // each CRL to its issuer.
+                foreach (X509CRL crl in m_removeCrls)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    crlChanged = true;
+                    bool deleted = trustedSupportsCrls &&
+                        await trustedStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
+                    if (!deleted && issuerStore != null && issuerSupportsCrls)
+                    {
+                        await issuerStore.DeleteCRLAsync(crl, ct).ConfigureAwait(false);
+                    }
+                }
+
+                foreach ((X509CRL crl, ICertificateStore store) in crlAdds)
+                {
+                    ct.ThrowIfCancellationRequested();
+                    crlChanged = true;
+                    await store.AddCRLAsync(crl, ct).ConfigureAwait(false);
+                }
+
+                m_committed = true;
             }
-
-            m_committed = true;
-
-            // Notify observers AFTER the atomic apply, so the
-            // CertificateChanges stream reflects the final state.
-            m_changeNotifier?.NotifyTrustListChanged(TrustList, trustChanged, crlChanged);
+            finally
+            {
+                // A store can mutate before failing. Retire cached trust even when a later write fails.
+                m_changeNotifier?.NotifyTrustListChanged(TrustList, trustChanged, crlChanged);
+            }
         }
 
         /// <inheritdoc/>
@@ -264,6 +308,129 @@ namespace Opc.Ua
             }
 
             return default;
+        }
+
+        /// <summary>
+        /// Selects the store for each staged CRL: the trusted store when the
+        /// CRL issuer is (or is staged to be) a trusted certificate, otherwise
+        /// the issuer store when the issuer is (or is staged to be) an issuer
+        /// certificate.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadCertificateInvalid"/> when the issuer of a
+        /// staged CRL is in neither store; <see cref="StatusCodes.BadNotSupported"/>
+        /// when the store of a staged CRL cannot hold CRLs.
+        /// </exception>
+        private async Task<List<(X509CRL Crl, ICertificateStore Store)>> RouteCrlsAsync(
+            ICertificateStore trustedStore,
+            ICertificateStore? issuerStore,
+            CancellationToken ct)
+        {
+            var routes = new List<(X509CRL Crl, ICertificateStore Store)>(m_addCrls.Count);
+            if (m_addCrls.Count == 0)
+            {
+                return routes;
+            }
+
+            using CertificateCollection trusted = await trustedStore.EnumerateAsync(ct)
+                .ConfigureAwait(false);
+            using CertificateCollection issuers = issuerStore != null
+                ? await issuerStore.EnumerateAsync(ct).ConfigureAwait(false)
+                : [];
+
+            foreach (X509CRL crl in m_addCrls)
+            {
+                ICertificateStore store;
+                if (IsIssuerOf(crl, m_addTrusted, null) || IsIssuerOf(crl, trusted, m_removeTrusted))
+                {
+                    store = trustedStore;
+                }
+                else if (issuerStore != null &&
+                    (IsIssuerOf(crl, m_addIssuer, null) || IsIssuerOf(crl, issuers, m_removeIssuer)))
+                {
+                    store = issuerStore;
+                }
+                else
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateInvalid,
+                        "Could not find issuer of the CRL.");
+                }
+
+                // The store would only throw on the add, after the certificate
+                // changes were applied.
+                if (!store.SupportsCRLs)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        "The store of the CRL issuer does not support CRLs.");
+                }
+
+                routes.Add((crl, store));
+            }
+
+            return routes;
+        }
+
+        /// <summary>
+        /// Returns true when one of <paramref name="certificates"/> that is not
+        /// staged for removal issued and signed <paramref name="crl"/>.
+        /// </summary>
+        private static bool IsIssuerOf(
+            X509CRL crl,
+            IEnumerable<Certificate> certificates,
+            List<string>? removed)
+        {
+            foreach (Certificate certificate in certificates)
+            {
+                if (removed != null && removed.Exists(thumbprint => string.Equals(
+                    thumbprint,
+                    certificate.Thumbprint,
+                    StringComparison.OrdinalIgnoreCase)))
+                {
+                    continue;
+                }
+
+                if (X509Utils.CompareDistinguishedName(certificate.SubjectName, crl.IssuerName) &&
+                    crl.VerifySignature(certificate, false))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Adds a certificate unless it already exists, including a concurrent addition by another writer.
+        /// </summary>
+        private static async Task AddCertificateIfMissingAsync(
+            ICertificateStore store,
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            using (CertificateCollection existing = await store.FindByThumbprintAsync(
+                certificate.Thumbprint, ct).ConfigureAwait(false))
+            {
+                if (existing.Count > 0)
+                {
+                    return;
+                }
+            }
+
+            try
+            {
+                await store.AddAsync(certificate, ct: ct).ConfigureAwait(false);
+            }
+            catch (ArgumentException)
+            {
+                using CertificateCollection existing = await store.FindByThumbprintAsync(
+                    certificate.Thumbprint, ct).ConfigureAwait(false);
+                if (existing.Count == 0)
+                {
+                    throw;
+                }
+            }
         }
 
         private void ThrowIfDisposedOrCommitted()

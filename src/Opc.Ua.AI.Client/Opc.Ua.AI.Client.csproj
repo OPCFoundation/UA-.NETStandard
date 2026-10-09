@@ -8,7 +8,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.AI.Client</PackageId>
     <RootNamespace>Opc.Ua.AI.Client</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Client-side support for the OPC UA AI Model Management and Inference (draft) companion specification: discovery of the model catalogue, datasets, deployments and inference endpoints, typed reads and Method calls, and artefact transfer through the standard file-transfer types.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

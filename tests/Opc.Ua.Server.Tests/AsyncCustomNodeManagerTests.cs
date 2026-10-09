@@ -322,7 +322,7 @@ namespace Opc.Ua.Server.Tests
             Assume.That(manager is TestableAsyncCustomNodeManager, "Requires AsyncCustomNodeManager features");
             var acnm = (TestableAsyncCustomNodeManager)manager;
 
-            Assert.Throws<ArgumentNullException>(() => acnm.NodeIdFactory = null);
+            Assert.Throws<ArgumentNullException>(() => acnm.NodeIdFactory = null!);
         }
 
         [Test]
@@ -461,7 +461,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("Lifecycle", namespaceIndex),
                 BrowseName = new QualifiedName("Lifecycle", namespaceIndex),
@@ -488,7 +488,7 @@ namespace Opc.Ua.Server.Tests
                         eventId.Name == "PredefinedNodeLifecycleCompletedAtRegistration"),
                     It.IsAny<It.IsAnyType>(),
                     It.IsAny<Exception>(),
-                    (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
+                    (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()),
                 Times.Once);
 #pragma warning restore CA1873
         }
@@ -501,7 +501,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("RuntimeLifecycle", namespaceIndex),
                 BrowseName = new QualifiedName("RuntimeLifecycle", namespaceIndex),
@@ -529,7 +529,7 @@ namespace Opc.Ua.Server.Tests
             using var cts = new CancellationTokenSource();
             cts.Cancel();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("CanceledLifecycle", namespaceIndex),
                 BrowseName = new QualifiedName("CanceledLifecycle", namespaceIndex),
@@ -552,7 +552,7 @@ namespace Opc.Ua.Server.Tests
             Assume.That(manager is TestableAsyncCustomNodeManager,
                 "Requires cancellation-aware async registration");
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("CanceledCreatedLifecycle", namespaceIndex),
                 BrowseName = new QualifiedName("CanceledCreatedLifecycle", namespaceIndex),
@@ -576,7 +576,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("CanceledLifecycleHelper", namespaceIndex),
                 BrowseName = new QualifiedName("CanceledLifecycleHelper", namespaceIndex),
@@ -601,7 +601,7 @@ namespace Opc.Ua.Server.Tests
             using ITestNodeManager manager = CreateManager();
             Assume.That(manager is TestableAsyncCustomNodeManager,
                 "Requires AsyncCustomNodeManager NodeId preparation");
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 BrowseName = new QualifiedName("AssignedBeforeLifecycle", manager.NamespaceIndexes[0]),
                 DisplayName = new LocalizedText("AssignedBeforeLifecycle")
@@ -623,13 +623,13 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var original = new LifecycleProbeState(null)
+            var original = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("BehaviourReplacement", namespaceIndex),
                 BrowseName = new QualifiedName("BehaviourReplacement", namespaceIndex),
                 DisplayName = new LocalizedText("BehaviourReplacement")
             };
-            var replacement = new LifecycleProbeState(null)
+            var replacement = new LifecycleProbeState(null!)
             {
                 NodeId = original.NodeId,
                 BrowseName = original.BrowseName,
@@ -662,13 +662,13 @@ namespace Opc.Ua.Server.Tests
             Assume.That(manager is TestableAsyncCustomNodeManager,
                 "Requires cancellation-aware async registration");
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var original = new LifecycleProbeState(null)
+            var original = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("CanceledBehaviourReplacement", namespaceIndex),
                 BrowseName = new QualifiedName("CanceledBehaviourReplacement", namespaceIndex),
                 DisplayName = new LocalizedText("CanceledBehaviourReplacement")
             };
-            var replacement = new LifecycleProbeState(null)
+            var replacement = new LifecycleProbeState(null!)
             {
                 NodeId = original.NodeId,
                 BrowseName = original.BrowseName,
@@ -699,7 +699,7 @@ namespace Opc.Ua.Server.Tests
             Assume.That(manager is TestableAsyncCustomNodeManager,
                 "Requires cancellation-aware async registration");
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("CanceledSameInstance", namespaceIndex),
                 BrowseName = new QualifiedName("CanceledSameInstance", namespaceIndex),
@@ -727,7 +727,7 @@ namespace Opc.Ua.Server.Tests
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
             ConditionState condition = manager.SystemContext.CreateInstanceOfConditionType(
-                null,
+                null!,
                 new QualifiedName("Condition", namespaceIndex));
 
             Assert.That(condition.IsCreated, Is.False);
@@ -755,7 +755,7 @@ namespace Opc.Ua.Server.Tests
             ushort instanceNamespaceIndex = manager.NamespaceIndexes[0];
             ushort elementNamespaceIndex = manager.SystemContext.NamespaceUris
                 .GetIndexOrAppend(NamespaceFiniteStateMachineState.ElementsNamespaceUri);
-            var machine = new NamespaceFiniteStateMachineState(null)
+            var machine = new NamespaceFiniteStateMachineState(null!)
             {
                 NodeId = new NodeId("StateMachine", instanceNamespaceIndex),
                 BrowseName = new QualifiedName("StateMachine", instanceNamespaceIndex),
@@ -793,7 +793,7 @@ namespace Opc.Ua.Server.Tests
                 .AddState(2, "On")
                 .StateMachine
                 .Definition;
-            var machine = new FluentFiniteStateMachineState(null, definition)
+            var machine = new FluentFiniteStateMachineState(null!, definition)
             {
                 BrowseName = new QualifiedName("RuntimeMachine", manager.NamespaceIndexes[0]),
                 DisplayName = new LocalizedText("RuntimeMachine")
@@ -917,7 +917,7 @@ namespace Opc.Ua.Server.Tests
                 "Requires AsyncCustomNodeManager synchronous registration");
             var asyncManager = (TestableAsyncCustomNodeManager)manager;
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("SynchronousLifecycle", namespaceIndex),
                 BrowseName = new QualifiedName("SynchronousLifecycle", namespaceIndex),
@@ -939,7 +939,7 @@ namespace Opc.Ua.Server.Tests
         {
             using ITestNodeManager manager = CreateManager();
             ushort namespaceIndex = manager.NamespaceIndexes[0];
-            var node = new LifecycleProbeState(null)
+            var node = new LifecycleProbeState(null!)
             {
                 NodeId = new NodeId("RemoveWithoutDelete", namespaceIndex),
                 BrowseName = new QualifiedName("RemoveWithoutDelete", namespaceIndex),
@@ -1009,7 +1009,7 @@ namespace Opc.Ua.Server.Tests
 
             // Assert
             Assert.That(resultNodeId, Is.EqualTo(baseObject.NodeId));
-            NodeState storedNode = manager.Find(baseObject.NodeId);
+            NodeState storedNode = manager.Find(baseObject.NodeId)!;
             Assert.That(storedNode, Is.Not.Null);
             Assert.That(storedNode, Is.SameAs(baseObject));
             Assert.That(manager.PredefinedNodes.ContainsKey(baseObject.NodeId), Is.True);
@@ -1574,7 +1574,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(nodeID, Is.Not.EqualTo(NodeId.Null));
             Assert.That(handle, Is.InstanceOf<NodeHandle>());
             var nodeHandle = handle as NodeHandle;
-            Assert.That(nodeHandle.NodeId, Is.EqualTo(baseObject.NodeId));
+            Assert.That(nodeHandle!.NodeId, Is.EqualTo(baseObject.NodeId));
             Assert.That(nodeHandle.Node, Is.SameAs(baseObject));
             Assert.That(nodeHandle.Validated, Is.True);
             object invalidHandle = await manager.GetManagerHandleAsync(ObjectIds.Server).ConfigureAwait(false);
@@ -1652,7 +1652,7 @@ namespace Opc.Ua.Server.Tests
             };
             var nodesToRead = new List<ReadValueId> { readValueId, readValueId2 };
             var values = new List<DataValue> { default };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             // Act
             await manager.ReadAsync(
@@ -1705,7 +1705,7 @@ namespace Opc.Ua.Server.Tests
             };
             var nodesToRead = new List<ReadValueId> { readValueId };
             var values = new List<DataValue> { default };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             DateTimeUtc beforeRead = DateTimeUtc.Now;
             await manager.ReadAsync(
@@ -1763,7 +1763,7 @@ namespace Opc.Ua.Server.Tests
                 }
             };
             var values = new List<DataValue> { default };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             await manager.ReadAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
@@ -1858,15 +1858,64 @@ namespace Opc.Ua.Server.Tests
 
             var references = new List<ReferenceDescription>();
 
-            ContinuationPoint result = await manager.BrowseAsync(
+            ContinuationPoint result = (await manager.BrowseAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None),
                 continuationPoint,
-                references).ConfigureAwait(false);
+                references).ConfigureAwait(false))!;
 
             Assert.That(result, Is.Null);
             Assert.That(references, Has.Count.EqualTo(1));
             Assert.That(references[0].BrowseName, Is.EqualTo(child.BrowseName));
             Assert.That(references[0].NodeId, Is.EqualTo(new ExpandedNodeId(child.NodeId)));
+        }
+
+        /// <summary>
+        /// A Timestamp or ViewVersion without a ViewId selects a version of the
+        /// entire AddressSpace, which is not available: OPC 10000-4 Table 178
+        /// requires Bad_ViewTimestampInvalid / Bad_ViewVersionInvalid rather than
+        /// Bad_ViewIdUnknown, and Bad_ViewParameterMismatch when both are set.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task BrowseAsyncNullViewIdWithVersionParametersReturnsViewParameterErrorAsync(
+            bool setTimestamp,
+            bool setVersion)
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("ViewParamParent", nsIdx);
+            parent.BrowseName = new QualifiedName("ViewParamParent", nsIdx);
+            await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
+
+            object handle = await manager.GetManagerHandleAsync(parent.NodeId).ConfigureAwait(false);
+            var continuationPoint = new ContinuationPoint
+            {
+                NodeToBrowse = handle,
+                Manager = manager,
+                View = new ViewDescription
+                {
+                    Timestamp = setTimestamp ? DateTimeUtc.Now : DateTimeUtc.MinValue,
+                    ViewVersion = setVersion ? 1u : 0u
+                },
+                BrowseDirection = BrowseDirection.Forward,
+                IncludeSubtypes = true,
+                ResultMask = BrowseResultMask.All
+            };
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await manager.BrowseAsync(
+                    new OperationContext(new RequestHeader(), null, RequestType.Browse, RequestLifetime.None),
+                    continuationPoint,
+                    new List<ReferenceDescription>()).ConfigureAwait(false));
+
+            StatusCode expected = setTimestamp && setVersion
+                ? StatusCodes.BadViewParameterMismatch
+                : setTimestamp ? StatusCodes.BadViewTimestampInvalid : StatusCodes.BadViewVersionInvalid;
+            Assert.That(ex.StatusCode, Is.EqualTo(expected));
         }
 
         /// <summary>
@@ -1889,7 +1938,7 @@ namespace Opc.Ua.Server.Tests
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             NodeState[] children = await AddAsyncBrowseTargetsAsync(manager, context, nsIdx).ConfigureAwait(false);
-            AsyncOnlyBrowser browser = null;
+            AsyncOnlyBrowser? browser = null;
             NodeState parent = await AddAsyncBrowseParentAsync(
                 manager,
                 context,
@@ -1913,20 +1962,20 @@ namespace Opc.Ua.Server.Tests
             var operationContext = new OperationContext(
                 new RequestHeader(), null, RequestType.Browse, RequestLifetime.None);
 
-            ContinuationPoint firstResult = await manager.BrowseAsync(
+            ContinuationPoint firstResult = (await manager.BrowseAsync(
                 operationContext,
                 continuationPoint,
-                references).ConfigureAwait(false);
+                references).ConfigureAwait(false))!;
 
             Assert.That(firstResult, Is.Not.Null, "second reference must be parked in a continuation point");
             Assert.That(references, Has.Count.EqualTo(1));
 
             // BrowseNext hands the node manager a fresh result list per call.
             var moreReferences = new List<ReferenceDescription>();
-            ContinuationPoint secondResult = await manager.BrowseAsync(
+            ContinuationPoint secondResult = (await manager.BrowseAsync(
                 operationContext,
                 firstResult,
-                moreReferences).ConfigureAwait(false);
+                moreReferences).ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
@@ -1934,7 +1983,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(references.Concat(moreReferences).Select(r => r.NodeId), Is.EqualTo(
                     children.Select(c => new ExpandedNodeId(c.NodeId))));
                 Assert.That(browser, Is.Not.Null);
-                Assert.That(browser.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
+                Assert.That(browser!.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
                 Assert.That(browser.NextAsyncCalls, Is.GreaterThanOrEqualTo(3));
             });
         }
@@ -1955,7 +2004,7 @@ namespace Opc.Ua.Server.Tests
             ushort nsIdx = manager.NamespaceIndexes[0];
 
             NodeState[] children = await AddAsyncBrowseTargetsAsync(manager, context, nsIdx).ConfigureAwait(false);
-            AsyncOnlyBrowser browser = null;
+            AsyncOnlyBrowser? browser = null;
             NodeState parent = await AddAsyncBrowseParentAsync(
                 manager,
                 context,
@@ -1985,7 +2034,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(targetIds, Is.EqualTo([new ExpandedNodeId(children[1].NodeId)]));
                 Assert.That(unresolved, Is.Empty);
                 Assert.That(browser, Is.Not.Null);
-                Assert.That(browser.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
+                Assert.That(browser!.NextCalls, Is.Zero, "the async manager must not fall back to Next()");
                 Assert.That(browser.NextAsyncCalls, Is.GreaterThanOrEqualTo(3));
             });
         }
@@ -2047,7 +2096,6 @@ namespace Opc.Ua.Server.Tests
             return parent;
         }
 
-#nullable enable
         /// <summary>
         /// A browser that produces its references only through
         /// <see cref="NodeBrowser.NextAsync"/>, after a genuine asynchronous hop,
@@ -2113,7 +2161,6 @@ namespace Opc.Ua.Server.Tests
                 m_pushBack = reference;
             }
         }
-#nullable restore
 
         /// <summary>
         /// Regression for issue #4061: when a node that has been cached (e.g.
@@ -2181,7 +2228,7 @@ namespace Opc.Ua.Server.Tests
             await manager.AddPredefinedNodeAsync(context, replacement).ConfigureAwait(false);
 
             NodeState cached = manager.LookupNodeInComponentCachePublic(
-                context, new NodeHandle { NodeId = original.NodeId });
+                context, new NodeHandle { NodeId = original.NodeId })!;
             Assert.That(
                 cached,
                 Is.SameAs(replacement),
@@ -2277,7 +2324,7 @@ namespace Opc.Ua.Server.Tests
                 Value = new DataValue(new Variant(99))
             };
             var nodesToWrite = new List<WriteValue> { writeValue, writeValue2 };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             // Act
             await manager.WriteAsync(
@@ -2334,7 +2381,7 @@ namespace Opc.Ua.Server.Tests
                     Value = new DataValue(new Variant(99))
                 }
             };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
@@ -2380,7 +2427,7 @@ namespace Opc.Ua.Server.Tests
                 Value = new DataValue(new Variant(200.0)) // out of range (> 100)
             };
             var nodesToWrite = new List<WriteValue> { writeValue };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
@@ -2426,7 +2473,7 @@ namespace Opc.Ua.Server.Tests
                 Value = new DataValue(new Variant(s_value))
             };
             var nodesToWrite = new List<WriteValue> { writeValue };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
 
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
@@ -2469,9 +2516,9 @@ namespace Opc.Ua.Server.Tests
             };
 
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var createErrors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var createErrors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -2497,7 +2544,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodesToWrite = new List<WriteValue> { writeValue };
-            var writeErrors = new List<ServiceResult> { null };
+            var writeErrors = new List<ServiceResult> { null! };
 
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
@@ -2589,9 +2636,9 @@ namespace Opc.Ua.Server.Tests
             };
 
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var createErrors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var createErrors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -2617,7 +2664,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var nodesToWrite = new List<WriteValue> { writeValue };
-            var writeErrors = new List<ServiceResult> { null };
+            var writeErrors = new List<ServiceResult> { null! };
 
             await manager.WriteAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
@@ -2659,6 +2706,656 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
 
             Assert.That(monitoredItem.IsReadyToPublish, Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that a semantic property change raises exactly one SemanticChangeEvent,
+        /// independent of the number of monitored items on the node (Part 3 5.6.2).
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(2)]
+        public async Task WriteEURangeAsyncRaisesOneSemanticChangeEventAsync(int monitoredItemCount)
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new AnalogItemState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("SemanticVar", nsIdx);
+            variable.BrowseName = new QualifiedName("SemanticVar", nsIdx);
+            variable.TypeDefinitionId = VariableTypeIds.AnalogItemType;
+            variable.Value = 0;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+            var euProperty = new PropertyState(null);
+            euProperty.CreateAsPredefinedNode(context);
+            euProperty.NodeId = new NodeId("SemanticVar.EURange", nsIdx);
+            euProperty.BrowseName = QualifiedName.From(BrowseNames.EURange);
+            euProperty.Value = 0;
+            euProperty.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            euProperty.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            euProperty.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.AddChild(euProperty);
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            for (int ii = 0; ii < monitoredItemCount; ii++)
+            {
+                var createErrors = new List<ServiceResult> { null! };
+                await manager.CreateMonitoredItemsAsync(
+                    CreateMonitoredItemsContext(),
+                    1,
+                    1000,
+                    TimestampsToReturn.Both,
+                    new List<MonitoredItemCreateRequest>
+                    {
+                        new()
+                        {
+                            ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                            MonitoringMode = MonitoringMode.Reporting,
+                            RequestedParameters = new MonitoringParameters { ClientHandle = (uint)ii, SamplingInterval = 0, QueueSize = 10 }
+                        }
+                    },
+                    createErrors,
+                    new List<MonitoringFilterResult> { null! },
+                    new List<IMonitoredItem> { null! },
+                    false,
+                    new MonitoredItemIdFactory()).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(createErrors[0]), Is.True);
+            }
+
+            var writeErrors = new List<ServiceResult> { null! };
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                new List<WriteValue>
+                {
+                    new()
+                    {
+                        NodeId = euProperty.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(123))
+                    }
+                },
+                writeErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
+            Assert.That(euProperty.Value, Is.EqualTo(123));
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
+                Times.Once);
+
+            // the event names the owning node and its type, not the property's PropertyType.
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e =>
+                    e is SemanticChangeEventState &&
+                    ((SemanticChangeEventState)e).Changes!.Value[0].Affected == variable.NodeId &&
+                    ((SemanticChangeEventState)e).Changes!.Value[0].AffectedType == variable.TypeDefinitionId)),
+                Times.Once);
+
+            // rewriting the unchanged value does not change the semantics.
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                new List<WriteValue>
+                {
+                    new()
+                    {
+                        NodeId = euProperty.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(123))
+                    }
+                },
+                writeErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that a change of any Property whose AccessLevel has the SemanticChange bit
+        /// raises a SemanticChangeEvent, not only the properties of the well-known node types
+        /// (Part 3 5.6.2); without the bit such a property raises none.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task WriteSemanticChangeFlaggedPropertyAsyncRaisesSemanticChangeEventAsync(
+            bool semanticChangeFlag)
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var owner = new BaseObjectState(null);
+            owner.CreateAsPredefinedNode(context);
+            owner.NodeId = new NodeId("SemanticOwner", nsIdx);
+            owner.BrowseName = new QualifiedName("SemanticOwner", nsIdx);
+            owner.TypeDefinitionId = ObjectTypeIds.BaseObjectType;
+
+            var property = new PropertyState(null);
+            property.CreateAsPredefinedNode(context);
+            property.NodeId = new NodeId("SemanticOwner.Mode", nsIdx);
+            property.BrowseName = new QualifiedName("Mode", nsIdx);
+            property.Value = 0;
+            property.DataType = DataTypeIds.Int32;
+            property.ValueRank = ValueRanks.Scalar;
+            property.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            byte accessLevel = AccessLevels.CurrentReadOrWrite;
+            if (semanticChangeFlag)
+            {
+                accessLevel |= AccessLevels.SemanticChange;
+            }
+            property.AccessLevel = accessLevel;
+            property.UserAccessLevel = accessLevel;
+            owner.AddChild(property);
+
+            await manager.AddNodeAsync(context, default, owner).ConfigureAwait(false);
+
+            var writeErrors = new List<ServiceResult> { null! };
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                new List<WriteValue>
+                {
+                    new()
+                    {
+                        NodeId = property.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(7))
+                    }
+                },
+                writeErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(writeErrors[0]), Is.True);
+            Assert.That(property.Value, Is.EqualTo(7));
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e =>
+                    e is SemanticChangeEventState &&
+                    ((SemanticChangeEventState)e).Changes!.Value[0].Affected == owner.NodeId)),
+                semanticChangeFlag ? Times.Once() : Times.Never());
+        }
+
+        /// <summary>
+        /// Verifies that an application-side change of a semantic Property, reported through
+        /// the public API, raises one SemanticChangeEvent and sets the SemanticsChanged bit on
+        /// the monitored items of the owner, like a client write does (Part 3 5.6.2).
+        /// </summary>
+        [Test]
+        public async Task ReportPropertyValueChangedRaisesSemanticChangeForServerSideChangeAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new AnalogItemState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("ServerSideSemanticVar", nsIdx);
+            variable.BrowseName = new QualifiedName("ServerSideSemanticVar", nsIdx);
+            variable.TypeDefinitionId = VariableTypeIds.AnalogItemType;
+            variable.Value = 0;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+
+            var euProperty = new PropertyState(null);
+            euProperty.CreateAsPredefinedNode(context);
+            euProperty.NodeId = new NodeId("ServerSideSemanticVar.EURange", nsIdx);
+            euProperty.BrowseName = QualifiedName.From(BrowseNames.EURange);
+            euProperty.Value = 0;
+            euProperty.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            variable.AddChild(euProperty);
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var monitoredItems = new List<IMonitoredItem> { null! };
+            var createErrors = new List<ServiceResult> { null! };
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                new List<MonitoredItemCreateRequest>
+                {
+                    new()
+                    {
+                        ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                        MonitoringMode = MonitoringMode.Reporting,
+                        RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 0, QueueSize = 10 }
+                    }
+                },
+                createErrors,
+                new List<MonitoringFilterResult> { null! },
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(createErrors[0]), Is.True);
+            var monitoredItem = monitoredItems[0] as IDataChangeMonitoredItem;
+            Assert.That(monitoredItem, Is.Not.Null);
+
+            // the application changes the property directly, without the Write service.
+            Variant previous = euProperty.Value;
+            euProperty.Value = 5;
+
+            bool reported = manager.ReportPropertyValueChanged(null, euProperty, previous);
+
+            Assert.That(reported, Is.True);
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e =>
+                    e is SemanticChangeEventState &&
+                    ((SemanticChangeEventState)e).Changes!.Value[0].Affected == variable.NodeId)),
+                Times.Once);
+
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            monitoredItem.Publish(
+                new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None),
+                notifications,
+                diagnostics,
+                10,
+                m_mockLogger.Object);
+
+            Assert.That(notifications, Is.Not.Empty);
+            Assert.That(
+                notifications.Any(n => n.Value.StatusCode.SemanticsChanged),
+                Is.True,
+                "The next value notification must carry the SemanticsChanged bit.");
+
+            // an unchanged value is not a semantic change.
+            Assert.That(manager.ReportPropertyValueChanged(null, euProperty, euProperty.Value), Is.False);
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that <c>ReportSemanticChange</c> reports a semantic change of the owner
+        /// even for a Property that is not semantic by itself.
+        /// </summary>
+        [Test]
+        public async Task ReportSemanticChangeRaisesSemanticChangeEventUnconditionallyAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var owner = new BaseObjectState(null);
+            owner.CreateAsPredefinedNode(context);
+            owner.NodeId = new NodeId("ForcedSemanticOwner", nsIdx);
+            owner.BrowseName = new QualifiedName("ForcedSemanticOwner", nsIdx);
+            owner.TypeDefinitionId = ObjectTypeIds.BaseObjectType;
+
+            var property = new PropertyState(null);
+            property.CreateAsPredefinedNode(context);
+            property.NodeId = new NodeId("ForcedSemanticOwner.Mode", nsIdx);
+            property.BrowseName = new QualifiedName("Mode", nsIdx);
+            property.Value = 0;
+            property.ReferenceTypeId = ReferenceTypeIds.HasProperty;
+            owner.AddChild(property);
+
+            await manager.AddNodeAsync(context, default, owner).ConfigureAwait(false);
+
+            property.Value = 1;
+            Assert.That(manager.ReportPropertyValueChanged(null, property, 0), Is.False);
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e => e is SemanticChangeEventState)),
+                Times.Never);
+
+            manager.ReportSemanticChange(context, property);
+
+            m_mockServer.Verify(
+                s => s.ReportEvent(It.Is<IFilterTarget>(e =>
+                    e is SemanticChangeEventState &&
+                    ((SemanticChangeEventState)e).Changes!.Value[0].Affected == owner.NodeId)),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies the OptionSet Write semantics of Part 3 8.40: the written bits selected by
+        /// ValidBits are merged into the stored value, and size mismatches or invalid bits are
+        /// rejected with Bad_OutOfRange without changing the stored value.
+        /// </summary>
+        [TestCase(new byte[] { 0x02 }, new byte[] { 0x03 }, 0u, (byte)0x06)]
+        [TestCase(new byte[] { 0x0F }, new byte[] { 0x0F }, 0u, (byte)0x0F)]
+        [TestCase(new byte[] { 0x00 }, new byte[] { 0x0F }, 0u, (byte)0x00)]
+        [TestCase(new byte[] { 0x02 }, new byte[] { 0x03, 0x00 }, 0x803C0000u, (byte)0x05)]
+        [TestCase(new byte[] { 0x02, 0x00 }, new byte[] { 0x03, 0x00 }, 0x803C0000u, (byte)0x05)]
+        [TestCase(new byte[] { 0x10 }, new byte[] { 0x10 }, 0x803C0000u, (byte)0x05)]
+        public async Task WriteOptionSetMergesValidBitsAsync(
+            byte[] value,
+            byte[] validBits,
+            uint expectedStatus,
+            byte expectedStoredValue)
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("OptionSetVar", nsIdx);
+            variable.BrowseName = new QualifiedName("OptionSetVar", nsIdx);
+            // the merge does not depend on the DataType; the test type table is minimal.
+            variable.DataType = DataTypeIds.BaseDataType;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.Value = new Variant(new ExtensionObject(new OptionSet
+            {
+                Value = ByteString.From(0x05),
+                ValidBits = ByteString.From(0x0F)
+            }));
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var writeErrors = new List<ServiceResult> { null! };
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                new List<WriteValue>
+                {
+                    new()
+                    {
+                        NodeId = variable.NodeId,
+                        AttributeId = Attributes.Value,
+                        Value = new DataValue(new Variant(new ExtensionObject(new OptionSet
+                        {
+                            Value = ByteString.From(value),
+                            ValidBits = ByteString.From(validBits)
+                        })))
+                    }
+                },
+                writeErrors).ConfigureAwait(false);
+
+            Assert.That(
+                (writeErrors[0]?.StatusCode ?? StatusCodes.Good).Code,
+                Is.EqualTo(expectedStatus));
+            Assert.That(variable.Value.TryGetStructure<OptionSet>(out OptionSet? stored), Is.True);
+            Assert.That(stored!.Value.ToArray(), Is.EqualTo(new[] { expectedStoredValue }));
+            Assert.That(stored.ValidBits.ToArray(), Is.EqualTo(new byte[] { 0x0F }),
+                "The ValidBits of the stored value describe the bits the Server supports.");
+        }
+
+        /// <summary>
+        /// Every element of an OptionSet array is validated and merged with the stored
+        /// element at the same position (Part 3 8.40); an invalid element rejects the whole
+        /// write without changing the stored array.
+        /// </summary>
+        [Test]
+        public async Task WriteOptionSetArrayValidatesAndMergesEachElementAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            BaseDataVariableState variable = await AddOptionSetVariableAsync(
+                manager,
+                "OptionSetArray",
+                ValueRanks.OneDimension,
+                new Variant(new ExtensionObject[]
+                {
+                    NewOptionSet(0x05, 0x0F),
+                    NewOptionSet(0x01, 0x0F)
+                }.ToArrayOf())).ConfigureAwait(false);
+
+            ServiceResult invalid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[]
+                {
+                    NewOptionSet(0x02, 0x03),
+                    NewOptionSet(0x10, 0x10)
+                }.ToArrayOf())).ConfigureAwait(false);
+
+            Assert.That(invalid?.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x05, 0x01 }));
+
+            ServiceResult valid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[]
+                {
+                    NewOptionSet(0x02, 0x03),
+                    NewOptionSet(0x08, 0x08)
+                }.ToArrayOf())).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x06, 0x09 }));
+        }
+
+        /// <summary>
+        /// An IndexRange write of OptionSet array elements is validated and merged with the
+        /// addressed stored elements.
+        /// </summary>
+        [Test]
+        public async Task WriteOptionSetArrayIndexRangeValidatesAndMergesAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            BaseDataVariableState variable = await AddOptionSetVariableAsync(
+                manager,
+                "OptionSetArrayRange",
+                ValueRanks.OneDimension,
+                new Variant(new ExtensionObject[]
+                {
+                    NewOptionSet(0x05, 0x0F),
+                    NewOptionSet(0x01, 0x0F)
+                }.ToArrayOf())).ConfigureAwait(false);
+
+            ServiceResult invalid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[] { NewOptionSet(0x10, 0x10) }.ToArrayOf()),
+                "1").ConfigureAwait(false);
+
+            Assert.That(invalid?.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x05, 0x01 }));
+
+            ServiceResult valid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[] { NewOptionSet(0x02, 0x02) }.ToArrayOf()),
+                "1").ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x05, 0x03 }),
+                "Only the addressed element is merged; bits outside ValidBits are kept.");
+        }
+
+        /// <summary>
+        /// Every element of an OptionSet matrix is validated and merged.
+        /// </summary>
+        [Test]
+        public async Task WriteOptionSetMatrixValidatesAndMergesEachElementAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            BaseDataVariableState variable = await AddOptionSetVariableAsync(
+                manager,
+                "OptionSetMatrix",
+                ValueRanks.TwoDimensions,
+                new Variant(new ExtensionObject[,]
+                {
+                    { NewOptionSet(0x05, 0x0F), NewOptionSet(0x01, 0x0F) }
+                })).ConfigureAwait(false);
+
+            ServiceResult invalid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[,]
+                {
+                    { NewOptionSet(0x02, 0x03), NewOptionSet(0x02, 0x03, 0x00) }
+                })).ConfigureAwait(false);
+
+            Assert.That(invalid?.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x05, 0x01 }));
+
+            ServiceResult valid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(new ExtensionObject[,]
+                {
+                    { NewOptionSet(0x02, 0x03), NewOptionSet(0x08, 0x08) }
+                })).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x06, 0x09 }));
+        }
+
+        /// <summary>
+        /// A populated all-zero ValidBits of the stored value means that no bit is valid:
+        /// a write selecting a bit is rejected and the stored mask is preserved.
+        /// </summary>
+        [Test]
+        public async Task WriteOptionSetRespectsAllZeroStoredValidBitsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            BaseDataVariableState variable = await AddOptionSetVariableAsync(
+                manager,
+                "OptionSetNoValidBits",
+                ValueRanks.Scalar,
+                new Variant(NewOptionSet(0x05, 0x00))).ConfigureAwait(false);
+
+            ServiceResult invalid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(NewOptionSet(0x02, 0x02))).ConfigureAwait(false);
+
+            Assert.That(invalid?.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+
+            ServiceResult valid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(NewOptionSet(0x02, 0x00))).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
+            Assert.That(variable.Value.TryGetStructure<OptionSet>(out OptionSet? stored), Is.True);
+            Assert.That(stored!.Value.ToArray(), Is.EqualTo(new byte[] { 0x05 }));
+            Assert.That(stored.ValidBits.ToArray(), Is.EqualTo(new byte[] { 0x00 }),
+                "The stored all-zero ValidBits are preserved.");
+        }
+
+        /// <summary>
+        /// The OptionSet validation uses the effective UserAccessLevel: write access granted
+        /// by OnReadUserAccessLevel does not bypass it.
+        /// </summary>
+        [Test]
+        public async Task WriteOptionSetValidatesWhenCallbackGrantsUserWriteAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            BaseDataVariableState variable = await AddOptionSetVariableAsync(
+                manager,
+                "OptionSetCallbackAccess",
+                ValueRanks.Scalar,
+                new Variant(NewOptionSet(0x05, 0x0F))).ConfigureAwait(false);
+            variable.UserAccessLevel = AccessLevels.CurrentRead;
+            variable.OnReadUserAccessLevel = (ISystemContext _, NodeState _, ref byte value) =>
+            {
+                value = AccessLevels.CurrentReadOrWrite;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult invalid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(NewOptionSet(0x10, 0x10))).ConfigureAwait(false);
+
+            Assert.That(invalid?.StatusCode.Code, Is.EqualTo(StatusCodes.BadOutOfRange));
+
+            ServiceResult valid = await WriteOptionSetAsync(
+                manager,
+                variable,
+                new Variant(NewOptionSet(0x02, 0x03))).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(valid), Is.True, valid?.ToString());
+            Assert.That(GetStoredBits(variable), Is.EqualTo(new byte[] { 0x06 }));
+        }
+
+        private static ExtensionObject NewOptionSet(byte value, byte validBits)
+        {
+            return new ExtensionObject(new OptionSet
+            {
+                Value = ByteString.From(value),
+                ValidBits = ByteString.From(validBits)
+            });
+        }
+
+        private static ExtensionObject NewOptionSet(byte value, byte validBits, byte extra)
+        {
+            return new ExtensionObject(new OptionSet
+            {
+                Value = ByteString.From(value, extra),
+                ValidBits = ByteString.From(validBits, extra)
+            });
+        }
+
+        private static async Task<BaseDataVariableState> AddOptionSetVariableAsync(
+            ITestNodeManager manager,
+            string name,
+            int valueRank,
+            Variant initialValue)
+        {
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId(name, nsIdx);
+            variable.BrowseName = new QualifiedName(name, nsIdx);
+            // the merge does not depend on the DataType; the test type table is minimal.
+            variable.DataType = DataTypeIds.BaseDataType;
+            variable.ValueRank = valueRank;
+            variable.AccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.UserAccessLevel = AccessLevels.CurrentReadOrWrite;
+            variable.Value = initialValue;
+
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+            return variable;
+        }
+
+        private static async Task<ServiceResult> WriteOptionSetAsync(
+            ITestNodeManager manager,
+            BaseDataVariableState variable,
+            Variant value,
+            string? indexRange = null)
+        {
+            var writeErrors = new List<ServiceResult> { null! };
+            await manager.WriteAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
+                new List<WriteValue>
+                {
+                    new()
+                    {
+                        NodeId = variable.NodeId,
+                        AttributeId = Attributes.Value,
+                        IndexRange = indexRange,
+                        ParsedIndexRange = indexRange == null
+                            ? NumericRange.Null
+                            : NumericRange.Parse(indexRange),
+                        Value = new DataValue(value)
+                    }
+                },
+                writeErrors).ConfigureAwait(false);
+            return writeErrors[0];
+        }
+
+        private static byte[] GetStoredBits(BaseDataVariableState variable)
+        {
+            Variant stored = variable.Value;
+            ExtensionObject[] elements;
+
+            if (stored.TypeInfo.IsScalar)
+            {
+                elements = [stored.GetExtensionObject()];
+            }
+            else if (stored.TryGetValue(out ArrayOf<ExtensionObject> array))
+            {
+                elements = array.ToArray()!;
+            }
+            else
+            {
+                Assert.That(stored.TryGetValue(out MatrixOf<ExtensionObject> matrix), Is.True);
+                elements = matrix.Span.ToArray();
+            }
+
+            return elements!
+                .Select(e =>
+                {
+                    Assert.That(new Variant(e).TryGetStructure<OptionSet>(out OptionSet? optionSet), Is.True);
+                    return optionSet!.Value.Span[0];
+                })
+                .ToArray();
         }
 
         /// <summary>
@@ -2768,9 +3465,9 @@ namespace Opc.Ua.Server.Tests
             };
 
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             // Act
             await manager.CreateMonitoredItemsAsync(
@@ -2834,9 +3531,9 @@ namespace Opc.Ua.Server.Tests
             };
 
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate, secondItemToCreate };
-            var errors = new List<ServiceResult> { null, null };
-            var filterErrors = new List<MonitoringFilterResult> { null, null };
-            var monitoredItems = new List<IMonitoredItem> { null, null };
+            var errors = new List<ServiceResult> { null!, null! };
+            var filterErrors = new List<MonitoringFilterResult> { null!, null! };
+            var monitoredItems = new List<IMonitoredItem> { null!, null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -2909,9 +3606,9 @@ namespace Opc.Ua.Server.Tests
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
             };
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(CreateMonitoredItemsContext(),
                                                     1,
@@ -2934,12 +3631,12 @@ namespace Opc.Ua.Server.Tests
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 500, QueueSize = 20 }
             };
             var itemsToModify = new List<MonitoredItemModifyRequest> { modifyRequest };
-            var modifyErrors = new List<ServiceResult> { null };
-            var modifyFilterErrors = new List<MonitoringFilterResult> { null };
+            var modifyErrors = new List<ServiceResult> { null! };
+            var modifyFilterErrors = new List<MonitoringFilterResult> { null! };
 
             // Act
             await manager.ModifyMonitoredItemsAsync(
-                 new OperationContext(new RequestHeader(), null, RequestType.ModifyMonitoredItems, RequestLifetime.None, m_mockSession.Object),
+                 new OperationContext(new RequestHeader(), null!, RequestType.ModifyMonitoredItems, RequestLifetime.None, m_mockSession.Object),
                  TimestampsToReturn.Both,
                  monitoredItems,
                  itemsToModify,
@@ -2954,16 +3651,86 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that revising an aggregate reuses the monitored item's retained queue.
+        /// Verifies that modifying a monitored item with a negative sampling interval revises it
+        /// to the publishing interval of the subscription (Part 4 7.21), not the previous interval.
         /// </summary>
         [Test]
-        public async Task ModifyMonitoredItemsAsyncUsesRetainedQueueForAggregateRevisionAsync()
+        public async Task ModifyMonitoredItemsAsyncNegativeSamplingIntervalUsesPublishingIntervalAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("MyVar", nsIdx);
+            variable.BrowseName = new QualifiedName("MyVar", nsIdx);
+            variable.Value = 10;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentRead;
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            var itemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId { NodeId = variable.NodeId, AttributeId = Attributes.Value },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
+            };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
+
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                new List<MonitoredItemCreateRequest> { itemToCreate },
+                errors,
+                filterErrors,
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(errors[0]), Is.True);
+            IMonitoredItem item = monitoredItems[0];
+            Assert.That(item.SamplingInterval, Is.EqualTo(100));
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(s => s.PublishingInterval).Returns(1000);
+            item.SubscriptionCallback = subscription.Object;
+
+            var modifyRequest = new MonitoredItemModifyRequest
+            {
+                MonitoredItemId = item.Id,
+                RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = -1, QueueSize = 10 }
+            };
+            var modifyErrors = new List<ServiceResult> { null! };
+            var modifyFilterErrors = new List<MonitoringFilterResult> { null! };
+
+            await manager.ModifyMonitoredItemsAsync(
+                new OperationContext(new RequestHeader(), null!, RequestType.ModifyMonitoredItems, RequestLifetime.None, m_mockSession.Object),
+                TimestampsToReturn.Both,
+                monitoredItems,
+                new List<MonitoredItemModifyRequest> { modifyRequest },
+                modifyErrors,
+                modifyFilterErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(modifyErrors[0]), Is.True);
+            Assert.That(item.SamplingInterval, Is.EqualTo(1000));
+        }
+
+        /// <summary>
+        /// Verifies that a modify requesting queue size 0 revises the aggregate with the default
+        /// queue size 1 instead of the previous queue size.
+        /// </summary>
+        [Test]
+        public async Task ModifyMonitoredItemsAsyncUsesDefaultQueueForAggregateRevisionAsync()
         {
             using ITestNodeManager manager = CreateManager();
             Assume.That(
                 m_useSamplingGroups &&
                 manager is TestableAsyncCustomNodeManager,
-                "The retained-zero queue rule belongs to sampling groups.");
+                "Covers the sampling-group modify path.");
             ServerSystemContext context = manager.SystemContext;
             ushort nsIdx = manager.NamespaceIndexes[0];
             var aggregateId = new NodeId("SupportedAggregate", nsIdx);
@@ -2992,7 +3759,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianNodeCapabilities>(
                     HistorianNodeCapabilities.ReadOnly));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var itemToCreate = new MonitoredItemCreateRequest
             {
                 ItemToMonitor = new ReadValueId
@@ -3008,10 +3775,10 @@ namespace Opc.Ua.Server.Tests
                     QueueSize = 4
                 }
             };
-            var createErrors = new List<ServiceResult> { null };
+            var createErrors = new List<ServiceResult> { null! };
             var createFilterErrors =
-                new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+                new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
                 1,
@@ -3042,14 +3809,14 @@ namespace Opc.Ua.Server.Tests
                     })
                 }
             };
-            var modifyErrors = new List<ServiceResult> { null };
+            var modifyErrors = new List<ServiceResult> { null! };
             var modifyFilterErrors =
-                new List<MonitoringFilterResult> { null };
+                new List<MonitoringFilterResult> { null! };
 
             await manager.ModifyMonitoredItemsAsync(
                 new OperationContext(
                     new RequestHeader(),
-                    null,
+                    null!,
                     RequestType.ModifyMonitoredItems,
                     RequestLifetime.None,
                     m_mockSession.Object),
@@ -3063,13 +3830,127 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 modifyFilterErrors[0],
                 Is.InstanceOf<AggregateFilterResult>());
+            // Part 4 7.21: queueSize 0 on modify selects the default queue size 1 for
+            // data items; the previous queue size is not retained.
             Assert.That(
                 ((AggregateFilterResult)modifyFilterErrors[0])
                     .RevisedStartTime.ToDateTime(),
-                Is.EqualTo(now.UtcDateTime.AddSeconds(-3)));
+                Is.EqualTo(now.UtcDateTime));
             Assert.That(
                 ((ISampledDataChangeMonitoredItem)monitoredItems[0]).QueueSize,
-                Is.EqualTo(4));
+                Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// The revised processing interval of an aggregate item is at least twice the sampling
+        /// interval the item reports, including the rounding a sampling group applies
+        /// (Part 4 7.22.4), on create and on modify.
+        /// </summary>
+        [Test]
+        public async Task AggregateProcessingIntervalIsTwiceTheRevisedSamplingIntervalAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var aggregateId = new NodeId("SupportedAggregate", nsIdx);
+            using AggregateManager aggregateManager =
+                CreateAndSetupAggregateManager(aggregateId, minimumProcessingInterval: 100);
+            var variable = new BaseDataVariableState(null);
+            variable.CreateAsPredefinedNode(context);
+            variable.NodeId = new NodeId("RoundedSamplingVariable", nsIdx);
+            variable.BrowseName = new QualifiedName("RoundedSamplingVariable", nsIdx);
+            variable.Value = 10;
+            variable.DataType = DataTypeIds.Int32;
+            variable.ValueRank = ValueRanks.Scalar;
+            variable.AccessLevel = AccessLevels.CurrentRead;
+            await manager.AddNodeAsync(context, default, variable).ConfigureAwait(false);
+
+            // with the default sampling rates the group (500, 250, 2) rounds 800 ms up to 1000 ms.
+            var itemToCreate = new MonitoredItemCreateRequest
+            {
+                ItemToMonitor = new ReadValueId
+                {
+                    NodeId = variable.NodeId,
+                    AttributeId = Attributes.Value
+                },
+                MonitoringMode = MonitoringMode.Reporting,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 800,
+                    QueueSize = 4,
+                    Filter = new ExtensionObject(new AggregateFilter
+                    {
+                        AggregateType = aggregateId,
+                        StartTime = DateTime.UtcNow,
+                        ProcessingInterval = 1000,
+                        AggregateConfiguration = new AggregateConfiguration()
+                    })
+                }
+            };
+            var createErrors = new List<ServiceResult> { null! };
+            var createFilterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
+            await manager.CreateMonitoredItemsAsync(
+                CreateMonitoredItemsContext(),
+                1,
+                1000,
+                TimestampsToReturn.Both,
+                [itemToCreate],
+                createErrors,
+                createFilterErrors,
+                monitoredItems,
+                false,
+                new MonitoredItemIdFactory()).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(createErrors[0]), Is.True);
+            var item = (ISampledDataChangeMonitoredItem)monitoredItems[0];
+            Assert.That(createFilterErrors[0], Is.InstanceOf<AggregateFilterResult>());
+            Assert.That(
+                ((AggregateFilterResult)createFilterErrors[0]).RevisedProcessingInterval,
+                Is.GreaterThanOrEqualTo(2 * item.SamplingInterval));
+            if (m_useSamplingGroups)
+            {
+                Assert.That(item.SamplingInterval, Is.EqualTo(1000));
+            }
+
+            var itemToModify = new MonitoredItemModifyRequest
+            {
+                MonitoredItemId = item.Id,
+                RequestedParameters = new MonitoringParameters
+                {
+                    ClientHandle = 1,
+                    SamplingInterval = 800,
+                    QueueSize = 4,
+                    Filter = new ExtensionObject(new AggregateFilter
+                    {
+                        AggregateType = aggregateId,
+                        StartTime = DateTime.UtcNow,
+                        ProcessingInterval = 1000,
+                        AggregateConfiguration = new AggregateConfiguration()
+                    })
+                }
+            };
+            var modifyErrors = new List<ServiceResult> { null! };
+            var modifyFilterErrors = new List<MonitoringFilterResult> { null! };
+            await manager.ModifyMonitoredItemsAsync(
+                new OperationContext(
+                    new RequestHeader(),
+                    null!,
+                    RequestType.ModifyMonitoredItems,
+                    RequestLifetime.None,
+                    m_mockSession.Object),
+                TimestampsToReturn.Both,
+                monitoredItems,
+                [itemToModify],
+                modifyErrors,
+                modifyFilterErrors).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(modifyErrors[0]), Is.True);
+            Assert.That(modifyFilterErrors[0], Is.InstanceOf<AggregateFilterResult>());
+            Assert.That(
+                ((AggregateFilterResult)modifyFilterErrors[0]).RevisedProcessingInterval,
+                Is.GreaterThanOrEqualTo(2 * item.SamplingInterval));
         }
 
         /// <summary>
@@ -3147,7 +4028,7 @@ namespace Opc.Ua.Server.Tests
                     return new ValueTask<HistorianPage<HistoricalDataValue>>(
                         secondPage.Task);
                 });
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             monitoredItem.QueueValue(
                 new DataValue(
                     new Variant(99),
@@ -3282,7 +4163,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
                     new HistorianPage<HistoricalDataValue>([])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3353,7 +4234,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
                     new HistorianPage<HistoricalDataValue>([])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3428,7 +4309,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
                     new HistorianPage<HistoricalDataValue>([])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3468,7 +4349,7 @@ namespace Opc.Ua.Server.Tests
                 null,
                 500,
                 20,
-                discardOldest: false);
+                discardOldest: false)!;
 
             Assert.That(ServiceResult.IsGood(retryError), Is.True);
             Assert.That(calculatorCount, Is.EqualTo(2));
@@ -3522,7 +4403,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(
                     failureCode));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3619,7 +4500,7 @@ namespace Opc.Ua.Server.Tests
                 })
                 .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
                     new HistorianPage<HistoricalDataValue>([])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest firstRequest =
                 CreateAggregateModifyRequest(
                     monitoredItem,
@@ -3737,7 +4618,7 @@ namespace Opc.Ua.Server.Tests
                     HistorianNodeCapabilities.ReadOnly));
             Mock<IHistorianDataProvider> dataProvider =
                 provider.As<IHistorianDataProvider>();
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3830,7 +4711,7 @@ namespace Opc.Ua.Server.Tests
                             cancellationToken).ConfigureAwait(false);
                         return new HistorianPage<HistoricalDataValue>([]);
                     });
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3920,7 +4801,7 @@ namespace Opc.Ua.Server.Tests
                             cancellationToken).ConfigureAwait(false);
                         return new HistorianPage<HistoricalDataValue>([]);
                     });
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -3987,7 +4868,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianNodeCapabilities>(
                     HistorianNodeCapabilities.ReadOnly));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -4089,7 +4970,7 @@ namespace Opc.Ua.Server.Tests
                     return new ValueTask<HistorianPage<HistoricalDataValue>>(
                         page.Task);
                 });
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             MonitoredItemModifyRequest request = CreateAggregateModifyRequest(
                 monitoredItem,
                 aggregateId,
@@ -4158,9 +5039,9 @@ namespace Opc.Ua.Server.Tests
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
             };
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(CreateMonitoredItemsContext(),
                 1,
@@ -4178,10 +5059,10 @@ namespace Opc.Ua.Server.Tests
 
             // Act
             var processedItems = new List<bool> { false };
-            var modeErrors = new List<ServiceResult> { null };
+            var modeErrors = new List<ServiceResult> { null! };
             await manager.SetMonitoringModeAsync(
                  new OperationContext(
-                     new RequestHeader(), null, RequestType.SetMonitoringMode, RequestLifetime.None, m_mockSession.Object),
+                     new RequestHeader(), null!, RequestType.SetMonitoringMode, RequestLifetime.None, m_mockSession.Object),
                  MonitoringMode.Reporting,
                  monitoredItems,
                  processedItems,
@@ -4222,9 +5103,9 @@ namespace Opc.Ua.Server.Tests
                 RequestedParameters = new MonitoringParameters { ClientHandle = 1, SamplingInterval = 100, QueueSize = 10 }
             };
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -4243,7 +5124,7 @@ namespace Opc.Ua.Server.Tests
 
             // Act
             var processedItems = new List<bool> { false };
-            var deleteErrors = new List<ServiceResult> { null };
+            var deleteErrors = new List<ServiceResult> { null! };
             await manager.DeleteMonitoredItemsAsync(
                 new OperationContext(new RequestHeader(), null, RequestType.DeleteMonitoredItems, RequestLifetime.None),
                 monitoredItems,
@@ -4313,8 +5194,8 @@ namespace Opc.Ua.Server.Tests
             };
 
             var requests = new List<CallMethodRequest> { request };
-            var results = new List<CallMethodResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<CallMethodResult> { null! };
+            var errors = new List<ServiceResult> { null! };
             var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
 
             await manager.CallAsync(operationContext, requests, results, errors).ConfigureAwait(false);
@@ -4332,8 +5213,8 @@ namespace Opc.Ua.Server.Tests
                     InputArguments = []
                 }
             };
-            var syncResults = new List<CallMethodResult> { null };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncResults = new List<CallMethodResult> { null! };
+            var syncErrors = new List<ServiceResult> { null! };
 
             syncManager.Call(operationContext, syncRequests, syncResults, syncErrors);
 
@@ -4408,8 +5289,8 @@ namespace Opc.Ua.Server.Tests
             };
 
             var requests = new List<CallMethodRequest> { request };
-            var results = new List<CallMethodResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<CallMethodResult> { null! };
+            var errors = new List<ServiceResult> { null! };
             var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
 
             // Act
@@ -4426,12 +5307,282 @@ namespace Opc.Ua.Server.Tests
             {
                 new() { ObjectId = instance.NodeId, MethodId = typeMethod.NodeId, InputArguments = [] }
             };
-            var syncResults = new List<CallMethodResult> { null };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncResults = new List<CallMethodResult> { null! };
+            var syncErrors = new List<ServiceResult> { null! };
             syncManager.Call(operationContext, syncRequests, syncResults, syncErrors);
 
             Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
             Assert.That(syncResults[0].OutputArguments[0].GetInt32(), Is.EqualTo(42));
+        }
+
+        /// <summary>
+        /// Part 3 §8.55: a method declared on an ObjectType keeps its RolePermissions
+        /// when it is resolved through the type hierarchy; a role without the Call
+        /// bit on the type's method is denied even though the instance allows Call.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CallAsyncEnforcesCallPermissionOfTypeMethodAsync(bool grantCall)
+        {
+            Assume.That(m_managerType, Is.Not.EqualTo(AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter),
+                "The legacy adapter resolves permission handles through the synchronous master node manager.");
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            PermissionType methodPermissions = PermissionType.Browse | PermissionType.Read;
+            if (grantCall)
+            {
+                methodPermissions |= PermissionType.Call;
+            }
+
+            (BaseObjectTypeState objectType, MethodState typeMethod) = CreateTypeWithMethod(context, nsIdx);
+            objectType.IsPartOfTypeHierarchy = true;
+            typeMethod.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    Permissions = (uint)methodPermissions
+                }
+            ];
+
+            var instance = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("PermInstance", nsIdx),
+                BrowseName = new QualifiedName("PermInstance", nsIdx),
+                TypeDefinitionId = objectType.NodeId
+            };
+            instance.CreateAsPredefinedNode(context);
+
+            await manager.AddPredefinedNodeAsync(context, objectType).ConfigureAwait(false);
+            await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
+            m_mockServer.Object.TypeTree.AddSubtype(objectType.NodeId, NodeId.Null);
+
+            await AssertCallWithRoleAsync(
+                manager,
+                instance.NodeId,
+                typeMethod.NodeId,
+                ObjectIds.WellKnownRole_AuthenticatedUser,
+                grantCall).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Part 3 §8.55: the Call permission must be granted on the Object passed as
+        /// ObjectId as well as on the Method.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CallAsyncEnforcesCallPermissionOfObjectAsync(bool grantCall)
+        {
+            Assume.That(m_managerType, Is.Not.EqualTo(AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter),
+                "The legacy adapter resolves permission handles through the synchronous master node manager.");
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            PermissionType objectPermissions = PermissionType.Browse | PermissionType.Read;
+            if (grantCall)
+            {
+                objectPermissions |= PermissionType.Call;
+            }
+
+            var parent = new BaseObjectState(null);
+            parent.CreateAsPredefinedNode(context);
+            parent.NodeId = new NodeId("PermParent", nsIdx);
+            parent.BrowseName = new QualifiedName("PermParent", nsIdx);
+            parent.RolePermissions =
+            [
+                new RolePermissionType
+                {
+                    RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                    Permissions = (uint)objectPermissions
+                }
+            ];
+
+            var method = new MethodState(parent)
+            {
+                NodeId = new NodeId("PermMethod", nsIdx),
+                BrowseName = new QualifiedName("PermMethod", nsIdx),
+                RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
+                    }
+                ]
+            };
+            method.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(method)
+            {
+                Value = []
+            };
+            method.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(method)
+            {
+                Value = []
+            };
+            method.OnCallMethod = (_, _, _, _) => ServiceResult.Good;
+            parent.AddChild(method);
+
+            await manager.AddNodeAsync(context, default, parent).ConfigureAwait(false);
+
+            await AssertCallWithRoleAsync(
+                manager,
+                parent.NodeId,
+                method.NodeId,
+                ObjectIds.WellKnownRole_AuthenticatedUser,
+                grantCall).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Part 4 §5.12.2.2: when the methodId of a Call is the Method declaration
+        /// of the ObjectType, the RolePermissions are verified with the Method of
+        /// the Object (the HasComponent target from the objectId), and that Method
+        /// is the one invoked. The Object's Method here has no MethodDeclarationId,
+        /// e.g. because a subtype overrides the declaration.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task CallAsyncChecksRolePermissionsOfObjectMethodForTypeDeclarationMethodIdAsync(
+            bool securityAdmin)
+        {
+            Assume.That(m_managerType, Is.Not.EqualTo(AsyncCustomNodeManagerType.CustomNodeManager2ViaAdapter),
+                "The legacy adapter resolves permission handles through the synchronous master node manager.");
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            (BaseObjectTypeState objectType, MethodState typeMethod) = CreateTypeWithMethod(context, nsIdx);
+            objectType.IsPartOfTypeHierarchy = true;
+            int typeCalls = 0;
+            typeMethod.OnCallMethod = (_, _, _, _) =>
+            {
+                typeCalls++;
+                return ServiceResult.Good;
+            };
+
+            var instance = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("PermInstance", nsIdx),
+                BrowseName = new QualifiedName("PermInstance", nsIdx),
+                TypeDefinitionId = objectType.NodeId
+            };
+            instance.CreateAsPredefinedNode(context);
+
+            var instanceMethod = new MethodState(instance)
+            {
+                NodeId = new NodeId("PermInstanceMethod", nsIdx),
+                BrowseName = typeMethod.BrowseName,
+                RolePermissions =
+                [
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_SecurityAdmin,
+                        Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
+                    },
+                    new RolePermissionType
+                    {
+                        RoleId = ObjectIds.WellKnownRole_AuthenticatedUser,
+                        Permissions = (uint)PermissionType.Browse
+                    }
+                ]
+            };
+            instanceMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(instanceMethod)
+            {
+                Value = []
+            };
+            instanceMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(instanceMethod)
+            {
+                Value = []
+            };
+            int instanceCalls = 0;
+            instanceMethod.OnCallMethod = (_, _, _, _) =>
+            {
+                instanceCalls++;
+                return ServiceResult.Good;
+            };
+            instance.AddChild(instanceMethod);
+
+            await manager.AddPredefinedNodeAsync(context, objectType).ConfigureAwait(false);
+            await manager.AddNodeAsync(context, default, instance).ConfigureAwait(false);
+            m_mockServer.Object.TypeTree.AddSubtype(objectType.NodeId, NodeId.Null);
+
+            await AssertCallWithRoleAsync(
+                manager,
+                instance.NodeId,
+                typeMethod.NodeId,
+                securityAdmin
+                    ? ObjectIds.WellKnownRole_SecurityAdmin
+                    : ObjectIds.WellKnownRole_AuthenticatedUser,
+                securityAdmin).ConfigureAwait(false);
+
+            Assert.That(typeCalls, Is.Zero);
+            Assert.That(instanceCalls, Is.EqualTo(securityAdmin ? 1 : 0));
+        }
+
+        private static (BaseObjectTypeState ObjectType, MethodState Method) CreateTypeWithMethod(
+            ServerSystemContext context,
+            ushort nsIdx)
+        {
+            var objectType = new BaseObjectTypeState
+            {
+                NodeId = new NodeId("PermObjectType", nsIdx),
+                BrowseName = new QualifiedName("PermObjectType", nsIdx),
+                SuperTypeId = NodeId.Null
+            };
+            objectType.CreateAsPredefinedNode(context);
+
+            var typeMethod = new MethodState(objectType)
+            {
+                NodeId = new NodeId("PermTypeMethod", nsIdx),
+                BrowseName = new QualifiedName("PermTypeMethod", nsIdx)
+            };
+            typeMethod.InputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(typeMethod)
+            {
+                Value = []
+            };
+            typeMethod.OutputArguments = new PropertyState<ArrayOf<Argument>>.Implementation<StructureBuilder<Argument>>(typeMethod)
+            {
+                Value = []
+            };
+            typeMethod.OnCallMethod = (_, _, _, _) => ServiceResult.Good;
+            objectType.AddChild(typeMethod);
+            return (objectType, typeMethod);
+        }
+
+        private static async Task AssertCallWithRoleAsync(
+            ITestNodeManager manager,
+            NodeId objectId,
+            NodeId methodId,
+            NodeId roleId,
+            bool expectGood)
+        {
+            var identity = new Mock<IUserIdentity>();
+            identity.Setup(i => i.GrantedRoleIds).Returns([roleId]);
+            var operationContext = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.Call,
+                RequestLifetime.None,
+                identity.Object);
+
+            var requests = new List<CallMethodRequest>
+            {
+                new() { ObjectId = objectId, MethodId = methodId, InputArguments = [] }
+            };
+            var results = new List<CallMethodResult> { null! };
+            var errors = new List<ServiceResult> { null! };
+
+            await manager.CallAsync(operationContext, requests, results, errors).ConfigureAwait(false);
+
+            if (expectGood)
+            {
+                Assert.That(ServiceResult.IsGood(errors[0]), Is.True, errors[0]?.ToString());
+            }
+            else
+            {
+                Assert.That(errors[0]?.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            }
         }
 
         /// <summary>
@@ -4588,8 +5739,8 @@ namespace Opc.Ua.Server.Tests
             };
 
             var requests = new List<CallMethodRequest> { request };
-            var results = new List<CallMethodResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<CallMethodResult> { null! };
+            var errors = new List<ServiceResult> { null! };
             var operationContext = new OperationContext(new RequestHeader(), null, RequestType.Call, RequestLifetime.None);
 
             // Act
@@ -4606,8 +5757,8 @@ namespace Opc.Ua.Server.Tests
             {
                 new() { ObjectId = instance.NodeId, MethodId = baseMethod.NodeId, InputArguments = [] }
             };
-            var syncResults = new List<CallMethodResult> { null };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncResults = new List<CallMethodResult> { null! };
+            var syncErrors = new List<ServiceResult> { null! };
             syncManager.Call(operationContext, syncRequests, syncResults, syncErrors);
 
             Assert.That(ServiceResult.IsGood(syncErrors[0]), Is.True);
@@ -4642,8 +5793,8 @@ namespace Opc.Ua.Server.Tests
             {
                 new() { NodeId = variable.NodeId }
             };
-            var results = new List<HistoryReadResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<HistoryReadResult> { null! };
+            var errors = new List<ServiceResult> { null! };
             var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryRead, RequestLifetime.None);
 
             await manager.HistoryReadAsync(opContext, details, TimestampsToReturn.Source, false, nodesToRead, results, errors).ConfigureAwait(false);
@@ -4655,8 +5806,8 @@ namespace Opc.Ua.Server.Tests
             {
                 new() { NodeId = variable.NodeId }
             };
-            var syncResults = new List<HistoryReadResult> { null };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncResults = new List<HistoryReadResult> { null! };
+            var syncErrors = new List<ServiceResult> { null! };
 
             syncManager.HistoryRead(opContext, details, TimestampsToReturn.Source, false, syncNodesToRead, syncResults, syncErrors);
 
@@ -4688,8 +5839,8 @@ namespace Opc.Ua.Server.Tests
                 UpdateValues = []
             };
             var nodesToUpdate = new List<HistoryUpdateDetails> { updateDetails };
-            var results = new List<HistoryUpdateResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<HistoryUpdateResult> { null! };
+            var errors = new List<ServiceResult> { null! };
             var opContext = new OperationContext(new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
 
             await manager.HistoryUpdateAsync(opContext, typeof(UpdateDataDetails), nodesToUpdate, results, errors).ConfigureAwait(false);
@@ -4706,8 +5857,8 @@ namespace Opc.Ua.Server.Tests
                     UpdateValues = []
                 }
             };
-            var syncResults = new List<HistoryUpdateResult> { null };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncResults = new List<HistoryUpdateResult> { null! };
+            var syncErrors = new List<ServiceResult> { null! };
 
             syncManager.HistoryUpdate(opContext, typeof(UpdateDataDetails), syncNodesToUpdate, syncResults, syncErrors);
 
@@ -4725,7 +5876,7 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = ObjectIds.Server,
                 Id = 1,
-                ManagerHandle = new NodeHandle(ObjectIds.Server, null)
+                ManagerHandle = new NodeHandle(ObjectIds.Server, null!)
             };
             var items = new List<IEventMonitoredItem> { monitoredItem };
             var context = new OperationContext(new RequestHeader(), null, RequestType.Unknown, RequestLifetime.None);
@@ -4811,7 +5962,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             var itemsToRestore = new List<IStoredMonitoredItem> { storedItem };
-            var restoredItems = new List<IMonitoredItem> { null };
+            var restoredItems = new List<IMonitoredItem> { null! };
             IUserIdentity identity = new Mock<IUserIdentity>().Object;
 
             await manager.RestoreMonitoredItemsAsync(itemsToRestore, restoredItems, identity).ConfigureAwait(false);
@@ -4847,7 +5998,7 @@ namespace Opc.Ua.Server.Tests
 
             var monitoredItems = new List<IMonitoredItem> { monitoredItem };
             var processed = new List<bool> { false };
-            var errors = new List<ServiceResult> { null };
+            var errors = new List<ServiceResult> { null! };
             var operationContext = new OperationContext(new RequestHeader(), null, RequestType.TransferSubscriptions, RequestLifetime.None);
 
             await manager.TransferMonitoredItemsAsync(
@@ -4870,7 +6021,7 @@ namespace Opc.Ua.Server.Tests
                 Id = 2
             };
             var syncProcessed = new List<bool> { false };
-            var syncErrors = new List<ServiceResult> { null };
+            var syncErrors = new List<ServiceResult> { null! };
             var syncItems = new List<IMonitoredItem> { secondItem };
 
             syncManager.TransferMonitoredItems(
@@ -4964,7 +6115,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(syncManager.IsNodeInView(context, view.NodeId, handle), Is.True);
 
             // Sub-classes customize view membership by overriding the protected virtual.
-            NodeState nodeSeenByOverride = null;
+            NodeState? nodeSeenByOverride = null;
             manager.IsNodeInViewOverride = (overrideContext, overrideViewId, overrideNode) =>
             {
                 Assert.That(overrideContext, Is.Not.Null);
@@ -5018,7 +6169,7 @@ namespace Opc.Ua.Server.Tests
             };
             var opContext = new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None);
 
-            NodeMetadata metadata = await manager.GetPermissionMetadataAsync(opContext, handle, BrowseResultMask.All, cache, true).ConfigureAwait(false);
+            NodeMetadata metadata = (await manager.GetPermissionMetadataAsync(opContext, handle, BrowseResultMask.All, cache, true).ConfigureAwait(false))!;
 
             Assert.That(metadata, Is.Not.Null);
             Assert.That(metadata.AccessRestrictions, Is.EqualTo(AccessRestrictionType.SigningRequired));
@@ -5029,7 +6180,7 @@ namespace Opc.Ua.Server.Tests
                 [node.NodeId] = []
             };
             var syncManager = (INodeManager3)manager.SyncNodeManager;
-            NodeMetadata syncMetadata = syncManager.GetPermissionMetadata(opContext, handle, BrowseResultMask.All, cache2, true);
+            NodeMetadata syncMetadata = syncManager.GetPermissionMetadata(opContext, handle, BrowseResultMask.All, cache2, true)!;
             Assert.That(syncMetadata, Is.Not.Null);
         }
 
@@ -5282,12 +6433,57 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that removing a root notifier detaches the Server object (all events)
+        /// monitored items linked to it, so they are not stranded in the monitored nodes.
+        /// </summary>
+        [Test]
+        public async Task RemoveRootNotifierDetachesAllEventsMonitoredItemsAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            ServerSystemContext context = manager.SystemContext;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+
+            var notifier = new BaseObjectState(null);
+            notifier.CreateAsPredefinedNode(context);
+            notifier.NodeId = new NodeId("AreaNotifier", nsIdx);
+            notifier.BrowseName = new QualifiedName("AreaNotifier", nsIdx);
+            notifier.EventNotifier = EventNotifiers.SubscribeToEvents;
+            await manager.AddNodeAsync(context, default, notifier).ConfigureAwait(false);
+            await manager.AddRootNotifierPublicAsync(notifier).ConfigureAwait(false);
+
+            var monitoredItem = new TestEventMonitoredItem
+            {
+                NodeId = ObjectIds.Server,
+                Id = 56,
+                MonitoringAllEvents = true,
+                MonitoringMode = MonitoringMode.Reporting
+            };
+            ServiceResult result = await manager.SubscribeToAllEventsAsync(
+                new OperationContext(new RequestHeader(), null, RequestType.CreateSubscription, RequestLifetime.None),
+                1,
+                monitoredItem,
+                false).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(manager.MonitoredNodes.ContainsKey(notifier.NodeId), Is.True);
+            Assert.That(notifier.AreEventsMonitored, Is.True);
+
+            await manager.RemoveRootNotifierPublicAsync(notifier).ConfigureAwait(false);
+
+            Assert.That(manager.RootNotifiers.ContainsKey(notifier.NodeId), Is.False);
+            Assert.That(
+                manager.MonitoredNodes.TryGetValue(notifier.NodeId, out MonitoredNode2? monitoredNode) &&
+                    monitoredNode.EventMonitoredItems.ContainsKey(monitoredItem.Id),
+                Is.False);
+            Assert.That(notifier.AreEventsMonitored, Is.False);
+        }
+
+        /// <summary>
         /// Verifies that the node-manager event callback forwards events to the server.
         /// </summary>
         [Test]
         public void OnReportEventDelegatesToServerReportEvent()
         {
-            IFilterTarget capturedEvent = null;
+            IFilterTarget? capturedEvent = null;
             m_mockServer
                 .Setup(s => s.ReportEvent(It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>()))
                 .Callback<ISystemContext, IFilterTarget>((_, e) => capturedEvent = e);
@@ -5318,7 +6514,7 @@ namespace Opc.Ua.Server.Tests
             // Verifies that the callback wired by AddRootNotifierAsync routes events through to
             // IServerInternal - via ReportEvent for the synchronous manager and ReportEventAsync
             // for the asynchronous manager.
-            IFilterTarget capturedEvent = null;
+            IFilterTarget? capturedEvent = null;
             m_mockServer
                 .Setup(s => s.ReportEvent(It.IsAny<ISystemContext>(), It.IsAny<IFilterTarget>()))
                 .Callback<ISystemContext, IFilterTarget>((_, e) => capturedEvent = e);
@@ -5547,7 +6743,7 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = ObjectIds.RootFolder, // not in this manager's namespace
                 Id = 999,
-                ManagerHandle = new NodeHandle(ObjectIds.RootFolder, null)
+                ManagerHandle = new NodeHandle(ObjectIds.RootFolder, null!)
             };
 
             ServiceResult result = await manager.ConditionRefreshAsync(
@@ -6165,7 +7361,7 @@ namespace Opc.Ua.Server.Tests
             var node = new BaseObjectState(null) { NodeId = new NodeId("H", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
 
-            NodeHandle result = manager.IsHandleInNamespacePublic(handle);
+            NodeHandle result = manager.IsHandleInNamespacePublic(handle)!;
 
             Assert.That(result, Is.SameAs(handle));
         }
@@ -6233,7 +7429,7 @@ namespace Opc.Ua.Server.Tests
 
             var node = new BaseObjectState(null) { NodeId = new NodeId("N", manager.NamespaceIndexes[0]) };
 
-            NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, null, node);
+            NodeState result = manager.AddNodeToComponentCachePublic(manager.SystemContext, null!, node);
 
             Assert.That(result, Is.SameAs(node));
         }
@@ -6254,7 +7450,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.SameAs(node));
             // Lookup must now return the cached node
-            NodeState found = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState found = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle)!;
             Assert.That(found, Is.SameAs(node));
         }
 
@@ -6277,12 +7473,12 @@ namespace Opc.Ua.Server.Tests
 
             // One remove should keep the entry alive (RefCount 2 → 1)
             manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
-            NodeState afterOneRemove = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState afterOneRemove = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle)!;
             Assert.That(afterOneRemove, Is.SameAs(node));
 
             // Second remove takes RefCount to 0 → evicted
             manager.RemoveNodeFromComponentCachePublic(manager.SystemContext, handle);
-            NodeState afterTwoRemoves = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState? afterTwoRemoves = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
             Assert.That(afterTwoRemoves, Is.Null);
         }
 
@@ -6325,7 +7521,7 @@ namespace Opc.Ua.Server.Tests
             // First add returns the child node itself
             Assert.That(result, Is.SameAs(child));
             // Lookup via the component path handle finds the child
-            NodeState found = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState found = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle)!;
             Assert.That(found, Is.SameAs(child));
         }
 
@@ -6372,7 +7568,7 @@ namespace Opc.Ua.Server.Tests
             var node = new BaseObjectState(null) { NodeId = new NodeId("NotCached", nsIdx) };
             var handle = new NodeHandle(node.NodeId, node);
 
-            NodeState result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState? result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
 
             Assert.That(result, Is.Null);
         }
@@ -6391,8 +7587,8 @@ namespace Opc.Ua.Server.Tests
             var knownHandle = new NodeHandle(knownNode.NodeId, knownNode);
             manager.AddNodeToComponentCachePublic(manager.SystemContext, knownHandle, knownNode);
 
-            var unknownHandle = new NodeHandle(new NodeId("Unknown", nsIdx), null);
-            NodeState result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, unknownHandle);
+            var unknownHandle = new NodeHandle(new NodeId("Unknown", nsIdx), null!);
+            NodeState? result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, unknownHandle);
 
             Assert.That(result, Is.Null);
         }
@@ -6416,7 +7612,7 @@ namespace Opc.Ua.Server.Tests
                 Validated = true
             };
 
-            NodeState result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
+            NodeState? result = manager.LookupNodeInComponentCachePublic(manager.SystemContext, handle);
 
             Assert.That(result, Is.Null);
         }
@@ -6443,7 +7639,7 @@ namespace Opc.Ua.Server.Tests
             using ITestNodeManager manager = CreateManager();
 
             ushort nsIdx = manager.NamespaceIndexes[0];
-            var handle = new NodeHandle(new NodeId("NeverAdded", nsIdx), null);
+            var handle = new NodeHandle(new NodeId("NeverAdded", nsIdx), null!);
 
             // Must not throw even when the cache has never seen this node
             Assert.DoesNotThrow(() =>
@@ -6737,7 +7933,7 @@ namespace Opc.Ua.Server.Tests
                         Stepped = true,
                         DefaultAggregateConfiguration = providerDefaults
                     }));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             DateTimeOffset now = new(2026, 9, 4, 8, 0, 0, TimeSpan.Zero);
             m_timeProvider.SetUtcNow(now);
             var filter = new ExtensionObject(new AggregateFilter
@@ -6817,7 +8013,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         MaxTimeInterval = 900
                     }));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = aggregateId,
@@ -6869,7 +8065,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianNodeCapabilities>(
                     HistorianNodeCapabilities.ReadOnly));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = aggregateId,
@@ -6887,10 +8083,11 @@ namespace Opc.Ua.Server.Tests
                     queueSize: 4,
                     filter).ConfigureAwait(false);
 
+            // Part 4 §7.22.4: at least twice the revised sampling interval.
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(
                 ((ServerAggregateFilter)result.FilterToUse).ProcessingInterval,
-                Is.EqualTo(200));
+                Is.EqualTo(400));
         }
 
         /// <summary>
@@ -6921,7 +8118,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianNodeCapabilities>(
                     HistorianNodeCapabilities.ReadOnly));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             DateTimeOffset now = new(
                 2026,
                 9,
@@ -6957,10 +8154,12 @@ namespace Opc.Ua.Server.Tests
                     queueSize: 4,
                     filter).ConfigureAwait(false);
 
+            // the retained window starts at now - 3 s; the revised start stays on the requested
+            // 250 ms boundary (startTime + n * processingInterval, Part 4 §7.22.4).
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(
                 ((ServerAggregateFilter)result.FilterToUse).StartTime.ToDateTime(),
-                Is.EqualTo(now.UtcDateTime.AddSeconds(-3)));
+                Is.EqualTo(requestedStart.AddSeconds(6)));
         }
 
         /// <summary>
@@ -6989,7 +8188,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Throws(new ServiceResultException(
                     StatusCodes.BadCommunicationError));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var filter = new ExtensionObject(new AggregateFilter
             {
                 AggregateType = aggregateId,
@@ -7062,7 +8261,7 @@ namespace Opc.Ua.Server.Tests
                     [
                         CreateHistoricalValue(3, now.UtcDateTime.AddSeconds(-1))
                     ])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
                 CreateInitialValueMonitoredItem(queued);
@@ -7095,10 +8294,79 @@ namespace Opc.Ua.Server.Tests
                         request => request.StartTime == filter.StartTime &&
                             request.EndTime == now.UtcDateTime &&
                             request.IsForward &&
-                            request.ReturnBounds),
+                            request.ReturnBounds &&
+                            // no provider limit: the page is still bounded by the priming cap.
+                            request.PageLimit == 100_001u),
                     It.IsAny<HistorianResumeToken>(),
                     It.IsAny<CancellationToken>()),
                 Times.Exactly(2));
+        }
+
+        /// <summary>
+        /// Verifies that an aggregate item is not primed from history the user may not read,
+        /// but falls back to the current value.
+        /// </summary>
+        [Test]
+        public async Task ReadInitialValueAsyncDoesNotPrimeFromHistoryWithoutUserHistoryReadAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+            Assume.That(
+                manager is TestableAsyncCustomNodeManager,
+                "Historical priming is asynchronous.");
+            var asyncManager = (TestableAsyncCustomNodeManager)manager;
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("V", nsIdx),
+                Value = 99,
+                AccessLevel = AccessLevels.CurrentRead | AccessLevels.HistoryRead,
+                UserAccessLevel = AccessLevels.CurrentRead
+            };
+            var handle = new NodeHandle(variable.NodeId, variable);
+            DateTimeOffset now = new(2026, 9, 4, 8, 0, 0, TimeSpan.Zero);
+            m_timeProvider.SetUtcNow(now);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    variable.NodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly));
+            Mock<IHistorianDataProvider> dataProvider =
+                provider.As<IHistorianDataProvider>();
+            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            var queued = new List<DataValue>();
+            Mock<IDataChangeMonitoredItem2> monitoredItem =
+                CreateInitialValueMonitoredItem(queued);
+            var filter = new ServerAggregateFilter
+            {
+                AggregateType = ObjectIds.AggregateFunction_Average,
+                StartTime = now.UtcDateTime.AddSeconds(-4),
+                ProcessingInterval = 1000,
+                AggregateConfiguration = new AggregateConfiguration()
+            };
+            var context = new ServerSystemContext(
+                m_mockServer.Object,
+                CreateMonitoredItemsContext());
+
+            ServiceResult result = await asyncManager.ReadInitialValuePublicAsync(
+                context,
+                handle,
+                monitoredItem.Object,
+                filter,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(
+                queued.Select(value => (int)value.WrappedValue).Single(),
+                Is.EqualTo(99));
+            dataProvider.Verify(
+                value => value.ReadRawAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianRawReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()),
+                Times.Never);
         }
 
         /// <summary>
@@ -7157,7 +8425,7 @@ namespace Opc.Ua.Server.Tests
                                 now.UtcDateTime.AddSeconds(1)),
                             IsBound: true)
                     ])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
                 CreateInitialValueMonitoredItem(
@@ -7234,7 +8502,7 @@ namespace Opc.Ua.Server.Tests
                                 now.UtcDateTime.AddSeconds(-1),
                                 now.UtcDateTime.AddSeconds(-1)))
                     ])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             var queuedErrors = new List<ServiceResult>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
@@ -7302,7 +8570,7 @@ namespace Opc.Ua.Server.Tests
                             42,
                             now.UtcDateTime.AddSeconds(-1))
                     ])));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             var queuedErrors = new List<ServiceResult>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
@@ -7369,7 +8637,7 @@ namespace Opc.Ua.Server.Tests
                     HistorianNodeCapabilities.ReadOnly));
             Mock<IHistorianDataProvider> dataProvider =
                 provider.As<IHistorianDataProvider>();
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
                 CreateInitialValueMonitoredItem(
@@ -7430,7 +8698,7 @@ namespace Opc.Ua.Server.Tests
             var provider = new Mock<IHistorianProvider>();
             Mock<IHistorianDataProvider> dataProvider =
                 provider.As<IHistorianDataProvider>();
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
                 CreateInitialValueMonitoredItem(queued);
@@ -7545,7 +8813,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(
                     StatusCodes.BadCommunicationError));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var queued = new List<DataValue>();
             var queuedErrors = new List<ServiceResult>();
             Mock<IDataChangeMonitoredItem2> monitoredItem =
@@ -7650,7 +8918,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
                     HistorianPage<HistoricalDataValue>.Empty));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var itemToCreate = new MonitoredItemCreateRequest
             {
                 ItemToMonitor = new ReadValueId
@@ -7673,9 +8941,9 @@ namespace Opc.Ua.Server.Tests
                     })
                 }
             };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -7760,7 +9028,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .ThrowsAsync(new ServiceResultException(
                     StatusCodes.BadCommunicationError));
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var itemToCreate = new MonitoredItemCreateRequest
             {
                 ItemToMonitor = new ReadValueId
@@ -7783,9 +9051,9 @@ namespace Opc.Ua.Server.Tests
                     })
                 }
             };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -7878,7 +9146,7 @@ namespace Opc.Ua.Server.Tests
                     return new ValueTask<HistorianPage<HistoricalDataValue>>(
                         readCompletion.Task);
                 });
-            m_historianRegistry.RegisterForNode(variable.NodeId, provider.Object);
+            RegisterHistorian(variable, provider.Object);
             var itemToCreate = new MonitoredItemCreateRequest
             {
                 ItemToMonitor = new ReadValueId
@@ -7901,9 +9169,9 @@ namespace Opc.Ua.Server.Tests
                     })
                 }
             };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             Task createTask = manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -7952,7 +9220,8 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that aggregate processing intervals are raised to the monitored item's sampling interval.
+        /// Verifies that aggregate processing intervals are raised to twice the monitored item's sampling interval
+        /// (Part 4 §7.22.4).
         /// </summary>
         [Test]
         public async Task ValidateMonitoringFilterAsyncAggregateFilterProcessingIntervalAdjustedToSamplingIntervalAsync()
@@ -7984,7 +9253,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.FilterToUse, Is.InstanceOf<ServerAggregateFilter>());
             Assert.That(
                 ((ServerAggregateFilter)result.FilterToUse).ProcessingInterval,
-                Is.EqualTo(200));
+                Is.EqualTo(400));
         }
 
         /// <summary>
@@ -8187,10 +9456,10 @@ namespace Opc.Ua.Server.Tests
 
         /// <summary>
         /// Verifies that a percentage deadband without an engineering-unit range returns
-        /// BadMonitoredItemFilterUnsupported.
+        /// BadDeadbandFilterInvalid (Part 8 §7.3.2 Table 61).
         /// </summary>
         [Test]
-        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithoutEURangeReturnsBadMonitoredItemFilterUnsupportedAsync()
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithoutEURangeReturnsBadDeadbandFilterInvalidAsync()
         {
             using ITestNodeManager manager = CreateManager();
 
@@ -8208,7 +9477,48 @@ namespace Opc.Ua.Server.Tests
                 10,
                 filter).ConfigureAwait(false);
 
-            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemFilterUnsupported));
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadDeadbandFilterInvalid));
+            Assert.That(result.FilterToUse, Is.Null);
+        }
+
+        /// <summary>
+        /// Verifies that a percentage deadband whose EURange property does not hold a Range
+        /// returns BadDeadbandFilterInvalid (Part 8 §7.3.2 Table 61).
+        /// </summary>
+        [Test]
+        public async Task ValidateMonitoringFilterAsyncDataChangeFilterPercentDeadbandWithNonRangeEURangeReturnsBadDeadbandFilterInvalidAsync()
+        {
+            using ITestNodeManager manager = CreateManager();
+
+            SetupNumericTypeTree();
+            ushort nsIdx = manager.NamespaceIndexes[0];
+            var variable = new BaseDataVariableState(null)
+            {
+                NodeId = new NodeId("V", nsIdx),
+                BrowseName = new QualifiedName("V", nsIdx),
+                DataType = DataTypeIds.Double,
+                ValueRank = ValueRanks.Scalar
+            };
+            var euRangeProperty = new PropertyState(variable)
+            {
+                NodeId = new NodeId("EURange", nsIdx),
+                BrowseName = new QualifiedName(BrowseNames.EURange),
+                ReferenceTypeId = ReferenceTypeIds.HasProperty,
+                Value = new Variant(42.0)
+            };
+            variable.AddChild(euRangeProperty);
+            var handle = new NodeHandle(variable.NodeId, variable);
+            var filter = new ExtensionObject(new DataChangeFilter { DeadbandType = (uint)DeadbandType.Percent, DeadbandValue = 10.0 });
+
+            AsyncCustomNodeManager.ValidateMonitoringFilterResult result = await manager.ValidateMonitoringFilterPublicAsync(
+                manager.SystemContext,
+                handle,
+                Attributes.Value,
+                100,
+                10,
+                filter).ConfigureAwait(false);
+
+            Assert.That((uint)result.StatusCode, Is.EqualTo(StatusCodes.BadDeadbandFilterInvalid));
             Assert.That(result.FilterToUse, Is.Null);
         }
 
@@ -8481,7 +9791,7 @@ namespace Opc.Ua.Server.Tests
                                     new() { NodeId = node.NodeId, AttributeId = Attributes.Value }
                                 };
                                 var values = new List<DataValue> { default };
-                                var errors = new List<ServiceResult> { null };
+                                var errors = new List<ServiceResult> { null! };
                                 await manager.ReadAsync(
                                     new OperationContext(new RequestHeader(), null, RequestType.Read, RequestLifetime.None),
                                     0, nodesToRead, values, errors).ConfigureAwait(false);
@@ -8497,7 +9807,7 @@ namespace Opc.Ua.Server.Tests
                                         Value = new DataValue(new Variant(rng.Next(1000)))
                                     }
                                 };
-                                var errors = new List<ServiceResult> { null };
+                                var errors = new List<ServiceResult> { null! };
                                 await manager.WriteAsync(
                                     new OperationContext(new RequestHeader(), null, RequestType.Write, RequestLifetime.None),
                                     nodesToWrite, errors).ConfigureAwait(false);
@@ -8535,9 +9845,9 @@ namespace Opc.Ua.Server.Tests
                                     }
                                 };
                                 var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-                                var createErrors = new List<ServiceResult> { null };
-                                var filterErrors = new List<MonitoringFilterResult> { null };
-                                var createdItems = new List<IMonitoredItem> { null };
+                                var createErrors = new List<ServiceResult> { null! };
+                                var filterErrors = new List<MonitoringFilterResult> { null! };
+                                var createdItems = new List<IMonitoredItem> { null! };
                                 await manager.CreateMonitoredItemsAsync(
                                     CreateMonitoredItemsContext(),
                                     1, 1000, TimestampsToReturn.Both,
@@ -8566,12 +9876,12 @@ namespace Opc.Ua.Server.Tests
                                             }
                                         }
                                     };
-                                    var modifyErrors = new List<ServiceResult> { null };
-                                    var modifyFilterErrors = new List<MonitoringFilterResult> { null };
+                                    var modifyErrors = new List<ServiceResult> { null! };
+                                    var modifyFilterErrors = new List<MonitoringFilterResult> { null! };
                                     await manager.ModifyMonitoredItemsAsync(
                                         new OperationContext(
                                             new RequestHeader(),
-                                            null,
+                                            null!,
                                             RequestType.ModifyMonitoredItems,
                                             RequestLifetime.None,
                                             m_mockSession.Object),
@@ -8591,7 +9901,7 @@ namespace Opc.Ua.Server.Tests
                                     {
                                         var toDelete = new List<IMonitoredItem> { item };
                                         var processed = new List<bool> { false };
-                                        var deleteErrors = new List<ServiceResult> { null };
+                                        var deleteErrors = new List<ServiceResult> { null! };
                                         await manager.DeleteMonitoredItemsAsync(
                                             new OperationContext(new RequestHeader(), null, RequestType.DeleteMonitoredItems, RequestLifetime.None),
                                             toDelete, processed, deleteErrors).ConfigureAwait(false);
@@ -8610,10 +9920,10 @@ namespace Opc.Ua.Server.Tests
                                         : MonitoringMode.Sampling;
                                     var modeItems = new List<IMonitoredItem> { item };
                                     var processed = new List<bool> { false };
-                                    var modeErrors = new List<ServiceResult> { null };
+                                    var modeErrors = new List<ServiceResult> { null! };
                                     using var modeContext = new OperationContext(
                                         new RequestHeader(),
-                                        null,
+                                        null!,
                                         RequestType.SetMonitoringMode,
                                         RequestLifetime.None,
                                         m_mockSession.Object);
@@ -8641,7 +9951,7 @@ namespace Opc.Ua.Server.Tests
             {
                 var toDelete = new List<IMonitoredItem> { item };
                 var processed = new List<bool> { false };
-                var errors = new List<ServiceResult> { null };
+                var errors = new List<ServiceResult> { null! };
                 await manager.DeleteMonitoredItemsAsync(
                     new OperationContext(new RequestHeader(), null, RequestType.DeleteMonitoredItems, RequestLifetime.None),
                     toDelete, processed, errors).ConfigureAwait(false);
@@ -8695,15 +10005,15 @@ namespace Opc.Ua.Server.Tests
 
         private OperationContext CreateMonitoredItemsContext()
         {
-            return new OperationContext(new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, m_mockSession.Object);
+            return new OperationContext(new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, m_mockSession.Object);
         }
 
         private async Task<(BaseDataVariableState Variable, MonitoredItem MonitoredItem)>
             CreateMonitoredVariableAsync(
             ITestNodeManager manager,
             string identifier,
-            AggregateFilter aggregateFilter = null,
-            BaseDataVariableState variable = null)
+            AggregateFilter? aggregateFilter = null,
+            BaseDataVariableState? variable = null)
         {
             ServerSystemContext context = manager.SystemContext;
             ushort namespaceIndex = manager.NamespaceIndexes[0];
@@ -8737,9 +10047,9 @@ namespace Opc.Ua.Server.Tests
                         : new ExtensionObject(aggregateFilter)
                 }
             };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 CreateMonitoredItemsContext(),
@@ -8792,13 +10102,13 @@ namespace Opc.Ua.Server.Tests
             MonitoredItemModifyRequest request,
             CancellationToken cancellationToken = default)
         {
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
 
             await manager.ModifyMonitoredItemsAsync(
                 new OperationContext(
                     new RequestHeader(),
-                    null,
+                    null!,
                     RequestType.ModifyMonitoredItems,
                     RequestLifetime.None,
                     m_mockSession.Object),
@@ -8936,10 +10246,21 @@ namespace Opc.Ua.Server.Tests
                     sourceTimestamp));
         }
 
+        /// <summary>
+        /// Registers the historian for the variable and grants history read access to it,
+        /// as <see cref="HistorianBuilder"/> does when a variable is historized.
+        /// </summary>
+        private void RegisterHistorian(BaseVariableState variable, IHistorianProvider provider)
+        {
+            variable.AccessLevel |= AccessLevels.HistoryRead;
+            variable.UserAccessLevel |= AccessLevels.HistoryRead;
+            m_historianRegistry.RegisterForNode(variable.NodeId, provider);
+        }
+
         private static Mock<IDataChangeMonitoredItem2>
             CreateInitialValueMonitoredItem(
                 List<DataValue> queued,
-                List<ServiceResult> queuedErrors = null,
+                List<ServiceResult>? queuedErrors = null,
                 NumericRange indexRange = default,
                 QualifiedName dataEncoding = default)
         {
@@ -9001,14 +10322,14 @@ namespace Opc.Ua.Server.Tests
                 .Setup(m => m.GetManagerHandleAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .Returns<NodeId, CancellationToken>((nodeId, _) =>
                 {
-                    NodeState nodeState = manager.Find(nodeId);
+                    NodeState? nodeState = manager.Find(nodeId);
                     if (nodeState == null)
                     {
-                        return new ValueTask<(object handle, IAsyncNodeManager nodeManager)>((null, null));
+                        return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((null, null));
                     }
 
                     var handle = new NodeHandle(nodeId, nodeState);
-                    return new ValueTask<(object handle, IAsyncNodeManager nodeManager)>((handle, manager));
+                    return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((handle, manager));
                 });
         }
 
@@ -9089,7 +10410,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the predefined nodes supplied when the address space is loaded.
         /// </summary>
-        public NodeStateCollection NodesToLoad { get; set; }
+        public NodeStateCollection? NodesToLoad { get; set; }
 
         /// <summary>
         /// Creates a testable asynchronous node manager with the supplied server, configuration, logger, and
@@ -9157,7 +10478,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the callback that supplies replacement behavior during predefined-node registration.
         /// </summary>
-        public Func<NodeState, NodeState> AddBehaviourCallback { get; set; } = null!;
+        public Func<NodeState, NodeState>? AddBehaviourCallback { get; set; }
 
         /// <summary>
         /// Gets or sets the asynchronous callback invoked when a sampled monitored item is modified.
@@ -9173,12 +10494,14 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the optional predicate overriding node membership in a view.
         /// </summary>
-        public Func<ServerSystemContext, NodeId, NodeState, bool> IsNodeInViewOverride { get; set; }
+        public Func<ServerSystemContext, NodeId, NodeState, bool>? IsNodeInViewOverride { get; set; }
 
         /// <summary>
         /// Gets the effective filter returned by the most recent monitoring-filter validation.
         /// </summary>
-        public MonitoringFilter LastValidatedFilter { get; private set; }
+        public MonitoringFilter LastValidatedFilter { get; private set; } = null!;
+
+        internal int DetachedNotificationCount => Volatile.Read(ref m_detachedNotificationCount);
 
         /// <summary>
         /// Replaces monitored-item management with a sampling-group manager that records calls and injects failures.
@@ -9216,6 +10539,16 @@ namespace Opc.Ua.Server.Tests
             CancellationToken cancellationToken = default)
         {
             return EventSubscriptionCallback?.Invoke(unsubscribe, cancellationToken) ?? default;
+        }
+
+        protected override ValueTask OnMonitoredItemDetachedAsync(
+            ServerSystemContext context,
+            NodeHandle handle,
+            ISampledDataChangeMonitoredItem monitoredItem,
+            CancellationToken cancellationToken = default)
+        {
+            Interlocked.Increment(ref m_detachedNotificationCount);
+            return base.OnMonitoredItemDetachedAsync(context, handle, monitoredItem, cancellationToken);
         }
 
         protected override ValueTask OnNodeRemovedAsync(
@@ -9313,7 +10646,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Assigns the namespace URI property so the fixture can exercise its setter.
         /// </summary>
-        public void SetNamespaceUrisPublic(IEnumerable<string> uris)
+        public void SetNamespaceUrisPublic(IEnumerable<string>? uris)
         {
             NamespaceUris = uris!;
         }
@@ -9329,9 +10662,9 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Returns the supplied node handle when it belongs to a managed namespace.
         /// </summary>
-        public NodeHandle IsHandleInNamespacePublic(object managerHandle)
+        public NodeHandle IsHandleInNamespacePublic(object? managerHandle)
         {
-            return IsHandleInNamespace(managerHandle);
+            return IsHandleInNamespace(managerHandle!)!;
         }
 
         /// <summary>
@@ -9339,15 +10672,15 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         public NodeState LookupNodeInComponentCachePublic(ISystemContext context, NodeHandle handle)
         {
-            return LookupNodeInComponentCache(context, handle);
+            return LookupNodeInComponentCache(context, handle)!;
         }
 
         /// <summary>
         /// Exposes component-cache reference removal for the supplied node handle.
         /// </summary>
-        public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle handle)
+        public void RemoveNodeFromComponentCachePublic(ISystemContext context, NodeHandle? handle)
         {
-            RemoveNodeFromComponentCache(context, handle);
+            RemoveNodeFromComponentCache(context, handle!);
         }
 
         /// <summary>
@@ -9461,6 +10794,8 @@ namespace Opc.Ua.Server.Tests
         {
             return FindPredefinedNode<T>(nodeId);
         }
+
+        private int m_detachedNotificationCount;
     }
 
     /// <summary>
@@ -9523,7 +10858,7 @@ namespace Opc.Ua.Server.Tests
         public override void StartMonitoring(
             OperationContext context,
             ISampledDataChangeMonitoredItem monitoredItem,
-            IUserIdentity savedOwnerIdentity = null)
+            IUserIdentity? savedOwnerIdentity = null)
         {
         }
 
@@ -9545,17 +10880,17 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the node manager assigned to the event monitored item.
         /// </summary>
-        public IAsyncNodeManager NodeManager { get; set; }
+        public IAsyncNodeManager NodeManager { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the session assigned to the event monitored item.
         /// </summary>
-        public ISession Session { get; set; }
+        public ISession Session { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the effective user identity used by the event monitored item.
         /// </summary>
-        public IUserIdentity EffectiveIdentity { get; set; }
+        public IUserIdentity EffectiveIdentity { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the server-assigned monitored-item identifier.
@@ -9580,12 +10915,12 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the subscription callback associated with the event monitored item.
         /// </summary>
-        public ISubscription SubscriptionCallback { get; set; }
+        public ISubscription SubscriptionCallback { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the node-manager handle assigned to the event monitored item.
         /// </summary>
-        public object ManagerHandle { get; set; }
+        public object ManagerHandle { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the monitored-item type flags used by the scenario.
@@ -9797,7 +11132,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the textual index range for the monitored value.
         /// </summary>
-        public string IndexRange { get; set; }
+        public string IndexRange { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the parsed index range for the monitored value.
@@ -9817,7 +11152,7 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the last service error associated with the monitored value.
         /// </summary>
-        public ServiceResult LastError { get; set; }
+        public ServiceResult LastError { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the last recorded data value.
@@ -9837,12 +11172,12 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the effective monitoring filter used by the server.
         /// </summary>
-        public MonitoringFilter FilterToUse { get; set; }
+        public MonitoringFilter FilterToUse { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the original monitoring filter supplied by the client.
         /// </summary>
-        public MonitoringFilter OriginalFilter { get; set; }
+        public MonitoringFilter OriginalFilter { get; set; } = null!;
 
         /// <summary>
         /// Gets or sets the persisted notification queue size.
@@ -9882,19 +11217,18 @@ namespace Opc.Ua.Server.Tests
         /// <summary>
         /// Gets or sets the data-change queue supplied during restoration.
         /// </summary>
-        public IDataChangeMonitoredItemQueue RestoredDataChangeQueue { get; set; }
+        public IDataChangeMonitoredItemQueue? RestoredDataChangeQueue { get; set; }
 
         /// <summary>
         /// Gets or sets the event queue supplied during restoration.
         /// </summary>
-        public IEventMonitoredItemQueue RestoredEventQueue { get; set; }
+        public IEventMonitoredItemQueue? RestoredEventQueue { get; set; }
     }
 
     /// <summary>
     /// Unified interface for both <see cref="TestableAsyncCustomNodeManager"/> and
     /// <see cref="TestableCustomNodeManager2Adapter"/> so that tests can run against either.
     /// </summary>
-#nullable enable
     internal interface ITestNodeManager : IAsyncNodeManager, IDisposable
     {
         /// <summary>
@@ -9932,7 +11266,7 @@ namespace Opc.Ua.Server.Tests
         /// </summary>
         /// <param name="nodeId">The identifier to look up.</param>
         /// <returns>The matching registered node.</returns>
-        NodeState Find(NodeId nodeId);
+        NodeState? Find(NodeId nodeId);
 
         /// <summary>
         /// Adds an instance under the specified parent and returns its node identifier.
@@ -10107,6 +11441,22 @@ namespace Opc.Ua.Server.Tests
         /// <param name="node">The node reporting the event.</param>
         /// <param name="filterTarget">The event data exposed to filtering.</param>
         void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget);
+
+        /// <summary>
+        /// Reports an application-side change of a Property value (Part 3 5.6.2).
+        /// </summary>
+        /// <param name="context">The context of the change.</param>
+        /// <param name="property">The changed Property.</param>
+        /// <param name="previousValue">The value before the change.</param>
+        /// <returns><c>true</c> if a semantic change was reported.</returns>
+        bool ReportPropertyValueChanged(ISystemContext? context, PropertyState property, Variant previousValue);
+
+        /// <summary>
+        /// Reports unconditionally that the semantics of a Property's owner changed.
+        /// </summary>
+        /// <param name="context">The context of the change.</param>
+        /// <param name="property">The Property whose change altered the semantics.</param>
+        void ReportSemanticChange(ISystemContext? context, PropertyState property);
 
         /// <summary>
         /// Adds reverse references from predefined nodes to external targets.
@@ -11057,6 +12407,16 @@ namespace Opc.Ua.Server.Tests
         public void InvokeOnReportEvent(ISystemContext context, NodeState node, IFilterTarget filterTarget)
         {
             m_cnm2.InvokeOnReportEvent(context, node, filterTarget);
+        }
+
+        public bool ReportPropertyValueChanged(ISystemContext? context, PropertyState property, Variant previousValue)
+        {
+            return m_cnm2.ReportPropertyValueChanged(context, property, previousValue);
+        }
+
+        public void ReportSemanticChange(ISystemContext? context, PropertyState property)
+        {
+            m_cnm2.ReportSemanticChange(context, property);
         }
 
         /// <summary>

@@ -73,6 +73,68 @@ namespace Opc.Ua.Server.Tests
             await m_fixture.StopAsync().ConfigureAwait(false);
         }
 
+        [TestCase(RequestType.AddNodes, false)]
+        [TestCase(RequestType.DeleteNodes, false)]
+        [TestCase(RequestType.AddReferences, false)]
+        [TestCase(RequestType.DeleteReferences, false)]
+        [TestCase(RequestType.AddNodes, true)]
+        [TestCase(RequestType.DeleteNodes, true)]
+        [TestCase(RequestType.AddReferences, true)]
+        [TestCase(RequestType.DeleteReferences, true)]
+        public async Task NodeManagementOwnerFailureDoesNotAbortBatch(
+            RequestType requestType,
+            bool unrelatedCancellation)
+        {
+            using var harness = new AuthorizationHarness();
+            Exception failure = unrelatedCancellation
+                ? new OperationCanceledException("The owner's backend cancelled.")
+                : new InvalidOperationException("The owner failed.");
+
+            ArrayOf<StatusCode> results = await DispatchFailingNodeManagementBatchAsync(
+                harness, requestType, () => failure, CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results, Is.EqualTo(
+            [
+                StatusCodes.Good, StatusCodes.BadUnexpectedError, StatusCodes.Good
+            ]));
+        }
+
+        [TestCase(RequestType.AddNodes)]
+        [TestCase(RequestType.DeleteNodes)]
+        [TestCase(RequestType.AddReferences)]
+        [TestCase(RequestType.DeleteReferences)]
+        public void NodeManagementRequestCancellationPropagates(RequestType requestType)
+        {
+            using var harness = new AuthorizationHarness();
+            using var cancellation = new CancellationTokenSource();
+
+            Assert.ThrowsAsync<OperationCanceledException>(async () =>
+                await DispatchFailingNodeManagementBatchAsync(
+                    harness,
+                    requestType,
+                    () =>
+                    {
+                        cancellation.Cancel();
+                        return new OperationCanceledException(cancellation.Token);
+                    },
+                    cancellation.Token).ConfigureAwait(false));
+        }
+
+        [TestCase("")]
+        [TestCase(null)]
+        public void InvalidPathBrowseNameReturnsOperationStatus(string? name)
+        {
+            var factory = new DefaultNodeIdFactory();
+            var namespaces = new NamespaceTable();
+            ushort namespaceIndex = (ushort)namespaces.Append(TestNamespaceUri);
+
+            ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
+                factory.CreateChildNodeId(
+                    NodeId.Null, new QualifiedName(name, namespaceIndex), namespaceIndex, namespaces))!;
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadBrowseNameInvalid));
+        }
+
         [Test]
         public async Task AddNodesAsync_NullItem_ReturnsBadNothingToDoAsync()
         {
@@ -449,6 +511,128 @@ namespace Opc.Ua.Server.Tests
                 ctx, new AddReferencesItem[] { item }.ToArrayOf(), CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(results[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+        }
+
+        /// <summary>
+        /// A known type that is not a ReferenceType (ObjectType, DataType) is not a valid
+        /// ReferenceTypeId (Part 4 7.38.2 Bad_ReferenceTypeIdInvalid).
+        /// </summary>
+        [TestCase(ObjectTypes.BaseObjectType)]
+        [TestCase(DataTypes.BaseDataType)]
+        public async Task NodeManagementWithNonReferenceTypeIdReturnsBadReferenceTypeIdInvalidAsync(
+            uint typeId)
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            OperationContext ctx = CreateContext();
+            var referenceTypeId = new NodeId(typeId);
+
+            (ArrayOf<StatusCode> addResults, _) = await sut.AddReferencesAsync(
+                ctx,
+                new AddReferencesItem[]
+                {
+                    new()
+                    {
+                        SourceNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        IsForward = true,
+                        TargetNodeId = ObjectIds.Server,
+                        TargetNodeClass = NodeClass.Object
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            (ArrayOf<StatusCode> deleteResults, _) = await sut.DeleteReferencesAsync(
+                ctx,
+                new DeleteReferencesItem[]
+                {
+                    new()
+                    {
+                        SourceNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        IsForward = true,
+                        TargetNodeId = ObjectIds.Server
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            (ArrayOf<AddNodesResult> addNodesResults, _) = await sut.AddNodesAsync(
+                ctx,
+                new AddNodesItem[]
+                {
+                    new()
+                    {
+                        ParentNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        BrowseName = new QualifiedName("Test", 2),
+                        NodeClass = NodeClass.Object
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(addResults[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(deleteResults[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(addNodesResults[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+        }
+
+        /// <summary>
+        /// No Reference of an abstract ReferenceType shall exist (Part 3 5.3.1), so AddNodes,
+        /// AddReferences and DeleteReferences reject abstract ReferenceTypeIds with
+        /// Bad_ReferenceTypeIdInvalid.
+        /// </summary>
+        [TestCase(ReferenceTypes.References)]
+        [TestCase(ReferenceTypes.HierarchicalReferences)]
+        [TestCase(ReferenceTypes.NonHierarchicalReferences)]
+        [TestCase(ReferenceTypes.HasChild)]
+        [TestCase(ReferenceTypes.Aggregates)]
+        public async Task NodeManagementWithAbstractReferenceTypeIdReturnsBadReferenceTypeIdInvalidAsync(
+            uint typeId)
+        {
+            IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
+            OperationContext ctx = CreateContext();
+            var referenceTypeId = new NodeId(typeId);
+
+            (ArrayOf<StatusCode> addResults, _) = await sut.AddReferencesAsync(
+                ctx,
+                new AddReferencesItem[]
+                {
+                    new()
+                    {
+                        SourceNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        IsForward = true,
+                        TargetNodeId = ObjectIds.Server,
+                        TargetNodeClass = NodeClass.Object
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            (ArrayOf<AddNodesResult> addNodesResults, _) = await sut.AddNodesAsync(
+                ctx,
+                new AddNodesItem[]
+                {
+                    new()
+                    {
+                        ParentNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        BrowseName = new QualifiedName("AbstractReferenceTest", 2),
+                        NodeClass = NodeClass.Object
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            (ArrayOf<StatusCode> deleteResults, _) = await sut.DeleteReferencesAsync(
+                ctx,
+                new DeleteReferencesItem[]
+                {
+                    new()
+                    {
+                        SourceNodeId = ObjectIds.ObjectsFolder,
+                        ReferenceTypeId = referenceTypeId,
+                        IsForward = true,
+                        TargetNodeId = ObjectIds.Server
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(addResults[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(addNodesResults[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+            Assert.That(deleteResults[0], Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
         }
 
         [Test]
@@ -1446,7 +1630,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void DeleteReferencesUnexpectedFailureRestoresSourceWithIndependentToken()
+        public async Task DeleteReferencesUnexpectedFailureRestoresSourceWithIndependentToken()
         {
             using var harness = new AuthorizationHarness();
             DeleteReferencesItem item = harness.CreateDeleteReferencesItem();
@@ -1468,14 +1652,13 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<CancellationToken>()))
                 .Throws(new InvalidOperationException("Target mutation failed."));
 
-            Assert.That(
-                async () => await harness.Sut.DeleteReferencesAsync(
-                    harness.DeleteReferencesContext,
-                    new DeleteReferencesItem[] { item }.ToArrayOf(),
-                    CancellationToken.None).ConfigureAwait(false),
-                Throws.TypeOf<InvalidOperationException>());
+            (ArrayOf<StatusCode> results, _) = await harness.Sut.DeleteReferencesAsync(
+                harness.DeleteReferencesContext,
+                new DeleteReferencesItem[] { item }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
+                Assert.That(results[0], Is.EqualTo(StatusCodes.BadUnexpectedError));
                 Assert.That(cleanupToken.CanBeCanceled, Is.True);
                 Assert.That(cleanupToken.IsCancellationRequested, Is.False);
             });
@@ -2072,7 +2255,7 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<Dictionary<NodeId, Variant[]>>(),
                     It.IsAny<bool>(),
                     It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<NodeMetadata>((NodeMetadata)null));
+                .Returns(new ValueTask<NodeMetadata?>((NodeMetadata?)null));
             manager
                 .Setup(nodeManager => nodeManager.GetNodeMetadataAsync(
                     It.IsAny<OperationContext>(),
@@ -2146,6 +2329,72 @@ namespace Opc.Ua.Server.Tests
                 ChildNodeIds(afterDelete[0]),
                 Has.No.Member(new ExpandedNodeId(childId)),
                 "deleted child must no longer be visible when browsing the parent through the master");
+        }
+
+        private static async Task<ArrayOf<StatusCode>> DispatchFailingNodeManagementBatchAsync(
+            AuthorizationHarness harness,
+            RequestType requestType,
+            Func<Exception> failure,
+            CancellationToken cancellationToken)
+        {
+            switch (requestType)
+            {
+                case RequestType.AddNodes:
+                    harness.SetAddNodePermissions(PermissionType.AddNode);
+                    var firstId = new NodeId("First", harness.SourceNamespaceIndex);
+                    var lastId = new NodeId("Last", harness.SourceNamespaceIndex);
+                    harness.SourceManager.SetupSequence(manager => manager.AddNodeAsync(
+                            It.IsAny<OperationContext>(), It.IsAny<AddNodesItem>(), It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<(ServiceResult, NodeId)>((ServiceResult.Good, firstId)))
+                        .Returns(() => throw failure())
+                        .Returns(new ValueTask<(ServiceResult, NodeId)>((ServiceResult.Good, lastId)));
+                    (ArrayOf<AddNodesResult> additions, _) = await harness.Sut.AddNodesAsync(
+                        harness.AddNodesContext,
+                        [harness.CreateAddNodesItem(), harness.CreateAddNodesItem(), harness.CreateAddNodesItem()],
+                        cancellationToken).ConfigureAwait(false);
+                    Assert.That(additions[0].AddedNodeId, Is.EqualTo(firstId));
+                    Assert.That(additions[1].AddedNodeId.IsNull, Is.True);
+                    Assert.That(additions[2].AddedNodeId, Is.EqualTo(lastId));
+                    return [additions[0].StatusCode, additions[1].StatusCode, additions[2].StatusCode];
+                case RequestType.DeleteNodes:
+                    harness.SourceManager.SetupSequence(manager => manager.DeleteNodeAsync(
+                            It.IsAny<OperationContext>(), It.IsAny<DeleteNodesItem>(), It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<ServiceResult>(ServiceResult.Good))
+                        .Returns(() => throw failure())
+                        .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                    var deletion = new DeleteNodesItem { NodeId = harness.SourceNodeId };
+                    (ArrayOf<StatusCode> deletions, _) = await harness.Sut.DeleteNodesAsync(
+                        harness.DeleteNodesContext, [deletion, deletion, deletion], cancellationToken)
+                        .ConfigureAwait(false);
+                    return deletions;
+                case RequestType.AddReferences:
+                    harness.SourceManager.SetupSequence(manager => manager.AddReferenceAsync(
+                            It.IsAny<OperationContext>(), It.IsAny<AddReferencesItem>(), It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<ServiceResult>(ServiceResult.Good))
+                        .Returns(() => throw failure())
+                        .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                    AddReferencesItem addition = harness.CreateAddReferencesItem();
+                    (ArrayOf<StatusCode> addedReferences, _) = await harness.Sut.AddReferencesAsync(
+                        harness.AddReferencesContext, [addition, addition, addition], cancellationToken)
+                        .ConfigureAwait(false);
+                    return addedReferences;
+                case RequestType.DeleteReferences:
+                    harness.SourceManager.SetupSequence(manager => manager.DeleteReferenceAsync(
+                            It.IsAny<OperationContext>(),
+                            It.IsAny<DeleteReferencesItem>(),
+                            It.IsAny<CancellationToken>()))
+                        .Returns(new ValueTask<ServiceResult>(ServiceResult.Good))
+                        .Returns(() => throw failure())
+                        .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                    DeleteReferencesItem referenceDeletion = harness.CreateDeleteReferencesItem();
+                    (ArrayOf<StatusCode> deletedReferences, _) = await harness.Sut.DeleteReferencesAsync(
+                        harness.DeleteReferencesContext,
+                        [referenceDeletion, referenceDeletion, referenceDeletion],
+                        cancellationToken).ConfigureAwait(false);
+                    return deletedReferences;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(requestType));
+            }
         }
 
         private static List<ExpandedNodeId> ChildNodeIds(BrowseResult result)
@@ -2440,12 +2689,12 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<ushort>(),
                         It.IsAny<CancellationToken>()))
                     .Returns((ushort namespaceIndex, CancellationToken _) =>
-                        new ValueTask<NamespaceMetadataState>(
-                            namespaceIndex == SourceNamespaceIndex
+                        new ValueTask<NamespaceMetadataState?>(
+                            (namespaceIndex == SourceNamespaceIndex
                                 ? m_sourceNamespaceMetadata
                                 : namespaceIndex == TargetNamespaceIndex
                                     ? m_targetNamespaceMetadata
-                                    : null));
+                                    : null)!));
 
                 var identity = new Mock<IUserIdentity>();
                 identity.Setup(user => user.GrantedRoleIds)
@@ -2685,7 +2934,7 @@ namespace Opc.Ua.Server.Tests
                         It.IsAny<Dictionary<NodeId, Variant[]>>(),
                         It.IsAny<bool>(),
                         It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<NodeMetadata>(permissionMetadata));
+                    .Returns(new ValueTask<NodeMetadata?>(permissionMetadata));
             }
 
             private static Mock<IAsyncNodeManager> CreateNodeManager(
@@ -2720,7 +2969,7 @@ namespace Opc.Ua.Server.Tests
                         Dictionary<NodeId, Variant[]> _,
                         bool _,
                         CancellationToken _) =>
-                        new ValueTask<NodeMetadata>(metadata));
+                        new ValueTask<NodeMetadata?>(metadata));
                 manager
                     .Setup(nodeManager => nodeManager.GetNodeMetadataAsync(
                         It.IsAny<OperationContext>(),

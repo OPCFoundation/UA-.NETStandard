@@ -226,9 +226,10 @@ namespace Opc.Ua.Bindings
         public const int MaxCertificateSize = 7500;
 
         /// <summary>
-        /// The maximum length for an a security policy uri.
+        /// The maximum length, in bytes, of a security policy uri
+        /// (OPC 10000-6 §6.7.2.3 SecurityPolicyUriLength).
         /// </summary>
-        public const int MaxSecurityPolicyUriSize = 256;
+        public const int MaxSecurityPolicyUriSize = 255;
 
         /// <summary>
         /// The length of the base message header.
@@ -333,6 +334,13 @@ namespace Opc.Ua.Bindings
         /// The fraction of the lifetime to wait before forcing the activation of the renewed token.
         /// </summary>
         public const double TokenActivationPeriod = 0.95;
+
+        /// <summary>
+        /// The fraction of the lifetime a client keeps accepting messages secured with an expired
+        /// token (OPC 10000-4 5.6.2.1), so a response the server secured just before the token
+        /// expired is not rejected because of network delay or clock drift.
+        /// </summary>
+        public const double TokenExpiryGracePeriod = 0.25;
 
         /// <summary>
         /// The certificates that have the key size larger than KeySizeExtraPadding need an extra padding byte in the transport message

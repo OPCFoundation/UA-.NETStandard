@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -183,6 +181,29 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
             AssertRequestAcceptedOnOriginalChannel(created);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SecuredReadOnlyLookupRejectsMissingOrDifferentChannelCertificateAsync(bool missingCertificate)
+        {
+            EndpointDescription endpoint = CreateEndpoint(MessageSecurityMode.SignAndEncrypt);
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateAndActivateAsync(
+                manager, endpoint, "channel-1", m_clientCertificate, default).ConfigureAwait(false);
+            Assert.That(manager.TryGetSessionContext(
+                created.Result.AuthenticationToken, created.Context.ChannelContext!, out var original), Is.True);
+            var invalidChannel = new SecureChannelContext(
+                "channel-1", endpoint, RequestEncoding.Binary,
+                missingCertificate ? null : m_otherClientCertificate.RawData);
+
+            Assert.That(manager.TryGetSessionContext(
+                created.Result.AuthenticationToken, invalidChannel, out var rejected), Is.False);
+            Assert.That(rejected, Is.Null);
+            Assert.That(manager.TryGetSessionContext(
+                created.Result.AuthenticationToken, created.Context.ChannelContext!, out var current), Is.True);
+            Assert.That(current, Is.SameAs(original));
+            Assert.That(manager.HasSession("channel-1"), Is.True);
         }
 
         [Test]
@@ -550,6 +571,83 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
+        /// <summary>
+        /// Verifies that with an enhanced user token policy on a None channel the server
+        /// expects the Part 4 6.1.8 None variant ServerNonce | HASH(ServerCertificate) | ClientNonce.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task EnhancedCertificateUserPolicyUsesNoneVariantOnNoneChannelAsync(bool noneVariant)
+        {
+            SecurityPolicyInfo? policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.RSA_DH_AesGcm);
+            if (policy == null)
+            {
+                Assert.Ignore("The RSA_DH_AesGcm security policy is not supported on this platform.");
+            }
+            EndpointDescription endpoint = CreateEndpoint(
+                MessageSecurityMode.None,
+                securityPolicyUri: SecurityPolicies.None);
+            endpoint.ServerCertificate = m_serverCertificate.RawData.ToByteString();
+            endpoint.UserIdentityTokens = endpoint.UserIdentityTokens.AddItem(new UserTokenPolicy
+            {
+                PolicyId = "certificate",
+                TokenType = UserTokenType.Certificate,
+                SecurityPolicyUri = SecurityPolicies.RSA_DH_AesGcm
+            });
+            using SecuritySessionManager manager = CreateManager();
+            CreatedSession created = await CreateSessionAsync(
+                manager, endpoint, "channel-1", m_clientCertificate).ConfigureAwait(false);
+            var identity = new ExtensionObject(new X509IdentityToken
+            {
+                PolicyId = "certificate",
+                CertificateData = m_clientCertificate.RawData.ToByteString()
+            });
+            SignatureData signature = CreateClientSignature(
+                created.Context, created.ClientNonce, created.ServerNonce, m_clientCertificate);
+            SecureChannelContext channel = created.Context.ChannelContext!;
+            byte[] dataToSign = noneVariant
+                ? policy!.GetUserTokenSignatureData(
+                    channel.ChannelThumbprint,
+                    created.ServerNonce.ToArray(),
+                    m_serverCertificate.RawData,
+                    channel.ServerChannelCertificate,
+                    m_clientCertificate.RawData,
+                    channel.ClientChannelCertificate,
+                    created.ClientNonce.ToArray(),
+                    MessageSecurityMode.None)
+                : policy!.GetUserTokenSignatureData(
+                    channel.ChannelThumbprint,
+                    created.ServerNonce.ToArray(),
+                    m_serverCertificate.RawData,
+                    channel.ServerChannelCertificate,
+                    m_clientCertificate.RawData,
+                    channel.ClientChannelCertificate,
+                    created.ClientNonce.ToArray());
+            SignatureData userSignature = await SecurityPolicies.Default.CreateSignatureDataAsync(
+                policy,
+                m_clientCertificate,
+                dataToSign,
+                CancellationToken.None).ConfigureAwait(false);
+
+            if (noneVariant)
+            {
+                (IUserIdentityTokenHandler token, UserTokenPolicy? selected) =
+                    await created.Result.Session.ValidateBeforeActivateAsync(
+                        created.Context, signature, identity, userSignature, CancellationToken.None)
+                        .ConfigureAwait(false);
+                Assert.That(token.TokenType, Is.EqualTo(UserTokenType.Certificate));
+                Assert.That(selected!.PolicyId, Is.EqualTo("certificate"));
+            }
+            else
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await created.Result.Session.ValidateBeforeActivateAsync(
+                        created.Context, signature, identity, userSignature, CancellationToken.None)
+                        .ConfigureAwait(false))!;
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadUserSignatureInvalid));
+            }
+        }
+
         [Test]
         public async Task ActivationValidationRejectsBinaryTokenWithUnknownPolicyAsync()
         {
@@ -583,7 +681,9 @@ namespace Opc.Ua.Server.Tests
                     null!,
                     default).ConfigureAwait(false))!;
 
-            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            // An unknown policy is Bad_IdentityTokenInvalid (Part 4 5.7.3.3), as on the
+            // regular decoding path.
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]

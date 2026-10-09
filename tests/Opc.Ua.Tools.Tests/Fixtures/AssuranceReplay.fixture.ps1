@@ -39,6 +39,7 @@ try {
     $d = 'sha256:' + ('d' * 64)
     $inputs = @(@{ id=$a; digest=$b; category='good' })
     if ($Scenario -ne 'empty-regressions') { $inputs += @{ id=$c; digest=$d; category='crash' } }
+    if ($Scenario.StartsWith('stack-')) { $inputs[1].category = 'stack' }
     if ($Scenario -eq 'empty-good') { $inputs = @($inputs | Where-Object category -ne good) }
     $manifest = @{schemaVersion=1;inventoryDigest=$a;inputs=$inputs;goodInputs=1;regressionInputs=$inputs.Count-1}
     $manifest | ConvertTo-Json -Depth 10 | Set-Content (Join-Path $fixture 'public-inputs.json')
@@ -48,7 +49,7 @@ try {
     $executionXml = ''
     foreach ($target in @($a, $b)) {
         foreach ($replayInput in $inputs) {
-            if ($Scenario -eq 'omitted-target' -and $target -eq $b) { continue }
+            if ($Scenario -in @('omitted-target', 'stack-omitted-target') -and $target -eq $b) { continue }
             if ($Scenario -eq 'omitted-input' -and $replayInput.id -eq $c) { continue }
             $executionXml += "<execution target='$target' input='$($replayInput.id)' />"
         }
@@ -69,7 +70,7 @@ try {
     $code = $LASTEXITCODE
     if (-not (Test-Path $output)) { throw 'Replay proof not produced.' }
     $actual = Get-Content $output -Raw | ConvertFrom-Json
-    $complete = $Scenario -in @('complete', 'empty-regressions')
+    $complete = $Scenario -in @('complete', 'empty-regressions', 'stack-complete')
     if (($actual.status -eq 'completed') -ne $complete -or ($code -eq 0) -ne $complete) {
         throw 'Replay execution coverage was incorrectly credited.'
     }

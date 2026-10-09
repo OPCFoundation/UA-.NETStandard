@@ -95,22 +95,22 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// The NodeSet XML file declaring the sidecar.
         /// </summary>
-        public string NodeSetFilePath { get; init; }
+        public string? NodeSetFilePath { get; init; }
 
         /// <summary>
         /// The configured or resolved sidecar path.
         /// </summary>
-        public string IdentifierFilePath { get; init; }
+        public string? IdentifierFilePath { get; init; }
 
         /// <summary>
         /// The related symbolic name, if applicable.
         /// </summary>
-        public string SymbolicName { get; init; }
+        public string? SymbolicName { get; init; }
 
         /// <summary>
         /// The related value, if applicable.
         /// </summary>
-        public string Value { get; init; }
+        public string? Value { get; init; }
 
         /// <summary>
         /// Creates a missing-sidecar validation error.
@@ -145,7 +145,7 @@ namespace Opc.Ua.SourceGeneration
 
     internal static class NodesetIdentifierFileValidator
     {
-        public static string ResolvePath(
+        public static string? ResolvePath(
             string nodeSetFilePath,
             string identifierFilePath,
             IReadOnlyList<string> csvFiles)
@@ -159,21 +159,99 @@ namespace Opc.Ua.SourceGeneration
             string adjacentPath = Path.IsPathRooted(relativePath)
                 ? relativePath
                 : Path.Combine(Path.GetDirectoryName(nodeSetFilePath) ?? string.Empty, relativePath);
-            string directMatch = csvFiles.FirstOrDefault(path =>
-                string.Equals(path, adjacentPath, StringComparison.Ordinal));
+
+            // AdditionalFiles paths are full, normalized paths; the metadata
+            // is whatever the project author typed ("./x.csv", "..\x.csv",
+            // "sub/x.csv"). Compare both sides in the same lexical normal form.
+            // Lexical, not Path.GetFullPath: the inputs need not be file system
+            // paths at all (in-memory AdditionalTexts).
+            string normalizedAdjacent = NormalizePath(adjacentPath);
+            string? directMatch = csvFiles.FirstOrDefault(path =>
+                string.Equals(NormalizePath(path), normalizedAdjacent, s_pathComparison));
             if (directMatch != null)
             {
                 return directMatch;
             }
 
-            string suffix = relativePath
-                .Replace(Path.AltDirectorySeparatorChar, Path.DirectorySeparatorChar)
-                .TrimStart([Path.DirectorySeparatorChar]);
+            // Fall back to a unique AdditionalFile whose path ends with the
+            // given one - on a directory boundary, or "NodeIds.csv" would also
+            // match "Opc.Ua.Di.NodeIds.csv". Leading "./" and "../" segments
+            // cannot be part of an AdditionalFile path, so they are dropped.
+            string suffix = NormalizePath(relativePath);
+            while (suffix.StartsWith("../", StringComparison.Ordinal) ||
+                suffix.StartsWith("./", StringComparison.Ordinal) ||
+                suffix.StartsWith('/'))
+            {
+                suffix = suffix[(suffix.IndexOf('/', StringComparison.Ordinal) + 1)..];
+            }
+            if (suffix.Length == 0)
+            {
+                return null;
+            }
             string[] matches = [.. csvFiles
-                .Where(path => path.EndsWith(suffix, StringComparison.Ordinal))
+                .Where(path => EndsWithPathSegments(NormalizePath(path), suffix))
                 .OrderBy(path => path, StringComparer.Ordinal)];
             return matches.Length == 1 ? matches[0] : null;
         }
+
+        /// <summary>
+        /// True when <paramref name="path"/> ends with <paramref name="suffix"/>
+        /// and the suffix starts at a directory boundary.
+        /// </summary>
+        private static bool EndsWithPathSegments(string path, string suffix)
+        {
+            if (!path.EndsWith(suffix, s_pathComparison))
+            {
+                return false;
+            }
+            return path.Length == suffix.Length ||
+                path[path.Length - suffix.Length - 1] == '/';
+        }
+
+        /// <summary>
+        /// Lexically normalizes a path: both separators become '/', "."
+        /// segments are removed and ".." segments cancel the segment before
+        /// them. Roots ("C:", "memory:", a leading "/") are kept as they are.
+        /// </summary>
+        internal static string NormalizePath(string path)
+        {
+            if (string.IsNullOrEmpty(path))
+            {
+                return string.Empty;
+            }
+
+            string[] segments = path.Replace('\\', '/').Split('/');
+            var result = new List<string>(segments.Length);
+            for (int ii = 0; ii < segments.Length; ii++)
+            {
+                string segment = segments[ii];
+                if (segment == "." && ii > 0)
+                {
+                    continue;
+                }
+                if (segment == ".." &&
+                    result.Count > 0 &&
+                    result[^1].Length > 0 &&
+                    result[^1] != ".." &&
+                    result[^1] != "." &&
+                    !result[^1].EndsWith(':'))
+                {
+                    result.RemoveAt(result.Count - 1);
+                    continue;
+                }
+                result.Add(segment);
+            }
+            return string.Join("/", result);
+        }
+
+        /// <summary>
+        /// Windows file systems are case insensitive; a path typed in the
+        /// project with another casing still names the same file there.
+        /// </summary>
+        private static readonly StringComparison s_pathComparison =
+            Path.DirectorySeparatorChar == '\\'
+                ? StringComparison.OrdinalIgnoreCase
+                : StringComparison.Ordinal;
 
         public static IEnumerable<NodesetIdentifierValidationError> Validate(
             IFileSystem fileSystem,
@@ -209,7 +287,7 @@ namespace Opc.Ua.SourceGeneration
                     continue;
                 }
 
-                if (!names.Add(row.SymbolicName))
+                if (!names.Add(row.SymbolicName!))
                 {
                     errors.Add(CreateError(
                         NodesetIdentifierValidationErrorKind.DuplicateSymbolicName,
@@ -229,7 +307,7 @@ namespace Opc.Ua.SourceGeneration
                         row.NumericId.ToString(CultureInfo.InvariantCulture)));
                 }
 
-                if (!symbols.TryGetValue(row.SymbolicName, out NodesetImportedSymbol symbol))
+                if (!symbols.TryGetValue(row.SymbolicName!, out NodesetImportedSymbol symbol))
                 {
                     errors.Add(CreateError(
                         NodesetIdentifierValidationErrorKind.UnknownSymbol,
@@ -333,8 +411,8 @@ namespace Opc.Ua.SourceGeneration
             NodesetIdentifierValidationErrorKind kind,
             string nodeSetFilePath,
             string identifierFilePath,
-            string symbolicName,
-            string value)
+            string? symbolicName,
+            string? value)
         {
             return new NodesetIdentifierValidationError
             {
@@ -350,7 +428,7 @@ namespace Opc.Ua.SourceGeneration
         {
             public int LineNumber { get; init; }
 
-            public string SymbolicName { get; init; }
+            public string? SymbolicName { get; init; }
 
             public uint NumericId { get; init; }
 

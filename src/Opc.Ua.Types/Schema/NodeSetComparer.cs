@@ -285,8 +285,12 @@ namespace Opc.Ua.Export
                         maxXmlDepth));
             }
 
-            bool isReference = string.Equals(
-                element.Name.LocalName, ReferenceElement, StringComparison.Ordinal);
+            // The text of a Reference is its target NodeId and the text of a
+            // RolePermission its role NodeId; an alias may stand for either.
+            bool isNodeIdText = string.Equals(
+                element.Name.LocalName, ReferenceElement, StringComparison.Ordinal) ||
+                string.Equals(
+                    element.Name.LocalName, RolePermissionElement, StringComparison.Ordinal);
             if (aliases is not null &&
                 string.Equals(element.Name.LocalName, AliasesElement, StringComparison.Ordinal))
             {
@@ -321,10 +325,10 @@ namespace Opc.Ua.Export
                         WriteElement(builder, child, depth + 1, maxXmlDepth, aliases);
                         break;
                     case XText text:
-                        // A Reference's text is its target NodeId, which an
-                        // alias may stand for. No other element's text is a
-                        // NodeId, so nothing else is rewritten.
-                        builder.Append(isReference ? Resolve(text.Value, aliases) : text.Value);
+                        // A Reference's or RolePermission's text is a NodeId,
+                        // which an alias may stand for. No other element's text
+                        // is a NodeId, so nothing else is rewritten.
+                        builder.Append(isNodeIdText ? Resolve(text.Value, aliases) : text.Value);
                         break;
                 }
             }
@@ -345,7 +349,8 @@ namespace Opc.Ua.Export
                 "ReferenceType" or
                 "NodeId" or
                 "ParentNodeId" or
-                "MethodDeclarationId" => true,
+                "MethodDeclarationId" or
+                "BaseType" => true,
                 _ => false
             };
         }
@@ -373,6 +378,7 @@ namespace Opc.Ua.Export
 
         private const string AliasesElement = "Aliases";
         private const string ReferenceElement = "Reference";
+        private const string RolePermissionElement = "RolePermission";
 
         private static byte[] Serialize(UANodeSet nodeSet)
         {

@@ -43,20 +43,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Asycnhronously calls a method defined on an object.
         /// </summary>
-        public virtual ValueTask CallAsync(
+        public virtual async ValueTask CallAsync(
             OperationContext context,
             ArrayOf<CallMethodRequest> methodsToCall,
             IList<CallMethodResult> results,
             IList<ServiceResult> errors,
             CancellationToken cancellationToken = default)
         {
-            return CallInternalAsync(
+            using NodeManagerOperation operation = BeginNodeManagerOperation();
+            await CallInternalAsync(
                 context,
                 methodsToCall,
                 results,
                 errors,
                 sync: false,
-                cancellationToken);
+                cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -130,6 +131,12 @@ namespace Opc.Ua.Server
                     if (method == null)
                     {
                         errors[ii] = StatusCodes.BadMethodInvalid;
+                        continue;
+                    }
+                    // Part 3 §8.55 Call: required on the Object and on the Method.
+                    errors[ii] = ValidateRolePermissions(context, request.ObjectId, PermissionType.Call);
+                    if (ServiceResult.IsBad(errors[ii]))
+                    {
                         continue;
                     }
                     errors[ii] = ValidateRolePermissions(context, method.NodeId, PermissionType.Call);

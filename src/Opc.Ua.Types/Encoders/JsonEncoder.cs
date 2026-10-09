@@ -145,7 +145,11 @@ namespace Opc.Ua
         public EncodingType EncodingType => EncodingType.Json;
 
         /// <inheritdoc/>
-        public bool CanOmitFields => true;
+        /// <remarks>
+        /// Only the CompactEncoding omits fields with a default value; the
+        /// VerboseEncoding includes all fields (OPC 10000-6 5.4.1, 5.4.2.1).
+        /// </remarks>
+        public bool CanOmitFields => m_options.IgnoreDefaultValues;
 
         /// <inheritdoc/>
         public IServiceMessageContext Context { get; }
@@ -241,14 +245,7 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(message));
             }
 
-            // convert the namespace uri to an index.
-            var typeId = ExpandedNodeId.ToNodeId(message.TypeId, Context.NamespaceUris);
-
-            // write the type id.
-            WriteNodeId(JsonProperties.UaTypeId, typeId);
-
-            // write the message.
-            WriteEncodeable(JsonProperties.UaBody, message);
+            WriteMessage(message, message.TypeId);
         }
 
         /// <inheritdoc/>
@@ -260,14 +257,35 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(message));
             }
 
-            // convert the namespace uri to an index.
-            var typeId = ExpandedNodeId.ToNodeId(encodeableTypeId, Context.NamespaceUris);
+            WriteMessage(message, encodeableTypeId);
+        }
 
-            // write the type id.
-            WriteNodeId(JsonProperties.UaTypeId, typeId);
-
-            // write the message.
-            WriteEncodeable(JsonProperties.UaBody, message, encodeableTypeId);
+        /// <summary>
+        /// Messages are encoded as ExtensionObjects (Part 6 5.4.9): the UaTypeId
+        /// followed by the fields of the JSON encoded body inline, without the
+        /// UaEncoding and UaBody fields that only exist for Binary and XML
+        /// bodies (Part 6 5.4.2.16). Like the BinaryEncoder the message must
+        /// fit into MaxMessageSize.
+        /// </summary>
+        /// <typeparam name="T">The type of the message.</typeparam>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteMessage<T>(T message, ExpandedNodeId typeId)
+            where T : IEncodeable
+        {
+            m_messageStart = m_writer.BytesCommitted + m_writer.BytesPending;
+            try
+            {
+                if (CanWriteUaTypeId(typeId))
+                {
+                    WriteUaTypeId(typeId);
+                }
+                message.Encode(this);
+                CheckMessageSize();
+            }
+            finally
+            {
+                m_messageStart = -1;
+            }
         }
 
         /// <inheritdoc/>
@@ -310,7 +328,7 @@ namespace Opc.Ua
             m_writer.WriteStringValue(value.ToBase64());
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         /// <inheritdoc/>
         public void WriteByteString(string? fieldName, ReadOnlySpan<byte> value)
         {
@@ -595,7 +613,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteLocalizedText(string? fieldName, LocalizedText value)
         {
-            if (value.IsNull)
+            if (IsJsonNull(value))
             {
                 WriteNull(fieldName);
                 return;
@@ -779,9 +797,15 @@ namespace Opc.Ua
                 WriteNull(fieldName);
                 return;
             }
+            // The inline matrix has at least two dimensions (5.4.5, 5.2.5)
+            // and a shape the decoder accepts (limits also for empty ones).
+            int[] dimensions = MatrixOf.GetValidatedInlineMatrixDimensions(
+                values.Dimensions,
+                values.Count,
+                Context.MaxArrayLength);
             m_writer.WritePropertyName(fieldName!);
             StartObject();
-            WriteInt32Array(JsonProperties.Dimensions, values.Dimensions);
+            WriteInt32Array(JsonProperties.Dimensions, dimensions);
             m_writer.WritePropertyName(JsonProperties.Array);
             StartArray(values.Count);
             for (int i = 0; i < values.Count; i++)
@@ -878,8 +902,8 @@ namespace Opc.Ua
                 return;
             }
             m_writer.WritePropertyName(fieldName!);
-            // Never suppress artifacts when called during structure encoding
-            WriteVariant(value, suppressUaType: false);
+            // A Variant is BaseDataType, so its UaType is kept also in RawData (5.4.1)
+            WriteVariant(value);
         }
 
         /// <inheritdoc/>
@@ -887,25 +911,36 @@ namespace Opc.Ua
         {
             if (WriteArrayProperty(fieldName, values))
             {
-                // Never suppress artifacts when called during structure encoding
-                WriteVariantArray(values, suppressUaType: false);
+                // A Variant is BaseDataType, so its UaType is kept also in RawData (5.4.1)
+                WriteVariantArray(values);
             }
         }
 
         /// <inheritdoc/>
         public void WriteVariantValue(string? fieldName, in Variant value)
         {
-            if (m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull)
+            // No UaType is written here, so the decoder takes the value rank from the
+            // metadata and a null array can be omitted like any other null array field.
+            bool isNullArray = !value.TypeInfo.IsScalar && value.ValueIsDefaultOrNull;
+            // This is a structure field, not the Value of a Variant, so the omission
+            // follows the options like every other field (Part 6 5.4.2.1).
+            if ((m_options.IgnoreDefaultValues && value.ValueIsDefaultOrNull) ||
+                (m_options.IgnoreNullValues && (isNullArray || IsNullVariantValue(value))))
             {
                 return;
             }
-            if (value.IsNull)
+            if (value.IsNull ||
+                (!value.TypeInfo.IsScalar &&
+                    value.IsInlineMatrix(out bool isNullMatrix) &&
+                    isNullMatrix))
             {
+                // A null matrix field is encoded like a null array, the way
+                // WriteEncodeableMatrix encodes it (OPC 10000-6 5.4.5).
                 WriteNull(fieldName);
                 return;
             }
             m_writer.WritePropertyName(fieldName!);
-            WriteVariantContents(in value, true, m_options.SuppressArtifacts);
+            WriteVariantContents(in value, true);
         }
 
         /// <inheritdoc/>
@@ -1040,14 +1075,16 @@ namespace Opc.Ua
             if (!value.WrappedValue.TypeInfo.IsUnknown &&
                 value.WrappedValue.TypeInfo.BuiltInType != BuiltInType.Null)
             {
+                // RawData omits only this outermost UaType; nested Variants and
+                // ExtensionObjects keep their type artifacts (5.4.1).
                 if (!m_options.SuppressArtifacts)
                 {
                     WriteVariantUaTypeByte(value.WrappedValue);
                 }
-                if (!m_options.IgnoreDefaultValues || !value.WrappedValue.ValueIsDefaultOrNull)
+                if (!IsNullVariantValue(value.WrappedValue))
                 {
                     m_writer.WritePropertyName(JsonProperties.Value);
-                    WriteVariantContents(value.WrappedValue, false, m_options.SuppressArtifacts);
+                    WriteVariantContents(value.WrappedValue, false);
                 }
             }
             // Now write the remainder of the data value fields
@@ -1055,6 +1092,9 @@ namespace Opc.Ua
             {
                 WriteStatusCode(JsonProperties.Status, value.StatusCode);
             }
+            // Picoseconds refine their timestamp (Part 6 5.4.2.18) and are ignored
+            // when the timestamp is missing (5.2.2.17), so they are dropped like
+            // the BinaryEncoder does instead of failing the whole message.
             if (value.SourceTimestamp != DateTimeUtc.MinValue)
             {
                 WriteDateTime(JsonProperties.SourceTimestamp, value.SourceTimestamp);
@@ -1063,12 +1103,6 @@ namespace Opc.Ua
                     WriteUInt16(JsonProperties.SourcePicoseconds, value.SourcePicoseconds);
                 }
             }
-            else if (value.SourcePicoseconds != 0)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingError,
-                    "Cannot encode DataValue SourcePicoseconds without SourceTimestamp.");
-            }
             if (value.ServerTimestamp != DateTimeUtc.MinValue)
             {
                 WriteDateTime(JsonProperties.ServerTimestamp, value.ServerTimestamp);
@@ -1076,12 +1110,6 @@ namespace Opc.Ua
                 {
                     WriteUInt16(JsonProperties.ServerPicoseconds, value.ServerPicoseconds);
                 }
-            }
-            else if (value.ServerPicoseconds != 0)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadEncodingError,
-                    "Cannot encode DataValue ServerPicoseconds without ServerTimestamp.");
             }
 
             EndObject();
@@ -1123,7 +1151,7 @@ namespace Opc.Ua
             }
             else
             {
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
                 Span<char> valueString = stackalloc char[DateTimeHelper.DateTimeRoundTripKindLength];
                 DateTimeHelper.ConvertUniversalTimeToString((DateTime)value, valueString, out int charsWritten);
                 m_writer.WriteStringValue(valueString[..charsWritten]);
@@ -1248,10 +1276,21 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         private void WriteEnumerated<T>(T value) where T : struct, Enum
         {
-            int numeric = Convert.ToInt32(value, CultureInfo.InvariantCulture);
+            int numeric = EnumHelper.EnumToInt32(value);
             if (m_options.EnumerationAsNumber)
             {
                 m_writer.WriteNumberValue(numeric);
+                return;
+            }
+            // Without a literal for the value (undefined or combined flags) only the
+            // numeric value is encoded as a JSON string (5.4.4.2).
+#if NET5_0_OR_GREATER
+            if (!Enum.IsDefined(value))
+#else
+            if (!Enum.IsDefined(typeof(T), value))
+#endif
+            {
+                m_writer.WriteStringValue(numeric.ToString(CultureInfo.InvariantCulture));
                 return;
             }
             m_writer.WriteStringValue(CoreUtils.Format("{0}_{1}", value, numeric));
@@ -1315,7 +1354,93 @@ namespace Opc.Ua
                 return;
             }
 
+            if (m_namespaceMappings != null || m_serverMappings != null)
+            {
+                m_writer.WriteStringValue(FormatMappedExpandedNodeId(value));
+                return;
+            }
+
             m_writer.WriteStringValue(value.Format(Context, m_options.ForceNamespaceUri));
+        }
+
+        /// <summary>
+        /// Formats an expanded node id like <see cref="ExpandedNodeId.Format(IServiceMessageContext, bool)"/>,
+        /// but writes the indexes of the index form in the tables set with
+        /// <see cref="SetMappingTables(NamespaceTable?, StringTable?)"/> (5.4.2.11).
+        /// </summary>
+        private string FormatMappedExpandedNodeId(in ExpandedNodeId value)
+        {
+            var buffer = new StringBuilder();
+            if (value.ServerIndex > 0)
+            {
+                string? serverUri = null;
+                if (!TryMapServerIndex(value.ServerIndex, out uint serverIndex) &&
+                    m_options.ForceNamespaceUri)
+                {
+                    serverUri = Context.ServerUris.GetString(value.ServerIndex);
+                }
+                if (!string.IsNullOrEmpty(serverUri))
+                {
+                    buffer.Append("svu=").Append(CoreUtils.EscapeUri(serverUri!)).Append(';');
+                }
+                else
+                {
+                    buffer.Append("svr=").Append(serverIndex).Append(';');
+                }
+            }
+
+            NodeId nodeId = value.InnerNodeId;
+            if (!string.IsNullOrEmpty(value.NamespaceUri))
+            {
+                buffer.Append("nsu=").Append(CoreUtils.EscapeUri(value.NamespaceUri!)).Append(';');
+            }
+            else if (TryMapNamespaceIndex(nodeId.NamespaceIndex, out ushort namespaceIndex))
+            {
+                return buffer.Append(nodeId.WithNamespaceIndex(namespaceIndex).Format(Context))
+                    .ToString();
+            }
+            return buffer.Append(nodeId.IsNull ? "i=0" : nodeId.Format(Context, m_options.ForceNamespaceUri))
+                .ToString();
+        }
+
+        /// <summary>
+        /// Maps a namespace index written in the index form (ns=, not the namespace uri)
+        /// to the namespace table set with <see cref="SetMappingTables(NamespaceTable?, StringTable?)"/>,
+        /// as the BinaryEncoder does (5.4.2.10).
+        /// </summary>
+        private bool TryMapNamespaceIndex(ushort namespaceIndex, out ushort mappedIndex)
+        {
+            mappedIndex = namespaceIndex;
+            if (m_namespaceMappings == null ||
+                namespaceIndex == 0 ||
+                namespaceIndex >= m_namespaceMappings.Length ||
+                (m_options.ForceNamespaceUri &&
+                    !string.IsNullOrEmpty(Context.NamespaceUris.GetString(namespaceIndex))))
+            {
+                return false;
+            }
+            mappedIndex = m_namespaceMappings[namespaceIndex];
+            return true;
+        }
+
+        /// <summary>
+        /// Maps a server index written in the index form (svr=, not the server uri) to
+        /// the server table set with <see cref="SetMappingTables(NamespaceTable?, StringTable?)"/>,
+        /// as the BinaryEncoder does (5.4.2.11).
+        /// </summary>
+        private bool TryMapServerIndex(uint serverIndex, out uint mappedIndex)
+        {
+            mappedIndex = serverIndex;
+            if (m_serverMappings == null ||
+                serverIndex == 0 ||
+                serverIndex >= m_serverMappings.Length ||
+                (m_options.ForceNamespaceUri &&
+                    !string.IsNullOrEmpty(Context.ServerUris.GetString(serverIndex))))
+            {
+                return false;
+            }
+            mappedIndex = m_serverMappings[serverIndex];
+            return true;
         }
 
         /// <summary>
@@ -1343,15 +1468,19 @@ namespace Opc.Ua
             }
             value.TryGetValue(out IEncodeable? encodeable);
 
-            ExpandedNodeId typeId = encodeable?.TypeId ?? value.TypeId;
-            var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
+            // UaTypeId is the DataType id also for an opaque Binary or XML body (5.4.2.16
+            // Table 40); its DataTypeEncoding id is mapped through the factory. For a type
+            // the factory does not know the encoding id it was received with is written:
+            // the context has no type system to map it, and a peer decoding the body back
+            // needs exactly that encoding id.
+            ExpandedNodeId typeId = encodeable?.TypeId ?? GetOpaqueBodyDataTypeId(value);
+            bool hasTypeId = CanWriteUaTypeId(typeId);
 
-            // A TypeId whose namespace is not in the local table cannot be written as a JSON
-            // NodeId. That is normal for a client encoding a server type it has not mapped, and
-            // the writers below already omit UaTypeId in that case. It is only unencodable when
-            // there is no body either, because then the envelope would collapse to {} and the
-            // type identity would be lost entirely.
-            if (localTypeId.IsNull && !typeId.IsNull &&
+            // A TypeId that cannot be written as a JSON NodeId (a server index, or no
+            // identifier) is omitted. It is only unencodable when there is no body either,
+            // because then the envelope would collapse to {} and the type identity would be
+            // lost entirely.
+            if (!hasTypeId && !typeId.IsNull &&
                 value.Encoding == ExtensionObjectEncoding.None && encodeable == null)
             {
                 throw ServiceResultException.Create(
@@ -1361,9 +1490,11 @@ namespace Opc.Ua
 
             StartObject();
 
-            if (!m_options.SuppressArtifacts && !localTypeId.IsNull)
+            // An ExtensionObject is the abstract Structure, so RawData keeps its
+            // UaTypeId (5.4.1).
+            if (hasTypeId)
             {
-                WriteNodeId(JsonProperties.UaTypeId, localTypeId);
+                WriteUaTypeId(typeId);
             }
             switch (value.Encoding)
             {
@@ -1376,9 +1507,7 @@ namespace Opc.Ua
                     rawJson = rawJson.Trim();
                     if (rawJson.Length > 1 && rawJson[0] == '{' && rawJson[^1] == '}')
                     {
-                        WriteJsonExtensionObjectBody(
-                            rawJson,
-                            !m_options.SuppressArtifacts && !localTypeId.IsNull);
+                        WriteJsonExtensionObjectBody(rawJson, hasTypeId);
                         break;
                     }
                     if (rawJson.Length == 0)
@@ -1413,11 +1542,72 @@ namespace Opc.Ua
             EndObject();
         }
 
+        /// <summary>
+        /// Returns the DataType id of an ExtensionObject that is not decoded, which
+        /// carries the DataTypeEncoding id of its Binary or XML body (or the DataType
+        /// id of a JSON body). The DataType id is only known for a type registered in
+        /// the factory; otherwise the TypeId is returned unchanged.
+        /// </summary>
+        private ExpandedNodeId GetOpaqueBodyDataTypeId(ExtensionObject value)
+        {
+            if (value.Encoding is ExtensionObjectEncoding.Binary or ExtensionObjectEncoding.Xml &&
+                Context.Factory.TryGetEncodeableType(value.TypeId, out IEncodeableType? type))
+            {
+                ExpandedNodeId dataTypeId = type.CreateInstance()?.TypeId ?? ExpandedNodeId.Null;
+                if (!dataTypeId.IsNull)
+                {
+                    return dataTypeId;
+                }
+            }
+            return value.TypeId;
+        }
+
+        /// <summary>
+        /// Whether a TypeId can be written as the UaTypeId, a NodeId string (Part 6
+        /// 5.4.2.16, 5.4.2.10). A server index has no place in a NodeId.
+        /// </summary>
+        private bool CanWriteUaTypeId(in ExpandedNodeId typeId)
+        {
+            if (typeId.IsNull)
+            {
+                return false;
+            }
+            if (!ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris).IsNull)
+            {
+                return true;
+            }
+            return typeId.ServerIndex == 0 &&
+                !string.IsNullOrEmpty(typeId.NamespaceUri) &&
+                !typeId.InnerNodeId.IsNull;
+        }
+
+        /// <summary>
+        /// Writes the UaTypeId of an ExtensionObject or message (Part 6 5.4.2.16). A
+        /// TypeId whose NamespaceUri is not in the context's namespace table keeps its
+        /// type identity in the nsu= form of a NodeId (Part 6 5.4.2.10), which needs no
+        /// namespace table entry.
+        /// </summary>
+        private void WriteUaTypeId(in ExpandedNodeId typeId)
+        {
+            var localTypeId = ExpandedNodeId.ToNodeId(typeId, Context.NamespaceUris);
+            if (!localTypeId.IsNull)
+            {
+                WriteNodeId(JsonProperties.UaTypeId, localTypeId);
+                return;
+            }
+            m_writer.WriteString(JsonProperties.UaTypeId, typeId.Format(Context, true));
+        }
+
         private void WriteJsonExtensionObjectBody(string rawJson, bool skipUaTypeId)
         {
+            // The body's root object is the ExtensionObject already opened, so its
+            // nested containers must fit into the levels left below the nesting limit.
+            int maxBodyDepth = GetMaxNestingDepth() - m_writer.CurrentDepth + 1;
             try
             {
-                using JsonDocument document = JsonDocument.Parse(rawJson);
+                using JsonDocument document = JsonDocument.Parse(
+                    rawJson,
+                    new JsonDocumentOptions { MaxDepth = maxBodyDepth });
                 if (document.RootElement.ValueKind != JsonValueKind.Object)
                 {
                     throw ServiceResultException.Create(
@@ -1437,10 +1627,36 @@ namespace Opc.Ua
             }
             catch (JsonException ex)
             {
+                if (IsValidJson(rawJson))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        ex,
+                        "ExtensionObject JSON body exceeds the maximum nesting level.");
+                }
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingError,
                     ex,
                     "ExtensionObject JSON body is not valid JSON.");
+            }
+        }
+
+        /// <summary>
+        /// Whether a raw JSON body that failed to parse within the nesting limit is
+        /// valid JSON at any depth, so it failed because it is too deep.
+        /// </summary>
+        private static bool IsValidJson(string rawJson)
+        {
+            try
+            {
+                using JsonDocument document = JsonDocument.Parse(
+                    rawJson,
+                    new JsonDocumentOptions { MaxDepth = int.MaxValue });
+                return true;
+            }
+            catch (JsonException)
+            {
+                return false;
             }
         }
 
@@ -1565,18 +1781,31 @@ namespace Opc.Ua
         /// </summary>
         private void WriteLocalizedText(LocalizedText value)
         {
-            if (value.IsNull)
+            if (IsJsonNull(value))
             {
                 m_writer.WriteNullValue();
                 return;
             }
             StartObject();
-            WriteString(JsonProperties.Text, value.Text);
+            if (!string.IsNullOrEmpty(value.Text))
+            {
+                WriteString(JsonProperties.Text, value.Text);
+            }
             if (!string.IsNullOrEmpty(value.Locale))
             {
                 WriteString(JsonProperties.Locale, value.Locale);
             }
             EndObject();
+        }
+
+        /// <summary>
+        /// Text and Locale are not encoded if they are null or empty (Part 6 5.4.2.15), so a
+        /// value without either is the null LocalizedText (all fields default, Part 6 5.1.2).
+        /// </summary>
+        private static bool IsJsonNull(LocalizedText value)
+        {
+            return value.IsNull ||
+                (string.IsNullOrEmpty(value.Text) && string.IsNullOrEmpty(value.Locale));
         }
 
         /// <summary>
@@ -1603,7 +1832,13 @@ namespace Opc.Ua
                 return;
             }
 
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+            if (TryMapNamespaceIndex(value.NamespaceIndex, out ushort namespaceIndex))
+            {
+                m_writer.WriteStringValue(value.WithNamespaceIndex(namespaceIndex).Format(Context));
+                return;
+            }
+
+#if NET6_0_OR_GREATER
             // Avoid the per node id string allocation for the common cases that
             // fit into a stack buffer (numeric/guid/string in the default
             // namespace or any non namespace-uri form).
@@ -1652,12 +1887,28 @@ namespace Opc.Ua
 
         private string FormatQualifiedName(QualifiedName value)
         {
-            if (!string.IsNullOrEmpty(value.Name) || value.NamespaceIndex == 0)
+            bool useNamespaceUri = m_options.ForceNamespaceUri;
+            if (TryMapNamespaceIndex(value.NamespaceIndex, out ushort namespaceIndex))
             {
-                return value.Format(Context, m_options.ForceNamespaceUri);
+                value = new QualifiedName(value.Name, namespaceIndex);
+                useNamespaceUri = false;
             }
 
-            if (m_options.ForceNamespaceUri)
+            if (value.NamespaceIndex == 0)
+            {
+                // A name in namespace 0 uses the <name> form (5.1.12 Table 7);
+                // the index prefix is only written when the name would
+                // otherwise parse back as another form (5.4.2.14).
+                string name = value.Name ?? string.Empty;
+                return IsAmbiguousNamespaceZeroName(name) ? "0:" + name : name;
+            }
+
+            if (!string.IsNullOrEmpty(value.Name))
+            {
+                return value.Format(Context, useNamespaceUri);
+            }
+
+            if (useNamespaceUri)
             {
                 string? namespaceUri = Context.NamespaceUris.GetString(value.NamespaceIndex);
                 if (!string.IsNullOrEmpty(namespaceUri))
@@ -1667,6 +1918,25 @@ namespace Opc.Ua
             }
 
             return value.NamespaceIndex.ToString(CultureInfo.InvariantCulture) + ":";
+        }
+
+        /// <summary>
+        /// Whether a name in namespace 0 has the shape of another QualifiedName
+        /// form: a digit run followed by ':' (a NamespaceIndex) or "nsu=" with
+        /// a ';' (a NamespaceUri).
+        /// </summary>
+        private static bool IsAmbiguousNamespaceZeroName(string name)
+        {
+            if (name.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                return name.IndexOf(';', 4) >= 0;
+            }
+            int digits = 0;
+            while (digits < name.Length && name[digits] is >= '0' and <= '9')
+            {
+                digits++;
+            }
+            return digits > 0 && digits < name.Length && name[digits] == ':';
         }
 
         /// <summary>
@@ -1707,7 +1977,9 @@ namespace Opc.Ua
             if (!value.Equals(StatusCodes.Good, StatusCodeComparison.AllBits))
             {
                 WriteUInt32(JsonProperties.Code, value.Code);
-                if (!m_options.OmitStatusCodeSymbol && !m_options.SuppressArtifacts)
+                // Only the CompactEncoding omits the Symbol (5.4.2.12); RawData is a
+                // VerboseEncoding that omits type artifacts only (5.4.1).
+                if (!m_options.OmitStatusCodeSymbol)
                 {
                     string? symbolicId = value.SymbolicId;
                     if (!string.IsNullOrEmpty(symbolicId))
@@ -1759,6 +2031,12 @@ namespace Opc.Ua
         private void WriteEncodeable<T>(T value)
             where T : IEncodeable
         {
+            // Part 6 5.4.5: a NULL array element is the JSON literal null.
+            if (value is null)
+            {
+                m_writer.WriteNullValue();
+                return;
+            }
             StartObject();
             value.Encode(this);
             EndObject();
@@ -1770,12 +2048,17 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         private void WriteEncodeableAsExtensionObject<T>(T value) where T : IEncodeable
         {
-            StartObject();
-            var typeId = ExpandedNodeId.ToNodeId(value.TypeId, Context.NamespaceUris);
-            // Disregard RawDataMode as per 5.4.1 (encoding of Structure or Variant)
-            if (!typeId.IsNull)
+            // Part 6 5.4.5: a NULL array element is the JSON literal null.
+            if (value is null)
             {
-                WriteNodeId(JsonProperties.UaTypeId, typeId);
+                m_writer.WriteNullValue();
+                return;
+            }
+            StartObject();
+            // Disregard RawDataMode as per 5.4.1 (encoding of Structure or Variant)
+            if (CanWriteUaTypeId(value.TypeId))
+            {
+                WriteUaTypeId(value.TypeId);
             }
             value.Encode(this);
             EndObject();
@@ -1887,7 +2170,7 @@ namespace Opc.Ua
         /// <summary>
         /// Write variant
         /// </summary>
-        private void WriteVariant(in Variant value, bool suppressUaType)
+        private void WriteVariant(in Variant value)
         {
             if (value.IsNull)
             {
@@ -1895,28 +2178,65 @@ namespace Opc.Ua
                 return;
             }
             StartObject();
-            if (!suppressUaType)
-            {
-                WriteVariantUaTypeByte(value);
-            }
-            if (!m_options.IgnoreDefaultValues || !value.ValueIsDefaultOrNull)
+            WriteVariantUaTypeByte(value);
+            if (!IsNullVariantValue(value))
             {
                 m_writer.WritePropertyName(JsonProperties.Value);
-                WriteVariantContents(in value, false, suppressUaType);
+                WriteVariantContents(in value, false);
             }
             EndObject();
         }
 
         /// <summary>
-        /// Write variant values
+        /// Whether the Value field of a Variant or DataValue is left out. It is not
+        /// encoded exactly when the value is a NULL of a nullable built-in type (Part 6
+        /// 5.4.2.17 Table 41, Table 1), in every encoding: the default omission of the
+        /// CompactEncoding covers the fields of a Structure (Part 6 5.4.2.1), not the
+        /// Value, and a missing Value of a non-nullable type would read as NULL. A decoder
+        /// reconstructs a missing Value as a scalar of the UaType, so an array Value is
+        /// never omitted; a null array is written as the semantically equal empty array
+        /// instead (Part 6 5.1.11).
         /// </summary>
-        private void WriteVariantArray(ArrayOf<Variant> values, bool suppressUaType)
+        private static bool IsNullVariantValue(in Variant value)
+        {
+            if (!value.TypeInfo.IsScalar)
+            {
+                return false;
+            }
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.LocalizedText:
+                    return IsJsonNull(value.GetLocalizedText());
+                case BuiltInType.String:
+                case BuiltInType.DateTime:
+                case BuiltInType.Guid:
+                case BuiltInType.ByteString:
+                case BuiltInType.XmlElement:
+                case BuiltInType.NodeId:
+                case BuiltInType.ExpandedNodeId:
+                case BuiltInType.QualifiedName:
+                case BuiltInType.ExtensionObject:
+                case BuiltInType.DataValue:
+                    return value.ValueIsDefaultOrNull;
+                default:
+                    // Non-nullable types are always encoded. Also Variant and
+                    // DiagnosticInfo, which are not valid Variant contents and must
+                    // still reach the writer to be rejected.
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Write variant values. Every element is a BaseDataType value, so it keeps its
+        /// UaType also in RawData (5.4.1).
+        /// </summary>
+        private void WriteVariantArray(ArrayOf<Variant> values)
         {
             StartArray(values.Count);
             ReadOnlySpan<Variant> span = values.Span;
             for (int i = 0; i < span.Length; i++)
             {
-                WriteVariant(in span[i], suppressUaType);
+                WriteVariant(in span[i]);
             }
             EndArray();
         }
@@ -1966,322 +2286,388 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void WriteVariantContents(
             in Variant value,
-            bool writeRawValue,
-            bool suppressUaType)
+            bool writeRawValue)
         {
-            // write scalar.
+            // An empty matrix Variant has no valid Dimensions (all must be
+            // > 0) and is written as an empty array (OPC 10000-6 5.2.2.16,
+            // 5.4.2.17).
+            if (!writeRawValue && value.IsEmptyMatrix)
+            {
+                WriteVariantContents(value.ToEmptyArray(), false);
+                return;
+            }
+
+            // Each form is written by its own method. A Variant nested in a Variant
+            // array, a DataValue or an ExtensionObject recurses through here, and a
+            // single method holding the temporaries of all three switches made every
+            // nesting level cost several KB of stack.
             if (value.TypeInfo.IsScalar)
             {
-                switch (value.TypeInfo.BuiltInType)
-                {
-                    case BuiltInType.Null:
-                        m_writer.WriteNullValue();
-                        return;
-                    case BuiltInType.Boolean:
-                        m_writer.WriteBooleanValue(value.GetBoolean());
-                        return;
-                    case BuiltInType.SByte:
-                        m_writer.WriteNumberValue(value.GetSByte());
-                        return;
-                    case BuiltInType.Byte:
-                        m_writer.WriteNumberValue(value.GetByte());
-                        return;
-                    case BuiltInType.Int16:
-                        m_writer.WriteNumberValue(value.GetInt16());
-                        return;
-                    case BuiltInType.UInt16:
-                        m_writer.WriteNumberValue(value.GetUInt16());
-                        return;
-                    case BuiltInType.Enumeration when writeRawValue:
-                        WriteEnumerated(value.GetEnumeration());
-                        break;
-                    // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4
-                    case BuiltInType.Enumeration:
-                    case BuiltInType.Int32:
-                        m_writer.WriteNumberValue(value.GetInt32());
-                        return;
-                    case BuiltInType.UInt32:
-                        m_writer.WriteNumberValue(value.GetUInt32());
-                        return;
-                    case BuiltInType.Int64:
-                        WriteInt64(value.GetInt64());
-                        return;
-                    case BuiltInType.UInt64:
-                        WriteUInt64(value.GetUInt64());
-                        return;
-                    case BuiltInType.Float:
-                        WriteFloat(value.GetFloat());
-                        return;
-                    case BuiltInType.Double:
-                        WriteDouble(value.GetDouble());
-                        return;
-                    case BuiltInType.String:
-                        WriteString(value.GetString());
-                        return;
-                    case BuiltInType.DateTime:
-                        WriteDateTime(value.GetDateTime());
-                        return;
-                    case BuiltInType.Guid:
-                        WriteGuid(value.GetGuid());
-                        return;
-                    case BuiltInType.ByteString:
-                        WriteByteString(value.GetByteString());
-                        return;
-                    case BuiltInType.XmlElement:
-                        WriteXmlElement(value.GetXmlElement());
-                        return;
-                    case BuiltInType.NodeId:
-                        WriteNodeId(value.GetNodeId());
-                        return;
-                    case BuiltInType.ExpandedNodeId:
-                        WriteExpandedNodeId(value.GetExpandedNodeId());
-                        return;
-                    case BuiltInType.StatusCode:
-                        WriteStatusCode(value.GetStatusCode());
-                        return;
-                    case BuiltInType.QualifiedName:
-                        WriteQualifiedName(value.GetQualifiedName());
-                        return;
-                    case BuiltInType.LocalizedText:
-                        WriteLocalizedText(value.GetLocalizedText());
-                        return;
-                    case BuiltInType.ExtensionObject:
-                        WriteExtensionObject(value.GetExtensionObject());
-                        return;
-                    case BuiltInType.DataValue:
-                        WriteDataValue(value.GetDataValue());
-                        return;
-                    case BuiltInType.Variant:
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                    case BuiltInType.DiagnosticInfo:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding a Variant: {0}",
-                            value.TypeInfo.BuiltInType);
-                    default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
-                }
+                WriteScalarVariantContents(in value, writeRawValue);
             }
-            // write array
-            else if (value.TypeInfo.IsArray)
+            // write array (a raw matrix field value is always an inline
+            // matrix, also when the Variant lost the matrix type info)
+            else if (value.TypeInfo.IsArray &&
+                !(writeRawValue && value.IsInlineMatrix(out _)))
             {
-                switch (value.TypeInfo.BuiltInType)
-                {
-                    case BuiltInType.Boolean:
-                        WriteBooleanArray(value.GetBooleanArray());
-                        break;
-                    case BuiltInType.SByte:
-                        WriteSByteArray(value.GetSByteArray());
-                        break;
-                    case BuiltInType.Byte:
-                        WriteByteArray(value.GetByteArray());
-                        break;
-                    case BuiltInType.Int16:
-                        WriteInt16Array(value.GetInt16Array());
-                        break;
-                    case BuiltInType.UInt16:
-                        WriteUInt16Array(value.GetUInt16Array());
-                        break;
-                    case BuiltInType.Enumeration when writeRawValue:
-                        WriteEnumeratedArray(value.GetEnumerationArray());
-                        break;
-                    case BuiltInType.Enumeration:
-                    case BuiltInType.Int32:
-                        WriteInt32Array(value.GetInt32Array());
-                        break;
-                    case BuiltInType.UInt32:
-                        WriteUInt32Array(value.GetUInt32Array());
-                        break;
-                    case BuiltInType.Int64:
-                        WriteInt64Array(value.GetInt64Array());
-                        break;
-                    case BuiltInType.UInt64:
-                        WriteUInt64Array(value.GetUInt64Array());
-                        break;
-                    case BuiltInType.Float:
-                        WriteFloatArray(value.GetFloatArray());
-                        break;
-                    case BuiltInType.Double:
-                        WriteDoubleArray(value.GetDoubleArray());
-                        break;
-                    case BuiltInType.String:
-                        WriteStringArray(value.GetStringArray());
-                        break;
-                    case BuiltInType.DateTime:
-                        WriteDateTimeArray(value.GetDateTimeArray());
-                        break;
-                    case BuiltInType.Guid:
-                        WriteGuidArray(value.GetGuidArray());
-                        break;
-                    case BuiltInType.ByteString:
-                        WriteByteStringArray(value.GetByteStringArray());
-                        break;
-                    case BuiltInType.XmlElement:
-                        WriteXmlElementArray(value.GetXmlElementArray());
-                        break;
-                    case BuiltInType.NodeId:
-                        WriteNodeIdArray(value.GetNodeIdArray());
-                        break;
-                    case BuiltInType.ExpandedNodeId:
-                        WriteExpandedNodeIdArray(value.GetExpandedNodeIdArray());
-                        break;
-                    case BuiltInType.StatusCode:
-                        WriteStatusCodeArray(value.GetStatusCodeArray());
-                        break;
-                    case BuiltInType.QualifiedName:
-                        WriteQualifiedNameArray(value.GetQualifiedNameArray());
-                        break;
-                    case BuiltInType.LocalizedText:
-                        WriteLocalizedTextArray(value.GetLocalizedTextArray());
-                        break;
-                    case BuiltInType.ExtensionObject:
-                        WriteExtensionObjectArray(value.GetExtensionObjectArray());
-                        break;
-                    case BuiltInType.DataValue:
-                        WriteDataValueArray(value.GetDataValueArray());
-                        break;
-                    case BuiltInType.Variant:
-                        WriteVariantArray(value.GetVariantArray(), suppressUaType);
-                        break;
-                    case BuiltInType.DiagnosticInfo:
-                    case BuiltInType.Null:
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding a Variant: {0}",
-                            value.TypeInfo.BuiltInType);
-                    default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
-                }
+                WriteArrayVariantContents(in value, writeRawValue);
             }
-            // Write multi dimension
             else
             {
-                int[] dim;
-                if (writeRawValue)
-                {
-                    // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.5
-                    StartObject();
-                    m_writer.WritePropertyName(JsonProperties.Array);
-                }
-                switch (value.TypeInfo.BuiltInType)
-                {
-                    case BuiltInType.Boolean:
-                        WriteBooleanArray(value.GetBooleanMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.SByte:
-                        WriteSByteArray(value.GetSByteMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.Byte:
-                        WriteByteArray(value.GetByteMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.Int16:
-                        WriteInt16Array(value.GetInt16Matrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.UInt16:
-                        WriteUInt16Array(value.GetUInt16Matrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.Enumeration when writeRawValue:
-                        WriteEnumeratedArray(value.GetEnumerationMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.Enumeration:
-                    case BuiltInType.Int32:
-                        WriteInt32Array(value.GetInt32Matrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.UInt32:
-                        WriteUInt32Array(value.GetUInt32Matrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.Int64:
-                        WriteInt64Array(value.GetInt64Matrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.UInt64:
-                        WriteUInt64Array(value.GetUInt64Matrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.Float:
-                        WriteFloatArray(value.GetFloatMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.Double:
-                        WriteDoubleArray(value.GetDoubleMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.String:
-                        WriteStringArray(value.GetStringMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.DateTime:
-                        WriteDateTimeArray(value.GetDateTimeMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.Guid:
-                        WriteGuidArray(value.GetGuidMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.ByteString:
-                        WriteByteStringArray(value.GetByteStringMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.XmlElement:
-                        WriteXmlElementArray(value.GetXmlElementMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.NodeId:
-                        WriteNodeIdArray(value.GetNodeIdMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.ExpandedNodeId:
-                        WriteExpandedNodeIdArray(value.GetExpandedNodeIdMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.StatusCode:
-                        WriteStatusCodeArray(value.GetStatusCodeMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.QualifiedName:
-                        WriteQualifiedNameArray(value.GetQualifiedNameMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.LocalizedText:
-                        WriteLocalizedTextArray(value.GetLocalizedTextMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.ExtensionObject:
-                        WriteExtensionObjectArray(value.GetExtensionObjectMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.DataValue:
-                        WriteDataValueArray(value.GetDataValueMatrix().ToArrayOf(out dim));
-                        break;
-                    case BuiltInType.Variant:
-                        WriteVariantArray(value.GetVariantMatrix().ToArrayOf(out dim), suppressUaType);
-                        break;
-                    case BuiltInType.DiagnosticInfo:
-                    case BuiltInType.Null:
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadEncodingError,
-                            "Unexpected type encountered while encoding a Variant: {0}",
-                            value.TypeInfo.BuiltInType);
-                    default:
-                        throw ServiceResultException.Unexpected(
-                            $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
-                }
+                WriteMatrixVariantContents(in value, writeRawValue);
+            }
+        }
 
-                // A multi-dimensional Variant must carry Dimensions where every
-                // entry is greater than zero and the product equals the flattened
-                // element count (Part 6 5.2.2.16 / 5.4.5). Refuse to emit
-                // inconsistent dimensions (e.g. a zero dimension produced by an
-                // empty matrix) instead of writing wire data a conforming peer
-                // must reject with BadDecodingError.
-                if (!MatrixOf.IsValidMatrix(dim))
-                {
+        /// <summary>
+        /// Write the contents of a scalar variant.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteScalarVariantContents(in Variant value, bool writeRawValue)
+        {
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Null:
+                    m_writer.WriteNullValue();
+                    return;
+                case BuiltInType.Boolean:
+                    m_writer.WriteBooleanValue(value.GetBoolean());
+                    return;
+                case BuiltInType.SByte:
+                    m_writer.WriteNumberValue(value.GetSByte());
+                    return;
+                case BuiltInType.Byte:
+                    m_writer.WriteNumberValue(value.GetByte());
+                    return;
+                case BuiltInType.Int16:
+                    m_writer.WriteNumberValue(value.GetInt16());
+                    return;
+                case BuiltInType.UInt16:
+                    m_writer.WriteNumberValue(value.GetUInt16());
+                    return;
+                case BuiltInType.Enumeration when writeRawValue:
+                    WriteEnumerated(value.GetEnumeration());
+                    break;
+                // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4
+                case BuiltInType.Enumeration:
+                case BuiltInType.Int32:
+                    m_writer.WriteNumberValue(value.GetInt32());
+                    return;
+                case BuiltInType.UInt32:
+                    m_writer.WriteNumberValue(value.GetUInt32());
+                    return;
+                case BuiltInType.Int64:
+                    WriteInt64(value.GetInt64());
+                    return;
+                case BuiltInType.UInt64:
+                    WriteUInt64(value.GetUInt64());
+                    return;
+                case BuiltInType.Float:
+                    WriteFloat(value.GetFloat());
+                    return;
+                case BuiltInType.Double:
+                    WriteDouble(value.GetDouble());
+                    return;
+                case BuiltInType.String:
+                    WriteString(value.GetString());
+                    return;
+                case BuiltInType.DateTime:
+                    WriteDateTime(value.GetDateTime());
+                    return;
+                case BuiltInType.Guid:
+                    WriteGuid(value.GetGuid());
+                    return;
+                case BuiltInType.ByteString:
+                    WriteByteString(value.GetByteString());
+                    return;
+                case BuiltInType.XmlElement:
+                    WriteXmlElement(value.GetXmlElement());
+                    return;
+                case BuiltInType.NodeId:
+                    WriteNodeId(value.GetNodeId());
+                    return;
+                case BuiltInType.ExpandedNodeId:
+                    WriteExpandedNodeId(value.GetExpandedNodeId());
+                    return;
+                case BuiltInType.StatusCode:
+                    WriteStatusCode(value.GetStatusCode());
+                    return;
+                case BuiltInType.QualifiedName:
+                    WriteQualifiedName(value.GetQualifiedName());
+                    return;
+                case BuiltInType.LocalizedText:
+                    WriteLocalizedText(value.GetLocalizedText());
+                    return;
+                case BuiltInType.ExtensionObject:
+                    WriteExtensionObject(value.GetExtensionObject());
+                    return;
+                case BuiltInType.DataValue:
+                    WriteDataValue(value.GetDataValue());
+                    return;
+                case BuiltInType.Variant:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                case BuiltInType.DiagnosticInfo:
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingError,
-                        "Cannot encode a matrix Variant with inconsistent " +
-                        "Dimensions [{0}].",
-                        string.Join(",", dim));
-                }
+                        "Unexpected type encountered while encoding a Variant: {0}",
+                        value.TypeInfo.BuiltInType);
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
+            }
+        }
 
-                WriteInt32Array(JsonProperties.Dimensions, dim);
-                if (writeRawValue)
-                {
-                    EndObject();
-                }
+        /// <summary>
+        /// Write the contents of a one-dimensional variant array.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteArrayVariantContents(in Variant value, bool writeRawValue)
+        {
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    WriteBooleanArray(value.GetBooleanArray());
+                    break;
+                case BuiltInType.SByte:
+                    WriteSByteArray(value.GetSByteArray());
+                    break;
+                case BuiltInType.Byte:
+                    WriteByteArray(value.GetByteArray());
+                    break;
+                case BuiltInType.Int16:
+                    WriteInt16Array(value.GetInt16Array());
+                    break;
+                case BuiltInType.UInt16:
+                    WriteUInt16Array(value.GetUInt16Array());
+                    break;
+                case BuiltInType.Enumeration when writeRawValue:
+                    WriteEnumeratedArray(value.GetEnumerationArray());
+                    break;
+                case BuiltInType.Enumeration:
+                case BuiltInType.Int32:
+                    WriteInt32Array(value.GetInt32Array());
+                    break;
+                case BuiltInType.UInt32:
+                    WriteUInt32Array(value.GetUInt32Array());
+                    break;
+                case BuiltInType.Int64:
+                    WriteInt64Array(value.GetInt64Array());
+                    break;
+                case BuiltInType.UInt64:
+                    WriteUInt64Array(value.GetUInt64Array());
+                    break;
+                case BuiltInType.Float:
+                    WriteFloatArray(value.GetFloatArray());
+                    break;
+                case BuiltInType.Double:
+                    WriteDoubleArray(value.GetDoubleArray());
+                    break;
+                case BuiltInType.String:
+                    WriteStringArray(value.GetStringArray());
+                    break;
+                case BuiltInType.DateTime:
+                    WriteDateTimeArray(value.GetDateTimeArray());
+                    break;
+                case BuiltInType.Guid:
+                    WriteGuidArray(value.GetGuidArray());
+                    break;
+                case BuiltInType.ByteString:
+                    WriteByteStringArray(value.GetByteStringArray());
+                    break;
+                case BuiltInType.XmlElement:
+                    WriteXmlElementArray(value.GetXmlElementArray());
+                    break;
+                case BuiltInType.NodeId:
+                    WriteNodeIdArray(value.GetNodeIdArray());
+                    break;
+                case BuiltInType.ExpandedNodeId:
+                    WriteExpandedNodeIdArray(value.GetExpandedNodeIdArray());
+                    break;
+                case BuiltInType.StatusCode:
+                    WriteStatusCodeArray(value.GetStatusCodeArray());
+                    break;
+                case BuiltInType.QualifiedName:
+                    WriteQualifiedNameArray(value.GetQualifiedNameArray());
+                    break;
+                case BuiltInType.LocalizedText:
+                    WriteLocalizedTextArray(value.GetLocalizedTextArray());
+                    break;
+                case BuiltInType.ExtensionObject:
+                    WriteExtensionObjectArray(value.GetExtensionObjectArray());
+                    break;
+                case BuiltInType.DataValue:
+                    WriteDataValueArray(value.GetDataValueArray());
+                    break;
+                case BuiltInType.Variant:
+                    WriteVariantArray(value.GetVariantArray());
+                    break;
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Null:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "Unexpected type encountered while encoding a Variant: {0}",
+                        value.TypeInfo.BuiltInType);
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Write the contents of a multi-dimensional variant.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteMatrixVariantContents(in Variant value, bool writeRawValue)
+        {
+            if (value.ValueIsDefaultOrNull)
+            {
+                // A null matrix has no Dimensions a peer can accept (every entry
+                // must be greater than zero), and null and empty arrays are
+                // semantically the same (Part 6 5.1.11), so write an empty array.
+                StartArray(0);
+                EndArray();
+                return;
+            }
+
+            int[] dim;
+            if (writeRawValue)
+            {
+                // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.5
+                StartObject();
+                m_writer.WritePropertyName(JsonProperties.Array);
+            }
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    WriteBooleanArray(value.GetBooleanMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.SByte:
+                    WriteSByteArray(value.GetSByteMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.Byte:
+                    WriteByteArray(value.GetByteMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.Int16:
+                    WriteInt16Array(value.GetInt16Matrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.UInt16:
+                    WriteUInt16Array(value.GetUInt16Matrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.Enumeration when writeRawValue:
+                    WriteEnumeratedArray(value.GetEnumerationMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.Enumeration:
+                case BuiltInType.Int32:
+                    WriteInt32Array(value.GetInt32Matrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.UInt32:
+                    WriteUInt32Array(value.GetUInt32Matrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.Int64:
+                    WriteInt64Array(value.GetInt64Matrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.UInt64:
+                    WriteUInt64Array(value.GetUInt64Matrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.Float:
+                    WriteFloatArray(value.GetFloatMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.Double:
+                    WriteDoubleArray(value.GetDoubleMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.String:
+                    WriteStringArray(value.GetStringMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.DateTime:
+                    WriteDateTimeArray(value.GetDateTimeMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.Guid:
+                    WriteGuidArray(value.GetGuidMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.ByteString:
+                    WriteByteStringArray(value.GetByteStringMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.XmlElement:
+                    WriteXmlElementArray(value.GetXmlElementMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.NodeId:
+                    WriteNodeIdArray(value.GetNodeIdMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.ExpandedNodeId:
+                    WriteExpandedNodeIdArray(value.GetExpandedNodeIdMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.StatusCode:
+                    WriteStatusCodeArray(value.GetStatusCodeMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.QualifiedName:
+                    WriteQualifiedNameArray(value.GetQualifiedNameMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.LocalizedText:
+                    WriteLocalizedTextArray(value.GetLocalizedTextMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.ExtensionObject:
+                    WriteExtensionObjectArray(value.GetExtensionObjectMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.DataValue:
+                    WriteDataValueArray(value.GetDataValueMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.Variant:
+                    WriteVariantArray(value.GetVariantMatrix().ToArrayOf(out dim));
+                    break;
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Null:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "Unexpected type encountered while encoding a Variant: {0}",
+                        value.TypeInfo.BuiltInType);
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
+            }
+
+            // A multi-dimensional Variant must carry Dimensions where every
+            // entry is greater than zero and the product equals the flattened
+            // element count (Part 6 5.2.2.16 / 5.4.5). Refuse to emit
+            // inconsistent dimensions (e.g. a zero dimension produced by an
+            // empty matrix) instead of writing wire data a conforming peer
+            // must reject with BadDecodingError. The inline matrix of a
+            // structure field (raw value) may be empty but has at least
+            // two dimensions (5.2.5 Table 28, 5.4.5 Table 44): an empty
+            // MatrixOf (single zero dimension) is written as 0 x 0.
+            if (writeRawValue)
+            {
+                // The shape also bounds an empty matrix: a decoder
+                // rejects [100000, 100000, 0] beyond MaxArrayLength.
+                int elementCount = dim.Length == 1
+                    ? dim[0]
+                    : MatrixOf.TryGetInlineMatrixElementCount(dim, out int count, out _)
+                        ? count
+                        : -1;
+                dim = MatrixOf.GetValidatedInlineMatrixDimensions(
+                    dim,
+                    elementCount,
+                    Context.MaxArrayLength);
+            }
+            else if (!MatrixOf.IsValidMatrix(dim))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Cannot encode a matrix Variant with inconsistent " +
+                    "Dimensions [{0}].",
+                    string.Join(",", dim));
+            }
+
+            WriteInt32Array(JsonProperties.Dimensions, dim);
+            if (writeRawValue)
+            {
+                EndObject();
             }
         }
 
@@ -2369,6 +2755,30 @@ namespace Opc.Ua
             if (m_writer.BytesPending >= kFlushThreshold)
             {
                 m_writer.Flush();
+
+                // Abort an oversized message early instead of buffering it whole.
+                CheckMessageSize();
+            }
+        }
+
+        /// <summary>
+        /// Check that the message being encoded does not exceed MaxMessageSize.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckMessageSize()
+        {
+            if (m_messageStart < 0 || Context.MaxMessageSize <= 0)
+            {
+                return;
+            }
+            long size = m_writer.BytesCommitted + m_writer.BytesPending - m_messageStart;
+            if (Context.MaxMessageSize < size)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxMessageSize {0} < {1}",
+                    Context.MaxMessageSize,
+                    size);
             }
         }
 
@@ -2379,6 +2789,7 @@ namespace Opc.Ua
         private void StartArray(int count)
         {
             CheckArrayLength(count);
+            CheckNestingLevel();
             MaybeFlush();
             m_writer.WriteStartArray();
         }
@@ -2427,13 +2838,31 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private void CheckNestingLevel()
         {
-            // check the nesting level for avoiding a stack overflow.
-            if (m_writer.CurrentDepth > Context.MaxEncodingNestingLevels)
+            // check the nesting level for avoiding a stack overflow. The
+            // container about to be opened must stay within the MaxDepth the
+            // JsonDecoder parses with.
+            int maxDepth = GetMaxNestingDepth();
+            if (m_writer.CurrentDepth >= maxDepth)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
-                    $"Maximum nesting level of {Context.MaxEncodingNestingLevels} exceeded.");
+                    $"Maximum nesting level of {maxDepth} exceeded.");
             }
+            EncodingLimits.EnsureSufficientStack();
+        }
+
+        /// <summary>
+        /// The maximum container depth: MaxEncodingNestingLevels, where zero means
+        /// the System.Text.Json default depth the JsonDecoder then parses with.
+        /// Utf8JsonWriter cannot write deeper than 1000 levels and throws an
+        /// InvalidOperationException beyond, so the limit is capped there.
+        /// </summary>
+        private int GetMaxNestingDepth()
+        {
+            int maxDepth = Context.MaxEncodingNestingLevels > 0
+                ? Context.MaxEncodingNestingLevels
+                : kDefaultJsonMaxDepth;
+            return Math.Min(maxDepth, kMaxJsonWriterDepth);
         }
 
         /// <summary>
@@ -2446,6 +2875,17 @@ namespace Opc.Ua
         }
 
         private const int kFlushThreshold = 16 * 1024;
+
+        /// <summary>
+        /// The depth System.Text.Json applies when the reader's MaxDepth is
+        /// zero, which is what the JsonDecoder passes for an unset limit.
+        /// </summary>
+        private const int kDefaultJsonMaxDepth = 64;
+
+        /// <summary>
+        /// The maximum depth of a Utf8JsonWriter.
+        /// </summary>
+        private const int kMaxJsonWriterDepth = 1000;
         private ILogger Logger => m_logger ??= Context.Telemetry.CreateLogger<JsonEncoder>();
 
         private void DisposeWriterAndBuffer()
@@ -2644,11 +3084,10 @@ namespace Opc.Ua
         private ILogger? m_logger;
         private readonly JsonEncoderOptions m_options;
         private readonly Utf8JsonWriter m_writer;
-#pragma warning disable IDE0052 // TODO Keep for future implementation or remove
         private ushort[]? m_namespaceMappings;
         private ushort[]? m_serverMappings;
-#pragma warning restore IDE0052
         private bool m_disposed;
+        private long m_messageStart = -1;
         private const int kMaxPooledJsonWriters = 32;
         private static readonly ConcurrentQueue<Utf8JsonWriter> s_compactJsonWriterPool = new();
         private static readonly ConcurrentQueue<Utf8JsonWriter> s_indentedJsonWriterPool = new();

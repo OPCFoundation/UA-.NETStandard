@@ -1,6 +1,27 @@
 # Client-based NodeSet Export
 
-The OPC UA .NET Standard stack provides the ability to export the address space from an OPC UA server to a NodeSet2 XML file using the client library. This allows you to browse a server's address space and save it to a file that can be used for documentation, analysis, or import into other systems.
+The OPC UA .NET Standard client library can export a server's address space
+to a NodeSet2 XML file. Use the export to document or analyze an address
+space, or to import it into another system.
+
+## Contents
+
+- [Overview](#overview)
+- [Usage](#usage)
+  - [Basic Example](#basic-example)
+  - [Using the Console Reference Client](#using-the-console-reference-client)
+- [Supported Node Types](#supported-node-types)
+- [Features](#features)
+  - [Node Attributes Exported](#node-attributes-exported)
+  - [Namespace Handling](#namespace-handling)
+  - [References](#references)
+- [Limitations](#limitations)
+- [API Reference](#api-reference)
+  - [`CoreClientUtils.ExportNodesToNodeSet2`](#coreclientutilsexportnodestonodeset2)
+  - [`ClientSamples.ExportNodesToNodeSet2`](#clientsamplesexportnodestonodeset2)
+- [Related Topics](#related-topics)
+- [Examples](#examples)
+- [See Also](#see-also)
 
 ## Overview
 

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 // CA2016: integration tests intentionally call cleanup in finally without forwarding the test
 // cancellation token. The test CT may already be cancelled (the [CancelAfter] timeout), which
 // would prevent cleanup from running. CloseAsync/DisposeAsync must complete regardless.

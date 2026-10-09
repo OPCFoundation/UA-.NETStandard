@@ -70,7 +70,7 @@ namespace Opc.Ua.PubSub.Security.Sks
             }
             int signingLength = policy.SigningKeyLength;
             int encryptingLength = policy.EncryptingKeyLength;
-            int nonceLength = policy.NonceLength;
+            int nonceLength = AesCtrNonceLayout.GetKeyNonceLength(policy);
 
             byte[]? signing = null;
             byte[]? encrypting = null;

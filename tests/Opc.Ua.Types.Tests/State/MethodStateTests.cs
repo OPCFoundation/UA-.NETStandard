@@ -58,7 +58,16 @@ namespace Opc.Ua.Types.Tests.State
                 ServerUris = messageContext.ServerUris,
                 EncodeableFactory = messageContext.Factory
             };
+            m_callContext = new SystemContext(telemetry)
+            {
+                NamespaceUris = messageContext.NamespaceUris,
+                ServerUris = messageContext.ServerUris,
+                EncodeableFactory = messageContext.Factory,
+                TypeTable = new TypeTable(messageContext.NamespaceUris)
+            };
         }
+
+        private SystemContext m_callContext;
 
         [Test]
         public void ConstructorSetsDefaultValues()
@@ -82,7 +91,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConstructStaticFactory()
         {
-            NodeState node = MethodState.Construct(null);
+            NodeState node = MethodState.Construct(null!);
             Assert.That(node, Is.InstanceOf<MethodState>());
         }
 
@@ -99,7 +108,7 @@ namespace Opc.Ua.Types.Tests.State
                 Is.EqualTo(NodeStateChangeMasks.NonValue));
 
             // Clear and verify same value does not trigger
-            method.ClearChangeMasks(null, false);
+            method.ClearChangeMasks(null!, false);
             method.Executable = false;
             Assert.That(method.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }
@@ -108,7 +117,7 @@ namespace Opc.Ua.Types.Tests.State
         public void UserExecutablePropertySetterTriggersChangeMask()
         {
             var method = new MethodState(null);
-            method.ClearChangeMasks(null, false);
+            method.ClearChangeMasks(null!, false);
 
             method.UserExecutable = false;
             Assert.That(method.UserExecutable, Is.False);
@@ -312,6 +321,239 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(handlerCalled, Is.True);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+        }
+
+        [Test]
+        public async Task CallAsyncPassesObjectIdToSyncOnCallMethod2HandlerAsync()
+        {
+            var method = new MethodState(null)
+            {
+                Executable = true,
+                UserExecutable = true
+            };
+
+            NodeId receivedObjectId = NodeId.Null;
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) =>
+            {
+                receivedObjectId = objectId;
+                return ServiceResult.Good;
+            };
+
+            ArrayOf<Variant> inputArgs = [];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+            var expectedObjectId = new NodeId(4711, 2);
+
+            ServiceResult result = await method.CallAsync(
+                m_context, expectedObjectId, inputArgs, argumentErrors, outputArgs)
+                .ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+            Assert.That(receivedObjectId, Is.EqualTo(expectedObjectId));
+        }
+
+        [Test]
+        public void CallOmittingTrailingOptionalArgumentPassesNullValue()
+        {
+            MethodState method = CreateMethodWithOptionalArgument(describeByChild: true);
+            ArrayOf<Variant> received = default;
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) =>
+            {
+                received = inputs;
+                return ServiceResult.Good;
+            };
+
+            ArrayOf<Variant> inputArgs = [new Variant(1)];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = method.Call(
+                m_callContext, new NodeId(1), inputArgs, argumentErrors, outputArgs);
+
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, result.ToString());
+            Assert.That(argumentErrors, Has.Count.EqualTo(1));
+            Assert.That(received.Count, Is.EqualTo(2));
+            Assert.That(received[0], Is.EqualTo(new Variant(1)));
+            Assert.That(received[1].IsNull, Is.True);
+        }
+
+        [Test]
+        public void CallOmittingOptionalArgumentDescribedByReferenceOnlySucceeds()
+        {
+            MethodState method = CreateMethodWithOptionalArgument(describeByChild: false);
+            int receivedCount = -1;
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) =>
+            {
+                receivedCount = inputs.Count;
+                return ServiceResult.Good;
+            };
+
+            ArrayOf<Variant> inputArgs = [new Variant(1)];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = method.Call(
+                m_callContext, new NodeId(1), inputArgs, argumentErrors, outputArgs);
+
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, result.ToString());
+            Assert.That(receivedCount, Is.EqualTo(2));
+        }
+
+        [Test]
+        public void CallSupplyingOptionalArgumentPassesItsValue()
+        {
+            MethodState method = CreateMethodWithOptionalArgument(describeByChild: true);
+            ArrayOf<Variant> received = default;
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) =>
+            {
+                received = inputs;
+                return ServiceResult.Good;
+            };
+
+            ArrayOf<Variant> inputArgs = [new Variant(1), new Variant(2)];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = method.Call(
+                m_callContext, new NodeId(1), inputArgs, argumentErrors, outputArgs);
+
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, result.ToString());
+            Assert.That(argumentErrors, Has.Count.EqualTo(2));
+            Assert.That(received[1], Is.EqualTo(new Variant(2)));
+        }
+
+        [Test]
+        public void CallOmittingMandatoryArgumentReturnsBadArgumentsMissing()
+        {
+            MethodState method = CreateMethodWithOptionalArgument(describeByChild: true);
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) => ServiceResult.Good;
+
+            ArrayOf<Variant> inputArgs = [];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = method.Call(
+                m_callContext, new NodeId(1), inputArgs, argumentErrors, outputArgs);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+        }
+
+        [Test]
+        public void CallOmittingArgumentWithoutOptionalDescriptionReturnsBadArgumentsMissing()
+        {
+            MethodState method = CreateMethodWithOptionalArgument(describeByChild: null);
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) => ServiceResult.Good;
+
+            ArrayOf<Variant> inputArgs = [new Variant(1)];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = method.Call(
+                m_callContext, new NodeId(1), inputArgs, argumentErrors, outputArgs);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+        }
+
+        [Test]
+        public void CallDescriptionOfLeadingArgumentDoesNotMakeTrailingArgumentOptional()
+        {
+            MethodState method = CreateMethodWithOptionalArgument(describeByChild: null);
+            var description = new BaseDataVariableState(method)
+            {
+                NodeId = new NodeId(5003),
+                BrowseName = new QualifiedName("Required"),
+                ReferenceTypeId = new NodeId(131u)
+            };
+            method.AddChild(description);
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) => ServiceResult.Good;
+
+            ArrayOf<Variant> inputArgs = [new Variant(1)];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = method.Call(
+                m_callContext, new NodeId(1), inputArgs, argumentErrors, outputArgs);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+        }
+
+        [Test]
+        public void CallOmittingTwoOptionalArgumentsWithMixedDescriptionsSucceeds()
+        {
+            // the penultimate optional argument is described by a child, the last one only
+            // by a bare Reference whose target is not a child.
+            MethodState method = CreateMethodWithOptionalArgument(describeByChild: true);
+            method.InputArguments!.Value =
+            [
+                new Argument { Name = "Required", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },
+                new Argument { Name = "Optional", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },
+                new Argument { Name = "Last", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+            ];
+            method.AddReference(new NodeId(131u), false, new NodeId(5002));
+            int receivedCount = -1;
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) =>
+            {
+                receivedCount = inputs.Count;
+                return ServiceResult.Good;
+            };
+
+            ArrayOf<Variant> inputArgs = [new Variant(1)];
+            var argumentErrors = new List<ServiceResult>();
+            var outputArgs = new List<Variant>();
+
+            ServiceResult result = method.Call(
+                m_callContext, new NodeId(1), inputArgs, argumentErrors, outputArgs);
+
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, result.ToString());
+            Assert.That(receivedCount, Is.EqualTo(3));
+
+            // the mandatory argument is still required.
+            result = method.Call(
+                m_callContext, new NodeId(1), [], new List<ServiceResult>(), new List<Variant>());
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+        }
+
+        /// <summary>
+        /// Creates a method with a required and a trailing argument. The
+        /// trailing one is declared optional by a
+        /// HasOptionalInputArgumentDescription child (<c>true</c>), by a bare
+        /// Reference (<c>false</c>) or not at all (<c>null</c>).
+        /// </summary>
+        private static MethodState CreateMethodWithOptionalArgument(bool? describeByChild)
+        {
+            var method = new MethodState(null)
+            {
+                NodeId = new NodeId(5000),
+                BrowseName = new QualifiedName("Method"),
+                Executable = true,
+                UserExecutable = true
+            };
+            var inputArgs = PropertyState<ArrayOf<Argument>>.With<StructureBuilder<Argument>>(method);
+            inputArgs.BrowseName = new QualifiedName(BrowseNames.InputArguments);
+            inputArgs.Value =
+            [
+                new Argument { Name = "Required", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar },
+                new Argument { Name = "Optional", DataType = DataTypeIds.Int32, ValueRank = ValueRanks.Scalar }
+            ];
+            method.InputArguments = inputArgs;
+
+            // HasOptionalInputArgumentDescription is i=131.
+            if (describeByChild == true)
+            {
+                var description = new BaseDataVariableState(method)
+                {
+                    NodeId = new NodeId(5001),
+                    BrowseName = new QualifiedName("Optional"),
+                    ReferenceTypeId = new NodeId(131u)
+                };
+                method.AddChild(description);
+            }
+            else if (describeByChild == false)
+            {
+                method.AddReference(new NodeId(131u), false, new NodeId(5002));
+            }
+            return method;
         }
 
         [Test]
@@ -634,6 +876,30 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(handlerCalled, Is.True);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+        }
+
+        [Test]
+        public async Task CallAsyncPassesObjectIdToSyncHandler()
+        {
+            var method = new MethodState(null)
+            {
+                Executable = true,
+                UserExecutable = true
+            };
+
+            NodeId observedObjectId = NodeId.Null;
+            method.OnCallMethod2 = (context, methodState, objectId, inputs, outputs) =>
+            {
+                observedObjectId = objectId;
+                return ServiceResult.Good;
+            };
+
+            ServiceResult result = await method.CallAsync(
+                m_context, new NodeId(4711), [], [], []).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+            Assert.That(observedObjectId, Is.EqualTo(new NodeId(4711)),
+                "The async call path must hand the called object's id to OnCallMethod2.");
         }
 
         [Test]

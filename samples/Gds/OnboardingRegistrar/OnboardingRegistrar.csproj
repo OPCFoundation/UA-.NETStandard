@@ -6,7 +6,6 @@
     <AssemblyName>OnboardingRegistrar</AssemblyName>
     <RootNamespace>OnboardingRegistrar</RootNamespace>
     <Description>OPC 10000-21 onboarding registrar sample.</Description>
-    <Nullable>enable</Nullable>
     <PublishAot>true</PublishAot>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
   </PropertyGroup>

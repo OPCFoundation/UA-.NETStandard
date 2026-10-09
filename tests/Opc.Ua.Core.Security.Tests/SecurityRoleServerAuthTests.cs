@@ -43,7 +43,7 @@ namespace Opc.Ua.Core.Security.Tests
         [Test]
         public async Task Auth001RestrictAccessByRoleAsync()
         {
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -98,7 +98,7 @@ namespace Opc.Ua.Core.Security.Tests
                     {
                         using ISession session =
                             await OpenAuxSessionAsync(
-                                securityProfile: policy,
+                                securityProfile: policy!,
                                 userIdentity: new UserIdentity(
                                     "unmapped_user_xyz",
                                     "badpassword"u8))
@@ -114,7 +114,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<DataValue> ReadAttributeAsync(
             NodeId nodeId,
             uint attributeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             ReadResponse response = await session.ReadAsync(
@@ -169,7 +169,7 @@ namespace Opc.Ua.Core.Security.Tests
                         continue;
                     }
 
-                    if (ep.UserIdentityTokens == default)
+                    if (ep.UserIdentityTokens == default!)
                     {
                         continue;
                     }
@@ -179,13 +179,13 @@ namespace Opc.Ua.Core.Security.Tests
                     {
                         if (t.TokenType == UserTokenType.UserName)
                         {
-                            return ep.SecurityPolicyUri;
+                            return ep.SecurityPolicyUri!;
                         }
                     }
                 }
             }
 
-            return null;
+            return null!;
         }
 
         private async Task<ArrayOf<EndpointDescription>>

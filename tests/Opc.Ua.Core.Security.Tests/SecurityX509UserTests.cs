@@ -84,7 +84,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 ISession session = await ClientFixture.ConnectAsync(
-                    ServerUrl, ep.SecurityPolicyUri,
+                    ServerUrl, ep!.SecurityPolicyUri!,
                     userIdentity: await X509UserIdentityHelper
                         .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
@@ -135,7 +135,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 ISession session = await ConnectOnceAsync(
-                    ep.SecurityPolicyUri,
+                    ep!.SecurityPolicyUri!,
                     await X509UserIdentityHelper.CreateAsync(expiredCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
@@ -231,7 +231,7 @@ namespace Opc.Ua.Core.Security.Tests
                 try
                 {
                     session = await ClientFixture.ConnectAsync(
-                        ServerUrl, ep.SecurityPolicyUri,
+                        ServerUrl, ep!.SecurityPolicyUri!,
                         userIdentity: await X509UserIdentityHelper
                             .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
@@ -299,7 +299,7 @@ namespace Opc.Ua.Core.Security.Tests
                 try
                 {
                     session = await ClientFixture.ConnectAsync(
-                        ServerUrl, ep.SecurityPolicyUri,
+                        ServerUrl, ep!.SecurityPolicyUri!,
                         userIdentity: await X509UserIdentityHelper
                             .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
@@ -370,7 +370,7 @@ namespace Opc.Ua.Core.Security.Tests
                 try
                 {
                     session = await ClientFixture.ConnectAsync(
-                        ServerUrl, ep.SecurityPolicyUri,
+                        ServerUrl, ep!.SecurityPolicyUri!,
                         userIdentity: await X509UserIdentityHelper
                             .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
@@ -429,7 +429,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 // Start anonymous
                 ISession session = await ClientFixture.ConnectAsync(
-                    ServerUrl, ep.SecurityPolicyUri).ConfigureAwait(false);
+                    ServerUrl, ep!.SecurityPolicyUri!).ConfigureAwait(false);
                 try
                 {
                     // Switch to X509
@@ -483,7 +483,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 ISession session = await ConnectOnceAsync(
-                    ep.SecurityPolicyUri,
+                    ep!.SecurityPolicyUri!,
                     await X509UserIdentityHelper.CreateAsync(untrustedCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
@@ -510,18 +510,18 @@ namespace Opc.Ua.Core.Security.Tests
             // dedicated pki/rejectedUser review store (sibling of the configured
             // TrustedUserCertificates store) so an operator can inspect it and, if
             // legitimate, move it into the trusted-user store.
-            CertificateTrustList userCertStore = ServerFixture.Config?
-                .SecurityConfiguration?.TrustedUserCertificates;
+            CertificateTrustList userCertStore = (ServerFixture.Config?
+                .SecurityConfiguration?.TrustedUserCertificates)!;
             if (userCertStore == null || string.IsNullOrEmpty(userCertStore.StorePath))
             {
                 Assert.Ignore("Server has no TrustedUserCertificates store.");
             }
 
-            string trustedUserPath = Utils.ReplaceSpecialFolderNames(userCertStore.StorePath);
+            string trustedUserPath = Utils.ReplaceSpecialFolderNames(userCertStore.StorePath)!;
             string parent = Path.GetDirectoryName(
-                trustedUserPath.TrimEnd(
+                trustedUserPath!.TrimEnd(
                     Path.DirectorySeparatorChar,
-                    Path.AltDirectorySeparatorChar));
+                    Path.AltDirectorySeparatorChar))!;
             if (string.IsNullOrEmpty(parent))
             {
                 Assert.Ignore("Cannot derive the rejectedUser review store path.");
@@ -550,7 +550,7 @@ namespace Opc.Ua.Core.Security.Tests
                 try
                 {
                     ISession session = await ConnectOnceAsync(
-                        ep.SecurityPolicyUri,
+                        ep.SecurityPolicyUri!,
                         await X509UserIdentityHelper.CreateAsync(expiredCert, Telemetry)
                             .ConfigureAwait(false))
                         .ConfigureAwait(false);
@@ -613,12 +613,12 @@ namespace Opc.Ua.Core.Security.Tests
                 try
                 {
                     session1 = await ClientFixture.ConnectAsync(
-                        ServerUrl, ep.SecurityPolicyUri,
+                        ServerUrl, ep!.SecurityPolicyUri!,
                         userIdentity: await X509UserIdentityHelper
                             .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
                     session2 = await ClientFixture.ConnectAsync(
-                        ServerUrl, ep.SecurityPolicyUri,
+                        ServerUrl, ep.SecurityPolicyUri!,
                         userIdentity: await X509UserIdentityHelper
                             .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
@@ -696,7 +696,7 @@ namespace Opc.Ua.Core.Security.Tests
                 try
                 {
                     session = await ClientFixture.ConnectAsync(
-                        ServerUrl, ep.SecurityPolicyUri,
+                        ServerUrl, ep!.SecurityPolicyUri!,
                         userIdentity: await X509UserIdentityHelper
                             .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
@@ -764,7 +764,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 ISession session = await ConnectOnceAsync(
-                    ep.SecurityPolicyUri,
+                    ep!.SecurityPolicyUri!,
                     await X509UserIdentityHelper.CreateAsync(wrongKuCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 await session.CloseAsync(5000, true).ConfigureAwait(false);
@@ -836,7 +836,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 ISession session = await ConnectOnceAsync(
-                    ep.SecurityPolicyUri,
+                    ep!.SecurityPolicyUri!,
                     await X509UserIdentityHelper.CreateAsync(sanCert, Telemetry).ConfigureAwait(false))
                     .ConfigureAwait(false);
                 try
@@ -901,7 +901,7 @@ namespace Opc.Ua.Core.Security.Tests
                 try
                 {
                     session = await ClientFixture.ConnectAsync(
-                        ServerUrl, ep.SecurityPolicyUri,
+                        ServerUrl, ep!.SecurityPolicyUri!,
                         userIdentity: await X509UserIdentityHelper
                             .CreateAsync(userCert, Telemetry).ConfigureAwait(false))
                         .ConfigureAwait(false);
@@ -962,7 +962,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -1008,7 +1008,7 @@ namespace Opc.Ua.Core.Security.Tests
                     continue;
                 }
 
-                if (requireRsa && IsEccPolicy(ep.SecurityPolicyUri))
+                if (requireRsa && IsEccPolicy(ep.SecurityPolicyUri!))
                 {
                     continue;
                 }
@@ -1016,7 +1016,7 @@ namespace Opc.Ua.Core.Security.Tests
                 return ep;
             }
 
-            return null;
+            return null!;
         }
 
         private static bool IsEccPolicy(string policyUri)
@@ -1062,8 +1062,8 @@ namespace Opc.Ua.Core.Security.Tests
             Certificate cert)
         {
             // Add to the server's user certificate trust store
-            CertificateTrustList userCertStore = ServerFixture.Config?
-                .SecurityConfiguration?.TrustedUserCertificates;
+            CertificateTrustList userCertStore = (ServerFixture.Config?
+                .SecurityConfiguration?.TrustedUserCertificates)!;
             if (userCertStore == null)
             {
                 Assert.Ignore(
@@ -1078,8 +1078,8 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task RemoveCertFromServerTrustStoreAsync(
             Certificate cert)
         {
-            CertificateTrustList userCertStore = ServerFixture.Config?
-                .SecurityConfiguration?.TrustedUserCertificates;
+            CertificateTrustList userCertStore = (ServerFixture.Config?
+                .SecurityConfiguration?.TrustedUserCertificates)!;
             if (userCertStore == null)
             {
                 return;

@@ -329,13 +329,13 @@ namespace Opc.Ua.Server.Tests.AliasNames
             harness.Store.Raise(store => store.Changed += null,
                 new AliasStoreChangedEventArgs(harness.CategoryId, previous));
 
-            Assert.That(harness.Category.LastChange.Value, Is.EqualTo(current));
+            Assert.That(harness.Category.LastChange!.Value, Is.EqualTo(current));
         }
 
         [Test]
-        public async Task LiveRefreshPublishesAliasesAndKeepsUnchangedNodesAsync()
+        public async Task DefaultLiveRefreshAddsAndDeletesAliasNodesAsync()
         {
-            await using var harness = new RefreshHarness(refreshOnChange: true);
+            await using var harness = new RefreshHarness(refreshOnChange: null);
             await harness.InitializeAsync().ConfigureAwait(false);
             AliasNameState original = harness.FindAlias("Alpha");
             var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -353,8 +353,32 @@ namespace Opc.Ua.Server.Tests.AliasNames
             await published.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
 
             Assert.That(harness.FindAlias("Alpha"), Is.SameAs(original));
+            AliasNameState added = harness.FindAlias("Beta");
+            Assert.That(harness.Category.ReferenceExists(
+                ReferenceTypeIds.Organizes, false, added.NodeId), Is.True);
+            Assert.That(added.ReferenceExists(
+                ReferenceTypeIds.AliasFor, false, harness.Target.NodeId), Is.True);
             Assert.That(harness.Target.ReferenceExists(
-                ReferenceTypeIds.AliasFor, true, harness.FindAlias("Beta").NodeId), Is.True);
+                ReferenceTypeIds.AliasFor, true, added.NodeId), Is.True);
+
+            var removed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            harness.Category.OnStateChanged += (_, _, _) =>
+            {
+                if (harness.FindAlias("Beta") == null)
+                {
+                    removed.TrySetResult(true);
+                }
+            };
+            await harness.Data.DeleteAliasesAsync(harness.CategoryId,
+                [new AliasDeleteRequest("Beta", harness.Target.NodeId)]).ConfigureAwait(false);
+            await removed.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+
+            Assert.That(harness.FindAlias("Alpha"), Is.SameAs(original));
+            Assert.That(harness.FindAlias("Beta"), Is.Null);
+            Assert.That(harness.Category.ReferenceExists(
+                ReferenceTypeIds.Organizes, false, added.NodeId), Is.False);
+            Assert.That(harness.Target.ReferenceExists(
+                ReferenceTypeIds.AliasFor, true, added.NodeId), Is.False);
         }
 
         [Test]
@@ -455,7 +479,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "AliasRefreshFailed"), It.IsAny<It.IsAnyType>(), failure,
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once);
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
             Assert.That(terminated.IsCompleted, Is.False);
             Assert.That(calls, Is.EqualTo(2));
             Assert.That(coordinator.PendingTaskCount, Is.EqualTo(1));
@@ -508,13 +532,13 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(coordinator.PendingRefreshCount, Is.Zero);
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()), backendFailure ? Times.Once : Times.Never);
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()), backendFailure ? Times.Once : Times.Never);
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "AliasRefreshFailed"), It.IsAny<It.IsAnyType>(), failure,
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()), backendFailure ? Times.Once : Times.Never);
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()), backendFailure ? Times.Once : Times.Never);
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "BackgroundTaskFailed"), It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
+                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Never);
         }
 
         [TestCaseSource(nameof(s_fatalFailures))]
@@ -540,10 +564,10 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(coordinator.PendingTaskCount, Is.Zero);
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "BackgroundTaskFailed"), It.IsAny<It.IsAnyType>(), failure,
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once);
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "AliasRefreshFailed"), It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
+                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Never);
         }
 
         [Test]
@@ -649,8 +673,8 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(observedConcurrency, Is.All.EqualTo(1));
             Assert.That(publishedCounts, Is.Not.Empty.And.All.EqualTo(33));
             Assert.That(harness.FindAlias("Alpha"), Is.SameAs(original));
-            Assert.That(child.LastChange.Value, Is.EqualTo(33u));
-            Assert.That(harness.Category.LastChange.Value, Is.EqualTo(33u));
+            Assert.That(child.LastChange!.Value, Is.EqualTo(33u));
+            Assert.That(harness.Category.LastChange!.Value, Is.EqualTo(33u));
         }
 
         private static ITelemetryContext CreateRefreshTelemetry(out Mock<ILogger> logger)
@@ -669,7 +693,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var observed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             logger.Setup(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == eventName), It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()))
+                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
                 .Callback(() => observed.TrySetResult(true));
             return observed.Task;
         }
@@ -683,7 +707,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 ITypeTable typeTable,
                 CancellationToken cancellationToken);
 
-            public RefreshHarness(bool refreshOnChange = false, bool nested = false)
+            public RefreshHarness(bool? refreshOnChange = false, bool nested = false)
             {
                 Mock<IServerInternal> server = DeterministicServerMock.Create(out m_queues);
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -712,13 +736,17 @@ namespace Opc.Ua.Server.Tests.AliasNames
                             : Data.FindAliasVerboseAsync(id, pattern, reference, types, ct);
                     });
                 Data.Changed += (_, args) => Store.Raise(store => store.Changed += null, args);
-                Manager = new AliasNameNodeManager(server.Object, new ApplicationConfiguration(), Store.Object,
-                    new AliasNameNodeManagerOptions
-                    {
-                        NamespaceUri = DeterministicServerMock.TestNamespaceUri,
-                        RegisterWithServerRegistry = false,
-                        RefreshAliasNodesOnChange = refreshOnChange
-                    });
+                var options = new AliasNameNodeManagerOptions
+                {
+                    NamespaceUri = DeterministicServerMock.TestNamespaceUri,
+                    RegisterWithServerRegistry = false
+                };
+                if (refreshOnChange.HasValue)
+                {
+                    options.RefreshAliasNodesOnChange = refreshOnChange.Value;
+                }
+                Manager = new AliasNameNodeManager(
+                    server.Object, new ApplicationConfiguration(), Store.Object, options);
                 m_registry.Register(Store.Object);
                 Materializer = new AliasNameNodeMaterializer(
                     Manager, m_registry, _ => false,
@@ -784,7 +812,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
             private readonly AliasNameStoreRegistry m_registry = new();
             private readonly MonitoredItemQueueFactory m_queues;
-            private AliasQuery m_query;
+            private AliasQuery m_query = null!;
         }
 
         private static readonly TestCaseData[] s_backendFailures =

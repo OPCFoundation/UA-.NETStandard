@@ -16,17 +16,32 @@ on:
 permissions:
   contents: read
 
-# GitHub owns the complete PR workload. Scheduled full validation uses the same
-# expander and runner in nightly.yml; no setting delegates PR scope to Azure.
+# This workflow owns pull-request validation. The complete build and test
+# workload runs here, on GitHub-hosted runners, for every triggering branch.
+# There is deliberately no switch that hands any of it back to another CI
+# system: a configuration that shrinks this matrix would reduce what a pull
+# request is actually tested against without changing any check name, and the
+# reduction would not be visible on the pull request.
+#
+# The full workload - every remaining target framework, the Debug legs and the
+# tiers that lift the category filter - lives in .github/workflows/nightly.yml,
+# which expands the same table through the same expander.
 env:
   # nbgv cloud exports these once per job. Parallel per-project appends tear
   # GITHUB_ENV; disabling that writer does not change computed versions.
   NBGV_SetCloudBuildVersionVars: 'false'
   ENABLE_CODECOV: 'true'
 
+# Pull requests and feature branches cancel a superseded run: only the newest
+# commit's result matters there. A push to a protected line (master, main,
+# master378, release/*) never cancels, and each commit gets its own group,
+# because a queued run in a shared group is replaced as well as a running one
+# being cancelled. Every protected commit therefore finishes its required
+# checks ('build-and-test summary', 'images summary'), which the Release
+# ruleset demands before a release/<major>.<minor> branch can be cut from it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || ((github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) && github.sha) || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || !(github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) }}
 
 jobs:
   discover:
@@ -35,7 +50,7 @@ jobs:
     outputs:
       tests: ${{ steps.matrix.outputs.tests }}
       builds: ${{ steps.matrix.outputs.builds }}
-      batch_size: ${{ steps.matrix.outputs.batch_size }}
+      batch_target_minutes: ${{ steps.matrix.outputs.batch_target_minutes }}
       assurance_projects: ${{ steps.matrix.outputs.assurance_projects }}
       assurance_selected: ${{ steps.list.outputs.assurance_selected }}
       aot_matrix: ${{ steps.list.outputs.aot_matrix }}
@@ -97,7 +112,7 @@ jobs:
         INCLUDE_MACOS: ${{ steps.list.outputs.include_macos }}
       run: |
         if ($env:RELEVANT_CHANGES -ne 'true') {
-            'tests=[]', 'builds=[]', 'assurance_projects=[]', 'batch_size=0' |
+            'tests=[]', 'builds=[]', 'assurance_projects=[]', 'batch_target_minutes=0' |
                 Out-File -FilePath $env:GITHUB_OUTPUT -Append
             exit 0
         }
@@ -365,6 +380,13 @@ jobs:
         path: assurance/*.json
         if-no-files-found: error
 
+  # Every solution in the repository, built for every target framework the
+  # runner can host, in parallel with the unit tests. Windows carries the .NET
+  # Framework target because it needs the .NET Framework reference assemblies;
+  # Linux carries the modern .NET targets. Each entry pins the solution to one
+  # TFM through CustomTestTarget,
+  # so one broken TFM is reported as its own failed job rather than hidden
+  # behind the first failure in a loop.
   build-solutions:
     name: build-${{ matrix.entry.name }}
     needs: discover

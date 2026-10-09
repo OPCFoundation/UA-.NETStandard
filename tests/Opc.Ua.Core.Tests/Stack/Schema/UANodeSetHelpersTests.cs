@@ -82,9 +82,9 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 </UANodeSet>";
 
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(nodeSetXml));
-            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream);
+            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream)!;
             var context = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-            foreach (string namespaceUri in nodeSet.NamespaceUris)
+            foreach (string namespaceUri in nodeSet!.NamespaceUris!)
             {
                 context.NamespaceUris.Append(namespaceUri);
             }
@@ -100,6 +100,69 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.That(text.WrappedValue.GetString(), Is.EqualTo("hello"));
             Assert.That(flag.WrappedValue.IsNull, Is.False, "The Boolean value must survive the import.");
             Assert.That(flag.WrappedValue.GetBoolean(), Is.True);
+        }
+
+        /// <summary>
+        /// The value element was copied with ImportNode(deep), which recurses
+        /// once per element level, so a deeply nested XmlElement value in a
+        /// NodeSet exhausted the stack. The copy no longer recurses and the
+        /// decoder bounds the element depth.
+        /// </summary>
+        [Test]
+        public void ImportRejectsDeeplyNestedXmlElementValue()
+        {
+            string nested = string.Concat(Enumerable.Repeat("<a>", 100_000)) +
+                string.Concat(Enumerable.Repeat("</a>", 100_000));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => ImportXmlElementValue(nested));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ImportRestoresXmlElementValue()
+        {
+            BaseVariableState variable = ImportXmlElementValue("<a x='1'><b>text</b></a>");
+
+            Assert.That(variable.WrappedValue.TryGetValue(out XmlElement value), Is.True);
+            // the content inherits the default namespace of the NodeSet.
+            Assert.That(value, Is.EqualTo(XmlElement.From(
+                "<a x=\"1\" xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">" +
+                "<b>text</b></a>")));
+        }
+
+        private static BaseVariableState ImportXmlElementValue(string content)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            string nodeSetXml = @"
+                <UANodeSet xmlns='http://opcfoundation.org/UA/2011/03/UANodeSet.xsd'>
+                  <NamespaceUris>
+                    <Uri>urn:test:values</Uri>
+                  </NamespaceUris>
+                  <Aliases>
+                    <Alias Alias='XmlElement'>i=16</Alias>
+                  </Aliases>
+                  <UAVariable NodeId='ns=1;s=Xml' BrowseName='1:Xml' DataType='XmlElement'>
+                    <DisplayName>Xml</DisplayName>
+                    <Value>
+                      <uax:XmlElement xmlns:uax='http://opcfoundation.org/UA/2008/02/Types.xsd'>" +
+                content +
+                @"</uax:XmlElement>
+                    </Value>
+                  </UAVariable>
+                </UANodeSet>";
+
+            using var stream = new MemoryStream(Encoding.UTF8.GetBytes(nodeSetXml));
+            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream)!;
+            var context = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
+            foreach (string namespaceUri in nodeSet!.NamespaceUris!)
+            {
+                context.NamespaceUris.Append(namespaceUri);
+            }
+            var imported = new NodeStateCollection();
+
+            nodeSet.Import(context, imported);
+
+            return imported.OfType<BaseVariableState>().Single();
         }
 
         /// <summary>
@@ -169,7 +232,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
             var importedNodeStates = new NodeStateCollection();
             var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            foreach (string namespaceUri in importedNodeSet!.NamespaceUris!)
             {
                 localContext.NamespaceUris.Append(namespaceUri);
             }
@@ -182,12 +245,12 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             var dataType2 = importedNodeSet.Items[1] as Export.UADataType;
 
             Assert.That(dataType1, Is.Not.Null);
-            Assert.That(dataType1.Definition.Field, Has.Length.EqualTo(2));
+            Assert.That(dataType1.Definition!.Field, Has.Length.EqualTo(2));
             Assert.IsEmpty(dataType1.Definition.Field[0].ArrayDimensions);
             Assert.That(dataType1.Definition.IsUnion, Is.True);
 
             Assert.That(dataType2, Is.Not.Null);
-            Assert.That(dataType2.Definition.IsUnion, Is.False);
+            Assert.That(dataType2.Definition!.IsUnion, Is.False);
             Assert.That(dataType2.Definition.Field, Has.Length.EqualTo(21));
             Assert.That(dataType2.Definition.Field[15].ArrayDimensions, Is.EqualTo("2,3"));
             Assert.That(dataType2.Definition.Field[5].MaxStringLength, Is.EqualTo(256));
@@ -204,7 +267,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
                 var exportedNodeStates = new NodeStateCollection();
                 localContext.NamespaceUris = new NamespaceTable();
-                foreach (string namespaceUri in exportedNodeSet.NamespaceUris)
+                foreach (string namespaceUri in exportedNodeSet!.NamespaceUris!)
                 {
                     localContext.NamespaceUris.Append(namespaceUri);
                 }
@@ -217,12 +280,12 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 dataType2 = exportedNodeSet.Items[1] as Export.UADataType;
 
                 Assert.That(dataType1, Is.Not.Null);
-                Assert.That(dataType1.Definition.Field, Has.Length.EqualTo(2));
+                Assert.That(dataType1.Definition!.Field, Has.Length.EqualTo(2));
                 Assert.IsEmpty(dataType1.Definition.Field[0].ArrayDimensions);
                 Assert.That(dataType1.Definition.IsUnion, Is.True);
 
                 Assert.That(dataType2, Is.Not.Null);
-                Assert.That(dataType2.Definition.IsUnion, Is.False);
+                Assert.That(dataType2.Definition!.IsUnion, Is.False);
                 Assert.That(dataType2.Definition.Field, Has.Length.EqualTo(21));
                 Assert.That(dataType2.Definition.Field[15].ArrayDimensions, Is.EqualTo("2,3"));
                 Assert.That(dataType2.Definition.Field[5].MaxStringLength, Is.EqualTo(256));
@@ -290,7 +353,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
             var importedNodeStates = new NodeStateCollection();
             var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            foreach (string namespaceUri in importedNodeSet!.NamespaceUris!)
             {
                 localContext.NamespaceUris.Append(namespaceUri);
             }
@@ -301,23 +364,23 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.That(importedNodeStates, Has.Count.EqualTo(3));
 
             // Find the parent object
-            BaseObjectState parentObject = null;
-            BaseVariableState childProperty = null;
-            BaseObjectState childObject = null;
+            BaseObjectState? parentObject = null;
+            BaseVariableState? childProperty = null;
+            BaseObjectState? childObject = null;
 
             foreach (NodeState node in importedNodeStates)
             {
                 if (node.BrowseName.Name == "ParentObject")
                 {
-                    parentObject = node as BaseObjectState;
+                    parentObject = (node as BaseObjectState)!;
                 }
                 else if (node.BrowseName.Name == "ChildProperty")
                 {
-                    childProperty = node as BaseVariableState;
+                    childProperty = (node as BaseVariableState)!;
                 }
                 else if (node.BrowseName.Name == "ChildObject")
                 {
-                    childObject = node as BaseObjectState;
+                    childObject = (node as BaseObjectState)!;
                 }
             }
 
@@ -388,11 +451,11 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 </UANodeSet>";
 
             using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
-            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream);
+            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream)!;
 
             var importedNodeStates = new NodeStateCollection();
             var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            foreach (string namespaceUri in importedNodeSet!.NamespaceUris!)
             {
                 localContext.NamespaceUris.Append(namespaceUri);
             }
@@ -458,11 +521,11 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 </UANodeSet>";
 
             using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
-            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream);
+            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream)!;
 
             var importedNodeStates = new NodeStateCollection();
             var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            foreach (string namespaceUri in importedNodeSet!.NamespaceUris!)
             {
                 localContext.NamespaceUris.Append(namespaceUri);
             }
@@ -598,9 +661,9 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 ? importBuffer.Replace(">ns=1;", ">nsu=urn:test:method-arguments;", StringComparison.Ordinal)
                 : importBuffer;
             using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
-            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream);
+            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream)!;
 
-            foreach (Export.UAVariable variable in importedNodeSet.Items.OfType<Export.UAVariable>())
+            foreach (Export.UAVariable variable in importedNodeSet!.Items!.OfType<Export.UAVariable>())
             {
                 if (variable.BrowseName != BrowseNames.InputArguments &&
                     variable.BrowseName != BrowseNames.OutputArguments)
@@ -613,21 +676,21 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 }
                 if (referenceDirection == "Forward")
                 {
-                    variable.References = variable.References
+                    variable.References = variable.References!
                         .Where(reference => reference.ReferenceType != "HasProperty")
                         .ToArray();
                 }
             }
             if (referenceDirection == "Inverse")
             {
-                Export.UAMethod methodNode = importedNodeSet.Items.OfType<Export.UAMethod>().Single();
-                methodNode.References = methodNode.References
+                Export.UAMethod methodNode = importedNodeSet.Items!.OfType<Export.UAMethod>().Single();
+                methodNode.References = methodNode.References!
                     .Where(reference => reference.Value == "ns=1;i=1003")
                     .ToArray();
             }
             if (parentFirst)
             {
-                importedNodeSet.Items = importedNodeSet.Items
+                importedNodeSet.Items = importedNodeSet.Items!
                     .OrderBy(node => node is Export.UAMethod ? 0 : 1)
                     .ToArray();
             }
@@ -635,7 +698,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             var importedNodeStates = new NodeStateCollection();
             var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
             localContext.NamespaceUris.Append("urn:test:preexisting");
-            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            foreach (string namespaceUri in importedNodeSet.NamespaceUris!)
             {
                 localContext.NamespaceUris.Append(namespaceUri);
             }
@@ -767,10 +830,10 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 </UANodeSet>";
 
             using var importStream = new MemoryStream(Encoding.UTF8.GetBytes(importBuffer));
-            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream);
+            Export.UANodeSet importedNodeSet = Export.UANodeSet.Read(importStream)!;
             var importedNodeStates = new NodeStateCollection();
             var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            foreach (string namespaceUri in importedNodeSet!.NamespaceUris!)
             {
                 localContext.NamespaceUris.Append(namespaceUri);
             }
@@ -805,8 +868,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             [Values(true, false)] bool includeParentHint)
         {
             Export.UANodeSet nodeSet = CreateMethodReferenceNodeSet();
-            Export.UANode[] items = nodeSet.Items;
-            Export.UAVariable property = items.OfType<Export.UAVariable>().Single();
+            Export.UANode[] items = nodeSet.Items!;
+            Export.UAVariable property = items!.OfType<Export.UAVariable>().Single();
             property.ParentNodeId = includeParentHint ? "ns=1;i=1000" : null;
             var context = new SystemContext(NUnitTelemetryContext.Create())
             {
@@ -847,7 +910,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         public void ImportPreservesInvalidMethodArgumentDeclarations(string scenario)
         {
             Export.UANodeSet nodeSet = CreateMethodReferenceNodeSet();
-            Export.UAVariable property = nodeSet.Items.OfType<Export.UAVariable>().Single();
+            Export.UAVariable property = nodeSet.Items!.OfType<Export.UAVariable>().Single();
             switch (scenario)
             {
                 case "CustomName":
@@ -857,19 +920,19 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                     property.DataType = "i=12";
                     break;
                 case "TypeDefinition":
-                    property.References[0].Value = "i=63";
+                    property.References![0].Value = "i=63";
                     break;
                 case "Rank":
                     property.ValueRank = -1;
                     break;
                 case "ReferenceType":
-                    property.References[1].ReferenceType = "i=47";
+                    property.References![1].ReferenceType = "i=47";
                     break;
                 case "Ambiguous":
                 case "AmbiguousWithHint":
                     property.References =
                     [
-                        .. property.References,
+                        .. property.References!,
                         new Export.Reference
                         {
                             ReferenceType = "i=46",
@@ -903,8 +966,8 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             BaseVariableState imported = nodes.OfType<BaseVariableState>().Single();
             Assert.That(
                 imported.TypeDefinitionId,
-                Is.EqualTo(NodeId.Parse(property.References[0].Value)));
-            Assert.That(imported.DataType, Is.EqualTo(NodeId.Parse(property.DataType)));
+                Is.EqualTo(NodeId.Parse(property.References![0].Value!)));
+            Assert.That(imported.DataType, Is.EqualTo(NodeId.Parse(property.DataType!)));
             Assert.That(imported.ValueRank, Is.EqualTo(property.ValueRank));
             var references = new List<IReference>();
             imported.GetReferences(context, references);
@@ -914,9 +977,9 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 Is.EquivalentTo(property.References
                     .Where(reference => reference.ReferenceType != "i=40")
                     .Select(reference =>
-                        (NodeId.Parse(reference.ReferenceType),
+                        (NodeId.Parse(reference.ReferenceType!),
                             !reference.IsForward,
-                            ExpandedNodeId.Parse(reference.Value)))));
+                            ExpandedNodeId.Parse(reference.Value!)))));
             Assert.That(nodes, Has.Count.EqualTo(3));
             if (scenario == "UnavailableHint")
             {
@@ -936,7 +999,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Export.UANodeSet nodeSet = CreateMethodReferenceNodeSet();
             if (useNamespaceUriTargets)
             {
-                nodeSet.Items.OfType<Export.UAVariable>().Single().References[1].Value =
+                nodeSet.Items!.OfType<Export.UAVariable>().Single().References![1].Value =
                     "nsu=urn:test:method-reference-parent;i=1000";
             }
             var context = new SystemContext(NUnitTelemetryContext.Create())
@@ -991,7 +1054,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
             var importedNodeStates = new NodeStateCollection();
             var localContext = new SystemContext(telemetry) { NamespaceUris = new NamespaceTable() };
-            foreach (string namespaceUri in importedNodeSet.NamespaceUris)
+            foreach (string namespaceUri in importedNodeSet!.NamespaceUris!)
             {
                 localContext.NamespaceUris.Append(namespaceUri);
             }
@@ -1003,18 +1066,18 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             Assert.That(importedNodeStates, Has.Count.EqualTo(2));
 
             // Find the parent object
-            BaseObjectState parentObject = null;
-            BaseObjectState childObject = null;
+            BaseObjectState? parentObject = null;
+            BaseObjectState? childObject = null;
 
             foreach (NodeState node in importedNodeStates)
             {
                 if (node.BrowseName.Name == "ParentObject")
                 {
-                    parentObject = node as BaseObjectState;
+                    parentObject = (node as BaseObjectState)!;
                 }
                 else if (node.BrowseName.Name == "ChildObject")
                 {
-                    childObject = node as BaseObjectState;
+                    childObject = (node as BaseObjectState)!;
                 }
             }
 
@@ -1052,7 +1115,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 </UANodeSet>
                 """;
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
-            return Export.UANodeSet.Read(stream);
+            return Export.UANodeSet.Read(stream)!;
         }
 
         private static List<NodeId> BrowseReferenceTypes(
@@ -1071,7 +1134,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
                 true);
             var referenceTypes = new List<NodeId>();
             IReference reference;
-            while ((reference = browser.Next()) is not null)
+            while ((reference = browser.Next()!) is not null)
             {
                 if (reference.TargetId == targetId)
                 {

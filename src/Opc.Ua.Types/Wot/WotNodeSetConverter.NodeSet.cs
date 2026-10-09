@@ -160,6 +160,13 @@ namespace Opc.Ua.Wot
                 diagnostics);
             json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
 
+            // Checked before the readable document is parsed back below, which
+            // would throw for it; every later form only adds to it.
+            if (IsTooLarge(json, options, diagnostics))
+            {
+                return new WotConversionResult<WotDocument>(null, diagnostics);
+            }
+
             if (!IsReadableMappingComplete(json, nodeSet, options))
             {
                 var nativeDiagnostics = new List<WotDiagnostic>();
@@ -246,19 +253,31 @@ namespace Opc.Ua.Wot
                 json = WotJsonResidue.Apply(json, nodeSet, options, diagnostics);
             }
 
-            if (json.Length > options.MaxJsonDocumentSize)
+            if (IsTooLarge(json, options, diagnostics))
             {
-                diagnostics.Add(new WotDiagnostic(
-                    WotDiagnosticSeverity.Error,
-                    WotDiagnosticCode.JsonDocumentTooLarge,
-                    "Generated WoT document exceeds the configured " +
-                    $"{options.MaxJsonDocumentSize} byte limit."));
                 return new WotConversionResult<WotDocument>(null, diagnostics);
             }
 #pragma warning disable CA2000 // Ownership of the returned WotDocument transfers to the caller through the result.
             WotDocument document = WotDocument.FromOwnedBytes(json, options);
 #pragma warning restore CA2000
             return new WotConversionResult<WotDocument>(document, diagnostics);
+        }
+
+        private static bool IsTooLarge(
+            byte[] json,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics)
+        {
+            if (json.Length <= options.MaxJsonDocumentSize)
+            {
+                return false;
+            }
+            diagnostics.Add(new WotDiagnostic(
+                WotDiagnosticSeverity.Error,
+                WotDiagnosticCode.JsonDocumentTooLarge,
+                "Generated WoT document exceeds the configured " +
+                $"{options.MaxJsonDocumentSize} byte limit."));
+            return true;
         }
 
         private static byte[] WriteReadableDocument(
@@ -273,7 +292,8 @@ namespace Opc.Ua.Wot
             List<WotDiagnostic> diagnostics,
             string? parentHref = null,
             IReadOnlyDictionary<string, string>? eventTypeHrefs = null,
-            string? documentHref = null)
+            string? documentHref = null,
+            bool foldEventSourceType = true)
         {
             byte[]? digest = emitEnvelope ? ComputeSha256(nodeSetBytes) : null;
             using (var output = new MemoryStream())
@@ -341,7 +361,10 @@ namespace Opc.Ua.Wot
                     WriteDataTypeDefinitions(writer, nodeSet, defaultLocale);
                     WriteAffordances(
                         writer, nodeSet, root, diagnostics, options, defaultLocale, parentHref,
-                        TypeDefinitionHref(root, nodeSet), eventTypeHrefs, documentHref);
+                        foldEventSourceType
+                            ? FoldedTypeDefinitionHref(root, nodeSet)
+                            : TypeDefinitionHref(root, nodeSet),
+                        eventTypeHrefs, documentHref);
 
                     if (emitEnvelope)
                     {
@@ -788,6 +811,22 @@ namespace Opc.Ua.Wot
                         referenceTypeNames,
                         typedComponentLinks,
                         diagnostics);
+                }
+            }
+
+            // OPC 10000-3 §7.15 lets only a type (or a Method) be the source of
+            // GeneratesEvent, so the events an instance raises are the ones its
+            // type definition and that type's supertypes declare. The
+            // instance's own forward GeneratesEvent References read above are
+            // kept as a lenient fallback for NodeSets that still state them.
+            if (root is UAInstance)
+            {
+                foreach (UANode eventType in CollectTypeGeneratedEvents(root, nodeSet))
+                {
+                    if (!events.Contains(eventType))
+                    {
+                        events.Add(eventType);
+                    }
                 }
             }
 
@@ -1621,6 +1660,10 @@ namespace Opc.Ua.Wot
                 return null;
             }
             HashSet<string> generated = CollectGeneratedEventTypes(nodeSet);
+
+            // A type that only carries an instance's events is folded into
+            // that instance's document, so it is never the root itself.
+            generated.UnionWith(CollectEventSourceTypes(nodeSet));
             return FirstOf<UAObjectType>(nodeSet, generated)
                 ?? FirstOf<UAObject>(nodeSet, generated)
                 ?? FirstOf<UAVariableType>(nodeSet, generated)
@@ -1634,15 +1677,27 @@ namespace Opc.Ua.Wot
         private static HashSet<string> CollectGeneratedEventTypes(UANodeSet nodeSet)
         {
             var generated = new HashSet<string>(StringComparer.Ordinal);
+            INodeSetAliasResolver aliases =
+                NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            Dictionary<string, UANode> index = BuildResolvedIndex(nodeSet, aliases);
             foreach (UANode node in nodeSet.Items!)
             {
                 foreach (Reference reference in node.References ?? [])
                 {
                     if (reference.IsForward &&
                         reference.Value is { Length: > 0 } target &&
-                        IsGeneratesEventReference(reference.ReferenceType))
+                        (IsGeneratesEventReference(reference.ReferenceType) ||
+                            IsEventSourceReference(reference.ReferenceType, aliases)))
                     {
+                        // Root selection compares NodeIds as the NodeSet
+                        // states them, so a target named through an alias is
+                        // recorded under the NodeId of the Node it names.
                         generated.Add(target);
+                        if (index.TryGetValue(ResolveArchivedAlias(target, aliases), out UANode? eventType) &&
+                            eventType.NodeId is { Length: > 0 } eventTypeId)
+                        {
+                            generated.Add(eventTypeId);
+                        }
                     }
                 }
             }
@@ -1717,6 +1772,238 @@ namespace Opc.Ua.Wot
                 }
                 return referenceType;
             }
+        }
+
+        /// <summary>
+        /// Collects the EventTypes the type definition of an instance - and
+        /// every supertype of it the NodeSet holds - declares through
+        /// <c>GeneratesEvent</c> or <c>AlwaysGeneratesEvent</c>, nearest type
+        /// first.
+        /// </summary>
+        /// <remarks>
+        /// A NodeSet may name a ReferenceType, a type or an EventType through
+        /// an alias it declares, so every step resolves the NodeSet's aliases
+        /// before it looks the target up.
+        /// </remarks>
+        private static List<UANode> CollectTypeGeneratedEvents(
+            UANode instance,
+            UANodeSet nodeSet)
+        {
+            INodeSetAliasResolver aliases =
+                NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            Dictionary<string, UANode> index = BuildResolvedIndex(nodeSet, aliases);
+            var events = new List<UANode>();
+            var visited = new HashSet<string>(StringComparer.Ordinal);
+            string? typeId = FindReferenceTarget(
+                instance, aliases, WotVocabulary.HasTypeDefinition, isForward: true);
+            while (typeId is not null &&
+                visited.Add(typeId) &&
+                index.TryGetValue(typeId, out UANode? type) &&
+                type is UAType)
+            {
+                foreach (Reference reference in type.References ?? [])
+                {
+                    if (reference.IsForward &&
+                        IsEventSourceReference(reference.ReferenceType, aliases) &&
+                        index.TryGetValue(ResolveArchivedAlias(reference.Value, aliases), out UANode? eventType) &&
+                        !events.Contains(eventType))
+                    {
+                        events.Add(eventType);
+                    }
+                }
+                typeId = FindReferenceTarget(type, aliases, WotVocabulary.HasSubtype, isForward: false);
+            }
+            return events;
+        }
+
+        /// <summary>
+        /// Indexes the Nodes of a NodeSet by their NodeId with the NodeSet's
+        /// declared aliases resolved, so a Reference that names its target
+        /// through an alias finds it.
+        /// </summary>
+        private static Dictionary<string, UANode> BuildResolvedIndex(
+            UANodeSet nodeSet,
+            INodeSetAliasResolver aliases)
+        {
+            var index = new Dictionary<string, UANode>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items ?? [])
+            {
+                string id = ResolveArchivedAlias(node.NodeId, aliases);
+                if (id.Length != 0)
+                {
+                    index[id] = node;
+                }
+            }
+            return index;
+        }
+
+        /// <summary>
+        /// Gets the alias-resolved target of the first Reference of a
+        /// ReferenceType, or <c>null</c> when the Node states none.
+        /// </summary>
+        private static string? FindReferenceTarget(
+            UANode node,
+            INodeSetAliasResolver aliases,
+            string referenceTypeId,
+            bool isForward)
+        {
+            foreach (Reference reference in node.References ?? [])
+            {
+                if (reference.IsForward == isForward &&
+                    reference.Value is { Length: > 0 } &&
+                    ResolveArchivedAlias(reference.ReferenceType, aliases) == referenceTypeId)
+                {
+                    return ResolveArchivedAlias(reference.Value, aliases);
+                }
+            }
+            return null;
+        }
+
+        /// <summary>
+        /// Gets whether a ReferenceType states an event source: OPC 10000-3
+        /// §7.15 <c>GeneratesEvent</c> or its standard subtype
+        /// <c>AlwaysGeneratesEvent</c>.
+        /// </summary>
+        private static bool IsEventSourceReference(string? referenceType, INodeSetAliasResolver aliases)
+        {
+            string resolved = ResolveArchivedAlias(referenceType, aliases);
+            return resolved == WotVocabulary.GeneratesEvent || resolved == AlwaysGeneratesEventId;
+        }
+
+        private const string AlwaysGeneratesEventId = "i=3065";
+
+        /// <summary>
+        /// Collects the types the forward conversion synthesizes to carry the
+        /// events of a Thing Description's instance: an ObjectType or
+        /// VariableType that states nothing but its supertype and the
+        /// EventTypes it generates, and is the type definition of exactly one
+        /// instance of the NodeSet and of nothing else.
+        /// </summary>
+        /// <remarks>
+        /// Such a type is not a model of its own. A single readable document
+        /// folds it back into the instance it types - its events become the
+        /// instance's event affordances and its supertype the instance's type
+        /// binding - so the document is about the instance rather than about
+        /// the type. The result holds the types' NodeIds as the NodeSet states
+        /// them; every Reference is compared with its aliases resolved.
+        /// </remarks>
+        private static HashSet<string> CollectEventSourceTypes(UANodeSet nodeSet)
+        {
+            var result = new HashSet<string>(StringComparer.Ordinal);
+            if (nodeSet.Items is null)
+            {
+                return result;
+            }
+            INodeSetAliasResolver aliases =
+                NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            var candidates = new Dictionary<string, UANode>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items)
+            {
+                if (node is UAObjectType or UAVariableType &&
+                    node.NodeId is { Length: > 0 } &&
+                    IsEventSourceTypeShape(node, aliases))
+                {
+                    candidates[ResolveArchivedAlias(node.NodeId, aliases)] = node;
+                }
+            }
+            if (candidates.Count == 0)
+            {
+                return result;
+            }
+
+            var typedBy = new Dictionary<string, int>(StringComparer.Ordinal);
+            var otherwiseReferenced = new HashSet<string>(StringComparer.Ordinal);
+            foreach (UANode node in nodeSet.Items)
+            {
+                foreach (Reference reference in node.References ?? [])
+                {
+                    string target = ResolveArchivedAlias(reference.Value, aliases);
+                    if (!candidates.ContainsKey(target))
+                    {
+                        continue;
+                    }
+                    if (node is UAObject or UAVariable &&
+                        reference.IsForward &&
+                        ResolveArchivedAlias(reference.ReferenceType, aliases) ==
+                            WotVocabulary.HasTypeDefinition)
+                    {
+                        typedBy[target] = typedBy.TryGetValue(target, out int count) ? count + 1 : 1;
+                    }
+                    else
+                    {
+                        otherwiseReferenced.Add(target);
+                    }
+                }
+            }
+            foreach (KeyValuePair<string, UANode> candidate in candidates)
+            {
+                if (typedBy.TryGetValue(candidate.Key, out int count) &&
+                    count == 1 &&
+                    !otherwiseReferenced.Contains(candidate.Key))
+                {
+                    result.Add(candidate.Value.NodeId!);
+                }
+            }
+            return result;
+        }
+
+        private static bool IsEventSourceTypeShape(UANode type, INodeSetAliasResolver aliases)
+        {
+            bool generates = false;
+            bool hasSupertype = false;
+            foreach (Reference reference in type.References ?? [])
+            {
+                if (reference.IsForward && IsEventSourceReference(reference.ReferenceType, aliases))
+                {
+                    generates = true;
+                }
+                else if (!reference.IsForward &&
+                    !hasSupertype &&
+                    ResolveArchivedAlias(reference.ReferenceType, aliases) == WotVocabulary.HasSubtype)
+                {
+                    hasSupertype = true;
+                }
+                else
+                {
+                    return false;
+                }
+            }
+            return generates && hasSupertype;
+        }
+
+        /// <summary>
+        /// Reads the type binding a single readable document states for its
+        /// root: the root's type definition, or - when that is a type
+        /// synthesized only to carry the root's events - the supertype it was
+        /// derived from.
+        /// </summary>
+        private static string? FoldedTypeDefinitionHref(UANode? root, UANodeSet nodeSet)
+        {
+            INodeSetAliasResolver aliases =
+                NodeSetDeclaredAliases.FromNodeSet(nodeSet, WotNodeSetAliases.Instance);
+            if (root is UAObject or UAVariable &&
+                FindReferenceTarget(root, aliases, WotVocabulary.HasTypeDefinition, isForward: true)
+                    is { } typeId &&
+                BuildResolvedIndex(nodeSet, aliases).TryGetValue(typeId, out UANode? carrier) &&
+                CollectEventSourceTypes(nodeSet).Contains(carrier.NodeId!) &&
+                FindReferenceTarget(carrier, aliases, WotVocabulary.HasSubtype, isForward: false)
+                    is { } supertype)
+            {
+                // A document that states no binding projects the base type
+                // for its NodeClass, so that one needs no link - and a link to
+                // it could not be resolved without a local context.
+                if (string.Equals(
+                        supertype,
+                        root is UAVariable
+                            ? WotVocabulary.BaseDataVariableType
+                            : WotVocabulary.BaseObjectType,
+                        StringComparison.Ordinal))
+                {
+                    return null;
+                }
+                return ToPortableNodeId(supertype, nodeSet.NamespaceUris);
+            }
+            return TypeDefinitionHref(root, nodeSet);
         }
 
         private static bool IsGeneratesEventReference(string? referenceType)

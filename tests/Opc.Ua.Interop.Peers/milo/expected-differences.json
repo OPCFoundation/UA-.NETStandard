@@ -1,0 +1,14 @@
+{
+  "ComplexTypes": {
+    "reason": "Milo 1.1.7 decodes and encodes a Structure field of the abstract Enumeration DataType (TestData ScalarStructureDataType.EnumerationValue) as a Variant; the .NET stack encodes it as Int32 (Part 6 5.2.4: Enumerations are encoded as Int32). Milo then reads the following fields misaligned, silently drops the 19 trailing bytes, and its re-encoded write is rejected with Bad_DecodingError",
+    "issue": "upstream issue to be filed at https://github.com/eclipse-milo/milo/issues (spec reference: OPC 10000-6 5.2.4, F.13)"
+  },
+  "LegacyServerInteropTests.ConnectWithWrongPasswordIsRejected": {
+    "reason": "Milo 1.1.7 answers a wrong password with Bad_IdentityTokenInvalid instead of Bad_UserAccessDenied / Bad_IdentityTokenRejected",
+    "issue": "upstream issue to be filed at https://github.com/eclipse-milo/milo/issues (OPC 10000-4 5.6.3 ActivateSession result codes)"
+  },
+  "LegacyServerInteropTests.ValueAboveServerLimitIsRejectedAsync(\"Int32Array\")": {
+    "reason": "Milo 1.1.7 advertises MaxArrayLength 100000 (OpcUaServerConfigLimits) but accepts a 150000 element Int32 array write; the ByteString limit is enforced",
+    "issue": "upstream issue to be filed at https://github.com/eclipse-milo/milo/issues"
+  }
+}

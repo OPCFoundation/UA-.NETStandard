@@ -70,8 +70,7 @@ function Get-NuGetOrgPublishedVersion {
         [Parameter(Mandatory)][string]$Uri
     )
 
-    $response = Invoke-WebRequest -Uri $Uri -SkipHttpErrorCheck `
-        -MaximumRetryCount 3 -RetryIntervalSec 5
+    $response = Invoke-FeedRequest -Uri $Uri
     if ($response.StatusCode -eq 404) {
         # The package has never been published to nuget.org.
         return @()
@@ -108,8 +107,7 @@ function Get-GitHubPackagesPublishedVersion {
     $maxPages = 100
     while ($true) {
         $uri = "$ApiUrl/orgs/$Owner/packages/nuget/$PackageId/versions?per_page=100&page=$page"
-        $response = Invoke-WebRequest -Uri $uri -Headers $Headers -SkipHttpErrorCheck `
-            -MaximumRetryCount 3 -RetryIntervalSec 5
+        $response = Invoke-FeedRequest -Uri $uri -Headers $Headers
         if ($response.StatusCode -eq 404) {
             # The package has never been published to GitHub Packages.
             return @()

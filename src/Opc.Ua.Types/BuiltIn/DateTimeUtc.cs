@@ -157,7 +157,9 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int CompareTo(long other)
         {
-            return Value.CompareTo(EnsureBounded(other));
+            // normalize the operand exactly like this value (MaxValue maps
+            // to long.MaxValue through Value).
+            return Value.CompareTo(new DateTimeUtc(other).Value);
         }
 
         /// <inheritdoc/>
@@ -169,19 +171,20 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public bool Equals(long other)
         {
-            return Value == EnsureBounded(other);
+            return Value == new DateTimeUtc(other).Value;
         }
 
         /// <inheritdoc/>
         public bool Equals(DateTime other)
         {
-            return Value == ToFileTimeUtc(other.Ticks);
+            // convert like the constructor does (local times to UTC).
+            return Value == new DateTimeUtc(other).Value;
         }
 
         /// <inheritdoc/>
         public bool Equals(DateTimeOffset other)
         {
-            return Value == ToFileTimeUtc(other.UtcDateTime.Ticks);
+            return Value == new DateTimeUtc(other).Value;
         }
 
         /// <inheritdoc/>

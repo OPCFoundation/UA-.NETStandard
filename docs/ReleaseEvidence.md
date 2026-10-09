@@ -87,24 +87,23 @@ independently; there is no cross-group atomic release.
 
 ### NuGet
 
-The existing modern catalog currently contains **75** unique IDs. This count is
-an observation, not a second membership list. Parse nonblank, noncomment trimmed
+The modern catalog defines the exact current package IDs; do not maintain a
+second membership list. Parse nonblank, noncomment trimmed
 lines; duplicates are an error. Resolve project-to-ID/variant mappings through
 the evaluated packable projects and imported pack targets at the source SHA.
 
 * **Release:** every catalog ID, identified from the embedded nuspec.
 * **Debug:** only catalog-backed projects whose evaluated Debug package ID ends
   in `.Debug`. Remove that suffix for catalog lookup. Do **not** append `.Debug`
-  to all 75 IDs. The current publisher's *Keep only distinct Debug package IDs*
+  to every ID. The current publisher's *Keep only distinct Debug package IDs*
   step removes unsuffixed Debug archives and their matching `.snupkg` files.
   Evaluate expected mappings before this filtering; observing a subset cannot
   establish completeness. Require at least one distinct Debug package.
 * **Metapackages:** the publisher packs `nuget/Opc.*.nuspec` only in its Release
-  job, currently `Opc.Ua.nuspec` and `Opc.Ua.Symbols.nuspec`. Read metadata IDs
+  job, currently `Opc.Ua.nuspec`. Read metadata IDs
   from these files and use the actual pack version. They contain metadata and
   ancillary content with consumer dependency declarations, not copies of all
-  dependencies. The Symbols-named metapackage is a normal `.nupkg`, not a
-  `.snupkg`; its mixed ordinary/Debug dependencies remain as declared.
+  dependencies. `.snupkg` membership is evaluated separately.
 * **Symbols:** `common.props` defaults to `IncludeSymbols=true` and
   `SymbolPackageFormat=snupkg`; generator packaging and MigrationAnalyzer have
   explicit overrides. Evaluate these and actual eligible symbol payloads.
@@ -266,8 +265,9 @@ can use ordinary typed records. Optional fields are omitted, not set to null.
 ## Assurance accounting and freshness
 
 All three groups use the profiles `security-net10`,
-`fuzz-replay-net10`, `codeql-net10`, `aot-net10`. This is a Windows x64 .NET 10
-security-focused profile, **not full suite, all-TFM, all-OS, container
+`fuzz-replay-net10`, `codeql-net10`, `aot-net10`. The security tests, fuzz replay
+and native AOT run on Windows x64/.NET 10; CodeQL analyzes the .NET 10 solution
+on Linux x64. These security-focused profiles are **not full suite, all-TFM, all-OS, container
 runtime or coverage assurance**. Windows native AOT execution says nothing
 about Linux ARM runtime testing. Existing broader jobs remain baseline work.
 
@@ -519,12 +519,18 @@ branch and revalidated throughout collection. Independent trust still establishe
 the approved current policy floor for release eligibility. It validates
 source, event, run/attempt, artifact digest and scope rather than falling back
 to an older successful run. A matching API-recorded workflow reference binds
-definition identity; for same-repository push events, the adapter additionally
+definition identity; for same-repository push events and scheduled runs on the
+API-confirmed default branch, the adapter additionally
 retrieves the workflow file at the event commit, as described by
 [GitHub's workflow-trigger semantics](https://docs.github.com/en/actions/concepts/workflows-and-actions/workflows#workflow-triggers).
 It does not apply this event-specific rule to arbitrary dispatch or reusable
 definitions. Unproven or contradictory definitions remain incomplete. Its
 offline-metadata option cannot grant credit and is rejected on CI.
+
+CodeQL runs daily on master and on release-branch pushes. A daily analysis of
+another source revision cannot satisfy an exact-source release candidate.
+The Linux analysis keeps the evaluated solution/extraction/query identities and
+independently authenticated finding dispositions required by `codeql-net10`.
 
 ```powershell
 .\.azurepipelines\assurance\get-release.ps1 `
@@ -859,8 +865,8 @@ The fat-generator closure includes nonpackable project outputs and private
 package dependencies by **content hash**, never assembly version. A missing
 or ambiguous binary owner remains `unowned`/`INVENTORY_COMPLETE`. Unknown
 licenses remain unknown. Consumer-resolved ranges have no fabricated exact
-version. Metapackages can legitimately contain no binaries; Symbols-named
-metapackages remain ordinary `.nupkg` files.
+version. Metapackages can legitimately contain no binaries and remain ordinary
+`.nupkg` files, distinct from `.snupkg` symbol archives.
 
 ### Evaluate against the current protected checkout
 

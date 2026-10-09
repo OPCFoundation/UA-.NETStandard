@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Tests
             // and dispose the caller-owned provider being replaced (the server only
             // disposes providers it created) so RateLimiter timers do not leak
             // across the suite. Dispose is idempotent.
-            IServerRateLimiterProvider previous = m_server.RateLimiterProvider;
+            IServerRateLimiterProvider previous = m_server.RateLimiterProvider!;
             m_server.RateLimiterProvider = new DefaultServerRateLimiterProvider(
                 new ServerRateLimitOptions { Enabled = false });
             previous?.Dispose();
@@ -183,10 +183,61 @@ namespace Opc.Ua.Server.Tests
                 RequestLifetime.None).ConfigureAwait(false);
         }
 
+        [Test]
+        public async Task QueuedCreateSessionParksWorkerAndIsNotAwaitedByRequestDrainAsync()
+        {
+            var provider = new QueuedProvider();
+            m_server.RateLimiterProvider = provider;
+
+            const string sessionName = nameof(QueuedCreateSessionParksWorkerAndIsNotAwaitedByRequestDrainAsync);
+            EndpointDescription endpoint = FindTcpEndpoint(m_server.GetEndpoints());
+            SecureChannelContext context = CreateSecureChannelContext(sessionName, endpoint);
+            var parkSink = new RecordingParkSink();
+            using var lifetime = new RequestLifetime { ParkSink = parkSink };
+            var requestHeader = new RequestHeader();
+
+            Task<CreateSessionResponse> create = m_server.CreateSessionAsync(
+                context,
+                requestHeader,
+                null,
+                null,
+                null,
+                sessionName,
+                default,
+                default,
+                ServerFixtureUtils.DefaultSessionTimeout,
+                ServerFixtureUtils.DefaultMaxResponseMessageSize,
+                lifetime).AsTask();
+            try
+            {
+                // Waiting for a permit releases the request worker and does not register
+                // the request, so a NodeManager lifecycle drain does not wait for it.
+                Assert.That(parkSink.Parked, Is.True);
+                Assert.That(create.IsCompleted, Is.False);
+                await m_server.CurrentInstance.RequestManager.WaitForCurrentRequestsAsync()
+                    .AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(10))
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                provider.Grant();
+            }
+
+            CreateSessionResponse createResponse = await create.ConfigureAwait(false);
+            ServerFixtureUtils.ValidateResponse(createResponse.ResponseHeader);
+            requestHeader.AuthenticationToken = createResponse.AuthenticationToken;
+            await m_server.CloseSessionAsync(
+                context,
+                requestHeader,
+                true,
+                RequestLifetime.None).ConfigureAwait(false);
+        }
+
         private static EndpointDescription FindTcpEndpoint(ArrayOf<EndpointDescription> endpoints)
         {
             EndpointDescription endpoint = endpoints.Find(e =>
-                e.TransportProfileUri.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
+                e.TransportProfileUri!.Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
                 e.TransportProfileUri.Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal))
                 ?? throw new NotSupportedException("No supported transport profile found.");
 
@@ -223,17 +274,64 @@ namespace Opc.Ua.Server.Tests
 
             public int ListenBacklog => 0;
 
-            public IConnectionRateLimiter ConnectionRateLimiter => null;
+            public IConnectionRateLimiter ConnectionRateLimiter => null!;
 
             public bool TryAcquireSessionEstablishment(out IDisposable lease, out TimeSpan? retryAfter)
             {
-                lease = null;
+                lease = null!;
                 retryAfter = m_retryAfter;
                 return false;
             }
 
             public void Dispose()
             {
+            }
+        }
+
+        /// <summary>
+        /// A queueing provider whose permit is granted only when the test releases it.
+        /// </summary>
+        private sealed class QueuedProvider : IServerRateLimiterProvider, IQueuedSessionEstablishmentLimiter
+        {
+            private readonly TaskCompletionSource<bool> m_permit =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public int ListenBacklog => 0;
+
+            public IConnectionRateLimiter ConnectionRateLimiter => null!;
+
+            public void Grant()
+            {
+                m_permit.TrySetResult(true);
+            }
+
+            public bool TryAcquireSessionEstablishment(out IDisposable lease, out TimeSpan? retryAfter)
+            {
+                lease = null!;
+                retryAfter = null;
+                return false;
+            }
+
+            public async ValueTask<(bool Acquired, IDisposable? Lease, TimeSpan? RetryAfter)>
+                AcquireSessionEstablishmentAsync(System.Threading.CancellationToken cancellationToken = default)
+            {
+                await m_permit.Task.ConfigureAwait(false);
+                return (true, null, null);
+            }
+
+            public void Dispose()
+            {
+                Grant();
+            }
+        }
+
+        private sealed class RecordingParkSink : IRequestParkSink
+        {
+            public bool Parked { get; private set; }
+
+            public void NotifyParked()
+            {
+                Parked = true;
             }
         }
     }

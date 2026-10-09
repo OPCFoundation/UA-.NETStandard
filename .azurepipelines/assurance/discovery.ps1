@@ -33,7 +33,7 @@ Provides compatibility net10 assurance discovery and shared PR path relevance.
 .DESCRIPTION
 Ordinary projects are discovered under tests. The three public replay projects
 are explicitly required under fuzzing. No legacy/alternate TFM is claimed by
-this matrix; Azure uses evaluated MSBuild applicability in get-matrix.ps1.
+this matrix; the shared Actions runner verifies evaluated MSBuild applicability.
 The CI workload is expanded by .github/scripts/get-ci-matrix.ps1. Relevance is
 delegated to its callers' primary get-path-relevance.ps1 rule.
 #>

@@ -28,8 +28,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable annotations
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -75,7 +73,7 @@ namespace Opc.Ua.Server.Tests.Identity
             registry.RegisterDefaultAuthenticators(
                 Mock.Of<IUserDatabase>(),
                 userCertificateValidator: null,
-                jwtTokenValidator: (handler, ct) => new ValueTask<IUserIdentity?>((IUserIdentity)null));
+                jwtTokenValidator: (handler, ct) => new ValueTask<IUserIdentity?>((IUserIdentity)null!));
 
             Assert.That(registry.Authenticators, Has.Count.EqualTo(3));
             Assert.That(registry.Authenticators[2], Is.TypeOf<JwtAuthenticator>());
@@ -96,7 +94,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             var registry = new RecordingRegistry();
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => registry.RegisterDefaultAuthenticators((IUserDatabase)null));
+                () => registry.RegisterDefaultAuthenticators((IUserDatabase)null!));
             Assert.That(ex.ParamName, Is.EqualTo("userDatabase"));
         }
 
@@ -107,7 +105,7 @@ namespace Opc.Ua.Server.Tests.Identity
             registry.RegisterDefaultAuthenticators(
                 verifyUserName: (handler, ct) => new ValueTask<IUserIdentity>(new UserIdentity()),
                 verifyX509: (handler, ct) => new ValueTask<IUserIdentity>(new UserIdentity()),
-                verifyJwt: (handler, ct) => new ValueTask<IUserIdentity?>((IUserIdentity)null));
+                verifyJwt: (handler, ct) => new ValueTask<IUserIdentity?>((IUserIdentity)null!));
 
             Assert.That(registry.Authenticators, Has.Count.EqualTo(4));
             Assert.That(registry.Authenticators[0], Is.TypeOf<AnonymousAuthenticator>());
@@ -121,7 +119,7 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             var registry = new RecordingRegistry();
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => registry.RegisterDefaultAuthenticators(verifyUserName: null));
+                () => registry.RegisterDefaultAuthenticators(verifyUserName: null!));
             Assert.That(ex.ParamName, Is.EqualTo("verifyUserName"));
         }
 
@@ -129,7 +127,7 @@ namespace Opc.Ua.Server.Tests.Identity
         public void RegisterDefaultAuthenticatorsUserDatabaseOverloadRejectsNullRegistry()
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => ((IServerIdentityRegistry)null).RegisterDefaultAuthenticators(Mock.Of<IUserDatabase>()));
+                () => ((IServerIdentityRegistry)null!).RegisterDefaultAuthenticators(Mock.Of<IUserDatabase>()));
             Assert.That(ex.ParamName, Is.EqualTo("registry"));
         }
 
@@ -137,7 +135,7 @@ namespace Opc.Ua.Server.Tests.Identity
         public void RegisterDefaultAuthenticatorsDelegateOverloadRejectsNullRegistry()
         {
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(
-                () => ((IServerIdentityRegistry)null).RegisterDefaultAuthenticators(
+                () => ((IServerIdentityRegistry)null!).RegisterDefaultAuthenticators(
                     (handler, ct) => new ValueTask<IUserIdentity>(new UserIdentity())));
             Assert.That(ex.ParamName, Is.EqualTo("registry"));
         }
@@ -197,6 +195,63 @@ namespace Opc.Ua.Server.Tests.Identity
             Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }
 
+        [Test]
+        public async Task UserDatabaseVerifierRejectsDisabledUserAsync()
+        {
+            var database = new FakeUserDatabase { CredentialsValid = true };
+            database.Users.Add(new UserManagementDataType
+            {
+                UserName = "alice",
+                UserConfiguration = (uint)UserConfigurationMask.Disabled
+            });
+
+            UserNamePasswordAuthenticator authenticator = GetUserNamePasswordAuthenticator(database);
+            AuthenticationResult result = await authenticator
+                .AuthenticateAsync(CreateContext("alice", [1, 2, 3, 4]))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+        }
+
+        [Test]
+        public async Task UserDatabaseVerifierDoesNotSnapshotUsersForInvalidCredentialsAsync()
+        {
+            var database = new FakeUserDatabase { CredentialsValid = false };
+
+            UserNamePasswordAuthenticator authenticator = GetUserNamePasswordAuthenticator(database);
+            AuthenticationResult result = await authenticator
+                .AuthenticateAsync(CreateContext("alice", [1, 2, 3, 4]))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(database.GetUsersCalls, Is.Zero);
+        }
+
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task LinqUserDatabaseVerifierAppliesDisabledFlagAsync(bool disabled)
+        {
+            var database = new LinqUserDatabase();
+            byte[] password = [1, 2, 3, 4];
+            Assert.That(database.CreateUser(
+                "alice",
+                password,
+                [],
+                disabled ? UserConfigurationMask.Disabled : default,
+                string.Empty), Is.True);
+            database.CreateUser("bob", password, [], UserConfigurationMask.Disabled, string.Empty);
+
+            UserNamePasswordAuthenticator authenticator = GetUserNamePasswordAuthenticator(database);
+            AuthenticationResult result = await authenticator
+                .AuthenticateAsync(CreateContext("alice", password))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                result.Outcome,
+                Is.EqualTo(disabled ? AuthenticationOutcome.Rejected : AuthenticationOutcome.Accepted));
+        }
+
         private static UserNamePasswordAuthenticator GetUserNamePasswordAuthenticator(IUserDatabase database)
         {
             var registry = new RecordingRegistry();
@@ -217,6 +272,8 @@ namespace Opc.Ua.Server.Tests.Identity
         private sealed class FakeUserDatabase : IUserDatabase
         {
             public bool CredentialsValid { get; set; }
+
+            public List<UserManagementDataType> Users { get; } = [];
 
             /// <inheritdoc/>
             public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
@@ -245,8 +302,11 @@ namespace Opc.Ua.Server.Tests.Identity
             /// <inheritdoc/>
             public IReadOnlyList<UserManagementDataType> GetUsers()
             {
-                return [];
+                GetUsersCalls++;
+                return Users;
             }
+
+            public int GetUsersCalls { get; private set; }
 
             /// <inheritdoc/>
             public bool ChangePassword(

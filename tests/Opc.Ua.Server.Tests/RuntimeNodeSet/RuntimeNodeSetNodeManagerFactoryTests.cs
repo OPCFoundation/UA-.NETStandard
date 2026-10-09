@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void ConstructorRejectsNullOptions()
         {
             Assert.That(
-                () => new RuntimeNodeSetNodeManagerFactory(null),
+                () => new RuntimeNodeSetNodeManagerFactory(null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("options"));
         }
 
@@ -321,7 +321,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 new RuntimeNodeSetOptions { Sources = [source] });
 
             Assert.That(
-                () => factory.CreateAsync(null, new ApplicationConfiguration(), default).AsTask(),
+                () => factory.CreateAsync(null!, new ApplicationConfiguration(), default).AsTask(),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("server"));
         }
 
@@ -386,6 +386,41 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Sources = [source],
                 Configure = _ => { }
             });
+
+            IAsyncNodeManager manager = await factory.CreateAsync(
+                BuildMockServer().Object,
+                new ApplicationConfiguration(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            using (manager as IDisposable)
+            {
+                Assert.That(manager, Is.Not.Null);
+            }
+        }
+
+        /// <summary>
+        /// A single source that declares two models where one requires the other is
+        /// well-formed and must not be reported as a circular dependency.
+        /// </summary>
+        [Test]
+        public async Task CreateAsyncAcceptsIntraDocumentModelDependencyAsync()
+        {
+            const string xml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                "  <Models>\r\n" +
+                "    <Model ModelUri=\"" + kUriA + "\" />\r\n" +
+                "    <Model ModelUri=\"" + kUriB + "\">\r\n" +
+                "      <RequiredModel ModelUri=\"" + kUriA + "\" />\r\n" +
+                "    </Model>\r\n" +
+                "  </Models>\r\n" +
+                "</UANodeSet>";
+            StreamRuntimeNodeSetSource source = RuntimeNodeSetSource.FromStream(
+                "combined",
+                _ => new ValueTask<Stream>(new MemoryStream(Encoding.UTF8.GetBytes(xml))),
+                [kUriA, kUriB]);
+            var factory = new RuntimeNodeSetNodeManagerFactory(
+                new RuntimeNodeSetOptions { Sources = [source] });
 
             IAsyncNodeManager manager = await factory.CreateAsync(
                 BuildMockServer().Object,

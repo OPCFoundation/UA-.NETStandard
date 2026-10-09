@@ -231,6 +231,19 @@ static async Task RunClientAsync(IServiceProvider services, CancellationToken ca
             }
 
             Console.WriteLine();
+            Console.WriteLine("Waiting for a data change notification...");
+            try
+            {
+                await handler.FirstDataChange
+                    .WaitAsync(TimeSpan.FromSeconds(10), cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch (TimeoutException)
+            {
+                Console.WriteLine("No data change notification arrived within 10 seconds.");
+            }
+
+            Console.WriteLine();
             Console.WriteLine("Disconnecting...");
         }
     }
@@ -239,10 +252,16 @@ static async Task RunClientAsync(IServiceProvider services, CancellationToken ca
 }
 
 /// <summary>
-/// Writes sample subscription values, event counts, and state changes to the console while ignoring keep-alives.
+/// Prints subscription notifications to the console and signals when the first
+/// data change notification arrives.
 /// </summary>
 internal sealed class ConsoleSubscriptionHandler : ISubscriptionNotificationHandler
 {
+    /// <summary>
+    /// Completes when the first data change notification has been received.
+    /// </summary>
+    public Task FirstDataChange => m_firstDataChange.Task;
+
     /// <summary>
     /// Writes each changed value in the received data-change notification to the console.
     /// </summary>
@@ -257,6 +276,10 @@ internal sealed class ConsoleSubscriptionHandler : ISubscriptionNotificationHand
         foreach (DataValueChange change in notification.Span)
         {
             Console.WriteLine($"Subscription value: {change.Value.WrappedValue}");
+        }
+        if (!notification.IsEmpty)
+        {
+            m_firstDataChange.TrySetResult();
         }
         return default;
     }
@@ -300,4 +323,7 @@ internal sealed class ConsoleSubscriptionHandler : ISubscriptionNotificationHand
         Console.WriteLine($"Subscription state: {state}");
         return default;
     }
+
+    private readonly TaskCompletionSource m_firstDataChange =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 }

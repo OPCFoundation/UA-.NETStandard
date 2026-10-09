@@ -373,6 +373,15 @@ namespace Opc.Ua.Client.Subscriptions
                 // the keep-alive, and DO NOT advance the data-dedup gate
                 // (LastDataSequenceNumberProcessed) — otherwise the next real
                 // data message would be silently dropped as a duplicate.
+                //
+                // Because the keep-alive names the next sequence number, a
+                // keep-alive more than one ahead of the last data message
+                // proves the messages in between were sent but never
+                // received (Part 4 §5.14.1.1). Recover them now rather than
+                // waiting for the next data message, which on a quiet
+                // subscription may never come before the server drops them.
+                await RecoverMissingBeforeKeepAliveAsync(curSeqNum, ct)
+                    .ConfigureAwait(false);
                 LastSequenceNumberProcessed = curSeqNum;
                 await OnNotificationReceivedAsync(
                     incoming.Message,
@@ -461,11 +470,95 @@ namespace Opc.Ua.Client.Subscriptions
             }
             LastDataSequenceNumberProcessed = curSeqNum;
             LastSequenceNumberProcessed = curSeqNum;
+            // The original arrived after all, e.g. after its recovery failed.
+            m_notDispatched.Remove(curSeqNum);
             await OnNotificationReceivedAsync(
                 incoming.Message,
                 PublishState.None,
                 incoming.StringTable ?? [],
                 ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Republish the data messages a keep-alive proves are missing. The
+        /// keep-alive carries the sequence number of the next message to be
+        /// sent, so every sequence number between the last processed data
+        /// message and the keep-alive was sent and is missing.
+        /// </summary>
+        /// <param name="keepAliveSeqNum">The sequence number of the
+        /// keep-alive.</param>
+        /// <param name="ct">Cancellation token.</param>
+        private async ValueTask RecoverMissingBeforeKeepAliveAsync(
+            uint keepAliveSeqNum,
+            CancellationToken ct)
+        {
+            const uint kBackwardThreshold = 1u << 31;
+            uint prevDataSeq = LastDataSequenceNumberProcessed;
+            if (prevDataSeq == 0)
+            {
+                // Nothing to compare against yet (first message after create).
+                return;
+            }
+            uint delta = unchecked(keepAliveSeqNum - prevDataSeq);
+            if (delta is 0 or 1 or >= kBackwardThreshold)
+            {
+                // No gap, or a stale keep-alive.
+                return;
+            }
+            uint gap = delta - 1;
+            if (keepAliveSeqNum < prevDataSeq)
+            {
+                // Zero is skipped at the wrap point (Part 4 §5.14.5.1).
+                gap--;
+            }
+            if (gap == 0)
+            {
+                return;
+            }
+            IReadOnlyList<uint> available = AvailableInRetransmissionQueue;
+            var candidates = new List<uint>();
+            for (int i = 0; i < available.Count; i++)
+            {
+                uint seq = available[i];
+                uint offset = unchecked(seq - prevDataSeq);
+                if (offset != 0 && offset < delta)
+                {
+                    candidates.Add(seq);
+                }
+            }
+            if (candidates.Count == 0)
+            {
+                // Nothing the server holds can be recovered now. Leave the
+                // data gate where it is: a missing message may still be in
+                // flight on another publish worker, and advancing the gate
+                // would discard it as a duplicate when it arrives. The next
+                // data message accounts for the gap.
+                return;
+            }
+            Interlocked.Add(ref m_missingCount, gap);
+
+            // Recover in sequence order and advance the data gate only over
+            // what was actually recovered. On the first failure stop, so the
+            // gap-walk of the next data message retries the rest instead of
+            // treating them as already processed.
+            foreach (uint seq in SortAscendingWrapAware(candidates))
+            {
+                if (!await TryRepublishAsync(seq, keepAliveSeqNum, ct)
+                    .ConfigureAwait(false))
+                {
+                    return;
+                }
+                LastDataSequenceNumberProcessed = seq;
+            }
+
+            // Everything the server holds was recovered. Advance the data
+            // gate to the message just before the keep-alive so the gap is
+            // accounted for once: the data message that later reuses the
+            // keep-alive's sequence number is then not treated as a gap
+            // again, and recovered messages that arrive late are discarded
+            // as duplicates.
+            uint lastMissing = unchecked(keepAliveSeqNum - 1);
+            LastDataSequenceNumberProcessed = lastMissing == 0 ? uint.MaxValue : lastMissing;
         }
 
         /// <summary>
@@ -481,21 +574,69 @@ namespace Opc.Ua.Client.Subscriptions
             Func<CancellationToken, ValueTask> initializeAsync,
             CancellationToken ct)
         {
-            await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+            if (!m_messageDispatchGate.Wait(0, CancellationToken.None))
+            {
+                // A notification callback is running. Callers hold the
+                // owner's state lock here, so give the owner a chance to
+                // release anything that callback may be awaiting which in
+                // turn needs that lock - otherwise neither side progresses.
+                OnDispatchGateContended();
+                try
+                {
+                    await m_messageDispatchGate.WaitAsync(ct).ConfigureAwait(false);
+                }
+                catch
+                {
+                    // The reset gave up before it got the gate. Withdraw the
+                    // release request so later callbacks are not treated as
+                    // blocking a reset that no longer waits.
+                    OnDispatchGateWaitAbandoned();
+                    throw;
+                }
+            }
             try
             {
+                OnDispatchGateAcquired();
                 await retireAsync(ct).ConfigureAwait(false);
                 Interlocked.Increment(ref m_generation);
                 LastSequenceNumberProcessed = 0;
                 LastDataSequenceNumberProcessed = 0;
                 LastNotificationTimestamp = 0;
                 AvailableInRetransmissionQueue = [];
+                m_notDispatched.Clear();
                 await initializeAsync(ct).ConfigureAwait(false);
             }
             finally
             {
                 m_messageDispatchGate.Release();
             }
+        }
+
+        /// <summary>
+        /// Called by <see cref="ResetMessageGenerationAsync"/> when it has to
+        /// wait for a notification callback to return before it can retire
+        /// the current generation.
+        /// </summary>
+        protected virtual void OnDispatchGateContended()
+        {
+        }
+
+        /// <summary>
+        /// Called by <see cref="ResetMessageGenerationAsync"/> once it holds
+        /// the dispatch gate, i.e. while no notification callback runs.
+        /// </summary>
+        protected virtual void OnDispatchGateAcquired()
+        {
+        }
+
+        /// <summary>
+        /// Called by <see cref="ResetMessageGenerationAsync"/> when its wait
+        /// for the dispatch gate, announced through
+        /// <see cref="OnDispatchGateContended"/>, ends without acquiring the
+        /// gate (for example because it was cancelled).
+        /// </summary>
+        protected virtual void OnDispatchGateWaitAbandoned()
+        {
         }
 
         /// <summary>
@@ -536,6 +677,29 @@ namespace Opc.Ua.Client.Subscriptions
                 // next message is not treated as the first after create.
                 foreach (uint sequenceNumber in ordered)
                 {
+                    if (LastDataSequenceNumberProcessed != 0 &&
+                        !IsNewerSequenceNumber(
+                            sequenceNumber,
+                            LastDataSequenceNumberProcessed) &&
+                        !m_notDispatched.Contains(sequenceNumber))
+                    {
+                        // The subscription survived the transfer with its
+                        // dedup gate intact (reconnect onto the same
+                        // object), and this message was already dispatched
+                        // - it is only still listed because its
+                        // acknowledgement had not reached the server yet
+                        // (Part 4 §5.14.7.2). Do not republish or
+                        // re-dispatch it; just acknowledge it so the server
+                        // can drop it from its retransmission queue.
+                        // Messages whose republish failed earlier were
+                        // never dispatched and are recovered below.
+                        await AckQueue.QueueAsync(new SubscriptionAcknowledgement
+                        {
+                            SequenceNumber = sequenceNumber,
+                            SubscriptionId = Id
+                        }, ct).ConfigureAwait(false);
+                        continue;
+                    }
                     await RepublishKnownAvailableAsync(
                         sequenceNumber,
                         sequenceNumber,
@@ -608,7 +772,10 @@ namespace Opc.Ua.Client.Subscriptions
         /// <param name="curSeqNum"></param>
         /// <param name="ct"></param>
         /// <returns></returns>
-        private async ValueTask TryRepublishAsync(
+        /// <returns><c>false</c> if the message is listed as available but
+        /// could not be recovered; <c>true</c> if it was dispatched or the
+        /// server no longer holds it.</returns>
+        private async ValueTask<bool> TryRepublishAsync(
             uint missing,
             uint curSeqNum,
             CancellationToken ct)
@@ -619,9 +786,9 @@ namespace Opc.Ua.Client.Subscriptions
                 Logger.SubscriptionMessageSequenceNumberSeqNumberNot(
                     Id,
                     missing);
-                return;
+                return true;
             }
-            await RepublishAvailableAsync(missing, curSeqNum, ct)
+            return await RepublishAvailableAsync(missing, curSeqNum, ct)
                 .ConfigureAwait(false);
         }
 
@@ -635,7 +802,14 @@ namespace Opc.Ua.Client.Subscriptions
                 .ConfigureAwait(false);
         }
 
-        private async ValueTask RepublishAvailableAsync(
+        /// <summary>
+        /// Republish a message the server lists as available and dispatch
+        /// it. A message that cannot be recovered is remembered as never
+        /// dispatched, so a later transfer recovery republishes it instead
+        /// of acknowledging it as already processed.
+        /// </summary>
+        /// <returns><c>true</c> if the message was dispatched.</returns>
+        private async ValueTask<bool> RepublishAvailableAsync(
             uint missing,
             uint curSeqNum,
             CancellationToken ct)
@@ -654,21 +828,21 @@ namespace Opc.Ua.Client.Subscriptions
 
                 if (ServiceResult.IsGood(republish.ResponseHeader.ServiceResult))
                 {
+                    m_notDispatched.Remove(missing);
                     await OnNotificationReceivedAsync(
                         republish.NotificationMessage,
                         PublishState.Republish,
                         republish.ResponseHeader.StringTable.ToArray() ?? [],
                         ct).ConfigureAwait(false);
+                    return true;
                 }
-                else
-                {
-                    Logger.SubscriptionRepublishingMessageSequenceNumberSeqNumber(
-                        Id,
-                        missing);
-                }
+                Logger.SubscriptionRepublishingMessageSequenceNumberSeqNumber(
+                    Id,
+                    missing);
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
+                RememberNotDispatched(missing);
                 throw;
             }
             catch (Exception ex)
@@ -678,6 +852,27 @@ namespace Opc.Ua.Client.Subscriptions
                     Id,
                     missing);
             }
+            RememberNotDispatched(missing);
+            return false;
+        }
+
+        /// <summary>
+        /// Remember a sequence number whose republish failed. Called with the
+        /// dispatch gate held. The set is bounded: numbers the server no
+        /// longer lists cannot be recovered any more and are dropped first.
+        /// </summary>
+        private void RememberNotDispatched(uint sequenceNumber)
+        {
+            if (m_notDispatched.Count >= kMaxNotDispatched)
+            {
+                IReadOnlyList<uint> available = AvailableInRetransmissionQueue;
+                m_notDispatched.RemoveWhere(s => !available.Contains(s));
+                if (m_notDispatched.Count >= kMaxNotDispatched)
+                {
+                    return;
+                }
+            }
+            m_notDispatched.Add(sequenceNumber);
         }
 
         /// <summary>
@@ -912,6 +1107,14 @@ namespace Opc.Ua.Client.Subscriptions
         private readonly Task m_messageWorkerTask;
         private readonly Channel<IncomingMessage> m_messages;
         private const int kIncomingMessageCapacity = 1024;
+        private const int kMaxNotDispatched = 1024;
+
+        /// <summary>
+        /// Sequence numbers of the current generation whose republish failed,
+        /// so they were never dispatched although the data gate may have
+        /// moved past them. Only accessed with the dispatch gate held.
+        /// </summary>
+        private readonly HashSet<uint> m_notDispatched = [];
     }
 
     /// <summary>

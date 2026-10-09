@@ -66,13 +66,13 @@ namespace Opc.Ua.SourceGeneration
         /// Optional override for the namespace of the generated partial.
         /// Defaults to the design's <c>TargetNamespace.Prefix</c>.
         /// </summary>
-        public string OverrideNamespace { get; init; }
+        public string? OverrideNamespace { get; init; }
 
         /// <summary>
         /// Optional override for the class name of the generated partial.
         /// Defaults to <c>{Prefix}NodeManager</c>.
         /// </summary>
-        public string OverrideClassName { get; init; }
+        public string? OverrideClassName { get; init; }
 
         /// <summary>
         /// When <c>false</c> the matching <c>{ClassName}Factory</c> is
@@ -94,7 +94,7 @@ namespace Opc.Ua.SourceGeneration
         /// the generated factory advertises via <c>NamespacesUris</c>.
         /// Typically a sample's separate instance namespace. Optional.
         /// </summary>
-        public IReadOnlyList<string> AdditionalNamespaceUris { get; init; }
+        public IReadOnlyList<string>? AdditionalNamespaceUris { get; init; }
 
         /// <summary>
         /// Create node manager generator.
@@ -110,7 +110,7 @@ namespace Opc.Ua.SourceGeneration
         {
             string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
             string typeStem = nsPrefix.Replace(".", string.Empty, StringComparison.Ordinal);
-            string nsUriSymbol = m_context.ModelDesign.Namespaces
+            string? nsUriSymbol = m_context.ModelDesign.Namespaces
                 .GetConstantSymbolForNamespace(m_context.ModelDesign.TargetNamespace.Value);
 
             string targetNamespace = string.IsNullOrEmpty(OverrideNamespace)
@@ -122,13 +122,16 @@ namespace Opc.Ua.SourceGeneration
             string factoryClass = string.IsNullOrEmpty(OverrideClassName)
                 ? typeStem + "NodeManagerFactory"
                 : OverrideClassName + "Factory";
+            // The namespace is part of the stem: two bound managers may share a
+            // class name in different namespaces, and the output file system
+            // silently overwrites an existing file of the same name.
             string fileStem = string.IsNullOrEmpty(OverrideClassName)
                 ? nsPrefix
-                : OverrideClassName;
+                : targetNamespace + "." + OverrideClassName;
 
             var resources = new List<Resource>(2)
             {
-                EmitNodeManager(nsPrefix, targetNamespace, targetClass, typeStem, nsUriSymbol, fileStem)
+                EmitNodeManager(nsPrefix, targetNamespace, targetClass, typeStem, nsUriSymbol!, fileStem)
             };
             // The factory body is a call to the public (server, configuration)
             // constructor. When that constructor is suppressed the manager cannot
@@ -146,7 +149,7 @@ namespace Opc.Ua.SourceGeneration
             }
             else if (EmitFactory)
             {
-                resources.Add(EmitFactoryFile(targetNamespace, targetClass, factoryClass, nsUriSymbol, fileStem));
+                resources.Add(EmitFactoryFile(targetNamespace, targetClass, factoryClass, nsUriSymbol!, fileStem));
             }
             return resources;
         }

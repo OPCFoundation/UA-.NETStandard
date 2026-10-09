@@ -98,7 +98,7 @@ namespace Opc.Ua.SourceGeneration
         [TestCase("ids.csv", "Thing,not-a-number,Object\r\n", "MODELGEN029")]
         public void ExplicitSidecarReportsValidationFailures(
             string identifierName,
-            string identifierContent,
+            string? identifierContent,
             string expectedDiagnosticId)
         {
             string modelPath = Path.Combine("Models", "Model.NodeSet2.xml");
@@ -119,6 +119,81 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(
                 GetSidecarDiagnosticIds(diagnostics),
                 Does.Contain(expectedDiagnosticId),
+                string.Join(Environment.NewLine, diagnostics.Select(diagnostic => diagnostic.ToString())));
+        }
+
+        /// <summary>
+        /// OPC 30050 PackML lists method arguments ahead of their method, and
+        /// declares the method without a <c>ParentNodeId</c> - the parent is only
+        /// recoverable from the inverse HasComponent reference. The argument has
+        /// to be validated under the same qualified symbol the import pass emits.
+        /// </summary>
+        [Test]
+        public void ArgumentListedBeforeUnparentedMethodValidatesQualifiedSymbol()
+        {
+            const string modelUri = "urn:test:forward-method-argument";
+            string modelPath = Path.Combine("Models", "Model.NodeSet2.xml");
+            string identifierPath = Path.Combine("Models", "Model.ids.csv");
+            string nodeSet =
+                $$"""
+                <?xml version="1.0" encoding="utf-8"?>
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris>
+                    <Uri>{{modelUri}}</Uri>
+                  </NamespaceUris>
+                  <Models>
+                    <Model ModelUri="{{modelUri}}" Version="1.0.0"
+                      PublicationDate="2026-01-01T00:00:00Z" />
+                  </Models>
+                  <Aliases>
+                    <Alias Alias="Argument">i=296</Alias>
+                    <Alias Alias="HasComponent">i=47</Alias>
+                    <Alias Alias="HasProperty">i=46</Alias>
+                    <Alias Alias="HasModellingRule">i=37</Alias>
+                    <Alias Alias="HasSubtype">i=45</Alias>
+                    <Alias Alias="HasTypeDefinition">i=40</Alias>
+                  </Aliases>
+                  <UAObjectType NodeId="ns=1;i=1" BrowseName="1:ThingType">
+                    <DisplayName>ThingType</DisplayName>
+                    <References>
+                      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                      <Reference ReferenceType="HasComponent">ns=1;i=3</Reference>
+                    </References>
+                  </UAObjectType>
+                  <UAVariable NodeId="ns=1;i=2" BrowseName="InputArguments" ParentNodeId="ns=1;i=3"
+                    DataType="Argument" ValueRank="1" ArrayDimensions="1">
+                    <DisplayName>InputArguments</DisplayName>
+                    <References>
+                      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+                      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+                      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3</Reference>
+                    </References>
+                  </UAVariable>
+                  <UAMethod NodeId="ns=1;i=3" BrowseName="1:DoIt">
+                    <DisplayName>DoIt</DisplayName>
+                    <References>
+                      <Reference ReferenceType="HasProperty">ns=1;i=2</Reference>
+                      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+                      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAMethod>
+                </UANodeSet>
+                """;
+            ImmutableArray<Diagnostic> diagnostics = Run(
+                [
+                    EmbeddedText.Create(modelPath, nodeSet),
+                    EmbeddedText.Create(
+                        identifierPath,
+                        "SymbolicName,NodeId,NodeClass\r\n" +
+                        "ThingType,1,ObjectType\r\n" +
+                        "ThingType_DoIt_InputArguments,2,Variable\r\n" +
+                        "ThingType_DoIt,3,Method\r\n")
+                ],
+                new Dictionary<string, string> { [modelPath] = "Model.ids.csv" });
+
+            Assert.That(
+                GetSidecarDiagnosticIds(diagnostics),
+                Is.Empty,
                 string.Join(Environment.NewLine, diagnostics.Select(diagnostic => diagnostic.ToString())));
         }
 
@@ -143,7 +218,110 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(GetSidecarDiagnosticIds(diagnostics), Does.Contain("MODELGEN028"));
         }
 
+        /// <summary>
+        /// Regression: the adjacent path was combined but never normalized, so
+        /// "./x.csv", "../x.csv" and "sub/x.csv" never matched the normalized
+        /// AdditionalFiles path and the sidecar was reported missing.
+        /// </summary>
+        [TestCase("./ids.csv", "Models")]
+        [TestCase(".\\ids.csv", "Models")]
+        [TestCase("../Shared/ids.csv", "Shared")]
+        [TestCase("sub/ids.csv", "Models/sub")]
+        public void RelativeSidecarPathIsResolved(string identifierFile, string identifierDirectory)
+        {
+            string modelPath = Path.Combine("Models", "Model.NodeSet2.xml");
+            string identifierPath = Path.Combine(
+                [.. identifierDirectory.Split('/'), "ids.csv"]);
+            ImmutableArray<Diagnostic> diagnostics = Run(
+                [
+                    EmbeddedText.Create(modelPath, NodeSet("urn:test:relative", "Thing", 1)),
+                    EmbeddedText.Create(identifierPath, "SymbolicName,NodeId,NodeClass\r\nThing,1,Object\r\n")
+                ],
+                new Dictionary<string, string> { [modelPath] = identifierFile });
+
+            Assert.That(
+                GetSidecarDiagnosticIds(diagnostics),
+                Is.Empty,
+                string.Join(Environment.NewLine, diagnostics.Select(diagnostic => diagnostic.ToString())));
+        }
+
+        /// <summary>
+        /// Regression: the suffix fallback matched without a directory boundary,
+        /// so "ids.csv" silently selected "Other.ids.csv" instead of reporting
+        /// the sidecar missing.
+        /// </summary>
+        [Test]
+        public void SidecarSuffixMatchRequiresADirectoryBoundary()
+        {
+            string modelPath = Path.Combine("Models", "Model.NodeSet2.xml");
+            ImmutableArray<Diagnostic> diagnostics = Run(
+                [
+                    EmbeddedText.Create(modelPath, NodeSet("urn:test:boundary", "Thing", 1)),
+                    EmbeddedText.Create(
+                        Path.Combine("Elsewhere", "Other.ids.csv"),
+                        "SymbolicName,NodeId,NodeClass\r\nThing,1,Object\r\n")
+                ],
+                new Dictionary<string, string> { [modelPath] = "ids.csv" });
+
+            Assert.That(
+                GetSidecarDiagnosticIds(diagnostics),
+                Is.Not.Empty.And.All.EqualTo("MODELGEN022"));
+        }
+
+        /// <summary>
+        /// Regression: a ModelDesign that is the only design in its folder and
+        /// has no same-named CSV adopted the single CSV next to it - even the
+        /// identifier sidecar a NodeSet claims through its IdentifierFile
+        /// metadata - and took the NodeSet's numeric ids.
+        /// </summary>
+        [Test]
+        public void ModelDesignDoesNotAdoptASidecarClaimedByANodeSet()
+        {
+            string modelPath = Path.Combine("Models", "Model.NodeSet2.xml");
+            string designPath = Path.Combine("Models", "Design.xml");
+            GeneratorDriverRunResult result = RunGenerator(
+                [
+                    EmbeddedText.Create(
+                        modelPath,
+                        NodeSet("urn:test:claimed", "Thing", 4242).Replace(
+                            "SymbolicName=\"Thing\" />",
+                            "SymbolicName=\"Thing\"><References>" +
+                            "<Reference ReferenceType=\"i=40\">i=58</Reference>" +
+                            "</References></UAObject>",
+                            StringComparison.Ordinal)),
+                    EmbeddedText.Create(
+                        Path.Combine("Models", "Model.ids.csv"),
+                        "SymbolicName,NodeId,NodeClass\r\nThing,4242,Object\r\n"),
+                    EmbeddedText.Create(designPath, Design("urn:test:design", "Thing"))
+                ],
+                new Dictionary<string, string> { [modelPath] = "Model.ids.csv" });
+
+            GeneratedSourceResult[] designSources = [.. result.Results
+                .SelectMany(r => r.GeneratedSources)
+                .Where(s => s.HintName.StartsWith("Test.Design.", StringComparison.Ordinal))];
+            Assert.That(
+                designSources,
+                Is.Not.Empty,
+                string.Join(", ", result.Results.SelectMany(r => r.GeneratedSources).Select(s => s.HintName)) +
+                Environment.NewLine +
+                string.Join(
+                    Environment.NewLine,
+                    result.Diagnostics.Concat(result.Results.SelectMany(r => r.Diagnostics))));
+            Assert.That(
+                designSources.Select(s => s.SourceText.ToString()),
+                Has.None.Contains("4242"),
+                "the design must not take the NodeSet sidecar's identifiers");
+        }
+
         private static ImmutableArray<Diagnostic> Run(
+            IEnumerable<AdditionalText> additionalTexts,
+            IReadOnlyDictionary<string, string> sidecars)
+        {
+            GeneratorDriverRunResult result = RunGenerator(additionalTexts, sidecars);
+            return [.. result.Diagnostics.Concat(result.Results.SelectMany(generator => generator.Diagnostics))];
+        }
+
+        private static GeneratorDriverRunResult RunGenerator(
             IEnumerable<AdditionalText> additionalTexts,
             IReadOnlyDictionary<string, string> sidecars)
         {
@@ -183,8 +361,27 @@ namespace Opc.Ua.SourceGeneration
                 .WithUpdatedAnalyzerConfigOptions(options);
             driver = driver.RunGenerators(compilation);
 
-            GeneratorDriverRunResult result = driver.GetRunResult();
-            return [.. result.Diagnostics.Concat(result.Results.SelectMany(generator => generator.Diagnostics))];
+            return driver.GetRunResult();
+        }
+
+        private static string Design(string namespaceUri, string symbolicName)
+        {
+            return
+                $$"""
+                <?xml version="1.0" encoding="utf-8"?>
+                <opc:ModelDesign
+                  xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+                  xmlns:ua="http://opcfoundation.org/UA/"
+                  xmlns="{{namespaceUri}}"
+                  TargetNamespace="{{namespaceUri}}">
+                  <opc:Namespaces>
+                    <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+                    <opc:Namespace Name="Design" Prefix="Test.Design">{{namespaceUri}}</opc:Namespace>
+                  </opc:Namespaces>
+                  <opc:ObjectType SymbolicName="{{symbolicName}}Type" BaseType="ua:BaseObjectType" />
+                  <opc:Object SymbolicName="{{symbolicName}}" TypeDefinition="{{symbolicName}}Type" />
+                </opc:ModelDesign>
+                """;
         }
 
         private static IEnumerable<string> GetSidecarDiagnosticIds(

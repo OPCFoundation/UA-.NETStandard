@@ -86,7 +86,21 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             {
                 throw new ArgumentNullException(nameof(context));
             }
-            PubSubNetworkMessage? result = DecodeInternal(frame, context);
+            PubSubNetworkMessage? result;
+            try
+            {
+                result = DecodeInternal(frame, context);
+            }
+            catch (Exception ex) when (ex is ServiceResultException
+                or InvalidOperationException
+                or ArgumentException
+                or OverflowException
+                or FormatException)
+            {
+                // Malformed input is a soft rejection: the decoder
+                // contract is to return null, never to throw.
+                result = null;
+            }
             if (result is null)
             {
                 if (!frame.IsEmpty)
@@ -149,8 +163,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
                 ext2 = (ExtendedFlags2EncodingMask)ext2Byte;
             }
+            if (!IsSupportedExtendedFlags2(ext2))
+            {
+                return null;
+            }
 
-            var publisherId = PublisherId.FromByte(0);
+            // An absent PublisherId is reported as PublisherId.Null, the
+            // same identity TryReadOuterPrefix uses for replay and
+            // reassembly bookkeeping; ContentMask tells whether it was sent.
+            PublisherId publisherId = PublisherId.Null;
             if ((uadpFlags & UadpFlagsEncodingMask.PublisherIdEnabled) != 0)
             {
                 if (!((byte)(ext1 & ExtendedFlags1EncodingMask.PublisherIdTypeMask)).TryGetPublisherIdType(
@@ -264,7 +285,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             if ((uadpFlags & UadpFlagsEncodingMask.PayloadHeaderEnabled) != 0)
             {
                 contentMask |= UadpNetworkMessageContentMask.PayloadHeader;
-                if (!reader.TryReadByte(out byte count))
+                // A DataSetMessage NetworkMessage shall contain at least
+                // one DataSetMessage (Part 14 §7.2.4.5.2 Table 160).
+                if (!reader.TryReadByte(out byte count) || count == 0)
                 {
                     return null;
                 }
@@ -349,6 +372,22 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 ushort writerId = payloadWriterIds?[i] ?? 0;
                 int expected = payloadSizes?[i] ?? 0;
 
+                // DataSetFlags1 bit 0 clear: the rest of the DataSetMessage
+                // is invalid and shall not be processed (Part 14 §7.2.4.5.4).
+                if (reader.Remaining > 0 &&
+                    (reader.Buffer[reader.Origin + reader.Position] &
+                        (byte)DataSetFlags1EncodingMask.MessageIsValid) == 0)
+                {
+                    if (payloadSizes is null || expected == 0 || expected > reader.Remaining)
+                    {
+                        // Without a size the following DataSetMessages
+                        // cannot be located either.
+                        break;
+                    }
+                    reader.Advance(expected);
+                    continue;
+                }
+
                 UadpDataSetMessage? dsm = payloadSizes is not null && expected > 0
                     ? DecodeSizedDataSetMessage(
                         ref reader,
@@ -394,9 +433,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         /// Parses just the UADP NetworkMessage prefix (Common Header,
         /// optional Extended Flags, optional PublisherId, optional
         /// DataSetClassId, optional GroupHeader, optional PayloadHeader
-        /// writer-ids, optional Timestamp / PicoSeconds / PromotedFields,
-        /// and optional PayloadHeader sizes) and reports the offset at
-        /// which the SecurityHeader / DataSetMessages region begins.
+        /// writer-ids, optional Timestamp / PicoSeconds / PromotedFields)
+        /// and reports the offset at which the SecurityHeader / payload
+        /// region begins. The DataSet payload Sizes array belongs to the
+        /// (encrypted) payload (Part 14 §7.2.4.5.3).
         /// </summary>
         /// <remarks>
         /// Used by <c>PubSubConnection</c> to split an inbound frame
@@ -453,11 +493,31 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             out PublisherId publisherId,
             out ushort writerGroupId)
         {
-            prefixLength = 0;
-            securityEnabled = false;
-            chunkMessage = false;
-            publisherId = PublisherId.Null;
-            writerGroupId = 0;
+            bool result = TryReadPrefix(frame, out UadpPrefixInfo info);
+            prefixLength = info.PrefixLength;
+            securityEnabled = info.SecurityEnabled;
+            chunkMessage = info.ChunkMessage;
+            publisherId = info.PublisherId;
+            writerGroupId = info.WriterGroupId;
+            return result;
+        }
+
+        /// <summary>
+        /// Parses the UADP NetworkMessage prefix and reports the layout
+        /// details needed to split a NetworkMessage into chunk
+        /// NetworkMessages and to rebuild one from its chunks
+        /// (Part 14 §7.2.4.4.4).
+        /// </summary>
+        /// <param name="frame">Inbound frame bytes.</param>
+        /// <param name="info">On success, the parsed prefix layout.</param>
+        /// <returns><see langword="true"/> when parsing succeeded.</returns>
+        internal static bool TryReadPrefix(
+            ReadOnlyMemory<byte> frame,
+            out UadpPrefixInfo info)
+        {
+            info = new UadpPrefixInfo { PublisherId = PublisherId.Null, PayloadHeaderOffset = -1 };
+            PublisherId publisherId = PublisherId.Null;
+            ushort writerGroupId = 0;
 
             if (frame.IsEmpty)
             {
@@ -493,9 +553,14 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 }
                 ext2 = (ExtendedFlags2EncodingMask)ext2Byte;
             }
+            if (!IsSupportedExtendedFlags2(ext2))
+            {
+                return false;
+            }
 
-            securityEnabled = (ext1 & ExtendedFlags1EncodingMask.SecurityEnabled) != 0;
-            chunkMessage = (ext2 & ExtendedFlags2EncodingMask.ChunkMessage) != 0;
+            int flagsLength = reader.Position;
+            bool securityEnabled = (ext1 & ExtendedFlags1EncodingMask.SecurityEnabled) != 0;
+            bool chunkMessage = (ext2 & ExtendedFlags2EncodingMask.ChunkMessage) != 0;
 
             if ((uadpFlags & UadpFlagsEncodingMask.PublisherIdEnabled) != 0)
             {
@@ -515,8 +580,23 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return false;
             }
 
+            info = new UadpPrefixInfo
+            {
+                SecurityEnabled = securityEnabled,
+                ChunkMessage = chunkMessage,
+                PublisherId = publisherId,
+                FlagsLength = flagsLength,
+                UadpFlags = uadpFlags,
+                ExtendedFlags1 = ext1,
+                ExtendedFlags2 = ext2,
+                NetworkMessageNumberOffset = -1,
+                SequenceNumberOffset = -1,
+                PayloadHeaderOffset = -1
+            };
+
             // Discovery frames are not in scope for security wrapping
             // — keep them detectable so the caller can route them elsewhere.
+            // A chunked discovery announcement carries no PayloadHeader.
             if ((ext2 &
                 ExtendedFlags2EncodingMask
                     .NetworkMessageWithDiscoveryRequest) != 0 ||
@@ -524,10 +604,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                     ExtendedFlags2EncodingMask
                         .NetworkMessageWithDiscoveryResponse) != 0)
             {
-                prefixLength = reader.Position;
+                info = info with { PrefixLength = reader.Position };
                 return true;
             }
-            int payloadCount = 0;
+            int networkMessageNumberOffset = -1;
+            int sequenceNumberOffset = -1;
             if ((uadpFlags & UadpFlagsEncodingMask.GroupHeaderEnabled) != 0)
             {
                 if (!reader.TryReadByte(out byte gfByte))
@@ -548,44 +629,51 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 {
                     return false;
                 }
-                if ((groupFlags & GroupFlagsEncodingMask.NetworkMessageNumberEnabled) != 0 &&
-                    !reader.TryReadUInt16Le(out _))
+                if ((groupFlags & GroupFlagsEncodingMask.NetworkMessageNumberEnabled) != 0)
                 {
-                    return false;
+                    networkMessageNumberOffset = reader.Position;
+                    if (!reader.TryReadUInt16Le(out _))
+                    {
+                        return false;
+                    }
                 }
-                if ((groupFlags & GroupFlagsEncodingMask.SequenceNumberEnabled) != 0 &&
-                    !reader.TryReadUInt16Le(out _))
+                if ((groupFlags & GroupFlagsEncodingMask.SequenceNumberEnabled) != 0)
                 {
-                    return false;
+                    sequenceNumberOffset = reader.Position;
+                    if (!reader.TryReadUInt16Le(out _))
+                    {
+                        return false;
+                    }
                 }
             }
 
-            if (chunkMessage)
-            {
-                // Chunked envelopes carry only the optional GroupHeader
-                // before the inner chunk payload. Stop the prefix here.
-                prefixLength = reader.Position;
-                return true;
-            }
-
-            ushort[]? payloadWriterIds = null;
+            int payloadHeaderOffset = reader.Position;
+            int payloadCount = 1;
+            ushort? chunkWriterId = null;
             if ((uadpFlags & UadpFlagsEncodingMask.PayloadHeaderEnabled) != 0)
             {
-                if (!reader.TryReadByte(out byte count))
+                if (chunkMessage)
                 {
-                    return false;
-                }
-                payloadCount = count;
-                payloadWriterIds = new ushort[count];
-                for (int i = 0; i < count; i++)
-                {
+                    // A chunk NetworkMessage PayloadHeader is the single
+                    // DataSetWriterId of Table 158.
                     if (!reader.TryReadUInt16Le(out ushort wid))
                     {
                         return false;
                     }
-                    payloadWriterIds[i] = wid;
+                    chunkWriterId = wid;
+                }
+                else
+                {
+                    if (!reader.TryReadByte(out byte count) || count == 0 ||
+                        count * sizeof(ushort) > reader.Remaining)
+                    {
+                        return false;
+                    }
+                    payloadCount = count;
+                    reader.Advance(count * sizeof(ushort));
                 }
             }
+            int payloadHeaderLength = reader.Position - payloadHeaderOffset;
 
             if ((ext1 & ExtendedFlags1EncodingMask.TimestampEnabled) != 0 &&
                 !reader.TryReadInt64Le(out _))
@@ -610,25 +698,34 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 reader.Advance(promotedSize);
             }
 
-            if ((ext2 & ExtendedFlags2EncodingMask.ActionHeaderEnabled) != 0)
+            info = info with
             {
-                prefixLength = reader.Position;
-                return true;
-            }
-
-            if (payloadWriterIds is not null && payloadWriterIds.Length > 1)
-            {
-                for (int i = 0; i < payloadCount; i++)
-                {
-                    if (!reader.TryReadUInt16Le(out _))
-                    {
-                        return false;
-                    }
-                }
-            }
-
-            prefixLength = reader.Position;
+                PrefixLength = reader.Position,
+                WriterGroupId = writerGroupId,
+                NetworkMessageNumberOffset = networkMessageNumberOffset,
+                SequenceNumberOffset = sequenceNumberOffset,
+                PayloadHeaderOffset = payloadHeaderOffset,
+                PayloadHeaderLength = payloadHeaderLength,
+                PayloadCount = payloadCount,
+                ChunkDataSetWriterId = chunkWriterId
+            };
             return true;
+        }
+
+        /// <summary>
+        /// Validates the ExtendedFlags2 byte. Bits 2-4 are an enumerated
+        /// UADP NetworkMessage type (000 DataSetMessage, 001 discovery
+        /// probe, 010 discovery announcement) and bits 6-7 are reserved;
+        /// receivers skip messages with reserved values
+        /// (Part 14 §7.2.4.4.2 Table 154).
+        /// </summary>
+        private static bool IsSupportedExtendedFlags2(ExtendedFlags2EncodingMask ext2)
+        {
+            const byte networkMessageTypeMask = 0x1C;
+            const byte reservedMask = 0xC0;
+            byte value = (byte)ext2;
+            return (value & reservedMask) == 0 &&
+                ((value & networkMessageTypeMask) >> 2) <= 2;
         }
 
         private static bool TryReadPublisherId(
@@ -636,7 +733,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             PublisherIdType type,
             out PublisherId publisherId)
         {
-            publisherId = PublisherId.FromByte(0);
+            publisherId = PublisherId.Null;
             switch (type)
             {
                 case PublisherIdType.Byte:
@@ -845,7 +942,9 @@ out PubSubDataSetMessageType messageType))
 
             DataSetMetaDataType? metaData = ResolveMetaData(
                 publisherId, writerGroupId, writerId, dataSetClassId,
-                majorVersion, context);
+                majorVersion,
+                (contentMask & UadpDataSetMessageContentMask.MajorVersion) != 0,
+                context);
 
             ArrayOf<DataSetField>? fields = UadpFieldDecoder.DecodeFields(
                 ref reader, encoding, messageType, metaData, context.MessageContext);
@@ -880,6 +979,7 @@ out PubSubDataSetMessageType messageType))
             ushort writerId,
             Uuid dataSetClassId,
             uint majorVersion,
+            bool hasMajorVersion,
             PubSubNetworkMessageContext context)
         {
             var key = new DataSetMetaDataKey(
@@ -889,6 +989,13 @@ out PubSubDataSetMessageType messageType))
                 key, out DataSetMetaDataType? metaData);
             if (result == MetaDataMatchResult.MajorVersionMismatch)
             {
+                // A DataSetMessage without a ConfigurationVersion cannot be
+                // compared with the metadata, so the registered metadata of
+                // the DataSetWriter applies (Part 14 §6.2.9.4).
+                if (!hasMajorVersion)
+                {
+                    return metaData;
+                }
                 context.Diagnostics.Increment(
                     PubSubDiagnosticsCounterKind.ResolverErrors);
                 return null;
@@ -899,5 +1006,72 @@ out PubSubDataSetMessageType messageType))
             }
             return metaData;
         }
+    }
+
+    /// <summary>
+    /// Layout of a parsed UADP NetworkMessage prefix (everything in front
+    /// of the SecurityHeader), see
+    /// <see cref="UadpDecoder.TryReadPrefix(ReadOnlyMemory{byte}, out UadpPrefixInfo)"/>.
+    /// </summary>
+    internal readonly record struct UadpPrefixInfo
+    {
+        /// <summary>Byte length of the prefix.</summary>
+        public int PrefixLength { get; init; }
+
+        /// <summary>ExtendedFlags1 SecurityHeader enabled.</summary>
+        public bool SecurityEnabled { get; init; }
+
+        /// <summary>ExtendedFlags2 chunk message bit.</summary>
+        public bool ChunkMessage { get; init; }
+
+        /// <summary>PublisherId, <see cref="PublisherId.Null"/> when absent.</summary>
+        public PublisherId PublisherId { get; init; }
+
+        /// <summary>WriterGroupId of the GroupHeader, 0 when absent.</summary>
+        public ushort WriterGroupId { get; init; }
+
+        /// <summary>
+        /// Offset of the GroupHeader NetworkMessageNumber, -1 when absent.
+        /// </summary>
+        public int NetworkMessageNumberOffset { get; init; }
+
+        /// <summary>
+        /// Offset of the GroupHeader SequenceNumber, -1 when absent.
+        /// </summary>
+        public int SequenceNumberOffset { get; init; }
+
+        /// <summary>Number of flag bytes (UADPFlags and extended flags).</summary>
+        public int FlagsLength { get; init; }
+
+        /// <summary>UADPFlags without the version.</summary>
+        public UadpFlagsEncodingMask UadpFlags { get; init; }
+
+        /// <summary>ExtendedFlags1 (0 when omitted).</summary>
+        public ExtendedFlags1EncodingMask ExtendedFlags1 { get; init; }
+
+        /// <summary>ExtendedFlags2 (0 when omitted).</summary>
+        public ExtendedFlags2EncodingMask ExtendedFlags2 { get; init; }
+
+        /// <summary>
+        /// Offset at which the PayloadHeader starts (or would start), -1
+        /// for discovery NetworkMessages which have no PayloadHeader.
+        /// </summary>
+        public int PayloadHeaderOffset { get; init; }
+
+        /// <summary>Byte length of the PayloadHeader, 0 when omitted.</summary>
+        public int PayloadHeaderLength { get; init; }
+
+        /// <summary>DataSetMessage count of a non-chunk NetworkMessage.</summary>
+        public int PayloadCount { get; init; }
+
+        /// <summary>DataSetWriterId of a chunk NetworkMessage PayloadHeader.</summary>
+        public ushort? ChunkDataSetWriterId { get; init; }
+
+        /// <summary>
+        /// <see langword="true"/> for NetworkMessages with DataSetMessage
+        /// payload (not discovery, not action).
+        /// </summary>
+        public bool IsDataSetMessage => PayloadHeaderOffset >= 0 &&
+            (ExtendedFlags2 & ExtendedFlags2EncodingMask.ActionHeaderEnabled) == 0;
     }
 }

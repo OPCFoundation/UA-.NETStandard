@@ -134,7 +134,7 @@ namespace Opc.Ua.Di.Client
                 while (true)
                 {
                     ct.ThrowIfCancellationRequested();
-#if NET6_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+#if NET6_0_OR_GREATER
                     int read = await payload.ReadAsync(
                         buffer.AsMemory(0, chunk), ct).ConfigureAwait(false);
 #else

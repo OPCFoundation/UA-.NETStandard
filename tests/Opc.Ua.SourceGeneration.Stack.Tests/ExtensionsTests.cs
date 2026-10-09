@@ -160,7 +160,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = "a;b;c"
             });
 
-            List<string> result = options.GetStrings("MyList");
+            IReadOnlyList<string> result = options.GetStrings("MyList");
 
             Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result, Does.Contain("a"));
@@ -176,7 +176,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = "x,y,z"
             });
 
-            List<string> result = options.GetStrings("MyList");
+            IReadOnlyList<string> result = options.GetStrings("MyList");
 
             Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result, Does.Contain("x"));
@@ -192,7 +192,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = "a+b"
             });
 
-            List<string> result = options.GetStrings("MyList");
+            IReadOnlyList<string> result = options.GetStrings("MyList");
 
             Assert.That(result, Has.Count.EqualTo(2));
         }
@@ -202,7 +202,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         {
             var options = new AnalyzerOptions([]);
 
-            List<string> result = options.GetStrings("NonExistent");
+            IReadOnlyList<string> result = options.GetStrings("NonExistent");
 
             Assert.That(result, Is.Empty);
         }
@@ -215,7 +215,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = " a ; b ; c "
             });
 
-            List<string> result = options.GetStrings("MyList");
+            IReadOnlyList<string> result = options.GetStrings("MyList");
 
             Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result, Does.Contain("a"));
@@ -231,7 +231,7 @@ namespace Opc.Ua.SourceGeneration.Tests
                 [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = "a;;b"
             });
 
-            List<string> result = options.GetStrings("MyList");
+            IReadOnlyList<string> result = options.GetStrings("MyList");
 
             Assert.That(result, Has.Count.EqualTo(2));
         }
@@ -278,7 +278,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         [Test]
         public void ToNodeSetOptionsWithNullReturnsDefaults()
         {
-            NodesetFileOptions result = Extensions.ToNodeSetOptions(null);
+            NodesetFileOptions result = Extensions.ToNodeSetOptions(null!);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Ignore, Is.False);
@@ -337,7 +337,7 @@ namespace My.Test.Namespace
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("My.Test.Namespace.TestClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("My.Test.Namespace.TestClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.GetFullNamespace(), Is.EqualTo("My.Test.Namespace"));
@@ -351,7 +351,7 @@ namespace My.Test.Namespace
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("GlobalClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("GlobalClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.GetFullNamespace(), Is.EqualTo(string.Empty));
@@ -370,7 +370,7 @@ namespace Single
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Single.TestClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Single.TestClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.GetFullNamespace(), Is.EqualTo("Single"));
@@ -389,7 +389,7 @@ namespace My.Namespace
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("My.Namespace.MyType");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("My.Namespace.MyType")!;
 
             Assert.That(symbol, Is.Not.Null);
             string result = symbol.GetFullyQualifiedTypeName();
@@ -411,7 +411,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.ImplementsInterface("IMyInterface"), Is.True);
@@ -431,7 +431,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.ImplementsInterface("IMyInterface"), Is.False);
@@ -450,7 +450,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.HasAttribute("ObsoleteAttribute"), Is.False);
@@ -459,9 +459,9 @@ namespace Test
         [Test]
         public void AttributeDataGetValueReturnsNullForNullAttribute()
         {
-            AttributeData attr = null;
+            AttributeData? attr = null;
 
-            string result = attr.GetValue("SomeName");
+            string result = attr!.GetValue("SomeName");
 
             Assert.That(result, Is.Null);
         }
@@ -483,8 +483,8 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
-            AttributeData attr = symbol.GetAttributes().First();
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
+            AttributeData attr = symbol!.GetAttributes().First();
 
             string result = attr.GetValue("NonExistentName");
 
@@ -516,7 +516,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
             AttributeData attr = symbol.GetAttributes()
                 .First(a => a.AttributeClass?.Name == "DefaultValueAttribute");
 
@@ -546,7 +546,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
             AttributeData attr = symbol.GetAttributes()
                 .First(a => a.AttributeClass?.Name == "MyAttrAttribute");
 
@@ -570,7 +570,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.HasAttribute("ObsoleteAttribute"), Is.True);
@@ -580,9 +580,9 @@ namespace Test
         [Test]
         public void AttributeDataGetIntegerReturnsDefaultForNullAttribute()
         {
-            AttributeData attr = null;
+            AttributeData? attr = null;
 
-            int result = attr.GetInteger("SomeName", 42);
+            int result = attr!.GetInteger("SomeName", 42);
 
             Assert.That(result, Is.EqualTo(42));
         }
@@ -604,8 +604,8 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
-            AttributeData attr = symbol.GetAttributes().First();
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
+            AttributeData attr = symbol!.GetAttributes().First();
 
             int result = attr.GetInteger("NonExistent", 99);
 
@@ -615,9 +615,9 @@ namespace Test
         [Test]
         public void AttributeDataGetIntegerReturnsDefaultValueOfZero()
         {
-            AttributeData attr = null;
+            AttributeData? attr = null;
 
-            int result = attr.GetInteger("SomeName");
+            int result = attr!.GetInteger("SomeName");
 
             Assert.That(result, Is.Zero);
         }
@@ -668,7 +668,7 @@ namespace Test
                 [$"build_property.{SourceGenerator.Name}Items".ToLowerInvariant()] = "a;b,c+d"
             });
 
-            List<string> result = options.GetStrings("Items");
+            IReadOnlyList<string> result = options.GetStrings("Items");
 
             Assert.That(result, Has.Count.EqualTo(4));
             Assert.That(result, Does.Contain("a"));
@@ -692,7 +692,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.ImplementsInterface("IBase"), Is.True);
@@ -712,7 +712,7 @@ namespace A.B.C.D.E
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("A.B.C.D.E.DeepClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("A.B.C.D.E.DeepClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.GetFullNamespace(), Is.EqualTo("A.B.C.D.E"));
@@ -731,7 +731,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.SimpleType");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.SimpleType")!;
 
             Assert.That(symbol, Is.Not.Null);
             string result = symbol.GetFullyQualifiedTypeName();
@@ -759,8 +759,8 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
-            AttributeData attr = symbol.GetAttributes()
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
+            AttributeData attr = symbol!.GetAttributes()
                 .First(a => a.AttributeClass?.Name == "MyAttrAttribute");
 
             string result = attr.GetValue("Count");
@@ -791,8 +791,8 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
-            AttributeData attr = symbol.GetAttributes()
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
+            AttributeData attr = symbol!.GetAttributes()
                 .First(a => a.AttributeClass?.Name == "MyAttrAttribute");
 
             int result = attr.GetInteger("Name", 99);
@@ -820,6 +820,42 @@ namespace Test
             var text = EmbeddedAdditionalText.Create("file.xml");
 
             Assert.That(text.IsDesignOrNodeset2File(), Is.True);
+        }
+
+        [TestCase("<opc:ModelDesign xmlns:opc=\"http://opcfoundation.org/UA/ModelDesign.xsd\" />", true)]
+        [TestCase("<?xml version=\"1.0\"?>\n<!-- c -->\n<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\" />", true)]
+        [TestCase("<linker><assembly fullname=\"A\" /></linker>", false)]
+        [TestCase("<ModelDesign xmlns=\"http://example.org/other\" />", false)]
+        [TestCase("<ModelDesign", true)]
+        public void IsDesignOrNodeset2FileSniffsTheRootElement(string content, bool expected)
+        {
+            // Only a ModelDesign or UANodeSet root is a model input; a file
+            // that cannot be parsed stays one so the model pipeline reports it.
+            var text = EmbeddedAdditionalText.Create("file.xml", content);
+
+            Assert.That(text.IsDesignOrNodeset2File(), Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void GetStringsComparesByContent()
+        {
+            var options = new AnalyzerOptions(new Dictionary<string, string>
+            {
+                [$"build_property.{SourceGenerator.Name}MyList".ToLowerInvariant()] = "a;b"
+            });
+
+            // The options records carry this list; a fresh list per evaluation
+            // must still compare equal or the incremental cache never hits.
+            IReadOnlyList<string> first = options.GetStrings("MyList");
+            IReadOnlyList<string> second = options.GetStrings("MyList");
+            Assert.That(ReferenceEquals(first, second), Is.False);
+            Assert.That(
+                EqualityComparer<IReadOnlyList<string>>.Default.Equals(first, second),
+                Is.True,
+                "a record's generated equality compares the member this way");
+            Assert.That(
+                EqualityComparer<IReadOnlyList<string>>.Default.GetHashCode(first),
+                Is.EqualTo(EqualityComparer<IReadOnlyList<string>>.Default.GetHashCode(second)));
         }
 
         [Test]
@@ -865,7 +901,7 @@ namespace Test
                 [$"build_metadata.AdditionalFiles.{SourceGenerator.Name}Items".ToLowerInvariant()] = "a;b"
             });
 
-            List<string> result = options.GetStrings("Items", buildProperty: false);
+            IReadOnlyList<string> result = options.GetStrings("Items", buildProperty: false);
 
             Assert.That(result, Has.Count.EqualTo(2));
             Assert.That(result, Does.Contain("a"));

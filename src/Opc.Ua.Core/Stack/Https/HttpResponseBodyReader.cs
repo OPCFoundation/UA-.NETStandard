@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Net.Http;
 using System.Threading;
 using System.Threading.Tasks;
@@ -43,6 +44,13 @@ namespace Opc.Ua.Bindings
         /// <summary>
         /// Checks both the declared and actual response size and reports oversized bodies as BadResponseTooLarge.
         /// </summary>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="content"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The body exceeds <paramref name="maxMessageSize"/> (BadResponseTooLarge), or it uses an
+        /// unsupported content coding or is corrupt gzip (BadDecodingError).
+        /// </exception>
         public static async ValueTask<byte[]> ReadAsync(
             HttpContent content,
             int maxMessageSize,
@@ -52,7 +60,14 @@ namespace Opc.Ua.Bindings
             {
                 throw new ArgumentNullException(nameof(content));
             }
-            if (maxMessageSize > 0 && content.Headers.ContentLength > maxMessageSize)
+            // OPC 10000-6 §7.4.5: a JSON body may be gzip compressed (RFC
+            // 1952) and then carries Content-Encoding: gzip. The limit applies
+            // to the inflated body, so a small compressed response cannot
+            // expand past MaxMessageSize. The declared Content-Length is the
+            // compressed size, which the gzip framing can make larger than the
+            // inflated body, so it only rejects an uncompressed body up front.
+            bool gzip = IsGzip(content);
+            if (!gzip && maxMessageSize > 0 && content.Headers.ContentLength > maxMessageSize)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadResponseTooLarge,
@@ -60,11 +75,26 @@ namespace Opc.Ua.Bindings
                     maxMessageSize);
             }
 
+            // The body stream belongs to the content, which the caller disposes
+            // with the response; only the inflating wrapper is released here.
 #if NET5_0_OR_GREATER
-            Stream stream = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
+            Stream body = await content.ReadAsStreamAsync(cancellationToken).ConfigureAwait(false);
 #else
-            Stream stream = await content.ReadAsStreamAsync().ConfigureAwait(false);
+            Stream body = await content.ReadAsStreamAsync().ConfigureAwait(false);
 #endif
+            if (gzip)
+            {
+                using var inflated = new GZipStream(body, CompressionMode.Decompress, leaveOpen: true);
+                return await ReadBoundedAsync(inflated, maxMessageSize, cancellationToken).ConfigureAwait(false);
+            }
+            return await ReadBoundedAsync(body, maxMessageSize, cancellationToken).ConfigureAwait(false);
+        }
+
+        private static async ValueTask<byte[]> ReadBoundedAsync(
+            Stream stream,
+            int maxMessageSize,
+            CancellationToken cancellationToken)
+        {
             try
             {
                 // A Content-Length hint cannot truncate verification of the actual body.
@@ -79,6 +109,42 @@ namespace Opc.Ua.Bindings
                     "Response body exceeds the configured MaxMessageSize ({0} bytes).",
                     maxMessageSize);
             }
+            catch (InvalidDataException exception)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    exception,
+                    "The gzip compressed response body is corrupt.");
+            }
+        }
+
+        /// <summary>
+        /// Whether the body is gzip compressed. Any other content coding
+        /// than gzip (or identity) is not negotiated by the stack and is
+        /// rejected rather than decoded as if it were plain.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The body uses an unsupported content coding.
+        /// </exception>
+        private static bool IsGzip(HttpContent content)
+        {
+            bool gzip = false;
+            foreach (string coding in content.Headers.ContentEncoding)
+            {
+                if (string.Equals(coding, "gzip", StringComparison.OrdinalIgnoreCase) && !gzip)
+                {
+                    gzip = true;
+                    continue;
+                }
+                if (!string.Equals(coding, "identity", StringComparison.OrdinalIgnoreCase))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported Content-Encoding '{0}' of the response body.",
+                        coding);
+                }
+            }
+            return gzip;
         }
     }
 }

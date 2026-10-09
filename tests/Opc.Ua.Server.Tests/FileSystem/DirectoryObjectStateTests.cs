@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -97,7 +95,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             m_sessionId = new NodeId("directory-session", 0);
             var session = new Mock<ISession>();
             session.Setup(s => s.Id).Returns(m_sessionId);
-            session.Setup(s => s.Identity).Returns(new Mock<IUserIdentity>().Object);
+            session.Setup(s => s.Identity).Returns(Mock.Of<IUserIdentity>(i => i.TokenType == UserTokenType.UserName));
             session.Setup(s => s.PreferredLocales).Returns([]);
             m_context = m_manager.SystemContext.Copy(session.Object);
         }
@@ -264,7 +262,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public async Task DeleteFileSystemObjectWithNonFileSystemNodeReturnsBadInvalidStateAsync()
+        public async Task DeleteFileSystemObjectWithNonFileSystemNodeReturnsBadNotFoundAsync()
         {
             DirectoryObjectState state = CreateRootDirectory();
             var target = new NodeId(42);
@@ -272,7 +270,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
             DeleteFileMethodStateResult result = await state.DeleteFileSystemObject!.OnCallAsync!(
                 m_context, state.DeleteFileSystemObject, state.NodeId, target, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.ServiceResult.StatusCode.Code, Is.EqualTo(StatusCodes.BadNotFound));
         }
 
         [Test]
@@ -337,7 +335,9 @@ namespace Opc.Ua.Server.Tests.FileSystem
         [Test]
         public async Task MoveOrCopyUsesSourceNameWhenNewNameEmptyAsync()
         {
-            DirectoryObjectState state = CreateRootDirectory();
+            // MoveOrCopy is called on the directory that organizes the source.
+            var state = new DirectoryObjectState(m_context,
+                FileSystemNodeId.BuildDirectory("sub", m_manager.NamespaceIndex), "sub", "sub", isRoot: false);
             Directory.CreateDirectory(Path.Combine(m_root, "sub"));
             File.WriteAllText(Path.Combine(m_root, "sub", "keep.txt"), "payload");
             NodeId source = FileSystemNodeId.BuildFile("sub/keep.txt", m_manager.NamespaceIndex);
@@ -426,6 +426,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
             var provider = new Mock<IFileSystemProvider>(MockBehavior.Strict);
             provider.SetupGet(p => p.MountName).Returns("TestMount");
             provider.SetupGet(p => p.IsWritable).Returns(true);
+            provider
+                .Setup(p => p.GetEntryAsync("locked.txt", It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<FileSystemEntry?>(new FileSystemEntry(
+                    "locked.txt", "locked.txt", false, 0, true, DateTime.UtcNow, string.Empty)));
             provider
                 .Setup(p => p.DeleteAsync("locked.txt", It.IsAny<CancellationToken>()))
                 .Returns<string, CancellationToken>((_, _) => throw new IOException("locked"));
@@ -553,8 +557,8 @@ namespace Opc.Ua.Server.Tests.FileSystem
             List<ExpandedNodeId> targets = GetTargetIds(browser);
 
             Assert.That(targets, Is.EqualTo(
-                new[] { new ExpandedNodeId(
-                    FileSystemNodeId.BuildFile("a.txt", m_manager.NamespaceIndex)) }));
+                [ new ExpandedNodeId(
+                    FileSystemNodeId.BuildFile("a.txt", m_manager.NamespaceIndex)) ]));
         }
 
         [Test]
@@ -589,16 +593,21 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public void CreateBrowserReturnsNoChildrenWhenProviderEnumerationThrows()
+        public void CreateBrowserPropagatesProviderEnumerationFailure()
         {
-            UseProvider(new ThrowingEnumerateProvider());
+            var provider = new ThrowingEnumerateProvider();
+            UseProvider(provider);
             DirectoryObjectState state = CreateRootDirectory();
 
             using INodeBrowser browser = state.CreateBrowser(
                 m_context, null, ReferenceTypeIds.HasComponent, true,
                 BrowseDirection.Forward, QualifiedName.Null, null, false);
 
+            IOException error = Assert.Throws<IOException>(() => GetTargetIds(browser))!;
+
+            Assert.That(error, Is.SameAs(provider.EnumerationFailure));
             Assert.That(GetTargetIds(browser), Is.Empty);
+            Assert.That(provider.EnumerationCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -621,16 +630,22 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public async Task NextAsyncReturnsNoChildrenWhenProviderEnumerationThrowsAsync()
+        public async Task NextAsyncPropagatesProviderEnumerationFailureAsync()
         {
-            UseProvider(new ThrowingEnumerateProvider());
+            var provider = new ThrowingEnumerateProvider();
+            UseProvider(provider);
             DirectoryObjectState state = CreateRootDirectory();
 
             using INodeBrowser browser = state.CreateBrowser(
                 m_context, null, ReferenceTypeIds.HasComponent, true,
                 BrowseDirection.Forward, QualifiedName.Null, null, false);
 
+            IOException error = Assert.ThrowsAsync<IOException>(
+                async () => await GetTargetIdsAsync(browser).ConfigureAwait(false))!;
+
+            Assert.That(error, Is.SameAs(provider.EnumerationFailure));
             Assert.That(await GetTargetIdsAsync(browser).ConfigureAwait(false), Is.Empty);
+            Assert.That(provider.EnumerationCount, Is.EqualTo(1));
         }
 
         [Test]
@@ -683,6 +698,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             public bool IsWritable => false;
 
+            public IOException EnumerationFailure { get; } = new("enumeration failed");
+
+            public int EnumerationCount { get; private set; }
+
             public ValueTask<FileSystemEntry?> GetEntryAsync(string path, CancellationToken ct)
             {
                 return new ValueTask<FileSystemEntry?>((FileSystemEntry?)null);
@@ -692,9 +711,10 @@ namespace Opc.Ua.Server.Tests.FileSystem
                 string path,
                 [EnumeratorCancellation] CancellationToken ct)
             {
+                EnumerationCount++;
                 await Task.CompletedTask.ConfigureAwait(false);
                 ct.ThrowIfCancellationRequested();
-                throw new IOException("enumeration failed");
+                throw EnumerationFailure;
 #pragma warning disable CS0162 // unreachable: the iterator must still be an iterator
                 yield break;
 #pragma warning restore CS0162

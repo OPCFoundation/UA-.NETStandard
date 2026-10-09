@@ -50,7 +50,8 @@ namespace Quickstarts.Servers
 
         private const string kFilename = "subscriptionsStore.bin";
         private const uint kStoreMagic = 0x44535541;
-        private const uint kStoreVersion = 3;
+        private const uint kStoreVersion = 4;
+        private const uint kOwnerStateStoreVersion = 3;
         private const uint kLegacyStoreVersion = 1;
         private readonly DurableMonitoredItemQueueFactory? m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
@@ -317,6 +318,52 @@ namespace Quickstarts.Servers
             {
                 EncodeMonitoredItem(encoder, item);
             }
+
+            EncodeTriggeringLinks(encoder, subscription.TriggeringLinks);
+        }
+
+        /// <summary>
+        /// Encodes the triggering links between the subscription's monitored items.
+        /// </summary>
+        internal static void EncodeTriggeringLinks(
+            BinaryEncoder encoder,
+            IReadOnlyDictionary<uint, IReadOnlyList<uint>>? triggeringLinks)
+        {
+            encoder.WriteInt32(null, triggeringLinks?.Count ?? 0);
+            if (triggeringLinks == null)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
+            {
+                encoder.WriteUInt32(null, link.Key);
+                encoder.WriteUInt32Array(null, [.. link.Value ?? []]);
+            }
+        }
+
+        /// <summary>
+        /// Decodes the triggering links written by <see cref="EncodeTriggeringLinks"/>.
+        /// </summary>
+        internal static IReadOnlyDictionary<uint, IReadOnlyList<uint>>? DecodeTriggeringLinks(
+            BinaryDecoder decoder)
+        {
+            int count = decoder.ReadInt32(null);
+            if (count <= 0)
+            {
+                return null;
+            }
+
+            var triggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>(count);
+            for (int ii = 0; ii < count; ii++)
+            {
+                uint triggeringItemId = decoder.ReadUInt32(null);
+                ArrayOf<uint> linkedItemIds = decoder.ReadUInt32Array(null);
+                triggeringLinks[triggeringItemId] = linkedItemIds.IsNull
+                    ? []
+                    : linkedItemIds.Memory.ToArray();
+            }
+            return triggeringLinks;
         }
 
         /// <summary>
@@ -380,7 +427,7 @@ namespace Quickstarts.Servers
                 LastSentMessage = decoder.ReadInt32(null),
                 SequenceNumber = decoder.ReadUInt32(null)
             };
-            if (version == kStoreVersion)
+            if (version >= kOwnerStateStoreVersion)
             {
                 subscription.PublishingEnabled = decoder.ReadBoolean(null);
                 subscription.OwnerClientApplicationUri = decoder.ReadString(null);
@@ -420,6 +467,10 @@ namespace Quickstarts.Servers
                 items.Add(DecodeMonitoredItem(decoder));
             }
             subscription.MonitoredItems = items;
+            if (version >= kStoreVersion)
+            {
+                subscription.TriggeringLinks = DecodeTriggeringLinks(decoder);
+            }
             return subscription;
         }
 
@@ -519,7 +570,7 @@ namespace Quickstarts.Servers
         /// <exception cref="InvalidDataException">The supplied store version is not supported.</exception>
         private static void ValidateStoreVersion(uint version)
         {
-            if (version is not kLegacyStoreVersion and not kStoreVersion)
+            if (version is not kLegacyStoreVersion and not kOwnerStateStoreVersion and not kStoreVersion)
             {
                 throw new InvalidDataException(
                     $"Unsupported durable subscription store version {version}.");

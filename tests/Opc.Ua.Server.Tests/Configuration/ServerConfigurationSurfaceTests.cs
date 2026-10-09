@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -274,6 +272,238 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(result.UpdateId.Guid, Is.EqualTo(Guid.Empty));
                     Assert.That(harness.Coordinator.HasOpenTrustListWriter, Is.False,
                         "committing the update must clear the write-open flag");
+                });
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileUpdatedAuditEventSourceIsConfigurationOwnerAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                var events = new List<ConfigurationUpdatedAuditEventState>();
+                file.OnReportEvent += (_, _, e) =>
+                {
+                    if (e is ConfigurationUpdatedAuditEventState audit)
+                    {
+                        events.Add(audit);
+                    }
+                };
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(22, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                    ByteString.From([0x01]), CancellationToken.None).ConfigureAwait(false);
+                ConfigurationFileCloseAndUpdateMethodStateResult result = await CloseAndUpdateAsync(
+                    file, ctx, open.FileHandle, versionToUpdate: 1).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+
+                // §7.8.5.8: SourceNode/SourceName identify the configuration
+                // owner (the parent of the ConfigurationFile Object).
+                Assert.That(events, Has.Count.EqualTo(1));
+                Assert.Multiple(() =>
+                {
+                    Assert.That(events[0].SourceNode!.Value, Is.EqualTo(harness.Node.NodeId));
+                    Assert.That(events[0].SourceName!.Value, Is.EqualTo(harness.Node.BrowseName.Name));
+                    Assert.That(events[0].OldVersion!.Value, Is.EqualTo(1u));
+                    Assert.That(events[0].NewVersion!.Value, Is.EqualTo(2u));
+                });
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileCloseAndUpdateWithoutTargetsReturnsBadInvalidArgumentAsync()
+        {
+            var provider = new FakeConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(21, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                    ByteString.From([0x01]), CancellationToken.None).ConfigureAwait(false);
+
+                // §7.8.5.2: "There must be at least one target."
+                ConfigurationFileCloseAndUpdateMethodStateResult result = await CloseAndUpdateAsync(
+                    file, ctx, open.FileHandle, versionToUpdate: 1, withoutTargets: true).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                    Assert.That(provider.ApplyCount, Is.Zero);
+                });
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileTargetProviderReceivesTargetsAsync()
+        {
+            var provider = new FakeTargetConfigurationFileProvider(s_initialConfig);
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(23, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                    ByteString.From([0x05]), CancellationToken.None).ConfigureAwait(false);
+
+                // §7.8.5.2 Targets: "Contents of the file which are not
+                // referenced by a target are ignored" - the provider needs them.
+                ConfigurationFileCloseAndUpdateMethodStateResult result = await CloseAndUpdateAsync(
+                    file, ctx, open.FileHandle, versionToUpdate: 1, restartDelayTime: 5000).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                    Assert.That(provider.ValidatedTargets.Count, Is.EqualTo(1));
+                    Assert.That(provider.ValidatedTargets[0].Path, Is.EqualTo("ApplicationIdentity"));
+                    Assert.That(provider.AppliedTargets.Count, Is.EqualTo(1));
+                    Assert.That(provider.ApplyCount, Is.EqualTo(1),
+                        "an update that does not interrupt Sessions is applied immediately");
+                    Assert.That(result.NewVersion, Is.EqualTo(2u));
+                });
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileTargetProviderBadTargetReturnsUncertainWithoutApplyAsync()
+        {
+            var provider = new FakeTargetConfigurationFileProvider(s_initialConfig)
+            {
+                TargetResults = [StatusCodes.BadInvalidArgument]
+            };
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions { ConfigurationFileProvider = provider }).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(24, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                    ByteString.From([0x06]), CancellationToken.None).ConfigureAwait(false);
+
+                ConfigurationFileCloseAndUpdateMethodStateResult result = await CloseAndUpdateAsync(
+                    file, ctx, open.FileHandle, versionToUpdate: 1).ConfigureAwait(false);
+
+                // §7.8.5.2: "If any element is not Good then no changes are
+                // applied and the Method return code is Uncertain."
+                Assert.Multiple(() =>
+                {
+                    Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.Uncertain));
+                    Assert.That(result.UpdateResults.Count, Is.EqualTo(1));
+                    Assert.That(result.UpdateResults[0], Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+                    Assert.That(result.NewVersion, Is.Zero);
+                    Assert.That(provider.ApplyCount, Is.Zero);
+                    Assert.That(file.OpenCount!.Value, Is.Zero);
+                });
+            }
+        }
+
+        [Test]
+        public async Task ConfigurationFileSessionInterruptingUpdateAppliedAfterRestartDelayAsync()
+        {
+            var timeProvider = new ControllableTimeProvider();
+            var provider = new FakeTargetConfigurationFileProvider(s_initialConfig)
+            {
+                InterruptsSessions = true
+            };
+            Harness harness = await CreateHarnessAsync(
+                new ServerConfigurationOptions
+                {
+                    ConfigurationFileProvider = provider,
+                    ConfigurationFileActivityTimeout = 0
+                },
+                timeProvider).ConfigureAwait(false);
+            using (harness.Manager)
+            {
+                ApplicationConfigurationFileState file = harness.Node.ConfigurationFile!;
+                var events = new List<ConfigurationUpdatedAuditEventState>();
+                file.OnReportEvent += (_, _, e) =>
+                {
+                    if (e is ConfigurationUpdatedAuditEventState audit)
+                    {
+                        lock (events)
+                        {
+                            events.Add(audit);
+                        }
+                    }
+                };
+                SessionSystemContext ctx = CreateAdminContextForSession(new NodeId(25, 1));
+
+                OpenMethodStateResult open = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                await file.Write!.OnCallAsync!(ctx, file.Write, file.NodeId, open.FileHandle,
+                    ByteString.From([0x07]), CancellationToken.None).ConfigureAwait(false);
+
+                // §7.8.5.2 RestartDelayTime: "How long the Server should wait
+                // before applying the configuration changes if applying the
+                // configuration changes will interrupt active Sessions."
+                ConfigurationFileCloseAndUpdateMethodStateResult result = await CloseAndUpdateAsync(
+                    file, ctx, open.FileHandle, versionToUpdate: 1, restartDelayTime: 5000).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                    Assert.That(result.NewVersion, Is.EqualTo(2u), "the planned version is returned");
+                    Assert.That(provider.ApplyCount, Is.Zero, "the apply waits for the RestartDelayTime");
+                    Assert.That(file.OpenCount!.Value, Is.Zero);
+                });
+
+                // A second update while the first is still scheduled is rejected.
+                OpenMethodStateResult reopen = await OpenAsync(file, ctx, OpenFileMode.Read | OpenFileMode.Write)
+                    .ConfigureAwait(false);
+                ConfigurationFileCloseAndUpdateMethodStateResult second = await CloseAndUpdateAsync(
+                    file, ctx, reopen.FileHandle, versionToUpdate: 1, restartDelayTime: 5000).ConfigureAwait(false);
+                Assert.That(second.ServiceResult.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+
+                // The deferred apply starts on a background task; wait until it
+                // armed its RestartDelayTime timer.
+                DateTime deadline = DateTime.UtcNow.AddSeconds(10);
+                ControllableTimer[] delayTimers = [];
+                while (delayTimers.Length == 0 && DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(10).ConfigureAwait(false);
+                    delayTimers = [.. timeProvider.Timers.Where(
+                        t => !string.Equals(t.State?.GetType().Name, "ActivityTimerState", StringComparison.Ordinal))];
+                }
+
+                Assert.That(delayTimers, Has.Length.EqualTo(1));
+                Assert.That(provider.ApplyCount, Is.Zero, "the apply waits for the RestartDelayTime");
+                delayTimers[0].Fire();
+
+                // The audit event is the last step of the deferred apply.
+                int eventCount = 0;
+                while (eventCount == 0 && DateTime.UtcNow < deadline)
+                {
+                    await Task.Delay(10).ConfigureAwait(false);
+                    lock (events)
+                    {
+                        eventCount = events.Count;
+                    }
+                }
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(eventCount, Is.EqualTo(1));
+                    Assert.That(events[0].NewVersion!.Value, Is.EqualTo(2u));
+                    Assert.That(provider.ApplyCount, Is.EqualTo(1));
+                    Assert.That(provider.AppliedTargets.Count, Is.EqualTo(1));
+                    Assert.That(file.CurrentVersion!.Value, Is.EqualTo(2u));
                 });
             }
         }
@@ -993,15 +1223,24 @@ namespace Opc.Ua.Server.Tests
             uint fileHandle,
             uint versionToUpdate,
             double revertAfterTime = 0,
-            double restartDelayTime = 0)
+            double restartDelayTime = 0,
+            bool withoutTargets = false)
         {
+            // §7.8.5.2: "There must be at least one target."
+            ArrayOf<ConfigurationUpdateTargetType> targets = withoutTargets
+                ? ArrayOf<ConfigurationUpdateTargetType>.Empty
+                : [new ConfigurationUpdateTargetType
+                {
+                    Path = "ApplicationIdentity",
+                    UpdateType = ConfigurationUpdateType.InsertOrReplace
+                }];
             return file.CloseAndUpdate!.OnCallAsync!(
                 ctx,
                 file.CloseAndUpdate,
                 file.NodeId,
                 fileHandle,
                 versionToUpdate,
-                ArrayOf<ConfigurationUpdateTargetType>.Empty,
+                targets,
                 revertAfterTime,
                 restartDelayTime,
                 CancellationToken.None);
@@ -1153,6 +1392,79 @@ namespace Opc.Ua.Server.Tests
             public ValueTask RevertUpdateAsync(CancellationToken cancellationToken = default)
             {
                 RevertCount++;
+                return default;
+            }
+        }
+
+        private sealed class FakeTargetConfigurationFileProvider : IApplicationConfigurationFileTargetProvider
+        {
+            private ByteString m_content;
+
+            public FakeTargetConfigurationFileProvider(ByteString initial)
+            {
+                m_content = initial;
+                CurrentVersion = 1;
+                LastUpdateTime = DateTime.UtcNow;
+            }
+
+            public uint CurrentVersion { get; private set; }
+            public DateTime LastUpdateTime { get; private set; }
+            public bool RequiresConfirmation => false;
+            public bool InterruptsSessions { get; set; }
+            public ArrayOf<StatusCode> TargetResults { get; set; }
+            public int ApplyCount { get; private set; }
+            public ArrayOf<ConfigurationUpdateTargetType> ValidatedTargets { get; private set; }
+            public ArrayOf<ConfigurationUpdateTargetType> AppliedTargets { get; private set; }
+
+            public ValueTask<ByteString> ReadConfigurationAsync(CancellationToken cancellationToken = default)
+            {
+                return new ValueTask<ByteString>(m_content);
+            }
+
+            public ValueTask ValidateConfigurationAsync(ByteString configuration, CancellationToken cancellationToken = default)
+            {
+                throw new InvalidOperationException("the target-aware overload must be used");
+            }
+
+            public ValueTask<ApplicationConfigurationUpdatePlan> ValidateConfigurationAsync(
+                ByteString configuration,
+                ArrayOf<ConfigurationUpdateTargetType> targets,
+                CancellationToken cancellationToken = default)
+            {
+                ValidatedTargets = targets;
+                return new ValueTask<ApplicationConfigurationUpdatePlan>(new ApplicationConfigurationUpdatePlan
+                {
+                    TargetResults = TargetResults,
+                    InterruptsSessions = InterruptsSessions,
+                    NewVersion = CurrentVersion + 1
+                });
+            }
+
+            public ValueTask ApplyConfigurationAsync(ByteString configuration, CancellationToken cancellationToken = default)
+            {
+                throw new InvalidOperationException("the target-aware overload must be used");
+            }
+
+            public ValueTask ApplyConfigurationAsync(
+                ByteString configuration,
+                ArrayOf<ConfigurationUpdateTargetType> targets,
+                CancellationToken cancellationToken = default)
+            {
+                AppliedTargets = targets;
+                m_content = configuration;
+                CurrentVersion++;
+                LastUpdateTime = DateTime.UtcNow;
+                ApplyCount++;
+                return default;
+            }
+
+            public ValueTask ConfirmUpdateAsync(CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+
+            public ValueTask RevertUpdateAsync(CancellationToken cancellationToken = default)
+            {
                 return default;
             }
         }

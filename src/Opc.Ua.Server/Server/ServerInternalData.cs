@@ -72,6 +72,7 @@ namespace Opc.Ua.Server
         IAsyncDisposable,
         ITimeProviderProvider,
         ISecurityPolicyRegistryProvider,
+        ICertificateValidatorProvider,
         INodeIdFactoryProvider,
         IServerServiceLevelControl
     {
@@ -291,7 +292,10 @@ namespace Opc.Ua.Server
                 SubscriptionManager?.Dispose();
             }
             SubscriptionManager = null!;
-            MonitoredItemQueueFactory?.Dispose();
+            if (m_ownsMonitoredItemQueueFactory)
+            {
+                MonitoredItemQueueFactory?.Dispose();
+            }
             MonitoredItemQueueFactory = null!;
             (AliasNameStoreRegistry as IDisposable)?.Dispose();
             (HistorianRegistry as IDisposable)?.Dispose();
@@ -425,6 +429,13 @@ namespace Opc.Ua.Server
         public ISecurityPolicyRegistry SecurityPolicyRegistry { get; }
 
         /// <summary>
+        /// The validator the server checks peer certificates with. Surfaces
+        /// through the optional <see cref="ICertificateValidatorProvider"/>
+        /// interface; <c>null</c> until the hosting server supplies one.
+        /// </summary>
+        public ICertificateValidatorEx? CertificateValidator { get; set; }
+
+        /// <summary>
         /// The session manager to use with the server.
         /// </summary>
         /// <value>The session manager.</value>
@@ -555,8 +566,23 @@ namespace Opc.Ua.Server
         public void SetMonitoredItemQueueFactory(
             IMonitoredItemQueueFactory monitoredItemQueueFactory)
         {
+            SetMonitoredItemQueueFactory(monitoredItemQueueFactory, ownsFactory: true);
+        }
+
+        /// <summary>
+        /// Stores the MonitoredItemQueueFactory in the datastore.
+        /// </summary>
+        /// <param name="monitoredItemQueueFactory">The MonitoredItemQueueFactory.</param>
+        /// <param name="ownsFactory"><c>true</c> to dispose the factory with the datastore;
+        /// <c>false</c> when the caller owns it.</param>
+        [MemberNotNull(nameof(MonitoredItemQueueFactory))]
+        public void SetMonitoredItemQueueFactory(
+            IMonitoredItemQueueFactory monitoredItemQueueFactory,
+            bool ownsFactory)
+        {
             ThrowIfBindPhaseComplete();
             MonitoredItemQueueFactory = monitoredItemQueueFactory;
+            m_ownsMonitoredItemQueueFactory = ownsFactory;
         }
 
         /// <summary>
@@ -920,6 +946,13 @@ namespace Opc.Ua.Server
 
             lock (m_diagnosticsLock)
             {
+                // The diagnostics are created with the server object during startup; a request
+                // rejected before that (e.g. Bad_ServerHalted) has nothing to count yet.
+                if (ServerDiagnostics == null)
+                {
+                    return;
+                }
+
                 update.Invoke(ServerDiagnostics);
 
                 // mark diagnostic nodes dirty
@@ -967,7 +1000,10 @@ namespace Opc.Ua.Server
 
                 lock (m_diagnosticsLock)
                 {
-                    if (NonThreadSafeStatus.Value.State == ServerState.Running)
+                    // NoConfiguration (OPC 10000-5 §12.6, OPC 10000-12 G.2):
+                    // the server is running but waits for its configuration;
+                    // it still serves requests, for example to be provisioned.
+                    if (NonThreadSafeStatus.Value.State is ServerState.Running or ServerState.NoConfiguration)
                     {
                         return true;
                     }
@@ -1018,17 +1054,51 @@ namespace Opc.Ua.Server
             bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
+            await TryCloseSessionAsync(context, sessionId, deleteSubscriptions, false, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Closes the specified session and reports whether this call performed the teardown.
+        /// </summary>
+        /// <param name="context">The context.</param>
+        /// <param name="sessionId">The session identifier.</param>
+        /// <param name="deleteSubscriptions">if set to <c>true</c> subscriptions are to be deleted.</param>
+        /// <param name="alreadyClaimed">
+        /// <c>true</c> when the caller has already marked the session closing itself.
+        /// </param>
+        /// <param name="cancellationToken">The cancellationToken</param>
+        /// <returns>
+        /// <c>false</c> when another close of the same session was already in progress.
+        /// </returns>
+        internal async ValueTask<bool> TryCloseSessionAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            bool alreadyClaimed = false,
+            CancellationToken cancellationToken = default)
+        {
             // Only the first caller to mark the session closing performs the teardown. If the
             // session is already closing another close is in progress, so return without racing it.
-            if (!MarkSessionClosing(sessionId))
+            if (!alreadyClaimed && !MarkSessionClosing(sessionId))
             {
-                return;
+                return false;
             }
 
             CancellationToken closeCancellationToken = CancellationToken.None;
 
             try
             {
+                // OPC 10000-4 5.7.2.1: when a Session is terminated, all outstanding requests on
+                // the Session are aborted with Bad_SessionClosed. The CloseSession request that
+                // drives this close is the one request that must still complete normally. This
+                // runs inside the try, so a failure here cannot leave the Session marked closing
+                // but still registered.
+                RequestManager?.CancelSessionRequests(
+                    sessionId,
+                    GetRequestId(context),
+                    StatusCodes.BadSessionClosed);
+
                 await NodeManager.SessionClosingAsync(
                     context,
                     sessionId,
@@ -1050,6 +1120,17 @@ namespace Opc.Ua.Server
                 // down. The original failure still propagates to the caller.
                 await SessionManager.CloseSessionAsync(sessionId, closeCancellationToken).ConfigureAwait(false);
             }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Returns the id of the request a server-internal close runs for, or 0 when the close
+        /// was not requested by a client (timeout or termination pass no context).
+        /// </summary>
+        private static uint GetRequestId(OperationContext? context)
+        {
+            return context?.RequestId ?? 0;
         }
 
         /// <summary>
@@ -1069,7 +1150,7 @@ namespace Opc.Ua.Server
             {
                 if (session.Id == sessionId)
                 {
-                    return (session as Session)?.MarkClosing() ?? true;
+                    return SessionTermination.TryClaimClose(session);
                 }
             }
 
@@ -1340,6 +1421,20 @@ namespace Opc.Ua.Server
             // DiagnosticsNodeManager.LoadPredefinedNodesAsync.
             serverCapabilities.MaxSubscriptionsPerSession!.Value = (uint)Math.Max(1,
                 m_configuration.ServerConfiguration.MaxSubscriptionCount);
+
+            // Monitored item limits enforced by the SubscriptionManager (zero means the
+            // server does not impose a limit) and the data queue cap applied when the
+            // queue size of a monitored item is revised (Part 5 §6.3.2).
+            serverCapabilities.MaxMonitoredItems?.Value = (uint)Math.Max(0,
+                m_configuration.ServerConfiguration.MaxMonitoredItemCount);
+            serverCapabilities.MaxMonitoredItemsPerSubscription?.Value = (uint)Math.Max(0,
+                m_configuration.ServerConfiguration.MaxMonitoredItemsPerSubscription);
+            serverCapabilities.MaxMonitoredItemsQueueSize?.Value = (uint)Math.Max(0,
+                m_configuration.ServerConfiguration.DurableSubscriptionsEnabled
+                    ? Math.Max(
+                        m_configuration.ServerConfiguration.MaxNotificationQueueSize,
+                        m_configuration.ServerConfiguration.MaxDurableNotificationQueueSize)
+                    : m_configuration.ServerConfiguration.MaxNotificationQueueSize);
 
             // Operational-limit Properties: per Part 5 §6.3.4, any exposed
             // operational-limit Property shall have a non-zero value.
@@ -1731,5 +1826,6 @@ namespace Opc.Ua.Server
         private volatile IReadOnlyList<ITransportListener>? m_transportListeners;
         private ArrayOf<EndpointDescription> m_serverEndpoints;
         private int m_disposed;
+        private bool m_ownsMonitoredItemQueueFactory;
     }
 }

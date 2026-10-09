@@ -30,11 +30,15 @@
 using System;
 using System.CommandLine;
 using System.IO;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Fuzzing
 {
-    public static class Program
+    /// <summary>
+    /// Hosts corpus generation and replay commands shared by the fuzz tools.
+    /// </summary>
+    public static partial class Program
     {
         /// <summary>
         /// Default artifact root, independent of the caller's working directory.
@@ -49,9 +53,12 @@ namespace Opc.Ua.Fuzzing
         public static readonly string DefaultLibFuzzerCrashes = RootFolder + "crash-*";
         public static readonly string DefaultLibFuzzerHangs = RootFolder + "timeout-*";
 
-        public static int Main(string[] args)
+        /// <summary>
+        /// Runs the selected area command.
+        /// </summary>
+        public static Task<int> Main(string[] args)
         {
-            string applicationName = typeof(Program).Assembly.GetName().Name;
+            string applicationName = typeof(Program).Assembly.GetName().Name!;
 
             Console.WriteLine($"OPC UA {applicationName}");
 
@@ -89,6 +96,7 @@ namespace Opc.Ua.Fuzzing
                 inputOption,
                 targetOption
             };
+            ConfigureCommands(rootCommand);
 
             rootCommand.SetAction((parseResult) =>
             {
@@ -114,7 +122,7 @@ namespace Opc.Ua.Fuzzing
                 }
 
                 var telemetry = new Logging();
-                telemetry.Configure(applicationName, string.Empty, true, LogLevel.Trace);
+                telemetry.Configure(applicationName!, string.Empty, true, LogLevel.Trace);
 
                 if (testcases)
                 {
@@ -125,16 +133,21 @@ namespace Opc.Ua.Fuzzing
                 else
                 {
                     Playback.Run(
-                        parseResult.GetValue(inputOption),
+                        parseResult.GetValue(inputOption)!,
                         stacktrace,
                         telemetry,
-                        parseResult.GetValue(targetOption));
+                        parseResult.GetValue(targetOption)!);
                 }
                 return 0;
             });
 
             ParseResult parseResult = rootCommand.Parse(args);
-            return parseResult.Invoke(new InvocationConfiguration());
+            return parseResult.InvokeAsync(new InvocationConfiguration());
         }
+
+        /// <summary>
+        /// Optionally registers area commands; omitting accessibility permits no implementation in other areas.
+        /// </summary>
+        static partial void ConfigureCommands(RootCommand rootCommand);
     }
 }

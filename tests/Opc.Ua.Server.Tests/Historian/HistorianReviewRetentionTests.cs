@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests.Historian
             }
             Assert.That(outcome.OperationResults.ToArray(), Has.All.EqualTo(StatusCodes.GoodEntryInserted));
             HistorianPage<HistoricalDataValue> raw = await ReadRawAsync(provider, context).ConfigureAwait(false);
-            Assert.That(raw.Values.ToArray().Select(v => v.Value.SourceTimestamp), Is.EqualTo(
+            Assert.That(raw.Values.ToArray()!.Select(v => v.Value.SourceTimestamp), Is.EqualTo(
             [
                 (DateTimeUtc)s_now.AddMinutes(-30),
                 (DateTimeUtc)s_now.AddMinutes(-15),
@@ -207,7 +207,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 [
                     s_now.AddMinutes(-60), s_now.AddMinutes(-59), s_now, s_now.AddMinutes(1), s_now.AddMinutes(100_000)
                 ];
-                Assert.That(raw.Values.ToArray().Select(v => v.Value.SourceTimestamp), Is.EqualTo(expected));
+                Assert.That(raw.Values.ToArray()!.Select(v => v.Value.SourceTimestamp), Is.EqualTo(expected));
             }
         }
 
@@ -233,13 +233,13 @@ namespace Opc.Ua.Server.Tests.Historian
             DateTimeUtc[] expected = ticksFromBoundary < 0
                 ? [older, boundary, newer, s_now]
                 : [boundary, newer, s_now];
-            Assert.That(raw.Values.ToArray().Select(value => value.Value.SourceTimestamp), Is.EqualTo(expected));
+            Assert.That(raw.Values.ToArray()!.Select(value => value.Value.SourceTimestamp), Is.EqualTo(expected));
             Assert.That(raw.Values[0].Value.WrappedValue.TryGetValue(out int firstValue), Is.True);
             Assert.That(firstValue, Is.EqualTo(ticksFromBoundary < 0 ? 1 : 2));
             Assert.That(raw.Values[0].Value.StatusCode, Is.EqualTo(StatusCodes.Good));
 
             HistorianPage<HistoricalDataValue> repeated = await ReadRawAsync(provider, context).ConfigureAwait(false);
-            Assert.That(repeated.Values.ToArray().Select(value => value.Value.SourceTimestamp), Is.EqualTo(expected));
+            Assert.That(repeated.Values.ToArray()!.Select(value => value.Value.SourceTimestamp), Is.EqualTo(expected));
         }
 
         [TestCase(false)]
@@ -327,7 +327,7 @@ namespace Opc.Ua.Server.Tests.Historian
                     },
                     token,
                     CancellationToken.None).ConfigureAwait(false);
-                values.AddRange(page.Values.ToArray());
+                values.AddRange(page.Values.ToArray()!);
                 token = page.NextToken;
                 Assert.That(page.IsFinal, Is.EqualTo(pageIndex == 1));
             }
@@ -369,7 +369,7 @@ namespace Opc.Ua.Server.Tests.Historian
             await provider.InsertAsync(
                 context, s_nodeId, [MakeValue(s_now.AddSeconds(2), 4)], CancellationToken.None).ConfigureAwait(false);
             raw = await ReadRawAsync(provider, context).ConfigureAwait(false);
-            Assert.That(raw.Values.ToArray().Select(v => v.Value.StatusCode.AggregateBits),
+            Assert.That(raw.Values.ToArray()!.Select(v => v.Value.StatusCode.AggregateBits),
                 Has.All.EqualTo(AggregateBits.Raw));
             Assert.That(await ReadModifiedAsync(provider, context).ConfigureAwait(false), Has.Count.EqualTo(2));
         }
@@ -561,7 +561,7 @@ namespace Opc.Ua.Server.Tests.Historian
                         EndTime = DateTimeUtc.MaxValue,
                         IsForward = true
                     }, token, CancellationToken.None).ConfigureAwait(false);
-                values.AddRange(page.Values.ToArray());
+                values.AddRange(page.Values.ToArray()!);
                 token = page.NextToken;
             }
             while (!token.IsEmpty);

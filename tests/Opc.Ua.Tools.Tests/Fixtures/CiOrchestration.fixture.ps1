@@ -321,6 +321,18 @@ try {
         }
         switch ($Scenario) {
             'runner-private-publication' { $arguments.InputScope = 'private' }
+            { $_ -in @('runner-corpus-assurance', 'runner-corpus-coverage', 'runner-corpus-missing-pin') } {
+                $arguments.InputScope = 'public-corpus'
+                $arguments.PublicCorpusCheckout = Join-Path $fixture 'corpus'
+                $arguments.PublicCorpusCommit = 'a' * 40
+                switch ($Scenario) {
+                    'runner-corpus-assurance' {
+                        $arguments.AssuranceWorkflow = '.github/workflows/nightly.yml'
+                    }
+                    'runner-corpus-coverage' { $arguments.Coverage = $true }
+                    'runner-corpus-missing-pin' { $arguments.PublicCorpusCommit = '' }
+                }
+            }
             'runner-stale-results' {
                 $null = New-Item -ItemType Directory -Path $arguments.ResultsDirectory
                 'stale' | Set-Content -LiteralPath (Join-Path $arguments.ResultsDirectory 'old.trx')
@@ -395,6 +407,10 @@ try {
         Assert-Condition ($rejected -eq ($Scenario -notin @(
             'runner-restricted', 'runner-pinned-framework', 'runner-explicit-unsupported'))) `
             'Incorrect shared-runner verdict.'
+        if ($Scenario.StartsWith('runner-corpus-')) {
+            Assert-Condition (-not (Test-Path $arguments.ResultsDirectory)) `
+                'Invalid published-corpus scope was not rejected before execution.'
+        }
         if ($Scenario -in @('runner-restricted', 'runner-pinned-framework', 'runner-unverified-skip',
             'runner-private-failure', 'runner-explicit-unsupported')) {
             $summary = Get-Content -LiteralPath (Join-Path $arguments.PublicResultsDirectory 'batch-summary.json') -Raw |
@@ -496,6 +512,9 @@ try {
         }
         '<Solution />' | Set-Content -LiteralPath (Join-Path $repository 'UA.slnx')
         Write-Json (Join-Path $repository '.azurepipelines/assurance/profiles.json') $catalog
+        Write-Json (Join-Path $repository '.github/ci-test-durations.json') @{
+            defaultMinutes = 5; projects = @{}
+        }
         if ($Scenario -eq 'selection-missing-replay') {
             Remove-Item -LiteralPath (Join-Path $repository $catalog.additionalReplayProjects[0].project)
         }
@@ -532,16 +551,17 @@ try {
                     }).Count -gt 0) 'The Windows PR solution-build matrix was narrowed.'
                 }
             }
-            Assert-Condition (@($builds | Where-Object os -eq 'linux').Count -eq 4) 'The Linux all-TFM build was narrowed.'
+            $linuxTfms = @($builds | Where-Object os -eq 'linux' | ForEach-Object customTestTarget | Sort-Object)
+            Assert-Condition (($linuxTfms -join ',') -ceq 'net10.0,net8.0,net9.0') `
+                'The Linux build must cover each current supported TFM exactly once.'
         }
     }
     elseif ($Scenario -eq 'workflow-contracts') {
         $ci = Get-Content -LiteralPath (Join-Path $root '.github/workflows/buildandtest.yml') -Raw
         $nightly = Get-Content -LiteralPath (Join-Path $root '.github/workflows/nightly.yml') -Raw
         $action = Get-Content -LiteralPath (Join-Path $root '.github/actions/run-dotnet-tests/action.yml') -Raw
+        $codeql = Get-Content -LiteralPath (Join-Path $root '.github/workflows/codeql-analysis.yml') -Raw
         $runner = Get-Content -LiteralPath (Join-Path $scripts 'run-dotnet-tests.ps1') -Raw
-        $azure = Get-Content -LiteralPath (Join-Path $root '.azurepipelines/test.yml') -Raw
-        $pipeline = Get-Content -LiteralPath (Join-Path $root 'azure-pipelines.yml') -Raw
         $changedPaths = Join-Path $fixture 'changed-paths.txt'
         foreach ($change in @(
             @{ path = '.azurepipelines/assurance/write-job.ps1'; relevant = $true },
@@ -582,15 +602,23 @@ try {
             $runner.Contains("-ExecutionFailed:(`$record.outcome -ne 'passed')") -and
             $runner.Contains("-ReportsCompleted `$results.Completed")) `
             'The shared runner bypasses committed-input or successful-execution evidence checks.'
-        Assert-Condition ($nightly.Contains("cron: '0 2 * * 0'") -and $nightly.Contains('-InputScope private') -and
-            $nightly.Contains('| sha256:$identity | sha256:$hash |') -and
-            -not $nightly.Contains('$lines += "| $relative')) 'Private nightly scope leaks or claims public replay.'
-        Assert-Condition ($pipeline -match '(?m)^pr: none\r?$' -and $pipeline -notmatch 'FullBuild|<<<<<<<|>>>>>>>' -and
-            $pipeline.Contains("eq(variables.ScheduledBuild, 'False')")) 'Azure cadence or fail-closed gating regressed.'
-        Assert-Condition ($azure.Contains('.azurepipelines/assurance/evaluate-test-results.ps1') -and
-            $azure.Contains('IsTestingPlatformApplication') -and $azure.Contains('-StrictTrx') -and
-            -not (Test-Path (Join-Path $root '.azurepipelines/evaluate-test-results.ps1'))) `
-            'The Azure strict/MTP gate was not integrated into the reviewed helper layout.'
+        Assert-Condition ($nightly.Contains("cron: '0 2 * * 0'") -and
+            $nightly.Contains('public-corpus-commit: ${{ env.FUZZ_CORPUS_COMMIT }}') -and
+            $nightly.Contains('public-corpus-checkout: .fuzz-crash-corpus') -and
+            $nightly.Contains("'crash-corpus' = `$true") -and
+            -not $nightly.Contains('private-corpus') -and $action.Contains("InputScope = 'public-corpus'")) `
+            'Pinned public nightly replay lost its isolated scope or required completion.'
+        foreach ($removed in @('azure-pipelines.yml', '.azurepipelines/test.yml', '.azurepipelines/get-matrix.ps1')) {
+            Assert-Condition (-not (Test-Path (Join-Path $root $removed))) 'A retired Azure CI definition survived.'
+        }
+        Assert-Condition (Test-Path (Join-Path $assurance 'evaluate-test-results.ps1')) `
+            'The Actions-used strict evaluator was removed with the retired Azure templates.'
+        $profiles = Get-Content -LiteralPath (Join-Path $assurance 'profiles.json') -Raw | ConvertFrom-Json
+        $analysisProfile = $profiles.profiles | Where-Object id -eq codeql-net10
+        Assert-Condition ($codeql.Contains('name: Analyze') -and $codeql.Contains('runs-on: ubuntu-latest') -and
+            $codeql.Contains("cron: '30 6 * * *'") -and $analysisProfile.host -ceq 'linux' -and
+            $analysisProfile.platform -ceq 'linux/amd64' -and @($profiles.profiles.jobs).Count -eq 7) `
+            'Linux CodeQL and the seven-job assurance contract diverged.'
     }
     else {
         throw 'Unknown CI fixture scenario.'

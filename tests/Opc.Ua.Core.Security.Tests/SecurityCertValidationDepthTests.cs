@@ -115,7 +115,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            bool selfSigned = cert.Subject == cert.Issuer;
+            bool selfSigned = cert!.Subject == cert.Issuer;
             Assert.That(
                 selfSigned || !string.IsNullOrEmpty(cert.Issuer), Is.True,
                 "Certificate is self-signed or has a valid issuer.");
@@ -131,7 +131,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            Assert.That(cert.GetNameInfo(X509NameType.SimpleName, false),
+            Assert.That(cert!.GetNameInfo(X509NameType.SimpleName, false),
                 Is.Not.Null.And.Not.Empty,
                 "Certificate CN must not be empty.");
         }
@@ -146,7 +146,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            Assert.That(cert.SerialNumber, Is.Not.Null.And.Not.Empty,
+            Assert.That(cert!.SerialNumber, Is.Not.Null.And.Not.Empty,
                 "Certificate serial number must not be empty.");
         }
 
@@ -160,7 +160,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            string oid = cert.SignatureAlgorithm.Value;
+            string oid = cert!.SignatureAlgorithm.Value!;
             // SHA256withRSA = 1.2.840.113549.1.1.11
             // SHA384withRSA = 1.2.840.113549.1.1.12
             // SHA512withRSA = 1.2.840.113549.1.1.13
@@ -188,7 +188,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext is X509BasicConstraintsExtension bc)
                 {
@@ -211,7 +211,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext is X509BasicConstraintsExtension bc && bc.HasPathLengthConstraint)
                 {
@@ -232,7 +232,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            if (cert.Subject != cert.Issuer)
+            if (cert!.Subject != cert.Issuer)
             {
                 Assert.Fail("Certificate is not self-signed.");
             }
@@ -250,7 +250,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            Assert.That(cert.Thumbprint, Is.Not.Null.And.Not.Empty,
+            Assert.That(cert!.Thumbprint, Is.Not.Null.And.Not.Empty,
                 "Certificate thumbprint must not be empty.");
         }
 
@@ -264,13 +264,13 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            using RSA rsa = cert.GetRSAPublicKey();
+            using RSA? rsa = cert!.GetRSAPublicKey();
             if (rsa == null)
             {
                 Assert.Fail("Certificate does not use RSA.");
             }
 
-            Assert.That(rsa.KeySize, Is.GreaterThanOrEqualTo(2048));
+            Assert.That(rsa!.KeySize, Is.GreaterThanOrEqualTo(2048));
         }
 
         [Test]
@@ -283,7 +283,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            byte[] pubKey = cert.GetPublicKey();
+            byte[] pubKey = cert!.GetPublicKey();
             Assert.That(pubKey, Is.Not.Null);
             Assert.That(pubKey, Is.Not.Empty,
                 "Public key bytes must not be empty.");
@@ -299,7 +299,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            TimeSpan span = cert.NotAfter - cert.NotBefore;
+            TimeSpan span = cert!.NotAfter - cert.NotBefore;
             Assert.That(span.TotalDays, Is.GreaterThan(0),
                 "Certificate validity span must be positive.");
         }
@@ -314,7 +314,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext is X509KeyUsageExtension ku)
                 {
@@ -381,7 +381,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 if (ep.SecurityMode != MessageSecurityMode.None)
                 {
-                    policies.Add(ep.SecurityPolicyUri);
+                    policies.Add(ep.SecurityPolicyUri!);
                 }
             }
 
@@ -401,7 +401,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             Assert.That(
-                noneEp.ServerCertificate.IsEmpty ||
+                noneEp!.ServerCertificate.IsEmpty ||
                 noneEp.ServerCertificate.Length > 0,
                 Is.True,
                 "None endpoint may or may not have a certificate.");
@@ -417,7 +417,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            byte[] raw = cert.RawData;
+            byte[] raw = cert!.RawData;
             Assert.That(raw, Is.Not.Null);
             Assert.That(raw, Is.Not.Empty,
                 "Certificate raw data should be exportable.");
@@ -437,7 +437,7 @@ namespace Opc.Ua.Core.Security.Tests
             // Session creation validates a 32-byte nonce internally.
             // A successful connection confirms compliance.
             ISession session = await ConnectToPolicyAsync(
-                ep.SecurityPolicyUri).ConfigureAwait(false);
+                ep!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 Assert.That(session.Connected, Is.True,
@@ -462,7 +462,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ConnectToPolicyAsync(
-                ep.SecurityPolicyUri).ConfigureAwait(false);
+                ep!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 Assert.That(session.Connected, Is.True,
@@ -494,7 +494,7 @@ namespace Opc.Ua.Core.Security.Tests
             for (int i = 0; i < 5; i++)
             {
                 ISession session = await ConnectToPolicyAsync(
-                    ep.SecurityPolicyUri).ConfigureAwait(false);
+                    ep!.SecurityPolicyUri!).ConfigureAwait(false);
                 try
                 {
                     sessionIds.Add(session.SessionId);
@@ -527,7 +527,7 @@ namespace Opc.Ua.Core.Security.Tests
             // The Session class rejects all-zero nonces internally.
             // A successful connection proves the nonce is non-trivial.
             ISession session = await ConnectToPolicyAsync(
-                ep.SecurityPolicyUri).ConfigureAwait(false);
+                ep!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 Assert.That(session.Connected, Is.True,
@@ -581,7 +581,7 @@ namespace Opc.Ua.Core.Security.Tests
                     "Aes128_Sha256_RsaOaep policy not available.");
             }
 
-            Assert.That(ep.SecurityPolicyUri,
+            Assert.That(ep!.SecurityPolicyUri,
                 Is.EqualTo(SecurityPolicies.Aes128_Sha256_RsaOaep));
         }
 
@@ -601,7 +601,7 @@ namespace Opc.Ua.Core.Security.Tests
                     "Aes256_Sha256_RsaPss policy not available.");
             }
 
-            Assert.That(ep.SecurityPolicyUri,
+            Assert.That(ep!.SecurityPolicyUri,
                 Is.EqualTo(SecurityPolicies.Aes256_Sha256_RsaPss));
         }
 
@@ -626,7 +626,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No None endpoint available.");
             }
 
-            Assert.That(ep.SecurityLevel, Is.Zero,
+            Assert.That(ep!.SecurityLevel, Is.Zero,
                 "None endpoint security level should be 0.");
         }
 
@@ -728,13 +728,13 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession s1 = await ConnectToPolicyAsync(
-                ep.SecurityPolicyUri).ConfigureAwait(false);
+                ep!.SecurityPolicyUri!).ConfigureAwait(false);
             NodeId id1 = s1.SessionId;
             await s1.CloseAsync(5000, true).ConfigureAwait(false);
             s1.Dispose();
 
             ISession s2 = await ConnectToPolicyAsync(
-                ep.SecurityPolicyUri).ConfigureAwait(false);
+                ep.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 Assert.That(s2.SessionId, Is.Not.EqualTo(id1),
@@ -785,7 +785,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ConnectToPolicyAsync(
-                ep.SecurityPolicyUri).ConfigureAwait(false);
+                ep!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 ReadResponse response = await session.ReadAsync(
@@ -827,9 +827,9 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession s1 = await ConnectToPolicyAsync(
-                signEp.SecurityPolicyUri).ConfigureAwait(false);
+                signEp!.SecurityPolicyUri!).ConfigureAwait(false);
             ISession s2 = await ConnectToPolicyAsync(
-                encryptEp.SecurityPolicyUri).ConfigureAwait(false);
+                encryptEp!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 Assert.That(s1.SessionId, Is.Not.EqualTo(s2.SessionId),
@@ -883,13 +883,13 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 if (ep.SecurityMode != MessageSecurityMode.None &&
                     !ep.ServerCertificate.IsEmpty &&
-                    !IsEccPolicy(ep.SecurityPolicyUri))
+                    !IsEccPolicy(ep.SecurityPolicyUri!))
                 {
                     return X509CertificateLoader.LoadCertificate(
                         ep.ServerCertificate.ToArray());
                 }
             }
-            return null;
+            return null!;
         }
 
         private static X509Certificate2 FindAnySecureEndpointCert(
@@ -905,7 +905,7 @@ namespace Opc.Ua.Core.Security.Tests
                 }
             }
 
-            return null;
+            return null!;
         }
 
         private static bool IsEccPolicy(string policyUri)
@@ -917,7 +917,7 @@ namespace Opc.Ua.Core.Security.Tests
         private EndpointDescription FindEp(
             ArrayOf<EndpointDescription> eps,
             MessageSecurityMode mode,
-            string policy = null)
+            string? policy = null)
         {
             foreach (EndpointDescription ep in eps)
             {
@@ -930,7 +930,7 @@ namespace Opc.Ua.Core.Security.Tests
                 }
             }
 
-            return null;
+            return null!;
         }
 
         private Task<ISession> ConnectToPolicyAsync(string policyUri)
