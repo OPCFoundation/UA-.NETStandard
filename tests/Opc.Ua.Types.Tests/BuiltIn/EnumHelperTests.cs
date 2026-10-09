@@ -214,6 +214,25 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void EnumToInt32GenericTakesTheLow32BitsOfLongEnums()
+        {
+            // Like the unchecked (int)(long) cast of EnumToInt32(object, Type).
+            const LongTestEnum high = (LongTestEnum)0x1_0000_0005L;
+            Assert.Multiple(() =>
+            {
+                Assert.That(EnumHelper.EnumToInt32(LongTestEnum.Five), Is.EqualTo(5));
+                Assert.That(EnumHelper.EnumToInt32(LongTestEnum.Minus), Is.EqualTo(-1));
+                Assert.That(EnumHelper.EnumToInt32(high), Is.EqualTo(5));
+                Assert.That(
+                    EnumHelper.EnumToInt32(high),
+                    Is.EqualTo(EnumHelper.EnumToInt32((object)high, typeof(LongTestEnum))));
+                Assert.That(EnumHelper.EnumToInt32((ULongTestEnum)ulong.MaxValue), Is.EqualTo(-1));
+                Assert.That(EnumHelper.Int32ToEnum<ByteTestEnum>(0x101), Is.EqualTo(ByteTestEnum.One));
+                Assert.That(EnumHelper.Int32ToEnum<UShortTestEnum>(0x1_0001), Is.EqualTo(UShortTestEnum.One));
+            });
+        }
+
+        [Test]
         public void Int32ToEnumGenericConvertsLongEnum()
         {
             Assert.Multiple(() =>

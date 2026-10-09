@@ -57,11 +57,10 @@ namespace Opc.Ua
                 case sizeof(int):
                     int i32 = value;
                     return Unsafe.As<int, T>(ref i32);
-                case sizeof(long):
+                default:
                     long i64 = value;
                     return Unsafe.As<long, T>(ref i64);
             }
-            return default;
         }
 
         /// <summary>
