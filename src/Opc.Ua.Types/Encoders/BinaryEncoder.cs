@@ -806,13 +806,12 @@ namespace Opc.Ua
             // calculate the encoding.
             byte encoding = 0;
 
-            // Empty fields carry no information; omit them as required by OPC 10000-6, Table 24.
-            if (!string.IsNullOrEmpty(value.Locale))
+            if (value.Locale != null)
             {
                 encoding |= (byte)LocalizedTextEncodingBits.Locale;
             }
 
-            if (!string.IsNullOrEmpty(value.Text))
+            if (value.Text != null)
             {
                 encoding |= (byte)LocalizedTextEncodingBits.Text;
             }

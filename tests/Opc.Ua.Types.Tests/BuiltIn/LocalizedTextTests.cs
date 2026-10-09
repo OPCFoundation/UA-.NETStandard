@@ -1,3 +1,32 @@
+/* ========================================================================
+ * Copyright (c) 2005-2025 The OPC Foundation, Inc. All rights reserved.
+ *
+ * OPC Foundation MIT License 1.00
+ *
+ * Permission is hereby granted, free of charge, to any person
+ * obtaining a copy of this software and associated documentation
+ * files (the "Software"), to deal in the Software without
+ * restriction, including without limitation the rights to use,
+ * copy, modify, merge, publish, distribute, sublicense, and/or sell
+ * copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following
+ * conditions:
+ *
+ * The above copyright notice and this permission notice shall be
+ * included in all copies or substantial portions of the Software.
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+ * EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+ * OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+ * NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+ * HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+ * WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+ * OTHER DEALINGS IN THE SOFTWARE.
+ *
+ * The complete license agreement can be found here:
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -320,6 +349,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(value.TranslationInfo.Args, Is.EqualTo(new object[] { string.Empty }));
         }
 
+        /// <summary>
+        /// Binary encoding preserves the canonical field values and ordinary value equality.
+        /// </summary>
         [TestCase(null, null, 0x00)]
         [TestCase("", "", 0x00)]
         [TestCase("", null, 0x00)]
@@ -329,6 +361,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase(null, "Text", 0x02)]
         [TestCase("", "Text", 0x02)]
         [TestCase("en-US", "Text", 0x03)]
+        [TestCase(" ", " ", 0x03)]
         public void BinaryEncodingOmitsNullOrEmptyFields(
             string? locale,
             string? text,
@@ -348,29 +381,47 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(buffer[0], Is.EqualTo(expectedEncodingMask));
             using var decoder = new BinaryDecoder(buffer, messageContext);
             LocalizedText decoded = decoder.ReadLocalizedText(null);
-            Assert.That(decoded.Locale, Is.EqualTo(string.IsNullOrEmpty(locale) ? null : locale));
-            Assert.That(decoded.Text, Is.EqualTo(string.IsNullOrEmpty(text) ? null : text));
+            Assert.That(decoded.Locale, Is.EqualTo(value.Locale));
+            Assert.That(decoded.Text, Is.EqualTo(value.Text));
             Assert.That(decoded, Is.EqualTo(value));
         }
 
-        [Test]
-        public void TranslationBackedEmptyLocaleIsNotEncodedInBinary()
+        /// <summary>
+        /// Translation-backed and formatted values expose canonical fields before binary encoding.
+        /// </summary>
+        [TestCase("", "Text", false, 0x02)]
+        [TestCase("en-US", "", false, 0x01)]
+        [TestCase("", "", false, 0x00)]
+        [TestCase("en-US", "", true, 0x01)]
+        [TestCase("", "", true, 0x00)]
+        [TestCase("en-US", "Text", true, 0x03)]
+        [TestCase(" ", " ", false, 0x03)]
+        public void TranslationBackedFieldsUseCanonicalBinaryEncoding(
+            string locale,
+            string text,
+            bool formatText,
+            byte expectedEncodingMask)
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            LocalizedText value = formatText
+                ? new LocalizedText("Key", locale, "{0}", text)
+                : new LocalizedText("Key", locale, text);
             byte[] buffer;
             using (var encoder = new BinaryEncoder(messageContext))
             {
-                encoder.WriteLocalizedText(null, new LocalizedText("Key", string.Empty, "Text"));
+                encoder.WriteLocalizedText(null, value);
                 buffer = encoder.CloseAndReturnBuffer() ??
                     throw new AssertionException("The encoder returned no buffer.");
             }
 
-            Assert.That(buffer[0], Is.EqualTo(0x02));
+            Assert.That(value.TranslationInfo.Key, Is.EqualTo("Key"));
+            Assert.That(buffer[0], Is.EqualTo(expectedEncodingMask));
             using var decoder = new BinaryDecoder(buffer, messageContext);
             LocalizedText decoded = decoder.ReadLocalizedText(null);
-            Assert.That(decoded.Locale, Is.Null);
-            Assert.That(decoded.Text, Is.EqualTo("Text"));
+            Assert.That(decoded.Locale, Is.EqualTo(value.Locale));
+            Assert.That(decoded.Text, Is.EqualTo(value.Text));
+            Assert.That(decoded, Is.EqualTo(value));
         }
     }
 }
