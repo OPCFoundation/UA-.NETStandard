@@ -9,8 +9,12 @@ separate connections.
 
 - [Getting started](#getting-started)
 - [Workspace](#workspace)
-- [Opening NodeSet2 files](#opening-nodeset2-files)
 - [Connection and trust](#connection-and-trust)
+  - [User identities](#user-identities)
+  - [Configured token authorization](#configured-token-authorization)
+  - [User-certificate enrollment](#user-certificate-enrollment)
+  - [Hardware-backed keys](#hardware-backed-keys)
+  - [Reverse connect](#reverse-connect)
 - [Local repository samples](#local-repository-samples)
 - [Monitoring](#monitoring)
 - [Tools](#tools)
@@ -19,7 +23,19 @@ separate connections.
 - [Performance comparisons](#performance-comparisons)
 - [Continuity Lab](#continuity-lab)
 - [PubSub](#pubsub)
+- [Opening NodeSet2 files](#opening-nodeset2-files)
+  - [Missing dependencies](#missing-dependencies)
+  - [Import errors and cancellation](#import-errors-and-cancellation)
+  - [Exploring the imported graph](#exploring-the-imported-graph)
+  - [Returning to a server](#returning-to-a-server)
 - [Companion specification tasks](#companion-specification-tasks)
+  - [Device Integration](#device-integration)
+  - [ISA-95](#isa-95)
+  - [WoT and xRegistry](#wot-and-xregistry)
+  - [Robotics](#robotics)
+  - [Vision](#vision)
+  - [AI](#ai)
+  - [OpenUSD](#openusd)
 - [Saved workspaces](#saved-workspaces)
 - [Tool availability and prerequisites](#tool-availability-and-prerequisites)
 
@@ -85,85 +101,6 @@ again if the outcome is unknown.
 
 Closing UaLens waits for owned operations, documents and connection cleanup.
 Shutdown progress and cleanup errors appear in the status and log.
-
-## Opening NodeSet2 files
-
-Choose **File > Open NodeSet2 files...** or the same action in the welcome area.
-Select one or more XML files to explore a combined read-only address space.
-The bundled OPC UA core model is available without internet access.
-
-### Missing dependencies
-
-UaLens matches dependencies by model URI and revision. Files selected together
-can reference one another despite different namespace-table orders. UaLens also
-looks for XML files beside the selected files.
-
-For each missing dependency, choose **Browse local file**, or **Search and
-download** to permit a lookup in
-[OPCFoundation/UA-Nodeset](https://github.com/OPCFoundation/UA-Nodeset).
-Local model contents are not uploaded. If the repository has no match, or a
-download fails, select a local file instead.
-
-The selected file must satisfy the required `ModelVersion` and `PublicationDate`.
-The human-readable `Version` is a label. Complementary files for the same model
-revision are supported; conflicting revisions and duplicate NodeIds are rejected.
-Dependencies may require further files.
-
-An import supports up to 128 documents, 500,000 nodes, 64 dependency levels and
-256 MiB of content, with at most 64 MiB per document. Downloads stay in memory
-and do not overwrite local files.
-
-### Import errors and cancellation
-
-The current address space stays available until the complete import succeeds.
-Cancelling or encountering an invalid file leaves it unchanged. A successful
-import closes the primary live connection; existing documents keep their settings,
-but session-bound actions are unavailable offline.
-
-Import errors appear in the banner and **Log** panel. Correct the file and reopen
-it. Standard names used as NodeIds need entries in that document's `<Aliases>`
-table, for example:
-
-```xml
-<Aliases>
-  <Alias Alias="HasProperty">i=46</Alias>
-</Aliases>
-```
-
-Alternatively, use the NodeId directly:
-`<Reference ReferenceType="i=46">ns=1;i=2</Reference>`.
-UaLens does not infer undeclared aliases.
-
-### Exploring the imported graph
-
-The offline banner shows document, node and unresolved-reference counts.
-Its tooltip lists source documents and model URIs. Displayed namespace indexes
-belong to the combined graph.
-
-Use **View** to browse Objects, ObjectTypes, VariableTypes, DataTypes,
-ReferenceTypes or Views. **AllNodes** groups every imported node by namespace,
-including nodes not reachable from Root. Type views include their members.
-
-Offline search covers display names, browse names and NodeIds throughout the
-imported graph. **Enter** starts a search; **F3** advances to the next match.
-Double-click a reference target to inspect a locally resolved node.
-The references panel shows forward and inverse links and identifies unresolved
-targets.
-
-**Find by path...** accepts relative paths with the combined namespace indexes,
-such as `/2:Machine/3:Reading`. **View NodeState... > NodeSet2 XML** shows the
-authored node definition, including values, data-type fields and extensions,
-using the source file's namespace table and aliases.
-
-Imported values and access flags are static metadata. Write, Call, Monitor,
-Events and History are unavailable, and remote-server targets cannot be followed.
-
-### Returning to a server
-
-Choose **Close models** to clear the offline graph, or connect successfully to a
-server to replace it. A cancelled or failed connection leaves the graph available.
-Model files and downloads are not saved in a workspace; reopen them after restart.
-For the XML format, see [OPC UA Part 6, Annex F](https://reference.opcfoundation.org/Core/Part6/v105/docs/F).
 
 ## Connection and trust
 
@@ -403,6 +340,85 @@ external prerequisites before starting.
 For a sample publisher, use the
 [Console Reference PubSub Client](../samples/PubSub/ConsoleReferencePubSubClient/README.md).
 See [PubSub](PubSub.md) for transport and security configuration.
+
+## Opening NodeSet2 files
+
+Choose **File > Open NodeSet2 files...** or the same action in the welcome area.
+Select one or more XML files to explore a combined read-only address space.
+The bundled OPC UA core model is available without internet access.
+
+### Missing dependencies
+
+UaLens matches dependencies by model URI and revision. Files selected together
+can reference one another despite different namespace-table orders. UaLens also
+looks for XML files beside the selected files.
+
+For each missing dependency, choose **Browse local file**, or **Search and
+download** to permit a lookup in
+[OPCFoundation/UA-Nodeset](https://github.com/OPCFoundation/UA-Nodeset).
+Local model contents are not uploaded. If the repository has no match, or a
+download fails, select a local file instead.
+
+The selected file must satisfy the required `ModelVersion` and `PublicationDate`.
+The human-readable `Version` is a label. Complementary files for the same model
+revision are supported; conflicting revisions and duplicate NodeIds are rejected.
+Dependencies may require further files.
+
+An import supports up to 128 documents, 500,000 nodes, 64 dependency levels and
+256 MiB of content, with at most 64 MiB per document. Downloads stay in memory
+and do not overwrite local files.
+
+### Import errors and cancellation
+
+The current address space stays available until the complete import succeeds.
+Cancelling or encountering an invalid file leaves it unchanged. A successful
+import closes the primary live connection; existing documents keep their settings,
+but session-bound actions are unavailable offline.
+
+Import errors appear in the banner and **Log** panel. Correct the file and reopen
+it. Standard names used as NodeIds need entries in that document's `<Aliases>`
+table, for example:
+
+```xml
+<Aliases>
+  <Alias Alias="HasProperty">i=46</Alias>
+</Aliases>
+```
+
+Alternatively, use the NodeId directly:
+`<Reference ReferenceType="i=46">ns=1;i=2</Reference>`.
+UaLens does not infer undeclared aliases.
+
+### Exploring the imported graph
+
+The offline banner shows document, node and unresolved-reference counts.
+Its tooltip lists source documents and model URIs. Displayed namespace indexes
+belong to the combined graph.
+
+Use **View** to browse Objects, ObjectTypes, VariableTypes, DataTypes,
+ReferenceTypes or Views. **AllNodes** groups every imported node by namespace,
+including nodes not reachable from Root. Type views include their members.
+
+Offline search covers display names, browse names and NodeIds throughout the
+imported graph. **Enter** starts a search; **F3** advances to the next match.
+Double-click a reference target to inspect a locally resolved node.
+The references panel shows forward and inverse links and identifies unresolved
+targets.
+
+**Find by path...** accepts relative paths with the combined namespace indexes,
+such as `/2:Machine/3:Reading`. **View NodeState... > NodeSet2 XML** shows the
+authored node definition, including values, data-type fields and extensions,
+using the source file's namespace table and aliases.
+
+Imported values and access flags are static metadata. Write, Call, Monitor,
+Events and History are unavailable, and remote-server targets cannot be followed.
+
+### Returning to a server
+
+Choose **Close models** to clear the offline graph, or connect successfully to a
+server to replace it. A cancelled or failed connection leaves the graph available.
+Model files and downloads are not saved in a workspace; reopen them after restart.
+For the XML format, see [OPC UA Part 6, Annex F](https://reference.opcfoundation.org/Core/Part6/v105/docs/F).
 
 ## Companion specification tasks
 
