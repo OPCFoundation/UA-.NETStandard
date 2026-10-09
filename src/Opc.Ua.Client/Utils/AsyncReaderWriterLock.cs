@@ -92,6 +92,14 @@ namespace Opc.Ua.Client
     internal sealed class AsyncReaderWriterLock : IDisposable
     {
         /// <summary>
+        /// Creates the lock.
+        /// </summary>
+        public AsyncReaderWriterLock()
+        {
+            m_releaseReader = ReleaseReader;
+        }
+
+        /// <summary>
         /// Optional asynchronous operation that completes before a reader
         /// acquires the lock.
         /// </summary>
@@ -136,6 +144,68 @@ namespace Opc.Ua.Client
                 m_writer.Release();
             }
             return new Releaser(this, isWriter: false);
+        }
+
+        /// <summary>
+        /// Acquires a reader lock without waiting when no writer holds or
+        /// waits for the lock. Does not run <see cref="BeforeReaderLockAsync"/>;
+        /// the caller checks the precondition it stands for. Release with
+        /// <see cref="ExitReader"/> or <see cref="ExitReaderOnCompletion{T}"/>.
+        /// </summary>
+        /// <returns>True if the reader lock was acquired.</returns>
+        public bool TryEnterReader()
+        {
+            if (!m_writer.Wait(0))
+            {
+                return false;
+            }
+            try
+            {
+                lock (m_state)
+                {
+                    m_activeReaders++;
+                }
+            }
+            finally
+            {
+                m_writer.Release();
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Releases a reader lock acquired with <see cref="TryEnterReader"/>.
+        /// </summary>
+        public void ExitReader()
+        {
+            ReleaseReader();
+        }
+
+        /// <summary>
+        /// Releases a reader lock acquired with <see cref="TryEnterReader"/>
+        /// when <paramref name="operation"/> completes, and returns a value
+        /// task for the same result.
+        /// </summary>
+        /// <remarks>
+        /// The release is the first continuation registered on the operation's
+        /// task and runs synchronously when it completes, so the lock is normally
+        /// free again by the time an awaiter of the returned task resumes, as with
+        /// a <c>using</c> block around the awaited operation. Only if the task
+        /// completes while the continuation is being registered does the release
+        /// run on the thread pool instead, shortly after. The delegate is cached,
+        /// so this allocates nothing beyond the task's continuation list.
+        /// </remarks>
+        /// <typeparam name="T">The result of the operation.</typeparam>
+        public ValueTask<T> ExitReaderOnCompletion<T>(ValueTask<T> operation)
+        {
+            if (operation.IsCompleted)
+            {
+                ReleaseReader();
+                return operation;
+            }
+            Task<T> task = operation.AsTask();
+            task.ConfigureAwait(false).GetAwaiter().UnsafeOnCompleted(m_releaseReader);
+            return new ValueTask<T>(task);
         }
 
         /// <summary>
@@ -320,6 +390,7 @@ namespace Opc.Ua.Client
             }
         }
 
+        private readonly Action m_releaseReader;
         private bool m_isDisposed;
         private readonly SemaphoreSlim m_writer = new(1, 1);
         private readonly Lock m_state = new();

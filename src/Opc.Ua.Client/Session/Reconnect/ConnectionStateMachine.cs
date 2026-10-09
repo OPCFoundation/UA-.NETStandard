@@ -236,6 +236,12 @@ namespace Opc.Ua.Client
         internal bool IsWorkerFlow => m_inWorkerFlow.Value is { Active: true };
 
         /// <summary>
+        /// Whether service calls may proceed now, the condition
+        /// <see cref="WaitForServiceAvailabilityAsync"/> waits for.
+        /// </summary>
+        internal bool AreServicesAvailable => Volatile.Read(ref m_servicesAvailable);
+
+        /// <summary>
         /// Event raised when the state changes.
         /// </summary>
         public event EventHandler<ConnectionStateChangedEventArgs>?
