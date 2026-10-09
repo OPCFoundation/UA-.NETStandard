@@ -281,11 +281,12 @@ namespace Opc.Ua.Server
                         await ValidateCertificateAgainstGroupTrustListAsync(
                             certificateGroup.TrustedStore,
                             certificateGroup.IssuerStore,
-                            certificateGroup.BrowseName,
+                            GetGroupValidationScope(certificateGroup).Name,
                             newCert,
                             m_configuration.SecurityConfiguration,
                             Server.Telemetry,
-                            ct).ConfigureAwait(false);
+                            ct,
+                            m_configuration.CertificateManager).ConfigureAwait(false);
                     }
                     catch (ServiceResultException)
                     {
@@ -375,8 +376,9 @@ namespace Opc.Ua.Server
                 }
 
                 previousCertificateWithKey = await CertificateIdentifierResolver
-                    .LoadPrivateKeyAsync(
+                    .LoadPrivateKeyWithStoreResolverAsync(
                         existingCertIdentifier,
+                        m_configuration.CertificateManager as ICertificateStoreResolver,
                         passwordProvider,
                         m_configuration.ApplicationUri,
                         Server.Telemetry,
@@ -603,6 +605,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
+                m_logger.CertificateUpdateFailed(e, certificateGroupId, certificateTypeId, privateKeyFormat);
                 // report the failure of UpdateCertificate via an audit event
                 Server.ReportCertificateUpdatedAuditEvent(
                     context,
@@ -815,8 +818,9 @@ namespace Opc.Ua.Server
             Certificate? previousCertificateWithKey = string.IsNullOrEmpty(previousThumbprint)
                 ? null
                 : await CertificateIdentifierResolver
-                    .LoadPrivateKeyAsync(
+                    .LoadPrivateKeyWithStoreResolverAsync(
                         existingCertIdentifier,
+                        m_configuration.CertificateManager as ICertificateStoreResolver,
                         m_configuration.SecurityConfiguration.CertificatePasswordProvider,
                         m_configuration.ApplicationUri,
                         Server.Telemetry,
@@ -1039,8 +1043,9 @@ namespace Opc.Ua.Server
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
             Certificate? previousCertificateWithKey = await CertificateIdentifierResolver
-                .LoadPrivateKeyAsync(
+                .LoadPrivateKeyWithStoreResolverAsync(
                     existingCertIdentifier,
+                    m_configuration.CertificateManager as ICertificateStoreResolver,
                     passwordProvider,
                     m_configuration.ApplicationUri,
                     Server.Telemetry,
@@ -1210,7 +1215,7 @@ namespace Opc.Ua.Server
             {
                 using Certificate? existingCertificate = await CertificateIdentifierResolver.ResolveAsync(
                     existingCertIdentifier,
-                    registry: null,
+                    registry: m_configuration.CertificateManager,
                     needPrivateKey: false,
                     m_configuration.ApplicationUri,
                     Server.Telemetry,
@@ -1392,9 +1397,7 @@ namespace Opc.Ua.Server
                 return store;
             }
 
-            ICertificateStore created = m_rejectedStore!.OpenStore(Server.Telemetry) ??
-                throw ServiceResultException.ConfigurationError(
-                    "Failed to open rejected certificate store.");
+            ICertificateStore created = OpenGroupStore(m_rejectedStore!);
             ICertificateStore? current = Interlocked.CompareExchange(
                 ref m_rejectedStoreInstance,
                 created,
@@ -1434,7 +1437,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Records pending signing-key recovery outcomes during certificate push operations.
+    /// Records certificate push failures and pending signing-key recovery outcomes.
     /// </summary>
     internal static partial class ConfigurationNodeManagerLog
     {
@@ -1451,5 +1454,13 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.PendingCertificateKey + 1, Level = LogLevel.Debug,
             Message = "Pending signing key for {GroupId}/{TypeId} was superseded; the newer key was retained.")]
         public static partial void PendingSigningKeyWasSuperseded(this ILogger logger, NodeId groupId, NodeId typeId);
+
+        /// <summary>
+        /// Reports a certificate update failure without including private-key material.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.PendingCertificateKey + 2, Level = LogLevel.Error,
+            Message = "UpdateCertificate failed for group {GroupId}, type {TypeId}, key format {PrivateKeyFormat}.")]
+        public static partial void CertificateUpdateFailed(
+            this ILogger logger, Exception exception, NodeId groupId, NodeId typeId, string? privateKeyFormat);
     }
 }
