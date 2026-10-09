@@ -52,15 +52,17 @@ namespace Opc.Ua.Sessions.Tests
         protected override void ConfigureServer(ApplicationConfiguration configuration)
         {
             base.ConfigureServer(configuration);
-            // admit the whole pipeline: up to 10 sessions x 300 requests
-            configuration.ServerConfiguration!.MaxQueuedRequestCount = 4000;
+            // admit the whole pipeline: up to 4 sessions x 1000 requests
+            configuration.ServerConfiguration!.MaxQueuedRequestCount = 10000;
         }
 
         /// <summary>
         /// More requests in flight on a session than the channel's write queue holds (100)
-        /// slow the client down instead of closing its channel: the server stops reading
-        /// while the responses drain. The channel used to be faulted with
-        /// BadTcpNotEnoughResources ("The channel write queue is full").
+        /// complete and leave the channel connected. When responses back up, the server
+        /// stops reading until they drain instead of faulting the channel with
+        /// BadTcpNotEnoughResources ("The channel write queue is full"). In process the
+        /// client reads fast enough that the queue rarely fills; the out-of-process load
+        /// harness (perf/ServerLoadHarness, 10 clients x 1000 Reads) exercises the full queue.
         /// </summary>
         [Test]
         public async Task PipelinesDeeperThanTheWriteQueueAreThrottledNotFaultedAsync()
@@ -80,7 +82,7 @@ namespace Opc.Ua.Sessions.Tests
 
                 for (int round = 0; round < 5; round++)
                 {
-                    IEnumerable<Task<ReadResponse>> reads = sessions.SelectMany(session => Enumerable.Range(0, 300).Select(
+                    IEnumerable<Task<ReadResponse>> reads = sessions.SelectMany(session => Enumerable.Range(0, 1000).Select(
                         _ => session.ReadAsync(null, 0, TimestampsToReturn.Neither, nodesToRead, deadline.Token).AsTask()));
                     ReadResponse[] responses = await Task.WhenAll(reads).ConfigureAwait(false);
                     Assert.That(responses.All(r => StatusCode.IsGood(r.Results[0].StatusCode)), Is.True);
