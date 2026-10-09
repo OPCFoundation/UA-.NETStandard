@@ -430,6 +430,145 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// A timer that wakes up late on every wait does not slow the schedule down: with a
+        /// Windows-like 5.6 ms overshoot on a 10 ms interval the schedule still takes a sample
+        /// every 10 ms on average, where waiting one interval after each sample takes 64 %.
+        /// </summary>
+        [TestCase(5.6)]
+        [TestCase(1.0)]
+        [TestCase(0.0)]
+        public void ScheduleKeepsTheRateWhenTheTimerOvershoots(double overshootMs)
+        {
+            int samples = SimulateSchedule(10, overshootMs, sampleCostMs: 0.3, seconds: 10, out int restarts);
+            int fixedDelaySamples = SimulateFixedDelay(10, overshootMs, sampleCostMs: 0.3, seconds: 10);
+
+            Assert.That(samples, Is.InRange(995, 1001));
+            Assert.That(restarts, Is.Zero);
+            if (overshootMs > 0)
+            {
+                Assert.That(fixedDelaySamples, Is.LessThan(975), "the simulation must reproduce the drift");
+            }
+        }
+
+        /// <summary>
+        /// A pause shorter than the tolerated lag, such as a garbage collection, is made up by
+        /// sampling again right away, so no sample of the interval is lost.
+        /// </summary>
+        [Test]
+        public void SchedulePausesShorterThanTheLagAreMadeUp()
+        {
+            int samples = SimulateSchedule(10, 1.0, 0.3, 10, out int restarts, stallAtMs: 5000, stallMs: 200);
+
+            Assert.That(samples, Is.InRange(995, 1001));
+            Assert.That(restarts, Is.Zero);
+        }
+
+        /// <summary>
+        /// A stall longer than the tolerated lag restarts the schedule once instead of bursting
+        /// through every missed sample.
+        /// </summary>
+        [Test]
+        public void ScheduleRestartsAfterAStallLongerThanTheLag()
+        {
+            int samples = SimulateSchedule(10, 1.0, 0.3, 10, out int restarts, stallAtMs: 5000, stallMs: 3000);
+
+            Assert.That(restarts, Is.EqualTo(1));
+            Assert.That(samples, Is.InRange(690, 710), "the 3 s stall is skipped, not made up");
+        }
+
+        /// <summary>
+        /// Samples that take longer than the interval run back to back without the schedule
+        /// running away: it restarts whenever it falls a full lag behind.
+        /// </summary>
+        [Test]
+        public void ScheduleDoesNotRunAwayWhenSamplingIsSlowerThanTheInterval()
+        {
+            int samples = SimulateSchedule(10, 0.0, 15, 10, out int restarts);
+
+            Assert.That(samples, Is.InRange(660, 670));
+            Assert.That(restarts, Is.GreaterThan(0));
+        }
+
+        /// <summary>
+        /// Long waits convert to a delay without overflowing at the 1 GHz timestamp frequency
+        /// of Unix: the default one-hour sampling group would otherwise compute 3.6e19 ticks.
+        /// </summary>
+        [Test]
+        public void ScheduleWaitOfAnHourConvertsWithoutOverflowAtOneGigahertz()
+        {
+            const long frequency = 1_000_000_000;
+            var schedule = SamplingSchedule.Create(3_600_000, frequency, 0);
+
+            TimeSpan wait = SamplingSchedule.ToTimeSpan(schedule.GetWait(0), frequency);
+
+            Assert.That(wait, Is.EqualTo(TimeSpan.FromHours(1)));
+        }
+
+        private const long kTicksPerSecond = 10_000_000;
+
+        private static long Ticks(double milliseconds)
+        {
+            return (long)(milliseconds * kTicksPerSecond / 1000);
+        }
+
+        private static int SimulateSchedule(
+            double intervalMs,
+            double overshootMs,
+            double sampleCostMs,
+            double seconds,
+            out int restarts,
+            double stallAtMs = -1,
+            double stallMs = 0)
+        {
+            long now = 0;
+            long end = Ticks(seconds * 1000);
+            bool stalled = false;
+            var schedule = SamplingSchedule.Create(intervalMs, kTicksPerSecond, now);
+            int samples = 0;
+            restarts = 0;
+            while (true)
+            {
+                long wait = schedule.GetWait(now);
+                if (wait > 0)
+                {
+                    now += wait + Ticks(overshootMs);
+                }
+                if (!stalled && stallAtMs >= 0 && now >= Ticks(stallAtMs))
+                {
+                    stalled = true;
+                    now += Ticks(stallMs);
+                }
+                if (now >= end)
+                {
+                    return samples;
+                }
+                now += Ticks(sampleCostMs);
+                samples++;
+                if (schedule.Advance(now))
+                {
+                    restarts++;
+                }
+            }
+        }
+
+        private static int SimulateFixedDelay(double intervalMs, double overshootMs, double sampleCostMs, double seconds)
+        {
+            long now = 0;
+            long end = Ticks(seconds * 1000);
+            int samples = 0;
+            while (true)
+            {
+                now += Ticks(intervalMs + overshootMs);
+                if (now >= end)
+                {
+                    return samples;
+                }
+                now += Ticks(sampleCostMs);
+                samples++;
+            }
+        }
+
         private static int QueuedCount(Mock<ISampledDataChangeMonitoredItem> item)
         {
             return item.Invocations.Count(i => i.Method.Name == nameof(IDataChangeMonitoredItem.QueueValue));
