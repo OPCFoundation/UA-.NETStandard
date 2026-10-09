@@ -21,6 +21,7 @@
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.SchemaRegistry.Server\Opc.Ua.SchemaRegistry.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.XRegistry.Client\Opc.Ua.XRegistry.Client.csproj" />
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />

@@ -270,6 +270,29 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             Assert.That(text.ToString(), Is.EqualTo(description));
             Assert.That((await snapshots.CloseDocumentAsync(opened.SnapshotId).ConfigureAwait(false)).StatusCode,
                 Is.EqualTo(StatusCodes.Good));
+            TypedSchemaReadResultDataType current = await access.ReadSchemaAsync(reference).ConfigureAwait(false);
+            await using XRegistry.Client.RegistrySnapshotClient client = await XRegistry.Client.RegistrySnapshotClient
+                .OpenAsync(snapshots,
+                    new RegistrySnapshotOpenRequestDataType
+                    {
+                        TargetXid = reference.Entity.Xid,
+                        DocumentKind = "schema",
+                        View = 1,
+                        ExpectedEpoch = current.Document.Epoch
+                    }, 2, 256).ConfigureAwait(false);
+            ByteString fingerprint = await client.ReadByteStringAsync(
+            [
+                new RegistryPathElementDataType { Kind = 0, Name = "Reference" },
+                new RegistryPathElementDataType { Kind = 0, Name = "SchemaId" }
+            ]).ConfigureAwait(false);
+            Assert.That(fingerprint, Is.EqualTo(current.Document.Reference.SchemaId));
+            ServiceResultException wrongKind = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await client.ReadStringAsync(
+                [
+                    new RegistryPathElementDataType { Kind = 0, Name = "Reference" },
+                    new RegistryPathElementDataType { Kind = 0, Name = "SchemaId" }
+                ]).ConfigureAwait(false))!;
+            Assert.That(wrongKind.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
         private async Task<ISession> ConnectAsync(string policy, string user, string password)
