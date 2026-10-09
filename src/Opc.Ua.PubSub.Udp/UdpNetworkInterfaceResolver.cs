@@ -44,8 +44,9 @@ namespace Opc.Ua.PubSub.Udp
     /// <remarks>
     /// Implements the NIC-selection guidance in
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.3.2.2">
-    /// Part 14 §7.3.2.2 UDP multicast / broadcast</see> — multicast
-    /// joins must specify the interface to avoid the OS picking an
+    /// Part 14 §7.3.2.2 UDP multicast / broadcast</see>: the transport
+    /// joins multicast groups and sends multicast datagrams on the
+    /// resolved interface, so the operating system does not pick an
     /// unrelated route.
     /// </remarks>
     public static class UdpNetworkInterfaceResolver

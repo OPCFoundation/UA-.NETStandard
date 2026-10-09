@@ -237,6 +237,21 @@ namespace Opc.Ua.PubSub.Udp
             }
         }
 
+        /// <summary>
+        /// The socket of the open transport, or <see langword="null"/> while the
+        /// transport is closed. Exposed for tests that inspect the socket options.
+        /// </summary>
+        internal Socket? SocketForTest
+        {
+            get
+            {
+                lock (m_sync)
+                {
+                    return m_socket;
+                }
+            }
+        }
+
         internal void SetAuthenticatedRemoteEndpoint(IPEndPoint remoteEndpoint)
         {
             if (remoteEndpoint is null)
@@ -873,7 +888,47 @@ namespace Opc.Ua.PubSub.Udp
             {
                 m_logger.SettingMulticastLoopbackFailed(ex, m_connection.Name);
             }
+            SetMulticastSendInterface(socket);
             ApplyQosCategory(socket);
+        }
+
+        /// <summary>
+        /// Sends multicast datagrams, including discovery announcements, on the network
+        /// interface that the transport joins multicast groups on. Without the option the
+        /// operating system picks its default multicast route, which can be another
+        /// interface than the one subscribers listen on (OPC 10000-14 7.3.2.2).
+        /// </summary>
+        private void SetMulticastSendInterface(Socket socket)
+        {
+            try
+            {
+                if (socket.AddressFamily == AddressFamily.InterNetwork)
+                {
+                    IPAddress? localAddress = SelectLocalIPv4(m_networkInterface);
+                    if (localAddress is not null)
+                    {
+                        socket.SetSocketOption(
+                            SocketOptionLevel.IP,
+                            SocketOptionName.MulticastInterface,
+                            localAddress.GetAddressBytes());
+                    }
+                }
+                else if (socket.AddressFamily == AddressFamily.InterNetworkV6)
+                {
+                    int interfaceIndex = SelectIPv6InterfaceIndex(m_networkInterface);
+                    if (interfaceIndex != 0)
+                    {
+                        socket.SetSocketOption(
+                            SocketOptionLevel.IPv6,
+                            SocketOptionName.MulticastInterface,
+                            interfaceIndex);
+                    }
+                }
+            }
+            catch (SocketException ex)
+            {
+                m_logger.SettingMulticastInterfaceFailed(ex, m_connection.Name);
+            }
         }
 
         private void ApplyQosCategory(Socket socket)
@@ -1387,6 +1442,13 @@ namespace Opc.Ua.PubSub.Udp
             Exception exception,
             string? connection,
             string endpoint);
+
+        [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 19, Level = LogLevel.Debug,
+            Message = "Setting IP_MULTICAST_IF failed for connection '{Connection}'.")]
+        public static partial void SettingMulticastInterfaceFailed(
+            this ILogger logger,
+            Exception exception,
+            string? connection);
     }
 
 }
