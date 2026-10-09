@@ -105,6 +105,30 @@ namespace Opc.Ua.Server.Tests
             Assert.That(m_server.CurrentInstance.ServerObject.ServiceLevel.Value, Is.EqualTo((byte)255));
         }
 
+        /// <summary>
+        /// The Server.Auditing write handler converted the Variant with
+        /// Convert.ToBoolean(object), which throws for a Variant.
+        /// </summary>
+        [Test]
+        public void AuditingWriteHandlerTakesTheBooleanValue()
+        {
+            IServerInternal server = m_server.CurrentInstance;
+            PropertyState<bool> auditing = server.ServerObject.Auditing!;
+            bool initial = server.Auditing;
+
+            Variant value = !initial;
+            ServiceResult result = auditing.OnSimpleWriteValue!(
+                server.DefaultSystemContext, auditing, ref value);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(server.Auditing, Is.EqualTo(!initial));
+
+            Variant mismatch = "true";
+            result = auditing.OnSimpleWriteValue!(
+                server.DefaultSystemContext, auditing, ref mismatch);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
+            Assert.That(server.Auditing, Is.EqualTo(!initial));
+        }
+
         private ValueTask<CreateSessionResponse> CreateSessionAsync()
         {
             return m_server.CreateSessionAsync(

@@ -317,7 +317,8 @@ namespace Opc.Ua.Client
                 !session.Reconnecting &&
                 Created;
 
-            if (RecoveryPolicy.HasFlag(SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer) &&
+            if ((RecoveryPolicy & SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer) ==
+                    SubscriptionRecoveryPolicy.RecreateOnUnsolicitedTransfer &&
                 unsolicited)
             {
                 m_logger.SubscriptionIdSubscriptionIdUnsolicitedGoodSubscriptionTransferredReceived(Id);
