@@ -3851,6 +3851,33 @@ namespace Opc.Ua.Server
                 return (StatusCodes.Good, null);
             }
 
+            // Most callers only need the verdict: validate on the stack instead of
+            // materializing NodeMetadata for every node of the request.
+            if (!metadataRequired && nodeManager is AsyncCustomNodeManager customNodeManager)
+            {
+                try
+                {
+                    (bool handled, ServiceResult? verdict) = await customNodeManager.TryValidatePermissionsAsync(
+                            context,
+                            nodeHandle,
+                            requestedPermission,
+                            uniqueNodesServiceAttributes,
+                            permissionsOnly,
+                            m_logger,
+                            validateAccessRestrictions: true,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    if (handled)
+                    {
+                        return (verdict!, null);
+                    }
+                }
+                catch (ServiceResultException exception)
+                {
+                    return (new ServiceResult(exception), null);
+                }
+            }
+
             // First attempt to retrieve just the Permission metadata with or without cache optimization
             // If it happens that nodemanager does not fully implement GetPermissionMetadata,
             // fallback to GetNodeMetadataAsync
