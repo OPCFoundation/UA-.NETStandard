@@ -44,13 +44,39 @@ namespace Opc.Ua.SchemaRegistry.Client
                 .ReadSchemaAsync(reference, cancellationToken).ConfigureAwait(false);
         }
 
-        /// <summary>Writes native content using a configured source identity; no dynamic registration is inferred.</summary>
+        /// <summary>Updates an admitted exact schema reference with optimistic epoch checking.</summary>
         public async Task<TypedSchemaReadResultDataType> WriteSchemaAsync(
             TypedSchemaWriteRequestDataType request, CancellationToken cancellationToken = default)
         {
             await DiscoverMembersAsync(cancellationToken).ConfigureAwait(false);
             return await new NativeSchemaAccessTypeClient(m_session, m_schemas, m_telemetry)
                 .WriteSchemaAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Admits explicit namespace/subject source identities and native content in one transaction.
+        /// A logical default requires an explicit ResourceUri; no URI stripping or format inference is performed.
+        /// Check StatusCode and Issues before consuming Document.
+        /// </summary>
+        public async Task<TypedSchemaReadResultDataType> RegisterSchemaAsync(
+            TypedSchemaRegistrationRequestDataType request, CancellationToken cancellationToken = default)
+        {
+            await DiscoverMembersAsync(cancellationToken).ConfigureAwait(false);
+            return await new NativeSchemaAccessTypeClient(m_session, m_schemas, m_telemetry)
+                .RegisterSchemaAsync(request, cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Begins a Session-bound opaque FileType upload. The caller owns the returned handle:
+        /// write ByteStrings and Close it through FileTypeClient to validate and publish the schema.
+        /// This client does not inspect or parse uploaded content.
+        /// </summary>
+        public async ValueTask<(NodeId UploadFile, uint FileHandle)> BeginSchemaUploadAsync(
+            SchemaRegistrationDataType registration, CancellationToken cancellationToken = default)
+        {
+            await DiscoverMembersAsync(cancellationToken).ConfigureAwait(false);
+            return await new NativeSchemaAccessTypeClient(m_session, m_schemas, m_telemetry)
+                .BeginSchemaUploadAsync(registration, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
