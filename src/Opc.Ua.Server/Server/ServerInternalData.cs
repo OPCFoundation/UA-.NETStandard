@@ -1347,9 +1347,7 @@ namespace Opc.Ua.Server
                 {
                     return;
                 }
-                byte currentServiceLevel = Convert.ToByte(
-                    ServerObject.ServiceLevel.Value,
-                    CultureInfo.InvariantCulture);
+                byte currentServiceLevel = ServerObject.ServiceLevel.Value;
 
                 if (currentServiceLevel < ServiceLevels.HealthyMinimum)
                 {
@@ -1771,7 +1769,12 @@ namespace Opc.Ua.Server
             NodeState node,
             ref Variant value)
         {
-            Auditing = Convert.ToBoolean(value, CultureInfo.InvariantCulture);
+            // Variant is no IConvertible: Convert.ToBoolean(object) threw here.
+            if (!value.TryGetValue(out bool auditing))
+            {
+                return StatusCodes.BadTypeMismatch;
+            }
+            Auditing = auditing;
             return ServiceResult.Good;
         }
 

@@ -104,12 +104,10 @@ appear when no matching message arrives for five seconds, for example before
 the publisher starts. The reader resumes when messages arrive.
 
 The sample's default endpoint, `opc.udp://239.0.0.1:4840`, is a multicast
-address. On one computer, the subscriber can miss multicast messages: the UDP
-transport disables multicast loopback by default
-(`UdpTransportOptions.MulticastLoopback`), and the publisher sends through the
-operating system's default multicast interface, which can differ from the
-interface that the subscriber joins. The unicast loopback address avoids both
-limitations. See [UDP / UADP](#udp--uadp) for the multicast options.
+address. On one computer, the subscriber can miss multicast messages because
+the UDP transport disables multicast loopback by default
+(`UdpTransportOptions.MulticastLoopback`). The unicast loopback address avoids
+this limitation. See [UDP / UADP](#udp--uadp) for the multicast options.
 
 A subscriber decodes a message only when it matches the publisher's settings:
 
@@ -587,12 +585,15 @@ defaults favor containment over reach:
 | --- | --- | --- |
 | `Ttl` | `1` | Multicast and unicast time-to-live; keeps multicast on the local subnet. |
 | `MulticastLoopback` | `false` | Whether this host receives copies of its own multicast messages. |
-| `PreferredNetworkInterface` | `null` | NIC name or local IP address used to join multicast groups when the connection address does not name one; otherwise the first operational interface for the address family. |
+| `PreferredNetworkInterface` | `null` | NIC name or local IP address used for multicast when the connection address does not name one; otherwise the first operational interface for the address family, preferring a non-loopback interface. |
 
-A receiving connection joins its multicast group on that interface. A
-sending connection uses the operating system's default multicast interface.
-For a publisher and subscriber on one computer, use a unicast loopback address,
-as in [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber).
+A receiving connection joins its multicast group on that interface. A sending
+connection sends its multicast messages and discovery announcements through
+the same interface. On a computer with several network interfaces, name the
+interface that reaches the other PubSub applications, either in the
+connection address (`NetworkInterface`) or in `PreferredNetworkInterface`. For
+a publisher and subscriber on one computer, use a unicast loopback address, as
+in [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber).
 
 ### Ethernet / UADP (`opc.eth://`)
 
