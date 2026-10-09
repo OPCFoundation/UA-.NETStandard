@@ -7,15 +7,16 @@
 
 | Category | Layer | Where | Runs | Purpose |
 |---|---|---|---|---|
-| `Contract` | L1 | `Channels/Contract/`, `Channels/Fakes/`, `Channels/Helpers/` | Every PR | Deterministic fake-based coverage for sharing, reconnect coalescing, participant results, retry budgets, gates, leases, certificates, and leak accounting. |
-| `Integration` | L2 | `Channels/Integration/` and live-server parts of `Channels/Chaos/` | Every PR | In-process server coverage for outages, live certificate rotation, and failover lease changes. |
+| `Contract` | L1 | `Channels/Contract/`, `Channels/Fakes/`, `Channels/Helpers/` | Nightly and `stress`-labelled PRs | Deterministic fake-based coverage for sharing, reconnect coalescing, participant results, retry budgets, gates, leases, certificates, and leak accounting. |
+| `Integration` | L2 | `Channels/Integration/` and live-server parts of `Channels/Chaos/` | Nightly and `stress`-labelled PRs | In-process server coverage for outages, live certificate rotation, and failover lease changes. |
 | `ChaosTCP` | L3 | `Channels/Chaos/` | Nightly | TCP proxy chaos for transparent reconnect, subscription survival, accept-but-stall, and drop / block-accept schedules. |
 | `Soak` | L4 | `Channels/Soak/` | Manual or nightly | Long randomized and combinatorial runs, including memory-stability checks. |
 
 ## Running
 
 ```bash
-# Contract + Integration (default PR CI):
+# Contract + Integration (stress-test.yml "Contract and Integration" job; run locally after
+# changing ClientChannelManager, ChannelEntry or Session reconnect):
 dotnet test tests/Opc.Ua.Stress.Tests --filter "Category=Contract|Category=Integration"
 
 # ChaosTCP (nightly):
