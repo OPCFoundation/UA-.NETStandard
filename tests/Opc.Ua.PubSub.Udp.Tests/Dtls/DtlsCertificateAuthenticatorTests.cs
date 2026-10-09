@@ -1,4 +1,3 @@
-#if NET8_0_OR_GREATER
 /* ========================================================================
  * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
  *
@@ -54,7 +53,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         public void CertificateMessageRoundTripsAndCertificateVerifyValidates()
         {
             using Certificate certificate = CreateEcdsaCertificate();
-            byte[] transcriptHash = SHA256.HashData([0x01, 0x02, 0x03]);
+            byte[] transcriptHash = DtlsHkdf.HashData(HashAlgorithmName.SHA256, [0x01, 0x02, 0x03]);
 
             byte[] certificateMessage = DtlsCertificateAuthenticator.EncodeCertificate([certificate]);
             using CertificateCollection decoded =
@@ -106,7 +105,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         public void TamperedCertificateVerifyFailsClosed()
         {
             using Certificate certificate = CreateEcdsaCertificate();
-            byte[] transcriptHash = SHA256.HashData([0x01, 0x02]);
+            byte[] transcriptHash = DtlsHkdf.HashData(HashAlgorithmName.SHA256, [0x01, 0x02]);
             byte[] verifyBody = DtlsCertificateAuthenticator.SignCertificateVerify(
                 certificate,
                 DtlsCipherSuite.TlsAes128GcmSha256,
@@ -133,7 +132,7 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
             Assert.That(() => DtlsCertificateAuthenticator.SignCertificateVerify(
                 certificate,
                 DtlsCipherSuite.TlsAes128GcmSha256,
-                SHA256.HashData([])), Throws.TypeOf<DtlsHandshakeException>());
+                DtlsHkdf.HashData(HashAlgorithmName.SHA256, [])), Throws.TypeOf<DtlsHandshakeException>());
         }
 
         [Test]
@@ -165,5 +164,4 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         }
     }
 }
-#endif
 
