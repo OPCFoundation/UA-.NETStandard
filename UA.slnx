@@ -175,6 +175,7 @@
     <Project Path="src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj" />
     <Project Path="src/Opc.Ua.Core.Schema/Opc.Ua.Core.Schema.csproj" />
     <Project Path="src/Opc.Ua.SchemaRegistry.Formats/Opc.Ua.SchemaRegistry.Formats.csproj" />
+    <Project Path="src/Opc.Ua.SchemaRegistry.Server/Opc.Ua.SchemaRegistry.Server.csproj" />
     <Project Path="src/Opc.Ua.SchemaRegistry/Opc.Ua.SchemaRegistry.csproj" />
     <Project Path="src/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
     <Project Path="src/Opc.Ua.Security.Pkcs11/Opc.Ua.Security.Pkcs11.csproj" />
@@ -339,6 +340,7 @@
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.SchemaRegistry.Tests/Opc.Ua.SchemaRegistry.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.SchemaRegistry.Server.Tests/Opc.Ua.SchemaRegistry.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />

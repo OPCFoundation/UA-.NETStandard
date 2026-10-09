@@ -497,6 +497,78 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
             Assert.That(missing.Definition, Is.Null);
         }
 
+        [Test]
+        public async Task MediaRootIsIsolatedAndRejectsDirectMessageCreationAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256,
+                new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
+            RegistryRecordMapper mapper = Mapper(session);
+            var endpoint = new EndpointDataType
+            {
+                PresentFields = ["EndpointId", "Usage", "Protocol", "ProtocolOptions"],
+                EndpointId = "shared-name",
+                Usage = ["consumer"],
+                Protocol = "HTTP",
+                ProtocolOptions = new EndpointProtocolOptionsHTTPDataType
+                {
+                    PresentFields = ["Method"],
+                    Method = "GET"
+                }
+            };
+            RegistryRecordDataType definition = mapper.Canonicalize(endpoint);
+            var mediaAccess = new NativeRegistryAccessTypeClient(session,
+                ExpandedNodeId.ToNodeId(EndpointRegistryWellKnown.MediaEndpointRegistryTypedAccess, session.NamespaceUris),
+                m_telemetry!);
+            RegistryMutationResultDataType generic = await TypedAccess(session).WriteDocumentAsync(
+                new RegistryWriteRequestDataType { TargetXid = "/endpoints/shared-name", Definition = definition })
+                .ConfigureAwait(false);
+            RegistryMutationResultDataType media = await mediaAccess.WriteDocumentAsync(
+                new RegistryWriteRequestDataType { TargetXid = "/endpoints/shared-name", Definition = definition })
+                .ConfigureAwait(false);
+            Assert.That(generic.StatusCode, Is.EqualTo(StatusCodes.Good), Detail(generic));
+            Assert.That(media.StatusCode, Is.EqualTo(StatusCodes.Good), Detail(media));
+            Assert.That(media.Target, Is.Not.EqualTo(generic.Target));
+            RegistryMutationResultDataType rejected = await mediaAccess.WriteDocumentAsync(
+                new RegistryWriteRequestDataType
+                {
+                    TargetXid = "/endpoints/shared-name/messages/forbidden",
+                    Definition = mapper.Canonicalize(new MessageDefinitionDataType
+                    {
+                        PresentFields = ["MessageId", "Protocol", "ProtocolOptions"],
+                        MessageId = "forbidden",
+                        Protocol = "HTTP",
+                        ProtocolOptions = new MessageDefinitionProtocolOptionsHTTPDataType()
+                    })
+                }).ConfigureAwait(false);
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(rejected.Issues[0].Code, Is.EqualTo("E_MEDIA_ASSOCIATION"), Detail(rejected));
+            RegistryReadResultDataType unchanged = await mediaAccess.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = "/endpoints/shared-name",
+                DocumentKind = "metadata",
+                View = 1,
+                MaxItems = 10
+            }).ConfigureAwait(false);
+            Assert.That(unchanged.Epoch, Is.EqualTo(media.Epoch));
+            ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.EndpointRegistry);
+            NodeId mediaNode = await PathAsync(session,
+                ExpandedNodeId.ToNodeId(ObjectIds.MediaEndpointRegistry, session.NamespaceUris),
+                new QualifiedName(BrowseNames.Endpoints, ns), new QualifiedName("shared-name", ns))
+                .ConfigureAwait(false);
+            BrowseResponse type = await session.BrowseAsync(null, null, 0,
+            [
+                new BrowseDescription
+                {
+                    NodeId = mediaNode,
+                    ReferenceTypeId = Ua.ReferenceTypeIds.HasTypeDefinition,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            ], default).ConfigureAwait(false);
+            Assert.That(ExpandedNodeId.ToNodeId(type.Results[0].References[0].NodeId, session.NamespaceUris),
+                Is.EqualTo(ExpandedNodeId.ToNodeId(ObjectTypeIds.MediaEndpointGroupType, session.NamespaceUris)));
+        }
+
         private static async Task<(NodeId Target, uint Epoch)> CommitAsync(
             EndpointRegistryTypeClient root,
             string xid,
@@ -710,7 +782,12 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
             {
                 AddNodeManager(new EndpointRegistryNodeManagerFactory(new EndpointRegistryServerOptions
                 {
-                    Generic = new EndpointRegistryCatalogOptions { RegistryId = "test-registry" }
+                    Generic = new EndpointRegistryCatalogOptions { RegistryId = "test-registry" },
+                    Media = new EndpointRegistryCatalogOptions
+                    {
+                        RegistryId = "media-registry",
+                        Collections = ["endpoints"]
+                    }
                 }));
             }
         }
