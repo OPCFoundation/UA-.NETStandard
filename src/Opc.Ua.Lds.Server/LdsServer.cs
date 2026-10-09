@@ -493,8 +493,8 @@ namespace Opc.Ua.Lds.Server
                     new LocalizedText("ServerType is out of range."));
             }
 
-            byte[]? certBytes = secureChannelContext?.ClientChannelCertificate;
-            if (certBytes == null || certBytes.Length == 0)
+            ByteString certBytes = secureChannelContext?.ClientChannelCertificate ?? default;
+            if (certBytes.Length == 0)
             {
                 return new ServiceResult(
                     StatusCodes.BadSecurityChecksFailed,
@@ -503,7 +503,7 @@ namespace Opc.Ua.Lds.Server
 
             try
             {
-                using var cert = Certificate.FromRawData(certBytes);
+                using var cert = Certificate.FromRawData(certBytes.Memory);
                 IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(cert);
                 if (applicationUris.Count == 0)
                 {
