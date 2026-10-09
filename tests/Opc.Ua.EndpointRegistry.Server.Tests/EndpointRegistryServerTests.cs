@@ -423,6 +423,80 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
             return count;
         }
 
+        [Test]
+        public async Task ResolveMessageReturnsTypedOverlayAndVerifiedLocalOriginsAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256,
+                new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
+            var group = new MessageGroupDataType
+            {
+                PresentFields = ["MessageGroupId", "Messages"],
+                MessageGroupId = "resolution",
+                Messages = new MessageDefinitionMapDataType
+                {
+                    Entries =
+                    [
+                        new MessageDefinitionMapEntryDataType
+                        {
+                            Name = "base",
+                            Value = new MessageDefinitionDataType
+                            {
+                                PresentFields = ["MessageId", "Description", "DataContentType"],
+                                MessageId = "base",
+                                Description = "Inherited description",
+                                DataContentType = "application/json"
+                            }
+                        },
+                        new MessageDefinitionMapEntryDataType
+                        {
+                            Name = "derived",
+                            Value = new MessageDefinitionDataType
+                            {
+                                PresentFields = ["MessageId", "BaseMessageUri"],
+                                MessageId = "derived",
+                                BaseMessageUri = "/messagegroups/resolution/messages/base"
+                            }
+                        }
+                    ]
+                }
+            };
+            RegistryMutationResultDataType written = await TypedAccess(session).WriteDocumentAsync(
+                new RegistryWriteRequestDataType
+                {
+                    TargetXid = "/messagegroups/resolution",
+                    Definition = Mapper(session).Canonicalize(group)
+                }).ConfigureAwait(false);
+            Assert.That(written.StatusCode, Is.EqualTo(StatusCodes.Good), Detail(written));
+            var root = new EndpointRegistryTypeClient(session,
+                ExpandedNodeId.ToNodeId(ObjectIds.EndpointRegistry, session.NamespaceUris), m_telemetry!);
+
+            NativeMessageResolutionResultDataType result = await root.ResolveMessageAsync(
+                new MessageResolutionRequestDataType { Reference = "/messagegroups/resolution/messages/derived" })
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(result.Status, Is.EqualTo("complete"));
+                Assert.That(result.Definition.MessageId, Is.EqualTo("derived"));
+                Assert.That(result.Definition.Description, Is.EqualTo("Inherited description"));
+                Assert.That(result.Definition.DataContentType, Is.EqualTo("application/json"));
+                Assert.That(result.Schema, Is.Null);
+                Assert.That(result.Sources.Count, Is.EqualTo(2));
+                Assert.That(result.Sources[0].ApplicationUri,
+                    Is.EqualTo(session.ConfiguredEndpoint.Description.Server.ApplicationUri));
+                Assert.That(result.Sources[0].RegistryNode, Is.EqualTo(ObjectIds.EndpointRegistry));
+                Assert.That(result.Sources[0].Role, Is.EqualTo("MetadataResource"));
+                Assert.That(result.Sources[0].NativeTarget, Is.Not.EqualTo(ObjectIds.EndpointRegistry));
+            });
+            NativeMessageResolutionResultDataType missing = await root.ResolveMessageAsync(
+                new MessageResolutionRequestDataType { Reference = "/messagegroups/resolution/messages/missing" })
+                .ConfigureAwait(false);
+            Assert.That(missing.Status, Is.EqualTo("missing-inputs"));
+            Assert.That(missing.Issues[0].Code, Is.EqualTo("E_REFERENCE_MISSING"));
+            Assert.That(missing.Definition, Is.Null);
+        }
+
         private static async Task<(NodeId Target, uint Epoch)> CommitAsync(
             EndpointRegistryTypeClient root,
             string xid,

@@ -53,7 +53,6 @@ namespace Opc.Ua.EndpointRegistry.Server
                 return;
             }
             RegistryEntityReferenceDataType localOrigin = LocalOrigin(root, catalogOptions, options);
-            var provider = new LocalResolutionProvider(host, localOrigin, options.Provider);
             var resolver = new EndpointRegistryMessageResolver();
             root.AddResolveMessage(context);
             root.ResolveMessage!.OnCallAsync = async (caller, _, _, request, ct) =>
@@ -69,7 +68,7 @@ namespace Opc.Ua.EndpointRegistry.Server
                     {
                         LocalOrigin = localOrigin,
                         Mapper = host.Mapper,
-                        Provider = provider
+                        Provider = new LocalResolutionProvider(host, host.Current, localOrigin, options.Provider)
                     },
                     ct).ConfigureAwait(false);
                 return new ResolveMessageMethodStateResult
@@ -88,9 +87,11 @@ namespace Opc.Ua.EndpointRegistry.Server
         {
             return new RegistryEntityReferenceDataType
             {
-                OriginUri = options.LocalOriginUri ?? "urn:opcua:endpoint-registry:" + catalogOptions.RegistryId,
-                ApplicationUri = string.Empty,
-                RegistryNode = ExpandedNodeId.Null,
+                OriginUri = options.LocalOriginUri ?? string.Empty,
+                ApplicationUri = options.LocalOriginUri is null ? m_applicationUri : string.Empty,
+                RegistryNode = options.LocalOriginUri is null
+                    ? new ExpandedNodeId(root.NumericId, 0, Namespaces.EndpointRegistry)
+                    : ExpandedNodeId.Null,
                 Xid = "/",
                 Role = "Registry",
                 Locator = string.Empty,
@@ -103,10 +104,12 @@ namespace Opc.Ua.EndpointRegistry.Server
         {
             public LocalResolutionProvider(
                 RegistryNativeHost host,
+                RegistryCommittedState state,
                 RegistryEntityReferenceDataType localOrigin,
                 IEndpointRegistryResolutionProvider? remote)
             {
                 m_host = host;
+                m_state = state;
                 m_localOrigin = localOrigin;
                 m_remote = remote;
             }
@@ -122,26 +125,46 @@ namespace Opc.Ua.EndpointRegistry.Server
                         ? null
                         : await m_remote.ReadMessageAsync(reference, cancellationToken).ConfigureAwait(false);
                 }
-                await Task.CompletedTask.ConfigureAwait(false);
                 try
                 {
                     if (string.IsNullOrEmpty(reference.Xid))
                     {
                         return null;
                     }
-                    (RegistryRecordDataType record, uint epoch) = m_host.ReadRecord(m_host.Current, reference.Xid);
+                    string logicalXid = reference.Xid;
+                    int suffix = logicalXid.IndexOf("/versions/", StringComparison.Ordinal);
+                    if (suffix >= 0)
+                    {
+                        logicalXid = logicalXid.Substring(0, suffix);
+                    }
+                    (RegistryRecordDataType record, uint epoch) = m_host.ReadRecord(m_state, logicalXid);
+                    if (record is not MessageDefinitionDataType message)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                            "The selected entity is not a Message Definition.");
+                    }
                     if (m_host.Mapper.Restore(record) is not RegistryObjectValueDataType metadata)
                     {
-                        return null;
+                        throw new ServiceResultException(StatusCodes.BadInvalidState,
+                            "The committed Message cannot be represented as metadata.");
                     }
+                    var source = (RegistryEntityReferenceDataType)reference.Clone();
+                    string rootPath = m_localOrigin.NativeTarget.InnerNodeId.TryGetValue(out uint rootId) &&
+                        rootId == Objects.MediaEndpointRegistry
+                        ? BrowseNames.MediaEndpointRegistry : BrowseNames.EndpointRegistry;
+                    var target = new ExpandedNodeId(rootPath + logicalXid, 0, Namespaces.EndpointRegistry);
+                    source.LocalNode = target;
+                    source.HasNativeTarget = true;
+                    source.NativeTarget = target;
                     return new EndpointRegistryMessageObservation
                     {
-                        Source = (RegistryEntityReferenceDataType)reference.Clone(),
+                        Source = source,
                         Metadata = metadata,
-                        Epoch = epoch
+                        Epoch = epoch,
+                        VersionId = string.IsNullOrEmpty(message.VersionId) ? "1" : message.VersionId
                     };
                 }
-                catch (ServiceResultException)
+                catch (ServiceResultException error) when (error.StatusCode == StatusCodes.BadNotFound)
                 {
                     return null;
                 }
@@ -158,6 +181,7 @@ namespace Opc.Ua.EndpointRegistry.Server
             }
 
             private readonly RegistryNativeHost m_host;
+            private readonly RegistryCommittedState m_state;
             private readonly RegistryEntityReferenceDataType m_localOrigin;
             private readonly IEndpointRegistryResolutionProvider? m_remote;
         }

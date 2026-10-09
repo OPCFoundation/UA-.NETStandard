@@ -78,6 +78,11 @@ namespace Opc.Ua.EndpointRegistry
         /// Gets or sets the observed committed epoch.
         /// </summary>
         public uint Epoch { get; set; }
+
+        /// <summary>
+        /// Gets or sets the retained Version identifier observed independently by the provider.
+        /// </summary>
+        public string VersionId { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -112,31 +117,11 @@ namespace Opc.Ua.EndpointRegistry
         /// </summary>
         public EndpointRegistryOriginKey(RegistryEntityReferenceDataType value)
         {
-            if (value is null)
-            {
-                throw new ArgumentNullException(nameof(value));
-            }
-            if (!string.IsNullOrEmpty(value.OriginUri))
-            {
-                if (!string.IsNullOrEmpty(value.ApplicationUri) || !IsNull(value.RegistryNode))
-                {
-                    throw new ArgumentException("OriginUri cannot be combined with ApplicationUri or RegistryNode.",
-                        nameof(value));
-                }
-                Kind = "uri";
-                OriginUri = value.OriginUri;
-            }
-            else
-            {
-                if (string.IsNullOrEmpty(value.ApplicationUri) || IsNull(value.RegistryNode))
-                {
-                    throw new ArgumentException("An OPC UA origin requires ApplicationUri and RegistryNode.",
-                        nameof(value));
-                }
-                Kind = "ua";
-                ApplicationUri = value.ApplicationUri;
-                RegistryNode = value.RegistryNode;
-            }
+            m_key = new RegistryOriginKey(value);
+            Kind = m_key.OriginUri.Length > 0 ? "uri" : "ua";
+            OriginUri = Kind == "uri" ? m_key.OriginUri : null;
+            ApplicationUri = Kind == "ua" ? m_key.ApplicationUri : null;
+            RegistryNode = m_key.RegistryNode;
         }
 
         /// <summary>
@@ -162,11 +147,7 @@ namespace Opc.Ua.EndpointRegistry
         /// <inheritdoc/>
         public bool Equals(EndpointRegistryOriginKey? other)
         {
-            return other is not null &&
-                string.Equals(Kind, other.Kind, StringComparison.Ordinal) &&
-                string.Equals(OriginUri, other.OriginUri, StringComparison.Ordinal) &&
-                string.Equals(ApplicationUri, other.ApplicationUri, StringComparison.Ordinal) &&
-                ExpandedNodeIdEquals(RegistryNode, other.RegistryNode);
+            return other is not null && m_key.Equals(other.m_key);
         }
 
         /// <inheritdoc/>
@@ -178,12 +159,7 @@ namespace Opc.Ua.EndpointRegistry
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            var hash = new HashCode();
-            hash.Add(Kind, StringComparer.Ordinal);
-            hash.Add(OriginUri, StringComparer.Ordinal);
-            hash.Add(ApplicationUri, StringComparer.Ordinal);
-            hash.Add(RegistryNode.ToString(), StringComparer.Ordinal);
-            return hash.ToHashCode();
+            return m_key.GetHashCode();
         }
 
         /// <summary>
@@ -194,15 +170,7 @@ namespace Opc.Ua.EndpointRegistry
             return new EndpointRegistryOriginKey(left).Equals(new EndpointRegistryOriginKey(right));
         }
 
-        private static bool ExpandedNodeIdEquals(ExpandedNodeId left, ExpandedNodeId right)
-        {
-            return string.Equals(left.ToString(), right.ToString(), StringComparison.Ordinal);
-        }
-
-        private static bool IsNull(ExpandedNodeId value)
-        {
-            return value.IsNull || value == ExpandedNodeId.Null;
-        }
+        private readonly RegistryOriginKey m_key;
     }
 
     /// <summary>
@@ -234,10 +202,11 @@ namespace Opc.Ua.EndpointRegistry
             {
                 throw new ArgumentException("A resolution provider is required.", nameof(context));
             }
+            ResolutionState? state = null;
             try
             {
                 ValidateSemantics(request.RequiredSemantics);
-                var state = new ResolutionState(request, context);
+                state = new ResolutionState(request, context);
                 RegistryObjectValueDataType metadata = await VisitAsync(
                     request.Reference,
                     context.LocalOrigin,
@@ -251,7 +220,7 @@ namespace Opc.Ua.EndpointRegistry
                 {
                     schema = await context.Provider.ResolveSchemaAsync(
                         definition,
-                        context.LocalOrigin,
+                        state.Find(request.Reference, context.LocalOrigin).Target,
                         cancellationToken).ConfigureAwait(false);
                     if (schema is null && HasSchemaReference(metadata))
                     {
@@ -269,7 +238,8 @@ namespace Opc.Ua.EndpointRegistry
                     Status = "complete",
                     Issues = [],
                     Sources = [.. state.Sources],
-                    Definition = definition
+                    Definition = definition,
+                    Schema = null!
                 };
                 if (schema is not null)
                 {
@@ -284,15 +254,32 @@ namespace Opc.Ua.EndpointRegistry
                     : error.Code is "E_SOURCE_CONFLICT" or "E_SEMANTICS_UNSUPPORTED" or "E_CROSS_ORIGIN_SCHEMA"
                         ? "unsupported-semantics"
                         : "invalid-input";
-                return Failure(status, error.Code, error.PathText, error.Detail, []);
+                return Failure(status, error.Code, error.PathText, error.Detail, state?.Sources ?? []);
             }
             catch (ArgumentException error)
             {
-                return Failure("invalid-input", "E_REFERENCE_INVALID", "Reference", error.Message, []);
+                return Failure("invalid-input", "E_REFERENCE_INVALID", "Reference", error.Message, state?.Sources ?? []);
             }
-            catch (InvalidOperationException error)
+            catch (ServiceResultException error)
             {
-                return Failure("invalid-input", "E_REFERENCE_INVALID", "Reference", error.Message, []);
+                RegistryDiagnosticDataType diagnostic = error is IRegistryDiagnosticSource source
+                    ? source.ToDiagnostic()
+                    : new RegistryDiagnosticDataType
+                    {
+                        StatusCode = error.StatusCode,
+                        Code = "E_REFERENCE_INVALID",
+                        Path = ["Reference"],
+                        Detail = error.Message
+                    };
+                return new NativeMessageResolutionResultDataType
+                {
+                    StatusCode = diagnostic.StatusCode,
+                    Status = "invalid-input",
+                    Issues = [diagnostic],
+                    Sources = [.. state?.Sources ?? []],
+                    Definition = null!,
+                    Schema = null!
+                };
             }
         }
 
@@ -303,9 +290,15 @@ namespace Opc.Ua.EndpointRegistry
             CancellationToken cancellationToken)
         {
             EndpointRegistryRules.ValidateMessageReference(referenceUri, "Reference");
+            if (state.Active.Count >= 128)
+            {
+                throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded,
+                    "The base Message resolution depth is exceeded.");
+            }
             MessageReferenceBindingDataType binding = state.Find(referenceUri, context);
             RegistryEntityReferenceDataType target = binding.Target;
-            if (referenceUri.StartsWith("/", StringComparison.Ordinal) &&
+            ValidateTarget(target);
+            if (referenceUri[0] == '/' &&
                 !EndpointRegistryOriginKey.SameOrigin(binding.Context, target))
             {
                 throw RegistryRuleException.Fail(
@@ -325,8 +318,7 @@ namespace Opc.Ua.EndpointRegistry
             }
             VerifySource(target, observation.Source, referenceUri);
             string logical = LogicalXid(RequireXid(target, referenceUri));
-            string cycleKey = new EndpointRegistryOriginKey(target).GetHashCode().ToString(
-                System.Globalization.CultureInfo.InvariantCulture) + "|" + logical;
+            var cycleKey = new CycleKey(new EndpointRegistryOriginKey(target), logical);
             if (!state.Active.Add(cycleKey))
             {
                 throw RegistryRuleException.Fail(
@@ -335,8 +327,13 @@ namespace Opc.Ua.EndpointRegistry
                     "recursive base Message identity, including sole-Version aliases");
             }
             RegistryObjectValueDataType current = Clone(observation.Metadata);
+            if (observation.Epoch == 0)
+            {
+                throw RegistryRuleException.Fail("E_REFERENCE_INVALID", "Reference",
+                    "a provider observation requires a committed epoch");
+            }
             EndpointRegistryRules.ValidateMessage(current);
-            VerifyIdentity(current, target, referenceUri);
+            VerifyIdentity(current, target, observation.VersionId, referenceUri);
             if (RegistryRuleValues.Has(current, "basemessage"))
             {
                 throw RegistryRuleException.Fail(
@@ -406,7 +403,7 @@ namespace Opc.Ua.EndpointRegistry
             return RegistryRuleValues.Has(baseMessage, "dataschemaxid") &&
                 !RegistryRuleValues.Has(current, "dataschemaxid") ||
                 TryString(baseMessage, "dataschemauri", out string? uri) &&
-                uri!.StartsWith("/", StringComparison.Ordinal) &&
+                uri is { Length: > 0 } && uri[0] == '/' &&
                 !RegistryRuleValues.Has(current, "dataschemauri");
         }
 
@@ -417,7 +414,9 @@ namespace Opc.Ua.EndpointRegistry
         {
             if (!EndpointRegistryOriginKey.SameOrigin(expected, actual) ||
                 !string.Equals(expected.Role, actual.Role, StringComparison.Ordinal) ||
-                !string.Equals(expected.Xid, actual.Xid, StringComparison.Ordinal))
+                !string.Equals(expected.Xid, actual.Xid, StringComparison.Ordinal) ||
+                expected.HasNativeTarget && (!actual.HasNativeTarget ||
+                    expected.NativeTarget != actual.NativeTarget))
             {
                 throw RegistryRuleException.Fail(
                     "E_REFERENCE_ORIGIN",
@@ -429,6 +428,7 @@ namespace Opc.Ua.EndpointRegistry
         private static void VerifyIdentity(
             RegistryObjectValueDataType current,
             RegistryEntityReferenceDataType target,
+            string observedVersion,
             string referenceUri)
         {
             string logical = LogicalXid(RequireXid(target, referenceUri));
@@ -441,9 +441,8 @@ namespace Opc.Ua.EndpointRegistry
                     referenceUri,
                     "returned metadata does not bind this exact entity URI or Xid");
             }
-            if (!referenceUri.StartsWith("/", StringComparison.Ordinal) &&
-                TryString(current, "self", out string? self) &&
-                self != referenceUri)
+            if (referenceUri[0] != '/' &&
+                (!TryString(current, "self", out string? self) || self != referenceUri))
             {
                 throw RegistryRuleException.Fail(
                     "E_REFERENCE_IDENTITY",
@@ -457,6 +456,26 @@ namespace Opc.Ua.EndpointRegistry
                     "E_REFERENCE_IDENTITY",
                     referenceUri,
                     "raw Message and sole-Version identity differ from the authorized observation");
+            }
+            if (string.IsNullOrEmpty(observedVersion) ||
+                TryString(current, "versionid", out string? versionId) && versionId != observedVersion ||
+                target.Role == "MetadataVersion" &&
+                    RequireXid(target, referenceUri) != logical + "/versions/" + observedVersion)
+            {
+                throw RegistryRuleException.Fail("E_REFERENCE_IDENTITY", referenceUri,
+                    "raw Message and sole-Version identity differ from the authorized observation");
+            }
+            if (RegistryRuleValues.TryGet(current, "versions", out RegistryValueDataType? versions) &&
+                versions is RegistryObjectValueDataType map)
+            {
+                foreach (RegistryMemberDataType version in map.Members)
+                {
+                    if (version.Name != observedVersion)
+                    {
+                        throw RegistryRuleException.Fail("E_REFERENCE_IDENTITY", referenceUri,
+                            "raw Message and sole-Version identity differ from the authorized observation");
+                    }
+                }
             }
         }
 
@@ -473,6 +492,22 @@ namespace Opc.Ua.EndpointRegistry
                 throw RegistryRuleException.Fail("E_REFERENCE_INVALID", path, "a concrete target Xid is required");
             }
             return target.Xid;
+        }
+
+        private static void ValidateTarget(RegistryEntityReferenceDataType target)
+        {
+            string xid = RequireXid(target, "Reference");
+            EndpointRegistryRules.ValidateMessageReference(xid, "Reference");
+            string role = xid.Contains("/versions/", StringComparison.Ordinal)
+                ? "MetadataVersion" : "MetadataResource";
+            if (target.Role != role)
+            {
+                throw new ArgumentException("The Message Xid and metadata Resource/Version role disagree.");
+            }
+            if (!target.HasNativeTarget && !target.NativeTarget.IsNull)
+            {
+                throw new ArgumentException("An absent native target must be null.");
+            }
         }
 
         private static bool TryString(RegistryObjectValueDataType value, string name, out string? text)
@@ -515,6 +550,8 @@ namespace Opc.Ua.EndpointRegistry
                     }
                 ],
                 Sources = [.. sources],
+                Definition = null!,
+                Schema = null!
             };
         }
 
@@ -545,7 +582,8 @@ namespace Opc.Ua.EndpointRegistry
                             "references",
                             "each entry binds one reference URI in its declaring origin");
                     }
-                    string key = Key(binding.Context, binding.ReferenceUri);
+                    EndpointRegistryRules.ValidateMessageReference(binding.ReferenceUri, "references/uri");
+                    var key = new BindingKey(new EndpointRegistryOriginKey(binding.Context), binding.ReferenceUri);
                     if (!m_bindings.TryAdd(key, binding))
                     {
                         throw RegistryRuleException.Fail(
@@ -560,17 +598,18 @@ namespace Opc.Ua.EndpointRegistry
 
             public EndpointRegistryMessageResolutionContext Context { get; }
 
-            public HashSet<string> Active { get; } = [];
+            public HashSet<CycleKey> Active { get; } = [];
 
             public List<RegistryEntityReferenceDataType> Sources { get; } = [];
 
             public MessageReferenceBindingDataType Find(string referenceUri, RegistryEntityReferenceDataType context)
             {
-                if (m_bindings.TryGetValue(Key(context, referenceUri), out MessageReferenceBindingDataType? binding))
+                if (m_bindings.TryGetValue(new BindingKey(new EndpointRegistryOriginKey(context), referenceUri),
+                    out MessageReferenceBindingDataType? binding))
                 {
                     return binding;
                 }
-                if (!referenceUri.StartsWith("/", StringComparison.Ordinal))
+                if (referenceUri[0] != '/')
                 {
                     throw RegistryRuleException.Fail(
                         "E_REFERENCE_MISSING",
@@ -587,23 +626,11 @@ namespace Opc.Ua.EndpointRegistry
 
             public void AddSource(RegistryEntityReferenceDataType source)
             {
-                string key = SourceKey(source);
+                var key = new SourceKey(new EndpointRegistryOriginKey(source), source.Role!, source.Xid!);
                 if (m_sources.Add(key))
                 {
                     Sources.Add(CloneReference(source));
                 }
-            }
-
-            private static string Key(RegistryEntityReferenceDataType context, string referenceUri)
-            {
-                return new EndpointRegistryOriginKey(context).GetHashCode().ToString(
-                    System.Globalization.CultureInfo.InvariantCulture) + "|" + referenceUri;
-            }
-
-            private static string SourceKey(RegistryEntityReferenceDataType source)
-            {
-                return new EndpointRegistryOriginKey(source).GetHashCode().ToString(
-                    System.Globalization.CultureInfo.InvariantCulture) + "|" + source.Role + "|" + source.Xid;
             }
 
             private static RegistryEntityReferenceDataType CloneReference(
@@ -614,13 +641,23 @@ namespace Opc.Ua.EndpointRegistry
                 if (xid is not null)
                 {
                     result.Xid = xid;
-                    result.Role = xid.Contains("/versions/") ? "ExactVersion" : "LogicalResource";
+                    result.Role = xid.Contains("/versions/", StringComparison.Ordinal)
+                        ? "MetadataVersion" : "MetadataResource";
+                    result.HasNativeTarget = false;
+                    result.NativeTarget = ExpandedNodeId.Null;
+                    result.LocalNode = ExpandedNodeId.Null;
                 }
                 return result;
             }
 
-            private readonly Dictionary<string, MessageReferenceBindingDataType> m_bindings = new(StringComparer.Ordinal);
-            private readonly HashSet<string> m_sources = new(StringComparer.Ordinal);
+            private readonly Dictionary<BindingKey, MessageReferenceBindingDataType> m_bindings = [];
+            private readonly HashSet<SourceKey> m_sources = [];
         }
+
+        private readonly record struct BindingKey(EndpointRegistryOriginKey Origin, string Reference);
+
+        private readonly record struct CycleKey(EndpointRegistryOriginKey Origin, string LogicalXid);
+
+        private readonly record struct SourceKey(EndpointRegistryOriginKey Origin, string Role, string Xid);
     }
 }

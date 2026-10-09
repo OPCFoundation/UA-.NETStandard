@@ -97,6 +97,8 @@ namespace Opc.Ua.EndpointRegistry.Server
                 [.. NamespacesOf(options ?? new EndpointRegistryServerOptions())])
         {
             m_options = options ?? new EndpointRegistryServerOptions();
+            m_applicationUri = configuration.ApplicationUri ??
+                throw new ArgumentException("The server ApplicationUri is required.", nameof(configuration));
             if (m_options.Media is { } media)
             {
                 foreach (string collection in media.Collections)
@@ -473,6 +475,7 @@ namespace Opc.Ua.EndpointRegistry.Server
         }
 
         private readonly EndpointRegistryServerOptions m_options;
+        private readonly string m_applicationUri;
         private readonly Func<ISystemContext, RegistryAccessKind, ServiceResult> m_authorize;
         private readonly List<Catalog> m_catalogs = [];
     }
