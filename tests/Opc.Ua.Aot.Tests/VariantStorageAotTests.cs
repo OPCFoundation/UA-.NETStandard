@@ -217,7 +217,7 @@ namespace Opc.Ua.Aot.Tests
                 encoder.CloseAndReturnBuffer() ?? throw new InvalidOperationException("No encoded value."), context);
             Variant decoded = decoder.ReadVariant(null);
             await Assert.That(decoded.TypeInfo).IsEqualTo(value.TypeInfo);
-            await Assert.That(decoded.Equals(Variant.From(binaryExpected))).IsTrue();
+            await Assert.That(decoded.Equals(builder.WithValue(binaryExpected))).IsTrue();
         }
 
         private sealed class NativeMemoryManager : MemoryManager<byte>
