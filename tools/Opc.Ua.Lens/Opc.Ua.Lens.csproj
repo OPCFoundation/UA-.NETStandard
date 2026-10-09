@@ -83,6 +83,8 @@
 
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Lens.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Lens.Workflow.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Lens.Desktop.Tests" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" Key="$(_ProxyKey)"
                         Condition="'$(SignAssembly)' == 'true'" />
     <InternalsVisibleTo Include="DynamicProxyGenAssembly2" Condition="'$(SignAssembly)' != 'true'" />

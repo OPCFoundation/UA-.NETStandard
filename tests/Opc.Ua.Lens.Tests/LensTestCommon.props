@@ -1,0 +1,88 @@
+<Project>
+  <PropertyGroup>
+    <LensTestSourceRoot>$(MSBuildThisFileDirectory)</LensTestSourceRoot>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
+    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <OutputType>Library</OutputType>
+    <RootNamespace>UaLens.Tests</RootNamespace>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(MSBuildProjectName)' != 'Opc.Ua.Lens.Tests' AND $([MSBuild]::IsOSPlatform('OSX'))">
+    <IsTestProject>false</IsTestProject>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="$(LensTestSourceRoot)..\..\tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj" />
+    <ProjectReference Include="$(LensTestSourceRoot)..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
+    <ProjectReference Include="$(LensTestSourceRoot)..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+    <ProjectReference Include="$(LensTestSourceRoot)..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
+    <ProjectReference Include="$(LensTestSourceRoot)..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
+    <ProjectReference Include="$(LensTestSourceRoot)..\..\samples\OpenUsd\GeneratorServer\GeneratorServer.csproj" />
+    <ProjectReference Include="$(LensTestSourceRoot)..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
+    <ProjectReference Include="$(LensTestSourceRoot)..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
+    <ProjectReference Include="$(LensTestSourceRoot)..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
+    <ProjectReference Include="$(LensTestSourceRoot)..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Opc.Ua.Lens.Workflow.Tests'">
+    <Compile Include="$(LensTestSourceRoot)**\*.Shared.cs"
+             Exclude="$(LensTestSourceRoot)NodeSets\NodeSetAddressSpaceTests.Shared.cs;
+                      $(LensTestSourceRoot)Presentation\NamespaceHighlightTests.Shared.cs"
+             LinkBase="Shared" />
+    <Compile Include="$(LensTestSourceRoot)Administration\AdministrationTestContext.cs;
+                      $(LensTestSourceRoot)Administration\AdministrationWorkflowContext.cs;
+                      $(LensTestSourceRoot)Administration\TemporaryCertificateStores.cs;
+                      $(LensTestSourceRoot)Administration\CertificateRowsScope.cs;
+                      $(LensTestSourceRoot)Administration\FileSystemProtocolTestDriver.cs;
+                      $(LensTestSourceRoot)Administration\RegistrationTestData.cs;
+                      $(LensTestSourceRoot)Companions\CompanionDeploymentTestData.cs;
+                      $(LensTestSourceRoot)Companions\CompanionPreparedOperationTestContext.cs;
+                      $(LensTestSourceRoot)Companions\CompanionStructuredInputTestContext.cs;
+                      $(LensTestSourceRoot)Companions\CompanionTypedTaskTestContext.cs;
+                      $(LensTestSourceRoot)Companions\CompanionTestTaskInput.cs;
+                      $(LensTestSourceRoot)Desktop\AvaloniaDesktopTestHost.cs;
+                      $(LensTestSourceRoot)Desktop\AvaloniaDesktopTestHostLifetime.cs;
+                      $(LensTestSourceRoot)Desktop\ConnectedProtocolContext.cs;
+                      $(LensTestSourceRoot)Desktop\ControlledSubscriptionAdapter.cs;
+                      $(LensTestSourceRoot)Desktop\DesktopConnectionContext.cs;
+                      $(LensTestSourceRoot)Desktop\DesktopApplication.cs;
+                      $(LensTestSourceRoot)Desktop\DesktopWindowScope.cs;
+                      $(LensTestSourceRoot)Desktop\DesktopInteraction.cs;
+                      $(LensTestSourceRoot)Desktop\StructuredEditorActions.cs;
+                      $(LensTestSourceRoot)Observe\ObserveTestHost.cs;
+                      $(LensTestSourceRoot)Observe\HistoryProtocolTestDriver.cs;
+                      $(LensTestSourceRoot)Samples\RepositorySampleTestContext.cs;
+                      $(LensTestSourceRoot)StructuredValues\StructuredValueTestContext.cs;
+                      $(LensTestSourceRoot)Themes\PaletteEvaluation.cs;
+                      $(LensTestSourceRoot)ViewModels\ControlledWorkspaceDispatcher.cs;
+                      $(LensTestSourceRoot)WorkflowAssertions.cs;
+                      $(LensTestSourceRoot)Properties\AssemblyInfo.cs"
+             LinkBase="Shared" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(MSBuildProjectName)' == 'Opc.Ua.Lens.Desktop.Tests'">
+    <Compile Include="$(LensTestSourceRoot)Desktop\DesktopApplication.cs;
+                      $(LensTestSourceRoot)Desktop\DesktopTestLifetime.cs;
+                      $(LensTestSourceRoot)Desktop\DesktopCapture.cs;
+                      $(LensTestSourceRoot)Desktop\DesktopPaletteCapture.cs;
+                      $(LensTestSourceRoot)Desktop\DesktopWindowScope.cs;
+                      $(LensTestSourceRoot)Desktop\DesktopConnectionContext.cs;
+                      $(LensTestSourceRoot)NodeSets\NodeSetAddressSpaceTests.Shared.cs;
+                      $(LensTestSourceRoot)Presentation\NamespaceHighlightTests.Shared.cs;
+                      $(LensTestSourceRoot)Themes\PaletteEvaluation.cs;
+                      $(LensTestSourceRoot)Properties\AssemblyInfo.cs"
+             LinkBase="Shared" />
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Include="$(LensTestSourceRoot)..\..\tools\Opc.Ua.Lens\**\*.axaml"
+                      Exclude="$(LensTestSourceRoot)..\..\tools\Opc.Ua.Lens\bin\**;$(LensTestSourceRoot)..\..\tools\Opc.Ua.Lens\obj\**"
+                      LogicalName="LensMarkup/%(RecursiveDir)%(Filename)%(Extension)" />
+  </ItemGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="Moq" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
+    <PackageReference Include="NUnit3TestAdapter" PrivateAssets="all" />
+    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+  </ItemGroup>
+</Project>

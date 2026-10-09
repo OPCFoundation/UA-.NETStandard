@@ -43,13 +43,8 @@ using UaLens.Workspace;
 namespace UaLens.Tests.Presentation
 {
     [TestFixture]
-    public sealed class NamespaceHighlightTests
+    public sealed partial class NamespaceHighlightTests
     {
-        [OneTimeSetUp]
-        public async Task CreateGraphAsync()
-        {
-            m_graph = await NodeSetAddressSpaceTests.CreateAsync().ConfigureAwait(false);
-        }
 
         [Test]
         public void ServerOptionsIncludeCoreAndResetOnReplacementAndDisconnect()
@@ -214,32 +209,6 @@ namespace UaLens.Tests.Presentation
             Assert.That(browser.SelectedNamespace, Is.EqualTo(NamespaceOption.None));
             Assert.That(browser.NamespaceOptions[2].NamespaceUri, Is.EqualTo("urn:server"));
         }
-
-        internal static Mock<ISession> Session(params ArrayOf<string> namespaces)
-        {
-            var table = new NamespaceTable();
-            foreach (string uri in namespaces)
-            {
-                table.Append(uri);
-            }
-            var session = new Mock<ISession>(MockBehavior.Strict);
-            session.SetupGet(value => value.NamespaceUris).Returns(table);
-            session.Setup(value => value.BrowseAsync(
-                null, null, 0, It.IsAny<ArrayOf<BrowseDescription>>(), It.IsAny<CancellationToken>()))
-                .ReturnsAsync(new BrowseResponse { Results = [new BrowseResult()] });
-            return session;
-        }
-
-        internal static BrowserViewModel Browser(System.Func<ISession?> session)
-        {
-            return new BrowserViewModel(
-                NodeSetAddressSpaceTests.Telemetry(), session, InlineWorkspaceDispatcher.Instance)
-            {
-                CurrentViewKind = BrowseViewKind.ObjectTypes
-            };
-        }
-
-        private NodeSetAddressSpace m_graph = null!;
         private static readonly bool[] s_highlightChanges = [true, false];
     }
 }

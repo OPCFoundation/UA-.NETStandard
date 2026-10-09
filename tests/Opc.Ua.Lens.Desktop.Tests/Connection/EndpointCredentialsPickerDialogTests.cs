@@ -45,7 +45,6 @@ namespace UaLens.Tests.Connection;
 /// sessions, or certificate stores. Select this explicitly on a desktop agent.
 /// </summary>
 [TestFixture]
-[Explicit("Requires an interactive desktop; no network or PKI is accessed.")]
 [Category("ConnectionDialogProbe")]
 [Category("LensDesktop")]
 [NonParallelizable]

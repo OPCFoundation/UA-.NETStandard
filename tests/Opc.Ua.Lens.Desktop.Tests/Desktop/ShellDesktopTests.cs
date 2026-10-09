@@ -61,7 +61,6 @@ namespace UaLens.Tests.Desktop;
 /// test application routing, not physical keyboard delivery or screen readers.
 /// </summary>
 [TestFixture]
-[Explicit("Requires a real Windows desktop or Linux X11 display; run the documented desktop selection.")]
 [Category("LensDesktop")]
 [NonParallelizable]
 public sealed class ShellDesktopTests

@@ -46,9 +46,8 @@ namespace UaLens.Tests.Observe;
 
 [TestFixture]
 [NonParallelizable]
-public sealed class HistorianWorkflowTests
+public sealed partial class HistorianWorkflowTests
 {
-    private static readonly DateTime s_time = new(2026, 3, 4, 5, 6, 7, DateTimeKind.Utc);
 
     [TestCase(NodeClass.Variable, true)]
     [TestCase(NodeClass.Object, false)]
@@ -220,105 +219,6 @@ public sealed class HistorianWorkflowTests
         Assert.That(plugin.UpdateValueText, Is.EqualTo("17.25"));
         Assert.That(plugin.UpdateStart, Is.EqualTo(s_time));
         Assert.That(plugin.UpdateResult, Is.Empty);
-    }
-
-    [TestCase(false)]
-    [TestCase(true)]
-    [Platform("Win,Linux")]
-    [Category("LensDesktopWorkflow")]
-    public Task PickRangeCommandAppliesOnlyAcceptedFixedUtcRange(bool accept)
-    {
-        return AvaloniaDesktopTestHost.RunAsync(async () =>
-        {
-            await using var context = new DesktopConnectionContext();
-            await using PluginHost host = Host(context);
-            await using var plugin = new HistorianPlugin(host);
-            plugin.CustomStart = s_time;
-            plugin.CustomEnd = s_time.AddHours(1);
-            Task command = Task.CompletedTask;
-            RangeDialog dialog = await DesktopInteraction.OpenedAsync<RangeDialog>(
-                () => command = plugin.PickRangeCommand.ExecuteAsync(null)).ConfigureAwait(true);
-            try
-            {
-                Assert.That(DesktopInteraction.Control<UtcDateTimePicker>(dialog, "StartPicker").Value,
-                    Is.EqualTo(s_time));
-                DesktopInteraction.Control<UtcDateTimePicker>(dialog, "StartPicker").Value = s_time.AddDays(1);
-                DesktopInteraction.Control<UtcDateTimePicker>(dialog, "EndPicker").Value =
-                    s_time.AddDays(1).AddMinutes(45);
-                DesktopInteraction.Click(
-                    DesktopInteraction.Control<Button>(dialog, accept ? "OkButton" : "CancelButton"));
-                await command.ConfigureAwait(true);
-                Assert.That(plugin.CustomStart, Is.EqualTo(accept ? s_time.AddDays(1) : s_time));
-                Assert.That(plugin.CustomEnd,
-                    Is.EqualTo(accept ? s_time.AddDays(1).AddMinutes(45) : s_time.AddHours(1)));
-                Assert.That(plugin.Rows, Is.Empty);
-                Assert.That(plugin.IsReading, Is.False);
-            }
-            finally
-            {
-                dialog.Close();
-                await command.ConfigureAwait(true);
-            }
-        });
-    }
-
-    [Test]
-    [Platform("Win,Linux")]
-    [Category("LensDesktopWorkflow")]
-    public Task AdvancedDialogIsSingleInstanceUntilClosedAndDoesNotExecuteAnUpdate()
-    {
-        return AvaloniaDesktopTestHost.RunAsync(async () =>
-        {
-            await using var context = new DesktopConnectionContext();
-            await using PluginHost host = Host(context);
-            await using var plugin = new HistorianPlugin(host);
-            Task first = Task.CompletedTask;
-            HistoryUpdateDialog dialog = await DesktopInteraction.OpenedAsync<HistoryUpdateDialog>(
-                () => first = plugin.OpenHistoryUpdateDialogAsync()).ConfigureAwait(true);
-            try
-            {
-                await plugin.OpenHistoryUpdateDialogAsync().ConfigureAwait(true);
-                Assert.That(DesktopInteraction.Owner.OwnedWindows.OfType<HistoryUpdateDialog>().ToArray(),
-                    Has.Length.EqualTo(1));
-                Assert.That(first.IsCompleted, Is.False);
-                Assert.That(dialog.DataContext, Is.SameAs(plugin));
-                Assert.That(plugin.UpdateResult, Is.Empty);
-                DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "CloseButton"));
-                await first.ConfigureAwait(true);
-                Task second = Task.CompletedTask;
-                HistoryUpdateDialog reopened = await DesktopInteraction.OpenedAsync<HistoryUpdateDialog>(
-                    () => second = plugin.OpenHistoryUpdateDialogAsync()).ConfigureAwait(true);
-                try
-                {
-                    Assert.That(reopened, Is.Not.SameAs(dialog));
-                    Assert.That(plugin.Rows, Is.Empty);
-                    DesktopInteraction.Click(DesktopInteraction.Control<Button>(reopened, "CloseButton"));
-                    await second.ConfigureAwait(true);
-                }
-                finally
-                {
-                    reopened.Close();
-                    await second.ConfigureAwait(true);
-                }
-            }
-            finally
-            {
-                dialog.Close();
-                await first.ConfigureAwait(true);
-            }
-        });
-    }
-
-    private static HistoryRow Row(int seconds, Variant value)
-    {
-        return new HistoryRow(s_time.AddSeconds(seconds), s_time.AddSeconds(seconds + 1), value, StatusCodes.Good);
-    }
-
-    internal static PluginHost Host(DesktopConnectionContext context, NodeViewModel? selection = null)
-    {
-        var workspace = new Mock<IPluginWorkspace>();
-        workspace.SetupGet(w => w.SelectedNode).Returns(selection);
-        return new PluginHost(workspace.Object, context.Connection, context.Browser, context.Telemetry);
     }
 
     private static readonly bool[] s_timestampEditingKeepsExactlyOneTrailingSentinelAndSeparateReaExpected =

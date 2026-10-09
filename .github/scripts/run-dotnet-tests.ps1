@@ -117,7 +117,8 @@ function New-DotnetStartInfo([string[]] $arguments, [bool] $linux)
     $startInfo = [System.Diagnostics.ProcessStartInfo]::new()
     $startInfo.FileName = 'dotnet'
     if ($linux -and $arguments.Count -ge 2 -and $arguments[0] -eq 'test' -and
-        [System.IO.Path]::GetFileName($arguments[1]) -eq 'Opc.Ua.Lens.Tests.csproj') {
+        [System.IO.Path]::GetFileName($arguments[1]) -in @(
+            'Opc.Ua.Lens.Workflow.Tests.csproj', 'Opc.Ua.Lens.Desktop.Tests.csproj')) {
         $xvfb = Get-Command xvfb-run -CommandType Application -ErrorAction SilentlyContinue |
             Select-Object -First 1
         if ($null -eq $xvfb) {
@@ -132,33 +133,6 @@ function New-DotnetStartInfo([string[]] $arguments, [bool] $linux)
     }
     $startInfo.UseShellExecute = $false
     return $startInfo
-}
-
-function Get-TestProcessSelections([string] $project, [string] $filter)
-{
-    if ([System.IO.Path]::GetFileName($project) -ne 'Opc.Ua.Lens.Tests.csproj') {
-        return [pscustomobject]@{ Name = ''; Filter = $filter; Serial = $false }
-    }
-
-    # Native Avalonia initialization and tests requiring no Application cannot share a process.
-    # Disjoint filters retain every ordinary test and execute the required native workflows.
-    $prefix = if ([string]::IsNullOrWhiteSpace($filter)) { '' } else { "($filter)&" }
-    return @(
-        [pscustomobject]@{
-            Name = 'ordinary'
-            Filter = "${prefix}TestCategory!=LensDesktopMainline&TestCategory!=LensDesktopWorkflow"
-            Serial = $false
-        }
-        [pscustomobject]@{
-            Name = 'desktop-mainline'
-            Filter = "${prefix}TestCategory=LensDesktopMainline"
-            Serial = $true
-        }
-        [pscustomobject]@{
-            Name = 'desktop-workflows'
-            Filter = "${prefix}TestCategory=LensDesktopWorkflow&TestCategory!=LensDesktopMainline"
-            Serial = $true
-        })
 }
 
 <#
@@ -425,6 +399,7 @@ foreach ($project in $projectList) {
             '--framework', $Framework,
             "/p:CustomTestTarget=$CustomTestTarget",
             '--logger', 'trx',
+            '--results-directory', $projectResults,
             # Kill (and name) any single test that outlives the profile's hang
             # budget so a silent hang surfaces as "Test <Name> exceeded the
             # configured timeout" rather than burning the job timeout with
@@ -444,42 +419,10 @@ foreach ($project in $projectList) {
                 '--collect:XPlat Code Coverage',
                 '--settings', './tests/coverlet.runsettings.xml')
         }
-        $testExitCode = 0
-        $testTimedOut = $false
-        foreach ($selection in Get-TestProcessSelections $project $Filter) {
-            $selectionResults = if ($selection.Name) {
-                Join-Path $projectResults $selection.Name
-            } else {
-                $projectResults
-            }
-            $arguments = $testArguments + @('--results-directory', $selectionResults)
-            if (-not [string]::IsNullOrWhiteSpace($selection.Filter)) {
-                $arguments += @('--filter', $selection.Filter)
-            }
-            if ($selection.Serial) {
-                $arguments += @('--', 'NUnit.NumberOfTestWorkers=0')
-            }
-            $test = Invoke-Dotnet $arguments $projectBudget $PerProjectTimeoutMinutes $logPath
-            if ($test.ExitCode -ne 0) {
-                $testExitCode = $test.ExitCode
-            }
-            $testTimedOut = $testTimedOut -or $test.TimedOut
-            if ($test.TimedOut) {
-                break
-            }
-            $selectionCounters = Measure-TestResults $selectionResults
-            if ($selectionCounters.Files -eq 0) {
-                throw "The test process '$($selection.Name)' produced no TRX for $stem."
-            }
-            if ($selection.Name -and -not $IsMacOS -and $selectionCounters.Passed -eq 0 -and
-                $selectionCounters.Failed -eq 0) {
-                throw "The required test process '$($selection.Name)' executed no tests for $stem."
-            }
-            if ($selection.Name -like 'desktop-*' -and -not $IsMacOS -and $IsWindows -and
-                $selectionCounters.Passed + $selectionCounters.Failed -ne $selectionCounters.Total) {
-                throw "The native test process '$($selection.Name)' did not execute every selected case for $stem."
-            }
+        if (-not [string]::IsNullOrWhiteSpace($Filter)) {
+            $testArguments += @('--filter', $Filter)
         }
+        $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath
         $record.testSeconds = [int]$projectBudget.Elapsed.TotalSeconds - $record.buildSeconds
 
         $results = Measure-TestResults $projectResults
@@ -497,8 +440,8 @@ foreach ($project in $projectList) {
             -Total $results.Total `
             -Passed $results.Passed `
             -Failed $results.Failed `
-            -ExitCode $testExitCode `
-            -TimedOut $testTimedOut `
+            -ExitCode $test.ExitCode `
+            -TimedOut $test.TimedOut `
             -TimeoutMinutes $PerProjectTimeoutMinutes
         if (-not $verdict.Passed) {
             throw $verdict.Reason

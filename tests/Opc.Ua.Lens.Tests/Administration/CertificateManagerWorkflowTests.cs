@@ -49,7 +49,7 @@ namespace UaLens.Tests.Administration;
 
 [TestFixture]
 [NonParallelizable]
-public sealed class CertificateManagerWorkflowTests
+public sealed partial class CertificateManagerWorkflowTests
 {
     [Test]
     public async Task ConfigurationLoadsStoresOnceAndPreservesCustomStoreSelectionAcrossConnectionNotifications()
@@ -453,61 +453,6 @@ public sealed class CertificateManagerWorkflowTests
         Assert.That(plugin.Status, Is.EqualTo("● Rejected: 1 certificate(s)."));
     }
 
-    [TestCase(-1, "EXPIRED")]
-    [TestCase(0, "")]
-    [TestCase(1, "NOT YET VALID")]
-    [Platform("Win,Linux")]
-    [Category("LensDesktopWorkflow")]
-    public Task DetailsShowsTheSelectedCertificateAndClosingDoesNotInvalidateItsBorrowedHandle(
-        int validity, string warning)
-    {
-        return AvaloniaDesktopTestHost.RunAsync(async () =>
-        {
-            using var stores = new TemporaryCertificateStores();
-            using Certificate certificate =
-                TemporaryCertificateStores.CreateCertificate("CN=Details candidate", validity);
-            await stores.AddAsync(stores.Peer, certificate).ConfigureAwait(true);
-            await using var context = new AdministrationWorkflowContext();
-            await using var plugin = new CertificateManagerPlugin(context.Host);
-            using var ownership = new CertificateRowsScope(plugin);
-            await SelectAsync(plugin, stores.Peer, 1).ConfigureAwait(true);
-            plugin.SelectedCertificate = plugin.Certificates.Single();
-            Task operation = Task.CompletedTask;
-            Window dialog = await DesktopInteraction.OpenedAsync<Window>(() => operation = plugin.ViewDetailsAsync())
-                .ConfigureAwait(true);
-            try
-            {
-                Assert.That(dialog.Title, Is.EqualTo("Certificate details"));
-                Assert.That(dialog.Owner, Is.SameAs(DesktopInteraction.Owner));
-                var grid = (Grid)dialog.Content!;
-                string Row(int row) => grid.Children.OfType<TextBlock>()
-                    .Single(c => Grid.GetRow(c) == row && Grid.GetColumn(c) == 1).Text!;
-                Assert.That(Row(0), Is.EqualTo("CN=Details candidate"));
-                Assert.That(Row(1), Is.EqualTo("CN=Details candidate"));
-                Assert.That(Row(5), Is.EqualTo(certificate.Thumbprint));
-                Assert.That(Row(7), Is.EqualTo("no"));
-                Assert.That(Row(3).Contains('⚠', StringComparison.Ordinal), Is.EqualTo(validity != 0));
-                if (validity != 0)
-                {
-                    Assert.That(Row(3), Does.Contain(warning));
-                }
-                TextBox pem = grid.Children.OfType<TextBox>().Single();
-                Assert.That(pem.IsReadOnly, Is.True);
-                string body = string.Concat(pem.Text!.Split('\n')
-                    .Where(line => !line.StartsWith("-----", StringComparison.Ordinal)));
-                Assert.That(Convert.FromBase64String(body), Is.EqualTo(certificate.RawData));
-                DesktopInteraction.Click(grid.Children.OfType<Button>().Single());
-                await operation.ConfigureAwait(true);
-                Assert.That(plugin.SelectedCertificate!.Certificate.RawData, Is.EqualTo(certificate.RawData));
-            }
-            finally
-            {
-                dialog.Close();
-                await operation.ConfigureAwait(true);
-            }
-        });
-    }
-
     [Test]
     public async Task DestinationWithoutAStoreHandleCannotRemoveTheSelectedSourceCertificate()
     {
@@ -530,43 +475,6 @@ public sealed class CertificateManagerWorkflowTests
         Assert.That(await stores.ReadAsync(stores.Rejected).ConfigureAwait(false),
             Is.EqualTo(new[] { certificate.RawData }));
         Assert.That(context.Log.Entries.Any(e => e.Event.Id == 3002), Is.False);
-    }
-
-    internal static Task SelectAsync(CertificateManagerPlugin plugin, CertStoreNode node, int count)
-    {
-        return DesktopInteraction.ModelChangedAsync(plugin,
-            () => plugin.Status == $"● {node.DisplayName}: {count} certificate(s).", () =>
-            {
-                plugin.SelectedStore = node;
-                return Task.CompletedTask;
-            });
-    }
-
-    private static Task MoveAsync(CertificateManagerPlugin plugin, int destination)
-    {
-        return destination switch
-        {
-            0 => plugin.TrustToPeerAsync(),
-            1 => plugin.TrustToIssuerAsync(),
-            _ => plugin.RejectAsync()
-        };
-    }
-
-    private static Mock<ICertificateStore> ReleasedStore(List<string> order)
-    {
-        var store = new Mock<ICertificateStore>(MockBehavior.Strict);
-        store.Setup(s => s.Close()).Callback(() => order.Add("close"));
-        store.Setup(s => s.Dispose()).Callback(() => order.Add("dispose"));
-        return store;
-    }
-
-    private static Mock<CertificateStoreIdentifier> StoreIdentifier(
-        TemporaryCertificateStores stores, string name, AdministrationWorkflowContext context, ICertificateStore store)
-    {
-        var identifier = new Mock<CertificateStoreIdentifier>(
-            MockBehavior.Strict, Path.Combine(stores.Root, name), CertificateStoreType.Directory, true);
-        identifier.Setup(id => id.OpenStore(context.Telemetry)).Returns(store);
-        return identifier;
     }
 
     private static readonly string[] s_failedAddClosesAndDisposesTheDestinationBeforeReturningWithouExpected =
@@ -594,40 +502,4 @@ public sealed class CertificateManagerWorkflowTests
         "Trusted Issuers",
         "Rejected",
     ];
-}
-
-internal sealed class CertificateRowsScope : IDisposable
-{
-    public CertificateRowsScope(CertificateManagerPlugin plugin)
-    {
-        m_plugin = plugin;
-        m_plugin.Certificates.CollectionChanged += Changed;
-        foreach (CertItemRow row in m_plugin.Certificates)
-        {
-            m_certificates.Add(row.Certificate);
-        }
-    }
-
-    public void Dispose()
-    {
-        m_plugin.Certificates.CollectionChanged -= Changed;
-        foreach (X509Certificate2 certificate in m_certificates)
-        {
-            certificate.Dispose();
-        }
-    }
-
-    private void Changed(object? sender, NotifyCollectionChangedEventArgs args)
-    {
-        if (args.NewItems is not null)
-        {
-            foreach (CertItemRow row in args.NewItems)
-            {
-                m_certificates.Add(row.Certificate);
-            }
-        }
-    }
-
-    private readonly CertificateManagerPlugin m_plugin;
-    private readonly HashSet<X509Certificate2> m_certificates = new(ReferenceEqualityComparer.Instance);
 }

@@ -46,14 +46,8 @@ namespace UaLens.Tests.Diagnose;
 
 [TestFixture]
 [NonParallelizable]
-public sealed class PerformanceWorkflowTests
+public sealed partial class PerformanceWorkflowTests
 {
-    private const string kHeader =
-        "timestamp_utc,target_rate,achieved_rate,total_ops,mean_latency_ms,p50_ms,p90_ms,p99_ms,errors,notes\r\n";
-    private const string kFirst =
-        "2026-03-04T05:06:07.0000000Z,200,150,900,2.5,1,3,7,4,\"Boiler, calibration\"\r\n";
-    private const string kSecond =
-        "2026-03-04T05:07:07.0000000Z,250,200,1200,3,2,4,9,5,Pressure\r\n";
 
     [Test]
     public async Task LegacyImportPublishesOrderedRowsAndDisclosesMissingEvidenceWithoutChangingWorkload()
@@ -185,67 +179,12 @@ public sealed class PerformanceWorkflowTests
             .With.Message.EqualTo("Stop the workload before importing benchmark history."));
         Assert.That(plugin.RunHistory[1], Is.SameAs(selected));
     }
-
-    [TestCase(0, 59, "59 s")]
-    [TestCase(0, 60, "1 min")]
-    [TestCase(1, 59, "59 min")]
-    [TestCase(1, 60, "1 h")]
-    [TestCase(2, 2, "2 h")]
-    [Platform("Win,Linux")]
-    [Category("LensDesktopWorkflow")]
-    public Task SettingsCommandChangesActualBoundWorkloadAndCloseRetainsIntentWithoutStartingARun(
-        int unit, int duration, string display)
-    {
-        return AvaloniaDesktopTestHost.RunAsync(async () =>
-        {
-            await using var context = new DesktopConnectionContext();
-            await using PluginHost host = HistorianWorkflowTests.Host(context);
-            await using var plugin = new PerformancePlugin(host);
-            Task command = Task.CompletedTask;
-            PerformanceSettingsDialog dialog = await DesktopInteraction.OpenedAsync<PerformanceSettingsDialog>(
-                () => command = plugin.OpenSettingsDialogCommand.ExecuteAsync(null)).ConfigureAwait(true);
-            try
-            {
-                Assert.That(dialog.DataContext, Is.SameAs(plugin));
-                Slider rate = DesktopInteraction.Control<Slider>(dialog, "RateSlider");
-                rate.Value = 450;
-                var durationInput = dialog.GetLogicalDescendants().OfType<NumericUpDown>().Single();
-                durationInput.Value = duration;
-                ComboBox units = dialog.GetLogicalDescendants().OfType<ComboBox>()
-                    .Single(combo => ReferenceEquals(combo.ItemsSource, plugin.DurationUnitOptions));
-                units.SelectedItem = (DurationUnit)unit;
-                ComboBox generator = dialog.GetLogicalDescendants().OfType<ComboBox>()
-                    .Single(combo => ReferenceEquals(combo.ItemsSource, plugin.GeneratorOptions));
-                generator.SelectedItem = ValueGenerator.Fixed;
-                CheckBox burst = dialog.GetLogicalDescendants().OfType<CheckBox>()
-                    .Single(box => Equals(box.Content, "Unbounded burst"));
-                burst.IsChecked = true;
-                Assert.That(rate.IsEnabled, Is.False);
-                Assert.That(plugin.RateEditable, Is.False);
-                burst.IsChecked = false;
-                Assert.That(rate.IsEnabled, Is.True);
-                DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "CloseButton"));
-                await command.ConfigureAwait(true);
-
-                Assert.That(plugin.TargetRate, Is.EqualTo(450));
-                Assert.That(plugin.TargetRateText, Is.EqualTo("450"));
-                Assert.That(plugin.Generator, Is.EqualTo(ValueGenerator.Fixed));
-                Assert.That(plugin.DurationSeconds, Is.EqualTo(duration));
-                Assert.That(plugin.DurationUnit, Is.EqualTo((DurationUnit)unit));
-                Assert.That(plugin.EffectiveDurationText, Is.EqualTo(display));
-                Assert.That(plugin.UnboundedBurst, Is.False);
-                Assert.That(plugin.IsRunning, Is.False);
-                Assert.That(plugin.RunHistory, Is.Empty);
-                Assert.That(plugin.StopCommand.CanExecute(null), Is.False);
-                Assert.That(context.ConfigurationsCreated, Is.Zero);
-            }
-            finally
-            {
-                dialog.Close();
-                await command.ConfigureAwait(true);
-            }
-        });
-    }
+    private const string kHeader =
+        "timestamp_utc,target_rate,achieved_rate,total_ops,mean_latency_ms,p50_ms,p90_ms,p99_ms,errors,notes\r\n";
+    private const string kFirst =
+        "2026-03-04T05:06:07.0000000Z,200,150,900,2.5,1,3,7,4,\"Boiler, calibration\"\r\n";
+    private const string kSecond =
+        "2026-03-04T05:07:07.0000000Z,250,200,1200,3,2,4,9,5,Pressure\r\n";
 
     private static readonly string[] s_legacyImportPublishesOrderedRowsAndDisclosesMissingEvidenceWiExpected =
     [

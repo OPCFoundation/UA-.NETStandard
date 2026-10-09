@@ -48,7 +48,7 @@ using V2Options = Opc.Ua.Client.Subscriptions.SubscriptionOptions;
 namespace UaLens.Tests.Subscriptions;
 
 [TestFixture]
-public sealed class ChannelV2EngineAdapterTests
+public sealed partial class ChannelV2EngineAdapterTests
 {
     [TestCase(false)]
     [TestCase(true)]
@@ -104,7 +104,8 @@ public sealed class ChannelV2EngineAdapterTests
         Assert.That(monitor.CurrentValue.MinLifetimeInterval, Is.EqualTo(TimeSpan.FromMinutes(1)));
         await adapter.ApplySubscriptionAsync(requested with
         {
-            PublishingInterval = TimeSpan.FromMilliseconds(1), PublishingEnabled = true
+            PublishingInterval = TimeSpan.FromMilliseconds(1),
+            PublishingEnabled = true
         }, CancellationToken.None).ConfigureAwait(false);
         Assert.That(context.Adds, Is.EqualTo(1));
         Assert.That(context.Options, Is.SameAs(monitor));
@@ -123,7 +124,9 @@ public sealed class ChannelV2EngineAdapterTests
         await using ChannelV2EngineAdapter adapter = context.CreateAdapter();
         var filter = new DataChangeFilter
         {
-            Trigger = DataChangeTrigger.StatusValueTimestamp, DeadbandType = (uint)DeadbandType.Absolute, DeadbandValue
+            Trigger = DataChangeTrigger.StatusValueTimestamp,
+            DeadbandType = (uint)DeadbandType.Absolute,
+            DeadbandValue
                 = 3
         };
         MonitoredItemConfig requested = Item(0, events) with { DataChangeFilter = filter };
@@ -165,7 +168,10 @@ public sealed class ChannelV2EngineAdapterTests
 
         await adapter.ConfigureItemAsync(requested with
         {
-            Id = id, QueueSize = 12, DiscardOldest = true, DisplayName = "Updated"
+            Id = id,
+            QueueSize = 12,
+            DiscardOldest = true,
+            DisplayName = "Updated"
         }, CancellationToken.None).ConfigureAwait(false);
         Assert.That(context.ItemOptions[0].CurrentValue.QueueSize, Is.EqualTo(12));
         Assert.That(context.ItemOptions[0].CurrentValue.DiscardOldest, Is.True);
@@ -352,90 +358,6 @@ public sealed class ChannelV2EngineAdapterTests
         context.Subscription.Verify(subscription => subscription.DisposeAsync(), Times.Once);
         context.Session.Verify(session => session.Dispose(), Times.Never);
     }
-
-    private static MonitoredItemConfig Item(int id, bool events = false)
-    {
-        return new MonitoredItemConfig
-        {
-            Id = id, NodeId = new NodeId("Temperature", 2), DisplayName = "Temperature",
-            SamplingInterval = TimeSpan.FromMilliseconds(13), QueueSize = 4, DiscardOldest = false,
-            IsEvent = events, AttributeId = events ? Attributes.EventNotifier : Attributes.Value
-        };
-    }
-
-    internal sealed class AdapterContext
-    {
-        public AdapterContext(bool supported = true)
-        {
-            Subscription.As<IPartitionedSubscription>().SetupGet(subscription => subscription.PartitionIds)
-                .Returns(s_singlePartition);
-            Subscription.SetupGet(subscription => subscription.MonitoredItems).Returns(Items.Object);
-            Subscription.SetupGet(subscription => subscription.CurrentPublishingInterval)
-                .Returns(TimeSpan.FromMilliseconds(12));
-            Subscription.SetupGet(subscription => subscription.CurrentKeepAliveCount).Returns(10u);
-            Subscription.SetupGet(subscription => subscription.CurrentLifetimeCount).Returns(300u);
-            Subscription.Setup(subscription => subscription.DisposeAsync()).Returns(ValueTask.CompletedTask);
-            ISubscriptionManager? manager = supported ? Manager.Object : null;
-            Session.Setup(session => session.TryGetSubscriptionManager(out manager)).Returns(supported);
-            Session.SetupGet(session => session.GoodPublishRequestCount).Returns(7);
-            Session.SetupGet(session => session.MinPublishRequestCount).Returns(8);
-            Session.SetupGet(session => session.MaxPublishRequestCount).Returns(19);
-            Manager.SetupGet(value => value.PublishWorkerCount).Returns(3);
-            Manager.SetupGet(value => value.BadPublishRequestCount).Returns(4);
-            Manager.SetupGet(value => value.MissingMessageCount).Returns(5L);
-            Manager.SetupGet(value => value.RepublishMessageCount).Returns(6L);
-            Manager.SetupGet(value => value.MinPublishWorkerCount).Returns(2);
-            Manager.SetupGet(value => value.MaxPublishWorkerCount).Returns(9);
-            Manager.Setup(value => value.Add(It.IsAny<ISubscriptionNotificationHandler>(),
-                It.IsAny<IOptionsMonitor<V2Options>>()))
-                .Callback((ISubscriptionNotificationHandler handler, IOptionsMonitor<V2Options> options) =>
-                {
-                    Adds++;
-                    Handler = handler;
-                    Options = options;
-                }).Returns(Subscription.Object);
-            Items.Setup(value => value.TryAdd(It.IsAny<string>(), It.IsAny<IOptionsMonitor<V2ItemOptions>>(),
-                out It.Ref<IMonitoredItem?>.IsAny))
-                .Callback(new CaptureItem((string name, IOptionsMonitor<V2ItemOptions> options, out IMonitoredItem? item) =>
-                {
-                    ItemNames.Add(name);
-                    ItemOptions.Add(options);
-                    var created = new Mock<IMonitoredItem>();
-                    created.As<IMonitoredItemApplyState>().SetupGet(value => value.HasPendingChanges).Returns(true);
-                    created.SetupGet(value => value.ClientHandle).Returns((uint)(101 + Monitored.Count));
-                    created.SetupGet(value => value.Created).Returns(true);
-                    created.SetupGet(value => value.Error).Returns(new ServiceResult(StatusCodes.Good));
-                    created.SetupGet(value => value.CurrentSamplingInterval).Returns(TimeSpan.FromMilliseconds(27));
-                    created.SetupGet(value => value.CurrentQueueSize).Returns(7u);
-                    created.SetupGet(value => value.CurrentMonitoringMode).Returns(MonitoringMode.Sampling);
-                    Monitored.Add(created);
-                    item = created.Object;
-                    ItemAdded?.Invoke();
-                })).Returns(true);
-            Items.Setup(value => value.TryRemove(It.IsAny<uint>())).Returns(true);
-        }
-
-        public Mock<ISession> Session { get; } = new();
-        public Mock<ISubscriptionManager> Manager { get; } = new();
-        public Mock<ISubscription> Subscription { get; } = new();
-        public Mock<IMonitoredItemCollection> Items { get; } = new();
-        public List<string> ItemNames { get; } = [];
-        public List<IOptionsMonitor<V2ItemOptions>> ItemOptions { get; } = [];
-        public List<Mock<IMonitoredItem>> Monitored { get; } = [];
-        public IOptionsMonitor<V2Options>? Options { get; private set; }
-        public ISubscriptionNotificationHandler? Handler { get; private set; }
-        public int Adds { get; private set; }
-        public Action? ItemAdded { get; set; }
-
-        public ChannelV2EngineAdapter CreateAdapter(PublishLogObserver? log = null)
-        {
-            return new ChannelV2EngineAdapter(Session.Object, new AppTelemetryContext(new LogRingBuffer(32)), log);
-        }
-    }
-
-    private delegate void CaptureItem(string name, IOptionsMonitor<V2ItemOptions> options, out IMonitoredItem? item);
-
-    private static readonly uint[] s_singlePartition = [500];
     private static readonly uint[] s_twoPartitions = [500, 501];
     private static readonly uint[] s_sequences = [71, 71, 71, 72, 72, 73];
     private static readonly string[] s_eventFields

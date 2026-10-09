@@ -322,8 +322,3 @@ public sealed class ConnectionProfileTests
             endpoint, policy, SubscriptionEngineKind.ChannelV2, "engineer"));
     }
 }
-
-[JsonSerializable(typeof(ConnectionProfile))]
-internal sealed partial class ConnectionProfileJsonContext : JsonSerializerContext
-{
-}

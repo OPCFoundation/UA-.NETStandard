@@ -54,7 +54,6 @@ namespace UaLens.Tests.Desktop;
 /// No certificate store or network operation is performed.
 /// </summary>
 [TestFixture]
-[Explicit("Requires a real Windows desktop or Linux X11 display; run the documented desktop selection.")]
 [Category("LensDesktop")]
 [NonParallelizable]
 public sealed class DialogDesktopTests

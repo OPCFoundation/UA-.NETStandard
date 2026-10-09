@@ -223,18 +223,3 @@ public sealed class CompanionPackageReaderTests
         }
     }
 }
-
-internal sealed class CompanionTemporaryPackage : IDisposable
-{
-    public string Path { get; } = System.IO.Path.Combine(
-        System.IO.Path.GetTempPath(), "ualens typed package " + Guid.NewGuid().ToString("N") + ".bin");
-
-    public void Dispose()
-    {
-        if (File.Exists(Path))
-        {
-            File.SetAttributes(Path, FileAttributes.Normal);
-            File.Delete(Path);
-        }
-    }
-}

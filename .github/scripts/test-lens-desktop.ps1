@@ -58,7 +58,7 @@ try {
         }
         $filter = ($expectedMethods.Keys | ForEach-Object { "FullyQualifiedName~.$_" }) -join '|'
         $arguments = @(
-            'test', 'tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj',
+            'test', 'tests/Opc.Ua.Lens.Desktop.Tests/Opc.Ua.Lens.Desktop.Tests.csproj',
             '--no-restore', '-p:CustomTestTarget=net10.0', '--framework', 'net10.0',
             '--configuration', $Configuration, '--filter', $filter,
             '--logger', 'trx;LogFileName=desktop.trx', '--results-directory', $ResultsDirectory,

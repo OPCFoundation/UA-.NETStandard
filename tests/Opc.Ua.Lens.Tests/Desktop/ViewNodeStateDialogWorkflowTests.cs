@@ -40,7 +40,7 @@ namespace UaLens.Tests.Desktop;
 
 [TestFixture]
 [NonParallelizable]
-public sealed class ViewNodeStateDialogWorkflowTests
+public sealed partial class ViewNodeStateDialogWorkflowTests
 {
     [TestCase("Empty")]
     [TestCase("Value")]
@@ -86,40 +86,4 @@ public sealed class ViewNodeStateDialogWorkflowTests
         item.IsExpanded = true;
         Assert.That(calls, Is.EqualTo(1));
     }
-
-    [TestCase(false)]
-    [TestCase(true)]
-    [Platform("Win,Linux")]
-    [Category("LensDesktopWorkflow")]
-    public Task NullOrDisconnectedNodeDisplaysSentinelWithoutRead(bool nullNode)
-    {
-        return AvaloniaDesktopTestHost.RunAsync(async () =>
-        {
-            await using var context = new DesktopConnectionContext();
-            var dialog = new ViewNodeStateDialog(context.Browser, context.Connection,
-                nullNode ? NodeId.Null : new NodeId(1234u, 2));
-            Task shown = dialog.ShowDialog(DesktopInteraction.Owner);
-            try
-            {
-                Assert.That(DesktopInteraction.Control<TextBlock>(dialog, "HeaderBlock").Text,
-                    Is.EqualTo(nullNode ? "NodeId: (none)" : "NodeId: ns=2;i=1234"));
-                Assert.That(DesktopInteraction.Control<TreeView>(dialog, "StateTree").Items
-                    .Cast<NodeStateItem>().Select(item => item.Header),
-                    Is.EqualTo(s_nullOrDisconnectedNodeDisplaysSentinelWithoutReadExpected));
-                Assert.That(context.ConfigurationsCreated, Is.Zero);
-                Assert.That(context.Discoveries, Is.Empty);
-                DesktopInteraction.Click(DesktopInteraction.Control<Button>(dialog, "CloseButton"));
-                await shown.ConfigureAwait(true);
-            }
-            finally
-            {
-                dialog.Close();
-            }
-        });
-    }
-
-    private static readonly string[] s_nullOrDisconnectedNodeDisplaysSentinelWithoutReadExpected =
-    [
-        "(disconnected or null node)",
-    ];
 }

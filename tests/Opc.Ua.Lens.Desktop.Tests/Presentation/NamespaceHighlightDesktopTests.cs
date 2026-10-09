@@ -51,7 +51,6 @@ using UaLens.Workspace;
 namespace UaLens.Tests.Presentation
 {
     [TestFixture]
-    [Explicit("Requires the real Avalonia desktop backend and an X11 display on Linux.")]
     [Category("LensNamespaceDesktop")]
     [NonParallelizable]
     internal sealed class NamespaceHighlightDesktopTests

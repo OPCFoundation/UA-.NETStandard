@@ -43,7 +43,7 @@ using UaLens.Telemetry;
 namespace UaLens.Tests.Subscriptions;
 
 [TestFixture]
-public sealed class ClassicEngineAdapterTests
+public sealed partial class ClassicEngineAdapterTests
 {
     [TestCase(false)]
     [TestCase(true)]
@@ -53,8 +53,11 @@ public sealed class ClassicEngineAdapterTests
         await using var adapter = new ClassicEngineAdapter(context.Session, context.Telemetry);
         await adapter.ApplySubscriptionAsync(new SubscriptionConfig
         {
-            PublishingInterval = TimeSpan.FromMilliseconds(10), KeepAliveCount = 3, LifetimeCount = 1000,
-            MaxNotificationsPerPublish = 88, Priority = 5
+            PublishingInterval = TimeSpan.FromMilliseconds(10),
+            KeepAliveCount = 3,
+            LifetimeCount = 1000,
+            MaxNotificationsPerPublish = 88,
+            Priority = 5
         }, CancellationToken.None).ConfigureAwait(false);
         var create = context.Requests.OfType<CreateSubscriptionRequest>().Single();
         Assert.That(create.RequestedPublishingInterval, Is.EqualTo(10));
@@ -64,9 +67,12 @@ public sealed class ClassicEngineAdapterTests
         Assert.That(adapter.CurrentKeepAliveCount, Is.EqualTo(5));
         var config = new MonitoredItemConfig
         {
-            NodeId = new NodeId("Temperature", 2), DisplayName = "Temperature",
-            SamplingInterval = TimeSpan.FromMilliseconds(7), QueueSize = 3,
-            IsEvent = events, AttributeId = events ? Attributes.EventNotifier : Attributes.Value
+            NodeId = new NodeId("Temperature", 2),
+            DisplayName = "Temperature",
+            SamplingInterval = TimeSpan.FromMilliseconds(7),
+            QueueSize = 3,
+            IsEvent = events,
+            AttributeId = events ? Attributes.EventNotifier : Attributes.Value
         };
         int id = await adapter.AddItemAsync(config, CancellationToken.None).ConfigureAwait(false);
         Assert.That(id, Is.EqualTo(1));
@@ -81,8 +87,12 @@ public sealed class ClassicEngineAdapterTests
         Assert.That(result.Status, Is.EqualTo(StatusCodes.Good));
         await adapter.ConfigureItemAsync(config with
         {
-            Id = id, SamplingInterval = TimeSpan.FromMilliseconds(11), QueueSize = 12,
-            DiscardOldest = false, MonitoringMode = MonitoringMode.Sampling, DisplayName = "Updated"
+            Id = id,
+            SamplingInterval = TimeSpan.FromMilliseconds(11),
+            QueueSize = 12,
+            DiscardOldest = false,
+            MonitoringMode = MonitoringMode.Sampling,
+            DisplayName = "Updated"
         }, CancellationToken.None).ConfigureAwait(false);
         Assert.That(context.Requests.OfType<ModifyMonitoredItemsRequest>().Single()
             .ItemsToModify[0].RequestedParameters.QueueSize, Is.EqualTo(12));
@@ -127,7 +137,8 @@ public sealed class ClassicEngineAdapterTests
         await adapter.ApplySubscriptionAsync(new SubscriptionConfig(), CancellationToken.None).ConfigureAwait(false);
         int id = await adapter.AddItemAsync(new MonitoredItemConfig
         {
-            NodeId = new NodeId("Temperature", 2), DisplayName = "Temperature"
+            NodeId = new NodeId("Temperature", 2),
+            DisplayName = "Temperature"
         }, CancellationToken.None).ConfigureAwait(false);
         Opc.Ua.Client.Subscription subscription = context.Session.Subscriptions.Single();
         uint handle = subscription.MonitoredItems.Single().ClientHandle;
@@ -164,69 +175,5 @@ public sealed class ClassicEngineAdapterTests
         Assert.That(adapter.Counters.DataValues, Is.EqualTo(2));
         Assert.That(adapter.Counters.EventValues, Is.EqualTo(1));
         Assert.That(observer.CaptureSnapshot().Count, Is.EqualTo(2));
-    }
-
-    internal sealed class ClassicProtocol : IDisposable
-    {
-        public ClassicProtocol()
-        {
-            var channel = new Mock<ITransportChannel>();
-            ServiceMessageContext messages = ServiceMessageContext.Create(Telemetry);
-            channel.SetupGet(value => value.MessageContext).Returns(messages);
-            channel.Setup(value => value.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
-                .Returns((IServiceRequest request, CancellationToken token) =>
-                {
-                    token.ThrowIfCancellationRequested();
-                    Requests.Add(request);
-                    IServiceResponse response = request switch
-                    {
-                        CreateSubscriptionRequest => new CreateSubscriptionResponse
-                        {
-                            SubscriptionId = 500, RevisedPublishingInterval = 20,
-                            RevisedMaxKeepAliveCount = 5, RevisedLifetimeCount = 1000
-                        },
-                        SetPublishingModeRequest => new SetPublishingModeResponse { Results = [StatusCodes.Good] },
-                        CreateMonitoredItemsRequest => new CreateMonitoredItemsResponse
-                        {
-                            Results = [new MonitoredItemCreateResult
-                            {
-                                StatusCode = StatusCodes.Good, MonitoredItemId = 700,
-                                RevisedSamplingInterval = 9, RevisedQueueSize = 8
-                            }]
-                        },
-                        ModifyMonitoredItemsRequest => new ModifyMonitoredItemsResponse
-                        {
-                            Results = [new MonitoredItemModifyResult
-                            {
-                                StatusCode = StatusCodes.Good, RevisedSamplingInterval = 13, RevisedQueueSize = 15
-                            }]
-                        },
-                        SetMonitoringModeRequest => new SetMonitoringModeResponse { Results = [StatusCodes.Good] },
-                        DeleteMonitoredItemsRequest => new DeleteMonitoredItemsResponse {
-                            Results = [StatusCodes.Good] },
-                        DeleteSubscriptionsRequest => new DeleteSubscriptionsResponse { Results = [StatusCodes.Good] },
-                        _ => throw new AssertionException("Unexpected classic request: " + request.GetType().Name)
-                    };
-                    response.ResponseHeader.ServiceResult = StatusCodes.Good;
-                    response.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
-                    return ValueTask.FromResult(response);
-                });
-            var configuration = new ApplicationConfiguration(Telemetry)
-            {
-                ClientConfiguration = new ClientConfiguration()
-            };
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
-            {
-                EndpointUrl = "opc.tcp://classic.example.test:4840",
-                SecurityMode = MessageSecurityMode.None, SecurityPolicyUri = SecurityPolicies.None
-            }, new EndpointConfiguration());
-            Session = new Session(channel.Object, configuration, endpoint,
-                engineFactory: ClassicSubscriptionEngineFactory.Instance);
-        }
-
-        public AppTelemetryContext Telemetry { get; } = new(new LogRingBuffer(32));
-        public Session Session { get; }
-        public List<IServiceRequest> Requests { get; } = [];
-        public void Dispose() => Session.Dispose();
     }
 }

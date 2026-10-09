@@ -1,38 +1,6 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <PropertyGroup>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
-    <TargetFrameworks Condition="'$(CustomTestTarget)' != ''">$(CustomTestTarget)</TargetFrameworks>
-    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
-    <OutputType>Library</OutputType>
-    <AssemblyName>Opc.Ua.Lens.Tests</AssemblyName>
-    <RootNamespace>UaLens.Tests</RootNamespace>
-    <Nullable>enable</Nullable>
-    <IsTestProject>true</IsTestProject>
-    <IsPackable>false</IsPackable>
-  </PropertyGroup>
+  <Import Project="LensTestCommon.props" />
   <ItemGroup>
-    <ProjectReference Include="..\..\tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.WotCon.Server\Opc.Ua.WotCon.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd\Opc.Ua.OpenUsd.csproj" />
-    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Server\Opc.Ua.OpenUsd.Server.csproj" />
-    <ProjectReference Include="..\..\samples\OpenUsd\GeneratorServer\GeneratorServer.csproj" />
-    <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
-    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
-  </ItemGroup>
-  <ItemGroup>
-    <EmbeddedResource Include="..\..\tools\Opc.Ua.Lens\**\*.axaml"
-                      Exclude="..\..\tools\Opc.Ua.Lens\bin\**;..\..\tools\Opc.Ua.Lens\obj\**"
-                      LogicalName="LensMarkup/%(RecursiveDir)%(Filename)%(Extension)" />
-  </ItemGroup>
-  <ItemGroup>
-    <PackageReference Include="Microsoft.NET.Test.Sdk" />
-    <PackageReference Include="Moq" />
-    <PackageReference Include="NUnit" />
-    <PackageReference Include="NUnit.Analyzers" PrivateAssets="all" />
-    <PackageReference Include="NUnit3TestAdapter" PrivateAssets="all" />
-    <PackageReference Include="coverlet.collector" PrivateAssets="all" />
+    <Compile Remove="Desktop\ConnectedProtocolContext.cs" />
   </ItemGroup>
 </Project>

@@ -46,7 +46,6 @@ using UaLens.Views;
 namespace UaLens.Tests.Subscriptions;
 
 [TestFixture]
-[Explicit("Requires a real Windows desktop or Linux X11 display; run the documented desktop selection.")]
 [Category("LensDesktop")]
 [NonParallelizable]
 public sealed class MonitorStyleDesktopTests

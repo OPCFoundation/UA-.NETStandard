@@ -50,7 +50,6 @@ using UaLens.Views;
 namespace UaLens.Tests.NodeSets
 {
     [TestFixture]
-    [Explicit("Requires the real Avalonia desktop backend and an X11 display on Linux.")]
     [Category("LensNodeSetsDesktop")]
     [NonParallelizable]
     public sealed class NodeSetDesktopTests

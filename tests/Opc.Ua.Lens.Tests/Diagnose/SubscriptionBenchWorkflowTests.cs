@@ -55,7 +55,7 @@ namespace UaLens.Tests.Diagnose;
 
 [TestFixture]
 [NonParallelizable]
-public sealed class SubscriptionBenchWorkflowTests
+public sealed partial class SubscriptionBenchWorkflowTests
 {
     [TestCase(null, "ns=2;s=Temperature")]
     [TestCase("", "ns=2;s=Temperature")]
@@ -117,109 +117,6 @@ public sealed class SubscriptionBenchWorkflowTests
         Assert.That(plugin.SubsSliderValue, Is.Zero);
         Assert.That(plugin.ItemsSliderValue, Is.Zero);
         Assert.That(plugin.Status, Is.EqualTo("Disconnected — connect to resume."));
-    }
-
-    [TestCase(false)]
-    [TestCase(true)]
-    [Platform("Win,Linux")]
-    [Category("LensDesktopWorkflow")]
-    public Task SubscriptionSettingsCommandCommitsOnlyAcceptedIntentWithoutStartingTopology(bool accept)
-    {
-        return AvaloniaDesktopTestHost.RunAsync(async () =>
-        {
-            await using var context = new DesktopConnectionContext();
-            await using PluginHost host = HistorianWorkflowTests.Host(context);
-            await using var plugin = new SubscriptionBenchPlugin(host);
-            DesktopInteraction.Owner.Content = ((IPlugin)plugin).View;
-            Task command = Task.CompletedTask;
-            SubscriptionSettingsDialog dialog = await DesktopInteraction.OpenedAsync<SubscriptionSettingsDialog>(
-                () => command = plugin.EditSubscriptionCommand.ExecuteAsync(null)).ConfigureAwait(true);
-            try
-            {
-                DesktopInteraction.Control<TextBox>(dialog, "PubMs").Text = "375";
-                DesktopInteraction.Control<TextBox>(dialog, "KeepAlive").Text = "7";
-                DesktopInteraction.Control<TextBox>(dialog, "Lifetime").Text = "31";
-                DesktopInteraction.Control<TextBox>(dialog, "MaxNotifs").Text = "47";
-                DesktopInteraction.Control<TextBox>(dialog, "Priority").Text = "19";
-                DesktopInteraction.Control<CheckBox>(dialog, "PublishingEnabled").IsChecked = false;
-                DesktopInteraction.Click(
-                    DesktopInteraction.Control<Button>(dialog, accept ? "OkButton" : "CancelButton"));
-                await command.ConfigureAwait(true);
-
-                JsonElement config = plugin.CaptureState().GetProperty("subscription");
-                Assert.That(config.GetProperty("publishingIntervalMs").GetDouble(), Is.EqualTo(accept ? 375 : 1000));
-                Assert.That(config.GetProperty("keepAliveCount").GetUInt32(), Is.EqualTo(accept ? 7 : 10));
-                Assert.That(config.GetProperty("lifetimeCount").GetUInt32(), Is.EqualTo(accept ? 31 : 1000));
-                Assert.That(config.GetProperty("maxNotificationsPerPublish").GetUInt32(), Is.EqualTo(accept ? 47 : 0));
-                Assert.That(config.GetProperty("priority").GetByte(), Is.EqualTo(accept ? 19 : 0));
-                Assert.That(config.GetProperty("publishingEnabled").GetBoolean(), Is.EqualTo(!accept));
-                Assert.That(plugin.Status, Is.EqualTo(accept
-                    ? "Subscription parameters saved — they apply when connected." : "Not connected."));
-                Assert.That(plugin.SubsSliderValue, Is.Zero);
-                Assert.That(plugin.ItemsSliderValue, Is.Zero);
-                Assert.That(context.ConfigurationsCreated, Is.Zero);
-            }
-            finally
-            {
-                dialog.Close();
-                await command.ConfigureAwait(true);
-                DesktopInteraction.Owner.Content = null;
-            }
-        });
-    }
-
-    [TestCase(false)]
-    [TestCase(true)]
-    [Platform("Win,Linux")]
-    [Category("LensDesktopWorkflow")]
-    public Task ItemSettingsCommandCommitsAcceptedSamplingQueueModeAndFilterWithoutStartingTopology(bool accept)
-    {
-        return AvaloniaDesktopTestHost.RunAsync(async () =>
-        {
-            await using var context = new DesktopConnectionContext();
-            await using PluginHost host = HistorianWorkflowTests.Host(context);
-            await using var plugin = new SubscriptionBenchPlugin(host);
-            DesktopInteraction.Owner.Content = ((IPlugin)plugin).View;
-            Task command = Task.CompletedTask;
-            MonitoredItemSettingsDialog dialog = await DesktopInteraction.OpenedAsync<MonitoredItemSettingsDialog>(
-                () => command = plugin.EditItemSettingsCommand.ExecuteAsync(null)).ConfigureAwait(true);
-            try
-            {
-                DesktopInteraction.Control<TextBox>(dialog, "SamplingMs").Text = "45";
-                DesktopInteraction.Control<TextBox>(dialog, "QueueSizeBox").Text = "13";
-                DesktopInteraction.Control<CheckBox>(dialog, "DiscardOldestBox").IsChecked = false;
-                DesktopInteraction.Control<ComboBox>(dialog, "MonitoringModeCombo").SelectedIndex = 1;
-                DesktopInteraction.Control<ComboBox>(dialog, "TriggerCombo").SelectedIndex = 2;
-                DesktopInteraction.Control<ComboBox>(dialog, "DeadbandTypeCombo").SelectedIndex = 1;
-                DesktopInteraction.Control<TextBox>(dialog, "DeadbandValueBox").Text = "2";
-                DesktopInteraction.Click(
-                    DesktopInteraction.Control<Button>(dialog, accept ? "OkButton" : "CancelButton"));
-                await command.ConfigureAwait(true);
-
-                JsonElement item = plugin.CaptureState().GetProperty("item");
-                Assert.That(item.GetProperty("samplingIntervalMs").GetDouble(), Is.EqualTo(accept ? 45 : 0));
-                Assert.That(item.GetProperty("queueSize").GetUInt32(), Is.EqualTo(accept ? 13 : 1));
-                Assert.That(item.GetProperty("discardOldest").GetBoolean(), Is.EqualTo(!accept));
-                Assert.That(item.GetProperty("monitoringMode").GetInt32(), Is.EqualTo(accept ? 1 : 2));
-                if (accept)
-                {
-                    Assert.That(item.GetProperty("filter").GetProperty("trigger").GetInt32(), Is.EqualTo(2));
-                    Assert.That(item.GetProperty("filter").GetProperty("deadbandType").GetUInt32(), Is.EqualTo(1));
-                    Assert.That(item.GetProperty("filter").GetProperty("deadbandValue").GetDouble(), Is.EqualTo(2));
-                    Assert.That(plugin.Status, Is.EqualTo("Item settings saved — they apply when connected."));
-                }
-                Assert.That(plugin.SubsSliderValue, Is.Zero);
-                Assert.That(plugin.ItemsSliderValue, Is.Zero);
-                Assert.That(plugin.TryDequeueChartSample(out _), Is.False);
-                Assert.That(context.ConfigurationsCreated, Is.Zero);
-            }
-            finally
-            {
-                dialog.Close();
-                await command.ConfigureAwait(true);
-                DesktopInteraction.Owner.Content = null;
-            }
-        });
     }
 
     [Test]
@@ -462,6 +359,17 @@ public sealed class SubscriptionBenchWorkflowTests
         Assert.That(protocol.Handlers, Has.Count.EqualTo(1));
     }
 
+    private static readonly string[] s_variablePoolSeedDeduplicatesAndNeverAutoStartsExpected =
+    [
+        "ns=2;s=Temperature",
+        "ns=2;s=Pressure",
+    ];
+    private static readonly int[] s_v2ResourcesShareOptionsAndHandlerButReleaseTheirDistinctOwnerExpected =
+    [
+        0,
+        1,
+    ];
+
     private sealed class BenchProtocol
     {
         public BenchProtocol()
@@ -496,15 +404,4 @@ public sealed class SubscriptionBenchWorkflowTests
         public List<IOptionsMonitor<V2SubscriptionOptions>> Options { get; } = [];
         public List<int> Released { get; } = [];
     }
-
-    private static readonly string[] s_variablePoolSeedDeduplicatesAndNeverAutoStartsExpected =
-    [
-        "ns=2;s=Temperature",
-        "ns=2;s=Pressure",
-    ];
-    private static readonly int[] s_v2ResourcesShareOptionsAndHandlerButReleaseTheirDistinctOwnerExpected =
-    [
-        0,
-        1,
-    ];
 }
