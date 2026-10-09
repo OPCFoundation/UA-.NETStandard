@@ -198,7 +198,7 @@ namespace Opc.Ua.XRegistry.Server
     /// Authorization is the caller's responsibility; the host binds continuation points to the
     /// supplied <see cref="RegistryCaller"/>.
     /// </remarks>
-    public sealed class RegistryNativeHost : IDisposable
+    public sealed partial class RegistryNativeHost : IDisposable
     {
         /// <summary>
         /// Creates a host. <see cref="StartAsync"/> loads or initializes the committed state.
@@ -368,7 +368,7 @@ namespace Opc.Ua.XRegistry.Server
                         "An entity record must restore to an object.");
                 }
                 return RegistryMetadataMutation.Replace(state.Root, request.TargetXid, definition,
-                    request.ExpectedEpoch, m_collections, ProtectedPaths(), ValidateDocument);
+                    request.ExpectedEpoch, m_collections, ProtectedPaths(request.TargetXid), ValidateOrdinaryDocument);
             }, cancellationToken);
         }
 
@@ -386,8 +386,8 @@ namespace Opc.Ua.XRegistry.Server
                     throw new ServiceResultException(StatusCodes.BadInvalidArgument, "A target Xid is required.");
                 }
                 RecordTypeOf(request.TargetXid, entitiesOnly: true);
-                return RegistryMetadataMutation.Apply(state.Root, request, m_collections, ProtectedPaths(),
-                    ValidateDocument);
+                return RegistryMetadataMutation.Apply(state.Root, request, m_collections, ProtectedPaths(request.TargetXid),
+                    ValidateOrdinaryDocument);
             }, cancellationToken);
         }
 
@@ -409,7 +409,7 @@ namespace Opc.Ua.XRegistry.Server
                         "A merge patch must be a JSON object.");
                 }
                 return RegistryMetadataMutation.Patch(state.Root, targetXid, changes, expectedEpoch,
-                    m_collections, ProtectedPaths(), ValidateDocument);
+                    m_collections, ProtectedPaths(targetXid), ValidateOrdinaryDocument);
             }, cancellationToken);
         }
 
@@ -425,7 +425,7 @@ namespace Opc.Ua.XRegistry.Server
             {
                 RecordTypeOf(targetXid, entitiesOnly: true);
                 return RegistryMetadataMutation.Delete(state.Root, targetXid, expectedEpoch, m_collections,
-                    ProtectedPaths(), ValidateDocument);
+                    ProtectedPaths(targetXid), ValidateOrdinaryDocument);
             }, cancellationToken);
         }
 
@@ -717,6 +717,7 @@ namespace Opc.Ua.XRegistry.Server
                 }
                 var next = new RegistryCommittedState(stored.State.Revision, document, commit.Document,
                     RegistryMetadataMutation.Epoch(commit.Document));
+                await NotifyActivatingAsync(next).ConfigureAwait(false);
                 Volatile.Write(ref m_current, next);
                 Func<RegistryCommittedState, CancellationToken, ValueTask>? activate = Activation;
                 if (activate is not null)
@@ -742,6 +743,7 @@ namespace Opc.Ua.XRegistry.Server
                             ]);
                     }
                 }
+                await NotifyActivatedAsync(next).ConfigureAwait(false);
                 return MutationResult(StatusCodes.Good, commit.TargetEpoch, targetXid, []);
             }
             finally
@@ -798,9 +800,39 @@ namespace Opc.Ua.XRegistry.Server
             m_validate?.Invoke(document);
         }
 
-        private ArrayOf<string> ProtectedPaths()
+        private ArrayOf<string> ProtectedPaths(string? target = null, RegistryNativeProvider? provider = null)
         {
-            return m_protectedPaths is null ? [] : m_protectedPaths();
+            var paths = new List<string>();
+            if (m_protectedPaths is not null)
+            {
+                foreach (string path in m_protectedPaths())
+                {
+                    paths.Add(path);
+                }
+            }
+            lock (m_providerGate)
+            {
+                foreach (RegistryNativeProvider owner in m_providers)
+                {
+                    if (owner == provider)
+                    {
+                        continue;
+                    }
+                    foreach (RegistryMemberDataType group in ProviderGroups(Current.Root, owner.Collection))
+                    {
+                        string path = "/" + owner.Collection + "/" + group.Name;
+                        if (owner.Owns(path))
+                        {
+                            paths.Add(path);
+                        }
+                    }
+                    if (target is not null && owner.Owns(target))
+                    {
+                        paths.Add(target);
+                    }
+                }
+            }
+            return paths.ToArray();
         }
 
         private (RegistryValueDataType Value, string RecordType, uint Epoch) SelectDocument(

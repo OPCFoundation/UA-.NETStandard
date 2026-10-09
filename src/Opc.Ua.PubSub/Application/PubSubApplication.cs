@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Application
     /// disabling the application cascades to every connection.
     /// Exposes a runtime mutation API per Part 14 §9.1.6.
     /// </remarks>
-    public sealed class PubSubApplication : IPubSubApplication
+    public sealed partial class PubSubApplication : IPubSubApplication, IPubSubConfigurationLifecycle
     {
         private readonly List<PubSubConnection> m_connections;
         private readonly ITelemetryContext m_telemetry;
@@ -1876,6 +1876,7 @@ namespace Opc.Ua.PubSub.Application
                     configuration,
                     newConfigurationVersion,
                     cancellationToken).ConfigureAwait(false);
+                await NotifyConfigurationRetiringAsync(previousConfiguration).ConfigureAwait(false);
                 bool restartRequired;
                 lock (m_gate)
                 {
@@ -1932,6 +1933,8 @@ namespace Opc.Ua.PubSub.Application
                     previousConfiguration,
                     GetConfiguration(),
                     cancellationToken).ConfigureAwait(false);
+
+                await NotifyConfigurationActivatedAsync(GetConfiguration()).ConfigureAwait(false);
 
                 try
                 {

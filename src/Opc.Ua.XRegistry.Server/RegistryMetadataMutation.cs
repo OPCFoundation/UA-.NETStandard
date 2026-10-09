@@ -90,6 +90,54 @@ namespace Opc.Ua.XRegistry.Server
                 _ => (RegistryObjectValueDataType)definition.Clone());
         }
 
+        internal static RegistryMetadataCommit ReplaceOwned(
+            RegistryObjectValueDataType source,
+            string targetXid,
+            RegistryObjectValueDataType definition,
+            uint expectedEpoch,
+            ArrayOf<string> collections,
+            ArrayOf<string> protectedPaths,
+            Action<RegistryObjectValueDataType> validate)
+        {
+            RegistryValues.Validate(definition);
+            return Prepare(source, targetXid, expectedEpoch, collections, protectedPaths, validate, previous =>
+            {
+                var replacement = (RegistryObjectValueDataType)definition.Clone();
+                PreserveOwned(previous, replacement);
+                return replacement;
+            });
+        }
+
+        private static void PreserveOwned(RegistryObjectValueDataType? previous, RegistryObjectValueDataType current)
+        {
+            foreach (string name in s_owned)
+            {
+                if (Get(current, name) is not null)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotWritable,
+                        "A provider cannot author a server-owned field: " + name);
+                }
+                if (previous is not null && Get(previous, name) is { } value)
+                {
+                    Set(current, name, (RegistryValueDataType)value.Clone());
+                }
+            }
+            foreach (string name in s_children)
+            {
+                if (Get(current, name) is RegistryObjectValueDataType children)
+                {
+                    foreach (RegistryMemberDataType child in children.Members)
+                    {
+                        if (child.Value is RegistryObjectValueDataType entity)
+                        {
+                            PreserveOwned(previous is null ? null :
+                                Find(previous, [name, child.Name!]) as RegistryObjectValueDataType, entity);
+                        }
+                    }
+                }
+            }
+        }
+
         /// <summary>
         /// Applies the optional RFC 7396 compatibility patch through the same commit rules.
         /// A null object member removes it; it does not perform native Set(null).
@@ -284,7 +332,8 @@ namespace Opc.Ua.XRegistry.Server
                 string[] parts = TargetPath(protectedPath, collections);
                 RegistryValueDataType? oldValue = Find(source, parts);
                 RegistryValueDataType? newValue = Find(current, parts);
-                if (oldValue is null || newValue is null || !RegistryValues.Identical(oldValue, newValue))
+                if ((oldValue is null) != (newValue is null) ||
+                    (oldValue is not null && newValue is not null && !RegistryValues.Identical(oldValue, newValue)))
                 {
                     throw new ServiceResultException(StatusCodes.BadNotWritable,
                         "A surfaced entity cannot be changed through a direct or ancestor mutation.");
