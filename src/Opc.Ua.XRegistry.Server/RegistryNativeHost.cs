@@ -459,6 +459,20 @@ namespace Opc.Ua.XRegistry.Server
         }
 
         /// <summary>
+        /// Returns a copy of the committed generic value and epoch of an entity, or of the registry for "/".
+        /// </summary>
+        /// <exception cref="ServiceResultException">The entity does not exist.</exception>
+        public (RegistryValueDataType Value, uint Epoch) ReadValue(RegistryCommittedState state, string xid)
+        {
+            if (state is null)
+            {
+                throw new ArgumentNullException(nameof(state));
+            }
+            (RegistryValueDataType value, _, uint epoch) = Select(state, xid);
+            return ((RegistryValueDataType)value.Clone(), epoch);
+        }
+
+        /// <summary>
         /// Releases the continuation points of a Session.
         /// </summary>
         public void ReleaseSession(string session)

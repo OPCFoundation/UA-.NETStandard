@@ -49,13 +49,15 @@ namespace Opc.Ua.EndpointRegistry.Server
             ISystemContext context,
             ushort endpointNamespaceIndex,
             bool media,
-            Func<ISystemContext, RegistryAccessKind, ServiceResult> authorize)
+            Func<ISystemContext, RegistryAccessKind, ServiceResult> authorize,
+            RegistryMetadataFileBinding metadataFiles)
         {
             m_host = host;
             m_context = context;
             m_namespaceIndex = endpointNamespaceIndex;
             m_media = media;
             m_authorize = authorize;
+            m_metadataFiles = metadataFiles;
             m_generation = new XRegistryProjectionGeneration(Snapshot.Empty, null);
         }
 
@@ -123,11 +125,16 @@ namespace Opc.Ua.EndpointRegistry.Server
                     ConfigureGroup(container, group, created);
                     break;
                 case Message message when node is MessageDefinitionState definition:
-                    if (created && message.Record.DataSchema is not null)
+                    if (created)
                     {
-                        definition.AddDataSchema(m_context);
+                        if (message.Record.DataSchema is not null)
+                        {
+                            definition.AddDataSchema(m_context);
+                        }
+                        BindMetadata(definition.Metadata, message.Xid);
                     }
                     XRegistryProjectionEngine.SetValue(definition.Snapshot, message.Snapshot);
+                    XRegistryProjectionEngine.SetValue(definition.Metadata?.Size, message.MetadataSize);
                     if (message.Record.DataSchema is SchemaContentDataType schema)
                     {
                         XRegistryProjectionEngine.SetValue(definition.DataSchema, schema);
@@ -161,6 +168,8 @@ namespace Opc.Ua.EndpointRegistry.Server
         {
             if (created)
             {
+                node.AddMetadata(m_context);
+                BindMetadata(node.Metadata, group.Xid);
                 if (group.Envelope is not null)
                 {
                     node.AddEnvelope(m_context);
@@ -180,11 +189,13 @@ namespace Opc.Ua.EndpointRegistry.Server
                         EndpointOptionsState options = CreateOptions(endpoint, group.OptionsType);
                         options.Create(m_context, NodeId.Null, new QualifiedName(BrowseNames.Options, m_namespaceIndex),
                             new LocalizedText(BrowseNames.Options), assignNodeIds: false);
+                        options.ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent;
                         endpoint.CreateOrReplaceOptions(m_context, options, assignInstanceNodeIds: false);
                     }
                 }
             }
             XRegistryProjectionEngine.SetValue(node.Snapshot, group.Snapshot);
+            XRegistryProjectionEngine.SetValue(node.Metadata?.Size, group.MetadataSize);
             if (group.Envelope is not null)
             {
                 XRegistryProjectionEngine.SetValue(node.Envelope, group.Envelope);
@@ -205,6 +216,18 @@ namespace Opc.Ua.EndpointRegistry.Server
                     XRegistryProjectionEngine.SetValue(endpointGroup.Options.Value, endpointRecord.ProtocolOptions);
                 }
             }
+        }
+
+        private void BindMetadata(FileState? file, string xid)
+        {
+            if (file is null)
+            {
+                return;
+            }
+            // The JSON compatibility view is read from the committed generation at Open time.
+            m_metadataFiles.Bind(file, () => RegistryValues.ToJson(m_host.ReadValue(m_host.Current, xid).Value),
+                m_authorize);
+            XRegistryProjectionEngine.SetValue(file.MimeType, "application/json");
         }
 
         private EndpointOptionsState CreateOptions(EndpointGroupState endpoint, string optionsType)
@@ -287,7 +310,7 @@ namespace Opc.Ua.EndpointRegistry.Server
                 Present(record, "Description", description), Present(record, "Documentation", documentation),
                 Present(record, "Labels", labels), Present(record, "Envelope", envelope),
                 Present(record, "Protocol", protocol), endpoint, optionsType,
-                Result(record, epoch), resources.ToArray());
+                Result(record, epoch), MetadataSize(state, xid), resources.ToArray());
         }
 
         private Message CreateMessage(RegistryCommittedState state, string collection, string groupId, string id)
@@ -300,7 +323,13 @@ namespace Opc.Ua.EndpointRegistry.Server
                 Present(record, "Documentation", record.Documentation),
                 Present(record, "Labels", Labels(record.Labels?.Entries)),
                 Present(record, "VersionId", record.VersionId),
-                record, Result(record, epoch), new QualifiedName(BrowseNames.Messages, m_namespaceIndex));
+                record, Result(record, epoch), MetadataSize(state, xid),
+                new QualifiedName(BrowseNames.Messages, m_namespaceIndex));
+        }
+
+        private ulong MetadataSize(RegistryCommittedState state, string xid)
+        {
+            return (ulong)RegistryValues.ToJson(m_host.ReadValue(state, xid).Value).Length;
         }
 
         private static T? Present<T>(RegistryRecordDataType record, string field, T? value)
@@ -407,8 +436,10 @@ namespace Opc.Ua.EndpointRegistry.Server
                 string? description,
                 string? documentation,
                 ImmutableSortedDictionary<string, string>? labels,
-                RegistryReadResultDataType snapshot)
+                RegistryReadResultDataType snapshot,
+                ulong metadataSize)
             {
+                MetadataSize = metadataSize;
                 CollectionName = collection;
                 GroupId = groupId;
                 Xid = xid;
@@ -446,6 +477,8 @@ namespace Opc.Ua.EndpointRegistry.Server
 
             public RegistryReadResultDataType Snapshot { get; }
 
+            public ulong MetadataSize { get; }
+
             public abstract string DomainShape { get; }
         }
 
@@ -465,8 +498,9 @@ namespace Opc.Ua.EndpointRegistry.Server
                 EndpointDataType? endpoint,
                 string? optionsType,
                 RegistryReadResultDataType snapshot,
+                ulong metadataSize,
                 ArrayOf<IXRegistryProjectionMetadataResource> resources)
-                : base(collection, groupId, xid, epoch, name, description, documentation, labels, snapshot)
+                : base(collection, groupId, xid, epoch, name, description, documentation, labels, snapshot, metadataSize)
             {
                 Envelope = envelope;
                 Protocol = protocol;
@@ -507,8 +541,9 @@ namespace Opc.Ua.EndpointRegistry.Server
                 string? versionId,
                 MessageDefinitionDataType record,
                 RegistryReadResultDataType snapshot,
+                ulong metadataSize,
                 QualifiedName container)
-                : base(collection, groupId, xid, epoch, name, description, documentation, labels, snapshot)
+                : base(collection, groupId, xid, epoch, name, description, documentation, labels, snapshot, metadataSize)
             {
                 ResourceId = resourceId;
                 VersionId = versionId;
@@ -536,6 +571,7 @@ namespace Opc.Ua.EndpointRegistry.Server
         private readonly ushort m_namespaceIndex;
         private readonly bool m_media;
         private readonly Func<ISystemContext, RegistryAccessKind, ServiceResult> m_authorize;
+        private readonly RegistryMetadataFileBinding m_metadataFiles;
         private XRegistryProjectionGeneration m_generation;
     }
 }

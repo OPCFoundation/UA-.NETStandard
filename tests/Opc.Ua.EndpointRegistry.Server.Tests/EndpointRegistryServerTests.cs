@@ -245,6 +245,240 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
             Assert.That(await TryResolveAsync(session, "wildcard").ConfigureAwait(false), Is.EqualTo(NodeId.Null));
         }
 
+        [Test]
+        public async Task EndpointCatalogProjectsProtocolTypedOptionsAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256,
+                new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
+            var endpoint = (EndpointDataType)Mapper(session).Project(RegistryValues.Parse(
+                """
+                {"endpointid":"orders","usage":["producer"],"protocol":"MQTT/5.0","protocoloptions":{
+                  "endpoints":[{"uri":"mqtts://broker.example.test"}],"topic":"factory/line1/orders","qos":1}}
+                """u8), DataTypeIds.EndpointDataType);
+
+            RegistryMutationResultDataType written = await TypedAccess(session).WriteDocumentAsync(
+                new RegistryWriteRequestDataType
+                {
+                    TargetXid = "/endpoints/orders",
+                    Definition = endpoint,
+                    ExpectedEpoch = 0
+                }).ConfigureAwait(false);
+            Assert.That(written.StatusCode, Is.EqualTo(StatusCodes.Good), Detail(written));
+
+            ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.EndpointRegistry);
+            NodeId group = await PathAsync(session, ExpandedNodeId.ToNodeId(ObjectIds.EndpointRegistry,
+                session.NamespaceUris), new QualifiedName(BrowseNames.Endpoints, ns), new QualifiedName("orders", ns))
+                .ConfigureAwait(false);
+            NodeId options = await PathAsync(session, group, new QualifiedName(BrowseNames.Options, ns))
+                .ConfigureAwait(false);
+            NodeId value = await PathAsync(session, options, new QualifiedName(BrowseNames.Value, ns))
+                .ConfigureAwait(false);
+            NodeId usage = await PathAsync(session, group, new QualifiedName(BrowseNames.Usage, ns))
+                .ConfigureAwait(false);
+            BrowseResponse typeDefinition = await session.BrowseAsync(null, null, 0,
+            [
+                new BrowseDescription
+                {
+                    NodeId = options,
+                    BrowseDirection = BrowseDirection.Forward,
+                    ReferenceTypeId = Ua.ReferenceTypeIds.HasTypeDefinition,
+                    IncludeSubtypes = false,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            ], default).ConfigureAwait(false);
+            DataValue optionsValue = await session.ReadValueAsync(value).ConfigureAwait(false);
+            DataValue usageValue = await session.ReadValueAsync(usage).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ExpandedNodeId.ToNodeId(typeDefinition.Results[0].References[0].NodeId,
+                        session.NamespaceUris),
+                    Is.EqualTo(ExpandedNodeId.ToNodeId(ObjectTypeIds.MqttEndpointOptionsType, session.NamespaceUris)));
+                Assert.That(optionsValue.WrappedValue.TryGetValue(out ExtensionObject settings) &&
+                    settings.TryGetValue(out EndpointProtocolOptionsMQTT50DataType? mqtt, session.MessageContext) &&
+                    mqtt!.Topic == "factory/line1/orders", Is.True);
+                Assert.That(usageValue.WrappedValue.TryGetValue(out ArrayOf<string> roles) &&
+                    roles.Count == 1 && roles[0] == "producer", Is.True);
+            });
+        }
+
+        [Test]
+        public async Task JsonCompatibilityPatchAndMetadataFileShareTheNativeStateAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256,
+                new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
+            var root = new EndpointRegistryTypeClient(session,
+                ExpandedNodeId.ToNodeId(ObjectIds.EndpointRegistry, session.NamespaceUris), m_telemetry!);
+            (NodeId created, uint epoch) = await CommitAsync(root,
+                "/messagegroups/json",
+                "{\"messagegroupid\":\"json\",\"messages\":{\"m\":{\"messageid\":\"m\",\"description\":\"x\"}}}", 0)
+                .ConfigureAwait(false);
+            Assert.That(created.IsNull, Is.False);
+            Assert.That(epoch, Is.EqualTo(1));
+
+            ushort xns = session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.xRegistry);
+            NodeId message = await ResolveAsync(session, "json", "m").ConfigureAwait(false);
+            NodeId file = await PathAsync(session, message, new QualifiedName(BrowseNames.Metadata, xns))
+                .ConfigureAwait(false);
+            uint pinned = await OpenAsync(session, file).ConfigureAwait(false);
+
+            (_, uint changed) = await CommitAsync(root, "/messagegroups/json/messages/m",
+                "{\"description\":null,\"datacontenttype\":\"application/json\"}", 1).ConfigureAwait(false);
+            Assert.That(changed, Is.EqualTo(2));
+
+            string before = await ReadToEndAsync(session, file, pinned).ConfigureAwait(false);
+            uint current = await OpenAsync(session, file).ConfigureAwait(false);
+            string after = await ReadToEndAsync(session, file, current).ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(before, Is.EqualTo("{\"messageid\":\"m\",\"description\":\"x\",\"epoch\":1}"));
+                Assert.That(after,
+                    Is.EqualTo("{\"messageid\":\"m\",\"epoch\":2,\"datacontenttype\":\"application/json\"}"));
+            });
+            ServiceResultException write = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await session.CallAsync(file, await PathAsync(session, file,
+                    new QualifiedName(Ua.BrowseNames.Open)).ConfigureAwait(false), default,
+                    new Variant((byte)2)).ConfigureAwait(false))!;
+            Assert.That(write.StatusCode, Is.EqualTo(StatusCodes.BadNotWritable));
+        }
+
+        [Test]
+        public async Task OversizedStringIsReadThroughABoundedNativeSnapshotAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256,
+                new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
+            string description = new string('d', 20000) + "\U0001F600";
+            RegistryMutationResultDataType written = await TypedAccess(session).WriteDocumentAsync(
+                new RegistryWriteRequestDataType
+                {
+                    TargetXid = "/messagegroups/large",
+                    Definition = Mapper(session).Canonicalize(new MessageGroupDataType
+                    {
+                        PresentFields = ["Description", "MessageGroupId"],
+                        Description = description,
+                        MessageGroupId = "large"
+                    }),
+                    ExpectedEpoch = 0
+                }).ConfigureAwait(false);
+            Assert.That(written.StatusCode, Is.EqualTo(StatusCodes.Good), Detail(written));
+
+            NativeRegistryAccessTypeClient access = TypedAccess(session);
+            RegistrySnapshotOpenResultDataType opened = await access.OpenDocumentAsync(
+                new RegistrySnapshotOpenRequestDataType
+                {
+                    TargetXid = "/messagegroups/large",
+                    DocumentKind = "metadata",
+                    View = 1,
+                    ExpectedEpoch = written.Epoch
+                }).ConfigureAwait(false);
+            Assert.That(opened.StatusCode, Is.EqualTo(StatusCodes.Good));
+            ushort xns = session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.xRegistry);
+            NodeId limitsNode = await PathAsync(session,
+                ExpandedNodeId.ToNodeId(EndpointRegistryWellKnown.EndpointRegistryTypedAccess, session.NamespaceUris),
+                new QualifiedName(XRegistry.BrowseNames.SnapshotLimits, xns)).ConfigureAwait(false);
+            DataValue limitsValue = await session.ReadValueAsync(limitsNode).ConfigureAwait(false);
+            Assert.That(limitsValue.WrappedValue.TryGetValue(out ExtensionObject limitsObject), Is.True);
+            Assert.That(limitsObject.TryGetValue(out RegistrySnapshotLimitsDataType? limits, session.MessageContext),
+                Is.True);
+            var text = new System.Text.StringBuilder();
+            ByteString continuation = ByteString.Empty;
+            while (true)
+            {
+                RegistrySnapshotReadResultDataType part = await access.ReadDocumentPartAsync(
+                    new RegistrySnapshotReadRequestDataType
+                    {
+                        SnapshotId = opened.SnapshotId,
+                        Path = [new RegistryPathElementDataType { Kind = 0, Name = "Description" }],
+                        Offset = (uint)CountScalars(text.ToString()),
+                        MaxItems = limits!.MaxReadItems,
+                        MaxBytes = Math.Min(limits.MaxReadBytes, 8192u),
+                        ContinuationPoint = continuation
+                    }).ConfigureAwait(false);
+                Assert.That(part.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(part.Value.TryGetValue(out string chunk), Is.True);
+                text.Append(chunk);
+                continuation = part.ContinuationPoint;
+                if (part.Complete)
+                {
+                    break;
+                }
+            }
+            Assert.That(text.ToString(), Is.EqualTo(description));
+            RegistrySnapshotCloseResultDataType closed = await access.CloseDocumentAsync(opened.SnapshotId)
+                .ConfigureAwait(false);
+            Assert.That(closed.StatusCode, Is.EqualTo(StatusCodes.Good));
+        }
+
+        private static int CountScalars(string text)
+        {
+            int count = 0;
+            for (int index = 0; index < text.Length; index++)
+            {
+                count++;
+                if (char.IsHighSurrogate(text[index]))
+                {
+                    index++;
+                }
+            }
+            return count;
+        }
+
+        private static async Task<(NodeId Target, uint Epoch)> CommitAsync(
+            EndpointRegistryTypeClient root,
+            string xid,
+            string patch,
+            uint expectedEpoch)
+        {
+            return await root.CommitMetadataAsync(xid, ByteString.From(System.Text.Encoding.UTF8.GetBytes(patch)),
+                expectedEpoch).ConfigureAwait(false);
+        }
+
+        private static async Task<uint> OpenAsync(ISession session, NodeId file)
+        {
+            NodeId open = await PathAsync(session, file, new QualifiedName(Ua.BrowseNames.Open)).ConfigureAwait(false);
+            ArrayOf<Variant> output = await session.CallAsync(file, open, default, new Variant((byte)1))
+                .ConfigureAwait(false);
+            return output[0].TryGetValue(out uint handle) ? handle : throw new AssertionException("No file handle.");
+        }
+
+        private static async Task<string> ReadToEndAsync(ISession session, NodeId file, uint handle)
+        {
+            NodeId read = await PathAsync(session, file, new QualifiedName(Ua.BrowseNames.Read)).ConfigureAwait(false);
+            NodeId close = await PathAsync(session, file, new QualifiedName(Ua.BrowseNames.Close)).ConfigureAwait(false);
+            using var buffer = new MemoryStream();
+            while (true)
+            {
+                ArrayOf<Variant> output = await session.CallAsync(file, read, default, new Variant(handle),
+                    new Variant(7)).ConfigureAwait(false);
+                if (!output[0].TryGetValue(out ByteString chunk) || chunk.Length == 0)
+                {
+                    break;
+                }
+                buffer.Write(chunk.ToArray(), 0, chunk.Length);
+            }
+            await session.CallAsync(file, close, default, new Variant(handle)).ConfigureAwait(false);
+            return System.Text.Encoding.UTF8.GetString(buffer.ToArray());
+        }
+
+        private static async Task<NodeId> PathAsync(ISession session, NodeId start, params QualifiedName[] names)
+        {
+            var elements = new RelativePathElement[names.Length];
+            for (int index = 0; index < names.Length; index++)
+            {
+                elements[index] = Element(names[index]);
+            }
+            TranslateBrowsePathsToNodeIdsResponse response = await session.TranslateBrowsePathsToNodeIdsAsync(
+                null,
+                new[]
+                {
+                    new BrowsePath { StartingNode = start, RelativePath = new RelativePath { Elements = elements } }
+                }.ToArrayOf(),
+                default).ConfigureAwait(false);
+            Assert.That(response.Results[0].Targets.Count, Is.GreaterThan(0),
+                "Browse path not found: " + string.Join<QualifiedName>("/", names));
+            return ExpandedNodeId.ToNodeId(response.Results[0].Targets[0].TargetId, session.NamespaceUris);
+        }
+
         private static MessageGroupDataType FactoryGroup()
         {
             return new MessageGroupDataType

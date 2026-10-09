@@ -235,6 +235,35 @@ namespace Opc.Ua.EndpointRegistry.Server
             base.Dispose(disposing);
         }
 
+        /// <inheritdoc/>
+        public override ValueTask SessionClosingAsync(
+            OperationContext context,
+            NodeId sessionId,
+            bool deleteSubscriptions,
+            CancellationToken cancellationToken = default)
+        {
+            ReleaseSession(sessionId);
+            return base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        public override ValueTask SessionActivatedAsync(
+            OperationContext context,
+            NodeId sessionId,
+            CancellationToken cancellationToken = default)
+        {
+            ReleaseSession(sessionId);
+            return base.SessionActivatedAsync(context, sessionId, cancellationToken);
+        }
+
+        private void ReleaseSession(NodeId sessionId)
+        {
+            foreach (Catalog catalog in m_catalogs.ToArray())
+            {
+                catalog.ReleaseSession(sessionId);
+            }
+        }
+
         internal static ArrayOf<string> NamespacesOf(EndpointRegistryServerOptions options)
         {
             return options.LoadDependencyModels
@@ -318,7 +347,8 @@ namespace Opc.Ua.EndpointRegistry.Server
             XRegistryProjectionEngine.SetValue(root.RegistryId, options.RegistryId);
             XRegistryProjectionEngine.SetValue(root.ProfileUris, options.ProfileUris);
             root.EventNotifier = EventNotifiers.SubscribeToEvents;
-            catalog.Projection = new EndpointRegistryProjection(host, context, index, media, m_authorize);
+            catalog.Projection = new EndpointRegistryProjection(host, context, index, media, m_authorize,
+                catalog.MetadataFiles);
             return catalog;
         }
 
@@ -423,10 +453,20 @@ namespace Opc.Ua.EndpointRegistry.Server
 
             public XRegistryProjectionEngine? Engine { get; set; }
 
+            public RegistryMetadataFileBinding MetadataFiles { get; } = new();
+
+            public void ReleaseSession(NodeId session)
+            {
+                Host?.ReleaseSession(session.ToString());
+                Snapshots?.ReleaseSession(session);
+                MetadataFiles.ReleaseSession(session);
+            }
+
             public void Dispose()
             {
                 Binding?.Dispose();
                 Snapshots?.Dispose();
+                MetadataFiles.Dispose();
                 Engine?.Dispose();
                 Host?.Dispose();
             }

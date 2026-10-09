@@ -216,6 +216,40 @@ namespace Opc.Ua.XRegistry.Tests
                 Is.EqualTo(StatusCodes.Good));
         }
 
+        [Test]
+        public void EncodedByteLimitIncludesTheReturnedContinuationPoint()
+        {
+            ServiceMessageContext context = Context();
+            using var snapshots = new RegistryNativeSnapshots(context);
+            var session = new NodeId("reader", 1);
+            RegistrySnapshotOpenResultDataType opened = snapshots.Open(session, "view",
+                new RegistrySnapshotOpenRequestDataType { TargetXid = "/", DocumentKind = "metadata" },
+                new RegistryStringValueDataType { Kind = 2, Value = new string('x', 4096) }, 1, 1);
+            for (uint maximum = 192; maximum <= 320; maximum++)
+            {
+                RegistrySnapshotReadResultDataType result = snapshots.Read(session, "view",
+                    new RegistrySnapshotReadRequestDataType
+                    {
+                        SnapshotId = opened.SnapshotId,
+                        Path = [new RegistryPathElementDataType { Kind = 0, Name = "Value" }],
+                        MaxItems = 128,
+                        MaxBytes = maximum
+                    });
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good), $"MaxBytes={maximum}");
+                using var encoded = new MemoryStream();
+                using (var encoder = new BinaryEncoder(encoded, context, true))
+                {
+                    result.Encode(encoder);
+                }
+                Assert.That(encoded.Length, Is.LessThanOrEqualTo(maximum), $"MaxBytes={maximum}");
+                Assert.That(result.ContinuationPoint.Length, Is.GreaterThan(0));
+                snapshots.ReleaseSession(session);
+                opened = snapshots.Open(session, "view",
+                    new RegistrySnapshotOpenRequestDataType { TargetXid = "/", DocumentKind = "metadata" },
+                    new RegistryStringValueDataType { Kind = 2, Value = new string('x', 4096) }, 1, 1);
+            }
+        }
+
         private static ServiceMessageContext Context()
         {
             var context = ServiceMessageContext.Create(null);
