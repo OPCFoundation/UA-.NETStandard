@@ -37,6 +37,14 @@ namespace Opc.Ua.EndpointRegistry
         }
 
         /// <summary>
+        /// Validates a stored Message reference URI or registry-relative Xid.
+        /// </summary>
+        public static string ValidateMessageReference(string value, string path)
+        {
+            return Reference(value, path, "message");
+        }
+
+        /// <summary>
         /// Validates a Message Group document.
         /// </summary>
         public static void ValidateMessageGroup(RegistryObjectValueDataType group, string? groupId = null)

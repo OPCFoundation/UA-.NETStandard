@@ -342,7 +342,7 @@ namespace Opc.Ua.EndpointRegistry.Server
                     Epoch = result.Epoch
                 };
             };
-            BindResolution(context, root, host);
+            BindResolution(context, root, host, options);
             XRegistryProjectionEngine.LinkMethodArguments(root, context);
             XRegistryProjectionEngine.SetValue(root.RegistryId, options.RegistryId);
             XRegistryProjectionEngine.SetValue(root.ProfileUris, options.ProfileUris);

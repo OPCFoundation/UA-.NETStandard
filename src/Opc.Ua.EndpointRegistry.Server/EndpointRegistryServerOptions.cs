@@ -113,6 +113,11 @@ namespace Opc.Ua.EndpointRegistry.Server
         public ArrayOf<ISchemaFormatProvider>? SchemaFormatProviders { get; set; }
 
         /// <summary>
+        /// Gets or sets Message resolution options. The default resolves local committed Messages only.
+        /// </summary>
+        public EndpointRegistryResolutionOptions? Resolution { get; set; } = new();
+
+        /// <summary>
         /// Gets or sets the access policy. The default allows reads and requires a SignAndEncrypt
         /// channel and the ConfigureAdmin or SecurityAdmin role for mutations.
         /// </summary>
