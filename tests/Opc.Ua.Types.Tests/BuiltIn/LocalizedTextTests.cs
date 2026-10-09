@@ -251,71 +251,53 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 "French translation should be the same");
         }
 
-        [Test]
-        public void EmptyLocaleIsNotEncodedInBinary()
-        {
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            var values = new[]
-            {
-                new LocalizedText(string.Empty, "Text"),
-                new LocalizedText("Key", string.Empty, "Text")
-            };
-            foreach (LocalizedText value in values)
-            {
-                byte[] buffer;
-                using (var encoder = new BinaryEncoder(messageContext))
-                {
-                    encoder.WriteLocalizedText(null, value);
-                    buffer = encoder.CloseAndReturnBuffer();
-                }
-
-                // Encoding mask must only have the text bit (0x02) set.
-                Assert.That(buffer[0], Is.EqualTo(0x02));
-
-                using var decoder = new BinaryDecoder(buffer, messageContext);
-                LocalizedText decoded = decoder.ReadLocalizedText(null);
-                Assert.That(decoded.Locale, Is.Null);
-                Assert.That(decoded.Text, Is.EqualTo("Text"));
-            }
-        }
-
-        [Test]
-        public void EmptyTextIsNotEncodedInBinary()
+        [TestCase(null, null, 0x00)]
+        [TestCase("", "", 0x00)]
+        [TestCase("en-US", null, 0x01)]
+        [TestCase("en-US", "", 0x01)]
+        [TestCase(null, "Text", 0x02)]
+        [TestCase("", "Text", 0x02)]
+        [TestCase("en-US", "Text", 0x03)]
+        public void BinaryEncodingOmitsNullOrEmptyFields(
+            string? locale,
+            string? text,
+            byte expectedEncodingMask)
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte[] buffer;
             using (var encoder = new BinaryEncoder(messageContext))
             {
-                encoder.WriteLocalizedText(null, new LocalizedText("en-US", string.Empty));
-                buffer = encoder.CloseAndReturnBuffer();
+                encoder.WriteLocalizedText(null, new LocalizedText(locale, text));
+                buffer = encoder.CloseAndReturnBuffer() ??
+                    throw new AssertionException("The encoder returned no buffer.");
             }
 
-            // Encoding mask must only have the locale bit (0x01) set.
-            Assert.That(buffer[0], Is.EqualTo(0x01));
-
+            Assert.That(buffer[0], Is.EqualTo(expectedEncodingMask));
             using var decoder = new BinaryDecoder(buffer, messageContext);
             LocalizedText decoded = decoder.ReadLocalizedText(null);
-            Assert.That(decoded.Locale, Is.EqualTo("en-US"));
-            Assert.That(decoded.Text, Is.Null);
+            Assert.That(decoded.Locale, Is.EqualTo(string.IsNullOrEmpty(locale) ? null : locale));
+            Assert.That(decoded.Text, Is.EqualTo(string.IsNullOrEmpty(text) ? null : text));
         }
 
         [Test]
-        public void NonEmptyLocaleIsEncodedInBinary()
+        public void TranslationBackedEmptyLocaleIsNotEncodedInBinary()
         {
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte[] buffer;
             using (var encoder = new BinaryEncoder(messageContext))
             {
-                encoder.WriteLocalizedText(null, new LocalizedText("en-US", "Text"));
-                buffer = encoder.CloseAndReturnBuffer();
+                encoder.WriteLocalizedText(null, new LocalizedText("Key", string.Empty, "Text"));
+                buffer = encoder.CloseAndReturnBuffer() ??
+                    throw new AssertionException("The encoder returned no buffer.");
             }
 
-            Assert.That(buffer[0], Is.EqualTo(0x03));
+            Assert.That(buffer[0], Is.EqualTo(0x02));
             using var decoder = new BinaryDecoder(buffer, messageContext);
-            Assert.That(decoder.ReadLocalizedText(null).Locale, Is.EqualTo("en-US"));
+            LocalizedText decoded = decoder.ReadLocalizedText(null);
+            Assert.That(decoded.Locale, Is.Null);
+            Assert.That(decoded.Text, Is.EqualTo("Text"));
         }
     }
 }
