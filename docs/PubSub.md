@@ -95,17 +95,13 @@ DataSet #1 received (3 fields): BoolToggle=False, Int32=1, DateTime=09/28/2026 1
 DataSet #2 received (3 fields): BoolToggle=True, Int32=2, DateTime=09/28/2026 12:18:51
 ```
 
-The `udp-uadp` profile signs and encrypts the UADP messages with demo keys
-that are built into the sample. A production deployment obtains its keys from
-a [Security Key Service](#security-key-service-sks). Two warnings are expected:
-
-- `DataSetReader Reader 1 faulted on MessageReceiveTimeout (>00:00:05)`
-  appears when no matching message arrives for five seconds, for example
-  before the publisher starts. The reader resumes when messages arrive.
-- `Dropping unsecured inbound frame ... requiring SignAndEncrypt` appears once.
-  The publisher announces its DataSet metadata without message security, and
-  the secured subscriber discards the announcement. It decodes the DataSets
-  with the metadata configured on its DataSetReader instead.
+The `udp-uadp` profile signs and encrypts the UADP messages, including the
+DataSet metadata announcement, with demo keys that are built into the sample.
+A production deployment obtains its keys from a
+[Security Key Service](#security-key-service-sks).
+`DataSetReader Reader 1 faulted on MessageReceiveTimeout (>00:00:05)` can
+appear when no matching message arrives for five seconds, for example before
+the publisher starts. The reader resumes when messages arrive.
 
 The sample's default endpoint, `opc.udp://239.0.0.1:4840`, is a multicast
 address. On one computer, the subscriber can miss multicast messages: the UDP
@@ -289,7 +285,9 @@ The publisher-side `MetaDataPublisher` ([§6.2.2.5](https://reference.opcfoundat
 emits a retained `JsonMetaDataMessage` / `UadpDiscoveryResponseMessage`
 on the well-known `ua-metadata` topic at startup and after each
 configuration version bump; subscribers cache it before the first
-KeyFrame arrives.
+KeyFrame arrives. A connection configured for message security signs and
+encrypts the UADP announcement with the same keys as its DataSetMessages,
+so only subscribers that hold the keys can read the DataSet layout.
 
 A subscriber also registers the `DataSetMetaData` configured on each
 DataSetReader whose filter names an exact PublisherId, WriterGroupId, and

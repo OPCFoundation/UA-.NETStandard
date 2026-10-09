@@ -75,6 +75,12 @@ namespace Opc.Ua.PubSub.Application
     /// <see cref="UadpDiscoveryType.DataSetMetaData"/>.
     /// </para>
     /// <para>
+    /// Announcements go through the connection's send pipeline, so a
+    /// connection configured for message security signs and encrypts
+    /// them with the same keys as its DataSetMessages, and refuses to
+    /// send them when it cannot secure them.
+    /// </para>
+    /// <para>
     /// Lifetime is owned by <see cref="PubSubApplication"/>: started
     /// after <c>EnableConnectionsAsync</c> returns, disposed before
     /// the connections are torn down.
@@ -84,9 +90,6 @@ namespace Opc.Ua.PubSub.Application
     {
         private readonly PubSubApplication m_application;
         private readonly IDataSetMetaDataRegistry m_registry;
-        private readonly IReadOnlyDictionary<string, INetworkMessageEncoder> m_encoders;
-        private readonly IPubSubDiagnostics m_diagnostics;
-        private readonly ITelemetryContext m_telemetry;
         private readonly BackgroundTaskScope m_backgroundWork;
         private readonly TimeProvider m_timeProvider;
         private readonly ILogger<MetaDataPublisher> m_logger;
@@ -106,17 +109,11 @@ namespace Opc.Ua.PubSub.Application
         /// the matching transport per writer group.
         /// </param>
         /// <param name="metaDataRegistry">Shared metadata registry.</param>
-        /// <param name="encoders">
-        /// Network-message encoders keyed by transport profile URI.
-        /// </param>
-        /// <param name="diagnostics">Diagnostics sink.</param>
         /// <param name="telemetry">Telemetry context.</param>
         /// <param name="timeProvider">Clock used to stamp MessageIds.</param>
         public MetaDataPublisher(
             PubSubApplication application,
             IDataSetMetaDataRegistry metaDataRegistry,
-            IReadOnlyDictionary<string, INetworkMessageEncoder> encoders,
-            IPubSubDiagnostics diagnostics,
             ITelemetryContext telemetry,
             TimeProvider timeProvider)
         {
@@ -128,14 +125,6 @@ namespace Opc.Ua.PubSub.Application
             {
                 throw new ArgumentNullException(nameof(metaDataRegistry));
             }
-            if (encoders is null)
-            {
-                throw new ArgumentNullException(nameof(encoders));
-            }
-            if (diagnostics is null)
-            {
-                throw new ArgumentNullException(nameof(diagnostics));
-            }
             if (telemetry is null)
             {
                 throw new ArgumentNullException(nameof(telemetry));
@@ -146,9 +135,6 @@ namespace Opc.Ua.PubSub.Application
             }
             m_application = application;
             m_registry = metaDataRegistry;
-            m_encoders = encoders;
-            m_diagnostics = diagnostics;
-            m_telemetry = telemetry;
             m_backgroundWork = new BackgroundTaskScope(nameof(MetaDataPublisher), telemetry);
             m_timeProvider = timeProvider;
             m_logger = telemetry.CreateLogger<MetaDataPublisher>();
@@ -497,22 +483,16 @@ namespace Opc.Ua.PubSub.Application
             {
                 return;
             }
-            string profile = connection.TransportProfileUri;
-            string family = TransportProfileFamily(profile);
             Uuid classId = metaData.DataSetClassId == Guid.Empty
                 ? Uuid.Empty
                 : new Uuid(metaData.DataSetClassId);
-            ReadOnlyMemory<byte> payload;
-            string? topic;
-            if (string.Equals(family, "Json", StringComparison.Ordinal))
+            PubSubNetworkMessage message;
+            if (string.Equals(
+                TransportProfileFamily(connection.TransportProfileUri),
+                "Json",
+                StringComparison.Ordinal))
             {
-                if (!TryResolveEncoder(profile, family, out INetworkMessageEncoder? encoder) ||
-                    encoder is null)
-                {
-                    m_logger.NoJsonEncoderRegistered(profile);
-                    return;
-                }
-                var message = new JsonMetaDataMessage
+                message = new JsonMetaDataMessage
                 {
                     MessageId = NewMessageId(),
                     PublisherId = connection.PublisherId,
@@ -530,22 +510,10 @@ namespace Opc.Ua.PubSub.Application
                     MetaData = metaData,
                     MetaDataPayload = metaData
                 };
-                var context = new PubSubNetworkMessageContext(
-                    ServiceMessageContext.CreateEmpty(m_telemetry),
-                    m_registry,
-                    m_diagnostics,
-                    m_timeProvider);
-                payload = await encoder.EncodeAsync(message, context, cancellationToken)
-                    .ConfigureAwait(false);
-                topic = ResolveMetaDataTopic(
-                    transport,
-                    connection.PublisherId,
-                    writerGroup.WriterGroupId,
-                    writer.DataSetWriterId);
             }
             else
             {
-                var message = new UadpDiscoveryResponseMessage
+                message = new UadpDiscoveryResponseMessage
                 {
                     PublisherId = connection.PublisherId,
                     WriterGroupId = writerGroup.WriterGroupId,
@@ -556,44 +524,17 @@ namespace Opc.Ua.PubSub.Application
                     SequenceNumber = NewSequenceNumber(),
                     StatusCode = StatusCodes.Good
                 };
-                var context = new PubSubNetworkMessageContext(
-                    ServiceMessageContext.CreateEmpty(m_telemetry),
-                    m_registry,
-                    m_diagnostics,
-                    m_timeProvider);
-                payload = UadpDiscoveryCoder.Encode(message, context);
-                topic = ResolveMetaDataTopic(
-                    transport,
-                    connection.PublisherId,
-                    writerGroup.WriterGroupId,
-                    writer.DataSetWriterId);
             }
+            string? topic = ResolveMetaDataTopic(
+                transport,
+                connection.PublisherId,
+                writerGroup.WriterGroupId,
+                writer.DataSetWriterId);
 
-            await transport.SendAsync(payload, topic, cancellationToken).ConfigureAwait(false);
-        }
-
-        private bool TryResolveEncoder(
-            string profile,
-            string family,
-            out INetworkMessageEncoder? encoder)
-        {
-            if (m_encoders.TryGetValue(profile, out encoder))
-            {
-                return true;
-            }
-            foreach (KeyValuePair<string, INetworkMessageEncoder> entry in m_encoders)
-            {
-                if (string.Equals(
-                    TransportProfileFamily(entry.Key),
-                    family,
-                    StringComparison.Ordinal))
-                {
-                    encoder = entry.Value;
-                    return true;
-                }
-            }
-            encoder = null;
-            return false;
+            // The connection applies its message security, so a secured
+            // connection never announces the DataSet layout in the clear.
+            await connection.SendMetaDataAnnouncementAsync(message, topic, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private static string? ResolveMetaDataTopic(
@@ -681,10 +622,6 @@ namespace Opc.Ua.PubSub.Application
             Exception exception,
             ushort writer,
             ushort group);
-
-        [LoggerMessage(EventId = PubSubEventIds.MetaDataPublisher + 2, Level = LogLevel.Debug,
-            Message = "No JSON encoder registered for {Profile}; metadata publish skipped.")]
-        public static partial void NoJsonEncoderRegistered(this ILogger logger, string? profile);
     }
 
 }

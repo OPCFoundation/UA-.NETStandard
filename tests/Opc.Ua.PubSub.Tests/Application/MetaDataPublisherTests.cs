@@ -42,6 +42,9 @@ using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
 using Opc.Ua.PubSub.Encoding.Uadp;
 using Opc.Ua.PubSub.MetaData;
+using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Policies;
+using Opc.Ua.PubSub.Tests.Security;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.Tests;
 
@@ -73,6 +76,8 @@ namespace Opc.Ua.PubSub.Tests.Application
         private const ushort PublisherIdValue = 17;
         private const ushort WriterGroupIdValue = 7;
         private const ushort DataSetWriterIdValue = 42;
+        private const string SecurityGroupIdValue = "metadata-group";
+        private const uint SecurityTokenIdValue = 1;
 
         [Test]
         public async Task OnStartup_PublishesMetaData_ToMatchingTransport()
@@ -164,6 +169,60 @@ namespace Opc.Ua.PubSub.Tests.Application
                 Is.EqualTo(UadpDiscoveryType.DataSetMetaData));
             Assert.That(response.DataSetMetaData, Is.Not.Null);
             Assert.That(response.DataSetWriterId, Is.EqualTo(DataSetWriterIdValue));
+        }
+
+        /// <summary>
+        /// The announcement of a WriterGroup configured for SignAndEncrypt is
+        /// secured with the connection's keys like its DataSetMessages, so a
+        /// subscriber holding the keys can verify and decrypt it and nobody
+        /// else can read the DataSet layout.
+        /// </summary>
+        [Test]
+        public async Task UadpPathSecuresTheAnnouncementOfASecuredWriterGroupAsync()
+        {
+            using PubSubSecurityKeyRing publisherRing = NewKeyRing();
+            using PubSubSecurityKeyRing subscriberRing = NewKeyRing();
+            var factory = new RecordingTransportFactory(UadpProfile, supportsTopics: false);
+            await using IPubSubApplication app = BuildApp(
+                UadpProfile,
+                factory,
+                securityKeyProvider: new StaticSecurityKeyProvider(SecurityGroupIdValue, publisherRing));
+
+            await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            await WaitUntilAsync(
+                () => factory.Transport is { } t && t.Sends.Count >= 1,
+                TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+            byte[] payload = factory.Transport!.Sends[0].Payload.ToArray();
+
+            Assert.That(
+                UadpDecoder.TryReadOuterPrefix(payload, out int prefixLength, out bool securityEnabled, out _, out _),
+                Is.True);
+            Assert.That(securityEnabled, Is.True, "The announcement must carry a SecurityHeader.");
+            Assert.That(
+                payload.AsSpan().IndexOf(System.Text.Encoding.UTF8.GetBytes("pds-1")),
+                Is.EqualTo(-1),
+                "The DataSet name must not appear in cleartext.");
+
+            var window = new SecurityTokenWindow();
+            window.RegisterToken(SecurityTokenIdValue);
+            using var nonceProvider = new RandomNonceProvider(PublisherId.FromUInt16(PublisherIdValue));
+            var subscriber = new UadpSecurityWrapper(
+                PubSubAes256CtrPolicy.Instance,
+                new StaticSecurityKeyProvider(SecurityGroupIdValue, subscriberRing),
+                nonceProvider,
+                window,
+                NUnitTelemetryContext.Create());
+            UadpSecurityWrapper.UnwrapResult unwrapped = await subscriber
+                .TryUnwrapAsync(payload.AsMemory(0, prefixLength), payload.AsMemory(prefixLength))
+                .ConfigureAwait(false);
+            Assert.That(unwrapped.IsSuccess, Is.True, unwrapped.Reason);
+
+            byte[] cleartext = [.. payload.AsSpan(0, prefixLength), .. unwrapped.InnerPayload!.Value.Span];
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(cleartext, NewDecodeContext());
+            Assert.That(decoded, Is.InstanceOf<UadpDiscoveryResponseMessage>());
+            var response = (UadpDiscoveryResponseMessage)decoded!;
+            Assert.That(response.DiscoveryType, Is.EqualTo(UadpDiscoveryType.DataSetMetaData));
+            Assert.That(response.DataSetMetaData?.Name, Is.EqualTo("pds-1"));
         }
 
         [Test]
@@ -341,7 +400,8 @@ namespace Opc.Ua.PubSub.Tests.Application
             RecordingTransportFactory factory,
             IPublishedDataSetSource? source = null,
             INetworkMessageEncoder? encoder = null,
-            ushort? secondWriterId = null)
+            ushort? secondWriterId = null,
+            IPubSubSecurityKeyProvider? securityKeyProvider = null)
         {
             string addressUrl = transportProfileUri == JsonMqttProfile
                 ? "mqtt://localhost:1883"
@@ -392,6 +452,16 @@ namespace Opc.Ua.PubSub.Tests.Application
                     }
                 })
             };
+            if (securityKeyProvider is not null)
+            {
+                WriterGroupDataType writerGroup = connection.WriterGroups[0];
+                writerGroup.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+                writerGroup.SecurityGroupId = SecurityGroupIdValue;
+                writerGroup.SecurityKeyServices = new ArrayOf<EndpointDescription>(new[]
+                {
+                    new EndpointDescription { EndpointUrl = "opc.tcp://localhost:4840/SecurityKeyService" }
+                });
+            }
             var pds = new PublishedDataSetDataType
             {
                 Name = "pds-1",
@@ -426,7 +496,21 @@ namespace Opc.Ua.PubSub.Tests.Application
             {
                 builder.AddEncoder(encoder);
             }
+            if (securityKeyProvider is not null)
+            {
+                builder.AddSecurityKeyProvider(securityKeyProvider);
+            }
             return builder.Build();
+        }
+
+        private static PubSubSecurityKeyRing NewKeyRing()
+        {
+            var ring = new PubSubSecurityKeyRing(SecurityGroupIdValue);
+            ring.SetCurrent(TestSecurityKeyFactory.Create(
+                SecurityTokenIdValue,
+                PubSubAes256CtrPolicy.Instance.SigningKeyLength,
+                PubSubAes256CtrPolicy.Instance.EncryptingKeyLength));
+            return ring;
         }
 
         private static DataSetMetaDataKey NewKey()

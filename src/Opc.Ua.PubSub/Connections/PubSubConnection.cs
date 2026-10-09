@@ -2454,6 +2454,23 @@ namespace Opc.Ua.PubSub.Connections
             return SendNetworkMessageAsync(networkMessage, topic, writerGroup: null, cancellationToken);
         }
 
+        /// <summary>
+        /// Sends a DataSetMetaData announcement through the connection's send
+        /// pipeline, so a connection configured for message security signs and
+        /// encrypts the announcement like its DataSetMessages and never sends it
+        /// in the clear.
+        /// </summary>
+        /// <param name="announcement">UADP discovery response or JSON metadata message.</param>
+        /// <param name="topic">Broker topic, or <see langword="null"/> for datagram transports.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        internal ValueTask SendMetaDataAnnouncementAsync(
+            PubSubNetworkMessage announcement,
+            string? topic,
+            CancellationToken cancellationToken)
+        {
+            return SendNetworkMessageAsync(announcement, topic, writerGroup: null, cancellationToken);
+        }
+
         private async ValueTask SendNetworkMessageAsync(
             PubSubNetworkMessage networkMessage,
             string? topic,
@@ -2483,9 +2500,9 @@ namespace Opc.Ua.PubSub.Connections
 
             ReadOnlyMemory<byte> payload;
             if (m_securityWrapper is not null &&
-                networkMessage is UadpNetworkMessage uadp)
+                networkMessage is UadpNetworkMessage or UadpDiscoveryResponseMessage)
             {
-                payload = await EncodeAndWrapUadpAsync(uadp, context, cancellationToken)
+                payload = await EncodeAndWrapUadpAsync(networkMessage, context, cancellationToken)
                     .ConfigureAwait(false);
             }
             else if (RequiresInboundSecurity ||
@@ -2685,7 +2702,7 @@ namespace Opc.Ua.PubSub.Connections
         }
 
         private async ValueTask<ReadOnlyMemory<byte>> EncodeAndWrapUadpAsync(
-            UadpNetworkMessage message,
+            PubSubNetworkMessage message,
             PubSubNetworkMessageContext context,
             CancellationToken cancellationToken)
         {

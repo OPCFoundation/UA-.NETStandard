@@ -47,6 +47,61 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
     [TestSpec("7.2.4.6.9")]
     public class UadpDiscoveryTests
     {
+        /// <summary>
+        /// A secured discovery message differs from the unsecured encoding only
+        /// by the SecurityHeader flag, and its security boundary is where a
+        /// receiver's prefix parse ends, so the receiver can verify and decrypt
+        /// the discovery header and payload.
+        /// </summary>
+        [Test]
+        [TestSpec("7.2.4.6.3")]
+        [TestCase(false)]
+        [TestCase(true)]
+        public void SecuredDiscoveryMessagesSplitWhereTheReceiverExpects(bool withDataSetClassId)
+        {
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            Uuid classId = withDataSetClassId ? (Uuid)Guid.NewGuid() : Uuid.Empty;
+            PubSubNetworkMessage[] messages =
+            [
+                new UadpDiscoveryResponseMessage
+                {
+                    PublisherId = PublisherId.FromUInt16(0x4242),
+                    DataSetClassId = classId,
+                    SequenceNumber = 7,
+                    DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                    DataSetWriterId = 3,
+                    DataSetMetaData = new DataSetMetaDataType { Name = "Secured" },
+                    StatusCode = StatusCodes.Good
+                },
+                new UadpDiscoveryRequestMessage
+                {
+                    PublisherId = PublisherId.FromUInt16(0x4242),
+                    DataSetClassId = classId,
+                    DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                    DataSetWriterIds = new ushort[] { 3 }
+                }
+            ];
+
+            foreach (PubSubNetworkMessage message in messages)
+            {
+                byte[] plain = UadpDiscoveryCoder.Encode(message, context);
+                byte[] secured = UadpEncoder
+                    .EncodeWithSecurityBoundary(message, context, out int payloadOffset)
+                    .ToArray();
+
+                Assert.That(
+                    UadpDecoder.TryReadOuterPrefix(
+                        secured, out int prefixLength, out bool securityEnabled, out _, out _),
+                    Is.True);
+                Assert.That(securityEnabled, Is.True);
+                Assert.That(prefixLength, Is.EqualTo(payloadOffset));
+                Assert.That(
+                    secured[1],
+                    Is.EqualTo((byte)(plain[1] | (byte)ExtendedFlags1EncodingMask.SecurityEnabled)));
+                Assert.That(secured.AsSpan(2).ToArray(), Is.EqualTo(plain.AsSpan(2).ToArray()));
+            }
+        }
+
         [Test]
         public void DiscoveryRequest_DataSetMetaData_RoundTrips()
         {
