@@ -45,6 +45,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpServerChannel : TcpListenerChannel
     {
+        /// <inheritdoc/>
+        protected override bool AppliesReceiveBackpressure => true;
+
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
@@ -1586,15 +1589,9 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            if (ChannelFull)
-            {
-                m_logger.TcpServerLog13(Id);
-                m_logger.TcpServerLog14(Id);
-                ForceChannelFaultCore(
-                    StatusCodes.BadTcpNotEnoughResources,
-                    "The channel write queue is full.");
-                return false;
-            }
+            // A full write queue no longer faults the channel: the receive loop stops
+            // reading until responses drain (see AppliesReceiveBackpressure). Requests
+            // already read when the queue filled are bounded by the request queue limits.
 
             BufferCollection? chunksToProcess = null;
 
@@ -2104,14 +2101,6 @@ namespace Opc.Ua.Bindings
             uint id,
             uint currentToken,
             uint previousToken);
-
-        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 13, Level = LogLevel.Information,
-            Message = "Channel {Id}: full -- delay processing.")]
-        public static partial void TcpServerLog13(this ILogger logger, uint id);
-
-        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 14, Level = LogLevel.Warning,
-            Message = "Channel {Id}: break socket connection.")]
-        public static partial void TcpServerLog14(this ILogger logger, uint id);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 15, Level = LogLevel.Warning,
             Message = "ChannelId {Id}: ProcessRequestMessage RequestId {RequestId} was aborted.")]

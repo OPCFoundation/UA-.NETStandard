@@ -52,8 +52,50 @@ namespace Opc.Ua.Sessions.Tests
         protected override void ConfigureServer(ApplicationConfiguration configuration)
         {
             base.ConfigureServer(configuration);
-            // admit the whole pipeline: 10 sessions x 90 requests
-            configuration.ServerConfiguration!.MaxQueuedRequestCount = 2000;
+            // admit the whole pipeline: up to 10 sessions x 300 requests
+            configuration.ServerConfiguration!.MaxQueuedRequestCount = 4000;
+        }
+
+        /// <summary>
+        /// More requests in flight on a session than the channel's write queue holds (100)
+        /// slow the client down instead of closing its channel: the server stops reading
+        /// while the responses drain. The channel used to be faulted with
+        /// BadTcpNotEnoughResources ("The channel write queue is full").
+        /// </summary>
+        [Test]
+        public async Task PipelinesDeeperThanTheWriteQueueAreThrottledNotFaultedAsync()
+        {
+            ArrayOf<ReadValueId> nodesToRead = new[]
+            {
+                new ReadValueId { NodeId = VariableIds.Server_ServerStatus_CurrentTime, AttributeId = Attributes.Value }
+            };
+            using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(60));
+            var sessions = new List<ISession> { Session };
+            try
+            {
+                for (int ii = 1; ii < 4; ii++)
+                {
+                    sessions.Add(await ClientFixture.ConnectAsync(ServerUrl, SecurityPolicies.None).ConfigureAwait(false));
+                }
+
+                for (int round = 0; round < 5; round++)
+                {
+                    IEnumerable<Task<ReadResponse>> reads = sessions.SelectMany(session => Enumerable.Range(0, 300).Select(
+                        _ => session.ReadAsync(null, 0, TimestampsToReturn.Neither, nodesToRead, deadline.Token).AsTask()));
+                    ReadResponse[] responses = await Task.WhenAll(reads).ConfigureAwait(false);
+                    Assert.That(responses.All(r => StatusCode.IsGood(r.Results[0].StatusCode)), Is.True);
+                }
+
+                Assert.That(sessions.All(session => session.Connected), Is.True);
+            }
+            finally
+            {
+                foreach (ISession session in sessions.Skip(1))
+                {
+                    await session.CloseAsync(5000, true).ConfigureAwait(false);
+                    session.Dispose();
+                }
+            }
         }
 
         /// <summary>
