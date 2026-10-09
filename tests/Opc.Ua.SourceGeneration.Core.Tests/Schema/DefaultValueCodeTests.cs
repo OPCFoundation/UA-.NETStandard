@@ -144,13 +144,13 @@ namespace Opc.Ua.Schema.Model.Tests
             string expression = new DataTypeDesign { BasicDataType = BasicDataType.NodeId }
                 .GetValueAsCode(
                     ValueRank.Scalar,
-                    null,
+                    null!,
                     new NodeId(5000, 1),
                     false,
                     TargetUri,
                     namespaces,
                     new Mock<IServiceMessageContext>().Object,
-                    null,
+                    null!,
                     decodingTable,
                     "namespaceUris");
 
@@ -221,7 +221,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             string expression = dataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 TargetUri,
@@ -249,13 +249,13 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             Assert.That(
-                ModelDesignExtensions.ResolveDecodedNamespaceUri(1, null, namespaces),
+                ModelDesignExtensions.ResolveDecodedNamespaceUri(1, null!, namespaces),
                 Is.EqualTo(TargetUri));
             Assert.That(
-                ModelDesignExtensions.ResolveDecodedNamespaceUri(2, null, namespaces),
+                ModelDesignExtensions.ResolveDecodedNamespaceUri(2, null!, namespaces),
                 Is.EqualTo(OtherUri));
             Assert.That(
-                ModelDesignExtensions.ResolveDecodedNamespaceUri(3, null, namespaces),
+                ModelDesignExtensions.ResolveDecodedNamespaceUri(3, null!, namespaces),
                 Is.Null);
         }
 
@@ -356,13 +356,13 @@ namespace Opc.Ua.Schema.Model.Tests
             string expression = new DataTypeDesign { BasicDataType = BasicDataType.ExpandedNodeId }
                 .GetValueAsCode(
                     ValueRank.Scalar,
-                    null,
+                    null!,
                     new ExpandedNodeId(42u, "urn:remote:ns", 1),
                     false,
                     TargetUri,
                     [],
                     new Mock<IServiceMessageContext>().Object,
-                    null,
+                    null!,
                     decodingTable,
                     "Ctx.NamespaceUris");
 
@@ -385,7 +385,7 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             return new DataTypeDesign { BasicDataType = basicDataType }.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 valueAsVariant,
                 TargetUri,
@@ -399,8 +399,8 @@ namespace Opc.Ua.Schema.Model.Tests
         /// </summary>
         private static object Evaluate(
             string expression,
-            NamespaceTable namespaceUris = null,
-            string extraCode = null)
+            NamespaceTable? namespaceUris = null,
+            string? extraCode = null)
         {
             string code =
                 "public static class Probe { public static object Value(" +
@@ -418,9 +418,9 @@ namespace Opc.Ua.Schema.Model.Tests
                     Environment.NewLine,
                     result.Diagnostics.Where(d => d.Severity == DiagnosticSeverity.Error)));
             Assembly assembly = Assembly.Load(pe.ToArray());
-            return assembly.GetType("Probe")
-                .GetMethod("Value")
-                .Invoke(null, [namespaceUris ?? new NamespaceTable()]);
+            return assembly.GetType("Probe")!
+                .GetMethod("Value")!
+                .Invoke(null, [namespaceUris ?? new NamespaceTable()])!;
         }
 
         private static Dictionary<string, string> GenerateTwoModels()

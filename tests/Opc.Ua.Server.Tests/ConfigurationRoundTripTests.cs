@@ -155,7 +155,7 @@ namespace Opc.Ua.Server.Tests
                 ]
             };
 
-            T result = configuration.ParseExtension<T>();
+            T result = configuration.ParseExtension<T>()!;
             Assert.That(result, Is.Not.Null);
             return result;
         }
@@ -168,9 +168,9 @@ namespace Opc.Ua.Server.Tests
             configuration.UpdateExtension<T>(null, value);
 
             Assert.That(configuration.Extensions, Has.Count.EqualTo(1));
-            xml = configuration.Extensions[0].OuterXml;
+            xml = configuration.Extensions[0].OuterXml!;
 
-            T result = configuration.ParseExtension<T>();
+            T result = configuration.ParseExtension<T>()!;
             Assert.That(result, Is.Not.Null);
             return result;
         }

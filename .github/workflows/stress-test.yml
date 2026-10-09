@@ -1,8 +1,12 @@
 # Stress test umbrella workflow.
 #
-# Each job is one stress scenario, runs nightly + on-demand, filtered
-# by NUnit Category. Add new scenarios by adding a sibling job below
-# with the same seed-generation pattern.
+# Each job is one stress scenario, filtered by NUnit Category. Add new
+# scenarios by adding a sibling job below with the same seed-generation
+# pattern and the same 'if' gate.
+#
+# Opt-in: nightly, manual, and pull requests labelled 'stress'. It is not a
+# required check. Adding the label starts a run; every later push to the
+# labelled pull request starts a new one and cancels the run in progress.
 name: Stress Tests
 
 on:
@@ -16,13 +20,27 @@ on:
         required: false
         default: ''
         type: string
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
 
 permissions:
   contents: read
 
+# A pull request run is superseded by the next push. A 'labeled' event for any
+# other label gets a group of its own so it cannot cancel a run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.action == 'labeled' && github.event.label.name != 'stress' && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   chaos-tcp:
     name: Chaos TCP
+    # On a pull request only when it carries the 'stress' label, and not again
+    # when some other label is added to it.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'stress') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'stress'))
     runs-on: ubuntu-latest
     timeout-minutes: 120
 
@@ -108,6 +126,10 @@ jobs:
           --logger "console;verbosity=detailed" `
           --results-directory $env:TESTRESULTS `
           /p:CustomTestTarget=$env:CUSTOM_TEST_TARGET
+
+    - name: Check that the ChaosTCP tests ran
+      shell: pwsh
+      run: ./.github/scripts/assert-tests-ran.ps1 -ResultsDirectory $env:TESTRESULTS
 
     - name: Upload ChaosTCP results
       uses: actions/upload-artifact@v7

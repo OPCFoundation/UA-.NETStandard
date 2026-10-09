@@ -245,6 +245,11 @@ namespace Opc.Ua.Server
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(context);
 
+            // A requested id travels in the diagnostics; the diagnostics node manager
+            // uses it when it is still free and assigns its own otherwise.
+            SessionDiagnostics.SessionId = RequestedId;
+            m_securityDiagnostics.SessionId = RequestedId;
+
             // create diagnostics object.
             Id = await m_server.DiagnosticsNodeManager.CreateSessionDiagnosticsAsync(
                 systemContext,
@@ -313,6 +318,22 @@ namespace Opc.Ua.Server
         /// Gets the identifier assigned to the session when it was created.
         /// </summary>
         public NodeId Id { get; private set; }
+
+        /// <summary>
+        /// The SessionId <see cref="InitializeAsync"/> asks the diagnostics node manager
+        /// to assign, for example a cluster-unique id or the id of a session restored from
+        /// another replica of a redundant server set. A null id, or one that is already in
+        /// use, lets the diagnostics node manager assign its own.
+        /// </summary>
+        internal NodeId RequestedId { get; set; }
+
+        /// <summary>
+        /// The certificate of the server that created the session when it was restored on
+        /// another replica of a redundant server set. A client may keep signing the
+        /// certificate it received in CreateSession (OPC 10000-4 5.7.3.2), so the client
+        /// signature is also verified against it.
+        /// </summary>
+        internal ByteString OriginalServerCertificate { get; set; }
 
         /// <summary>
         /// The user identity provided by the client.
@@ -940,45 +961,20 @@ namespace Opc.Ua.Server
                     context.ChannelContext.ClientChannelCertificate,
                     clientNonceData);
 
-                if (!VerifyClientSignature(clientSignature!, dataToSign))
+                if (!VerifyClientSignature(clientSignature!, dataToSign) &&
+                    !VerifyClientSignatureOverServerCertificateChain(
+                        context.ChannelContext,
+                        securityPolicy,
+                        clientSignature!,
+                        clientNonceData) &&
+                    !VerifyClientSignatureOverOriginalServerCertificate(
+                        context.ChannelContext,
+                        securityPolicy,
+                        clientSignature!,
+                        clientNonceData))
                 {
-                    // verify for certificate chain in endpoint.
-                    // validate the signature with complete chain if the check with leaf certificate failed.
-                    using CertificateCollection serverCertificateChain =
-                        Utils.ParseCertificateChainBlob(
-                            EndpointDescription.ServerCertificate,
-                            m_server.Telemetry);
-                    if (serverCertificateChain.Count > 1)
-                    {
-                        var serverCertificateChainList = new List<byte>();
-
-                        for (int i = 0; i < serverCertificateChain.Count; i++)
-                        {
-                            serverCertificateChainList.AddRange(
-                                serverCertificateChain[i].RawData);
-                        }
-
-                        byte[] serverCertificateChainData = [.. serverCertificateChainList];
-
-                        dataToSign = securityPolicy.GetClientSignatureData(
-                            context.ChannelContext.ChannelThumbprint,
-                            m_serverNonce.Data,
-                            serverCertificateChainData,
-                            context.ChannelContext.ServerChannelCertificate,
-                            context.ChannelContext.ClientChannelCertificate,
-                            clientNonceData);
-
-                        if (!VerifyClientSignature(clientSignature!, dataToSign))
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadApplicationSignatureInvalid);
-                        }
-                    }
-                    else
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadApplicationSignatureInvalid);
-                    }
+                    throw new ServiceResultException(
+                        StatusCodes.BadApplicationSignatureInvalid);
                 }
             }
 
@@ -986,6 +982,89 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
             }
+        }
+
+        /// <summary>
+        /// Verifies the client signature over the complete server certificate chain of
+        /// the endpoint, for a client that signed the chain rather than the leaf.
+        /// </summary>
+        private bool VerifyClientSignatureOverServerCertificateChain(
+            SecureChannelContext channelContext,
+            SecurityPolicyInfo securityPolicy,
+            SignatureData clientSignature,
+            byte[] clientNonceData)
+        {
+            using CertificateCollection serverCertificateChain =
+                Utils.ParseCertificateChainBlob(
+                    EndpointDescription.ServerCertificate,
+                    m_server.Telemetry);
+            if (serverCertificateChain.Count <= 1)
+            {
+                return false;
+            }
+
+            var serverCertificateChainList = new List<byte>();
+            for (int i = 0; i < serverCertificateChain.Count; i++)
+            {
+                serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
+            }
+
+            byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                channelContext.ChannelThumbprint,
+                m_serverNonce.Data,
+                [.. serverCertificateChainList],
+                channelContext.ServerChannelCertificate,
+                channelContext.ClientChannelCertificate,
+                clientNonceData);
+            return VerifyClientSignature(clientSignature, dataToSign);
+        }
+
+        /// <summary>
+        /// Verifies the client signature over the certificate of the server that created a
+        /// session restored on this replica: replicas of a non-transparent redundant server
+        /// set have their own ApplicationUri and certificate (OPC 10000-4 6.6.2.4.1).
+        /// </summary>
+        private bool VerifyClientSignatureOverOriginalServerCertificate(
+            SecureChannelContext channelContext,
+            SecurityPolicyInfo securityPolicy,
+            SignatureData clientSignature,
+            byte[] clientNonceData)
+        {
+            ByteString original = OriginalServerCertificate;
+            if (original.IsEmpty || original == m_serverCertificate.RawData.ToByteString())
+            {
+                return false;
+            }
+
+            // The original server may have returned its complete chain; a client signs
+            // either that blob or the leaf certificate.
+            if (VerifyClientSignatureOverServerCertificate(
+                    channelContext, securityPolicy, clientSignature, clientNonceData, original.ToArray()))
+            {
+                return true;
+            }
+
+            using CertificateCollection chain = Utils.ParseCertificateChainBlob(original, m_server.Telemetry);
+            return chain.Count > 1 &&
+                VerifyClientSignatureOverServerCertificate(
+                    channelContext, securityPolicy, clientSignature, clientNonceData, chain[0].RawData);
+        }
+
+        private bool VerifyClientSignatureOverServerCertificate(
+            SecureChannelContext channelContext,
+            SecurityPolicyInfo securityPolicy,
+            SignatureData clientSignature,
+            byte[] clientNonceData,
+            byte[] serverCertificate)
+        {
+            byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                channelContext.ChannelThumbprint,
+                m_serverNonce.Data,
+                serverCertificate,
+                channelContext.ServerChannelCertificate,
+                channelContext.ClientChannelCertificate,
+                clientNonceData);
+            return VerifyClientSignature(clientSignature, dataToSign);
         }
 
         /// <summary>

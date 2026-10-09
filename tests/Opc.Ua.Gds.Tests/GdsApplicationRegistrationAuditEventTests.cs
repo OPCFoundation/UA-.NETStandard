@@ -84,7 +84,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 await m_discoveryAdminSession.CloseAsync(5000, true).ConfigureAwait(false);
                 m_discoveryAdminSession.Dispose();
-                m_discoveryAdminSession = null;
+                m_discoveryAdminSession = null!;
             }
         }
 
@@ -124,7 +124,7 @@ namespace Opc.Ua.Gds.Tests
 
                 foreach (NodeId methodId in expectedMethods)
                 {
-                    RegistrationAuditEvent auditEvent = received.FirstOrDefault(e => e.MethodId == methodId);
+                    RegistrationAuditEvent auditEvent = received.FirstOrDefault(e => e.MethodId == methodId)!;
                     Assert.That(auditEvent, Is.Not.Null,
                         $"No ApplicationRegistrationChangedAuditEvent for Method {methodId}; received " +
                         $"{received.Count} event(s) of that type.");
@@ -225,7 +225,7 @@ namespace Opc.Ua.Gds.Tests
 
                 foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
                 {
-                    if (!notification.TryGetValue(out EventNotificationList eventList))
+                    if (!notification.TryGetValue(out EventNotificationList? eventList))
                     {
                         continue;
                     }

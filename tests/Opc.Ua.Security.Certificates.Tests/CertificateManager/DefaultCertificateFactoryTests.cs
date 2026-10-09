@@ -176,7 +176,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(cert, Is.Not.Null);
 
             X509SubjectAltNameExtension sanExtension =
-                cert.FindExtension<X509SubjectAltNameExtension>();
+                cert.FindExtension<X509SubjectAltNameExtension>()!;
 
             Assert.That(sanExtension, Is.Not.Null);
             Assert.That(sanExtension.Uris, Does.Contain("urn:test:app"));

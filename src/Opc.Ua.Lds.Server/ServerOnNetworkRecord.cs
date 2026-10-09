@@ -49,17 +49,17 @@ namespace Opc.Ua.Lds.Server
         /// The server's <c>ApplicationUri</c>. Used to correlate the record back
         /// to a <see cref="RegistrationEntry"/> when one exists.
         /// </summary>
-        public string ServerUri { get; set; }
+        public string? ServerUri { get; set; }
 
         /// <summary>
         /// The mDNS server name (display string) for this record.
         /// </summary>
-        public string ServerName { get; set; }
+        public string? ServerName { get; set; }
 
         /// <summary>
         /// One discovery URL the client can use to reach the server.
         /// </summary>
-        public string DiscoveryUrl { get; set; }
+        public string? DiscoveryUrl { get; set; }
 
         /// <summary>
         /// The capabilities advertised by the server.

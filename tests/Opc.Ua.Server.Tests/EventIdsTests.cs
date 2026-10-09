@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests
 
             var offsets = fields
                 .Where(f => f.IsLiteral && f.FieldType == typeof(int))
-                .Select(f => (Name: f.Name, Offset: (int)f.GetRawConstantValue()))
+                .Select(f => (Name: f.Name, Offset: (int)f.GetRawConstantValue()!))
                 .ToList();
 
             Assert.That(offsets, Is.Not.Empty);

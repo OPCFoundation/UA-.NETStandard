@@ -130,10 +130,10 @@ namespace Opc.Ua.Core.Encoders.Tests
             for (int i = 0; i < array.Length; i++)
             {
                 var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
-                array[i] = new ExtensionObject(testObject);
+                array[i] = new ExtensionObject(testObject!);
                 if (dataTypeId.IsNull)
                 {
-                    dataTypeId = testObject.TypeId;
+                    dataTypeId = testObject!.TypeId;
                 }
             }
             var expected = Variant.From(array);
@@ -222,10 +222,10 @@ namespace Opc.Ua.Core.Encoders.Tests
             for (int i = 0; i < array.Length; i++)
             {
                 var testObject = CreateDefaultEncodeableType(systemType) as IEncodeable;
-                array[i] = new ExtensionObject(testObject);
+                array[i] = new ExtensionObject(testObject!);
                 if (dataTypeId.IsNull)
                 {
-                    dataTypeId = testObject.TypeId;
+                    dataTypeId = testObject!.TypeId;
                 }
             }
 
@@ -280,8 +280,8 @@ namespace Opc.Ua.Core.Encoders.Tests
         /// <param name="systemType">The type to create</param>
         private static object CreateDefaultEncodeableType(Type systemType)
         {
-            object instance = Activator.CreateInstance(systemType);
-            SetDefaultEncodeableType(instance);
+            object instance = Activator.CreateInstance(systemType)!;
+            SetDefaultEncodeableType(instance!);
             return instance;
         }
 
@@ -301,7 +301,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                     switch (typeInfo.BuiltInType)
                     {
                         case BuiltInType.ExtensionObject:
-                            object propertyObject = property.GetValue(typeInstance);
+                            object? propertyObject = property.GetValue(typeInstance);
                             if (propertyObject == null &&
                                 property.PropertyType.IsAssignableFrom(typeof(ExtensionObject)))
                             {
@@ -358,7 +358,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                         case >= BuiltInType.Null and <= BuiltInType.Enumeration:
                             if (typeInfo.ValueRank == ValueRanks.Scalar)
                             {
-                                object value = TypeInfo.GetDefaultValue(typeInfo.BuiltInType);
+                                object value = TypeInfo.GetDefaultValue(typeInfo.BuiltInType)!;
                                 property.SetValue(typeInstance, value);
                             }
                             break;

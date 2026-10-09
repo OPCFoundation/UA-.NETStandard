@@ -77,7 +77,7 @@ namespace Opc.Ua.Security.Certificates.Tests
 
             X509CRL crl = issuer.RevokeCertificates(
                 caCert,
-                existingCrls: null,
+                existingCrls: null!,
                 revokedCerts);
 
             Assert.That(crl, Is.Not.Null);

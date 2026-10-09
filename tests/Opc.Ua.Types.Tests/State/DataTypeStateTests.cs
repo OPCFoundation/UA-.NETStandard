@@ -73,7 +73,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConstructStaticFactory()
         {
-            NodeState node = DataTypeState.Construct(null);
+            NodeState node = DataTypeState.Construct(null!);
             Assert.That(node, Is.InstanceOf<DataTypeState>());
         }
 
@@ -81,7 +81,7 @@ namespace Opc.Ua.Types.Tests.State
         public void DataTypeDefinitionPropertySetterTriggersChangeMask()
         {
             var dt = new DataTypeState();
-            dt.ClearChangeMasks(null, false);
+            dt.ClearChangeMasks(null!, false);
 
             var definition = new ExtensionObject(new StructureDefinition());
             dt.DataTypeDefinition = definition;
@@ -98,7 +98,7 @@ namespace Opc.Ua.Types.Tests.State
             {
                 DataTypeDefinition = definition
             };
-            dt.ClearChangeMasks(null, false);
+            dt.ClearChangeMasks(null!, false);
 
             dt.DataTypeDefinition = definition;
             Assert.That(dt.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
@@ -194,8 +194,8 @@ namespace Opc.Ua.Types.Tests.State
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
-            Assert.That(extension.TryGetValue(out StructureDefinition read), Is.True);
-            Assert.That(read.DefaultEncodingId, Is.EqualTo(
+            Assert.That(extension.TryGetValue(out StructureDefinition? read), Is.True);
+            Assert.That(read!.DefaultEncodingId, Is.EqualTo(
                 ExpandedNodeId.ToNodeId(ObjectIds.Argument_Encoding_DefaultBinary, context.NamespaceUris)));
             Assert.That(stored.DefaultEncodingId.IsNull, Is.True,
                 "A read must not modify the definition shared by all readers.");
@@ -207,8 +207,8 @@ namespace Opc.Ua.Types.Tests.State
                 context, Attributes.DataTypeDefinition, default, default, ref value);
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(value.WrappedValue.TryGetValue(out extension), Is.True);
-            Assert.That(extension.TryGetValue(out read), Is.True);
-            Assert.That(read.DefaultEncodingId.IsNull, Is.True);
+            Assert.That(extension.TryGetValue(out read!), Is.True);
+            Assert.That(read!.DefaultEncodingId.IsNull, Is.True);
         }
 
         [Test]

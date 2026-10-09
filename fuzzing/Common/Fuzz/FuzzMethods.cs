@@ -64,7 +64,7 @@ namespace Opc.Ua.Fuzzing
             Type type = typeof(FuzzableCode);
             if (FuzzMethodsToParameterType.TryGetValue(
                 delegateType,
-                out Type delegateParameterType))
+                out Type? delegateParameterType))
             {
                 foreach (
                     MethodInfo method in type.GetMethods(
@@ -87,13 +87,13 @@ namespace Opc.Ua.Fuzzing
         /// <summary>
         /// Finds a fuzzing method by name and returns a delegate to call it.
         /// </summary>
-        public static Delegate FindFuzzMethod(TextWriter errorOutput, string fuzzingFunction)
+        public static Delegate? FindFuzzMethod(TextWriter errorOutput, string fuzzingFunction)
         {
             // find the function to fuzz based on the first argument using reflection
             Type type = typeof(FuzzableCode);
             MethodInfo method = type.GetMethod(
                 fuzzingFunction,
-                BindingFlags.Public | BindingFlags.Static);
+                BindingFlags.Public | BindingFlags.Static)!;
             if (method != null)
             {
                 // Determine the target signature

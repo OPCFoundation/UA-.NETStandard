@@ -29,8 +29,6 @@
 
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System;
 using System.Net;
 using System.Threading.Tasks;

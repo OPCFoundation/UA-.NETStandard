@@ -734,16 +734,21 @@ var subscriber = new PubSubConnectionDataType
 };
 ```
 
-DTLS uses .NET BCL cryptography only. Unsupported primitives are never
-substituted or downgraded: the profile is not registered and `Resolve(...)` /
-transport open throws a clear `NotSupportedException`.
+On .NET 8+ DTLS uses .NET BCL cryptography only. The .NET Framework build has
+no raw ECDH agreement and no `AesGcm` / `ChaCha20Poly1305` in its BCL, so there
+the ECDHE agreement and the AEAD record ciphers run in the managed
+BouncyCastle implementation that `Opc.Ua.Security.Certificates` carries for the
+ECC security policies (not a validated (FIPS) module); ephemeral keys, ECDSA,
+HMAC and the record-number mask stay on the platform. Unsupported primitives
+are never substituted or downgraded: the profile is not registered and
+`Resolve(...)` / transport open throws a clear `NotSupportedException`.
 
 | Profile family | net8/net9/net10 status | net48 status |
 | -------------- | ---------------------- | ------------ |
-| NIST P-256/P-384 + AES-128/256-GCM | Implemented when `AesGcm` and the named curve are available. | None. |
-| NIST P-256/P-384 + ChaCha20-Poly1305 | Implemented when `ChaCha20Poly1305.IsSupported` and the named curve are available. | None. |
-| NIST P-256/P-384 integrity-only (`TLS_SHA256_SHA256` / `TLS_SHA384_SHA384`) | Implemented. | None. |
-| Brainpool P256r1/P384r1 + AES-GCM / ChaCha20 / integrity-only | Implemented only on platforms where the BCL can create the Brainpool curve OID. | None. |
+| NIST P-256/P-384 + AES-128/256-GCM | Implemented when `AesGcm` and the named curve are available. | Implemented (BouncyCastle AES-GCM and ECDH). |
+| NIST P-256/P-384 + ChaCha20-Poly1305 | Implemented when `ChaCha20Poly1305.IsSupported` and the named curve are available. | Implemented (BouncyCastle ChaCha20-Poly1305 and ECDH). |
+| NIST P-256/P-384 integrity-only (`TLS_SHA256_SHA256` / `TLS_SHA384_SHA384`) | Implemented. | Implemented (BouncyCastle ECDH). |
+| Brainpool P256r1/P384r1 + AES-GCM / ChaCha20 / integrity-only | Implemented only on platforms where the BCL can create the Brainpool curve OID. | Same as net8+ (CNG supports the Brainpool curves). |
 | Curve25519 / Curve448 mandatory profiles | Unsupported: .NET BCL has no portable X25519/X448 API; fail-closed. | Unsupported. |
 
 Peer authentication reuses the injected stack certificate validator /

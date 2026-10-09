@@ -124,7 +124,7 @@ namespace Opc.Ua.InformationModel.Tests
                 VariableIds.Server_ServerCapabilities_ServerProfileArray)
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            string[] profiles = result.GetValue<string[]>(null);
+            string[] profiles = result.GetValue<string[]>(null!);
             Assert.That(profiles, Is.Not.Null,
                 "ServerProfileArray should be a string array.");
         }
@@ -428,7 +428,7 @@ namespace Opc.Ua.InformationModel.Tests
                 "Namespaces folder should have children.");
 
             ReferenceDescription uaNs = refs.FirstOrDefault(
-                r => r.BrowseName.Name == "http://opcfoundation.org/UA/");
+                r => r.BrowseName.Name == "http://opcfoundation.org/UA/")!;
             if (uaNs == null)
             {
                 Assert.Fail(
@@ -436,7 +436,7 @@ namespace Opc.Ua.InformationModel.Tests
             }
 
             var uaNsId = ExpandedNodeId.ToNodeId(
-                uaNs.NodeId, Session.NamespaceUris);
+                uaNs!.NodeId, Session.NamespaceUris);
             List<ReferenceDescription> children =
                 await BrowseForwardAsync(uaNsId).ConfigureAwait(false);
             Assert.That(children, Is.Not.Empty);
@@ -532,7 +532,7 @@ namespace Opc.Ua.InformationModel.Tests
                     .Server_ServerStatus_BuildInfo_ProductName)
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            string productName = result.GetValue<string>(null);
+            string productName = result.GetValue<string>(null!);
             Assert.That(productName, Is.Not.Null.And.Not.Empty);
         }
 
@@ -544,7 +544,7 @@ namespace Opc.Ua.InformationModel.Tests
                     .Server_ServerStatus_BuildInfo_ManufacturerName)
                 .ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
-            string manufacturerName = result.GetValue<string>(null);
+            string manufacturerName = result.GetValue<string>(null!);
             Assert.That(manufacturerName, Is.Not.Null.And.Not.Empty);
         }
 
@@ -613,7 +613,7 @@ namespace Opc.Ua.InformationModel.Tests
             List<ReferenceDescription> refs = await BrowseForwardAsync(
                 VariableTypeIds.AnalogItemType).ConfigureAwait(false);
             ReferenceDescription euRef = refs.FirstOrDefault(
-                r => r.BrowseName.Name == "EngineeringUnits");
+                r => r.BrowseName.Name == "EngineeringUnits")!;
             if (euRef == null)
             {
                 Assert.Ignore("AnalogItemType EngineeringUnits not available in ReferenceServer.");
@@ -632,7 +632,7 @@ namespace Opc.Ua.InformationModel.Tests
             List<ReferenceDescription> refs = await BrowseForwardAsync(
                 VariableTypeIds.AnalogItemType).ConfigureAwait(false);
             ReferenceDescription rangeRef = refs.FirstOrDefault(
-                r => r.BrowseName.Name == "EURange");
+                r => r.BrowseName.Name == "EURange")!;
             Assert.That(rangeRef, Is.Not.Null,
                 "EURange not found on AnalogItemType.");
 
@@ -1105,7 +1105,7 @@ namespace Opc.Ua.InformationModel.Tests
 
             Assert.That(response.Results.Count, Is.EqualTo(1));
             var refs = new List<ReferenceDescription>();
-            if (response.Results[0].References != default)
+            if (response.Results[0].References != default!)
             {
                 foreach (ReferenceDescription r in response.Results[0].References)
                 {

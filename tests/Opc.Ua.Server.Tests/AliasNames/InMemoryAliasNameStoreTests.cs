@@ -60,7 +60,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 AliasNameCapabilities.DeleteAliasesFromCategory |
                 AliasNameCapabilities.LastChange)
         {
-            AliasNameCategoryDescriptor[] subs = withSubCategory
+            AliasNameCategoryDescriptor[] subs = (withSubCategory
                 ?
                 [
                     new AliasNameCategoryDescriptor(
@@ -68,7 +68,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                         new QualifiedName("Child", 2),
                         capabilities)
                 ]
-                : null;
+                : null)!;
             var root = new AliasNameCategoryDescriptor(
                 s_root,
                 new QualifiedName("Root", 2),
@@ -164,7 +164,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
         public async Task ChangedEventCarriesCategoryAndVersionAsync()
         {
             using InMemoryAliasNameStore store = CreateStore();
-            AliasStoreChangedEventArgs captured = null;
+            AliasStoreChangedEventArgs? captured = null;
             store.Changed += (_, e) => captured = e;
             await store.AddAliasesAsync(s_root,
                 [new AliasAddRequest("X", s_t1, null, ReferenceTypeIds.AliasFor)],
@@ -256,7 +256,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             using InMemoryAliasNameStore store = CreateStore(
                 capabilities: AliasNameCapabilities.None);
 
-            ServiceResultException ex = null;
+            ServiceResultException? ex = null;
             try
             {
                 await store.AddAliasesAsync(s_root,

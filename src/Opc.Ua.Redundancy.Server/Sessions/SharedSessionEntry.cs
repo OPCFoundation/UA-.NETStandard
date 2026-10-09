@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Redundancy.Server
 {
     /// <summary>
@@ -167,6 +169,42 @@ namespace Opc.Ua.Redundancy.Server
         public bool ClientCertificateValidated { get; init; }
 
         /// <summary>
+        /// When the replica that owns the Session last mirrored client activity on it
+        /// (UTC). A Session is kept alive by every Service request, not only by
+        /// activations (OPC 10000-4 5.7.2.1), so the owner refreshes this liveness
+        /// heartbeat while the client uses the Session; a mirrored Session expires
+        /// <see cref="SessionTimeout"/> after the later of this and
+        /// <see cref="LastActivatedAt"/>.
+        /// </summary>
+        public DateTimeUtc LastContactAt { get; init; }
+
+        /// <summary>
+        /// The identity of the replica that currently serves the Session. Only the owner
+        /// mirrors the Session or deletes its entry; a restore on another replica takes
+        /// ownership with a conditional write, so a stale copy left on the previous
+        /// replica can neither overwrite nor delete the entry of the live Session.
+        /// <c>null</c> for an entry written before ownership was mirrored.
+        /// </summary>
+        public string? OwnerId { get; init; }
+
+        /// <summary>
+        /// The DER encoded <c>ApplicationInstanceCertificate</c> of the server that
+        /// created the Session, returned to the client in <c>CreateSession</c>. The
+        /// client signature may cover it instead of the restoring replica's own
+        /// certificate, because the replicas of a non-transparent redundant server set
+        /// have their own ApplicationUri and certificate (OPC 10000-4 6.6.2.4.1).
+        /// </summary>
+        public ByteString ServerCertificate { get; init; }
+
+        /// <summary>
+        /// Whether the user identity token of the Session is encrypted with an
+        /// EphemeralKey (the EphemeralKeyType of ECC and RSA-DH user token policies). The
+        /// private part of that key never leaves the replica that issued it, so such a
+        /// Session cannot be restored on another replica; the client re-creates it.
+        /// </summary>
+        public bool UserTokenRequiresEphemeralKey { get; init; }
+
+        /// <summary>
         /// Optional opaque, caller-encrypted secret material. May be a null
         /// <see cref="ByteString"/>.
         /// </summary>
@@ -181,13 +219,47 @@ namespace Opc.Ua.Redundancy.Server
         /// so they are treated as missing security state and fail closed rather
         /// than being compared against a key computed by this version. Version 4 adds
         /// <see cref="ClientCertificateValidated"/>; a version 3 entry is still
-        /// restorable, with the certificate treated as not validated.
+        /// restorable, with the certificate treated as not validated. Version 5 adds
+        /// <see cref="LastContactAt"/>, <see cref="OwnerId"/>,
+        /// <see cref="ServerCertificate"/> and <see cref="UserTokenRequiresEphemeralKey"/>;
+        /// version 3 and 4 entries are still restorable, without an owner.
         /// </remarks>
-        public const uint CurrentSecurityStateVersion = 4;
+        public const uint CurrentSecurityStateVersion = 5;
 
         /// <summary>
         /// The oldest persisted Session security state version that can be restored.
         /// </summary>
         internal const uint MinimumRestorableSecurityStateVersion = 3;
+
+        /// <summary>
+        /// The time from which <see cref="SessionTimeout"/> runs: the later of the last
+        /// activation and the last mirrored client contact, or <c>null</c> when neither
+        /// was recorded.
+        /// </summary>
+        internal DateTime? GetLastActivityUtc()
+        {
+            DateTime? activated = LastActivatedAt.IsNull ? null : LastActivatedAt.ToDateTime();
+            DateTime? contact = LastContactAt.IsNull ? null : LastContactAt.ToDateTime();
+            if (activated == null)
+            {
+                return contact;
+            }
+            if (contact == null)
+            {
+                return activated;
+            }
+            return contact.Value > activated.Value ? contact : activated;
+        }
+
+        /// <summary>
+        /// Whether the mirrored Session has timed out at <paramref name="utcNow"/>.
+        /// An entry without any recorded activity never expires by itself.
+        /// </summary>
+        internal bool IsExpired(DateTime utcNow)
+        {
+            DateTime? lastActivity = GetLastActivityUtc();
+            return lastActivity != null &&
+                utcNow >= lastActivity.Value.AddMilliseconds(Math.Max(SessionTimeout, 0));
+        }
     }
 }

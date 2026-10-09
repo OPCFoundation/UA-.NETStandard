@@ -58,7 +58,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private static NodeManagerBuilder CreateEmptyBuilder()
         {
             return new NodeManagerBuilder(
-                new SystemContext(telemetry: null),
+                new SystemContext(telemetry: null!),
                 nodeManager: Mock.Of<IAsyncNodeManager>(),
                 defaultNamespaceIndex: kNs,
                 rootResolver: _ => null!,

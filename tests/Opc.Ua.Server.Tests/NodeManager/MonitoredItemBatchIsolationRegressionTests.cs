@@ -207,7 +207,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Creates the master manager and owner mocks, configuring the middle owner to fail or cancel dispatch.
             /// </summary>
-            public BatchHarness(bool partial, CancellationTokenSource cancellation = null)
+            public BatchHarness(bool partial, CancellationTokenSource? cancellation = null)
             {
                 Mock<IServerInternal> server = DeterministicServerMock.Create(out m_queues);
                 var factory = new Mock<IMainNodeManagerFactory>();
@@ -231,7 +231,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         .Returns((OperationContext _, IList<IMonitoredItem> _, IList<bool> processed,
                             IList<ServiceResult> errors, CancellationToken ct) =>
                         {
-                            Process(ownerNumber, processed, errors, partial, cancellation, ct);
+                            Process(ownerNumber, processed, errors, partial, cancellation!, ct);
                             return default;
                         });
                     owner.Setup(value => value.SetMonitoringModeAsync(
@@ -241,7 +241,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         .Returns((OperationContext _, MonitoringMode _, IList<IMonitoredItem> _, IList<bool> processed,
                             IList<ServiceResult> errors, CancellationToken ct) =>
                         {
-                            Process(ownerNumber, processed, errors, partial, cancellation, ct);
+                            Process(ownerNumber, processed, errors, partial, cancellation!, ct);
                             return default;
                         });
                     owners[ownerIndex] = owner.Object;
@@ -302,8 +302,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             : MonitoredItemTypeMask.Events);
                     m_items[i] = item.Object;
                 }
-                m_items[2] = null;
-                m_items[3] = null;
+                m_items[2] = null!;
+                m_items[3] = null!;
             }
 
             /// <summary>

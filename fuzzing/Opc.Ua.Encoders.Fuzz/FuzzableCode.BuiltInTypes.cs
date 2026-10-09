@@ -327,7 +327,7 @@ namespace Opc.Ua.Fuzzing
         public static void AflfuzzDiagnosticInfoBinary(Stream stream)
         {
             using MemoryStream memoryStream = PrepareArraySegmentStream(stream);
-            FuzzBinaryBuiltInType(memoryStream, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName));
+            FuzzBinaryBuiltInType(memoryStream, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName)!);
         }
 
         /// <summary>
@@ -336,7 +336,7 @@ namespace Opc.Ua.Fuzzing
         public static void LibfuzzDiagnosticInfoBinary(ReadOnlySpan<byte> input)
         {
             using var memoryStream = new MemoryStream(input.ToArray());
-            FuzzBinaryBuiltInType(memoryStream, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName));
+            FuzzBinaryBuiltInType(memoryStream, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName)!);
         }
 
         /// <summary>
@@ -344,7 +344,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void AflfuzzDiagnosticInfoJson(string input)
         {
-            FuzzJsonBuiltInType(input, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName));
+            FuzzJsonBuiltInType(input, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName)!);
         }
 
         /// <summary>
@@ -357,7 +357,7 @@ namespace Opc.Ua.Fuzzing
 #else
             string json = Encoding.UTF8.GetString(input);
 #endif
-            FuzzJsonBuiltInType(json, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName));
+            FuzzJsonBuiltInType(json, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName)!);
         }
 
         /// <summary>
@@ -365,7 +365,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void AflfuzzDiagnosticInfoXml(Stream stream)
         {
-            FuzzXmlBuiltInType(stream, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName));
+            FuzzXmlBuiltInType(stream, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName)!);
         }
 
         /// <summary>
@@ -374,7 +374,7 @@ namespace Opc.Ua.Fuzzing
         public static void LibfuzzDiagnosticInfoXml(ReadOnlySpan<byte> input)
         {
             using var memoryStream = new MemoryStream(input.ToArray());
-            FuzzXmlBuiltInType(memoryStream, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName));
+            FuzzXmlBuiltInType(memoryStream, decoder => decoder.ReadDiagnosticInfo(BuiltInFieldName)!);
         }
 
         /// <summary>
@@ -510,7 +510,7 @@ namespace Opc.Ua.Fuzzing
             {
                 _ = DecodeWithOracles(nameof(JsonDecoder), json?.Length ?? 0, () =>
                 {
-                    using var decoder = new JsonDecoder(json, MessageContext);
+                    using var decoder = new JsonDecoder(json!, MessageContext);
                     return decode(decoder);
                 });
             }

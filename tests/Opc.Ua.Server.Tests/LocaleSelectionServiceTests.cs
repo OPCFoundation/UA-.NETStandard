@@ -79,12 +79,12 @@ namespace Opc.Ua.Server.Tests
             m_scalarId = new NodeId("Scalar_Static_LocalizedText", ns);
             m_arrayId = new NodeId("Scalar_Static_Arrays_LocalizedText", ns);
 
-            m_scalar = (BaseVariableState)await server.NodeManager
-                .FindNodeInAddressSpaceAsync(m_scalarId).ConfigureAwait(false);
-            m_array = (BaseVariableState)await server.NodeManager
-                .FindNodeInAddressSpaceAsync(m_arrayId).ConfigureAwait(false);
-            m_hasComponent = (ReferenceTypeState)await server.NodeManager
-                .FindNodeInAddressSpaceAsync(ReferenceTypeIds.HasComponent).ConfigureAwait(false);
+            m_scalar = (BaseVariableState)(await server.NodeManager
+                .FindNodeInAddressSpaceAsync(m_scalarId).ConfigureAwait(false))!;
+            m_array = (BaseVariableState)(await server.NodeManager
+                .FindNodeInAddressSpaceAsync(m_arrayId).ConfigureAwait(false))!;
+            m_hasComponent = (ReferenceTypeState)(await server.NodeManager
+                .FindNodeInAddressSpaceAsync(ReferenceTypeIds.HasComponent).ConfigureAwait(false))!;
             Assert.That(m_scalar, Is.Not.Null);
             Assert.That(m_array, Is.Not.Null);
             Assert.That(m_hasComponent, Is.Not.Null);
@@ -293,7 +293,7 @@ namespace Opc.Ua.Server.Tests
                         }
                     ],
                     RequestLifetime.None).ConfigureAwait(false);
-                ReferenceDescription reference = response.Results[0].References.ToArray()
+                ReferenceDescription reference = response.Results[0].References.ToArray()!
                     .Single(r => (NodeId)r.NodeId == m_scalarId);
                 return reference.DisplayName;
             }

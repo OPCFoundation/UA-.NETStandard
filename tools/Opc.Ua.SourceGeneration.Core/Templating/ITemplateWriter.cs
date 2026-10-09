@@ -70,6 +70,6 @@ namespace Opc.Ua.SourceGeneration
         /// Formats and writes the text to the stream followed
         /// by a new line.
         /// </summary>
-        void WriteLine(string text, params object[] args);
+        void WriteLine(string text, params object?[] args);
     }
 }

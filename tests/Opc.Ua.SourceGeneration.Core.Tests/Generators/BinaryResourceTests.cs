@@ -55,7 +55,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             byte[] data = [];
             var resource = new BinaryResource("TestResource", data);
             // Act
-            long length = resource.GetLength(null);
+            long length = resource.GetLength(null!);
             // Assert
             Assert.That(length, Is.Zero);
         }
@@ -77,7 +77,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             byte[] data = new byte[size];
             var resource = new BinaryResource("TestResource", data);
             // Act
-            long length = resource.GetLength(null);
+            long length = resource.GetLength(null!);
             // Assert
             Assert.That(length, Is.EqualTo(size));
         }
@@ -113,7 +113,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             byte[] data = new byte[123];
             var resource = new BinaryResource("TestResource", data);
             // Act
-            long length = resource.GetLength(null);
+            long length = resource.GetLength(null!);
             // Assert
             Assert.That(length, Is.EqualTo(123));
         }
@@ -130,7 +130,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             byte[] data = new byte[int.MaxValue / 1000];
             var resource = new BinaryResource("TestResource", data);
             // Act
-            long length = resource.GetLength(null);
+            long length = resource.GetLength(null!);
             // Assert
             Assert.That(length, Is.EqualTo(int.MaxValue / 1000));
             Assert.That(length, Is.TypeOf<long>());
@@ -145,9 +145,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void GetLength_NullData_ThrowsNullReferenceException()
         {
             // Arrange
-            var resource = new BinaryResource("TestResource", null);
+            var resource = new BinaryResource("TestResource", null!);
             // Act & Assert
-            Assert.Throws<NullReferenceException>(() => resource.GetLength(null));
+            Assert.Throws<NullReferenceException>(() => resource.GetLength(null!));
         }
     }
 }

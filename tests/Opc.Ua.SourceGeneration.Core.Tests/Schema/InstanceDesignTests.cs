@@ -156,8 +156,8 @@ namespace Opc.Ua.Schema.Model.Tests
                 ReferenceType = null,
                 Declaration = null,
                 TypeDefinition = null,
-                TypeDefinitionNode = null,
-                OveriddenNode = null
+                TypeDefinitionNode = null!,
+                OveriddenNode = null!
             };
 
             // Act
@@ -243,7 +243,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
             InstanceDesign copy = original.Copy();
-            copy.TypeDefinitionNode.SymbolicName = new XmlQualifiedName("ModifiedName", "http://example.com");
+            copy.TypeDefinitionNode!.SymbolicName = new XmlQualifiedName("ModifiedName", "http://example.com");
 
             // Assert
             Assert.That(original.TypeDefinitionNode.SymbolicName.Name, Is.EqualTo("ModifiedName"));
@@ -387,8 +387,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var instance = new InstanceDesign
             {
-                TypeDefinitionNode = null,
-                OveriddenNode = null
+                TypeDefinitionNode = null!,
+                OveriddenNode = null!
             };
 
             // Act & Assert
@@ -840,7 +840,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = instance.Equals((object)null);
+            bool result = instance.Equals((object)null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -1084,7 +1084,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = instance.Equals(null);
+            bool result = instance.Equals(null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -1497,12 +1497,12 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var instance1 = new InstanceDesign
             {
-                TypeDefinitionNode = null
+                TypeDefinitionNode = null!
             };
 
             var instance2 = new InstanceDesign
             {
-                TypeDefinitionNode = null
+                TypeDefinitionNode = null!
             };
 
             // Act

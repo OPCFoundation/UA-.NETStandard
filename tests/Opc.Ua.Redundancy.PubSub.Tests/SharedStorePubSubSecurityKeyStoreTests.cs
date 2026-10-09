@@ -51,7 +51,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             SksSecurityGroup expected = CreateGroup("group-a");
 
             await keyStore.SaveSecurityGroupAsync(expected).ConfigureAwait(false);
-            SksSecurityGroup actual = await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false);
+            SksSecurityGroup actual = (await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false))!;
 
             Assert.That(actual, Is.Not.Null);
             AssertGroupsEqual(actual, expected);
@@ -80,7 +80,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             await keyStore.SaveSecurityGroupAsync(CreateGroup("group-a")).ConfigureAwait(false);
 
             bool removed = await keyStore.RemoveSecurityGroupAsync("group-a").ConfigureAwait(false);
-            SksSecurityGroup actual = await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false);
+            SksSecurityGroup? actual = await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false);
 
             Assert.That(removed, Is.True);
             Assert.That(actual, Is.Null);
@@ -93,7 +93,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
             using AesCbcHmacRecordProtector protector = CreateProtector();
             SharedStorePubSubSecurityKeyStore keyStore = CreateKeyStore(sharedStore, protector);
 
-            SksSecurityGroup actual = await keyStore.GetSecurityGroupAsync("missing").ConfigureAwait(false);
+            SksSecurityGroup? actual = await keyStore.GetSecurityGroupAsync("missing").ConfigureAwait(false);
 
             Assert.That(actual, Is.Null);
         }
@@ -130,7 +130,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
                 PubSubRedundancyStoreKeys.SecurityKeyPrefix + "group-a",
                 ByteString.From(new byte[] { 0x01, 0x02, 0x03, 0x04 })).ConfigureAwait(false);
 
-            SksSecurityGroup group = await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false);
+            SksSecurityGroup? group = await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false);
 
             Assert.That(group, Is.Null);
         }
@@ -152,7 +152,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
                     9).ConfigureAwait(false),
                 Throws.InvalidOperationException);
 
-            SksSecurityGroup actual = await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false);
+            SksSecurityGroup actual = (await keyStore.GetSecurityGroupAsync("group-a").ConfigureAwait(false))!;
             Assert.That(actual, Is.Not.Null);
             AssertGroupsEqual(actual, original);
         }
@@ -180,7 +180,7 @@ namespace Opc.Ua.PubSub.Redundancy.Tests
                 .ConfigureAwait(false);
 
             Assert.That(await keyStore.GetSecurityGroupAsync("target").ConfigureAwait(false), Is.Null);
-            SksSecurityGroup retained = await keyStore.GetSecurityGroupAsync("source").ConfigureAwait(false);
+            SksSecurityGroup retained = (await keyStore.GetSecurityGroupAsync("source").ConfigureAwait(false))!;
             Assert.That(retained, Is.Not.Null);
             AssertGroupsEqual(retained, expected);
         }

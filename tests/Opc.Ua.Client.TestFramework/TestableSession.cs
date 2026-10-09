@@ -108,7 +108,7 @@ namespace Opc.Ua.Client.TestFramework
         }
 
         /// <inheritdoc/>
-        protected override Subscription CreateSubscription(SubscriptionOptions options)
+        protected override Subscription CreateSubscription(SubscriptionOptions? options)
         {
             return new TestableSubscription(MessageContext.Telemetry, options);
         }
@@ -173,7 +173,7 @@ namespace Opc.Ua.Client.TestFramework
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableSubscription"/> class.
         /// </summary>
-        public TestableSubscription(ITelemetryContext telemetry, SubscriptionOptions options = null)
+        public TestableSubscription(ITelemetryContext telemetry, SubscriptionOptions? options = null)
             : base(telemetry, options)
         {
         }
@@ -193,9 +193,9 @@ namespace Opc.Ua.Client.TestFramework
         }
 
         /// <inheritdoc/>
-        protected override MonitoredItem CreateMonitoredItem(MonitoredItemOptions options)
+        protected override MonitoredItem CreateMonitoredItem(MonitoredItemOptions? options)
         {
-            return new TestableMonitoredItem(Telemetry, options);
+            return new TestableMonitoredItem(Telemetry!, options);
         }
     }
 
@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.TestFramework
         /// <summary>
         /// Constructs a new instance of the <see cref="TestableMonitoredItem"/> class.
         /// </summary>
-        public TestableMonitoredItem(ITelemetryContext telemetry, MonitoredItemOptions options = null)
+        public TestableMonitoredItem(ITelemetryContext telemetry, MonitoredItemOptions? options = null)
             : base(telemetry, options)
         {
         }

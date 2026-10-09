@@ -90,7 +90,7 @@ namespace Opc.Ua.Core.Tests
                         int refCount,
                         DateTime createdAt,
                         string stackTrace,
-                        string fixtureName) in
+                        string? fixtureName) in
                         Certificate.EnumerateLiveCertificates())
                     {
                         System.IO.File.AppendAllText(path,
@@ -99,7 +99,7 @@ namespace Opc.Ua.Core.Tests
                             $"  StackTrace:\n{stackTrace}\n");
                     }
                     System.IO.File.AppendAllText(path, "\nUNREACHABLE UNDISPOSED CERTIFICATES:\n");
-                    foreach ((DateTime createdAt, string stackTrace, string fixtureName) in
+                    foreach ((DateTime createdAt, string stackTrace, string? fixtureName) in
                         Certificate.EnumerateUnreachableUndisposedCertificates())
                     {
                         System.IO.File.AppendAllText(path,

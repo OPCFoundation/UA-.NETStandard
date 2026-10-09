@@ -16,6 +16,10 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
+#if NETFRAMEWORK
+using AesGcm = Opc.Ua.Security.Certificates.BouncyCastle.AesGcm;
+using ChaCha20Poly1305 = Opc.Ua.Security.Certificates.BouncyCastle.ChaCha20Poly1305;
+#endif
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -28,8 +32,6 @@ using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Digests;
 #endif
-
-#nullable enable
 
 namespace Opc.Ua
 {
@@ -909,17 +911,12 @@ namespace Opc.Ua
 
             if (algorithm is SymmetricEncryptionAlgorithm.Aes128Gcm or SymmetricEncryptionAlgorithm.Aes256Gcm)
             {
-#if NET8_0_OR_GREATER
                 return EncryptWithAesGcm(
                     data, algorithm, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber, provider);
-#else
-                throw new NotSupportedException("AES-GCM requires .NET 8 or greater.");
-#endif
             }
 
             if (algorithm == SymmetricEncryptionAlgorithm.ChaCha20Poly1305)
             {
-#if NET8_0_OR_GREATER
                 return EncryptWithChaCha20Poly1305(
                     data,
                     algorithm,
@@ -929,9 +926,6 @@ namespace Opc.Ua
                     tokenId,
                     lastSequenceNumber,
                     provider);
-#else
-                throw new NotSupportedException("ChaCha20Poly1305 requires .NET 8 or greater.");
-#endif
             }
 
             SymmetricSignatureAlgorithm signatureAlgorithm =
@@ -1045,7 +1039,6 @@ namespace Opc.Ua
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
         }
 
-#if NET8_0_OR_GREATER
         private static byte[] ApplyAeadMask(uint tokenId, uint lastSequenceNumber, byte[] iv)
         {
             byte[] copy = new byte[iv.Length];
@@ -1380,7 +1373,6 @@ namespace Opc.Ua
 
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count - kAesGcmTagLength);
         }
-#endif
 
 #if NET6_0_OR_GREATER
         /// <summary>
@@ -1590,17 +1582,12 @@ namespace Opc.Ua
 
             if (algorithm is SymmetricEncryptionAlgorithm.Aes128Gcm or SymmetricEncryptionAlgorithm.Aes256Gcm)
             {
-#if NET8_0_OR_GREATER
                 return DecryptWithAesGcm(
                     data, algorithm, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber, provider);
-#else
-                throw new NotSupportedException("AES-GCM requires .NET 8 or greater.");
-#endif
             }
 
             if (algorithm == SymmetricEncryptionAlgorithm.ChaCha20Poly1305)
             {
-#if NET8_0_OR_GREATER
                 return DecryptWithChaCha20Poly1305(
                     data,
                     algorithm,
@@ -1610,9 +1597,6 @@ namespace Opc.Ua
                     tokenId,
                     lastSequenceNumber,
                     provider);
-#else
-                throw new NotSupportedException("ChaCha20Poly1305 requires .NET 8 or greater.");
-#endif
             }
 
             SymmetricSignatureAlgorithm signatureAlgorithm =

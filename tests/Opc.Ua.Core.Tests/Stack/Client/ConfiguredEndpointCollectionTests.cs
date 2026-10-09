@@ -197,7 +197,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void RemoveServerNullThrows()
         {
             var collection = new ConfiguredEndpointCollection();
-            Assert.Throws<ArgumentNullException>(() => collection.RemoveServer(null));
+            Assert.Throws<ArgumentNullException>(() => collection.RemoveServer(null!));
         }
 
         [Test]
@@ -205,7 +205,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             var collection = new ConfiguredEndpointCollection();
             Assert.Throws<ArgumentNullException>(
-                () => collection.SetApplicationDescription("urn:test", null));
+                () => collection.SetApplicationDescription("urn:test", null!));
         }
 
         [Test]
@@ -311,7 +311,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             ConfiguredEndpoint ep = collection.Create("opc.tcp://server:4840");
 
             Assert.Throws<ArgumentNullException>(
-                () => ep.Update((EndpointDescription)null));
+                () => ep.Update((EndpointDescription)null!));
         }
 
         [Test]
@@ -321,7 +321,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             ConfiguredEndpoint ep = collection.Create("opc.tcp://server:4840");
 
             Assert.Throws<ArgumentNullException>(
-                () => ep.Update((EndpointConfiguration)null));
+                () => ep.Update((EndpointConfiguration)null!));
         }
 
         [Test]
@@ -339,7 +339,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             ep.Update(config);
 
-            Assert.That(ep.Configuration.OperationTimeout, Is.EqualTo(60000));
+            Assert.That(ep.Configuration!.OperationTimeout, Is.EqualTo(60000));
         }
 
         [Test]

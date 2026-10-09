@@ -120,15 +120,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                         OmitEventRecords = true
                     },
                     useAllowSubtypes: true,
-                    identifierFiles: null,
-                    referencedModels: null,
-                    nodeManagerBindings: null,
-                    reportBindingDiagnostic: null,
-                    sharedUsedBindings: null,
+                    identifierFiles: null!,
+                    referencedModels: null!,
+                    nodeManagerBindings: null!,
+                    reportBindingDiagnostic: null!,
+                    sharedUsedBindings: null!,
                     bindingModelCount: 0,
-                    reportFluentAccessorsOnlyDiagnostic: null,
-                    referencedModelProviders: null,
-                    referencedAccessorProviders: null);
+                    reportFluentAccessorsOnlyDiagnostic: null!,
+                    referencedModelProviders: null!,
+                    referencedAccessorProviders: null!);
                 string file = fileSystem.CreatedFiles
                     .Single(f => f.EndsWith("DataTypes.g.cs", StringComparison.Ordinal));
                 return Encoding.UTF8.GetString(fileSystem.Get(file));

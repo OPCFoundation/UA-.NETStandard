@@ -64,7 +64,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static OperationContext SessionContext(ISession session)
         {
             return new OperationContext(
-                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session);
+                new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, session);
         }
 
         private static Mock<ISession> CreateSessionMock(NodeId id, IUserIdentity identity)
@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static SamplingGroup CreateGroup(
             IUserIdentity identity,
             double samplingInterval = 500,
-            OperationContext context = null)
+            OperationContext? context = null)
         {
             Mock<IServerInternal> mockServer = DeterministicServerMock.Create(out _);
             var mockNodeManager = new Mock<IAsyncNodeManager>();

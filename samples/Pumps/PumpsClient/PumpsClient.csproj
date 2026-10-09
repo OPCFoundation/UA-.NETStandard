@@ -6,7 +6,6 @@
     <PackageId>PumpsClient</PackageId>
     <RootNamespace>PumpsSample.Client</RootNamespace>
     <Description>Console client that discovers every OPC 40223 pump of a server with Opc.Ua.Pumps.Client, prints nameplate, configuration, measurements with units, supervision, maintenance, multi-pump role, ports and documentation, and then streams live measurements and supervision changes.</Description>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
   </PropertyGroup>

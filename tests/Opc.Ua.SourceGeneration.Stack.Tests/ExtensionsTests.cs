@@ -278,7 +278,7 @@ namespace Opc.Ua.SourceGeneration.Tests
         [Test]
         public void ToNodeSetOptionsWithNullReturnsDefaults()
         {
-            NodesetFileOptions result = Extensions.ToNodeSetOptions(null);
+            NodesetFileOptions result = Extensions.ToNodeSetOptions(null!);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Ignore, Is.False);
@@ -337,7 +337,7 @@ namespace My.Test.Namespace
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("My.Test.Namespace.TestClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("My.Test.Namespace.TestClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.GetFullNamespace(), Is.EqualTo("My.Test.Namespace"));
@@ -351,7 +351,7 @@ namespace My.Test.Namespace
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("GlobalClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("GlobalClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.GetFullNamespace(), Is.EqualTo(string.Empty));
@@ -370,7 +370,7 @@ namespace Single
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Single.TestClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Single.TestClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.GetFullNamespace(), Is.EqualTo("Single"));
@@ -389,7 +389,7 @@ namespace My.Namespace
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("My.Namespace.MyType");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("My.Namespace.MyType")!;
 
             Assert.That(symbol, Is.Not.Null);
             string result = symbol.GetFullyQualifiedTypeName();
@@ -411,7 +411,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.ImplementsInterface("IMyInterface"), Is.True);
@@ -431,7 +431,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.ImplementsInterface("IMyInterface"), Is.False);
@@ -450,7 +450,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.HasAttribute("ObsoleteAttribute"), Is.False);
@@ -459,9 +459,9 @@ namespace Test
         [Test]
         public void AttributeDataGetValueReturnsNullForNullAttribute()
         {
-            AttributeData attr = null;
+            AttributeData? attr = null;
 
-            string result = attr.GetValue("SomeName");
+            string result = attr!.GetValue("SomeName");
 
             Assert.That(result, Is.Null);
         }
@@ -483,8 +483,8 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
-            AttributeData attr = symbol.GetAttributes().First();
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
+            AttributeData attr = symbol!.GetAttributes().First();
 
             string result = attr.GetValue("NonExistentName");
 
@@ -516,7 +516,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
             AttributeData attr = symbol.GetAttributes()
                 .First(a => a.AttributeClass?.Name == "DefaultValueAttribute");
 
@@ -546,7 +546,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
             AttributeData attr = symbol.GetAttributes()
                 .First(a => a.AttributeClass?.Name == "MyAttrAttribute");
 
@@ -570,7 +570,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.HasAttribute("ObsoleteAttribute"), Is.True);
@@ -580,9 +580,9 @@ namespace Test
         [Test]
         public void AttributeDataGetIntegerReturnsDefaultForNullAttribute()
         {
-            AttributeData attr = null;
+            AttributeData? attr = null;
 
-            int result = attr.GetInteger("SomeName", 42);
+            int result = attr!.GetInteger("SomeName", 42);
 
             Assert.That(result, Is.EqualTo(42));
         }
@@ -604,8 +604,8 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
-            AttributeData attr = symbol.GetAttributes().First();
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
+            AttributeData attr = symbol!.GetAttributes().First();
 
             int result = attr.GetInteger("NonExistent", 99);
 
@@ -615,9 +615,9 @@ namespace Test
         [Test]
         public void AttributeDataGetIntegerReturnsDefaultValueOfZero()
         {
-            AttributeData attr = null;
+            AttributeData? attr = null;
 
-            int result = attr.GetInteger("SomeName");
+            int result = attr!.GetInteger("SomeName");
 
             Assert.That(result, Is.Zero);
         }
@@ -692,7 +692,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.ImplementsInterface("IBase"), Is.True);
@@ -712,7 +712,7 @@ namespace A.B.C.D.E
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("A.B.C.D.E.DeepClass");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("A.B.C.D.E.DeepClass")!;
 
             Assert.That(symbol, Is.Not.Null);
             Assert.That(symbol.GetFullNamespace(), Is.EqualTo("A.B.C.D.E"));
@@ -731,7 +731,7 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.SimpleType");
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.SimpleType")!;
 
             Assert.That(symbol, Is.Not.Null);
             string result = symbol.GetFullyQualifiedTypeName();
@@ -759,8 +759,8 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
-            AttributeData attr = symbol.GetAttributes()
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
+            AttributeData attr = symbol!.GetAttributes()
                 .First(a => a.AttributeClass?.Name == "MyAttrAttribute");
 
             string result = attr.GetValue("Count");
@@ -791,8 +791,8 @@ namespace Test
                 .AddReferences(CompilerUtils.TrustedReferences)
                 .AddSyntaxTrees(CSharpSyntaxTree.ParseText(code));
 
-            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass");
-            AttributeData attr = symbol.GetAttributes()
+            INamedTypeSymbol symbol = compilation.GetTypeByMetadataName("Test.MyClass")!;
+            AttributeData attr = symbol!.GetAttributes()
                 .First(a => a.AttributeClass?.Name == "MyAttrAttribute");
 
             int result = attr.GetInteger("Name", 99);

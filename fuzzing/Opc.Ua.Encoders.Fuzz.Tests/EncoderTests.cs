@@ -139,10 +139,10 @@ namespace Opc.Ua.Fuzzing
             using (var stream = new MemoryStream(input, writable: false))
             {
                 ex = Assert.Throws<ServiceResultException>(
-                    () => FuzzableCode.FuzzBinaryDecoderCore(stream, throwAll: true));
+                    () => FuzzableCode.FuzzBinaryDecoderCore(stream, throwAll: true))!;
             }
 
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
             Assert.That(ex.Message, Does.Contain(nameof(DiagnosticInfo.NamespaceUri)));
             Assert.DoesNotThrow(() => FuzzableCode.LibfuzzBinaryJsonEncoderCompact(input));
         }
@@ -164,11 +164,11 @@ namespace Opc.Ua.Fuzzing
             using (var stream = new MemoryStream(input, writable: false))
             {
                 ex = Assert.Throws<ServiceResultException>(
-                    () => FuzzableCode.FuzzBinaryDecoderCore(stream, throwAll: true));
+                    () => FuzzableCode.FuzzBinaryDecoderCore(stream, throwAll: true))!;
             }
 
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
-            for (Exception inner = ex.InnerException; inner != null; inner = inner.InnerException)
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            for (Exception inner = ex.InnerException!; inner != null; inner = inner.InnerException!)
             {
                 Assert.That(inner, Is.InstanceOf<ServiceResultException>().Or.InstanceOf<System.Xml.XmlException>());
             }

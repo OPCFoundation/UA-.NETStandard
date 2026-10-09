@@ -103,7 +103,7 @@ namespace Opc.Ua.SourceGeneration
             string selfVersion = m_context.ModelDesign.TargetVersion ?? target.Version;
             string selfPubDate = FormatDate(m_context.ModelDesign.TargetPublicationDate)
                 ?? target.PublicationDate;
-            string selfPayload = BuildSelfPayload(target);
+            string? selfPayload = BuildSelfPayload(target);
             entries.Add(new Entry(
                 target.Value, target.Prefix,
                 selfVersion, selfPubDate, target.Name,
@@ -159,7 +159,7 @@ namespace Opc.Ua.SourceGeneration
             return entries;
         }
 
-        private string BuildSelfPayload(Namespace target)
+        private string? BuildSelfPayload(Namespace target)
         {
             // OpcUa root is implicit to every consumer; do not emit a payload.
             if (target.Value == Types.Namespaces.OpcUa)
@@ -409,7 +409,7 @@ namespace Opc.Ua.SourceGeneration
                                             methodStateIdentity.Namespace ?? string.Empty;
                                     }
 
-                                    MethodDesign declaration =
+                                    MethodDesign? declaration =
                                         effectiveMethod.MethodDeclarationNode ??
                                         (MethodDesignArgumentResolver.HasDeclaredArguments(
                                             effectiveMethod)
@@ -469,7 +469,7 @@ namespace Opc.Ua.SourceGeneration
         /// from a NodeSet or a dependency design, otherwise this design's own
         /// namespaces - the table the producer resolves the value against.
         /// </summary>
-        private string[] GetDefaultValueNamespaceUris(VariableDesign variable)
+        private string[]? GetDefaultValueNamespaceUris(VariableDesign variable)
         {
             if (variable.DefaultValue == null)
             {
@@ -521,14 +521,14 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private static string FormatNullableLiteral(string value)
+        private static string FormatNullableLiteral(string? value)
         {
             return string.IsNullOrEmpty(value)
                 ? "null"
                 : CoreUtils.Format("\"{0}\"", SourceGenerationUtils.Escape(value));
         }
 
-        private static string FormatDate(DateTime? d)
+        private static string? FormatDate(DateTime? d)
         {
             return d?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
         }
@@ -539,7 +539,7 @@ namespace Opc.Ua.SourceGeneration
             string Version,
             string PublicationDate,
             string Name,
-            string Payload);
+            string? Payload);
 
         private readonly IGeneratorContext m_context;
         private readonly bool? m_fluentAccessorsEmitted;

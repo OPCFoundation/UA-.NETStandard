@@ -130,7 +130,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             using var stream = new MemoryStream();
             serializer.WriteObject(stream, value);
             stream.Position = 0;
-            return (T)serializer.ReadObject(stream);
+            return (T)serializer.ReadObject(stream)!;
         }
     }
 
@@ -231,22 +231,22 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     public sealed class SurrogateGraphContract
     {
         [DataMember(Order = 1)]
-        public SurrogateScalarContract Scalars { get; set; }
+        public SurrogateScalarContract Scalars { get; set; } = null!;
 
         [DataMember(Order = 2)]
-        public SurrogateArrayOfContract Arrays { get; set; }
+        public SurrogateArrayOfContract Arrays { get; set; } = null!;
 
         [DataMember(Order = 3)]
-        public SurrogateMatrixOfContract Matrices { get; set; }
+        public SurrogateMatrixOfContract Matrices { get; set; } = null!;
 
         [DataMember(Order = 4)]
-        public SurrogateScalarContract[] AdditionalScalars { get; set; }
+        public SurrogateScalarContract[] AdditionalScalars { get; set; } = null!;
 
         [DataMember(Order = 5)]
-        public SurrogateMatrixOfContract[] AdditionalMatrices { get; set; }
+        public SurrogateMatrixOfContract[] AdditionalMatrices { get; set; } = null!;
 
         [DataMember(Order = 6)]
-        public SurrogateArrayOfContract[] AdditionalArrays { get; set; }
+        public SurrogateArrayOfContract[] AdditionalArrays { get; set; } = null!;
     }
 
     internal static class SurrogateTestData

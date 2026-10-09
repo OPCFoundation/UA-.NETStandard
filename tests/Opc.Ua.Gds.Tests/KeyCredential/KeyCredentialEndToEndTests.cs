@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable disable
-
 #pragma warning disable OPCUA_EXPERIMENTAL_KC_BRIDGE
 
 using System;
@@ -79,7 +77,7 @@ namespace Opc.Ua.Gds.Tests.KeyCredential
                     new Ua.Server.KeyCredential(
                         credentialSecret.ToArray(),
                         DateTime.UtcNow.AddMinutes(10),
-                        new Dictionary<string, object>
+                        new Dictionary<string, object?>
                         {
                             ["iss"] = "urn:test:gds",
                             ["sub"] = "urn:test:client",
@@ -126,7 +124,7 @@ namespace Opc.Ua.Gds.Tests.KeyCredential
                 AuthenticationResult wrongTarget = await authenticator.AuthenticateAsync(
                     CreateContext(tokenHandler, "urn:test:another-server")).ConfigureAwait(false);
                 Assert.That(wrongTarget.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-                Assert.That(wrongTarget.Error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+                Assert.That(wrongTarget.Error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
                 result = await authenticator.AuthenticateAsync(
                         CreateContext(tokenHandler, endpoint.Server.ApplicationUri))
                     .ConfigureAwait(false);

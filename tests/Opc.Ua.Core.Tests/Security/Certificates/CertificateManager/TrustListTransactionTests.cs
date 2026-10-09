@@ -64,11 +64,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath, issuerPath);
             using Certificate certificate = CertificateBuilder.Create("CN=Ordered Certificate").CreateForRSA();
             using Certificate unrelated = CertificateBuilder.Create("CN=Unrelated Certificate").CreateForRSA();
-            using (ICertificateStore store = issuer
+            using (ICertificateStore store = (issuer
                 ? manager.OpenIssuerStore(TrustListIdentifier.Peers)
-                : manager.OpenTrustedStore(TrustListIdentifier.Peers))
+                : manager.OpenTrustedStore(TrustListIdentifier.Peers))!)
             {
-                await store.AddAsync(unrelated).ConfigureAwait(false);
+                await store!.AddAsync(unrelated).ConfigureAwait(false);
                 if (initiallyPresent)
                 {
                     await store.AddAsync(certificate).ConfigureAwait(false);
@@ -97,10 +97,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
             await transaction.CommitAsync().ConfigureAwait(false);
 
-            using ICertificateStore verify = issuer
+            using ICertificateStore verify = (issuer
                 ? manager.OpenIssuerStore(TrustListIdentifier.Peers)
-                : manager.OpenTrustedStore(TrustListIdentifier.Peers);
-            using CertificateCollection remaining = await verify.EnumerateAsync().ConfigureAwait(false);
+                : manager.OpenTrustedStore(TrustListIdentifier.Peers))!;
+            using CertificateCollection remaining = await verify!.EnumerateAsync().ConfigureAwait(false);
             string[] expected = addLast
                 ? [unrelated.Thumbprint, certificate.Thumbprint]
                 : [unrelated.Thumbprint];
@@ -165,8 +165,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using Certificate issuer = CertificateBuilder.Create("CN=Ordered CRL").SetCAConstraint().CreateForRSA();
             using Certificate otherIssuer = CertificateBuilder.Create("CN=Unrelated CRL")
                 .SetCAConstraint().CreateForRSA();
-            X509CRL crl = s_issuer.RevokeCertificates(issuer, null, null);
-            X509CRL unrelated = s_issuer.RevokeCertificates(otherIssuer, null, null);
+            X509CRL crl = s_issuer.RevokeCertificates(issuer, null!, null!);
+            X509CRL unrelated = s_issuer.RevokeCertificates(otherIssuer, null!, null!);
             using (ICertificateStore store = manager.OpenTrustedStore(TrustListIdentifier.Peers))
             {
                 await store.AddAsync(issuer).ConfigureAwait(false);
@@ -206,8 +206,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .SetCAConstraint().CreateForRSA();
             using Certificate replacement = CertificateBuilder.Create("CN=Replacement Trust")
                 .SetCAConstraint().CreateForRSA();
-            X509CRL originalCrl = s_issuer.RevokeCertificates(original, null, null);
-            X509CRL replacementCrl = s_issuer.RevokeCertificates(replacement, null, null);
+            X509CRL originalCrl = s_issuer.RevokeCertificates(original, null!, null!);
+            X509CRL replacementCrl = s_issuer.RevokeCertificates(replacement, null!, null!);
             var store = new Mock<ICertificateStore>();
             store.Setup(value => value.FindByThumbprintAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()))
                 .ReturnsAsync(() => []);
@@ -491,7 +491,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             // Build a CRL signed by the CA certificate.
-            X509CRL crl = s_issuer.RevokeCertificates(caCert, null, null);
+            X509CRL crl = s_issuer.RevokeCertificates(caCert, null!, null!);
 
             ITrustListTransaction transaction = await manager
                 .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
@@ -532,7 +532,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .Create("CN=Issuer CRL Trusted")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            X509CRL crl = s_issuer.RevokeCertificates(caCert, null, null);
+            X509CRL crl = s_issuer.RevokeCertificates(caCert, null!, null!);
 
             ITrustListTransaction transaction = await manager
                 .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
@@ -545,11 +545,11 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             using ICertificateStore trusted = manager.OpenTrustedStore(TrustListIdentifier.Peers);
-            using ICertificateStore issuers = manager.OpenIssuerStore(TrustListIdentifier.Peers);
+            using ICertificateStore issuers = manager.OpenIssuerStore(TrustListIdentifier.Peers)!;
             using CertificateCollection trustedCerts = await trusted.EnumerateAsync().ConfigureAwait(false);
             Assert.That(trustedCerts, Has.Count.EqualTo(1));
             Assert.That(await trusted.EnumerateCRLsAsync().ConfigureAwait(false), Is.Empty);
-            Assert.That(await issuers.EnumerateCRLsAsync().ConfigureAwait(false), Has.Count.EqualTo(1));
+            Assert.That(await issuers!.EnumerateCRLsAsync().ConfigureAwait(false), Has.Count.EqualTo(1));
         }
 
         /// <summary>
@@ -573,7 +573,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .Create("CN=Unknown CRL Trusted")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            X509CRL crl = s_issuer.RevokeCertificates(unknownCa, null, null);
+            X509CRL crl = s_issuer.RevokeCertificates(unknownCa, null!, null!);
 
             ITrustListTransaction transaction = await manager
                 .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
@@ -624,7 +624,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 await setup.AddAsync(caCert).ConfigureAwait(false);
                 await setup.AddAsync(trustedCert).ConfigureAwait(false);
             }
-            X509CRL crl = s_issuer.RevokeCertificates(caCert, null, null);
+            X509CRL crl = s_issuer.RevokeCertificates(caCert, null!, null!);
 
             ITrustListTransaction transaction = await manager
                 .BeginUpdateAsync(TrustListIdentifier.Peers).ConfigureAwait(false);
@@ -646,9 +646,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             }
 
             using ICertificateStore trusted = manager.OpenTrustedStore(TrustListIdentifier.Peers);
-            using ICertificateStore issuers = manager.OpenIssuerStore(TrustListIdentifier.Peers);
+            using ICertificateStore issuers = manager.OpenIssuerStore(TrustListIdentifier.Peers)!;
             using CertificateCollection trustedCerts = await trusted.EnumerateAsync().ConfigureAwait(false);
-            using CertificateCollection issuerCerts = await issuers.EnumerateAsync().ConfigureAwait(false);
+            using CertificateCollection issuerCerts = await issuers!.EnumerateAsync().ConfigureAwait(false);
             Assert.That(trustedCerts, Has.Count.EqualTo(2));
             Assert.That(issuerCerts, Is.Empty);
         }

@@ -124,7 +124,7 @@ namespace Opc.Ua.Server.Tests
                         BrowseResultMask _,
                         Dictionary<NodeId, Variant[]> _,
                         bool _,
-                        CancellationToken _) => new ValueTask<NodeMetadata>(metadata[(NodeId)handle]));
+                        CancellationToken _) => new ValueTask<NodeMetadata?>(metadata[(NodeId)handle]));
                 manager
                     .Setup(m => m.GetNodeMetadataAsync(
                         It.IsAny<OperationContext>(),

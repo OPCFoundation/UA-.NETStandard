@@ -142,7 +142,7 @@ namespace Opc.Ua.Lds.Tests
             bool hasAnonymous = false;
             foreach (EndpointDescription e in endpoints)
             {
-                if (e.UserIdentityTokens != default)
+                if (e.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in e.UserIdentityTokens)
                     {
@@ -174,7 +174,7 @@ namespace Opc.Ua.Lds.Tests
             bool hasUsername = false;
             foreach (EndpointDescription e in endpoints)
             {
-                if (e.UserIdentityTokens != default)
+                if (e.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in e.UserIdentityTokens)
                     {

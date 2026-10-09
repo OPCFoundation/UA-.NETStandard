@@ -4,7 +4,6 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.InformationModel.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <Nullable>annotations</Nullable>
     <NoWarn>$(NoWarn);RCS0056;RCS1166;RCS1174;RCS1229;RCS1047;RCS1077;NUnit2023;NUnit2010;NUnit2045</NoWarn>
   </PropertyGroup>
   <ItemGroup>

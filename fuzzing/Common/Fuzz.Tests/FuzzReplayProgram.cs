@@ -75,7 +75,7 @@ namespace Opc.Ua.Fuzzing
                     Console.Error.WriteLine("Usage: --fuzz-replay <target> <input-file>");
                     return 2;
                 }
-                Delegate target = FuzzMethods.FindFuzzMethod(Console.Error, args[1]);
+                Delegate? target = FuzzMethods.FindFuzzMethod(Console.Error, args[1]);
                 if (target == null)
                 {
                     return 2;

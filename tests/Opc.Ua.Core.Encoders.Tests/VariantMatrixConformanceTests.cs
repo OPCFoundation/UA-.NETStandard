@@ -253,9 +253,9 @@ namespace Opc.Ua.Core.Encoders.Tests
                 {
                     return jsonObject;
                 }
-                foreach (KeyValuePair<string, JsonNode> property in jsonObject)
+                foreach (KeyValuePair<string, JsonNode?> property in jsonObject)
                 {
-                    JsonNode child = property.Value;
+                    JsonNode child = property.Value!;
                     if (child != null && FindJsonDimensionsOwner(child) is JsonObject owner)
                     {
                         return owner;
@@ -267,13 +267,13 @@ namespace Opc.Ua.Core.Encoders.Tests
                 for (int i = 0; i < jsonArray.Count; i++)
                 {
                     if (jsonArray[i] != null &&
-                        FindJsonDimensionsOwner(jsonArray[i]) is JsonObject owner)
+                        FindJsonDimensionsOwner(jsonArray[i]!) is JsonObject owner)
                     {
                         return owner;
                     }
                 }
             }
-            return null;
+            return null!;
         }
 
         private static byte[] ReplaceXmlDimensions(byte[] payload, int[] dimensions)

@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -59,5 +61,25 @@ namespace Opc.Ua.Redundancy.Server
         /// (the caller must reject the request as a replay).
         /// </returns>
         ValueTask<bool> TryConsumeAsync(ByteString nonce, CancellationToken ct = default);
+
+        /// <summary>
+        /// Removes the markers of consumed nonces that are at least
+        /// <paramref name="minimumAge"/> old and that no live mirrored session still
+        /// carries, so the registry does not grow without bound. A nonce that no
+        /// session entry carries any more can no longer be presented for a restore.
+        /// </summary>
+        /// <param name="retainedNonces">
+        /// The nonces of the live mirrored sessions; their markers are kept.
+        /// </param>
+        /// <param name="minimumAge">
+        /// The minimum age of a removed marker, which covers a restore that consumed a
+        /// nonce but has not yet mirrored the next one.
+        /// </param>
+        /// <param name="ct">Cancellation token.</param>
+        /// <returns>The number of markers removed.</returns>
+        ValueTask<int> PurgeAsync(
+            IEnumerable<ByteString> retainedNonces,
+            TimeSpan minimumAge,
+            CancellationToken ct = default);
     }
 }

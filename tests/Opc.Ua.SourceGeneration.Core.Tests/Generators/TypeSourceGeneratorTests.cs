@@ -495,7 +495,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void ResolveEncoderDecoderForScalarField()
         {
             TypeFieldModel field = CreateField("Value", "Int32");
-            (string writeMethod, string readMethod) = TypeSourceGenerator.ResolveEncoderDecoder(field);
+            (string? writeMethod, string? readMethod) = TypeSourceGenerator.ResolveEncoderDecoder(field);
             Assert.That(writeMethod, Is.EqualTo("WriteInt32"));
             Assert.That(readMethod, Is.EqualTo("ReadInt32"));
         }
@@ -504,7 +504,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void ResolveEncoderDecoderForArrayField()
         {
             TypeFieldModel field = CreateField("Values", "ArrayOf", isArray: true, elementType: "String");
-            (string writeMethod, string readMethod) = TypeSourceGenerator.ResolveEncoderDecoder(field);
+            (string? writeMethod, string? readMethod) = TypeSourceGenerator.ResolveEncoderDecoder(field);
             Assert.That(writeMethod, Is.EqualTo("WriteStringArray"));
             Assert.That(readMethod, Is.EqualTo("ReadStringArray"));
         }
@@ -596,7 +596,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private static TypeFieldModel CreateField(
             string name, string shortType,
             bool isArray = false,
-            string elementType = null)
+            string? elementType = null)
         {
             return new TypeFieldModel
             {
@@ -605,7 +605,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 TypeName = $"global::System.{shortType}",
                 ShortTypeName = shortType,
                 IsArray = isArray,
-                ElementShortTypeName = elementType,
+                ElementShortTypeName = elementType!,
                 Order = 0
             };
         }

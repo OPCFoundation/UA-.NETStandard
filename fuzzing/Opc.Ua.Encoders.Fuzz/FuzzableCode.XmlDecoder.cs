@@ -52,7 +52,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void AflfuzzXmlEncoder(Stream stream)
         {
-            IEncodeable encodeable = FuzzXmlDecoderCore(stream);
+            IEncodeable? encodeable = FuzzXmlDecoderCore(stream);
             if (encodeable != null)
             {
                 using var encoder = new XmlEncoder(MessageContext);
@@ -66,7 +66,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         public static void AflfuzzXmlEncoderIndempotent(Stream stream)
         {
-            IEncodeable encodeable = FuzzXmlDecoderCore(stream);
+            IEncodeable? encodeable = FuzzXmlDecoderCore(stream);
             if (encodeable != null)
             {
                 string serialized = EncodeXmlMessage(encodeable);
@@ -115,10 +115,10 @@ namespace Opc.Ua.Fuzzing
             }
 
             using var memoryStream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serialized));
-            IEncodeable encodeable2 = FuzzXmlDecoderCore(memoryStream, true);
+            IEncodeable encodeable2 = FuzzXmlDecoderCore(memoryStream, true)!;
             string serialized2 = EncodeXmlMessage(encodeable2);
             using var memoryStream2 = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(serialized2));
-            IEncodeable encodeable3 = FuzzXmlDecoderCore(memoryStream2, true);
+            IEncodeable encodeable3 = FuzzXmlDecoderCore(memoryStream2, true)!;
 
             string encodeableTypeName = encodeable2?.GetType().Name ?? "unknown type";
             if (serialized2 == null || !serialized.SequenceEqual(serialized2))
@@ -146,7 +146,7 @@ namespace Opc.Ua.Fuzzing
         /// The fuzz target for the XmlDecoder.
         /// </summary>
         /// <param name="stream">A stream with fuzz content.</param>
-        internal static IEncodeable FuzzXmlDecoderCore(Stream stream, bool throwAll = false)
+        internal static IEncodeable? FuzzXmlDecoderCore(Stream stream, bool throwAll = false)
         {
             try
             {

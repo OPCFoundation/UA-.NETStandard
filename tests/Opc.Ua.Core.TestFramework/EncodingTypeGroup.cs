@@ -32,7 +32,7 @@ namespace Opc.Ua.Core.TestFramework
 
         public bool UseXmlParser { get; }
 
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             if (EncoderType == EncodingType.Json)
             {

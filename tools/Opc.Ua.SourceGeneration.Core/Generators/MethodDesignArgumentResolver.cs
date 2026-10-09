@@ -288,8 +288,8 @@ namespace Opc.Ua.SourceGeneration
 
         private static Parameter[] ResolveArguments(
             Parameter[] methodArguments,
-            Parameter[] declarationArguments,
-            Parameter[] methodTypeArguments)
+            Parameter[]? declarationArguments,
+            Parameter[]? methodTypeArguments)
         {
             if (methodArguments is { Length: > 0 })
             {

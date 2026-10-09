@@ -22,8 +22,6 @@
  * THE SOFTWARE.
  * ======================================================================*/
 
-#nullable enable
-
 using System.Collections.Generic;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;

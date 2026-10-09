@@ -1422,6 +1422,12 @@ namespace Opc.Ua.Wot
                 }
             }
 
+            if (rootNode is UAInstance)
+            {
+                RelocateInstanceGeneratesEvent(
+                    nodeSet, rootNode, rootLocal, items, rootReferences, declarations);
+            }
+
             rootNode.References = [.. rootReferences];
             items.Insert(0, rootNode);
             var nestedOnly = new HashSet<string>(StringComparer.Ordinal);
@@ -2234,6 +2240,126 @@ namespace Opc.Ua.Wot
                 IsForward = true,
                 Value = nodeId
             });
+        }
+
+        /// <summary>
+        /// Moves the <c>GeneratesEvent</c> References the synthesis gave an
+        /// instance root onto a type, because an instance cannot carry them.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// OPC 10000-3 §7.15 restricts the SourceNode of a
+        /// <c>GeneratesEvent</c> Reference to an ObjectType, a VariableType or
+        /// a Method. A Thing Model projects a type and keeps them; a Thing
+        /// Description projects an Object or Variable, so the events it
+        /// declares have to be stated by its type definition instead.
+        /// </para>
+        /// <para>
+        /// An event the bound type already declares needs nothing more. Any
+        /// other one is declared by a type synthesized for this instance,
+        /// <c>&lt;Thing&gt;Type</c>, which is a subtype of the type the instance
+        /// was bound to and becomes its type definition. The reverse
+        /// conversion recognizes that type and folds it back into the
+        /// document's events and type binding.
+        /// </para>
+        /// </remarks>
+        private static void RelocateInstanceGeneratesEvent(
+            UANodeSet nodeSet,
+            UANode rootNode,
+            string rootLocal,
+            List<UANode> items,
+            List<Reference> rootReferences,
+            WotDeclarationCatalog? declarations)
+        {
+            // AlwaysGeneratesEvent is a subtype of GeneratesEvent, so §7.15
+            // restricts its SourceNode the same way.
+            List<Reference> generated = rootReferences.FindAll(reference =>
+                reference.IsForward &&
+                (IsGeneratesEventReference(reference.ReferenceType) ||
+                    IsReferenceTypeNamed(
+                        reference.ReferenceType, "AlwaysGeneratesEvent", AlwaysGeneratesEventId)));
+            if (generated.Count == 0)
+            {
+                return;
+            }
+            rootReferences.RemoveAll(generated.Contains);
+
+            Reference? typeDefinition = rootReferences.Find(reference =>
+                reference.IsForward &&
+                IsReferenceTypeNamed(
+                    reference.ReferenceType, "HasTypeDefinition", WotVocabulary.HasTypeDefinition));
+            var undeclared = new List<Reference>(generated.Count);
+            foreach (Reference reference in generated)
+            {
+                if (!IsEventDeclaredByBoundType(nodeSet, items, reference.Value, declarations))
+                {
+                    undeclared.Add(reference);
+                }
+            }
+            if (undeclared.Count == 0 || typeDefinition?.Value is null)
+            {
+                return;
+            }
+
+            string typeLocal = rootLocal + "Type";
+            UAType carrier = rootNode is UAVariable variable
+                ? new UAVariableType
+                {
+                    IsAbstract = false,
+                    DataType = variable.DataType,
+                    ValueRank = variable.ValueRank,
+                    ArrayDimensions = variable.ArrayDimensions
+                }
+                : new UAObjectType { IsAbstract = false };
+            carrier.NodeId = GenerateRootNodeId(nodeSet, typeLocal);
+            carrier.BrowseName = "1:" + typeLocal;
+            carrier.DisplayName = MakeText(typeLocal);
+            var references = new List<Reference>(undeclared.Count + 1)
+            {
+                new Reference
+                {
+                    ReferenceType = "HasSubtype",
+                    IsForward = false,
+                    Value = typeDefinition.Value
+                }
+            };
+            references.AddRange(undeclared);
+            carrier.References = [.. references];
+            typeDefinition.Value = carrier.NodeId;
+            items.Add(carrier);
+        }
+
+        /// <summary>
+        /// Gets whether the type an instance is bound to already declares the
+        /// EventType a projected event affordance names, by its qualified
+        /// BrowseName - the same rule the declaration merge applies.
+        /// </summary>
+        private static bool IsEventDeclaredByBoundType(
+            UANodeSet nodeSet,
+            List<UANode> items,
+            string? eventTypeId,
+            WotDeclarationCatalog? declarations)
+        {
+            if (declarations is not { HasDeclarations: true } || eventTypeId is null)
+            {
+                return false;
+            }
+            UANode? eventType = items.Find(item =>
+                string.Equals(item.NodeId, eventTypeId, StringComparison.Ordinal));
+            if (eventType is null ||
+                !TryResolveQualifiedName(
+                    nodeSet, eventType.BrowseName, out string namespaceUri, out string browseName))
+            {
+                return false;
+            }
+            foreach (WotTypeDeclaration declaration in declarations.Match(namespaceUri, browseName))
+            {
+                if (declaration.Kind == WotDeclarationKind.Event)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private static void SynthesizeLinks(

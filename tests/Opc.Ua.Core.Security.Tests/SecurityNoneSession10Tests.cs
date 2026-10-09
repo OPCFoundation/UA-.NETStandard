@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Security.Tests
                 endpointConfig.OperationTimeout = 10000;
                 var configured = new ConfiguredEndpoint(null, noneEndpoint, endpointConfig);
 
-                ISession session = null;
+                ISession? session = null;
                 try
                 {
                     session = await ctx.OpenSessionAsync(configured, Telemetry).ConfigureAwait(false);
@@ -156,7 +156,7 @@ namespace Opc.Ua.Core.Security.Tests
                     return ep;
                 }
             }
-            return null;
+            return null!;
         }
     }
 }
