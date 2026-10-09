@@ -431,69 +431,126 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         /// <summary>
-        /// The loop samples at the requested rate on average. A loop that waits one interval
-        /// after each sample adds the timer overshoot and the sampling time to every cycle and
-        /// took 63 % (Windows, 15.6 ms timer) to 90 % (Linux) of the samples of a 10 ms group.
+        /// A timer that wakes up late on every wait does not slow the schedule down: with a
+        /// Windows-like 5.6 ms overshoot on a 10 ms interval the schedule still takes a sample
+        /// every 10 ms on average, where waiting one interval after each sample takes 64 %.
+        /// </summary>
+        [TestCase(5.6)]
+        [TestCase(1.0)]
+        [TestCase(0.0)]
+        public void ScheduleKeepsTheRateWhenTheTimerOvershoots(double overshootMs)
+        {
+            int samples = SimulateSchedule(10, overshootMs, sampleCostMs: 0.3, seconds: 10, out int restarts);
+            int fixedDelaySamples = SimulateFixedDelay(10, overshootMs, sampleCostMs: 0.3, seconds: 10);
+
+            Assert.That(samples, Is.InRange(995, 1001));
+            Assert.That(restarts, Is.Zero);
+            if (overshootMs > 0)
+            {
+                Assert.That(fixedDelaySamples, Is.LessThan(975), "the simulation must reproduce the drift");
+            }
+        }
+
+        /// <summary>
+        /// A pause shorter than the tolerated lag, such as a garbage collection, is made up by
+        /// sampling again right away, so no sample of the interval is lost.
         /// </summary>
         [Test]
-        [NonParallelizable]
-        public async Task SamplingKeepsTheRequestedRateAsync()
+        public void SchedulePausesShorterThanTheLagAreMadeUp()
         {
-            Mock<IServerInternal> server = DeterministicServerMock.Create(
-                out MonitoredItemQueueFactory queueFactory);
-            using (queueFactory)
+            int samples = SimulateSchedule(10, 1.0, 0.3, 10, out int restarts, stallAtMs: 5000, stallMs: 200);
+
+            Assert.That(samples, Is.InRange(995, 1001));
+            Assert.That(restarts, Is.Zero);
+        }
+
+        /// <summary>
+        /// A stall longer than the tolerated lag restarts the schedule once instead of bursting
+        /// through every missed sample.
+        /// </summary>
+        [Test]
+        public void ScheduleRestartsAfterAStallLongerThanTheLag()
+        {
+            int samples = SimulateSchedule(10, 1.0, 0.3, 10, out int restarts, stallAtMs: 5000, stallMs: 3000);
+
+            Assert.That(restarts, Is.EqualTo(1));
+            Assert.That(samples, Is.InRange(690, 710), "the 3 s stall is skipped, not made up");
+        }
+
+        /// <summary>
+        /// Samples that take longer than the interval run back to back without the schedule
+        /// running away: it restarts whenever it falls a full lag behind.
+        /// </summary>
+        [Test]
+        public void ScheduleDoesNotRunAwayWhenSamplingIsSlowerThanTheInterval()
+        {
+            int samples = SimulateSchedule(10, 0.0, 15, 10, out int restarts);
+
+            Assert.That(samples, Is.InRange(660, 670));
+            Assert.That(restarts, Is.GreaterThan(0));
+        }
+
+        private const long kTicksPerSecond = 10_000_000;
+
+        private static long Ticks(double milliseconds)
+        {
+            return (long)(milliseconds * kTicksPerSecond / 1000);
+        }
+
+        private static int SimulateSchedule(
+            double intervalMs,
+            double overshootMs,
+            double sampleCostMs,
+            double seconds,
+            out int restarts,
+            double stallAtMs = -1,
+            double stallMs = 0)
+        {
+            long now = 0;
+            long end = Ticks(seconds * 1000);
+            bool stalled = false;
+            var schedule = SamplingSchedule.Create(intervalMs, kTicksPerSecond, now);
+            int samples = 0;
+            restarts = 0;
+            while (true)
             {
-                int reads = 0;
-                var nodeManager = new Mock<IAsyncNodeManager>();
-                nodeManager
-                    .Setup(m => m.ReadAsync(
-                        It.IsAny<OperationContext>(),
-                        It.IsAny<double>(),
-                        It.IsAny<ArrayOf<ReadValueId>>(),
-                        It.IsAny<IList<DataValue>>(),
-                        It.IsAny<IList<ServiceResult>>(),
-                        It.IsAny<CancellationToken>()))
-                    .Returns<OperationContext, double, ArrayOf<ReadValueId>, IList<DataValue>,
-                        IList<ServiceResult>, CancellationToken>(
-                        (_, _, _, values, _, _) =>
-                        {
-                            Interlocked.Increment(ref reads);
-                            for (int ii = 0; ii < values.Count; ii++)
-                            {
-                                values[ii] = new DataValue(new Variant(1));
-                            }
-                            return default;
-                        });
-                nodeManager
-                    .Setup(m => m.ValidateRolePermissionsAsync(
-                        It.IsAny<OperationContext>(),
-                        It.IsAny<NodeId>(),
-                        It.IsAny<PermissionType>(),
-                        It.IsAny<CancellationToken>()))
-                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+                long wait = schedule.GetWait(now);
+                if (wait > 0)
+                {
+                    now += wait + Ticks(overshootMs);
+                }
+                if (!stalled && stallAtMs >= 0 && now >= Ticks(stallAtMs))
+                {
+                    stalled = true;
+                    now += Ticks(stallMs);
+                }
+                if (now >= end)
+                {
+                    return samples;
+                }
+                now += Ticks(sampleCostMs);
+                samples++;
+                if (schedule.Advance(now))
+                {
+                    restarts++;
+                }
+            }
+        }
 
-                using OperationContext context = CreateContext();
-                using var group = new SamplingGroup(
-                    server.Object, nodeManager.Object, [new SamplingRateGroup(10, 1, 0)], context, 10);
-                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 10);
-                Assert.That(group.StartMonitoring(context, item.Object), Is.True);
-                group.ApplyChanges();
-
-                // let the loop start, then count the samples of a fixed window
-                await Task.Delay(300).ConfigureAwait(false);
-                int start = Volatile.Read(ref reads);
-                var window = System.Diagnostics.Stopwatch.StartNew();
-                await Task.Delay(2000).ConfigureAwait(false);
-                int samples = Volatile.Read(ref reads) - start;
-                double expected = window.Elapsed.TotalMilliseconds / 10;
-
-                group.StopMonitoring(item.Object);
-                group.ApplyChanges();
-
-                Assert.That(samples / expected, Is.GreaterThanOrEqualTo(0.95),
-                    $"{samples} samples in {window.Elapsed.TotalMilliseconds:F0} ms at a 10 ms interval");
-                Assert.That(samples / expected, Is.LessThanOrEqualTo(1.05),
-                    "the loop must not sample faster than requested");
+        private static int SimulateFixedDelay(double intervalMs, double overshootMs, double sampleCostMs, double seconds)
+        {
+            long now = 0;
+            long end = Ticks(seconds * 1000);
+            int samples = 0;
+            while (true)
+            {
+                now += Ticks(intervalMs + overshootMs);
+                if (now >= end)
+                {
+                    return samples;
+                }
+                now += Ticks(sampleCostMs);
+                samples++;
             }
         }
 

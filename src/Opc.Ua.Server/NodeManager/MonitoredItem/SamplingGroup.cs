@@ -571,18 +571,8 @@ namespace Opc.Ua.Server
 
                 int sleepCycle = Convert.ToInt32(samplingInterval, CultureInfo.InvariantCulture);
 
-                // Fixed-rate schedule: each sample has an absolute deadline one interval after
-                // the previous one. Waiting a fixed interval after each sample instead adds the
-                // timer overshoot (about 1 ms on Linux, up to the 15.6 ms timer resolution on
-                // Windows) and the sampling time to every cycle, so a 10 ms group sampled about
-                // 80 to 90 times per second. A late wake-up shortens the next wait, which keeps
-                // the average rate at the requested interval.
                 long frequency = m_timeProvider.TimestampFrequency;
-                long period = Math.Max(1, (long)(samplingInterval * frequency / 1000.0));
-                // Missed deadlines are made up by sampling again right away, but not after a
-                // stall longer than this: the schedule restarts instead of bursting.
-                long maxLag = Math.Max(4 * period, frequency / 20);
-                long deadline = m_timeProvider.GetTimestamp() + period;
+                var schedule = SamplingSchedule.Create(samplingInterval, frequency, m_timeProvider.GetTimestamp());
 
                 while (m_server.IsRunning && !cancellationToken.IsCancellationRequested)
                 {
@@ -591,7 +581,7 @@ namespace Opc.Ua.Server
                     // wait till next sample without holding a thread.
                     try
                     {
-                        long remaining = deadline - startTimestamp;
+                        long remaining = schedule.GetWait(startTimestamp);
                         if (remaining > 0)
                         {
                             await Task.Delay(
@@ -654,14 +644,11 @@ namespace Opc.Ua.Server
                         break;
                     }
 
-                    deadline += period;
-                    long now = m_timeProvider.GetTimestamp();
-                    if (now - deadline > maxLag)
+                    if (schedule.Advance(m_timeProvider.GetTimestamp()))
                     {
                         // the samples take longer than the interval, or the process stalled
                         int delay = (int)m_timeProvider.GetElapsedTime(startTimestamp).TotalMilliseconds;
                         m_logger.WARNINGSamplingGroupCannotSampleFastEnoughTimeToSample(delay, sleepCycle);
-                        deadline = now + period;
                     }
                 }
 
