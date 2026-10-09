@@ -430,6 +430,73 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
         }
 
+        /// <summary>
+        /// The loop samples at the requested rate on average. A loop that waits one interval
+        /// after each sample adds the timer overshoot and the sampling time to every cycle and
+        /// took 63 % (Windows, 15.6 ms timer) to 90 % (Linux) of the samples of a 10 ms group.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public async Task SamplingKeepsTheRequestedRateAsync()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(
+                out MonitoredItemQueueFactory queueFactory);
+            using (queueFactory)
+            {
+                int reads = 0;
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                nodeManager
+                    .Setup(m => m.ReadAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<double>(),
+                        It.IsAny<ArrayOf<ReadValueId>>(),
+                        It.IsAny<IList<DataValue>>(),
+                        It.IsAny<IList<ServiceResult>>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns<OperationContext, double, ArrayOf<ReadValueId>, IList<DataValue>,
+                        IList<ServiceResult>, CancellationToken>(
+                        (_, _, _, values, _, _) =>
+                        {
+                            Interlocked.Increment(ref reads);
+                            for (int ii = 0; ii < values.Count; ii++)
+                            {
+                                values[ii] = new DataValue(new Variant(1));
+                            }
+                            return default;
+                        });
+                nodeManager
+                    .Setup(m => m.ValidateRolePermissionsAsync(
+                        It.IsAny<OperationContext>(),
+                        It.IsAny<NodeId>(),
+                        It.IsAny<PermissionType>(),
+                        It.IsAny<CancellationToken>()))
+                    .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+                using OperationContext context = CreateContext();
+                using var group = new SamplingGroup(
+                    server.Object, nodeManager.Object, [new SamplingRateGroup(10, 1, 0)], context, 10);
+                Mock<ISampledDataChangeMonitoredItem> item = CreateItem(1, 10);
+                Assert.That(group.StartMonitoring(context, item.Object), Is.True);
+                group.ApplyChanges();
+
+                // let the loop start, then count the samples of a fixed window
+                await Task.Delay(300).ConfigureAwait(false);
+                int start = Volatile.Read(ref reads);
+                var window = System.Diagnostics.Stopwatch.StartNew();
+                await Task.Delay(2000).ConfigureAwait(false);
+                int samples = Volatile.Read(ref reads) - start;
+                double expected = window.Elapsed.TotalMilliseconds / 10;
+
+                group.StopMonitoring(item.Object);
+                group.ApplyChanges();
+
+                Assert.That(samples / expected, Is.GreaterThanOrEqualTo(0.95),
+                    $"{samples} samples in {window.Elapsed.TotalMilliseconds:F0} ms at a 10 ms interval");
+                Assert.That(samples / expected, Is.LessThanOrEqualTo(1.05),
+                    "the loop must not sample faster than requested");
+            }
+        }
+
         private static int QueuedCount(Mock<ISampledDataChangeMonitoredItem> item)
         {
             return item.Invocations.Count(i => i.Method.Name == nameof(IDataChangeMonitoredItem.QueueValue));
