@@ -245,6 +245,79 @@ namespace Opc.Ua.PubSub.Tests.Application
                 "Every frame of a secured connection must carry a SecurityHeader.");
         }
 
+        /// <summary>
+        /// Until the key provider has a current key, as before a Security Key Service
+        /// delivers the first key, the startup discovery announcements cannot be
+        /// secured. They are dropped, and the application still starts.
+        /// </summary>
+        [Test]
+        public async Task StartupAnnouncementsWithoutACurrentKeyDoNotFailTheStartAsync()
+        {
+            using PubSubSecurityKeyRing ring = NewKeyRing();
+            var keys = new InterruptibleKeyProvider(new StaticSecurityKeyProvider(SecurityGroupIdValue, ring))
+            {
+                IsCurrentKeyAvailable = false
+            };
+            var bus = new LoopbackBus();
+            await using IPubSubApplication publisher = BuildPublisherApp(
+                "opc.udp://239.0.0.1:4840",
+                new LoopbackTransportFactory(bus),
+                keys);
+
+            await publisher.StartAsync(CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(publisher.State.State, Is.EqualTo(PubSubState.Operational));
+            Assert.That(bus.PlaintextFrames, Is.Empty);
+        }
+
+        /// <summary>
+        /// A discovery response that cannot be secured is dropped without ending the
+        /// receive loop of the publisher, which answers the next request.
+        /// </summary>
+        [Test]
+        public async Task ReceiveLoopSurvivesADiscoveryResponseThatCannotBeSecuredAsync()
+        {
+            const string url = "opc.udp://239.0.0.1:4840";
+            using PubSubSecurityKeyRing publisherRing = NewKeyRing();
+            using PubSubSecurityKeyRing subscriberRing = NewKeyRing();
+            var publisherKeys = new InterruptibleKeyProvider(
+                new StaticSecurityKeyProvider(SecurityGroupIdValue, publisherRing));
+            var bus = new LoopbackBus();
+            await using IPubSubApplication publisher = BuildPublisherApp(
+                url,
+                new LoopbackTransportFactory(bus),
+                publisherKeys);
+            await using IPubSubApplication subscriber = BuildSubscriberApp(
+                url,
+                new LoopbackTransportFactory(bus),
+                new StaticSecurityKeyProvider(SecurityGroupIdValue, subscriberRing));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await publisher.StartAsync(cts.Token).ConfigureAwait(false);
+            await subscriber.StartAsync(cts.Token).ConfigureAwait(false);
+
+            publisherKeys.IsCurrentKeyAvailable = false;
+            PubSubDiscoveryResult unanswered = await subscriber.RequestDiscoveryAsync(
+                new PubSubDiscoveryRequest
+                {
+                    DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                    DataSetWriterIds = [DataSetWriterIdValue]
+                },
+                TimeSpan.FromMilliseconds(300),
+                cts.Token).ConfigureAwait(false);
+            publisherKeys.IsCurrentKeyAvailable = true;
+            PubSubDiscoveryResult answered = await subscriber.RequestDiscoveryAsync(
+                new PubSubDiscoveryRequest
+                {
+                    DiscoveryType = UadpDiscoveryType.DataSetWriterConfiguration,
+                    DataSetWriterIds = [DataSetWriterIdValue]
+                },
+                TimeSpan.FromMilliseconds(300),
+                cts.Token).ConfigureAwait(false);
+
+            Assert.That(unanswered.DataSetMetaDataEntries, Is.Empty);
+            Assert.That(answered.WriterConfigurations, Has.Count.EqualTo(1));
+        }
+
         private static IPubSubApplication BuildDiscoveryOnlyApp(IPubSubTransportFactory factory)
         {
             return new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
@@ -736,6 +809,52 @@ namespace Opc.Ua.PubSub.Tests.Application
                         DateTimeUtc.From(DateTimeOffset.UtcNow)));
                     m_signal.Release();
                 }
+            }
+        }
+
+        /// <summary>
+        /// A key provider whose current key can be made unavailable, as before a
+        /// Security Key Service delivers the first or the next key. Keys that were
+        /// already issued can still be looked up by their token.
+        /// </summary>
+        private sealed class InterruptibleKeyProvider : IPubSubSecurityKeyProvider
+        {
+            private readonly IPubSubSecurityKeyProvider m_inner;
+            private int m_isCurrentKeyAvailable = 1;
+
+            public InterruptibleKeyProvider(IPubSubSecurityKeyProvider inner)
+            {
+                m_inner = inner;
+            }
+
+            public bool IsCurrentKeyAvailable
+            {
+                get => Volatile.Read(ref m_isCurrentKeyAvailable) != 0;
+                set => Volatile.Write(ref m_isCurrentKeyAvailable, value ? 1 : 0);
+            }
+
+            public string SecurityGroupId => m_inner.SecurityGroupId;
+
+            public event EventHandler<PubSubKeyRotatedEventArgs>? KeyRotated
+            {
+                add => m_inner.KeyRotated += value;
+                remove => m_inner.KeyRotated -= value;
+            }
+
+            public ValueTask<PubSubSecurityKey> GetCurrentKeyAsync(CancellationToken cancellationToken = default)
+            {
+                if (!IsCurrentKeyAvailable)
+                {
+                    throw new InvalidOperationException("No current security key is available.");
+                }
+                return m_inner.GetCurrentKeyAsync(cancellationToken);
+            }
+
+            public ValueTask<PubSubSecurityKey?> TryGetKeyAsync(
+                uint tokenId,
+                CancellationToken cancellationToken = default)
+            {
+                return m_inner.TryGetKeyAsync(tokenId, cancellationToken);
             }
         }
 

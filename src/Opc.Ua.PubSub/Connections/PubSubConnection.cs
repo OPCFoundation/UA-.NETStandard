@@ -1866,6 +1866,24 @@ namespace Opc.Ua.PubSub.Connections
             {
                 return;
             }
+            try
+            {
+                await SendDiscoveryMessageAsync(response, topic, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException)
+            {
+                // A discovery message that cannot be secured or sent, for example while
+                // no security key is available, must neither fail the start of the
+                // connection nor end its receive loop.
+                m_logger.DiscoveryMessageNotSent(ex, response.DiscoveryType, Name);
+            }
+        }
+
+        private async ValueTask SendDiscoveryMessageAsync(
+            UadpDiscoveryResponseMessage response,
+            string? topic,
+            CancellationToken cancellationToken)
+        {
             PubSubNetworkMessage networkMessage = ConvertDiscoveryMessageForTransport(response);
             INetworkMessageEncoder? encoder = ResolveEncoder();
             if (ShouldUseDiscoveryAnnouncementDestination(
@@ -3387,6 +3405,14 @@ namespace Opc.Ua.PubSub.Connections
         [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 20, Level = LogLevel.Error,
             Message = "UADP unwrap threw on inbound frame.")]
         public static partial void UadpUnwrapThrewOnInboundFrame(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = PubSubEventIds.PubSubConnection + 22, Level = LogLevel.Warning,
+            Message = "Could not send the {DiscoveryType} discovery message on connection '{Connection}'.")]
+        public static partial void DiscoveryMessageNotSent(
+            this ILogger logger,
+            Exception exception,
+            UadpDiscoveryType discoveryType,
+            string connection);
     }
 
 }
