@@ -464,12 +464,9 @@ namespace Opc.Ua
             }
             if (TryReadUnaligned(out int i))
             {
-#if NET8_0_OR_GREATER
-                value = BitConverter.Int32BitsToSingle(
-#else
-                value = Convert.ToSingle(
-#endif
-                    BinaryPrimitives.ReverseEndianness(i));
+                // reinterpret the bits: Convert.ToSingle converted the integer value.
+                int bits = BinaryPrimitives.ReverseEndianness(i);
+                value = Unsafe.As<int, float>(ref bits);
                 return true;
             }
             value = default;
