@@ -83,6 +83,45 @@ try {
             throw "PublishAot was passed globally to $($command.command) instead of evaluated from the application."
         }
     }
+    if ($Scenario -in @('apphost', 'historian-apphost', 'mcp-apphost')) {
+        # Evaluate the actual publisher arguments without compiling; the launcher must preserve
+        # the project's import-time settings from the upstream project-defined TFM invocation.
+        $publishArguments = @('msbuild', $commands[0].arguments[1], '-nologo')
+        $propertySwitches = @{
+            '-c' = 'Configuration'; '--configuration' = 'Configuration'
+            '-f' = 'TargetFramework'; '--framework' = 'TargetFramework'
+            '-r' = 'RuntimeIdentifier'; '--runtime' = 'RuntimeIdentifier'
+            '-o' = 'PublishDir'; '--output' = 'PublishDir'
+        }
+        for ($index = 2; $index -lt $commands[0].arguments.Count; $index++) {
+            $argument = $commands[0].arguments[$index]
+            if ($argument -eq '--no-restore') { continue }
+            if ($propertySwitches.ContainsKey($argument)) {
+                $publishArguments += "-p:$($propertySwitches[$argument])=$($commands[0].arguments[++$index])"
+            }
+            elseif ($argument -match '^(?:--?|/)(?:p|property):') { $publishArguments += $argument }
+            else { throw "Unsupported native publisher fixture argument: $argument" }
+        }
+        $propertyQuery = '-getProperty:TargetFramework,TargetFrameworks,Nullable,NoWarn,PublishAot,OutputType'
+        # Keep the native library target constant when this fixture runs in a legacy-TFM test leg.
+        $baselineJson = & $apphost msbuild (Join-Path $root $project) -nologo `
+            -p:Configuration=Release -p:CustomTestTarget=net10.0 $propertyQuery
+        if ($LASTEXITCODE -ne 0) { throw 'Baseline native project evaluation failed.' }
+        $baseline = ($baselineJson -join "`n" | ConvertFrom-Json).Properties
+        $publishJson = & $apphost @publishArguments $propertyQuery
+        if ($LASTEXITCODE -ne 0) { throw 'Native publisher argument evaluation failed.' }
+        $published = ($publishJson -join "`n" | ConvertFrom-Json).Properties
+        if ($published.TargetFramework -cne 'net10.0' -or $published.Nullable -cne 'enable' -or
+            $published.PublishAot -cne 'true' -or $published.OutputType -cne 'Exe') {
+            throw 'Native publisher did not retain the nullable-enabled .NET 10 AOT test executable.'
+        }
+        foreach ($property in $baseline.PSObject.Properties) {
+            if ($property.Value -cne $published.($property.Name)) {
+                throw ("Native publisher changed {0} from '{1}' to '{2}'." -f
+                    $property.Name, $property.Value, $published.($property.Name))
+            }
+        }
+    }
     $proof = Get-Content -LiteralPath $output -Raw | ConvertFrom-Json
     $reason = switch ($Scenario) {
         'apphost' { 'NATIVE_AOT_HEADER_MISSING' }

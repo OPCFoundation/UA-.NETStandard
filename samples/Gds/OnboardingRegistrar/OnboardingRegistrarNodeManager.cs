@@ -147,7 +147,7 @@ namespace OnboardingRegistrar
                 new RolePermissionType
                 {
                     RoleId = roleId,
-                    Permissions = (uint)PermissionType.Browse
+                    Permissions = (uint)(PermissionType.Browse | PermissionType.Call)
                 }
             ];
             ArrayOf<RolePermissionType> methodPermissions =

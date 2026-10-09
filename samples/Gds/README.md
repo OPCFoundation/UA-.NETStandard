@@ -18,6 +18,9 @@ model and runtime APIs shipped by this repository:
 The demo covers ticket administration. It does not implement the
 device-facing `ProvideIdentities` flow or a complete production GDS.
 
+Both executables default to .NET 10 and follow `CustomTestTarget` for the
+.NET 8, .NET 9 and .NET 10 validation profiles, matching the process-level tests.
+
 ## Bootstrap consent
 
 Both applications now reject untrusted peer certificates by default. There is
@@ -123,6 +126,8 @@ ArrayOf<StatusCode> results = await onboarding.RegisterTicketsAsync(
 The demo selects `SignAndEncrypt` with `Basic256Sha256`. The registrar
 authenticates the environment-provisioned account, grants that user the
 generated `RegistrarAdmin` role, and restricts both ticket methods to that role.
+That role has `Call` on both the administration object and its methods, as
+required by OPC 10000-3 PermissionType; anonymous sessions receive neither grant.
 The endpoint
 also permits an anonymous bootstrap session because `ManagedSession`
 activates its configured identity provider after creating the session;

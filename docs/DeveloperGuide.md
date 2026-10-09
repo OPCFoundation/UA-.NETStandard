@@ -483,6 +483,10 @@ the discrepancy remains visible in the job summary. Exit-only baseline fallback
 for a supported MTP host does not establish release assurance, which requires
 actual structured execution proof. No-test and all-skipped suites remain failures.
 
+An assembly teardown failure still fails the run even when every test case passed.
+Its observed case counts remain visible in the summary; they are not replaced by
+zero or mistaken for successful completion.
+
 The shared runner freezes committed public replay inputs before building, verifies
 the copied bytes before execution, and stages only allow-listed public proof and
 coverage files for fuzz projects. Untracked or modified overlays cannot earn

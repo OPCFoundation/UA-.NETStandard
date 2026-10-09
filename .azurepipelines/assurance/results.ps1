@@ -109,11 +109,11 @@ if ($files.Count -gt 0) {
             $runSummary = $summaries[0]
             $counter = $counters[0]
             if ($runSummary.GetAttribute('outcome') -cnotin @('Completed', 'Passed')) {
-                throw 'Unsuccessful run outcome.'
+                $summary.status = 'failed'
             }
             foreach ($info in $runSummary.SelectNodes('t:RunInfos/t:RunInfo', $ns)) {
                 if ($info.GetAttribute('outcome') -cnotin @('Completed', 'Passed', 'Informational', 'Warning')) {
-                    throw 'Unsuccessful run-level result.'
+                    $summary.status = 'failed'
                 }
             }
             $total = Read-Count $counter 'total' -Required

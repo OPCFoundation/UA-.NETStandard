@@ -108,6 +108,8 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("zero-trx")]
         [TestCase("ignored-trx")]
         [TestCase("aborted-trx")]
+        [TestCase("failed-run-with-results")]
+        [TestCase("run-info-error-with-results")]
         [TestCase("valid-trx")]
         [TestCase("vstest-omitted-skip-counter")]
         [TestCase("vstest-omitted-skip-counter-strict")]

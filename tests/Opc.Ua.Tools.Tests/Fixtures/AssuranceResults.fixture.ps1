@@ -43,11 +43,19 @@ try {
     $caseOutcome = 'Passed'
     $omittedSkipCounter = $false
     $strictSkipped = $false
+    $runInfo = ''
     switch ($Scenario) {
         'missing-trx' { $expected = 'missing' }
         'zero-trx' { $total = 0; $executed = 0; $passed = 0 }
         'ignored-trx' { $executed = 0; $passed = 0; $skipped = 1; $caseOutcome = 'NotExecuted' }
         'aborted-trx' { $outcome = 'Aborted' }
+        'failed-run-with-results' {
+            $outcome = 'Failed'
+            $runInfo = '<RunInfos><RunInfo outcome="Error"><Text>RESTRICTED_SENTINEL</Text></RunInfo></RunInfos>'
+        }
+        'run-info-error-with-results' {
+            $runInfo = '<RunInfos><RunInfo outcome="Error"><Text>RESTRICTED_SENTINEL</Text></RunInfo></RunInfos>'
+        }
         'valid-trx' { $expected = 'completed' }
         'vstest-omitted-skip-counter' { $total = 2; $omittedSkipCounter = $true; $expected = 'completed' }
         'vstest-omitted-skip-counter-strict' { $total = 2; $omittedSkipCounter = $true; $strictSkipped = $true }
@@ -80,6 +88,7 @@ try {
 <TestRun xmlns="http://microsoft.com/schemas/VisualStudio/TeamTest/2010">
 <Results>$results</Results><ResultSummary outcome="$outcome">
 <Counters total="$total" executed="$executed" passed="$passed" failed="0" notExecuted="$skipped" />
+$runInfo
 </ResultSummary></TestRun>
 "@ | Set-Content (Join-Path $fixture 'results.trx')
     }
@@ -95,6 +104,19 @@ try {
     if ($text.Contains('RESTRICTED_SENTINEL') -or $text.Contains('private-rule')) { throw 'Private result leaked.' }
     if ($expected -eq 'completed' -and $kind -ne 'sarif' -and $actual.counts.executed -ne 1) {
         throw 'Executed count must come from the result document.'
+    }
+    if ($Scenario -in @('failed-run-with-results', 'run-info-error-with-results')) {
+        if ($actual.counts.total -ne 1 -or $actual.counts.executed -ne 1 -or
+            $actual.counts.passed -ne 1 -or $actual.counts.failed -ne 0) {
+            throw 'A failed teardown must not erase the observed test counts.'
+        }
+        . (Join-Path $root '.github/scripts/get-test-verdict.ps1')
+        $verdict = Get-TestRunVerdict -TrxFileCount 1 -Total $actual.counts.total -Passed $actual.counts.passed `
+            -Failed $actual.counts.failed -ExitCode 0 -TimedOut $false -ReportsCompleted $false
+        if ($verdict.Passed -or $verdict.Tolerated -or
+            -not $verdict.Reason.Contains('do not prove completed')) {
+            throw 'A failed teardown was tolerated or mislabeled as zero execution.'
+        }
     }
     if ($Scenario -eq 'vstest-omitted-skip-counter' -and
         ($actual.counts.total -ne 2 -or $actual.counts.skipped -ne 1 -or $actual.counts.passed -ne 1)) {

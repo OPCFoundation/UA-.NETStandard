@@ -43,7 +43,7 @@ $args = $normalized
 if ($args[0] -eq 'publish') {
     if ($fixture.scenario -eq 'publish-failure') { exit 12 }
     if ('-r' -notin $args -or $fixture.rid -notin $args -or '-p:CustomTestTarget=net10.0' -notin $args -or
-        '-f' -notin $args -or 'net10.0' -notin $args -or '--no-restore' -notin $args) { exit 13 }
+        '--no-restore' -notin $args) { exit 13 }
     $index = [Array]::IndexOf($args, '-o')
     if ($index -lt 0) { exit 14 }
     $output = $args[$index + 1]
