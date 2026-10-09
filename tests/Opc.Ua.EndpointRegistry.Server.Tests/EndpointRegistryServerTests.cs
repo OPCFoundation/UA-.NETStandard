@@ -407,6 +407,19 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
             RegistrySnapshotCloseResultDataType closed = await access.CloseDocumentAsync(opened.SnapshotId)
                 .ConfigureAwait(false);
             Assert.That(closed.StatusCode, Is.EqualTo(StatusCodes.Good));
+            await using XRegistry.Client.RegistrySnapshotClient client = await XRegistry.Client.RegistrySnapshotClient
+                .OpenAsync(access,
+                    new RegistrySnapshotOpenRequestDataType
+                    {
+                        TargetXid = "/messagegroups/large",
+                        DocumentKind = "metadata",
+                        View = 1,
+                        ExpectedEpoch = written.Epoch
+                    }, limits!.MaxReadItems, limits.MaxReadBytes).ConfigureAwait(false);
+            string throughClient = await client.ReadStringAsync(
+                [new RegistryPathElementDataType { Kind = 0, Name = "Description" }]).ConfigureAwait(false);
+            Assert.That(throughClient, Is.EqualTo(description));
+            Assert.That(client.TargetEpoch, Is.EqualTo(written.Epoch));
         }
 
         private static int CountScalars(string text)
@@ -567,6 +580,56 @@ namespace Opc.Ua.EndpointRegistry.Server.Tests
             ], default).ConfigureAwait(false);
             Assert.That(ExpandedNodeId.ToNodeId(type.Results[0].References[0].NodeId, session.NamespaceUris),
                 Is.EqualTo(ExpandedNodeId.ToNodeId(ObjectTypeIds.MediaEndpointGroupType, session.NamespaceUris)));
+        }
+
+        [Test]
+        public async Task ModelAndCapabilitiesAreCompleteNamedNativeDocumentsAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256,
+                new UserIdentity("sysadmin", "demo"u8)).ConfigureAwait(false);
+            NativeRegistryAccessTypeClient access = TypedAccess(session);
+            RegistryReadResultDataType model = await access.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = "/",
+                DocumentKind = "model",
+                View = 1,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            Assert.That(model.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(model.Document.TryGetValue(out RegistryModelDocumentDataType? nativeModel), Is.True);
+            Assert.That(nativeModel!.Groups.Entries.Count, Is.EqualTo(2));
+            RegistryReadResultDataType capabilities = await access.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = "/",
+                DocumentKind = "capabilities",
+                View = 1,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            Assert.That(capabilities.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(capabilities.Document.TryGetValue(out RegistryCapabilitiesDocumentDataType? nativeCapabilities),
+                Is.True);
+            Assert.That(nativeCapabilities!.Pagination, Is.True);
+            RegistrySnapshotOpenResultDataType opened = await access.OpenDocumentAsync(
+                new RegistrySnapshotOpenRequestDataType
+                {
+                    TargetXid = "/",
+                    DocumentKind = "model",
+                    View = 1,
+                    ExpectedEpoch = model.Epoch
+                }).ConfigureAwait(false);
+            Assert.That(opened.TargetEpoch, Is.EqualTo(model.Epoch));
+            RegistrySnapshotReadResultDataType fields = await access.ReadDocumentPartAsync(
+                new RegistrySnapshotReadRequestDataType
+                {
+                    SnapshotId = opened.SnapshotId,
+                    Path = [],
+                    MaxItems = 128,
+                    MaxBytes = 16384
+                }).ConfigureAwait(false);
+            Assert.That(fields.Kind, Is.EqualTo(4));
+            Assert.That(fields.TotalLength, Is.GreaterThan(0));
+            Assert.That((await access.CloseDocumentAsync(opened.SnapshotId).ConfigureAwait(false)).StatusCode,
+                Is.EqualTo(StatusCodes.Good));
         }
 
         private static async Task<(NodeId Target, uint Epoch)> CommitAsync(

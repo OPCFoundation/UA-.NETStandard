@@ -165,12 +165,12 @@ def factory(catalog, name):
 
 
 def exported_types(catalog):
-    """Endpoint records, maps and map entries plus the schema-content family used by DataSchema."""
+    """Endpoint and shared document records/maps plus the schema-content adapter family."""
     maps = {name for name in catalog.maps}
     entries = {entry for entry, _ in catalog.maps.values()}
     result = []
     for native in catalog.types.values():
-        if native.namespace != ENDPOINT:
+        if native.namespace not in (ENDPOINT, XREG) or native.name in BUILT_IN:
             continue
         if catalog.is_subtype(native.name, "RegistryRecordDataType") or native.name in maps | entries:
             result.append(native.name)

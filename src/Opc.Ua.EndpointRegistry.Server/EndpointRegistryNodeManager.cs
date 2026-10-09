@@ -309,6 +309,13 @@ namespace Opc.Ua.EndpointRegistry.Server
                         EndpointRegistryRules.ValidateRegistry(document, media);
                         options.Validate?.Invoke(document);
                     },
+                    Documents =
+                    {
+                        { "model", new RegistryAuxiliaryDocument(EndpointRegistryNativeCatalog.ReadModel(media),
+                            nameof(RegistryModelDocumentDataType)) },
+                        { "capabilities", new RegistryAuxiliaryDocument(Capabilities(),
+                            nameof(RegistryCapabilitiesDocumentDataType)) }
+                    },
                     TargetNodeId = xid => new ExpandedNodeId(new NodeId(path + xid, index)),
                     MessageContext = messageContext,
                     Telemetry = Server.Telemetry
@@ -405,6 +412,15 @@ namespace Opc.Ua.EndpointRegistry.Server
                     }
                 ]
             };
+        }
+
+        private static RegistryObjectValueDataType Capabilities()
+        {
+            return (RegistryObjectValueDataType)RegistryValues.Parse(
+                """
+                {"available":{"model":{"mutable":false},"capabilities":{"mutable":false}},
+                 "formats":["json"],"pagination":true,"shortself":false}
+                """u8);
         }
 
         private static void Remove(NodeStateCollection nodes, ExpandedNodeId id, ISystemContext context)

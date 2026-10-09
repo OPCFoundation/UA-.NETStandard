@@ -358,7 +358,7 @@ namespace Opc.Ua.EndpointRegistry
             }
         }
 
-        private static Stream OpenResource(string name)
+        internal static Stream OpenResource(string name)
         {
             string suffix = ".RuleSchemas." + name;
             Assembly assembly = typeof(NativeJsonSchemaSet).Assembly;

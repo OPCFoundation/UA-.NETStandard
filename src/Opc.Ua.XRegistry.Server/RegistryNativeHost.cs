@@ -45,6 +45,11 @@ namespace Opc.Ua.XRegistry.Server
     public readonly record struct RegistryCaller(string Session, string AuthorizationView);
 
     /// <summary>
+    /// A provider-owned model or capabilities document and its named native record type.
+    /// </summary>
+    public sealed record RegistryAuxiliaryDocument(RegistryObjectValueDataType Value, string RecordType);
+
+    /// <summary>
     /// One immutable committed generation of a native registry instance.
     /// </summary>
     public sealed class RegistryCommittedState
@@ -138,6 +143,12 @@ namespace Opc.Ua.XRegistry.Server
         public Action<RegistryObjectValueDataType>? Validate { get; set; }
 
         /// <summary>
+        /// Gets additional provider-owned documents, such as model and capabilities.
+        /// They are selected only at the registry root and use the registry epoch.
+        /// </summary>
+        public Dictionary<string, RegistryAuxiliaryDocument> Documents { get; } = new(StringComparer.Ordinal);
+
+        /// <summary>
         /// Gets or sets the Xids that no ordinary mutation may change, for example surfaced entries.
         /// </summary>
         public Func<ArrayOf<string>>? ProtectedPaths { get; set; }
@@ -224,6 +235,12 @@ namespace Opc.Ua.XRegistry.Server
             m_resourceRecordType = options.ResourceRecordType!;
             m_initialDocument = (RegistryObjectValueDataType)options.InitialDocument.Clone();
             m_validate = options.Validate;
+            foreach (KeyValuePair<string, RegistryAuxiliaryDocument> item in options.Documents)
+            {
+                var value = (RegistryObjectValueDataType)item.Value.Value.Clone();
+                m_mapper.Project(value, item.Value.RecordType);
+                m_documents.Add(item.Key, new RegistryAuxiliaryDocument(value, item.Value.RecordType));
+            }
             m_protectedPaths = options.ProtectedPaths;
             m_targetNodeId = options.TargetNodeId;
             m_messageContext = options.MessageContext;
@@ -422,17 +439,13 @@ namespace Opc.Ua.XRegistry.Server
             {
                 throw new ArgumentNullException(nameof(request));
             }
-            if (request.DocumentKind != "metadata")
-            {
-                throw new ServiceResultException(StatusCodes.BadNotSupported,
-                    "Only metadata snapshots are provided by this registry instance.");
-            }
             if (request.View > 1)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument, "Unknown native view.");
             }
             RegistryCommittedState state = Current;
-            (RegistryValueDataType value, string recordType, uint epoch) = Select(state, request.TargetXid);
+            (RegistryValueDataType value, string recordType, uint epoch) =
+                SelectDocument(state, request.TargetXid, request.DocumentKind);
             if (request.ExpectedEpoch != 0 && request.ExpectedEpoch != epoch)
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidState,
@@ -541,13 +554,9 @@ namespace Opc.Ua.XRegistry.Server
                 }
                 return NextPage(page);
             }
-            if (request.DocumentKind != "metadata")
-            {
-                throw new ServiceResultException(StatusCodes.BadNotSupported,
-                    "The requested document kind is not provided by this registry instance.");
-            }
             RegistryCommittedState state = Current;
-            (RegistryValueDataType value, string recordType, uint epoch) = Select(state, request.TargetXid);
+            (RegistryValueDataType value, string recordType, uint epoch) =
+                SelectDocument(state, request.TargetXid, request.DocumentKind);
             if (request.View == 1)
             {
                 return Checked(new RegistryReadResultDataType
@@ -560,7 +569,8 @@ namespace Opc.Ua.XRegistry.Server
                 });
             }
             string target = request.TargetXid ?? string.Empty;
-            string kind = request.DocumentKind;
+            string kind = request.DocumentKind ??
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument, "A document kind is required.");
             if (value is RegistryObjectValueDataType map)
             {
                 var names = new string?[map.Members.Count];
@@ -782,6 +792,24 @@ namespace Opc.Ua.XRegistry.Server
             return m_protectedPaths is null ? [] : m_protectedPaths();
         }
 
+        private (RegistryValueDataType Value, string RecordType, uint Epoch) SelectDocument(
+            RegistryCommittedState state, string? xid, string? kind)
+        {
+            if (kind == "metadata")
+            {
+                return Select(state, xid);
+            }
+            if (xid is not (null or "" or "/"))
+            {
+                throw new ServiceResultException(StatusCodes.BadInvalidArgument,
+                    "A model or capabilities document is selected at the registry root.");
+            }
+            return kind is not null && m_documents.TryGetValue(kind, out RegistryAuxiliaryDocument? document)
+                ? (document.Value, document.RecordType, state.Epoch)
+                : throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "The requested document kind is not provided by this registry.");
+        }
+
         private (RegistryValueDataType Value, string RecordType, uint Epoch) Select(
             RegistryCommittedState state,
             string? xid)
@@ -924,6 +952,7 @@ namespace Opc.Ua.XRegistry.Server
         private readonly string m_resourceRecordType;
         private readonly RegistryObjectValueDataType m_initialDocument;
         private readonly Action<RegistryObjectValueDataType>? m_validate;
+        private readonly Dictionary<string, RegistryAuxiliaryDocument> m_documents = new(StringComparer.Ordinal);
         private readonly Func<ArrayOf<string>>? m_protectedPaths;
         private readonly Func<string, ExpandedNodeId>? m_targetNodeId;
         private readonly IServiceMessageContext m_messageContext;

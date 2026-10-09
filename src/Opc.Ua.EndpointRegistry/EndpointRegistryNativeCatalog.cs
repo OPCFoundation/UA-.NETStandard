@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using Opc.Ua.SchemaRegistry;
 using Opc.Ua.XRegistry;
 
@@ -71,6 +72,21 @@ namespace Opc.Ua.EndpointRegistry
             ArrayOf<ISchemaFormatProvider> schemaFormats)
         {
             return new RegistryRecordMapper(Catalog, context, [new SchemaContentValueAdapter(schemaFormats)]);
+        }
+
+        /// <summary>
+        /// Reads the locally composed and pinned model as complete generic native values.
+        /// No model include is fetched or inferred at runtime.
+        /// </summary>
+        public static RegistryObjectValueDataType ReadModel(bool media = false)
+        {
+            using Stream source = NativeJsonSchemaSet.OpenResource(media
+                ? "composed-media-model.json" : "resolved-endpoint-model.json");
+            using var bytes = new MemoryStream();
+            source.CopyTo(bytes);
+            return RegistryValues.Parse(bytes.ToArray()) is RegistryObjectValueDataType document
+                ? document
+                : throw new InvalidOperationException("The embedded registry model is not an object.");
         }
 
         private static RegistryNativeTypeDescriptor Native(
