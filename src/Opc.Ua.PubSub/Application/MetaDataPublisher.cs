@@ -76,9 +76,10 @@ namespace Opc.Ua.PubSub.Application
     /// </para>
     /// <para>
     /// Announcements go through the connection's send pipeline, so a
-    /// connection configured for message security signs and encrypts
-    /// them with the same keys as its DataSetMessages, and refuses to
-    /// send them when it cannot secure them.
+    /// connection configured for message security applies its
+    /// SecurityMode to them with the same keys as its DataSetMessages
+    /// (signing, and with SignAndEncrypt also encryption), and refuses
+    /// to send them when it cannot secure them.
     /// </para>
     /// <para>
     /// Lifetime is owned by <see cref="PubSubApplication"/>: started
@@ -532,7 +533,7 @@ namespace Opc.Ua.PubSub.Application
                 writer.DataSetWriterId);
 
             // The connection applies its message security, so a secured
-            // connection never announces the DataSet layout in the clear.
+            // connection never sends the announcement unsecured.
             await connection.SendMetaDataAnnouncementAsync(message, topic, cancellationToken)
                 .ConfigureAwait(false);
         }

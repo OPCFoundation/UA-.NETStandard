@@ -225,6 +225,38 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(response.DataSetMetaData?.Name, Is.EqualTo("pds-1"));
         }
 
+        /// <summary>
+        /// A secured NetworkMessage is encoded at the security boundary, outside the
+        /// encoder that counts the messages it encodes, and must still be counted as
+        /// sent.
+        /// </summary>
+        [Test]
+        public async Task SecuredNetworkMessagesAreCountedAsSentAsync()
+        {
+            using PubSubSecurityKeyRing ring = NewKeyRing();
+            var factory = new RecordingTransportFactory(UadpProfile, supportsTopics: false);
+            await using IPubSubApplication app = BuildApp(
+                UadpProfile,
+                factory,
+                securityKeyProvider: new StaticSecurityKeyProvider(SecurityGroupIdValue, ring));
+
+            await app.StartAsync(CancellationToken.None).ConfigureAwait(false);
+            await WaitUntilAsync(
+                () => factory.Transport is { } t && t.Sends.Count >= 1,
+                TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+
+            // Each message is counted before it reaches the transport, so the counter
+            // read after the sends is at least the number of sends.
+            int sends;
+            lock (factory.Transport!.Sends)
+            {
+                sends = factory.Transport.Sends.Count;
+            }
+            Assert.That(
+                app.Diagnostics.Read(PubSubDiagnosticsCounterKind.SentNetworkMessages),
+                Is.GreaterThanOrEqualTo(sends));
+        }
+
         [Test]
         public async Task DisposeAsync_UnsubscribesFromRegistry()
         {

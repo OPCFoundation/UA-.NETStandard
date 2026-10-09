@@ -2466,9 +2466,9 @@ namespace Opc.Ua.PubSub.Connections
 
         /// <summary>
         /// Sends a DataSetMetaData announcement through the connection's send
-        /// pipeline, so a connection configured for message security signs and
-        /// encrypts the announcement like its DataSetMessages and never sends it
-        /// in the clear.
+        /// pipeline, so a connection configured for message security secures the
+        /// announcement with its SecurityMode, like its DataSetMessages, and never
+        /// sends it unsecured.
         /// </summary>
         /// <param name="announcement">UADP discovery response or JSON metadata message.</param>
         /// <param name="topic">Broker topic, or <see langword="null"/> for datagram transports.</param>
@@ -2747,13 +2747,14 @@ namespace Opc.Ua.PubSub.Connections
             PubSubNetworkMessageContext context,
             CancellationToken cancellationToken)
         {
+            ReadOnlyMemory<byte> wrapped;
             try
             {
                 ReadOnlyMemory<byte> encoded = UadpEncoder.EncodeWithSecurityBoundary(
                     message, context, out int payloadOffset);
                 ReadOnlyMemory<byte> prefix = encoded[..payloadOffset];
                 ReadOnlyMemory<byte> inner = encoded[payloadOffset..];
-                return await m_securityWrapper!
+                wrapped = await m_securityWrapper!
                     .WrapAsync(prefix, inner, m_securityWrapOptions, cancellationToken)
                     .ConfigureAwait(false);
             }
@@ -2770,6 +2771,17 @@ namespace Opc.Ua.PubSub.Connections
                 m_logger.UadpSecurityWrapFailed(ex);
                 throw;
             }
+
+            // The encoder counts the messages it encodes; the secured encoding bypasses
+            // it, so count the secured message in the same way.
+            context.Diagnostics.Increment(PubSubDiagnosticsCounterKind.SentNetworkMessages);
+            if (message is UadpNetworkMessage { DataSetMessages.Count: > 0 } data)
+            {
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.SentDataSetMessages,
+                    data.DataSetMessages.Count);
+            }
+            return wrapped;
         }
 
         private INetworkMessageEncoder? ResolveEncoder()

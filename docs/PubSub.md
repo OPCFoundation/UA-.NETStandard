@@ -285,9 +285,11 @@ The publisher-side `MetaDataPublisher` ([§6.2.2.5](https://reference.opcfoundat
 emits a retained `JsonMetaDataMessage` / `UadpDiscoveryResponseMessage`
 on the well-known `ua-metadata` topic at startup and after each
 configuration version bump; subscribers cache it before the first
-KeyFrame arrives. A connection configured for message security signs and
-encrypts the UADP announcement with the same keys as its DataSetMessages,
-so only subscribers that hold the keys can read the DataSet layout.
+KeyFrame arrives. A connection configured for message security applies its
+SecurityMode to the UADP announcement, with the same keys as its
+DataSetMessages: `Sign` lets subscribers verify the announcement, and
+`SignAndEncrypt` also hides the DataSet layout from applications that do not
+hold the keys.
 
 A subscriber also registers the `DataSetMetaData` configured on each
 DataSetReader whose filter names an exact PublisherId, WriterGroupId, and
@@ -1222,11 +1224,12 @@ subscribers that need to find publishers and bind to metadata at runtime.
   duplicate probes are suppressed, and identical responses are throttled.
 - MQTT publishes retained discovery messages on the standard status, connection,
   application, endpoint, and metadata topics.
-- A UADP connection configured for message security signs and encrypts its
-  discovery requests, responses, and announcements with the keys of its
-  SecurityGroup, so only applications that hold those keys can discover each
-  other. The MQTT last-will status message is the exception: the broker
-  publishes it later, so it is sent unsecured.
+- A UADP connection configured for message security applies its SecurityMode
+  to its discovery requests, responses, and announcements, with the keys of
+  its SecurityGroup: they are signed, and with `SignAndEncrypt` also
+  encrypted. A secured connection therefore discovers only applications that
+  hold the same keys. The MQTT last-will status message is the exception: the
+  broker publishes it later, so it is sent unsecured.
 
 ```csharp
 PubSubDiscoveryResult result = await application.RequestDiscoveryAsync(
