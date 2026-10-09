@@ -229,7 +229,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
         [Test]
         public void TryExtractActivityContextFromNullParametersReturnsFalse()
         {
-            bool result = EndpointBase.TryExtractActivityContextFromParameters(null, out ActivityContext context);
+            bool result = EndpointBase.TryExtractActivityContextFromParameters(null!, out ActivityContext context);
             Assert.That(result, Is.False);
             Assert.That(context, Is.Default);
         }
@@ -302,7 +302,7 @@ namespace Opc.Ua.Core.Tests.Stack.Server
                 RequestHeader = new RequestHeader { RequestHandle = 1 }
             };
 
-            Assert.Throws<NullReferenceException>(() => EndpointBase.CreateFault(m_logger, request, null));
+            Assert.Throws<NullReferenceException>(() => EndpointBase.CreateFault(m_logger, request, null!));
         }
 
         [Test]

@@ -91,6 +91,7 @@ namespace Opc.Ua.Server
             m_maxFailedAuthenticationAttempts = configuration.ServerConfiguration
                 .MaxFailedAuthenticationAttempts;
             m_maxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
+            m_httpsMutualTls = configuration.ServerConfiguration.HttpsMutualTls;
             m_maxBrowseContinuationPoints = configuration.ServerConfiguration
                 .MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration
@@ -569,6 +570,8 @@ namespace Opc.Ua.Server
         {
             ISession? session = null;
             ISession? restoredSession = null;
+            ISession? admittedRestore = null;
+            bool activated = false;
             IUserIdentityTokenHandler? newIdentity = null;
             string? clientKey = null;
             SemaphoreSlim? activationLock = null;
@@ -584,9 +587,10 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
+            PendingRestore? pendingRestore = null;
             if (!m_sessions.TryGetValue(authenticationToken, out _) && SupportsSessionRestore)
             {
-                restoredSession = await RestoreSessionAsync(
+                (pendingRestore, restoredSession) = await JoinRestoreAsync(
                     authenticationToken,
                     context,
                     cancellationToken).ConfigureAwait(false);
@@ -614,28 +618,41 @@ namespace Opc.Ua.Server
                             throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                         }
 
-                        // Restore completed outside the global lock. Re-check
-                        // under the lock in case another concurrent activation
-                        // already admitted the same mirrored session.
+                        // Restore completed outside the global lock. Concurrent
+                        // activations of the same token share one restored session
+                        // (JoinRestoreAsync); the first to get here admits it.
                         lock (m_bindingsLock)
                         {
                             if (m_stopping)
                             {
                                 throw new ServiceResultException(StatusCodes.BadServerHalted);
                             }
-                            if (!m_sessions.TryAdd(authenticationToken, restoredSession) &&
-                                !m_sessions.TryGetValue(authenticationToken, out session))
+
+                            // A restore that was admitted once and is gone again was
+                            // discarded or closed meanwhile and must not come back.
+                            if (pendingRestore!.Admitted ||
+                                !m_sessions.TryAdd(authenticationToken, restoredSession))
                             {
-                                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                                if (!m_sessions.TryGetValue(authenticationToken, out session))
+                                {
+                                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                                }
+                            }
+                            else
+                            {
+                                pendingRestore.Admitted = true;
+                                RemovePendingRestoreLocked(authenticationToken, pendingRestore);
                             }
                         }
 
-                        session ??= restoredSession;
-                        if (!ReferenceEquals(session, restoredSession))
+                        if (session == null)
                         {
-                            restoredSession.Dispose();
+                            // This activation admitted the restored session: it is
+                            // discarded again if no activation commits it.
+                            session = restoredSession;
+                            admittedRestore = restoredSession;
+                            m_server.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount++);
                         }
-                        restoredSession = null;
                     }
 
                     // get client lockout key.
@@ -892,6 +909,7 @@ namespace Opc.Ua.Server
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
 
+
                     lock (m_bindingsLock)
                     {
                         activationState.IsCommitting = true;
@@ -922,6 +940,41 @@ namespace Opc.Ua.Server
                     }
                     serverNonceObject = null; // ownership transferred to session
                     tempIdentity = null; // ownership transferred to session
+
+                    // The first activation of a restored session consumes the restore
+                    // (e.g. a mirrored single-use nonce) only once it passed every check
+                    // and the session was activated locally, so a failed or abandoned
+                    // attempt leaves it for another one. Only the binding commit, which
+                    // fails only for a session that is being closed, follows. Until it,
+                    // the session is unbound and is discarded when the activation fails.
+                    if (activationState.RestorePending)
+                    {
+                        bool admitted = false;
+                        try
+                        {
+                            admitted = await AdmitRestoredSessionAsync(
+                                authenticationToken,
+                                session,
+                                context,
+                                CancellationToken.None).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (!admitted)
+                            {
+                                lock (m_bindingsLock)
+                                {
+                                    activationState.IsCommitting = false;
+                                }
+                            }
+                        }
+                        if (!admitted)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                        }
+                        activationState.RestorePending = false;
+                    }
+
                     activationState.ClientUserId = clientUserId;
                     activationState.ClientUserTokenType = clientUserTokenType;
                     activationState.HasClientUserId = true;
@@ -932,6 +985,7 @@ namespace Opc.Ua.Server
                     // that a newer concurrent activation has already superseded.
                     activationSequence = ++activationState.ActivationSequence;
                     CommitSessionBinding(authenticationToken, session, activationState);
+                    activated = true;
                 }
                 finally
                 {
@@ -976,9 +1030,143 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                restoredSession?.Dispose();
                 serverNonceObject?.Dispose();
                 activationLock?.Release();
+
+                // A restored session that no activation admitted already registered
+                // its diagnostics node, which must not outlive it; the last activation
+                // sharing the restore releases it.
+                if (pendingRestore != null &&
+                    LeaveRestore(authenticationToken, pendingRestore) &&
+                    restoredSession != null)
+                {
+                    await CloseUnadmittedRestoredSessionAsync(restoredSession).ConfigureAwait(false);
+                }
+
+                // A restored session no activation committed is removed again, so it
+                // neither holds a session slot nor times out into a close that a
+                // distributed manager would treat as the end of the mirrored session.
+                if (admittedRestore != null && !activated)
+                {
+                    await DiscardRestoredSessionAsync(authenticationToken, admittedRestore).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Restores a session for an unknown token, sharing the restore with every
+        /// concurrent activation of the same token. The replica materializes one copy of
+        /// the session, so a retry racing the first attempt neither competes with it for
+        /// the identity of the session (for example its SessionId) nor fails because the
+        /// first attempt consumed the restore.
+        /// </summary>
+        private async ValueTask<(PendingRestore Pending, ISession? Session)> JoinRestoreAsync(
+            NodeId authenticationToken,
+            OperationContext context,
+            CancellationToken cancellationToken)
+        {
+            PendingRestore? pending;
+            bool start = false;
+            lock (m_bindingsLock)
+            {
+                if (!m_pendingRestores.TryGetValue(authenticationToken, out pending))
+                {
+                    pending = new PendingRestore();
+                    m_pendingRestores.Add(authenticationToken, pending);
+                    start = true;
+                }
+                pending.Users++;
+            }
+
+            if (start)
+            {
+                try
+                {
+                    pending.Completion.TrySetResult(await RestoreSessionAsync(
+                        authenticationToken,
+                        context,
+                        cancellationToken).ConfigureAwait(false));
+                }
+                catch (Exception e)
+                {
+                    pending.Completion.TrySetException(e);
+                }
+            }
+
+            try
+            {
+                return (pending, await pending.Completion.Task.ConfigureAwait(false));
+            }
+            catch
+            {
+                LeaveRestore(authenticationToken, pending);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Leaves a shared restore.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> when this was the last activation sharing it and no activation
+        /// admitted the restored session, which the caller then releases.
+        /// </returns>
+        private bool LeaveRestore(NodeId authenticationToken, PendingRestore pending)
+        {
+            lock (m_bindingsLock)
+            {
+                pending.Users--;
+                if (pending.Users > 0)
+                {
+                    return false;
+                }
+                RemovePendingRestoreLocked(authenticationToken, pending);
+                return !pending.Admitted;
+            }
+        }
+
+        private void RemovePendingRestoreLocked(NodeId authenticationToken, PendingRestore pending)
+        {
+            if (m_pendingRestores.TryGetValue(authenticationToken, out PendingRestore? current) &&
+                ReferenceEquals(current, pending))
+            {
+                m_pendingRestores.Remove(authenticationToken);
+            }
+        }
+
+        /// <summary>
+        /// A restore shared by the concurrent activations of one authentication token;
+        /// guarded by the bindings lock.
+        /// </summary>
+        private sealed class PendingRestore
+        {
+            public TaskCompletionSource<ISession?> Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public int Users { get; set; }
+
+            public bool Admitted { get; set; }
+        }
+
+        /// <summary>
+        /// Releases a restored Session that was never admitted to the session table.
+        /// </summary>
+        private async ValueTask CloseUnadmittedRestoredSessionAsync(ISession session)
+        {
+            try
+            {
+                if (!session.Id.IsNull)
+                {
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.FailedToDiscardRestoredSession(e, session.Id);
+            }
+            finally
+            {
+                session.Dispose();
             }
         }
 
@@ -1250,6 +1438,91 @@ namespace Opc.Ua.Server
             state.ClientUserId = clientUserId;
             state.HasClientUserId = true;
             state.RequiresNewChannelChecks = true;
+            state.RestorePending = true;
+        }
+
+        /// <summary>
+        /// Called once for a Session materialized by <see cref="RestoreSessionAsync"/>,
+        /// after its first <c>ActivateSession</c> passed the client signature, user
+        /// identity and continuity checks and the session was activated locally, immediately
+        /// before the activation is bound and committed.
+        /// </summary>
+        /// <remarks>
+        /// A distributed manager consumes its single-use restore state here (for example
+        /// the mirrored server nonce), so an activation that fails validation leaves that
+        /// state intact for another attempt or another replica. Returning <c>false</c>
+        /// rejects the activation with <see cref="StatusCodes.BadSessionIdInvalid"/>. When
+        /// the first activation of a restored Session fails for any reason, the Session is
+        /// discarded from this manager without going through
+        /// <see cref="CloseSessionAsync"/>, so mirrored state is not deleted. Only the binding,
+        /// which fails only for a session that is being closed, commits after this call returns
+        /// <c>true</c>, so the request's cancellation is not passed: a restore must not be
+        /// consumed and then abandoned. Work that must only happen for a committed activation
+        /// belongs in <see cref="OnSessionActivatedAsync"/>.
+        /// </remarks>
+        /// <param name="authenticationToken">The Session authentication token.</param>
+        /// <param name="session">The restored Session.</param>
+        /// <param name="context">The operation context of the activation.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns><c>true</c> to commit the activation; <c>false</c> to reject it.</returns>
+        protected virtual ValueTask<bool> AdmitRestoredSessionAsync(
+            NodeId authenticationToken,
+            ISession session,
+            OperationContext context,
+            CancellationToken cancellationToken)
+        {
+            return new ValueTask<bool>(true);
+        }
+
+        /// <summary>
+        /// Removes a restored Session whose first activation failed, without the
+        /// virtual <see cref="CloseSessionAsync"/> and therefore without deleting any
+        /// mirrored state. Its diagnostics node is removed and the session disposed.
+        /// </summary>
+        private async ValueTask DiscardRestoredSessionAsync(NodeId authenticationToken, ISession session)
+        {
+            // Under the activation gate, so a concurrent activation of the same restored
+            // session either committed it already or fails once it is removed.
+            if (!m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state))
+            {
+                return;
+            }
+            await state.Lock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                lock (m_bindingsLock)
+                {
+                    // A restored session that an activation committed is bound; one whose
+                    // activation failed after Session.Activate (or after its admission) is not.
+                    if (state.BindingContext != null ||
+                        !m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
+                        !ReferenceEquals(current, session) ||
+                        !SessionTermination.TryClaimClose(session) ||
+                        !m_sessions.TryRemove(authenticationToken, out _))
+                    {
+                        return;
+                    }
+                    RemoveSessionBinding(state);
+                }
+            }
+            finally
+            {
+                state.Lock.Release();
+            }
+
+            try
+            {
+                await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                m_logger.FailedToDiscardRestoredSession(e, session.Id);
+            }
+            finally
+            {
+                session.Dispose();
+                m_server.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount--);
+            }
         }
 
         /// <summary>
@@ -1650,12 +1923,84 @@ namespace Opc.Ua.Server
 
             if (options.AllowAnonymous)
             {
+                ValidateAnonymousSessionlessChannel(endpoint, secureChannelContext);
                 return new UserIdentity();
             }
 
             throw ServiceResultException.Create(
                 StatusCodes.BadIdentityTokenInvalid,
                 "The Session-less request carries no Access Token.");
+        }
+
+        /// <summary>
+        /// Checks that a Session-less request without an Access Token may run
+        /// as an anonymous user on the channel it arrived on.
+        /// </summary>
+        /// <remarks>
+        /// "If application authentication through the SecureChannel is
+        /// sufficient, Servers may not require the Access Token and assume an
+        /// anonymous user" (OPC 10000-4 §6.3.1). The request therefore has to
+        /// meet what the endpoint demands of CreateSession and ActivateSession:
+        /// the client application certificate of the channel where the
+        /// endpoint uses security, or HTTPS with mutual TLS, and an anonymous
+        /// user token policy.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">
+        /// The channel does not authenticate the application, or the endpoint
+        /// offers no anonymous user token policy.
+        /// </exception>
+        private void ValidateAnonymousSessionlessChannel(
+            EndpointDescription? endpoint,
+            SecureChannelContext secureChannelContext)
+        {
+            if (endpoint == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityModeInsufficient,
+                    "The endpoint of the Session-less request is not known.");
+            }
+
+            // An application certificate is required as ActivateSession requires it
+            // for a new channel; HTTPS with mutual TLS asks for it on every request.
+            bool requiresClientCertificate =
+                endpoint.SecurityMode != MessageSecurityMode.None ||
+                !string.Equals(endpoint.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal) ||
+                (m_httpsMutualTls &&
+                    endpoint.EndpointUrl != null &&
+                    Utils.IsUriHttpsScheme(endpoint.EndpointUrl));
+            if (requiresClientCertificate &&
+                (secureChannelContext.ClientChannelCertificate == null ||
+                    secureChannelContext.ClientChannelCertificate.Length == 0))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The Session-less request carries no Access Token and its channel has no client certificate.");
+            }
+
+            // Anonymous only where an anonymous Session would be possible: the
+            // check of ActivateSession for an anonymous user identity token.
+            if (!endpoint.UserIdentityTokens.IsEmpty && !OffersAnonymousUserTokenPolicy(endpoint))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "Anonymous user token policy not supported.");
+            }
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="endpoint"/> lists an anonymous user token policy.
+        /// </summary>
+        private static bool OffersAnonymousUserTokenPolicy(EndpointDescription endpoint)
+        {
+            for (int ii = 0; ii < endpoint.UserIdentityTokens.Count; ii++)
+            {
+                if (endpoint.UserIdentityTokens[ii].TokenType == UserTokenType.Anonymous)
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         /// <summary>
@@ -2408,6 +2753,7 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly NodeIdDictionary<ISession> m_sessions;
         private readonly Lock m_bindingsLock = new();
+        private readonly Dictionary<NodeId, PendingRestore> m_pendingRestores = [];
         private readonly Dictionary<string, int> m_channelSessionCounts = new(StringComparer.Ordinal);
         private bool m_stopping;
 
@@ -2427,6 +2773,7 @@ namespace Opc.Ua.Server
         private readonly int m_minSessionTimeout;
         private readonly int m_maxSessionTimeout;
         private readonly int m_maxSessionCount;
+        private readonly bool m_httpsMutualTls;
         private readonly int m_maxRequestAge;
 
         private readonly int m_maxBrowseContinuationPoints;
@@ -2508,6 +2855,12 @@ namespace Opc.Ua.Server
             public bool HasClientUserId { get; set; }
 
             public bool RequiresNewChannelChecks { get; set; }
+
+            /// <summary>
+            /// The session was materialized by <see cref="RestoreSessionAsync"/> and no
+            /// activation has committed it yet; read and cleared under the activation gate.
+            /// </summary>
+            public bool RestorePending { get; set; }
 
             public long ActivationSequence { get; set; }
 
@@ -2942,5 +3295,12 @@ namespace Opc.Ua.Server
             this ILogger logger,
             SessionlessLimit limit,
             RequestType requestType);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 12, Level = LogLevel.Warning,
+            Message = "Server - Failed to discard restored session {SessionId} after its activation failed.")]
+        public static partial void FailedToDiscardRestoredSession(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
     }
 }

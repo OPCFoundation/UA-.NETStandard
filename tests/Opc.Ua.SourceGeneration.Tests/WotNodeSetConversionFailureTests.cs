@@ -370,7 +370,7 @@ namespace Opc.Ua.SourceGeneration
 
             public override SourceText GetText(CancellationToken cancellationToken = default)
             {
-                return null;
+                return null!;
             }
         }
     }

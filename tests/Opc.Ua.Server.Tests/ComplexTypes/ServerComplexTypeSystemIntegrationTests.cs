@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Tests
             {
                 await m_session.CloseAsync().ConfigureAwait(false);
                 m_session.Dispose();
-                m_session = null;
+                m_session = null!;
             }
 
             m_clientFixture?.Dispose();
@@ -171,7 +171,7 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    server.Factory.TryGetEncodeableType(structureTypeId, out IEncodeableType structType),
+                    server.Factory.TryGetEncodeableType(structureTypeId, out IEncodeableType? structType),
                     Is.True,
                     "the runtime TestPoint structure should be registered in the server factory");
                 Assert.That(structType, Is.Not.Null);
@@ -182,7 +182,7 @@ namespace Opc.Ua.Server.Tests
                     "the TestPoint binary encoding id should resolve to the structure stand-in");
 
                 Assert.That(
-                    server.Factory.TryGetEnumeratedType(enumTypeId, out IEnumeratedType enumType),
+                    server.Factory.TryGetEnumeratedType(enumTypeId, out IEnumeratedType? enumType),
                     Is.True,
                     "the runtime TestColor enumeration should be registered in the server factory");
                 Assert.That(enumType, Is.Not.Null);
@@ -301,9 +301,9 @@ namespace Opc.Ua.Server.Tests
                 default).ConfigureAwait(false);
             DataValue definitionValue = readResponse.Results[0];
             Assert.That(definitionValue.WrappedValue.TryGetValue(out ExtensionObject definitionBody), Is.True);
-            Assert.That(definitionBody.TryGetValue(out StructureDefinition definition), Is.True);
+            Assert.That(definitionBody.TryGetValue(out StructureDefinition? definition), Is.True);
             Assert.That(
-                string.Join(",", definition.Fields.ToArray().Select(field => field.Name)),
+                string.Join(",", definition!.Fields.ToArray()!.Select(field => field.Name)),
                 Is.EqualTo("X,Y,Name,Z"));
             Assert.That(
                 definition.DefaultEncodingId,
@@ -359,7 +359,7 @@ namespace Opc.Ua.Server.Tests
         private static IStructure ReadStructure(DataValue dataValue)
         {
             Assert.That(dataValue.WrappedValue.TryGetValue(out ExtensionObject extensionObject), Is.True);
-            Assert.That(extensionObject.TryGetValue(out IEncodeable encodeable), Is.True);
+            Assert.That(extensionObject.TryGetValue(out IEncodeable? encodeable), Is.True);
             var structure = encodeable as IStructure;
             Assert.That(structure, Is.Not.Null, "the decoded value should be a complex structure");
             return structure;

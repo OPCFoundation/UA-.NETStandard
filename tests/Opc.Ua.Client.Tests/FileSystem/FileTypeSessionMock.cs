@@ -164,7 +164,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             {
                 methodId = 0;
             }
-            if (m_handlers.TryGetValue(methodId, out Func<CallMethodRequest, Variant[]> handler))
+            if (m_handlers.TryGetValue(methodId, out Func<CallMethodRequest, Variant[]>? handler))
             {
                 return handler(req);
             }

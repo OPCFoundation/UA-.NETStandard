@@ -42,9 +42,9 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
-            StandardServer server = null;
-            SecureChannelContext secureChannelContext = null;
-            RequestHeader requestHeader = null;
+            StandardServer? server = null;
+            SecureChannelContext? secureChannelContext = null;
+            RequestHeader? requestHeader = null;
 
             try
             {
@@ -53,7 +53,7 @@ namespace Opc.Ua.Server.Tests
                 (requestHeader, secureChannelContext) =
                     await server.CreateAndActivateSessionAsync("UpdateDiagnosticCountersTest").ConfigureAwait(false);
 
-                ISession session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                ISession session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken)!;
                 Assert.That(session, Is.Not.Null, "Session should exist after Create/Activate.");
 
                 bool eventRaised = false;
@@ -71,7 +71,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
-                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
+                await CloseSessionAsync(server!, secureChannelContext!, requestHeader!).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
@@ -89,9 +89,9 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
-            StandardServer server = null;
-            SecureChannelContext secureChannelContext = null;
-            RequestHeader requestHeader = null;
+            StandardServer? server = null;
+            SecureChannelContext? secureChannelContext = null;
+            RequestHeader? requestHeader = null;
 
             try
             {
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests
                 (requestHeader, secureChannelContext) =
                     await server.CreateAndActivateSessionAsync("UpdateDiagnosticCountersIgnoredTest").ConfigureAwait(false);
 
-                ISession session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken);
+                ISession session = server.CurrentInstance.SessionManager.GetSession(requestHeader.AuthenticationToken)!;
                 Assert.That(session, Is.Not.Null, "Session should exist after Create/Activate.");
 
                 bool eventRaised = false;
@@ -123,7 +123,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
-                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
+                await CloseSessionAsync(server!, secureChannelContext!, requestHeader!).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
@@ -137,9 +137,9 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
-            StandardServer server = null;
-            SecureChannelContext secureChannelContext = null;
-            RequestHeader requestHeader = null;
+            StandardServer? server = null;
+            SecureChannelContext? secureChannelContext = null;
+            RequestHeader? requestHeader = null;
             try
             {
                 server = fixture.Server;
@@ -147,14 +147,14 @@ namespace Opc.Ua.Server.Tests
                     await server.CreateAndActivateSessionAsync("StaleFresh").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken);
+                    .GetSession(requestHeader.AuthenticationToken)!;
 
-                Assert.That(session.IsIdentityStale, Is.False,
+                Assert.That(session!.IsIdentityStale, Is.False,
                     "Newly activated sessions must not be marked stale.");
             }
             finally
             {
-                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
+                await CloseSessionAsync(server!, secureChannelContext!, requestHeader!).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
@@ -164,9 +164,9 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
-            StandardServer server = null;
-            SecureChannelContext secureChannelContext = null;
-            RequestHeader requestHeader = null;
+            StandardServer? server = null;
+            SecureChannelContext? secureChannelContext = null;
+            RequestHeader? requestHeader = null;
             try
             {
                 server = fixture.Server;
@@ -174,9 +174,9 @@ namespace Opc.Ua.Server.Tests
                     await server.CreateAndActivateSessionAsync("StaleFlag").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken);
+                    .GetSession(requestHeader.AuthenticationToken)!;
 
-                IUserIdentity original = session.EffectiveIdentity;
+                IUserIdentity original = session!.EffectiveIdentity;
                 Assert.That(original, Is.Not.Null);
 
                 session.MarkIdentityStale();
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
-                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
+                await CloseSessionAsync(server!, secureChannelContext!, requestHeader!).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
@@ -204,9 +204,9 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
-            StandardServer server = null;
-            SecureChannelContext secureChannelContext = null;
-            RequestHeader requestHeader = null;
+            StandardServer? server = null;
+            SecureChannelContext? secureChannelContext = null;
+            RequestHeader? requestHeader = null;
             try
             {
                 server = fixture.Server;
@@ -214,15 +214,15 @@ namespace Opc.Ua.Server.Tests
                     await server.CreateAndActivateSessionAsync("StaleArg").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken);
+                    .GetSession(requestHeader.AuthenticationToken)!;
 
                 Assert.Throws<System.ArgumentNullException>(
-                    () => session.RefreshEffectiveIdentity(null!),
+                    () => session!.RefreshEffectiveIdentity(null!),
                     "Passing a null identity must throw to prevent corrupt session state.");
             }
             finally
             {
-                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
+                await CloseSessionAsync(server!, secureChannelContext!, requestHeader!).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }
@@ -232,9 +232,9 @@ namespace Opc.Ua.Server.Tests
         {
             var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t));
             await fixture.StartAsync().ConfigureAwait(false);
-            StandardServer server = null;
-            SecureChannelContext secureChannelContext = null;
-            RequestHeader requestHeader = null;
+            StandardServer? server = null;
+            SecureChannelContext? secureChannelContext = null;
+            RequestHeader? requestHeader = null;
             try
             {
                 server = fixture.Server;
@@ -242,8 +242,8 @@ namespace Opc.Ua.Server.Tests
                     await server.CreateAndActivateSessionAsync("IdentityGeneration").ConfigureAwait(false);
 
                 ISession session = server.CurrentInstance.SessionManager
-                    .GetSession(requestHeader.AuthenticationToken);
-                IdentityRefreshSnapshot snapshot = session.CaptureIdentityRefreshSnapshot();
+                    .GetSession(requestHeader.AuthenticationToken)!;
+                IdentityRefreshSnapshot snapshot = session!.CaptureIdentityRefreshSnapshot();
                 session.MarkIdentityStale();
 
                 bool refreshed = session.TryRefreshEffectiveIdentity(
@@ -256,7 +256,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
-                await CloseSessionAsync(server, secureChannelContext, requestHeader).ConfigureAwait(false);
+                await CloseSessionAsync(server!, secureChannelContext!, requestHeader!).ConfigureAwait(false);
                 await fixture.StopAsync().ConfigureAwait(false);
             }
         }

@@ -94,7 +94,7 @@ namespace Opc.Ua.Features.Tests
             // username login fail with "Endpoint does not support the
             // user identity type provided."
             await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+            m_serverFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
 
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
@@ -128,7 +128,7 @@ namespace Opc.Ua.Features.Tests
             {
                 await m_session.CloseAsync().ConfigureAwait(false);
                 m_session.Dispose();
-                m_session = null;
+                m_session = null!;
             }
             if (m_serverFixture != null)
             {

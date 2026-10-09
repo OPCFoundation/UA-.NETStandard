@@ -561,7 +561,7 @@ namespace Opc.Ua.Server.Tests
 
             // Set up a ConfigurationNodeManager mock that exposes the DefaultPermissionsChanged event
             var configNodeManagerMock = new Mock<IConfigurationNodeManager>();
-            EventHandler capturedHandler = null;
+            EventHandler? capturedHandler = null;
             configNodeManagerMock
                 .SetupAdd(m => m.DefaultPermissionsChanged += It.IsAny<EventHandler>())
                 .Callback<EventHandler>(h => capturedHandler = h);
@@ -1333,7 +1333,7 @@ namespace Opc.Ua.Server.Tests
                 });
 
             // Capture the IFilterTarget that reaches QueueEvent so we can inspect cloned values.
-            IFilterTarget deliveredTarget = null;
+            IFilterTarget? deliveredTarget = null;
 
             var serverMock = new Mock<IServerInternal>();
             serverMock.Setup(s => s.Auditing).Returns(false);

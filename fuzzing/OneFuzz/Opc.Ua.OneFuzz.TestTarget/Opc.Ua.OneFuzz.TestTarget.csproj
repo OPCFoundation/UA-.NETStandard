@@ -6,7 +6,6 @@
     <AssemblyName>Opc.Ua.OneFuzz.TestTarget</AssemblyName>
     <AssemblyName Condition="'$(ContractDependencyOnly)' == 'true'">Opc.Ua.OneFuzz.TestDependency</AssemblyName>
     <RootNamespace>Opc.Ua.OneFuzz.TestTarget</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <EnableDefaultCompileItems>false</EnableDefaultCompileItems>
     <GenerateRuntimeConfigurationFiles>true</GenerateRuntimeConfigurationFiles>

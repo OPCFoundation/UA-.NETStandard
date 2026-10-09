@@ -255,7 +255,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 var sessionMock = new Mock<ISession>(MockBehavior.Loose);
                 sessionMock.SetupGet(s => s.MessageContext).Returns(messageContext);
 
-                TempTransferHarness harness = null;
+                TempTransferHarness? harness = null;
                 sessionMock
                     .Setup(s => s.CallAsync(
                         It.IsAny<RequestHeader>(),

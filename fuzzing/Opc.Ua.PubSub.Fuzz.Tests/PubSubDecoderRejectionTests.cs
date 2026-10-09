@@ -67,8 +67,8 @@ namespace Opc.Ua.Fuzzing
             string conflictingValue)
         {
             byte[] seed = PubSubSeedAssertions.LoadSeed("Json", "metadata-keyframe-verbose.json");
-            JsonObject envelope = JsonNode.Parse(seed).AsObject();
-            JsonObject dataSet = envelope["Messages"].AsArray()[0].AsObject();
+            JsonObject envelope = JsonNode.Parse(seed)!.AsObject();
+            JsonObject dataSet = envelope["Messages"]!.AsArray()[0]!.AsObject();
             dataSet[propertyName] = conflictingValue;
             byte[] conflicting = JsonSerializer.SerializeToUtf8Bytes(envelope);
 
@@ -139,8 +139,8 @@ namespace Opc.Ua.Fuzzing
             PubSubNetworkMessageContext coreContext = FuzzableCode.NewContext();
             PubSubNetworkMessageContext publicContext = FuzzableCode.NewContext();
             PubSubNetworkMessage coreResult = FuzzableCode.DecodePubSubJson(frame, coreContext);
-            PubSubNetworkMessage publicResult = await new PubSubJsonDecoder()
-                .TryDecodeAsync(frame, publicContext).ConfigureAwait(false);
+            PubSubNetworkMessage publicResult = (await new PubSubJsonDecoder()
+                .TryDecodeAsync(frame, publicContext).ConfigureAwait(false))!;
 
             Assert.That(coreResult, Is.Null);
             Assert.That(publicResult, Is.Null);

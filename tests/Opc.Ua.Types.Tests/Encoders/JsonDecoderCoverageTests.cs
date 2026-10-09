@@ -60,7 +60,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [Test]
         public void ConstructorWithNullContextThrows()
         {
-            Assert.Throws<ArgumentNullException>(() => new JsonDecoder("{}", null));
+            Assert.Throws<ArgumentNullException>(() => new JsonDecoder("{}", null!));
         }
 
         [Test]
@@ -243,7 +243,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             byte[] buffer = new byte[8192];
             ArraySegment<byte> encoded = JsonEncoder.EncodeMessage(argument, buffer, context);
-            var sequence = new ReadOnlySequence<byte>(encoded.Array, encoded.Offset, encoded.Count);
+            var sequence = new ReadOnlySequence<byte>(encoded.Array!, encoded.Offset, encoded.Count);
 
             Argument decoded = JsonDecoder.DecodeMessage<Argument>(sequence, context);
 
@@ -304,7 +304,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder(/*lang=json,strict*/ """{ "SwitchField": 2 }""");
             var switches = new List<string> { "A", "B", "C" };
-            uint value = reader.ReadSwitchField(switches, out string fieldName);
+            uint value = reader.ReadSwitchField(switches, out string? fieldName);
             Assert.That(value, Is.EqualTo(2));
             Assert.That(fieldName, Is.EqualTo("B"));
         }
@@ -316,7 +316,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // but not numeric; otherwise an absent SwitchField is treated as index 0.
             using JsonDecoder reader = NewDecoder(/*lang=json,strict*/ """{ "SwitchField": "x", "B": 5 }""");
             var switches = new List<string> { "A", "B", "C" };
-            uint value = reader.ReadSwitchField(switches, out string fieldName);
+            uint value = reader.ReadSwitchField(switches, out string? fieldName);
             Assert.That(value, Is.EqualTo(2));
             Assert.That(fieldName, Is.EqualTo("B"));
         }
@@ -326,7 +326,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         {
             using JsonDecoder reader = NewDecoder("null");
             var switches = new List<string> { "A", "B", "C" };
-            uint value = reader.ReadSwitchField(switches, out string fieldName);
+            uint value = reader.ReadSwitchField(switches, out string? fieldName);
             Assert.That(value, Is.Zero);
             Assert.That(fieldName, Is.Null);
         }

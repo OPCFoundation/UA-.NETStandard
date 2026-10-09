@@ -79,7 +79,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return false;
             }

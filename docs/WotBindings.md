@@ -1520,8 +1520,7 @@ For the converter-default compatibility note, see
 
 Current sample limitation: the upstream cavitation signal is proven to raise the
 upstream alarm and leave it unacknowledged, but the Pump1 Asset's `Supervision`
-view currently organizes no event affordance, Pump1 carries no `GeneratesEvent`
-reference for its cavitation alarm, and acknowledgement does not round-trip
+view currently organizes no event affordance, and acknowledgement does not round-trip
 because the projected pump actions are Start, Stop and Reset rather than
 Condition Methods carrying `uav:conditionAction` / `uav:actsOn`.
 

@@ -205,7 +205,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         private static bool IsFidelityFinding(Exception exception)
         {
-            for (Exception current = exception; current != null; current = current.InnerException)
+            for (Exception current = exception; current != null; current = current.InnerException!)
             {
                 if (string.Equals(
                     current.GetType().FullName,
@@ -225,7 +225,7 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         private static bool IsResourceFinding(Exception exception)
         {
-            for (Exception current = exception; current != null; current = current.InnerException)
+            for (Exception current = exception; current != null; current = current.InnerException!)
             {
                 if (current is ResourceBudgetException)
                 {

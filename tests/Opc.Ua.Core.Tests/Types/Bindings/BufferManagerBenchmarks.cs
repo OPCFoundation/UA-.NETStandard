@@ -73,7 +73,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             }
             for (int i = 0; i < Allocations; i++)
             {
-                m_bufferArray[i] = null;
+                m_bufferArray[i] = null!;
             }
         }
 
@@ -92,7 +92,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             }
             for (int i = 0; i < Allocations; i++)
             {
-                m_bufferArray[i] = null;
+                m_bufferArray[i] = null!;
             }
         }
 #endif
@@ -210,11 +210,11 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         [OneTimeTearDown]
         public void OneTimeTearDown()
         {
-            m_arrayPoolTooSmall = null;
-            m_arrayPool = null;
-            m_arrayPoolShared = null;
-            m_telemetry = null;
-            m_bufferManager = null;
+            m_arrayPoolTooSmall = null!;
+            m_arrayPool = null!;
+            m_arrayPoolShared = null!;
+            m_telemetry = null!;
+            m_bufferManager = null!;
         }
 
         /// <summary>
@@ -237,11 +237,11 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         [GlobalCleanup]
         public void GlobalCleanup()
         {
-            m_arrayPoolTooSmall = null;
-            m_arrayPool = null;
-            m_arrayPoolShared = null;
-            m_telemetry = null;
-            m_bufferManager = null;
+            m_arrayPoolTooSmall = null!;
+            m_arrayPool = null!;
+            m_arrayPoolShared = null!;
+            m_telemetry = null!;
+            m_bufferManager = null!;
         }
 
         private byte[][] m_bufferArray;

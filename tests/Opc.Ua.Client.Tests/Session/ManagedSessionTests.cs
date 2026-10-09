@@ -790,12 +790,12 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 .Returns(new Mock<ITelemetryContext>().Object);
 
             var endpoint = new ConfiguredEndpoint(
-                null,
+                null!,
                 new EndpointDescription("opc.tcp://localhost:4840"));
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await Client.ManagedSession.CreateAsync(
-                    configuration: null,
+                    configuration: null!,
                     endpoint: endpoint,
                     sessionFactory: mockFactory.Object).ConfigureAwait(false));
         }
@@ -820,7 +820,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await Client.ManagedSession.CreateAsync(
                     configuration: config,
-                    endpoint: null,
+                    endpoint: null!,
                     sessionFactory: mockFactory.Object).ConfigureAwait(false));
         }
 

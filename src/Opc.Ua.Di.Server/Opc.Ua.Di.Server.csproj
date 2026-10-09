@@ -6,7 +6,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Di.Server</PackageId>
     <RootNamespace>Opc.Ua.Di.Server</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>OPC UA Device Integration (DI, OPC 10000-100) server class library</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

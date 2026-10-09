@@ -2,7 +2,6 @@
   <PropertyGroup>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Tools.Tests</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsTestProject>true</IsTestProject>
     <NoWarn>$(NoWarn);CS1591;CA1014</NoWarn>
   </PropertyGroup>

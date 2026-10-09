@@ -50,8 +50,8 @@ namespace Opc.Ua.Client.TestFramework
                 .GetField(
                     "m_serverNonce",
                     System.Reflection.BindingFlags.NonPublic |
-                    System.Reflection.BindingFlags.Instance)
-                .GetValue(this);
+                    System.Reflection.BindingFlags.Instance)!
+                .GetValue(this)!;
 
         /// <summary>
         /// Create the mock
@@ -93,7 +93,7 @@ namespace Opc.Ua.Client.TestFramework
         /// </summary>
         /// <returns></returns>
         public static SessionMock Create(
-            EndpointDescription endpoint = null,
+            EndpointDescription? endpoint = null,
             ArrayOf<EndpointDescription> availableEndpoints = default,
             ArrayOf<string> discoveryProfileUris = default)
         {
@@ -129,7 +129,7 @@ namespace Opc.Ua.Client.TestFramework
             }
 
             var configuredEndpoint = new ConfiguredEndpoint(
-                null,
+                null!,
                 endpoint ??
                 new EndpointDescription
                 {

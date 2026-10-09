@@ -80,12 +80,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 m_pushClient?.Dispose();
-                m_pushClient = null;
+                m_pushClient = null!;
                 if (m_server != null)
                 {
                     await m_server.DisposeAsync().ConfigureAwait(false);
                 }
-                m_server = null;
+                m_server = null!;
             }
         }
 
@@ -325,7 +325,7 @@ namespace Opc.Ua.Gds.Tests
         private long GetEncodedSize(TrustListDataType trustList)
         {
             using var stream = new System.IO.MemoryStream();
-            using var encoder = new BinaryEncoder(stream, m_pushClient.PushClient.Session.MessageContext, false);
+            using var encoder = new BinaryEncoder(stream, m_pushClient.PushClient.Session!.MessageContext, false);
             encoder.WriteEncodeable(null, trustList);
             return stream.Length;
         }

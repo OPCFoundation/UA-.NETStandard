@@ -417,7 +417,7 @@ namespace Opc.Ua.InformationModel.Tests
 
                 bool found = false;
 
-                if (browseResponse.Results[0].References != default)
+                if (browseResponse.Results[0].References != default!)
                 {
                     foreach (ReferenceDescription rd in
                         browseResponse.Results[0].References)

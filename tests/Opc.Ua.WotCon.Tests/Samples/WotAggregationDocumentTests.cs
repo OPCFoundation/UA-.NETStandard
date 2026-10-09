@@ -624,7 +624,9 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 Does.Contain(DiNamespace)
                     .And.Contain(MachineryNamespace)
                     .And.Contain(PumpsNamespace));
-            Assert.That(TypeDefinition(pump), Is.EqualTo("ns=2;i=1052"));
+            // The pump is typed by its own subtype of the companion PumpType,
+            // which declares the alarms it raises (OPC 10000-3 §7.15).
+            Assert.That(TypeDefinition(pump), Is.EqualTo($"ns=1;s={pumpName}.Type"));
         }
 
         [Test]
@@ -664,7 +666,10 @@ namespace Opc.Ua.WotCon.Tests.Samples
                         ? pumpName.Replace("Pump", "Pump_", StringComparison.Ordinal)
                         : browseName),
                     expectedNodeId);
-                Assert.That(TypeDefinition(node), Is.EqualTo(typeDefinition), expectedNodeId);
+                Assert.That(
+                    TypeDefinition(node),
+                    Is.EqualTo(typeDefinition.Replace("Pump1", pumpName, StringComparison.Ordinal)),
+                    expectedNodeId);
             }
 
             foreach (PropertyExpectation binding in s_propertyBindings)
@@ -754,8 +759,26 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     method.NodeId!.StartsWith($"ns=1;s={pumpName}.", StringComparison.Ordinal))
                     .Select(method => LocalName(method.BrowseName)),
                 Is.EquivalentTo(s_managementMembers));
+            // OPC 10000-3 §7.15: an Object is never the source of
+            // GeneratesEvent, so the pump's alarms are declared by its own
+            // subtype of the companion PumpType instead.
             Assert.That(
-                pump.References!.Where(reference => reference.IsForward &&
+                pump.References!.Any(reference =>
+                    ResolveAlias(nodeSet, reference.ReferenceType) == "i=41"),
+                Is.False);
+            string pumpTypeId = $"ns=1;s={pumpName}.Type";
+            Assert.That(
+                pump.References!.Single(reference => reference.IsForward &&
+                    ResolveAlias(nodeSet, reference.ReferenceType) == "i=40").Value,
+                Is.EqualTo(pumpTypeId));
+            UAObjectType pumpType = FindNode<UAObjectType>(nodeSet, pumpTypeId);
+            Assert.That(
+                pumpType.References!.Single(reference => !reference.IsForward &&
+                    ResolveAlias(nodeSet, reference.ReferenceType) == "i=45").Value,
+                Is.EqualTo("ns=2;i=1052"),
+                "The pump's type derives from the companion PumpType.");
+            Assert.That(
+                pumpType.References!.Where(reference => reference.IsForward &&
                     ResolveAlias(nodeSet, reference.ReferenceType) == "i=41").Select(reference => reference.Value),
                 Is.EquivalentTo(s_supervisionMembers.Select(name => $"ns=1;s={pumpName}.{name}")));
 
@@ -1547,7 +1570,11 @@ namespace Opc.Ua.WotCon.Tests.Samples
             string mapName,
             string nodeId)
         {
+            // A pump raises the alarms its own type declares, so the type's
+            // Thing Model states the same EventType as the pump's Thing
+            // Description; the pump's is the one that is bound.
             Affordance[] matches = ReadAffordances(documents, mapName).Where(affordance =>
+                !TypeNames(affordance.Root).Contains("tm:ThingModel") &&
                 affordance.Value.TryGetProperty("uav:id", out JsonElement id) &&
                 id.GetString() == nodeId).ToArray();
             Assert.That(matches, Has.Length.EqualTo(1), $"{mapName}: {nodeId}");
@@ -2014,7 +2041,7 @@ namespace Opc.Ua.WotCon.Tests.Samples
 
         private static readonly (string NodeId, string BrowseName, string TypeDefinition)[] s_pumpNodes =
         [
-            ("ns=1;s=Pump1", "Pump_1", "ns=2;i=1052"),
+            ("ns=1;s=Pump1", "Pump_1", "ns=1;s=Pump1.Type"),
             ("ns=1;s=Pump1.Identification", "Identification", "ns=2;i=1005"),
             ("ns=1;s=Pump1.Operational", "Operational", "ns=2;i=1053"),
             ("ns=1;s=Pump1.Operational.Measurements", "Measurements", "ns=2;i=1054"),

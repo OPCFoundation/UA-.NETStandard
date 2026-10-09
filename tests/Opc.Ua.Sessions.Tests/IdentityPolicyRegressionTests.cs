@@ -54,7 +54,7 @@ namespace Opc.Ua.Sessions.Tests
         [TestCase(UserTokenType.Certificate)]
         public async Task AnonymousPolicyCannotAuthorizeADifferentTokenTypeAsync(UserTokenType tokenType)
         {
-            UserTokenPolicy anonymous = Session.Endpoint.UserIdentityTokens.ToArray()
+            UserTokenPolicy anonymous = Session.Endpoint.UserIdentityTokens.ToArray()!
                 .Single(policy => policy.TokenType == UserTokenType.Anonymous);
             Assert.That(Session.Endpoint.SecurityMode, Is.EqualTo(MessageSecurityMode.None));
             UserIdentityToken token = tokenType == UserTokenType.Certificate

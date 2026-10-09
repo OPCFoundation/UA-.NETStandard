@@ -161,7 +161,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 QualifiedName.From("TestSymbolLookup"),
                 enumDefinition);
 
-            bool result = enumType.TryGetSymbol(0, out string symbol);
+            bool result = enumType.TryGetSymbol(0, out string? symbol);
             Assert.That(result, Is.True);
             Assert.That(symbol, Is.EqualTo("First"));
 

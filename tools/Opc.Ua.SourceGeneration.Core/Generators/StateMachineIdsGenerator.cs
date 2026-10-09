@@ -281,7 +281,7 @@ namespace Opc.Ua.SourceGeneration
 
                 foreach (KeyValuePair<string, HierarchyNode> entry in node.Hierarchy.Nodes)
                 {
-                    AddIfNotNumericallyIdentified(entry.Value?.Instance);
+                    AddIfNotNumericallyIdentified((entry.Value?.Instance)!);
                 }
             }
 
@@ -294,7 +294,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                FsmTypeInfo info = BuildMachineInfo(objectType);
+                FsmTypeInfo? info = BuildMachineInfo(objectType);
                 if (info != null)
                 {
                     result.Add(info);
@@ -306,7 +306,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static bool IsFiniteStateMachineSubtype(ObjectTypeDesign type)
         {
-            TypeDesign current = type;
+            TypeDesign? current = type;
             while (current != null)
             {
                 if (string.Equals(current.SymbolicName?.Name, kFiniteStateMachineTypeName,
@@ -321,7 +321,7 @@ namespace Opc.Ua.SourceGeneration
             return false;
         }
 
-        private FsmTypeInfo BuildMachineInfo(ObjectTypeDesign objectType)
+        private FsmTypeInfo? BuildMachineInfo(ObjectTypeDesign objectType)
         {
             // FiniteStateMachineType itself is abstract / has no child
             // state objects — skip it; only concrete subtypes get IDs.
@@ -333,7 +333,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            InstanceDesign[] children = objectType.Children?.Items;
+            InstanceDesign[]? children = objectType.Children?.Items;
             if (children == null || children.Length == 0)
             {
                 return null;
@@ -391,9 +391,9 @@ namespace Opc.Ua.SourceGeneration
                 if (node.HasNonConstantIdentifier())
                 {
                     ModelDesignExtensions.GetIdentifierAsCode(
-                        node.GetIdentifier(),
-                        out string idType);
-                    m_nonNumericIdentifiedNodes[node.SymbolicId.Name] = idType;
+                        node.GetIdentifier()!,
+                        out string? idType);
+                    m_nonNumericIdentifiedNodes[node.SymbolicId.Name] = idType!;
                     return;
                 }
                 m_nonNumericIdentifiedNodes[node.SymbolicId.Name] = "string";
@@ -401,7 +401,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private FsmEntry BuildStateEntry(
-            string parentTypeName, ObjectDesign child, string numberPropertyName)
+            string? parentTypeName, ObjectDesign child, string numberPropertyName)
         {
             string name = child.SymbolicName?.Name ?? string.Empty;
             uint? number = ExtractNumberProperty(child, numberPropertyName);
@@ -412,7 +412,7 @@ namespace Opc.Ua.SourceGeneration
             // uint only when the node carries a numeric identifier; string, Guid and
             // Opaque identified nodes get a constant of their own type, so the alias
             // has to follow the same type.
-            if (!m_nonNumericIdentifiedNodes.TryGetValue(objectsConstantName, out string idType))
+            if (!m_nonNumericIdentifiedNodes.TryGetValue(objectsConstantName, out string? idType))
             {
                 idType = "uint";
             }
@@ -422,7 +422,7 @@ namespace Opc.Ua.SourceGeneration
         private static uint? ExtractNumberProperty(
             ObjectDesign parent, string propertyName)
         {
-            InstanceDesign[] grandchildren = parent.Children?.Items;
+            InstanceDesign[]? grandchildren = parent.Children?.Items;
             if (grandchildren == null)
             {
                 return null;
@@ -470,7 +470,7 @@ namespace Opc.Ua.SourceGeneration
 
         private sealed class FsmTypeInfo
         {
-            public FsmTypeInfo(string typeName)
+            public FsmTypeInfo(string? typeName)
             {
                 TypeName = typeName ?? string.Empty;
             }

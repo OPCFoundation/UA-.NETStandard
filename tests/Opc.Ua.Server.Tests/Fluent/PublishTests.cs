@@ -268,18 +268,18 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.Multiple(() =>
             {
                 Assert.That(seen.EventId, Is.Not.Null);
-                Assert.That(seen.EventId.Value.IsNull, Is.False);
+                Assert.That(seen.EventId!.Value.IsNull, Is.False);
                 Assert.That(seen.EventType, Is.Not.Null);
-                Assert.That(seen.EventType.Value.IsNull, Is.False);
+                Assert.That(seen.EventType!.Value.IsNull, Is.False);
                 Assert.That(seen.SourceNode, Is.Not.Null);
-                Assert.That(seen.SourceNode.Value, Is.EqualTo(notifier.NodeId));
+                Assert.That(seen.SourceNode!.Value, Is.EqualTo(notifier.NodeId));
                 Assert.That(seen.SourceName, Is.Not.Null);
-                Assert.That(seen.SourceName.Value, Is.EqualTo(notifier.BrowseName.Name));
+                Assert.That(seen.SourceName!.Value, Is.EqualTo(notifier.BrowseName.Name));
                 Assert.That(seen.Time, Is.Not.Null);
-                Assert.That(seen.Time.Value.IsNull, Is.False);
+                Assert.That(seen.Time!.Value.IsNull, Is.False);
                 Assert.That(seen.ReceiveTime, Is.Not.Null);
                 Assert.That(seen.Severity, Is.Not.Null);
-                Assert.That(seen.Severity.Value, Is.EqualTo((ushort)EventSeverity.Medium));
+                Assert.That(seen.Severity!.Value, Is.EqualTo((ushort)EventSeverity.Medium));
                 Assert.That(seen.Message, Is.Not.Null);
             });
         }
@@ -356,10 +356,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             BaseEventState seen = await WaitForAsync(captured.Task).ConfigureAwait(false);
             Assert.Multiple(() =>
             {
-                Assert.That(seen.EventId.Value, Is.EqualTo(customEventId));
-                Assert.That(seen.SourceNode.Value, Is.EqualTo(customSource));
-                Assert.That(seen.SourceName.Value, Is.EqualTo(kCustomSourceName));
-                Assert.That(seen.Severity.Value, Is.EqualTo(kCustomSeverity));
+                Assert.That(seen.EventId!.Value, Is.EqualTo(customEventId));
+                Assert.That(seen.SourceNode!.Value, Is.EqualTo(customSource));
+                Assert.That(seen.SourceName!.Value, Is.EqualTo(kCustomSourceName));
+                Assert.That(seen.Severity!.Value, Is.EqualTo(kCustomSeverity));
             });
         }
 
@@ -382,7 +382,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             var customEventType = new NodeId("CustomEventType", kNs);
             var authored = new BaseEventState(parent: null)
             {
-                EventType = PropertyState<NodeId>.With<VariantBuilder>(null, customEventType)
+                EventType = PropertyState<NodeId>.With<VariantBuilder>(null!, customEventType)
             };
 
             var channel = Channel.CreateUnbounded<BaseEventState>();
@@ -496,7 +496,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 (_, _, _) =>
                 {
                     factoryStarted.TrySetResult(true);
-                    return null;
+                    return null!;
                 },
                 new EventPublishOptions { AlwaysOn = true });
 
@@ -601,7 +601,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             Assert.Throws<ArgumentNullException>(() =>
                 manager.EventSources.Register(
-                    notifier: null,
+                    notifier: null!,
                     (_, _, ct) => EmptyStream(ct),
                     options: null));
         }
@@ -615,7 +615,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             Assert.Throws<ArgumentNullException>(() =>
                 manager.EventSources.Register(
                     notifier,
-                    factory: null,
+                    factory: null!,
                     options: null));
         }
 
@@ -785,11 +785,11 @@ namespace Opc.Ua.Server.Tests.Fluent
                 fluent.SystemContext,
                 nodeManager: nonFluentManager.Object,
                 defaultNamespaceIndex: kNs,
-                rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                rootResolver: q => (roots.TryGetValue(q, out NodeState? n) ? n : null)!,
+                nodeIdResolver: id => (byId.TryGetValue(id, out NodeState? n) ? n : null)!,
                 typeIdResolver: _ => []);
 
-            INodeBuilder<BaseObjectState> nodeBuilder = nonFluentBuilder.Node<BaseObjectState>(notifier.BrowseName.Name);
+            INodeBuilder<BaseObjectState> nodeBuilder = nonFluentBuilder.Node<BaseObjectState>(notifier.BrowseName.Name!);
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
                 nodeBuilder.Publish(
                     (_, _, ct) => EmptyStream(ct)));
@@ -812,8 +812,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 manager.SystemContext,
                 nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
-                rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                rootResolver: q => (roots.TryGetValue(q, out NodeState? n) ? n : null)!,
+                nodeIdResolver: id => (byId.TryGetValue(id, out NodeState? n) ? n : null)!,
                 typeIdResolver: _ => []);
             manager.AttachToBuilder(builder);
 
@@ -828,7 +828,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             };
 
             var channel = Channel.CreateUnbounded<BaseEventState>();
-            builder.Node<BaseObjectState>(notifier.BrowseName.Name)
+            builder.Node<BaseObjectState>(notifier.BrowseName.Name!)
                 .Publish(
                     (_, _, ct) => channel.Reader.ReadAllAsync(ct),
                     new EventPublishOptions { AlwaysOn = true });
@@ -852,37 +852,37 @@ namespace Opc.Ua.Server.Tests.Fluent
                 manager.SystemContext,
                 nodeManager: FluentTestNodeManager.Create(kNs),
                 defaultNamespaceIndex: kNs,
-                rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                rootResolver: q => (roots.TryGetValue(q, out NodeState? n) ? n : null)!,
+                nodeIdResolver: id => (byId.TryGetValue(id, out NodeState? n) ? n : null)!,
                 typeIdResolver: _ => []);
             manager.AttachToBuilder(builder);
 
-            INodeBuilder<BaseObjectState> nodeBuilder = builder.Node<BaseObjectState>(notifier.BrowseName.Name);
+            INodeBuilder<BaseObjectState> nodeBuilder = builder.Node<BaseObjectState>(notifier.BrowseName.Name!);
 
             Assert.Throws<ArgumentNullException>(() =>
                 EventNotifierBuilderExtensions.Publish<BaseObjectState, BaseEventState>(
-                    nodeBuilder: null,
+                    nodeBuilder: null!,
                     factory: (_, _, ct) => EmptyStream(ct)));
 
             Assert.Throws<ArgumentNullException>(() =>
                 nodeBuilder.Publish<BaseObjectState, BaseEventState>(
-                    factory: null));
+                    factory: null!));
 
             Assert.Throws<ArgumentNullException>(() =>
                 EventNotifierBuilderExtensions.Publish<BaseObjectState, BaseEventState>(
-                    nodeBuilder: null,
+                    nodeBuilder: null!,
                     source: AsyncEnumerable.Empty<BaseEventState>()));
 
             Assert.Throws<ArgumentNullException>(() =>
                 nodeBuilder.Publish(
-                    source: (IAsyncEnumerable<BaseEventState>)null));
+                    source: (IAsyncEnumerable<BaseEventState>)null!));
         }
 
         [Test]
         public void AttachToBuilder_NullBuilder_ThrowsArgumentNull()
         {
             using TestablePublishManager manager = CreateManager();
-            Assert.Throws<ArgumentNullException>(() => manager.AttachToBuilder(null));
+            Assert.Throws<ArgumentNullException>(() => manager.AttachToBuilder(null!));
         }
 
         [TestCase(false)]
@@ -1398,7 +1398,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 catch (AggregateException exception) when (exception.InnerExceptions.Contains(originalFailure))
                 {
                 }
-                manager.UnsubscribeCallback = null;
+                manager.UnsubscribeCallback = null!;
                 await lifecycle.DetachMonitoredItemAsync(item).ConfigureAwait(false);
                 await manager.SubscribeEventAsync(independent, independentItem.Object, true).ConfigureAwait(false);
             }
@@ -1416,7 +1416,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 (_, _, _) =>
                 {
                     Interlocked.Increment(ref attempts);
-                    return null;
+                    return null!;
                 },
                 new EventPublishOptions
                 {
@@ -1527,7 +1527,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             public override ITimer CreateTimer(
                 TimerCallback callback,
-                object state,
+                object? state,
                 TimeSpan dueTime,
                 TimeSpan period)
             {
@@ -1540,7 +1540,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 observed.Setup(value => value.Change(It.IsAny<TimeSpan>(), It.IsAny<TimeSpan>()))
                     .Returns<TimeSpan, TimeSpan>((due, interval) =>
                     {
-                        Interlocked.Exchange(ref m_onTimerChange, null)?.Invoke();
+                        Interlocked.Exchange(ref m_onTimerChange!, null)?.Invoke();
                         return timer.Change(due, interval);
                     });
                 observed.Setup(value => value.Dispose()).Callback(timer.Dispose);
@@ -1559,7 +1559,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             }
 
             private readonly FakeTimeProvider m_clock = new();
-            private Action m_onTimerChange;
+            private Action m_onTimerChange = null!;
         }
 
         private sealed class ControlledReadyStream : IAsyncEnumerable<BaseEventState>, IEventSourceReadiness
@@ -1622,7 +1622,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             var manager = new TestablePublishManager(
                 m_mockServer.Object,
                 m_configuration,
-                logger: null,
+                logger: null!,
                 kNamespaceUri);
             SetupMasterNodeManager(manager);
             return manager;
@@ -1634,13 +1634,13 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .Setup(m => m.GetManagerHandleAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .Returns<NodeId, CancellationToken>((nodeId, _) =>
                 {
-                    NodeState nodeState = manager.Find(nodeId);
+                    NodeState? nodeState = manager.Find(nodeId);
                     if (nodeState == null)
                     {
-                        return new ValueTask<(object handle, IAsyncNodeManager nodeManager)>((null, null));
+                        return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((null, null));
                     }
                     var handle = new NodeHandle(nodeId, nodeState);
-                    return new ValueTask<(object handle, IAsyncNodeManager nodeManager)>((handle, manager));
+                    return new ValueTask<(object? handle, IAsyncNodeManager? nodeManager)>((handle, manager));
                 });
         }
 
@@ -1813,7 +1813,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             public int EventNodeCount => MonitoredNodes.Count;
 
-            public Func<CancellationToken, ValueTask> UnsubscribeCallback { get; set; }
+            public Func<CancellationToken, ValueTask> UnsubscribeCallback { get; set; } = null!;
 
             public ValueTask<ServiceResult> SubscribeEventAsync(
                 NodeState source,

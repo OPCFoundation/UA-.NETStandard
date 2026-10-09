@@ -90,7 +90,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using Certificate certificate = CertificateBuilder.Create("CN=Endpoint Validation")
                 .AddExtension(new X509SubjectAltNameExtension("urn:actual:server", ["actual.invalid"]))
                 .CreateForRSA();
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://different.invalid:4840",
                 Server = new ApplicationDescription { ApplicationUri = "urn:different:server" }
@@ -224,7 +224,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string trustedPath = CreateTempDir();
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
-            ICertificateStore store = manager.OpenIssuerStore(TrustListIdentifier.Peers);
+            ICertificateStore? store = manager.OpenIssuerStore(TrustListIdentifier.Peers);
 
             Assert.That(store, Is.Null);
         }
@@ -307,8 +307,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var manager = new CertificateManager(m_telemetry, customProvider ? [provider.Object] : null);
             if (coldPath)
             {
-                using Certificate loaded = await manager.CertificateProvider.GetPrivateKeyCertificateAsync(identifier)
-                    .ConfigureAwait(false);
+                using Certificate loaded = (await manager.CertificateProvider.GetPrivateKeyCertificateAsync(identifier)
+                    .ConfigureAwait(false))!;
                 Assert.That(loaded, Is.Not.Null);
                 Assert.That(loaded.HasPrivateKey, Is.True);
                 Assert.That(loaded.Thumbprint, Is.EqualTo(certificate.Thumbprint));
@@ -319,7 +319,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ApplicationCertificates = [identifier]
                 }).ConfigureAwait(false);
-                using CertificateEntry loaded = manager.AcquireApplicationCertificateByType(identifier.CertificateType);
+                using CertificateEntry loaded = manager.AcquireApplicationCertificateByType(identifier.CertificateType)!;
                 Assert.That(loaded, Is.Not.Null);
                 Assert.That(loaded.Certificate.HasPrivateKey, Is.True);
                 Assert.That(loaded.Certificate.Thumbprint, Is.EqualTo(certificate.Thumbprint));
@@ -330,7 +330,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         [TestCase(null)]
         [TestCase("")]
-        public async Task PrivateKeyLoadingInfersUnspecifiedStoreTypeAsync(string storeType)
+        public async Task PrivateKeyLoadingInfersUnspecifiedStoreTypeAsync(string? storeType)
         {
             using Certificate certificate = CertificateBuilder.Create("CN=InferredStoreType")
                 .SetRSAKeySize(2048).CreateForRSA();
@@ -349,8 +349,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 SubjectName = certificate.Subject
             };
 
-            using Certificate loaded = await CertificateIdentifierResolver.LoadPrivateKeyWithStoreResolverAsync(
-                identifier, resolver.Object, telemetry: m_telemetry).ConfigureAwait(false);
+            using Certificate loaded = (await CertificateIdentifierResolver.LoadPrivateKeyWithStoreResolverAsync(
+                identifier, resolver.Object, telemetry: m_telemetry).ConfigureAwait(false))!;
 
             Assert.That(loaded, Is.Not.Null);
             Assert.That(loaded.HasPrivateKey, Is.True);
@@ -380,10 +380,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             store.Setup(instance => instance.Dispose());
             var sequence = new MockSequence();
             store.InSequence(sequence).Setup(instance => instance.LoadPrivateKeyAsync("stale-thumbprint", "CN=Previous",
-                null, identifier.CertificateType, password, cancellation.Token)).ReturnsAsync((Certificate)null);
+                null, identifier.CertificateType, password, cancellation.Token)).ReturnsAsync((Certificate)null!);
             store.InSequence(sequence).Setup(instance => instance.LoadPrivateKeyAsync("stale-thumbprint", null,
-                applicationUri, identifier.CertificateType, password, cancellation.Token)).ReturnsAsync((Certificate)null);
-            store.InSequence(sequence).Setup(instance => instance.LoadPrivateKeyAsync(null, null,
+                applicationUri, identifier.CertificateType, password, cancellation.Token)).ReturnsAsync((Certificate)null!);
+            store.InSequence(sequence).Setup(instance => instance.LoadPrivateKeyAsync(null!, null,
                 applicationUri, identifier.CertificateType, password, cancellation.Token)).ReturnsAsync(() => certificate.AddRef());
             var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
             provider.SetupGet(instance => instance.StoreTypeName).Returns("ScopedRotation");
@@ -392,9 +392,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             using var manager = new CertificateManager(m_telemetry, [provider.Object]);
             if (coldPath)
             {
-                using Certificate loaded = await manager.CertificateProvider.GetPrivateKeyCertificateAsync(identifier,
-                    passwords.Object, applicationUri, cancellation.Token).ConfigureAwait(false);
-                Assert.That(loaded.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+                using Certificate loaded = (await manager.CertificateProvider.GetPrivateKeyCertificateAsync(identifier,
+                    passwords.Object, applicationUri, cancellation.Token).ConfigureAwait(false))!;
+                Assert.That(loaded!.Thumbprint, Is.EqualTo(certificate.Thumbprint));
             }
             else
             {
@@ -402,8 +402,8 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 {
                     ApplicationCertificates = [identifier], CertificatePasswordProvider = passwords.Object
                 }, applicationUri, cancellation.Token).ConfigureAwait(false);
-                using CertificateEntry loaded = manager.AcquireApplicationCertificateByType(identifier.CertificateType);
-                Assert.That(loaded.Certificate.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+                using CertificateEntry loaded = manager.AcquireApplicationCertificateByType(identifier.CertificateType)!;
+                Assert.That(loaded!.Certificate.Thumbprint, Is.EqualTo(certificate.Thumbprint));
             }
             store.VerifyAll();
             store.Verify(instance => instance.Dispose(), Times.Once());
@@ -432,7 +432,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 store.SetupGet(instance => instance.SupportsLoadPrivateKey).Returns(true);
                 store.Setup(instance => instance.LoadPrivateKeyAsync(identifier.Thumbprint, identifier.SubjectName,
                     null, identifier.CertificateType, null, cancellation.Token))
-                    .Returns(Task.FromCanceled<Certificate>(cancellation.Token));
+                    .Returns(Task.FromCanceled<Certificate?>(cancellation.Token));
             }
             else
             {
@@ -442,13 +442,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             provider.SetupGet(instance => instance.StoreTypeName).Returns(identifier.StoreType);
             provider.Setup(instance => instance.CreateStore(m_telemetry)).Returns(store.Object);
             using var manager = new CertificateManager(m_telemetry, [provider.Object]);
-            Exception failure = null;
+            Exception? failure = null;
             try
             {
                 if (coldPath)
                 {
-                    using Certificate loaded = await manager.CertificateProvider.GetPrivateKeyCertificateAsync(identifier,
-                        ct: cancellation.Token).ConfigureAwait(false);
+                    using Certificate loaded = (await manager.CertificateProvider.GetPrivateKeyCertificateAsync(identifier,
+                        ct: cancellation.Token).ConfigureAwait(false))!;
                 }
                 else
                 {
@@ -481,7 +481,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 cert).ConfigureAwait(false);
 
             using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(
-                SecurityPolicies.Basic256Sha256);
+                SecurityPolicies.Basic256Sha256)!;
 
             Assert.That(entry, Is.Not.Null);
             Assert.That(entry.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
@@ -503,14 +503,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // Disposing an acquired entry must not affect the manager's own
             // registered certificate.
             using (CertificateEntry first = manager.AcquireApplicationCertificateBySecurityPolicy(
-                SecurityPolicies.Basic256Sha256))
+                SecurityPolicies.Basic256Sha256)!)
             {
                 Assert.That(first, Is.Not.Null);
             }
 
             // A subsequent acquire still returns a usable certificate.
             using CertificateEntry second = manager.AcquireApplicationCertificateBySecurityPolicy(
-                SecurityPolicies.Basic256Sha256);
+                SecurityPolicies.Basic256Sha256)!;
             Assert.That(second, Is.Not.Null);
             Assert.That(second.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
             Assert.That(second.Certificate.RawData, Is.EqualTo(cert.RawData));
@@ -531,7 +531,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // A matching type returns a caller-owned entry.
             using (CertificateEntry found = manager.AcquireApplicationCertificateByType(
-                ObjectTypeIds.RsaSha256ApplicationCertificateType))
+                ObjectTypeIds.RsaSha256ApplicationCertificateType)!)
             {
                 Assert.That(found, Is.Not.Null);
                 Assert.That(found.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
@@ -539,7 +539,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // A type that is not registered returns null.
             CertificateEntry missing = manager.AcquireApplicationCertificateByType(
-                ObjectTypeIds.EccNistP256ApplicationCertificateType);
+                ObjectTypeIds.EccNistP256ApplicationCertificateType)!;
             Assert.That(missing, Is.Null);
         }
 
@@ -882,7 +882,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task CertificateChangesNotifiesOnUpdate()
         {
             using var manager = new CertificateManager(m_telemetry);
-            CertificateChangeEvent received = null;
+            CertificateChangeEvent? received = null;
 
             using IDisposable subscription = manager.CertificateChanges.Subscribe(
                 new TestObserver<CertificateChangeEvent>(evt => received = evt));
@@ -1297,7 +1297,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // cert held the sole surviving reference. After its Dispose every
             // owning handle over the core must be gone, so AddRef must refuse.
-            Certificate leakedReference = null;
+            Certificate? leakedReference = null;
             try
             {
                 leakedReference = cert.AddRef();
@@ -1631,7 +1631,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // The load path must resolve the issuer chain from the issuer store
             // on its own — previously the entry was built with an empty issuer
             // chain so the blob regressed to leaf-only.
-            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256);
+            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256)!;
             Assert.That(entry, Is.Not.Null);
             Assert.That(
                 entry.IssuerChain,
@@ -1708,7 +1708,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             manager.MapFromSecurityConfiguration(secConfig);
             await manager.LoadApplicationCertificatesAsync(secConfig).ConfigureAwait(false);
 
-            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256);
+            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256)!;
             Assert.That(entry, Is.Not.Null);
             Assert.That(entry.IssuerChain, Is.Empty);
 

@@ -6,7 +6,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.AMB.Server</PackageId>
     <RootNamespace>Opc.Ua.AMB.Server</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Server hosting for the source-generated OPC 10000-110 Asset Management Basics (AMB) model: a sidecar node manager that loads the AMB model next to any Device Integration based manager, an asset registry that makes devices, machines, pumps and scales manageable assets, the identification inspection and configurable, persistent AssetId, asset discovery through the AMB alias categories, DeviceHealth and health alarms with condition classes and root causes, maintenance activities on the MaintenanceEventStateMachine, the DocumentationLinks AddIn with persistent AddLink and RemoveLink, version information, locations, classification and asset structure, the AMB conformance units and server facet, and fluent application configuration APIs.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

@@ -90,13 +90,13 @@ namespace Opc.Ua.SourceGeneration
                 }
             };
 
-            foreach (DataType datatype in validator.Dictionary.Items)
+            foreach (DataType datatype in validator.Dictionary!.Items!)
             {
                 if (!TypeDictionaryValidator.IsExcluded(m_context.Options.Exclusions, datatype) &&
                     datatype is Constant constant &&
-                    identifiers.TryGetValue(constant.Name, out int id))
+                    identifiers.TryGetValue(constant.Name!, out int id))
                 {
-                    if (constant.Name.StartsWith(
+                    if (constant.Name!.StartsWith(
                         nameof(Severity.Bad),
                         StringComparison.Ordinal))
                     {
@@ -162,12 +162,12 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Template.AddReplacement(Tokens.Identifier, CoreUtils.Format("0x{0:X8}", id));
 
-            string symbolicId = constant.Name;
+            string? symbolicId = constant.Name;
             if (constant.Identifier != 0)
             {
                 // Status codes
-                string name = constant.Name;
-                int index = name.IndexOf('_', StringComparison.Ordinal);
+                string? name = constant.Name;
+                int index = name!.IndexOf('_', StringComparison.Ordinal);
                 if (index != -1)
                 {
                     name = name[(index + 1)..];
@@ -176,7 +176,7 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Template.AddReplacement(Tokens.SymbolicId, symbolicId);
 
-            string description = constant.Documentation.GetDescription();
+            string? description = constant.Documentation.GetDescription();
             context.Template.AddReplacement(Tokens.Description, description);
 
             return context.Template.Render();
@@ -202,23 +202,23 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Write identifiers for interning
         /// </summary>
-        private TemplateString LoadTemplate_StatusCodeIdentifier(ILoadContext context)
+        private TemplateString? LoadTemplate_StatusCodeIdentifier(ILoadContext context)
         {
             if (context.Target is Constant constant)
             {
-                string symbolicId = constant.Name;
+                string? symbolicId = constant.Name;
                 if (constant.Severity != Severity.None && constant.Identifier != 0)
                 {
                     // Status codes
-                    string name = constant.Name;
-                    int index = name.IndexOf('_', StringComparison.Ordinal);
+                    string? name = constant.Name;
+                    int index = name!.IndexOf('_', StringComparison.Ordinal);
                     if (index != -1)
                     {
                         name = name[(index + 1)..];
                     }
                     symbolicId = CoreUtils.Format("{0}{1}", constant.Severity, name);
                 }
-                context.Out.Write(symbolicId);
+                context.Out.Write(symbolicId!);
                 context.Out.WriteLine(",");
             }
             return null;
@@ -237,7 +237,7 @@ namespace Opc.Ua.SourceGeneration
             using TextReader reader = m_context.FileSystem.CreateTextReader(identifiersFile);
             while (true)
             {
-                string line = reader.ReadLine();
+                string? line = reader.ReadLine();
                 if (line == null)
                 {
                     break;
@@ -277,7 +277,7 @@ namespace Opc.Ua.SourceGeneration
                 // Two status codes sharing an identifier differ only in their severity
                 // bits, so the collision produces valid but wrong constants instead of a
                 // compile error. Fail the generator rather than emit them.
-                if (names.TryGetValue(uid, out string existing))
+                if (names.TryGetValue(uid, out string? existing))
                 {
                     throw new InvalidOperationException(CoreUtils.Format(
                         "{0} declares identifier {1} for both '{2}' and '{3}'. " +

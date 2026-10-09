@@ -217,7 +217,7 @@ namespace Opc.Ua.Server.Tests
 
             public CancellationToken? ActivatedCallbackToken { get; set; }
 
-            public Action CloseDuringPostCommit { get; set; }
+            public Action CloseDuringPostCommit { get; set; } = null!;
 
             protected override ISessionManager CreateSessionManager(
                 IServerInternal server,
@@ -235,9 +235,9 @@ namespace Opc.Ua.Server.Tests
                     throw new ObjectDisposedException(nameof(Session));
                 }
                 Action close = CloseDuringPostCommit;
-                CloseDuringPostCommit = null;
+                CloseDuringPostCommit = null!;
                 close?.Invoke();
-                return base.ActivateSessionProcessAdditionalParameters(session, additionalHeader);
+                return base.ActivateSessionProcessAdditionalParameters(session, additionalHeader)!;
             }
         }
 
@@ -257,12 +257,12 @@ namespace Opc.Ua.Server.Tests
             }
 
             protected override ValueTask<(
-                IUserIdentity Identity,
-                IUserIdentity EffectiveIdentity,
-                ServiceResult Error)> AuthenticateUserIdentityAsync(
+                IUserIdentity? Identity,
+                IUserIdentity? EffectiveIdentity,
+                ServiceResult? Error)> AuthenticateUserIdentityAsync(
                     ISession session,
                     IUserIdentityTokenHandler newIdentity,
-                    UserTokenPolicy userTokenPolicy,
+                    UserTokenPolicy? userTokenPolicy,
                     EndpointDescription endpointDescription,
                     CancellationToken cancellationToken)
             {
@@ -279,7 +279,7 @@ namespace Opc.Ua.Server.Tests
                 ISession session,
                 ByteString serverNonce,
                 UserTokenType clientUserTokenType,
-                string clientUserId,
+                string? clientUserId,
                 long activationSequence,
                 CancellationToken cancellationToken)
             {

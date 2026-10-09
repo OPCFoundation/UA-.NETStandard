@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     current.Dispose();
                     references.Add(new ReferenceDescription { NodeId = harness.Metadata.NodeId, Unfiltered = true });
-                    return new ValueTask<ContinuationPoint>(replacement);
+                    return new ValueTask<ContinuationPoint?>(replacement);
                 });
 
             (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseNextAsync(
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CancellationToken _) =>
                 {
                     current.Dispose();
-                    return new ValueTask<ContinuationPoint>((ContinuationPoint)null);
+                    return new ValueTask<ContinuationPoint?>((ContinuationPoint?)null);
                 });
 
             (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseNextAsync(
@@ -338,10 +338,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     if (ReferenceEquals(current, second))
                     {
                         cancellation.Cancel();
-                        return new ValueTask<ContinuationPoint>(Task.FromCanceled<ContinuationPoint>(token));
+                        return new ValueTask<ContinuationPoint?>(Task.FromCanceled<ContinuationPoint?>(token));
                     }
                     references.Add(new ReferenceDescription { NodeId = harness.Metadata.NodeId });
-                    return new ValueTask<ContinuationPoint>(current);
+                    return new ValueTask<ContinuationPoint?>(current);
                 });
 
             Assert.CatchAsync<OperationCanceledException>(async () => await harness.Master.BrowseNextAsync(
@@ -368,7 +368,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     harness.Points.Clear();
                     references.Add(new ReferenceDescription { NodeId = harness.Metadata.NodeId });
-                    return new ValueTask<ContinuationPoint>(current);
+                    return new ValueTask<ContinuationPoint?>(current);
                 });
             (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseNextAsync(
                 harness.Context, false, [Token(point)]).ConfigureAwait(false);
@@ -479,7 +479,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
                 session.SetupGet(value => value.ContinuationPoints).Returns(Points);
                 Context = new OperationContext(
-                    new RequestHeader(), null, RequestType.BrowseNext, RequestLifetime.None, session.Object);
+                    new RequestHeader(), null!, RequestType.BrowseNext, RequestLifetime.None, session.Object);
             }
 
             /// <summary>
@@ -546,7 +546,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         CancellationToken _) =>
                     {
                         references.Add(new ReferenceDescription { NodeId = Metadata.NodeId });
-                        return new ValueTask<ContinuationPoint>(current);
+                        return new ValueTask<ContinuationPoint?>(current);
                     });
             }
 

@@ -44,7 +44,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void StandardUriStringEventFieldsPreserveVariantAbi()
         {
             System.Reflection.PropertyInfo serverUri =
-                typeof(AuditClientEventTypeRecord).GetProperty("ServerUri");
+                typeof(AuditClientEventTypeRecord).GetProperty("ServerUri")!;
 
             Assert.That(serverUri, Is.Not.Null);
             Assert.That(serverUri!.PropertyType, Is.EqualTo(typeof(Variant)));
@@ -55,7 +55,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             System.Reflection.PropertyInfo productInstanceUri =
                 typeof(Onboarding.DeviceRegistrationAuditEventTypeRecord)
-                    .GetProperty("ProductInstanceUri");
+                    .GetProperty("ProductInstanceUri")!;
 
             Assert.That(productInstanceUri, Is.Not.Null);
             Assert.That(productInstanceUri!.PropertyType, Is.EqualTo(typeof(Variant)));
@@ -67,7 +67,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             NodeId[] expected = [new NodeId(1u), new NodeId("Second", 2)];
             Variant[] fields = [new Variant(expected.ToArrayOf())];
 
-            NodeId[] actual = EventRecordFieldReaders.GetNodeIdArray(fields, 0);
+            NodeId[] actual = EventRecordFieldReaders.GetNodeIdArray(fields, 0)!;
 
             Assert.That(actual, Is.EqualTo(expected));
         }
@@ -122,7 +122,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var expected = new Argument { Name = "Input" };
             Variant[] fields = [new Variant(new ExtensionObject(expected))];
 
-            Argument actual = EventRecordFieldReaders.GetEncodeable<Argument>(fields, 0);
+            Argument actual = EventRecordFieldReaders.GetEncodeable<Argument>(fields, 0)!;
 
             Assert.That(actual, Is.SameAs(expected));
         }
@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Variant[] fields = [new Variant(extensions)];
 
             Argument[] actual =
-                EventRecordFieldReaders.GetEncodeableArray<Argument>(fields, 0);
+                EventRecordFieldReaders.GetEncodeableArray<Argument>(fields, 0)!;
 
             Assert.That(actual, Has.Length.EqualTo(2));
             Assert.Multiple(() =>
@@ -227,7 +227,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             var fields = new Variant[layout.Length];
             fields[repeatCount] = Variant.From((short)5);
 
-            AlarmConditionTypeRecord record = AlarmConditionTypeRecord.Decoder.Decode(fields);
+            AlarmConditionTypeRecord record = AlarmConditionTypeRecord.Decoder.Decode(fields)!;
 
             Assert.That(record, Is.Not.Null);
             Assert.That(
@@ -399,14 +399,14 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.Multiple(() =>
             {
                 Variant[] fromStrings = EventRecordFieldReaders.GetVariantArray(
-                    [new Variant(strings.ToArrayOf())], 0);
+                    [new Variant(strings.ToArrayOf())], 0)!;
                 Assert.That(fromStrings, Is.Not.Null);
                 Assert.That(fromStrings, Has.Length.EqualTo(2));
-                Assert.That(fromStrings[0].ToString(), Is.EqualTo("a"));
+                Assert.That(fromStrings![0].ToString(), Is.EqualTo("a"));
                 Assert.That(fromStrings[1].ToString(), Is.EqualTo("b"));
 
                 Variant[] fromInts = EventRecordFieldReaders.GetVariantArray(
-                    [new Variant(integers.ToArrayOf())], 0);
+                    [new Variant(integers.ToArrayOf())], 0)!;
                 Assert.That(fromInts, Is.Not.Null);
                 Assert.That(fromInts, Has.Length.EqualTo(3));
             });
@@ -421,7 +421,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Variant[] variants = [Variant.From(1), Variant.From("two")];
 
             Variant[] result = EventRecordFieldReaders.GetVariantArray(
-                [Variant.From(variants.ToArrayOf())], 0);
+                [Variant.From(variants.ToArrayOf())], 0)!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(2));

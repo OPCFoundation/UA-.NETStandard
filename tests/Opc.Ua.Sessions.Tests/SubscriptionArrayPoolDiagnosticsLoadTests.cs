@@ -133,7 +133,7 @@ namespace Opc.Ua.Sessions.Tests
         public override async Task OneTimeSetUpAsync()
         {
             await OneTimeSetUpCoreAsync(securityNone: true).ConfigureAwait(false);
-            ClientFixture.Config.TransportQuotas.MaxBufferSize = m_transportMaxBufferSize;
+            ClientFixture.Config.TransportQuotas!.MaxBufferSize = m_transportMaxBufferSize;
             ClientFixture.SessionTimeout = 300_000;
             ClientFixture.OperationTimeout = 90_000;
         }
@@ -158,7 +158,7 @@ namespace Opc.Ua.Sessions.Tests
             };
 
             await ServerFixture.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
-            ServerFixture.Config.TransportQuotas.MaxBufferSize = m_transportMaxBufferSize;
+            ServerFixture.Config.TransportQuotas!.MaxBufferSize = m_transportMaxBufferSize;
             ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength = ServerFixture
                 .Config
@@ -194,7 +194,7 @@ namespace Opc.Ua.Sessions.Tests
                     };
             }
 
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
+            ServerFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
             ServerFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate);

@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public bool Restore(IStoredMonitoredItem stored, out IMonitoredItem item)
             {
                 return RestoreMonitoredItem(
-                    SystemContext, CreateHandle(stored), stored, new UserIdentity(), out item);
+                    SystemContext, CreateHandle(stored), stored, new UserIdentity(), out item!);
             }
 
             /// <inheritdoc/>
@@ -219,7 +219,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public bool Restore(IStoredMonitoredItem stored, out IMonitoredItem item)
             {
                 return RestoreMonitoredItem(
-                    SystemContext, CreateHandle(stored), stored, new UserIdentity(), out item);
+                    SystemContext, CreateHandle(stored), stored, new UserIdentity(), out item!);
             }
 
             /// <inheritdoc/>

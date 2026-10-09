@@ -421,7 +421,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 { RefType1, false, Target1 }
             };
 
-            bool result = collection.Contains(null);
+            bool result = collection.Contains(null!);
 
             Assert.That(result, Is.False);
         }
@@ -759,7 +759,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var collection = new ReferenceCollection();
 
             Assert.That(
-                () => collection.CopyTo(null, 0),
+                () => collection.CopyTo(null!, 0),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -972,7 +972,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var dict = new ReferenceDictionary<string>();
 
             Assert.That(
-                () => dict.Add(null, "value"),
+                () => dict.Add(null!, "value"),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -1085,7 +1085,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var dict = new ReferenceDictionary<string>();
 
             Assert.That(
-                () => _ = dict[null],
+                () => _ = dict[null!],
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -1167,7 +1167,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var dict = new ReferenceDictionary<string>();
 
-            bool result = dict.ContainsKey(null);
+            bool result = dict.ContainsKey(null!);
 
             Assert.That(result, Is.False);
         }
@@ -1232,7 +1232,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var dict = new ReferenceDictionary<string>();
             var typeTree = new Mock<ITypeTable>();
 
-            bool result = dict.ContainsKey(null, typeTree.Object);
+            bool result = dict.ContainsKey(null!, typeTree.Object);
 
             Assert.That(result, Is.False);
         }
@@ -1298,7 +1298,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var dict = new ReferenceDictionary<string>();
 
-            bool result = dict.TryGetValue(null, out string value);
+            bool result = dict.TryGetValue(null!, out string value);
 
             Assert.That(result, Is.False);
             Assert.That(value, Is.Null);
@@ -1403,7 +1403,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var dict = new ReferenceDictionary<string>();
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            bool result = dict.Remove((IReference)null);
+            bool result = dict.Remove((IReference)null!);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result, Is.False);

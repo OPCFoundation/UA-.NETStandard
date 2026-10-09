@@ -82,7 +82,7 @@ namespace Opc.Ua.Server.Tests
             var names = new List<string>();
             foreach (QualifiedName unit in publishedUnits)
             {
-                names.Add(unit.Name);
+                names.Add(unit.Name!);
             }
             Assert.That(names, Is.EqualTo(s_expectedSortedUnitNames));
 
@@ -330,7 +330,7 @@ namespace Opc.Ua.Server.Tests
             var names = new List<string>();
             foreach (QualifiedName unit in units)
             {
-                names.Add(unit.Name);
+                names.Add(unit.Name!);
             }
             return names;
         }

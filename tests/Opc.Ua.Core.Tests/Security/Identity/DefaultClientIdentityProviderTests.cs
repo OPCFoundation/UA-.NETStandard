@@ -96,7 +96,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             var provider = new UserNamePasswordIdentityProvider(
                 "user1",
-                new FakeSecretRegistry(null),
+                new FakeSecretRegistry(null!),
                 new SecretIdentifier("password", "fake"));
             UserTokenPolicy policy = CreatePolicy(UserTokenType.UserName);
 
@@ -195,7 +195,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 () => _ = new CompositeClientIdentityProvider(Array.Empty<IClientIdentityProvider>()),
                 Throws.ArgumentException);
             Assert.That(
-                () => _ = new CompositeClientIdentityProvider(new IClientIdentityProvider[] { (IClientIdentityProvider)null }),
+                () => _ = new CompositeClientIdentityProvider(new IClientIdentityProvider[] { (IClientIdentityProvider)null! }),
                 Throws.ArgumentException);
         }
 
@@ -287,15 +287,15 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             public ISecret TryGet(SecretIdentifier id)
             {
                 LastSecret = new FakeSecret(m_secretBytes ?? []);
-                return m_secretBytes == null ? null : LastSecret;
+                return (m_secretBytes == null ? null : LastSecret)!;
             }
 
-            public ValueTask<ISecret> GetAsync(
+            public ValueTask<ISecret?> GetAsync(
                 SecretIdentifier id,
                 CancellationToken ct = default)
             {
                 LastSecret = new FakeSecret(m_secretBytes ?? []);
-                return new ValueTask<ISecret>(m_secretBytes == null ? null : LastSecret);
+                return new ValueTask<ISecret?>(m_secretBytes == null ? null : LastSecret);
             }
         }
 
@@ -337,15 +337,15 @@ namespace Opc.Ua.Core.Tests.Security.Identity
 
             public Certificate TryGetPrivateKeyCertificate(string thumbprint)
             {
-                return StringComparer.OrdinalIgnoreCase.Equals(thumbprint, m_certificate.Thumbprint)
+                return (StringComparer.OrdinalIgnoreCase.Equals(thumbprint, m_certificate.Thumbprint)
                     ? m_certificate.AddRef()
-                    : null;
+                    : null)!;
             }
 
-            public ValueTask<Certificate> GetPrivateKeyCertificateAsync(
+            public ValueTask<Certificate?> GetPrivateKeyCertificateAsync(
                 CertificateIdentifier identifier,
-                ICertificatePasswordProvider passwordProvider = null,
-                string applicationUri = null,
+                ICertificatePasswordProvider? passwordProvider = null,
+                string? applicationUri = null,
                 CancellationToken ct = default)
             {
                 if (identifier == null)
@@ -356,7 +356,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 bool matches = !string.IsNullOrEmpty(identifier.Thumbprint)
                     ? StringComparer.OrdinalIgnoreCase.Equals(identifier.Thumbprint, m_certificate.Thumbprint)
                     : string.Equals(identifier.SubjectName, m_certificate.Subject, StringComparison.Ordinal);
-                return new ValueTask<Certificate>(matches ? m_certificate.AddRef() : null);
+                return new ValueTask<Certificate?>(matches ? m_certificate.AddRef() : null);
             }
         }
 
@@ -364,16 +364,16 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             public Certificate TryGetPrivateKeyCertificate(string thumbprint)
             {
-                return null;
+                return null!;
             }
 
-            public ValueTask<Certificate> GetPrivateKeyCertificateAsync(
+            public ValueTask<Certificate?> GetPrivateKeyCertificateAsync(
                 CertificateIdentifier identifier,
-                ICertificatePasswordProvider passwordProvider = null,
-                string applicationUri = null,
+                ICertificatePasswordProvider? passwordProvider = null,
+                string? applicationUri = null,
                 CancellationToken ct = default)
             {
-                return new ValueTask<Certificate>((Certificate)null);
+                return new ValueTask<Certificate?>((Certificate?)null);
             }
         }
 
@@ -449,7 +449,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             {
                 var identity = new UserIdentity(DisplayName, "password"u8)
                 {
-                    PolicyId = policy.PolicyId
+                    PolicyId = policy.PolicyId!
                 };
                 return new ValueTask<IUserIdentity>(identity);
             }

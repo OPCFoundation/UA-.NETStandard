@@ -38,25 +38,25 @@ namespace Opc.Ua.Core.TestFramework
 
         private void Initialize()
         {
-            ApplicationUri = null;
-            ApplicationName = null;
+            ApplicationUri = null!;
+            ApplicationName = null!;
             DomainNames = [];
-            Subject = null;
+            Subject = null!;
             PrivateKeyFormat = "PFX";
             PrivateKeyPassword = string.Empty;
-            Certificate = null;
-            PrivateKey = null;
-            IssuerCertificates = null;
+            Certificate = null!;
+            PrivateKey = null!;
+            IssuerCertificates = null!;
         }
 
-        public string ApplicationUri;
-        public string ApplicationName;
+        public string ApplicationUri = null!;
+        public string ApplicationName = null!;
         public ArrayOf<string> DomainNames;
-        public string Subject;
-        public string PrivateKeyFormat;
-        public string PrivateKeyPassword;
-        public byte[] Certificate;
-        public byte[] PrivateKey;
-        public byte[][] IssuerCertificates;
+        public string Subject = null!;
+        public string PrivateKeyFormat = null!;
+        public string PrivateKeyPassword = null!;
+        public byte[] Certificate = null!;
+        public byte[] PrivateKey = null!;
+        public byte[][] IssuerCertificates = null!;
     }
 }

@@ -107,7 +107,7 @@ namespace Opc.Ua.InformationModel.Tests
             var propertyNames = new List<string>();
             foreach (ReferenceDescription r in response.Results[0].References)
             {
-                propertyNames.Add(r.BrowseName.Name);
+                propertyNames.Add(r.BrowseName.Name!);
             }
             Assert.That(propertyNames, Does.Contain("InputArguments"));
         }
@@ -134,7 +134,7 @@ namespace Opc.Ua.InformationModel.Tests
             var propertyNames = new List<string>();
             foreach (ReferenceDescription r in response.Results[0].References)
             {
-                propertyNames.Add(r.BrowseName.Name);
+                propertyNames.Add(r.BrowseName.Name!);
             }
             Assert.That(propertyNames, Does.Contain("OutputArguments"));
         }
@@ -158,7 +158,7 @@ namespace Opc.Ua.InformationModel.Tests
                 }.ToArrayOf(),
                 CancellationToken.None).ConfigureAwait(false);
 
-            ReferenceDescription inputArgsRef = null;
+            ReferenceDescription? inputArgsRef = null;
             foreach (ReferenceDescription r in browseResponse.Results[0].References)
             {
                 if (r.BrowseName.Name == "InputArguments")

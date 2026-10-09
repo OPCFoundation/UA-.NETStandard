@@ -329,7 +329,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             harness.Store.Raise(store => store.Changed += null,
                 new AliasStoreChangedEventArgs(harness.CategoryId, previous));
 
-            Assert.That(harness.Category.LastChange.Value, Is.EqualTo(current));
+            Assert.That(harness.Category.LastChange!.Value, Is.EqualTo(current));
         }
 
         [Test]
@@ -479,7 +479,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "AliasRefreshFailed"), It.IsAny<It.IsAnyType>(), failure,
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once);
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
             Assert.That(terminated.IsCompleted, Is.False);
             Assert.That(calls, Is.EqualTo(2));
             Assert.That(coordinator.PendingTaskCount, Is.EqualTo(1));
@@ -532,13 +532,13 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(coordinator.PendingRefreshCount, Is.Zero);
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.IsAny<EventId>(), It.IsAny<It.IsAnyType>(), It.IsAny<Exception>(),
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()), backendFailure ? Times.Once : Times.Never);
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()), backendFailure ? Times.Once : Times.Never);
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "AliasRefreshFailed"), It.IsAny<It.IsAnyType>(), failure,
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()), backendFailure ? Times.Once : Times.Never);
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()), backendFailure ? Times.Once : Times.Never);
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "BackgroundTaskFailed"), It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
+                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Never);
         }
 
         [TestCaseSource(nameof(s_fatalFailures))]
@@ -564,10 +564,10 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(coordinator.PendingTaskCount, Is.Zero);
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "BackgroundTaskFailed"), It.IsAny<It.IsAnyType>(), failure,
-                It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Once);
+                It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Once);
             logger.Verify(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == "AliasRefreshFailed"), It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()), Times.Never);
+                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()), Times.Never);
         }
 
         [Test]
@@ -673,8 +673,8 @@ namespace Opc.Ua.Server.Tests.AliasNames
             Assert.That(observedConcurrency, Is.All.EqualTo(1));
             Assert.That(publishedCounts, Is.Not.Empty.And.All.EqualTo(33));
             Assert.That(harness.FindAlias("Alpha"), Is.SameAs(original));
-            Assert.That(child.LastChange.Value, Is.EqualTo(33u));
-            Assert.That(harness.Category.LastChange.Value, Is.EqualTo(33u));
+            Assert.That(child.LastChange!.Value, Is.EqualTo(33u));
+            Assert.That(harness.Category.LastChange!.Value, Is.EqualTo(33u));
         }
 
         private static ITelemetryContext CreateRefreshTelemetry(out Mock<ILogger> logger)
@@ -693,7 +693,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
             var observed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             logger.Setup(log => log.Log(LogLevel.Error,
                 It.Is<EventId>(id => id.Name == eventName), It.IsAny<It.IsAnyType>(),
-                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception, string>>()))
+                It.IsAny<Exception>(), It.IsAny<Func<It.IsAnyType, Exception?, string>>()))
                 .Callback(() => observed.TrySetResult(true));
             return observed.Task;
         }
@@ -812,7 +812,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
 
             private readonly AliasNameStoreRegistry m_registry = new();
             private readonly MonitoredItemQueueFactory m_queues;
-            private AliasQuery m_query;
+            private AliasQuery m_query = null!;
         }
 
         private static readonly TestCaseData[] s_backendFailures =

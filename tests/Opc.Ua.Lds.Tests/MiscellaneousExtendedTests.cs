@@ -120,7 +120,7 @@ namespace Opc.Ua.Lds.Tests
 
             // When ReturnDiagnostics=0, DiagnosticInfos should be
             // empty or null
-            if (response.DiagnosticInfos != default)
+            if (response.DiagnosticInfos != default!)
             {
                 bool allNull = true;
                 foreach (DiagnosticInfo di in response.DiagnosticInfos)

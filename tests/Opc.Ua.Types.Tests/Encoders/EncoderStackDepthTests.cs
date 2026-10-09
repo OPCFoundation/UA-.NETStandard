@@ -219,7 +219,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(sre, Is.Null);
             Assert.That(value.TryGetValue(out XmlElement element), Is.True);
             // The XmlParser writes the innermost element as an empty element.
-            Assert.That(CountElements(element.OuterXml), Is.EqualTo(10));
+            Assert.That(CountElements(element.OuterXml!), Is.EqualTo(10));
         }
 
         private static int CountElements(string xml)
@@ -255,8 +255,8 @@ namespace Opc.Ua.Types.Tests.Encoders
         /// </summary>
         private static ServiceResultException RunOnThread(int stackSize, Action action)
         {
-            ServiceResultException sre = null;
-            Exception unexpected = null;
+            ServiceResultException? sre = null;
+            Exception? unexpected = null;
             var thread = new Thread(
                 () =>
                 {
@@ -277,7 +277,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             thread.Start();
             thread.Join();
             Assert.That(unexpected, Is.Null, unexpected?.ToString());
-            return sre;
+            return sre!;
         }
 
         private static ServiceMessageContext CreateContext(int? maxEncodingNestingLevels)
@@ -351,7 +351,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         /// </summary>
         private static object EncodeOnLargeStack(Codec codec, object graph)
         {
-            object result = null;
+            object? result = null;
             ServiceMessageContext context = CreateContext(kUnboundedLimit);
 
             // the XmlEncoder applies MaxStringLength to XmlElement values.
@@ -360,7 +360,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 kBuilderStack,
                 () => result = Encode(codec, graph, context));
             Assert.That(sre, Is.Null, sre?.ToString());
-            return result;
+            return result!;
         }
 
         private static object Encode(Codec codec, object graph, ServiceMessageContext context)
@@ -371,7 +371,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 {
                     using var encoder = new BinaryEncoder(context);
                     Write(encoder, graph);
-                    return encoder.CloseAndReturnBuffer();
+                    return encoder.CloseAndReturnBuffer()!;
                 }
                 case Codec.Json:
                 {
@@ -394,7 +394,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                         context))
                     {
                         encoder.PushNamespace(Namespaces.OpcUaXsd);
-                        Write(encoder, graph, isRoot ? null : "Value");
+                        Write(encoder, graph, (isRoot ? null : "Value")!);
                         encoder.PopNamespace();
                         encoder.Close();
                     }
@@ -477,7 +477,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadVariant("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }
@@ -509,7 +509,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Child = decoder.ReadExtensionObject("Child");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }
@@ -541,7 +541,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Children = decoder.ReadEncodeableArray<Tree>("Children");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return ReferenceEquals(this, encodeable);
             }

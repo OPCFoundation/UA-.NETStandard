@@ -43,7 +43,7 @@ namespace Opc.Ua.Core.Security.Tests
         [Test]
         public async Task EndpointMgmt001AddEndpointAsync()
         {
-            ISession adminSession = null;
+            ISession? adminSession = null;
             try
             {
                 adminSession = await ConnectAsAdminAsync()
@@ -110,7 +110,7 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task<BrowseResponse> BrowseForwardAsync(
             NodeId nodeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             return await session.BrowseAsync(
@@ -133,7 +133,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<NodeId> FindMethodAsync(
             NodeId parentId,
             string methodName,
-            ISession session = null)
+            ISession? session = null)
         {
             BrowseResponse response =
                 await BrowseForwardAsync(parentId, session)
@@ -232,7 +232,7 @@ namespace Opc.Ua.Core.Security.Tests
                         continue;
                     }
 
-                    if (ep.UserIdentityTokens == default)
+                    if (ep.UserIdentityTokens == default!)
                     {
                         continue;
                     }
@@ -242,13 +242,13 @@ namespace Opc.Ua.Core.Security.Tests
                     {
                         if (t.TokenType == UserTokenType.UserName)
                         {
-                            return ep.SecurityPolicyUri;
+                            return ep.SecurityPolicyUri!;
                         }
                     }
                 }
             }
 
-            return null;
+            return null!;
         }
 
         private async Task<ArrayOf<EndpointDescription>>

@@ -144,8 +144,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             FieldInfo field = typeof(AccessToken).GetField(
                 "m_tokenData",
-                BindingFlags.Instance | BindingFlags.NonPublic);
-            return (byte[])field.GetValue(token);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+            return (byte[])field!.GetValue(token)!;
         }
     }
 }

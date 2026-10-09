@@ -372,7 +372,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            DiagnosticInfo result = decoder.ReadDiagnosticInfo(JsonProperties.Value);
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo(JsonProperties.Value)!;
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -392,7 +392,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<DiagnosticInfo> result = decoder.ReadDiagnosticInfoArray(JsonProperties.Value);
+            ArrayOf<DiagnosticInfo?> result = decoder.ReadDiagnosticInfoArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1372,7 +1372,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            string result = decoder.ReadString(JsonProperties.Value);
+            string result = decoder.ReadString(JsonProperties.Value)!;
 
             Assert.That(result, Is.EqualTo(expected));
         }
@@ -1395,7 +1395,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             using IDecoder decoder = CreateDecoder(buffers.WrittenMemory.ToReadOnlySequence(16), messageContext);
-            ArrayOf<string> result = decoder.ReadStringArray(JsonProperties.Value);
+            ArrayOf<string?> result = decoder.ReadStringArray(JsonProperties.Value);
 
             Assert.That(result, Is.EqualTo(expected));
         }

@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Machinery.Jobs</PackageId>
     <RootNamespace>Opc.Ua.Machinery.Jobs</RootNamespace>
     <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Source-generated OPC 40001-3 Machinery Job Management information model over the OPC 10031-4 ISA-95 Job Control V2 model.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

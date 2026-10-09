@@ -71,7 +71,7 @@ namespace Opc.Ua.Server.Tests
                 AutoAccept = true
             };
             await m_fixture.LoadConfigurationAsync().ConfigureAwait(false);
-            m_fixture.Config.ServerConfiguration.MaxMonitoredItemsPerSubscription =
+            m_fixture.Config.ServerConfiguration!.MaxMonitoredItemsPerSubscription =
                 kMaxMonitoredItemsPerSubscription;
             m_fixture.Config.ServerConfiguration.MaxMonitoredItemCount = kMaxMonitoredItemCount;
             m_server = await m_fixture.StartAsync().ConfigureAwait(false);
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests
                 CreateMonitoredItemsResponse firstResponse = await CreateValueItemsAsync(
                     first, kMaxMonitoredItemsPerSubscription).ConfigureAwait(false);
                 Assert.That(
-                    firstResponse.Results.ToArray().All(r => r.StatusCode == StatusCodes.Good),
+                    firstResponse.Results.ToArray()!.All(r => r.StatusCode == StatusCodes.Good),
                     Is.True);
 
                 const int remaining = kMaxMonitoredItemCount - kMaxMonitoredItemsPerSubscription;
@@ -186,7 +186,7 @@ namespace Opc.Ua.Server.Tests
                 CreateMonitoredItemsResponse thirdResponse = await CreateValueItemsAsync(
                     third, kMaxMonitoredItemsPerSubscription).ConfigureAwait(false);
                 Assert.That(
-                    thirdResponse.Results.ToArray().All(r => r.StatusCode == StatusCodes.Good),
+                    thirdResponse.Results.ToArray()!.All(r => r.StatusCode == StatusCodes.Good),
                     Is.True);
             }
             finally
@@ -237,7 +237,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(response.Results[2].WrappedValue.TryGetValue(out uint maxQueueSize), Is.True);
             Assert.That(
                 maxQueueSize,
-                Is.EqualTo((uint)m_fixture.Config.ServerConfiguration.MaxNotificationQueueSize));
+                Is.EqualTo((uint)m_fixture.Config.ServerConfiguration!.MaxNotificationQueueSize));
         }
 
         /// <summary>
@@ -341,9 +341,9 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
                 Assert.That(
-                    response.Results[0].FilterResult.TryGetValue(out EventFilterResult filterResult),
+                    response.Results[0].FilterResult.TryGetValue(out EventFilterResult? filterResult),
                     Is.True);
-                Assert.That(filterResult.SelectClauseResults.Count, Is.EqualTo(3));
+                Assert.That(filterResult!.SelectClauseResults.Count, Is.EqualTo(3));
                 Assert.That(filterResult.SelectClauseResults[0], Is.EqualTo(StatusCodes.Good));
                 Assert.That(filterResult.SelectClauseResults[1], Is.EqualTo(StatusCodes.Good));
                 Assert.That(
@@ -414,7 +414,7 @@ namespace Opc.Ua.Server.Tests
         public async Task ModifyEventItemRejectedByOwnerKeepsPreviousFilterAsync()
         {
             var notifierId = new NodeId("CTT", m_namespaceIndex);
-            (object handle, IAsyncNodeManager _) = await m_server.CurrentInstance.NodeManager
+            (object? handle, IAsyncNodeManager? _) = await m_server.CurrentInstance.NodeManager
                 .GetManagerHandleAsync(notifierId).ConfigureAwait(false);
             Assert.That(handle, Is.InstanceOf<NodeHandle>(), "CTT notifier not found.");
             var notifier = (BaseObjectState)((NodeHandle)handle).Node;
@@ -498,7 +498,7 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false);
                 for (int iteration = 0; iteration < 20; iteration++)
                 {
-                    uint[] toDelete = [.. previous.Results.ToArray().Select(r => r.MonitoredItemId)];
+                    uint[] toDelete = [.. previous.Results.ToArray()!.Select(r => r.MonitoredItemId)];
                     Task<CreateMonitoredItemsResponse> create = CreateValueItemsAsync(subscriptionId, 2);
                     Task delete = DeleteItemsAsync(subscriptionId, toDelete);
                     await Task.WhenAll(create, delete).ConfigureAwait(false);
@@ -645,7 +645,7 @@ namespace Opc.Ua.Server.Tests
 
                 foreach (ExtensionObject data in notificationMessage.NotificationData)
                 {
-                    if (!data.TryGetValue(out EventNotificationList events))
+                    if (!data.TryGetValue(out EventNotificationList? events))
                     {
                         continue;
                     }
@@ -664,7 +664,7 @@ namespace Opc.Ua.Server.Tests
                 await Task.Delay(100).ConfigureAwait(false);
             }
 
-            return null;
+            return null!;
         }
     }
 }

@@ -12,7 +12,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ValueChangedDefaultValueThrowsArgumentException()
         {
-            Assert.Throws<ArgumentException>(() => MonitoredItem.ValueChanged(default, null, default, null, null, 0));
+            Assert.Throws<ArgumentException>(() => MonitoredItem.ValueChanged(default, null!, default, null!, null!, 0));
         }
 
         [Test]
@@ -20,7 +20,7 @@ namespace Opc.Ua.Server.Tests
         {
             var value = new DataValue(new Variant(1));
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, default, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, default, null!, null!, 0),
                 Is.True);
         }
 
@@ -32,7 +32,7 @@ namespace Opc.Ua.Server.Tests
 
             // Status different
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, null!, 0),
                 Is.True);
         }
 
@@ -45,7 +45,7 @@ namespace Opc.Ua.Server.Tests
 
             // Error makes new status Bad, last was Good -> Changed
             Assert.That(
-                MonitoredItem.ValueChanged(value, error, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, error, lastValue, null!, null!, 0),
                 Is.True);
         }
 
@@ -56,7 +56,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(1), StatusCodes.Good.SetSemanticsChanged(true));
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, null!, 0),
                 Is.True);
         }
 
@@ -67,7 +67,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(1));
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, null!, 0),
                 Is.False);
         }
 
@@ -78,7 +78,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(2));
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, null!, 0),
                 Is.True);
         }
 
@@ -90,7 +90,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(obj));
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, null!, 0),
                 Is.False);
         }
 
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests
             // Status is Good for both, so no status change.
             // Trigger is Status, so value change should be ignored.
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, filter, 0),
                 Is.False);
         }
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(1), StatusCodes.Good, now.AddMilliseconds(1));
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, filter, 0),
                 Is.True);
         }
 
@@ -136,7 +136,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(1), StatusCodes.Good, now);
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, filter, 0),
                 Is.False);
         }
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(1.0)); // double
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, null!, 0),
                 Is.True);
         }
 
@@ -158,7 +158,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(Variant.From(double.NaN));
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, null!, 0),
                 Is.False);
         }
 
@@ -170,7 +170,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(Variant.From(float.NaN));
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, null!, 0),
                 Is.False);
         }
 
@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(10.5)); // Diff 0.5 <= 1.0
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, filter, 0),
                 Is.False);
         }
 
@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(11.1)); // Diff 1.1 > 1.0
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, filter, 0),
                 Is.True);
         }
 
@@ -223,7 +223,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(55.0)); // Diff 5 <= 10
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, filter, range),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, filter, range),
                 Is.False);
         }
 
@@ -242,7 +242,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(61.0)); // Diff 11 > 10
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, filter, range),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, filter, range),
                 Is.True);
         }
 
@@ -260,10 +260,10 @@ namespace Opc.Ua.Server.Tests
             var valueOutside = new DataValue(new Variant(1.6f));
 
             Assert.That(
-                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueInside, null!, lastValue, null!, filter, 0),
                 Is.False);
             Assert.That(
-                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueOutside, null!, lastValue, null!, filter, 0),
                 Is.True);
         }
 
@@ -282,11 +282,11 @@ namespace Opc.Ua.Server.Tests
             var valueOutside = new DataValue(new Variant(16));
 
             Assert.That(
-                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueInside, null!, lastValue, null!, filter, 0),
                 Is.False,
                 "Inside deadband");
             Assert.That(
-                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueOutside, null!, lastValue, null!, filter, 0),
                 Is.True,
                 "Outside deadband");
         }
@@ -307,11 +307,11 @@ namespace Opc.Ua.Server.Tests
             var valueOutside = new DataValue(new Variant(61));
 
             Assert.That(
-                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, range),
+                MonitoredItem.ValueChanged(valueInside, null!, lastValue, null!, filter, range),
                 Is.False,
                 "Inside percent deadband");
             Assert.That(
-                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, range),
+                MonitoredItem.ValueChanged(valueOutside, null!, lastValue, null!, filter, range),
                 Is.True,
                 "Outside percent deadband");
         }
@@ -334,10 +334,10 @@ namespace Opc.Ua.Server.Tests
             var valueDiff = new DataValue(new Variant(XmlElement.From(elem3)));
 
             Assert.That(
-                MonitoredItem.ValueChanged(valueSame, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(valueSame, null!, lastValue, null!, null!, 0),
                 Is.False);
             Assert.That(
-                MonitoredItem.ValueChanged(valueDiff, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(valueDiff, null!, lastValue, null!, null!, 0),
                 Is.True);
         }
 
@@ -348,7 +348,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant([1, 2, 3]));
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, null!, 0),
                 Is.True);
         }
 
@@ -366,10 +366,10 @@ namespace Opc.Ua.Server.Tests
             var valueOutside = new DataValue(new Variant([1.4, 2.6]));
 
             Assert.That(
-                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueInside, null!, lastValue, null!, filter, 0),
                 Is.False);
             Assert.That(
-                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueOutside, null!, lastValue, null!, filter, 0),
                 Is.True);
         }
 
@@ -455,11 +455,11 @@ namespace Opc.Ua.Server.Tests
             }
 
             Assert.That(
-                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, range),
+                MonitoredItem.ValueChanged(valueInside, null!, lastValue, null!, filter, range),
                 Is.False,
                 $"Inside percent deadband for {builtInType}");
             Assert.That(
-                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, range),
+                MonitoredItem.ValueChanged(valueOutside, null!, lastValue, null!, filter, range),
                 Is.True,
                 $"Outside percent deadband for {builtInType}");
         }
@@ -552,11 +552,11 @@ namespace Opc.Ua.Server.Tests
             }
 
             Assert.That(
-                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, range),
+                MonitoredItem.ValueChanged(valueInside, null!, lastValue, null!, filter, range),
                 Is.False,
                 "Inside percent deadband");
             Assert.That(
-                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, range),
+                MonitoredItem.ValueChanged(valueOutside, null!, lastValue, null!, filter, range),
                 Is.True,
                 "Outside percent deadband");
         }
@@ -635,11 +635,11 @@ namespace Opc.Ua.Server.Tests
             }
 
             Assert.That(
-                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueInside, null!, lastValue, null!, filter, 0),
                 Is.False,
                 $"Inside absolute deadband for {builtInType}");
             Assert.That(
-                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueOutside, null!, lastValue, null!, filter, 0),
                 Is.True,
                 $"Outside absolute deadband for {builtInType}");
         }
@@ -724,11 +724,11 @@ namespace Opc.Ua.Server.Tests
             }
 
             Assert.That(
-                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueInside, null!, lastValue, null!, filter, 0),
                 Is.False,
                 $"Inside absolute deadband for array of {builtInType}");
             Assert.That(
-                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueOutside, null!, lastValue, null!, filter, 0),
                 Is.True,
                 $"Outside absolute deadband for array of {builtInType}");
         }
@@ -749,11 +749,11 @@ namespace Opc.Ua.Server.Tests
             var valueOutside = new DataValue(new Variant([1.4f, 2.6f]));
 
             Assert.That(
-                MonitoredItem.ValueChanged(valueInside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueInside, null!, lastValue, null!, filter, 0),
                 Is.False,
                 "Inside");
             Assert.That(
-                MonitoredItem.ValueChanged(valueOutside, null, lastValue, null, filter, 0),
+                MonitoredItem.ValueChanged(valueOutside, null!, lastValue, null!, filter, 0),
                 Is.True,
                 "Outside");
         }
@@ -768,7 +768,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant([val1, val2]));
 
             Assert.That(
-                MonitoredItem.ValueChanged(value, null, lastValue, null, null, 0),
+                MonitoredItem.ValueChanged(value, null!, lastValue, null!, null!, 0),
                 Is.True);
         }
 
@@ -792,7 +792,7 @@ namespace Opc.Ua.Server.Tests
             var value = new DataValue(new Variant(val2));
 
             // ExceedsDeadband should catch FormatException and return true
-            Assert.That(MonitoredItem.ValueChanged(value, null, lastValue, null, filter, 0), Is.True);
+            Assert.That(MonitoredItem.ValueChanged(value, null!, lastValue, null!, filter, 0), Is.True);
         }
     }
 }

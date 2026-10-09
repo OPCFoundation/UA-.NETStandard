@@ -92,13 +92,13 @@ namespace Opc.Ua.SourceGeneration
         [TestCase("", null, 0)]
         [TestCase("abc", "2023-01-01", 1)]
         [TestCase("1.0.0", "abc", 1)]
-        public void TotalOrderRanksTheKindOfVersionFirst(string left, string right, int expected)
+        public void TotalOrderRanksTheKindOfVersionFirst(string left, string? right, int expected)
         {
             Assert.That(
-                System.Math.Sign(SemVer.CompareVersionStringsTotal(left, right)),
+                System.Math.Sign(SemVer.CompareVersionStringsTotal(left, right!)),
                 Is.EqualTo(expected));
             Assert.That(
-                System.Math.Sign(SemVer.CompareVersionStringsTotal(right, left)),
+                System.Math.Sign(SemVer.CompareVersionStringsTotal(right!, left)),
                 Is.EqualTo(-expected));
         }
 
@@ -170,23 +170,23 @@ namespace Opc.Ua.SourceGeneration
         [TestCase(null, "2025-01-01", "1.0.1", null, "2025-01-01", "1.0.0", 1)]
         [TestCase("1.0.0-alpha", "2025-01-01", null, "1.0.0-beta", "2020-01-01", null, -1)]
         public void CompareModelsFollowsNodeSetModelTableRules(
-            string leftModelVersion,
+            string? leftModelVersion,
             string leftDate,
-            string leftVersion,
-            string rightModelVersion,
+            string? leftVersion,
+            string? rightModelVersion,
             string rightDate,
-            string rightVersion,
+            string? rightVersion,
             int expected)
         {
             System.DateTime l = System.DateTime.Parse(leftDate, System.Globalization.CultureInfo.InvariantCulture);
             System.DateTime r = System.DateTime.Parse(rightDate, System.Globalization.CultureInfo.InvariantCulture);
             Assert.That(
                 System.Math.Sign(SemVer.CompareModels(
-                    leftModelVersion, l, leftVersion, rightModelVersion, r, rightVersion)),
+                    leftModelVersion!, l, leftVersion!, rightModelVersion!, r, rightVersion!)),
                 Is.EqualTo(expected));
             Assert.That(
                 System.Math.Sign(SemVer.CompareModels(
-                    rightModelVersion, r, rightVersion, leftModelVersion, l, leftVersion)),
+                    rightModelVersion!, r, rightVersion!, leftModelVersion!, l, leftVersion!)),
                 Is.EqualTo(-expected));
         }
     }

@@ -131,7 +131,7 @@ namespace Opc.Ua.Client.Tests.ComplexTypes
                 .LoadDataTypeSystem(ct: timeout.Token).ConfigureAwait(false);
 
             Assert.That(dictionaries.Keys, Is.EquivalentTo([good]));
-            Assert.That(dictionaries[good].TypeDictionary.TargetNamespace, Is.EqualTo("urn:test:good-dictionary"));
+            Assert.That(dictionaries[good].TypeDictionary!.TargetNamespace, Is.EqualTo("urn:test:good-dictionary"));
             Assert.That(dictionaries[good].DataTypes[description].Name, Is.EqualTo("GoodType"));
             Assert.That(dictionaries[good].GetSchema(description), Does.Contain("GoodType"));
             session.Channel.Verify(channel => channel.SendRequestAsync(
