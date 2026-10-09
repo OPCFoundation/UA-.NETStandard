@@ -1,0 +1,24 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).SchemaRegistry.Client</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.SchemaRegistry.Client</PackageId>
+    <RootNamespace>Opc.Ua.SchemaRegistry.Client</RootNamespace>
+    <Description>Native OPC UA Schema Registry client for exact typed schema selection, writing, opaque downloads and bounded snapshots.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.SchemaRegistry\Opc.Ua.SchemaRegistry.csproj" />
+    <ProjectReference Include="..\Opc.Ua.XRegistry.Client\Opc.Ua.XRegistry.Client.csproj" />
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+    <Compile Include="..\Opc.Ua.EndpointRegistry\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />
+    <Compile Include="..\Opc.Ua.EndpointRegistry.Client\RegistryDiscovery.cs" Link="RegistryDiscovery.cs" />
+  </ItemGroup>
+</Project>
