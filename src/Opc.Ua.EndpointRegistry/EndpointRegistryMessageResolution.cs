@@ -104,6 +104,13 @@ namespace Opc.Ua.EndpointRegistry
         /// Gets or sets the authenticated observation provider.
         /// </summary>
         public IEndpointRegistryResolutionProvider Provider { get; set; } = null!;
+
+        /// <summary>
+        /// Gets or sets whether every relative reference also needs an explicit descriptor.
+        /// Local committed-state providers can retain the implicit local lookup; federated oracle
+        /// and externally supplied definition sets use the strict form.
+        /// </summary>
+        public bool RequireExplicitReferences { get; set; }
     }
 
     /// <summary>
@@ -178,6 +185,69 @@ namespace Opc.Ua.EndpointRegistry
     /// </summary>
     public sealed class EndpointRegistryMessageResolver
     {
+        /// <summary>
+        /// Validates JSON-compatible native control values before invoking the typed resolver.
+        /// The descriptors are decoded separately; controls cannot carry provider trust or observations.
+        /// </summary>
+        public ValueTask<NativeMessageResolutionResultDataType> ResolveControlsAsync(
+            string reference,
+            RegistryObjectValueDataType controls,
+            ArrayOf<MessageReferenceBindingDataType> references,
+            EndpointRegistryMessageResolutionContext context,
+            CancellationToken cancellationToken = default)
+        {
+            var request = new MessageResolutionRequestDataType { Reference = reference, References = references };
+            foreach (RegistryMemberDataType member in controls.Members)
+            {
+                if (member.Name == "checkSchema")
+                {
+                    if (member.Value is not RegistryBooleanValueDataType { Kind: 1 } flag)
+                    {
+                        return new ValueTask<NativeMessageResolutionResultDataType>(
+                            Failure("invalid-input", "E_INPUT", "checkSchema", "an explicit Boolean is required", []));
+                    }
+                    request.CheckSchema = flag.Value;
+                }
+                else if (member.Name == "requiredSemantics")
+                {
+                    if (member.Value is not RegistryArrayValueDataType { Kind: 4 } array)
+                    {
+                        return new ValueTask<NativeMessageResolutionResultDataType>(
+                            Failure("invalid-input", "E_INPUT", "requiredSemantics",
+                                "a list of semantic profile identifiers is required", []));
+                    }
+                    var required = new List<string>();
+                    foreach (RegistryValueDataType item in array.Items)
+                    {
+                        if (item is not RegistryStringValueDataType { Kind: 2, Value: not null } text)
+                        {
+                            return new ValueTask<NativeMessageResolutionResultDataType>(
+                                Failure("invalid-input", "E_INPUT", "requiredSemantics",
+                                    "a list of semantic profile identifiers is required", []));
+                        }
+                        required.Add(text.Value);
+                    }
+                    request.RequiredSemantics = [.. required];
+                }
+                else if (member.Name == "references")
+                {
+                    if (member.Value is not RegistryArrayValueDataType { Kind: 4 } array ||
+                        array.Items.Count != references.Count)
+                    {
+                        return new ValueTask<NativeMessageResolutionResultDataType>(
+                            Failure("invalid-input", "E_INPUT", "references", "an explicit reference list is required", []));
+                    }
+                }
+                else
+                {
+                    return new ValueTask<NativeMessageResolutionResultDataType>(
+                        Failure("invalid-input", "E_INPUT", "Inputs",
+                            "unknown resolution control; trust and observations are separate inputs", []));
+                }
+            }
+            return ResolveAsync(request, context, cancellationToken);
+        }
+
         /// <summary>
         /// Resolves the request into an effective Message definition and optional schema.
         /// </summary>
@@ -329,10 +399,16 @@ namespace Opc.Ua.EndpointRegistry
             RegistryObjectValueDataType current = Clone(observation.Metadata);
             if (observation.Epoch == 0)
             {
-                throw RegistryRuleException.Fail("E_REFERENCE_INVALID", "Reference",
+                throw RegistryRuleException.Fail("E_EPOCH", "epoch",
                     "a provider observation requires a committed epoch");
             }
             EndpointRegistryRules.ValidateMessage(current);
+            if (RegistryRuleValues.TryGet(current, "epoch", out RegistryValueDataType? rawEpoch) &&
+                !RegistryValues.Identical(rawEpoch!, RegistryValues.Parse(System.Text.Encoding.UTF8.GetBytes(
+                    observation.Epoch.ToString(System.Globalization.CultureInfo.InvariantCulture)))))
+            {
+                throw RegistryRuleException.Fail("E_SNAPSHOT", "epoch", "raw and committed epochs disagree");
+            }
             VerifyIdentity(current, target, observation.VersionId, referenceUri);
             if (RegistryRuleValues.Has(current, "basemessage"))
             {
@@ -525,7 +601,8 @@ namespace Opc.Ua.EndpointRegistry
 
         private static RegistryObjectValueDataType Clone(RegistryObjectValueDataType value)
         {
-            return (RegistryObjectValueDataType)RegistryValues.Parse(RegistryValues.ToJson(value).Span);
+            RegistryValues.Validate(value);
+            return (RegistryObjectValueDataType)value.Clone();
         }
 
         private static NativeMessageResolutionResultDataType Failure(
@@ -609,7 +686,7 @@ namespace Opc.Ua.EndpointRegistry
                 {
                     return binding;
                 }
-                if (referenceUri[0] != '/')
+                if (referenceUri[0] != '/' || Context.RequireExplicitReferences)
                 {
                     throw RegistryRuleException.Fail(
                         "E_REFERENCE_MISSING",
