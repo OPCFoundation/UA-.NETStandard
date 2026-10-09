@@ -44,16 +44,22 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static T Int32ToEnum<T>(int value) where T : struct, Enum
         {
-            if (Unsafe.SizeOf<T>() <= sizeof(int))
+            // narrow (or sign extend) to the size of the enum first, then
+            // reinterpret a value of the same size: correct on any endianness.
+            switch (Unsafe.SizeOf<T>())
             {
-                int i32 = value;
-                return Unsafe.As<int, T>(ref i32);
-            }
-            if (Unsafe.SizeOf<T>() == sizeof(long))
-            {
-                // sign extend like the unchecked casts below.
-                long i64 = value;
-                return Unsafe.As<long, T>(ref i64);
+                case sizeof(byte):
+                    byte b = unchecked((byte)value);
+                    return Unsafe.As<byte, T>(ref b);
+                case sizeof(short):
+                    short s = unchecked((short)value);
+                    return Unsafe.As<short, T>(ref s);
+                case sizeof(int):
+                    int i32 = value;
+                    return Unsafe.As<int, T>(ref i32);
+                case sizeof(long):
+                    long i64 = value;
+                    return Unsafe.As<long, T>(ref i64);
             }
             return default;
         }
@@ -96,6 +102,9 @@ namespace Opc.Ua
                     return IsSigned<T>()
                         ? Unsafe.As<T, short>(ref value)
                         : Unsafe.As<T, ushort>(ref value);
+                case sizeof(long):
+                    // the low 32 bits, read as long to be correct on any endianness.
+                    return unchecked((int)Unsafe.As<T, long>(ref value));
                 default:
                     return Unsafe.As<T, int>(ref value);
             }
