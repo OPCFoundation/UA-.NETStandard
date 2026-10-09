@@ -79,7 +79,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ReferenceTypeIdPropertySetterTriggersChangeMask()
         {
             var obj = new BaseObjectState(null);
-            obj.ClearChangeMasks(null, false);
+            obj.ClearChangeMasks(null!, false);
 
             var refTypeId = new NodeId(100);
             obj.ReferenceTypeId = refTypeId;
@@ -88,7 +88,7 @@ namespace Opc.Ua.Types.Tests.State
                 Is.EqualTo(NodeStateChangeMasks.References));
 
             // Same value does not trigger change
-            obj.ClearChangeMasks(null, false);
+            obj.ClearChangeMasks(null!, false);
             obj.ReferenceTypeId = refTypeId;
             Assert.That(obj.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
         }
@@ -97,7 +97,7 @@ namespace Opc.Ua.Types.Tests.State
         public void TypeDefinitionIdPropertySetterTriggersChangeMask()
         {
             var obj = new BaseObjectState(null);
-            obj.ClearChangeMasks(null, false);
+            obj.ClearChangeMasks(null!, false);
 
             var typeDef = new NodeId(200);
             obj.TypeDefinitionId = typeDef;
@@ -110,7 +110,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ModellingRuleIdPropertySetterTriggersChangeMask()
         {
             var obj = new BaseObjectState(null);
-            obj.ClearChangeMasks(null, false);
+            obj.ClearChangeMasks(null!, false);
 
             var modelRule = new NodeId(300);
             obj.ModellingRuleId = modelRule;

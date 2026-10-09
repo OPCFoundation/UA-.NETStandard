@@ -79,8 +79,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void Constructor_NullArgs_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new SessionPublishQueue(null, m_sessionMock.Object, kMaxPublishRequests));
-            Assert.Throws<ArgumentNullException>(() => new SessionPublishQueue(m_serverMock.Object, null, kMaxPublishRequests));
+            Assert.Throws<ArgumentNullException>(() => new SessionPublishQueue(null!, m_sessionMock.Object, kMaxPublishRequests));
+            Assert.Throws<ArgumentNullException>(() => new SessionPublishQueue(m_serverMock.Object, null!, kMaxPublishRequests));
         }
 
         [Test]
@@ -357,7 +357,7 @@ namespace Opc.Ua.Server.Tests
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
                 new RequestHeader { RequestHandle = requestHandle },
-                null,
+                null!,
                 RequestType.Publish,
                 requestLifetime,
                 sessionMock.Object);
@@ -540,7 +540,7 @@ namespace Opc.Ua.Server.Tests
                 new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 10 }
             ];
 
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
+            var context = new OperationContext(new RequestHeader(), null!, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
 
             queue.Acknowledge(context, acks, out ArrayOf<StatusCode> results, out ArrayOf<DiagnosticInfo> diagInfos);
 
@@ -558,7 +558,7 @@ namespace Opc.Ua.Server.Tests
                 new SubscriptionAcknowledgement { SubscriptionId = 99, SequenceNumber = 10 }
             ];
 
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
+            var context = new OperationContext(new RequestHeader(), null!, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
 
             queue.Acknowledge(context, acks, out ArrayOf<StatusCode> results, out ArrayOf<DiagnosticInfo> diagInfos);
 
@@ -587,7 +587,7 @@ namespace Opc.Ua.Server.Tests
                 new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
                 new SubscriptionAcknowledgement { SubscriptionId = 2, SequenceNumber = 10 }
             ];
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
+            var context = new OperationContext(new RequestHeader(), null!, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
 
             queue.Acknowledge(context, acks, out ArrayOf<StatusCode> results, out _);
 
@@ -736,11 +736,11 @@ namespace Opc.Ua.Server.Tests
             // OPC 10000-4, 7.33: any UInt32 TimeoutHint is valid; the largest one exceeds
             // the timer range of CancellationTokenSource on every platform.
             DateTime deadline = DateTime.UtcNow.AddMilliseconds(uint.MaxValue);
-            Task<ISubscriptionPublishPipeline> task = null;
+            Task<ISubscriptionPublishPipeline>? task = null;
             Assert.DoesNotThrow(() => task = queue.PublishAsync(
                 "channel1", deadline, false, null, CancellationToken.None));
 
-            Assert.That(task.IsCompleted, Is.False);
+            Assert.That(task!.IsCompleted, Is.False);
 
             subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
             queue.PublishTimerExpired();
@@ -821,7 +821,7 @@ namespace Opc.Ua.Server.Tests
                 queue.TryClaimForTransfer(
                     subMock.Object,
                     m_sessionMock.Object,
-                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                    out SessionPublishQueue.SubscriptionTransferClaim? claim),
                 Is.True);
 
             Task<ISubscriptionPublishPipeline> parked = queue.PublishAsync(
@@ -832,7 +832,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(parked.IsCompleted, Is.False);
 
             // The transfer rolls back: the parked request gets the ready subscription.
-            Assert.That(queue.RestoreTransferClaim(claim), Is.True);
+            Assert.That(queue.RestoreTransferClaim(claim!), Is.True);
 
             Assert.That(parked.Status, Is.EqualTo(TaskStatus.RanToCompletion));
             Assert.That(parked.Result, Is.SameAs(subMock.Object));
@@ -852,7 +852,7 @@ namespace Opc.Ua.Server.Tests
                 queue.TryClaimForTransfer(
                     subMock.Object,
                     m_sessionMock.Object,
-                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                    out SessionPublishQueue.SubscriptionTransferClaim? claim),
                 Is.True);
 
             // OPC 10000-4, 5.14.5: the session still owns the subscription.
@@ -864,7 +864,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(parked.IsCompleted, Is.False);
 
             // The transfer completes, so the session no longer owns a subscription.
-            queue.CompleteTransferClaim(claim);
+            queue.CompleteTransferClaim(claim!);
             queue.RemoveQueuedRequests();
 
             ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => parked);

@@ -101,7 +101,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             EventFilter.Result validationResult = filter.Validate(FilterContext);
 
             Assert.That(
-                validationResult.WhereClauseResult.ElementResults[0].Status.StatusCode,
+                validationResult.WhereClauseResult!.ElementResults[0].Status.StatusCode,
                 Is.EqualTo(StatusCodes.BadEventFilterInvalid));
             Assert.That(
                 () => validationResult.ToEventFilterResult(

@@ -838,8 +838,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static Dictionary<string, string> GenerateForTestModel(
             bool generateNodeManager,
-            IReadOnlyList<string> additionalNamespaceUris = null,
-            string nodeManagerNamespace = null,
+            IReadOnlyList<string>? additionalNamespaceUris = null,
+            string? nodeManagerNamespace = null,
             bool emitDefaultConstructor = true)
         {
             const string designFile = "TestModel.xml";
@@ -856,8 +856,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                 Options = new DesignFileOptions
                 {
                     GenerateNodeManager = generateNodeManager,
-                    NodeManagerAdditionalNamespaceUris = additionalNamespaceUris,
-                    NodeManagerNamespace = nodeManagerNamespace,
+                    NodeManagerAdditionalNamespaceUris = additionalNamespaceUris!,
+                    NodeManagerNamespace = nodeManagerNamespace!,
                     EmitNodeManagerDefaultConstructor = emitDefaultConstructor
                 }
             }, fileSystem, string.Empty, telemetry);

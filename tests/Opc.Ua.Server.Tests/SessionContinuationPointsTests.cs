@@ -33,7 +33,6 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
-#nullable enable
 #pragma warning disable CA2000
 
 namespace Opc.Ua.Server.Tests

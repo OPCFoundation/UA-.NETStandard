@@ -175,7 +175,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var context = new WotResolutionContext(options);
             context.TryEnter(WotResolutionKind.Thing, "urn:test", out _);
 
-            bool result = context.TryAddBytes("urn:test", 100, out WotDiagnostic diagnostic);
+            bool result = context.TryAddBytes("urn:test", 100, out WotDiagnostic? diagnostic);
 
             Assert.That(result, Is.True);
             Assert.That(diagnostic, Is.Null);
@@ -199,7 +199,7 @@ namespace Opc.Ua.Types.Tests.Wot
             context.Leave("urn:a");
 
             context.TryEnter(WotResolutionKind.Schema, "urn:b", out _);
-            bool result = context.TryAddBytes("urn:b", 6, out WotDiagnostic diagnostic);
+            bool result = context.TryAddBytes("urn:b", 6, out WotDiagnostic? diagnostic);
 
             Assert.That(result, Is.False);
             Assert.That(diagnostic, Is.Not.Null);
@@ -240,7 +240,7 @@ namespace Opc.Ua.Types.Tests.Wot
             context.TryEnter(
                 WotResolutionKind.Context,
                 "urn:second",
-                out WotDiagnostic diagnostic);
+                out WotDiagnostic? diagnostic);
 
             Assert.That(diagnostic, Is.Not.Null);
             Assert.That(
@@ -258,7 +258,7 @@ namespace Opc.Ua.Types.Tests.Wot
             context.TryEnter(
                 WotResolutionKind.Schema,
                 "urn:schema",
-                out WotDiagnostic diagnostic);
+                out WotDiagnostic? diagnostic);
 
             Assert.That(diagnostic, Is.Not.Null);
             Assert.That(

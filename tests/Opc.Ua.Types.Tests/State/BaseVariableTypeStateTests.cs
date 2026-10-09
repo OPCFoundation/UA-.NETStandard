@@ -151,7 +151,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConstructStaticMethodCreatesInstance()
         {
-            NodeState node = BaseDataVariableTypeState.Construct(null);
+            NodeState node = BaseDataVariableTypeState.Construct(null!);
 
             Assert.That(node, Is.Not.Null);
             Assert.That(node, Is.InstanceOf<BaseDataVariableTypeState>());
@@ -160,7 +160,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void PropertyTypeConstructStaticMethodCreatesInstance()
         {
-            NodeState node = PropertyTypeState.Construct(null);
+            NodeState node = PropertyTypeState.Construct(null!);
 
             Assert.That(node, Is.Not.Null);
             Assert.That(node, Is.InstanceOf<PropertyTypeState>());
@@ -402,7 +402,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             var variableType = new BaseDataVariableTypeState();
 
-            Assert.That(variableType.DeepEquals(null), Is.False);
+            Assert.That(variableType.DeepEquals(null!), Is.False);
         }
 
         [Test]
@@ -511,7 +511,7 @@ namespace Opc.Ua.Types.Tests.State
 
             variableType.Export(context, table);
 
-            INode exported = table.Find(variableType.NodeId);
+            INode exported = table.Find(variableType.NodeId)!;
             Assert.That(exported, Is.Not.Null);
             Assert.That(exported, Is.InstanceOf<VariableTypeNode>());
 

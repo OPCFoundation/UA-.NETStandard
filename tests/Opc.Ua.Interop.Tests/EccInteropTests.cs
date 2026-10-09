@@ -139,7 +139,7 @@ namespace Opc.Ua.Interop.Tests
                 SecurityNone = true
             };
             await m_server.LoadConfigurationAsync(InteropPki.ServerPki(m_pkiRoot)).ConfigureAwait(false);
-            m_server.Config.ServerConfiguration.UserTokenPolicies += new UserTokenPolicy(UserTokenType.UserName);
+            m_server.Config.ServerConfiguration!.UserTokenPolicies += new UserTokenPolicy(UserTokenType.UserName);
             await m_server.StartAsync().ConfigureAwait(false);
             m_serverUrl = string.Format(
                 CultureInfo.InvariantCulture,
@@ -181,15 +181,15 @@ namespace Opc.Ua.Interop.Tests
                 Assert.Ignore($"The 2.0 client does not support {policy} on this platform.");
             }
             RequirePeerPolicy(policy);
-            EndpointDescription description = m_legacyEndpoints.ToArray()
-                .FirstOrDefault(e => e.SecurityPolicyUri == policy && e.SecurityMode == mode);
+            EndpointDescription description = m_legacyEndpoints.ToArray()!
+                .FirstOrDefault(e => e.SecurityPolicyUri == policy && e.SecurityMode == mode)!;
             if (description == null)
             {
                 Assert.Ignore($"The 1.5 server does not offer {policy}/{mode} on this platform.");
             }
-            IUserIdentity identity = userName
+            IUserIdentity identity = (userName
                 ? new UserIdentity("interop", System.Text.Encoding.UTF8.GetBytes("interop-password"))
-                : null;
+                : null)!;
             var endpoint = new ConfiguredEndpoint(null, description, EndpointConfiguration.Create(m_client.Config));
             ISession session = await m_client.ConnectAsync(endpoint, identity).ConfigureAwait(false);
             try
@@ -214,7 +214,7 @@ namespace Opc.Ua.Interop.Tests
         [TestCaseSource(nameof(EccCases))]
         public async Task LegacyClientToServerAsync(string policy, MessageSecurityMode mode, bool userName)
         {
-            bool offered = m_server.Config.ServerConfiguration.SecurityPolicies.ToArray()
+            bool offered = m_server.Config.ServerConfiguration!.SecurityPolicies.ToArray()!
                 .Any(p => p.SecurityPolicyUri == policy && p.SecurityMode == mode);
             if (!offered)
             {
@@ -343,8 +343,8 @@ namespace Opc.Ua.Interop.Tests
                 Assert.Ignore($"The 2.0 client does not support {policy} on this platform.");
             }
             RequirePeerPolicy(policy);
-            EndpointDescription description = m_legacyEndpoints.ToArray().FirstOrDefault(e =>
-                e.SecurityPolicyUri == policy && e.SecurityMode == MessageSecurityMode.SignAndEncrypt);
+            EndpointDescription description = m_legacyEndpoints.ToArray()!.FirstOrDefault(e =>
+                e.SecurityPolicyUri == policy && e.SecurityMode == MessageSecurityMode.SignAndEncrypt)!;
             if (description == null)
             {
                 Assert.Ignore($"The peer server does not offer {policy}/SignAndEncrypt.");
@@ -352,7 +352,7 @@ namespace Opc.Ua.Interop.Tests
 
             await using var client = new ClientFixture(telemetry: m_telemetry);
             await client.LoadClientConfigurationAsync(InteropPki.ClientPki(m_pkiRoot)).ConfigureAwait(false);
-            client.Config.TransportQuotas.SecurityTokenLifetime = 60_000;
+            client.Config.TransportQuotas!.SecurityTokenLifetime = 60_000;
             client.SessionTimeout = 120_000;
             var endpoint = new ConfiguredEndpoint(null, description, EndpointConfiguration.Create(client.Config));
             ISession session = await client.ConnectAsync(endpoint).ConfigureAwait(false);
@@ -395,7 +395,7 @@ namespace Opc.Ua.Interop.Tests
         /// </summary>
         private async Task LegacyClientToServerTokenRenewalAsync(string policy, int seconds, int minimumRenewals)
         {
-            bool offered = m_server.Config.ServerConfiguration.SecurityPolicies.ToArray()
+            bool offered = m_server.Config.ServerConfiguration!.SecurityPolicies.ToArray()!
                 .Any(p => p.SecurityPolicyUri == policy && p.SecurityMode == MessageSecurityMode.SignAndEncrypt);
             if (!offered)
             {

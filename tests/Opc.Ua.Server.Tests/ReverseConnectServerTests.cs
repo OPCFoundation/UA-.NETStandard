@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests
             using var server = new ReverseConnectServer(m_telemetry);
 
             Assert.That(
-                () => server.RemoveReverseConnection(null),
+                () => server.RemoveReverseConnection(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 

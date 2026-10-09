@@ -59,7 +59,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             KeyCredentialConfigurationState credentialNode = await CreateCredentialNodeAsync(folder, context)
                 .ConfigureAwait(false);
             byte[] secret = [1, 2, 3, 4];
-            KeyCredentialUpdateMethodStateResult updateResult = await credentialNode.UpdateCredential.OnCallAsync(
+            KeyCredentialUpdateMethodStateResult updateResult = await credentialNode.UpdateCredential!.OnCallAsync!(
                     context,
                     credentialNode.UpdateCredential,
                     credentialNode.NodeId,
@@ -71,12 +71,12 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                 .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(updateResult.ServiceResult), Is.True);
-            Server.KeyCredential stored = await store.GetAsync("credential-1", CancellationToken.None)
-                .ConfigureAwait(false);
+            Server.KeyCredential stored = (await store.GetAsync("credential-1", CancellationToken.None)
+                .ConfigureAwait(false))!;
             Assert.That(stored, Is.Not.Null);
             Assert.That(stored.Secret, Is.EqualTo(secret));
 
-            ServiceResult deleteResult = await credentialNode.DeleteCredential.OnCallMethod2Async(
+            ServiceResult deleteResult = await credentialNode.DeleteCredential!.OnCallMethod2Async!(
                     context,
                     credentialNode.DeleteCredential,
                     credentialNode.NodeId,
@@ -100,7 +100,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             KeyCredentialConfigurationState credentialNode = await CreateCredentialNodeAsync(folder, context)
                 .ConfigureAwait(false);
 
-            await credentialNode.UpdateCredential.OnCallAsync(
+            await credentialNode.UpdateCredential!.OnCallAsync!(
                 context,
                 credentialNode.UpdateCredential,
                 credentialNode.NodeId,
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             await subject.BindAsync(folder, context).ConfigureAwait(false);
             await CreateCredentialNodeAsync(folder, context).ConfigureAwait(false);
 
-            CreateCredentialMethodStateResult result = await folder.CreateCredential.OnCallAsync(
+            CreateCredentialMethodStateResult result = await folder.CreateCredential!.OnCallAsync!(
                 context,
                 folder.CreateCredential,
                 folder.NodeId,
@@ -159,7 +159,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             KeyCredentialConfigurationState credentialNode = await CreateCredentialNodeAsync(folder, adminContext)
                 .ConfigureAwait(false);
 
-            KeyCredentialUpdateMethodStateResult result = await credentialNode.UpdateCredential.OnCallAsync(
+            KeyCredentialUpdateMethodStateResult result = await credentialNode.UpdateCredential!.OnCallAsync!(
                     CreateAnonymousContext(),
                     credentialNode.UpdateCredential,
                     credentialNode.NodeId,
@@ -191,14 +191,14 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             IList<BaseInstanceState> children = [];
             folder.GetChildren(context, children);
             Assert.That(children.OfType<KeyCredentialConfigurationState>()
-                .Any(child => child.CredentialId.Value == "browse-credential"), Is.True);
+                .Any(child => child.CredentialId!.Value == "browse-credential"), Is.True);
         }
 
         private static async Task<KeyCredentialConfigurationState> CreateCredentialNodeAsync(
             KeyCredentialConfigurationFolderState folder,
             ISystemContext context)
         {
-            CreateCredentialMethodStateResult createResult = await folder.CreateCredential.OnCallAsync(
+            CreateCredentialMethodStateResult createResult = await folder.CreateCredential!.OnCallAsync!(
                     context,
                     folder.CreateCredential,
                     folder.NodeId,

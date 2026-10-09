@@ -172,20 +172,20 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
 
             StructureDefinition derived = GetStructure(nodes, 2);
             Assert.That(derived.StructureType, Is.EqualTo(StructureType.StructureWithOptionalFields));
-            Assert.That(string.Join(",", derived.Fields.ToArray().Select(f => f.IsOptional)), Is.EqualTo("False,True,False"));
+            Assert.That(string.Join(",", derived.Fields.ToArray()!.Select(f => f.IsOptional)), Is.EqualTo("False,True,False"));
         }
 
         [Test]
         public void CyclicSupertypesAreLeftUnchanged()
         {
-            NodeStateCollection nodes = null;
+            NodeStateCollection? nodes = null;
             Assert.DoesNotThrow(() => nodes = Import(
                 DataType(1, "First", "ns=1;i=2", Fields(Field("A", "i=6"))) +
                 DataType(2, "Second", "ns=1;i=1", Fields(Field("B", "i=6"))),
                 out _));
 
-            Assert.That(FieldNames(GetStructure(nodes, 1)), Is.EqualTo("A"));
-            Assert.That(FieldNames(GetStructure(nodes, 2)), Is.EqualTo("B"));
+            Assert.That(FieldNames(GetStructure(nodes!, 1)), Is.EqualTo("A"));
+            Assert.That(FieldNames(GetStructure(nodes!, 2)), Is.EqualTo("B"));
         }
 
         [Test]
@@ -220,9 +220,9 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             stream.Position = 0;
             var exported = Export.UANodeSet.Read(stream);
 
-            Export.UADataType derived = exported.Items.OfType<Export.UADataType>()
-                .Single(node => node.BrowseName.EndsWith("Derived", System.StringComparison.Ordinal));
-            Assert.That(string.Join(",", derived.Definition.Field.Select(f => f.Name)), Is.EqualTo("C"));
+            Export.UADataType derived = exported!.Items!.OfType<Export.UADataType>()
+                .Single(node => node.BrowseName!.EndsWith("Derived", System.StringComparison.Ordinal));
+            Assert.That(string.Join(",", derived.Definition!.Field!.Select(f => f.Name)), Is.EqualTo("C"));
         }
 
         [Test]
@@ -230,12 +230,12 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         {
             // Every Value is -1, which the former Value heuristic read as a structure.
             NodeStateCollection nodes = Import(
-                DataType(1, "Status", "i=29", Fields(Field("Invalid", null, " Value=\"-1\""))),
+                DataType(1, "Status", "i=29", Fields(Field("Invalid", null!, " Value=\"-1\""))),
                 out _);
 
             var dataType = (DataTypeState)nodes.Single(node => node.NodeId == new NodeId(1, 1));
-            Assert.That(dataType.DataTypeDefinition.TryGetValue(out EnumDefinition definition), Is.True);
-            Assert.That(definition.Fields.Count, Is.EqualTo(1));
+            Assert.That(dataType.DataTypeDefinition.TryGetValue(out EnumDefinition? definition), Is.True);
+            Assert.That(definition!.Fields.Count, Is.EqualTo(1));
             Assert.That(definition.Fields[0].Value, Is.EqualTo(-1));
         }
 
@@ -276,7 +276,7 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
             };
             systemContext.NamespaceUris.Append(kNamespaceUri);
             var nodes = new NodeStateCollection();
-            nodeSet.Import(systemContext, nodes);
+            nodeSet!.Import(systemContext, nodes);
             context = systemContext;
             return nodes;
         }
@@ -323,15 +323,15 @@ namespace Opc.Ua.Core.Tests.Stack.Schema
         {
             var dataType = (DataTypeState)nodes.Single(node => node.NodeId == new NodeId(id, 1));
             Assert.That(
-                dataType.DataTypeDefinition.TryGetValue(out StructureDefinition definition),
+                dataType.DataTypeDefinition.TryGetValue(out StructureDefinition? definition),
                 Is.True,
                 $"DataType {id} must have a StructureDefinition.");
-            return definition;
+            return definition!;
         }
 
         private static string FieldNames(StructureDefinition definition)
         {
-            return string.Join(",", definition.Fields.ToArray().Select(field => field.Name));
+            return string.Join(",", definition.Fields.ToArray()!.Select(field => field.Name));
         }
     }
 }

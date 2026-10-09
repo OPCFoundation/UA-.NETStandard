@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -911,21 +909,12 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result!.Parameters, Has.Count.EqualTo(1));
             Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
             Variant value = result.Parameters[0].Value;
-#if NET8_0_OR_GREATER
             Assert.That(SecurityPolicies.Default.GetInfo(policyUri), Is.Not.Null);
             Assert.That(value.TypeInfo, Is.EqualTo(TypeInfo.Scalars.ExtensionObject));
             Assert.That(value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey), Is.True);
             Assert.That(actualKey, Is.SameAs(key));
             session.Verify(s => s.SetUserTokenSecurityPolicy(policyUri), Times.Once);
             session.Verify(s => s.GetNewEphemeralKey(), Times.Once);
-#else
-            Assert.That(SecurityPolicies.Default.GetInfo(policyUri), Is.Null);
-            Assert.That(value.TypeInfo, Is.EqualTo(TypeInfo.Scalars.StatusCode));
-            Assert.That(value.TryGetValue(out StatusCode status), Is.True);
-            Assert.That(status.Code, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
-            session.Verify(s => s.SetUserTokenSecurityPolicy(It.IsAny<string>()), Times.Never);
-            session.Verify(s => s.GetNewEphemeralKey(), Times.Never);
-#endif
         }
 
         /// <summary>

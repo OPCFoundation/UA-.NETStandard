@@ -91,12 +91,12 @@ namespace Opc.Ua.Gds.Tests
             };
 
             await ServerFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            ServerFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ServerFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ServerFixture.Config.TransportQuotas.MaxByteStringLength =
                 ServerFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
 
             // Enable username token policy so sysadmin can authenticate
-            ServerFixture.Config.ServerConfiguration.UserTokenPolicies =
+            ServerFixture.Config.ServerConfiguration!.UserTokenPolicies =
                 new UserTokenPolicy[] {
                     new(UserTokenType.Anonymous),
                     new(UserTokenType.UserName)
@@ -116,7 +116,7 @@ namespace Opc.Ua.Gds.Tests
 
             ClientFixture = new ClientFixture(telemetry: Telemetry);
             await ClientFixture.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            ClientFixture.Config.TransportQuotas.MaxMessageSize = TransportQuotaMaxMessageSize;
+            ClientFixture.Config.TransportQuotas!.MaxMessageSize = TransportQuotaMaxMessageSize;
             ClientFixture.Config.TransportQuotas.MaxByteStringLength =
                 ClientFixture.Config.TransportQuotas.MaxStringLength = TransportQuotaMaxStringLength;
 
@@ -157,7 +157,7 @@ namespace Opc.Ua.Gds.Tests
                     m_logger.LogError(ex, "Error closing session during teardown.");
                 }
                 Session.Dispose();
-                Session = null;
+                Session = null!;
             }
 
             if (ServerFixture != null)
@@ -267,7 +267,7 @@ namespace Opc.Ua.Gds.Tests
                     return r;
                 }
             }
-            return null;
+            return null!;
         }
 
         /// <summary>

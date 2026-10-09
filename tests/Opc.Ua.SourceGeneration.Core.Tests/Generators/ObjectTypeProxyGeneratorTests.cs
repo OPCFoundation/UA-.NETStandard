@@ -57,7 +57,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private Mock<IModelDesign> m_mockModelDesign;
         private Mock<ITelemetryContext> m_mockTelemetry;
         private Namespace m_targetNamespace;
-        private GeneratorContext m_context;
+        private GeneratorContext m_context = null!;
 
         [SetUp]
         public void SetUp()
@@ -82,7 +82,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void Constructor_NullContext_ThrowsArgumentNullException()
         {
             Assert.Throws<ArgumentNullException>(
-                () => new ObjectTypeProxyGenerator(null));
+                () => new ObjectTypeProxyGenerator(null!));
         }
 
         [Test]
@@ -168,7 +168,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([objectType]);
 
             using var stream = new MemoryStream();
-            string capturedPath = null;
+            string? capturedPath = null;
             m_mockFileSystem
                 .Setup(fs => fs.OpenWrite(It.IsAny<string>()))
                 .Callback<string>(p => capturedPath = p)
@@ -543,7 +543,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             placeholder.ModellingRule = rule;
             parent.Children = new ListOfChildren
             {
-                Items = [placeholder, CreateObjectChild("Brake", null, childType)]
+                Items = [placeholder, CreateObjectChild("Brake", null!, childType)]
             };
             m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([childType, parent]);
 
@@ -591,8 +591,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             {
                 Items =
                 [
-                    CreateObjectChild("Diagnostics", null, draftType),
-                    CreateObjectChild("Motor", null, motorType)
+                    CreateObjectChild("Diagnostics", null!, draftType),
+                    CreateObjectChild("Motor", null!, motorType)
                 ]
             };
             m_mockModelDesign
@@ -654,7 +654,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             machineType.BaseTypeNode = foreignType;
             machineType.Children = new ListOfChildren
             {
-                Items = [CreateObjectChild("Legacy", null, foreignType)]
+                Items = [CreateObjectChild("Legacy", null!, foreignType)]
             };
             m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([machineType]);
             m_mockModelDesign.Setup(m => m.IsExcluded(foreignType)).Returns(true);
@@ -686,7 +686,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             machineType.BaseTypeNode = foreignType;
             machineType.Children = new ListOfChildren
             {
-                Items = [CreateObjectChild("Draft", null, foreignType)]
+                Items = [CreateObjectChild("Draft", null!, foreignType)]
             };
             m_mockModelDesign.Setup(m => m.GetNodeDesigns()).Returns([machineType]);
 
@@ -776,7 +776,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         }
 
         private string EmitToString(
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null)
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels = null)
         {
             using var stream = new MemoryStream();
             m_mockFileSystem
@@ -815,7 +815,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             };
         }
 
-        private GeneratorContext CreateContext(GeneratorOptions options = null)
+        private GeneratorContext CreateContext(GeneratorOptions? options = null)
         {
             m_context = new GeneratorContext
             {
@@ -866,8 +866,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
         private static MethodDesign CreateMethod(
             string name,
-            Parameter[] inputs = null,
-            Parameter[] outputs = null)
+            Parameter[]? inputs = null,
+            Parameter[]? outputs = null)
         {
             var qname = new XmlQualifiedName(name, kTestNamespaceUri);
             return new MethodDesign
@@ -882,7 +882,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private static Parameter CreateParameter(
             string name,
             BasicDataType basicDataType,
-            string symbolicName = null,
+            string? symbolicName = null,
             ValueRank valueRank = ValueRank.Scalar,
             bool isOptional = false)
         {

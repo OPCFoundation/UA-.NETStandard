@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
             Assert.That(events, Has.Count.EqualTo(1));
             Assert.That(events[0], Is.InstanceOf<AuditUpdateStateEventState>());
-            Assert.That(((AuditUpdateStateEventState)events[0]).Status.Value, Is.False);
+            Assert.That(((AuditUpdateStateEventState)events[0]).Status!.Value, Is.False);
         }
 
         /// <summary>
@@ -229,9 +229,9 @@ namespace Opc.Ua.Core.Tests.Stack.State
             {
             }
 
-            public MethodState Start { get; private set; }
+            public MethodState Start { get; private set; } = null!;
 
-            public MethodState Halt { get; private set; }
+            public MethodState Halt { get; private set; } = null!;
 
             protected override void InitializeOptionalChildren(ISystemContext context)
             {
@@ -257,7 +257,7 @@ namespace Opc.Ua.Core.Tests.Stack.State
 
         private static uint CurrentStateId(ProgramStateMachineState machine)
         {
-            NodeId stateNodeId = machine.CurrentState.Id.Value;
+            NodeId stateNodeId = machine.CurrentState!.Id!.Value;
             return stateNodeId.TryGetValue(out uint id) ? id : 0;
         }
     }

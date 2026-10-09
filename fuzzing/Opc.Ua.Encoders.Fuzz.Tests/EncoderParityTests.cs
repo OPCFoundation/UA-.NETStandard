@@ -55,8 +55,8 @@ namespace Opc.Ua.Fuzzing
             IEncodeable original = EncoderTestMessages.Create(messageName);
             EncoderTestMessages.AssertPopulated(original);
             ByteString input = EncoderTestMessages.Encode(original, target.Wire);
-            IEncodeable decoded = EncoderTestMessages.Decode(input.Span, target.Wire);
-            EncoderTestMessages.AssertPopulated(decoded);
+            IEncodeable decoded = EncoderTestMessages.Decode(input.Span, target.Wire)!;
+            EncoderTestMessages.AssertPopulated(decoded!);
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
 
             target.Span(input.Span);
@@ -71,8 +71,8 @@ namespace Opc.Ua.Fuzzing
             IEncodeable original = EncoderTestMessages.Create(messageName);
             EncoderTestMessages.AssertPopulated(original);
             ByteString input = EncoderTestMessages.Encode(original, target.Wire);
-            IEncodeable decoded = EncoderTestMessages.Decode(input.Span, target.Wire);
-            EncoderTestMessages.AssertPopulated(decoded);
+            IEncodeable decoded = EncoderTestMessages.Decode(input.Span, target.Wire)!;
+            EncoderTestMessages.AssertPopulated(decoded!);
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
 
             ReplayAfl(target, input, true);
@@ -119,8 +119,8 @@ namespace Opc.Ua.Fuzzing
             Assert.That(stream.Position, Is.Zero);
             AssertSegmentLayout(input, segmentSize);
 
-            IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true);
-            EncoderTestMessages.AssertPopulated(decoded);
+            IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true)!;
+            EncoderTestMessages.AssertPopulated(decoded!);
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
             ByteString canonical = EncoderTestMessages.Encode(decoded, "Binary");
             Assert.That(canonical, Is.EqualTo(input));
@@ -173,9 +173,9 @@ namespace Opc.Ua.Fuzzing
                 ReplayAfl(callback, input, true);
             }
             using MemoryStream stream = FuzzableCode.PrepareArraySegmentStream(input.Span);
-            IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true);
+            IEncodeable decoded = FuzzableCode.FuzzBinaryDecoderCore(stream, true)!;
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
-            Assert.That(EncoderTestMessages.Encode(decoded, "Binary"), Is.EqualTo(input));
+            Assert.That(EncoderTestMessages.Encode(decoded!, "Binary"), Is.EqualTo(input));
         }
 
         [Test]
@@ -236,14 +236,14 @@ namespace Opc.Ua.Fuzzing
         {
             ReadRequest message = Testcases.CreateRichReadRequest();
             Assert.That(
-                FuzzableCode.MessageContext.Factory.TryGetEncodeableType(message.TypeId, out IEncodeableType type),
+                FuzzableCode.MessageContext.Factory.TryGetEncodeableType(message.TypeId, out IEncodeableType? type),
                 Is.True);
             var name = new XmlQualifiedName(nameof(ReadRequest), Namespaces.OpcUa);
-            Assert.That(type.XmlName, Is.EqualTo(name));
-            Assert.That(FuzzableCode.MessageContext.Factory.TryGetType(name, out IType resolved), Is.True);
+            Assert.That(type!.XmlName, Is.EqualTo(name));
+            Assert.That(FuzzableCode.MessageContext.Factory.TryGetType(name, out IType? resolved), Is.True);
             Assert.That(resolved, Is.SameAs(type));
             ByteString serialized = EncoderTestMessages.Encode(message, "Xml");
-            IEncodeable decoded = EncoderTestMessages.Decode(serialized.Span, "Xml");
+            IEncodeable decoded = EncoderTestMessages.Decode(serialized.Span, "Xml")!;
             Assert.That(Utils.IsEqual(message, decoded), Is.True);
         }
 
@@ -278,7 +278,7 @@ namespace Opc.Ua.Fuzzing
 
             Assert.That(modes.IsNull, Is.False);
             Assert.That(modes.Count, Is.EqualTo(5));
-            Assert.That(modes.ToArray().Select(mode => mode.Name), Is.EqualTo(s_modeNames));
+            Assert.That(modes.ToArray()!.Select(mode => mode.Name), Is.EqualTo(s_modeNames));
             Assert.That(modes[0], Is.EqualTo(JsonEncoderOptions.Verbose));
             Assert.That(modes[1], Is.EqualTo(JsonEncoderOptions.Compact));
             Assert.That(modes[2], Is.EqualTo(JsonEncoderOptions.RawData));
@@ -414,7 +414,7 @@ namespace Opc.Ua.Fuzzing
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
             FuzzableCode.FuzzJsonEncoderIndempotentCore(serialized, original, options);
 
-            JsonObject withoutEnvelopeType = JsonNode.Parse(serialized).AsObject();
+            JsonObject withoutEnvelopeType = JsonNode.Parse(serialized)!.AsObject();
             Assert.That(withoutEnvelopeType.Remove("UaTypeId"), Is.True);
             IEncodeable restoredEnvelope = FuzzableCode.DecodeJsonWithMetadata(
                 withoutEnvelopeType.ToJsonString(),
@@ -492,8 +492,8 @@ namespace Opc.Ua.Fuzzing
         {
             JsonEncoderOptions options = FindMode(modeName);
             ReadRequest original = Testcases.CreateRichReadRequest();
-            JsonNode payload = JsonNode.Parse(FuzzableCode.EncodeJsonMessage(original, options));
-            payload["MaxAge"] = 1001;
+            JsonNode payload = JsonNode.Parse(FuzzableCode.EncodeJsonMessage(original, options))!;
+            payload!["MaxAge"] = 1001;
             string corrupted = payload.ToJsonString();
 
             IEncodeable decoded = FuzzableCode.DecodeJsonWithMetadata(
@@ -516,8 +516,8 @@ namespace Opc.Ua.Fuzzing
         {
             JsonEncoderOptions options = FindMode(modeName);
             ReadRequest original = Testcases.CreateRichReadRequest();
-            JsonNode payload = JsonNode.Parse(FuzzableCode.EncodeJsonMessage(original, options));
-            JsonArray nodes = payload["NodesToRead"].AsArray();
+            JsonNode payload = JsonNode.Parse(FuzzableCode.EncodeJsonMessage(original, options))!;
+            JsonArray nodes = payload!["NodesToRead"]!.AsArray();
             nodes.RemoveAt(5);
 
             Assert.That(original.NodesToRead.Count, Is.EqualTo(6));
@@ -554,8 +554,8 @@ namespace Opc.Ua.Fuzzing
         {
             JsonEncoderOptions options = FindMode(modeName);
             ReadRequest original = Testcases.CreateRichReadRequest();
-            JsonNode payload = JsonNode.Parse(FuzzableCode.EncodeJsonMessage(original, options));
-            payload["UaTypeId"] = "i=671";
+            JsonNode payload = JsonNode.Parse(FuzzableCode.EncodeJsonMessage(original, options))!;
+            payload!["UaTypeId"] = "i=671";
             string corrupted = payload.ToJsonString();
 
             Assert.That(
@@ -713,7 +713,7 @@ namespace Opc.Ua.Fuzzing
             ReadRequest original = Testcases.CreateRichReadRequest();
             string serialized = Encoding.UTF8.GetString(EncoderTestMessages.Encode(original, "Xml").ToArray());
             XDocument document = XDocument.Parse(serialized);
-            Assert.That(document.Root.Name, Is.EqualTo(XName.Get(nameof(ReadRequest), Namespaces.OpcUaXsd)));
+            Assert.That(document.Root!.Name, Is.EqualTo(XName.Get(nameof(ReadRequest), Namespaces.OpcUaXsd)));
             if (usePrefix)
             {
                 document.Root.Attribute("xmlns")?.Remove();
@@ -723,9 +723,9 @@ namespace Opc.Ua.Fuzzing
             }
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(serialized));
 
-            IEncodeable decoded = FuzzableCode.FuzzXmlDecoderCore(stream, true);
+            IEncodeable decoded = FuzzableCode.FuzzXmlDecoderCore(stream, true)!;
 
-            EncoderTestMessages.AssertPopulated(decoded);
+            EncoderTestMessages.AssertPopulated(decoded!);
             Assert.That(Utils.IsEqual(original, decoded), Is.True);
         }
 
@@ -735,7 +735,7 @@ namespace Opc.Ua.Fuzzing
             string valid = Encoding.UTF8.GetString(
                 EncoderTestMessages.Encode(Testcases.CreateRichReadRequest(), "Xml").ToArray());
             XDocument document = XDocument.Parse(valid);
-            document.Root.Name = XName.Get(nameof(ReadRequest), "urn:encoder-test:wrong-namespace");
+            document.Root!.Name = XName.Get(nameof(ReadRequest), "urn:encoder-test:wrong-namespace");
             document.Root.SetAttributeValue("xmlns", "urn:encoder-test:wrong-namespace");
             string wrongNamespace = document.ToString(SaveOptions.DisableFormatting);
             Assert.That(document.Root.Name.LocalName, Is.EqualTo(nameof(ReadRequest)));
@@ -785,12 +785,12 @@ namespace Opc.Ua.Fuzzing
 
         private static JsonEncoderOptions FindMode(string name)
         {
-            return FuzzableCode.JsonEncodingModes.ToArray().Single(mode => mode.Name == name);
+            return FuzzableCode.JsonEncodingModes.ToArray()!.Single(mode => mode.Name == name);
         }
 
         private static Exception CreateInnerFailure(string kind)
         {
-            return kind switch
+            return (kind switch
             {
                 "None" => null,
                 "EndOfStream" => new EndOfStreamException("truncated"),
@@ -802,7 +802,7 @@ namespace Opc.Ua.Fuzzing
                 "InvalidOperation" => new InvalidOperationException("unexpected implementation failure"),
                 "Io" => new IOException("unexpected infrastructure failure"),
                 _ => throw new ArgumentException("Unknown inner exception.", nameof(kind))
-            };
+            })!;
         }
 
         private static void AssertSegmentLayout(ByteString input, int segmentSize)
@@ -979,10 +979,10 @@ namespace Opc.Ua.Fuzzing
 
         private sealed class NonSeekableInputStream : Stream
         {
-            public NonSeekableInputStream(ReadOnlySpan<byte> input, ServiceResultException failure = null)
+            public NonSeekableInputStream(ReadOnlySpan<byte> input, ServiceResultException? failure = null)
             {
                 m_stream = new MemoryStream(input.ToArray(), false);
-                m_failure = failure;
+                m_failure = failure!;
             }
 
             public override bool CanRead => m_stream.CanRead;
@@ -1040,7 +1040,7 @@ namespace Opc.Ua.Fuzzing
             }
 
             private readonly MemoryStream m_stream;
-            private readonly ServiceResultException m_failure;
+            private readonly ServiceResultException m_failure = null!;
         }
 
         private const string k_artifactSchema =

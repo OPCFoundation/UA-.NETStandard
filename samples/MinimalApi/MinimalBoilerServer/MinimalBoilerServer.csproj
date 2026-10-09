@@ -9,7 +9,6 @@
     <Description>Self-contained .NET console OPC UA server demonstrating source-generated NodeManagers + the fluent wiring API. Native AOT compatible.</Description>
     <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
     <RootNamespace>Boiler</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CA1822</NoWarn>
     <PublishAot>true</PublishAot>

@@ -6,7 +6,6 @@
     <PackageId>MachineryClient</PackageId>
     <RootNamespace>MachinerySample.Client</RootNamespace>
     <Description>Console client that walks the OPC 40001 Machines folder of a Machinery server, prints each machine's identification and state, and downloads a measurement result through the OPC 40001-101 transfer path.</Description>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
   </PropertyGroup>

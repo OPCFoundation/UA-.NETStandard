@@ -60,7 +60,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
         protected override void ConfigureServer(ApplicationConfiguration configuration)
         {
-            configuration.ServerConfiguration.MinSupportedSamplingInterval = kMinSupportedSamplingInterval;
+            configuration.ServerConfiguration!.MinSupportedSamplingInterval = kMinSupportedSamplingInterval;
         }
 
         [SetUp]

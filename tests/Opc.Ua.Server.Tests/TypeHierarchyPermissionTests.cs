@@ -109,7 +109,7 @@ namespace Opc.Ua.Server.Tests
         public void TypeHierarchyNodeWithoutRolePermissionsAllowsReceiveEvents()
         {
             OperationContext context = CreateContext(ObjectIds.WellKnownRole_Anonymous);
-            var metadata = new NodeMetadata(null, ObjectTypeIds.BaseEventType)
+            var metadata = new NodeMetadata(null!, ObjectTypeIds.BaseEventType)
             {
                 IsPartOfTypeHierarchy = true
             };
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests
             OperationContext context = CreateContext(
                 ObjectIds.WellKnownRole_Anonymous,
                 MessageSecurityMode.None);
-            var metadata = new NodeMetadata(null, new NodeId(1000))
+            var metadata = new NodeMetadata(null!, new NodeId(1000))
             {
                 IsPartOfTypeHierarchy = true,
                 AccessRestrictions = AccessRestrictionType.EncryptionRequired
@@ -282,7 +282,7 @@ namespace Opc.Ua.Server.Tests
 
         private static NodeMetadata CreateTypeMetadata(NodeId roleId, PermissionType permissions)
         {
-            return new NodeMetadata(null, new NodeId(1000))
+            return new NodeMetadata(null!, new NodeId(1000))
             {
                 IsPartOfTypeHierarchy = true,
                 RolePermissions =

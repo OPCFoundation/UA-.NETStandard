@@ -116,9 +116,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             var importer = new NodeSetImporter(
                 context,
                 new ManualFactoryProvider(
-                    Factory(NodeClass.Object, 100, static () => new TypedObjectState(null)),
-                    Factory(NodeClass.Variable, 101, static () => new TypedVariableState(null)),
-                    Factory(NodeClass.Method, 105, static () => new TypedMethodState(null)),
+                    Factory(NodeClass.Object, 100, static () => new TypedObjectState(null!)),
+                    Factory(NodeClass.Variable, 101, static () => new TypedVariableState(null!)),
+                    Factory(NodeClass.Method, 105, static () => new TypedMethodState(null!)),
                     Factory(NodeClass.ObjectType, 100, static () => new TypedObjectTypeState()),
                     Factory(NodeClass.VariableType, 101, static () => new TypedVariableTypeState()),
                     Factory(NodeClass.DataType, 102, static () => new TypedDataTypeState()),
@@ -144,7 +144,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 Assert.That(dataType, Is.TypeOf<TypedDataTypeState>());
                 Assert.That(
                     dataType.DataTypeDefinition.TryGetValue(
-                        out DataTypeDefinition definition),
+                        out DataTypeDefinition? definition),
                     Is.True);
                 Assert.That(definition, Is.Not.Null);
                 Assert.That(referenceType, Is.TypeOf<TypedReferenceTypeState>());
@@ -278,9 +278,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             var typedImporter = new NodeSetImporter(
                 typedContext,
                 new ManualFactoryProvider(
-                    Factory(NodeClass.Object, 100, static () => new TypedObjectState(null)),
-                    Factory(NodeClass.Variable, 101, static () => new TypedVariableState(null)),
-                    Factory(NodeClass.Method, 105, static () => new TypedMethodState(null))));
+                    Factory(NodeClass.Object, 100, static () => new TypedObjectState(null!)),
+                    Factory(NodeClass.Variable, 101, static () => new TypedVariableState(null!)),
+                    Factory(NodeClass.Method, 105, static () => new TypedMethodState(null!))));
 
             typedImporter.Import(typedNodeSet);
             typedImporter.Complete();
@@ -450,7 +450,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 new ManualImportFactory(
                     NodeClass.Variable,
                     new ExpandedNodeId(500u, kNamespaceUri),
-                    static () => new TypedVariableState(null)));
+                    static () => new TypedVariableState(null!)));
             var importer = new NodeSetImporter(context, factoryProvider);
             UANodeSet children = ReadNodeSet(
                 """
@@ -508,7 +508,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     new ExpandedNodeId(3u, kNamespaceUri),
                     static () =>
                         PropertyState<ArrayOf<Argument>>
-                            .With<StructureBuilder<Argument>>(null),
+                            .With<StructureBuilder<Argument>>(null!),
                     NodeSetImportDiscriminator.NodeId));
             var importer = new NodeSetImporter(context, factoryProvider);
             UANodeSet children = ReadNodeSet(
@@ -570,14 +570,14 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     new ExpandedNodeId(3u, kNamespaceUri),
                     static () =>
                         PropertyState<ArrayOf<Argument>>
-                            .With<StructureBuilder<Argument>>(null),
+                            .With<StructureBuilder<Argument>>(null!),
                     NodeSetImportDiscriminator.NodeId),
                 new ManualImportFactory(
                     NodeClass.Variable,
                     new ExpandedNodeId(4u, kNamespaceUri),
                     static () =>
                         PropertyState<ArrayOf<Argument>>
-                            .With<StructureBuilder<Argument>>(null),
+                            .With<StructureBuilder<Argument>>(null!),
                     NodeSetImportDiscriminator.NodeId));
             var importer = new NodeSetImporter(context, factoryProvider);
             UANodeSet children = ReadNodeSet(
@@ -650,7 +650,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     new ExpandedNodeId(3u, kNamespaceUri),
                     static () =>
                         PropertyState<ArrayOf<Argument>>
-                            .With<StructureBuilder<Argument>>(null),
+                            .With<StructureBuilder<Argument>>(null!),
                     NodeSetImportDiscriminator.NodeId));
             var importer = new NodeSetImporter(context, factoryProvider);
             UANodeSet children = ReadNodeSet(
@@ -711,7 +711,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     new ExpandedNodeId(3u, kNamespaceUri),
                     static () =>
                         PropertyState<ArrayOf<Argument>>
-                            .With<StructureBuilder<Argument>>(null),
+                            .With<StructureBuilder<Argument>>(null!),
                     NodeSetImportDiscriminator.NodeId));
             var importer = new NodeSetImporter(context, factoryProvider);
             UANodeSet children = ReadNodeSet(
@@ -916,11 +916,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     Factory(
                         NodeClass.Object,
                         100,
-                        static () => new GeneratedLikeObjectState(null)),
+                        static () => new GeneratedLikeObjectState(null!)),
                     new ManualImportFactory(
                         NodeClass.Variable,
                         new ExpandedNodeId(201u, kNamespaceUri),
-                        static () => new TypedVariableState(null),
+                        static () => new TypedVariableState(null!),
                         NodeSetImportDiscriminator.NodeId)));
 
             importer.Import(nodeSet);
@@ -974,20 +974,20 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     Factory(
                         NodeClass.Method,
                         105,
-                        static () => new TypedMethodState(null)),
+                        static () => new TypedMethodState(null!)),
                     new ManualImportFactory(
                         NodeClass.Variable,
                         new ExpandedNodeId(203u, kNamespaceUri),
                         static () =>
                             PropertyState<ArrayOf<Argument>>
-                                .With<StructureBuilder<Argument>>(null),
+                                .With<StructureBuilder<Argument>>(null!),
                         NodeSetImportDiscriminator.NodeId),
                     new ManualImportFactory(
                         NodeClass.Variable,
                         new ExpandedNodeId(204u, kNamespaceUri),
                         static () =>
                             PropertyState<ArrayOf<Argument>>
-                                .With<StructureBuilder<Argument>>(null),
+                                .With<StructureBuilder<Argument>>(null!),
                         NodeSetImportDiscriminator.NodeId)));
 
             importer.Import(nodeSet);
@@ -1089,7 +1089,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         100,
                         () =>
                         {
-                            var state = new GeneratedLikeObjectState(null);
+                            var state = new GeneratedLikeObjectState(null!);
                             state.Create(
                                 context,
                                 NodeId.Null,
@@ -1199,8 +1199,8 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     typed.Categories?.ToArray(),
                     Is.EqualTo(generic.Categories?.ToArray()));
                 Assert.That(
-                    FormatExtensions(typed.Extensions),
-                    Is.EqualTo(FormatExtensions(generic.Extensions)));
+                    FormatExtensions(typed.Extensions!),
+                    Is.EqualTo(FormatExtensions(generic.Extensions!)));
                 Assert.That(
                     FormatRolePermissions(typed.RolePermissions),
                     Is.EqualTo(FormatRolePermissions(generic.RolePermissions)));
@@ -1253,13 +1253,13 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         {
             if (extensions is null)
             {
-                return null;
+                return null!;
             }
 
             var formatted = new string[extensions.Length];
             for (int i = 0; i < extensions.Length; i++)
             {
-                formatted[i] = extensions[i].OuterXml;
+                formatted[i] = extensions[i].OuterXml!;
             }
             return formatted;
         }
@@ -1368,7 +1368,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             {
             }
 
-            public BaseVariableState MandatoryValue { get; private set; }
+            public BaseVariableState MandatoryValue { get; private set; } = null!;
 
             public int InitializeCount { get; private set; }
 
@@ -1400,7 +1400,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 ISystemContext context,
                 QualifiedName browseName,
                 bool createOrReplace,
-                BaseInstanceState replacement,
+                BaseInstanceState? replacement,
                 bool assignInstanceNodeIds = true)
             {
                 if (browseName.Name == "MandatoryValue")
@@ -1423,7 +1423,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     browseName,
                     createOrReplace,
                     replacement,
-                    assignInstanceNodeIds);
+                    assignInstanceNodeIds)!;
             }
         }
     }

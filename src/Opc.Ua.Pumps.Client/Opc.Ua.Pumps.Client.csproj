@@ -5,7 +5,6 @@
     <PackageId>$(PackagePrefix).Opc.Ua.Pumps.Client</PackageId>
     <RootNamespace>Opc.Ua.Pumps.Client</RootNamespace>
     <NoWarn>$(NoWarn);CS1591</NoWarn>
-    <Nullable>enable</Nullable>
     <Description>Client-side helpers for the OPC 40223 Pumps and Vacuum Pumps companion specification: discover pumps below the DI DeviceSet and the Machinery Machines folder, read their nameplate, design, implementation and system-requirement groups, sample live measurements and signals, evaluate the supervision groups, read maintenance figures, browse the drive and connection ports, and take a full pump snapshot in one pass.</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

@@ -4389,9 +4389,19 @@
   },
   {
     "dependsOn": [
-      "opc-ua-pumps-pumptype",
       "sample-pump-cavitationalarm",
       "sample-pump-motoroverheatalarm"
+    ],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
+    "path": "sample-pump/sample-pump-pump-1type.json",
+    "resourceId": "sample-pump-pump-1type"
+  },
+  {
+    "dependsOn": [
+      "sample-pump-cavitationalarm",
+      "sample-pump-motoroverheatalarm",
+      "sample-pump-pump-1type"
     ],
     "documentKind": "ThingDescription",
     "groupId": "thingdescriptions",
@@ -4536,9 +4546,19 @@
   },
   {
     "dependsOn": [
-      "opc-ua-pumps-pumptype",
       "sample-pump-cavitationalarm-2",
       "sample-pump-motoroverheatalarm-2"
+    ],
+    "documentKind": "ThingModel",
+    "groupId": "thingmodels",
+    "path": "sample-pump/sample-pump-pump-2type.json",
+    "resourceId": "sample-pump-pump-2type"
+  },
+  {
+    "dependsOn": [
+      "sample-pump-cavitationalarm-2",
+      "sample-pump-motoroverheatalarm-2",
+      "sample-pump-pump-2type"
     ],
     "documentKind": "ThingDescription",
     "groupId": "thingdescriptions",

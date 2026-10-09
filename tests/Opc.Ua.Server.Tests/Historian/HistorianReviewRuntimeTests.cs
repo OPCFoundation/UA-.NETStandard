@@ -246,7 +246,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 }
             }
 
-            WaitHandle handle = null;
+            WaitHandle? handle = null;
             try
             {
                 CancellationToken token = await entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -373,9 +373,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(error), Is.True);
-            Assert.That(result.HistoryData.TryGetValue(out HistoryEvent history), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryEvent? history), Is.True);
             bool hasIdentity = fieldKind is < 2 or 4;
-            Assert.That(history.Events, Has.Count.EqualTo(where && !hasIdentity ? 0 : 1));
+            Assert.That(history!.Events, Has.Count.EqualTo(where && !hasIdentity ? 0 : 1));
             if (!where || hasIdentity)
             {
                 Variant actual = history.Events[0].EventFields[0];
@@ -389,7 +389,7 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
-        private static ServerSystemContext CreateSystemContext(ILogger logger = null)
+        private static ServerSystemContext CreateSystemContext(ILogger? logger = null)
         {
             var namespaces = new NamespaceTable();
             namespaces.Append("urn:historian-review");

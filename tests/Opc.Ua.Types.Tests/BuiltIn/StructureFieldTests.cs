@@ -96,9 +96,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 NUnitTelemetryContext.Create());
             using var encoder = new BinaryEncoder(messageContext);
             original.Encode(encoder);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
             var decoded = new StructureField();
             decoded.Decode(decoder);
 
@@ -120,9 +120,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 NUnitTelemetryContext.Create());
             using var encoder = new BinaryEncoder(messageContext);
             original.Encode(encoder);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
             var decoded = new StructureField();
             decoded.Decode(decoder);
 
@@ -263,7 +263,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             StructureField field = CreatePopulatedField();
 
-            Assert.That(field.Equals((object)null), Is.False);
+            Assert.That(field.Equals((object)null!), Is.False);
         }
 
         [Test]
@@ -299,7 +299,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             StructureField field = CreatePopulatedField();
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(field.Equals((StructureField)null), Is.False);
+            Assert.That(field.Equals((StructureField)null!), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
@@ -333,8 +333,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void OperatorEqualWithBothNullReturnsTrue()
         {
-            StructureField field1 = null;
-            StructureField field2 = null;
+            StructureField? field1 = null;
+            StructureField? field2 = null;
 
             Assert.That(field1 == field2, Is.True);
         }
@@ -343,7 +343,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void OperatorEqualWithOneNullReturnsFalse()
         {
             StructureField field1 = CreatePopulatedField();
-            StructureField field2 = null;
+            StructureField? field2 = null;
 
             Assert.That(field1 == field2, Is.False);
             Assert.That(field2 == field1, Is.False);

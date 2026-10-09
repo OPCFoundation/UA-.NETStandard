@@ -4,7 +4,6 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Sessions.Tests</RootNamespace>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <Nullable>annotations</Nullable>
     <!--
       Suppress Roslynator formatting/style warnings carried over from the
       pre-existing conformance test suite (long lines, redundant async/await,

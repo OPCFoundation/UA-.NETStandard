@@ -212,7 +212,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
 #pragma warning disable CA1508 // Avoid dead conditional code
 #pragma warning disable NUnit4002 // Use Specific constraint
-            Assert.That(dv, Is.Not.EqualTo((object)null));
+            Assert.That(dv, Is.Not.EqualTo((object)null!));
 #pragma warning restore NUnit4002 // Use Specific constraint
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
@@ -794,7 +794,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue(new Variant("hello"), StatusCodes.Bad);
 
 #pragma warning disable CS0618 // Type or member is obsolete
-            string result = dv.GetValueOrDefault<string>();
+            string? result = dv.GetValueOrDefault<string>();
 #pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Null);
@@ -829,7 +829,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue();
 
 #pragma warning disable CS0618 // Type or member is obsolete
-            string result = dv.GetValueOrDefault<string>();
+            string? result = dv.GetValueOrDefault<string>();
 #pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Null);
@@ -843,7 +843,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var dv = new DataValue(new Variant(ext));
 
 #pragma warning disable CS0618 // Type or member is obsolete
-            Argument result = dv.GetValueOrDefault<Argument>();
+            Argument result = dv.GetValueOrDefault<Argument>()!;
 #pragma warning restore CS0618 // Type or member is obsolete
 
             Assert.That(result, Is.Not.Null);
@@ -900,7 +900,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var ext = new ExtensionObject(arg);
             var dv = new DataValue(new Variant(ext));
 
-            Argument result = dv.GetValue<Argument>(null);
+            Argument result = dv.GetValue<Argument>(null!);
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Name, Is.EqualTo("test"));

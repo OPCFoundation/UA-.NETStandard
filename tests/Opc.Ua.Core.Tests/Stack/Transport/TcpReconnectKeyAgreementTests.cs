@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Buffers;
 using System.IO;
@@ -379,13 +377,6 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(transferredLocal, Is.SameAs(local));
             Assert.That(transferredRemote, Is.SameAs(remote));
             Assert.That(() => token.TakeNonces(), Throws.TypeOf<ObjectDisposedException>());
-            if (policy.CertificateKeyFamily == CertificateKeyFamily.ECC &&
-                !SecurityPolicies.SupportsRawEccSecretAgreement())
-            {
-                Assert.That(() => transferredLocal.GenerateSecret(transferredRemote, null),
-                    Throws.TypeOf<NotSupportedException>());
-                return;
-            }
             byte[]? secret = transferredLocal.GenerateSecret(transferredRemote, null);
             Assert.That(secret, Is.Not.Null.And.Not.Empty);
             Assert.That(secret, Is.EqualTo(remote.GenerateSecret(local, null)));
@@ -550,6 +541,79 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// OPC 10000-4 5.6.2.1: the server secures its messages with the current token only until it
+        /// expires. A Publish response sent long after its request, to a client that has renewed but sent
+        /// nothing since, is secured with the renewed token instead of the expired one - otherwise the
+        /// client rejects it and shuts the channel down (seen in the ConnectionStability soak).
+        /// </summary>
+        [Test]
+        public async Task ResponseSentAfterTheCurrentTokenExpiresUsesTheRenewedTokenAsync()
+        {
+            using var harness = new HandoffHarness(SecurityPolicies.Basic256Sha256);
+            await harness.OpenAsync().ConfigureAwait(false);
+            uint oldTokenId = harness.Target.Token.TokenId;
+            int lifetime = harness.Target.Token.Lifetime;
+            uint pendingRequestId = 0;
+            harness.Target.SetRequestReceivedCallback((_, requestId, _) => pendingRequestId = requestId);
+            await harness.Target.FeedAsync(harness.Peer.CreateRead()).ConfigureAwait(false);
+            Assert.That(pendingRequestId, Is.Not.Zero);
+
+            await harness.RenewInPlaceAsync().ConfigureAwait(false);
+            uint renewedTokenId = harness.Peer.Token.TokenId;
+            Assert.That(harness.Target.RenewedTokenId, Is.EqualTo(renewedTokenId));
+
+            harness.Time.Advance(TimeSpan.FromMilliseconds(lifetime * 0.96));
+            harness.Target.SendResponse(pendingRequestId, new ReadResponse
+            {
+                Results = [new DataValue(new Variant(123))]
+            });
+
+            ReadResponse response = harness.Peer.ReadResponse(
+                await harness.OldTransport.ReadAsync(harness.CancellationToken).ConfigureAwait(false),
+                out uint tokenId);
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(tokenId, Is.EqualTo(renewedTokenId).And.Not.EqualTo(oldTokenId));
+            Assert.That(harness.Target.CurrentTokenId, Is.EqualTo(renewedTokenId));
+        }
+
+        /// <summary>
+        /// OPC 10000-4 5.6.2.1: a client accepts messages secured with an expired token for up to 25 % of
+        /// the token lifetime, so a response the server secured just before expiry survives network delay.
+        /// Past that grace period the token is rejected.
+        /// </summary>
+        [TestCase(1.2, true)]
+        [TestCase(1.3, false)]
+        public async Task ResponseSecuredWithTheExpiredTokenIsAcceptedWithinTheGracePeriodAsync(
+            double elapsedLifetimes,
+            bool accepted)
+        {
+            using var harness = new HandoffHarness(SecurityPolicies.Basic256Sha256);
+            await harness.OpenAsync().ConfigureAwait(false);
+            uint oldTokenId = harness.Peer.Token.TokenId;
+            int lifetime = harness.Peer.Token.Lifetime;
+            await harness.RenewInPlaceAsync().ConfigureAwait(false);
+
+            // a request still secured with the old token: the server answers with the old token too.
+            await harness.Target.FeedAsync(harness.Peer.CreateRead(usePreviousToken: true)).ConfigureAwait(false);
+            ByteString chunk = await harness.OldTransport.ReadAsync(harness.CancellationToken).ConfigureAwait(false);
+
+            harness.Time.Advance(TimeSpan.FromMilliseconds(lifetime * elapsedLifetimes));
+
+            if (accepted)
+            {
+                ReadResponse response = harness.Peer.ReadResponse(chunk, out uint tokenId);
+                Assert.That(tokenId, Is.EqualTo(oldTokenId));
+                Assert.That(response.Results[0].WrappedValue, Is.EqualTo(new Variant(123)));
+            }
+            else
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => harness.Peer.ReadResponse(chunk, out _))!;
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTcpSecureChannelUnknown));
+            }
+        }
+
         private static Certificate CreatePaddedCertificate(string subject, int paddingSize)
         {
             using var ecdsa = ECDsa.Create(ECCurve.NamedCurves.nistP256);
@@ -628,9 +692,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 };
                 var listener = new Mock<ITcpChannelListener>();
                 listener.SetupGet(value => value.EndpointUrl).Returns(new Uri(endpoint.EndpointUrl));
-                Target = new HandoffChannel(listener.Object, buffers, quotas, registry.Object, endpoint, telemetry);
-                Temporary = new HandoffChannel(listener.Object, buffers, quotas, registry.Object, endpoint, telemetry);
-                Peer = new WirePeer(buffers, quotas, m_serverCertificate, m_clientCertificate, endpoint, telemetry);
+                Target = new HandoffChannel(listener.Object, buffers, quotas, registry.Object, endpoint, telemetry, Time);
+                Temporary = new HandoffChannel(listener.Object, buffers, quotas, registry.Object, endpoint, telemetry, Time);
+                Peer = new WirePeer(buffers, quotas, m_serverCertificate, m_clientCertificate, endpoint, telemetry, Time);
                 if (withIssuers)
                 {
                     Peer.ClientCertificateChain =
@@ -713,6 +777,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 });
             }
 
+            /// <summary>
+            /// The clock shared by the server channels and the peer, so token lifetimes agree.
+            /// </summary>
+            public FakeTimeProvider Time { get; } = new();
             public HandoffChannel Target { get; }
             public HandoffChannel Temporary { get; }
             public WirePeer Peer { get; }
@@ -745,6 +813,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Target.CurrentState = TcpChannelState.Faulted;
                 ArraySegment<byte> chunk = await Peer.CreateOpenAsync(true).ConfigureAwait(false);
                 await Temporary.FeedAsync(chunk).ConfigureAwait(false);
+            }
+
+            /// <summary>
+            /// Renews the token on the open connection: the peer uses the new token at once, while the
+            /// server holds it pending until a message secured with it arrives.
+            /// </summary>
+            public async Task RenewInPlaceAsync()
+            {
+                await Target.FeedAsync(await Peer.CreateOpenAsync(true).ConfigureAwait(false)).ConfigureAwait(false);
+                await Peer.CompleteOpenAsync(
+                    await OldTransport.ReadAsync(CancellationToken).ConfigureAwait(false),
+                    true).ConfigureAwait(false);
             }
 
             public async Task AssertEncryptedReadAsync(RecordingTransport transport)
@@ -808,8 +888,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 ChannelQuotas quotas,
                 ICertificateRegistry registry,
                 EndpointDescription endpoint,
-                ITelemetryContext telemetry)
-                : base("handoff", listener, buffers, quotas, registry, [endpoint], telemetry, new FakeTimeProvider())
+                ITelemetryContext telemetry,
+                TimeProvider time)
+                : base("handoff", listener, buffers, quotas, registry, [endpoint], telemetry, time)
             {
             }
 
@@ -935,9 +1016,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Certificate server,
                 Certificate client,
                 EndpointDescription endpoint,
-                ITelemetryContext telemetry)
+                ITelemetryContext telemetry,
+                TimeProvider time)
                 : base("peer", buffers, quotas, server.AddRef(), [endpoint],
-                    MessageSecurityMode.SignAndEncrypt, endpoint.SecurityPolicyUri, telemetry, new FakeTimeProvider())
+                    MessageSecurityMode.SignAndEncrypt, endpoint.SecurityPolicyUri, telemetry, time)
             {
                 ClientCertificate = client.AddRef();
             }
@@ -986,6 +1068,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     Assert.That(response.SecurityToken.ChannelId, Is.EqualTo(1));
                     m_pendingToken!.ServerNonce = response.ServerNonce.ToArray();
                     m_pendingToken.TokenId = response.SecurityToken.TokenId;
+                    m_pendingToken.Lifetime = (int)response.SecurityToken.RevisedLifetime;
                     m_pendingToken.ChannelId = ChannelId = response.SecurityToken.ChannelId;
                     Assert.That(ValidateNonce(ServerCertificate, m_pendingToken.ServerNonce), Is.True);
                     ActivateToken(m_pendingToken);
@@ -998,10 +1081,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
             }
 
-            public ArraySegment<byte> CreateRead()
+            public ArraySegment<byte> CreateRead(bool usePreviousToken = false)
             {
+                ChannelToken token = usePreviousToken ? PreviousToken! : Token;
                 BufferCollection chunks = WriteSymmetricMessage(
-                    TcpMessageType.Message, 78, Token, new ReadRequest(), true, out bool exceeded);
+                    TcpMessageType.Message, 78, token, new ReadRequest(), true, out bool exceeded);
                 Assert.That(exceeded, Is.False);
                 Assert.That(chunks, Has.Count.EqualTo(1));
                 return chunks[0];
@@ -1009,9 +1093,18 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
             public ReadResponse ReadResponse(ByteString chunk)
             {
+                return ReadResponse(chunk, out _);
+            }
+
+            /// <summary>
+            /// Reads a response and reports the id of the token it was secured with.
+            /// </summary>
+            public ReadResponse ReadResponse(ByteString chunk, out uint tokenId)
+            {
                 ArraySegment<byte> body = ReadSymmetricMessage(
                     new ArraySegment<byte>(chunk.ToArray()), false,
-                    out _, out uint requestId, out uint sequenceNumber);
+                    out ChannelToken token, out uint requestId, out uint sequenceNumber);
+                tokenId = token.TokenId;
                 Assert.That(VerifySequenceNumber(sequenceNumber, "ReadResponse"), Is.True);
                 Assert.That(requestId, Is.EqualTo(78));
                 using var decoder = new BinaryDecoder(body, Quotas.MessageContext);

@@ -79,7 +79,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
         public void ReadConfigurationNullThrows()
         {
             var manager = new SecurityConfigurationManager(m_telemetry);
-            Assert.Throws<ArgumentNullException>(() => manager.ReadConfiguration(null));
+            Assert.Throws<ArgumentNullException>(() => manager.ReadConfiguration(null!));
         }
 
         [Test]
@@ -96,7 +96,7 @@ namespace Opc.Ua.Core.Tests.Stack.Configuration
         {
             var manager = new SecurityConfigurationManager(m_telemetry);
             Assert.Throws<ArgumentNullException>(
-                () => manager.WriteConfiguration("somefile.config", null));
+                () => manager.WriteConfiguration("somefile.config", null!));
         }
 
         [Test]

@@ -43,7 +43,7 @@
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Operational</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Events</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.Maintenance</Reference>
-      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1052</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;s=Pump1.Type</Reference>
       <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceARunning</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceAStart</Reference>
@@ -53,10 +53,8 @@
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceBStart</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceBStop</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.SourceBReset</Reference>
-      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump1.CavitationAlarm</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.CavitationAcknowledge</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.CavitationConfirm</Reference>
-      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump1.MotorOverheatAlarm</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.MotorOverheatAcknowledge</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump1.MotorOverheatConfirm</Reference>
     </References>
@@ -844,6 +842,15 @@
       <Reference ReferenceType="HasProperty">ns=1;s=Pump1.MotorOverheatConfirm.InputArguments</Reference>
     </References>
   </UAMethod>
+  <UAObjectType NodeId="ns=1;s=Pump1.Type" BrowseName="1:Pump_1Type">
+    <DisplayName>Pump_1Type</DisplayName>
+    <Description>Sample-owned PumpType subtype declaring the alarms Pump1 raises.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=2;i=1052</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump1.CavitationAlarm</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump1.MotorOverheatAlarm</Reference>
+    </References>
+  </UAObjectType>
   <UAObject NodeId="ns=1;s=Pump2" BrowseName="1:Pump_2" EventNotifier="1">
     <DisplayName>Pump #2</DisplayName>
     <Description>Sample-owned aggregate pump projected from two upstream OPC UA servers.</Description>
@@ -852,7 +859,7 @@
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Operational</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Events</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.Maintenance</Reference>
-      <Reference ReferenceType="HasTypeDefinition">ns=2;i=1052</Reference>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;s=Pump2.Type</Reference>
       <Reference ReferenceType="i=35" IsForward="false">i=85</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceARunning</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceAStart</Reference>
@@ -862,10 +869,8 @@
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceBStart</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceBStop</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.SourceBReset</Reference>
-      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump2.CavitationAlarm</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.CavitationAcknowledge</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.CavitationConfirm</Reference>
-      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump2.MotorOverheatAlarm</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.MotorOverheatAcknowledge</Reference>
       <Reference ReferenceType="HasComponent">ns=1;s=Pump2.MotorOverheatConfirm</Reference>
     </References>
@@ -1653,4 +1658,13 @@
       <Reference ReferenceType="HasProperty">ns=1;s=Pump2.MotorOverheatConfirm.InputArguments</Reference>
     </References>
   </UAMethod>
+  <UAObjectType NodeId="ns=1;s=Pump2.Type" BrowseName="1:Pump_2Type">
+    <DisplayName>Pump_2Type</DisplayName>
+    <Description>Sample-owned PumpType subtype declaring the alarms Pump2 raises.</Description>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=2;i=1052</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump2.CavitationAlarm</Reference>
+      <Reference ReferenceType="GeneratesEvent">ns=1;s=Pump2.MotorOverheatAlarm</Reference>
+    </References>
+  </UAObjectType>
 </UANodeSet>

@@ -855,7 +855,7 @@ namespace Opc.Ua.Sessions.Tests
 
             foreach (string policyUri in policies)
             {
-                string displayName = SecurityPolicies.Default.GetDisplayName(policyUri);
+                string displayName = SecurityPolicies.Default.GetDisplayName(policyUri)!;
                 TestContext.Out.WriteLine($"\nTesting policy: {displayName} ({policyUri})");
 
                 try
@@ -887,12 +887,12 @@ namespace Opc.Ua.Sessions.Tests
                     await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                     session.Dispose();
 
-                    results[displayName] = true;
+                    results[displayName!] = true;
                     TestContext.Out.WriteLine($"✓ {displayName}: SUCCESS");
                 }
                 catch (Exception ex)
                 {
-                    results[displayName] = false;
+                    results[displayName!] = false;
                     TestContext.Out.WriteLine($"✗ {displayName}: FAILED - {ex.Message}");
                 }
             }
@@ -1003,7 +1003,7 @@ namespace Opc.Ua.Sessions.Tests
             }
 
             await m_framework.OneTimeTearDownAsync().ConfigureAwait(false);
-            m_framework = null;
+            m_framework = null!;
             m_endpoints = default;
         }
 

@@ -329,7 +329,7 @@ namespace Opc.Ua.Server.Tests.AliasNames
                 Assert.That(alias.BrowseName, Is.EqualTo(new QualifiedName(kAliasName, namespaceIndex)));
                 Assert.That(category.ReferenceExists(ReferenceTypeIds.Organizes, false, aliasId), Is.True);
                 Assert.That(alias.ReferenceExists(ReferenceTypeIds.AliasFor, false, targetId), Is.True);
-                Assert.That(externalReferences.TryGetValue(targetId, out IList<IReference> references), Is.True);
+                Assert.That(externalReferences.TryGetValue(targetId, out IList<IReference>? references), Is.True);
                 Assert.That(references, Has.Count.EqualTo(1));
                 Assert.That(references[0].ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.AliasFor));
                 Assert.That(references[0].IsInverse, Is.True);

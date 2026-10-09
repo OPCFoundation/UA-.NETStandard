@@ -257,6 +257,27 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Activates the pending renewed token once the current token is close to expiry.
+        /// </summary>
+        /// <remarks>
+        /// A server keeps securing its messages with the current token until the client
+        /// uses the renewed one, but only until the current token expires (OPC 10000-4
+        /// 5.6.2.1). A client that sends nothing - one waiting on outstanding Publish
+        /// requests - would otherwise receive responses secured with an expired token.
+        /// </remarks>
+        protected void ActivateRenewedTokenIfDue()
+        {
+            ChannelToken? renewedToken = RenewedToken;
+            if (renewedToken != null &&
+                CurrentToken != null &&
+                CurrentToken.IsActivationRequired(TimeProvider))
+            {
+                ActivateToken(renewedToken);
+                m_logger.UaSCChannelLog12(Id, CurrentToken.TokenId);
+            }
+        }
+
+        /// <summary>
         /// Discards the tokens.
         /// </summary>
         protected void DiscardTokens()
@@ -799,12 +820,9 @@ namespace Opc.Ua.Bindings
             }
 
             // check if activation of the new token should be forced.
-            else if (renewedToken != null &&
-                CurrentToken != null &&
-                CurrentToken.IsActivationRequired(TimeProvider))
+            else
             {
-                ActivateToken(renewedToken);
-                m_logger.UaSCChannelLog12(Id, CurrentToken.TokenId);
+                ActivateRenewedTokenIfDue();
             }
 
             if (tokenToActivate != null)
@@ -849,8 +867,11 @@ namespace Opc.Ua.Bindings
                 }
             }
 
-            // check if token has expired.
-            if (token.IsExpired(TimeProvider))
+            // check if token has expired. A client accepts responses secured with an expired
+            // token for a grace period (OPC 10000-4 5.6.2.1): the server keeps securing its
+            // responses with the old token until it sees the new one, so a response sent just
+            // before expiry can arrive after it. Rejecting it shuts the channel down.
+            if (token.IsExpired(TimeProvider, isRequest ? 0 : TcpMessageLimits.TokenExpiryGracePeriod))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,

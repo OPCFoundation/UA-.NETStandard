@@ -124,7 +124,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Writes a single entry for the <c>All</c> dictionary initializer.
         /// </summary>
-        private TemplateString LoadTemplate_AllEntry(ILoadContext context)
+        private TemplateString? LoadTemplate_AllEntry(ILoadContext context)
         {
             if (context.Target is Capability capability)
             {
@@ -146,7 +146,7 @@ namespace Opc.Ua.SourceGeneration
             using TextReader reader = m_context.FileSystem.CreateTextReader(capabilitiesFile);
             while (true)
             {
-                string line = reader.ReadLine();
+                string? line = reader.ReadLine();
                 if (line == null)
                 {
                     break;

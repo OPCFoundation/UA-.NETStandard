@@ -54,7 +54,7 @@ namespace Opc.Ua.History.Tests
             int count = result.References.Count;
             for (int i = 0; i < count; i++)
             {
-                string n = result.References[i].BrowseName.Name;
+                string n = result.References[i].BrowseName.Name!;
                 if (n == "Enable")
                 {
                     foundEnable = true;

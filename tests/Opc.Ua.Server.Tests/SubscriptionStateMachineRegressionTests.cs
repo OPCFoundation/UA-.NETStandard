@@ -303,8 +303,8 @@ namespace Opc.Ua.Server.Tests
 
             clock.Advance(TimeSpan.FromMilliseconds(101));
             Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.NotificationsAvailable));
-            NotificationMessage first = subscription.Publish(context, out _, out bool moreNotifications);
-            Assert.That(first.SequenceNumber, Is.EqualTo(1u));
+            NotificationMessage first = subscription.Publish(context, out _, out bool moreNotifications)!;
+            Assert.That(first!.SequenceNumber, Is.EqualTo(1u));
             Assert.That(moreNotifications, Is.True);
 
             subscription.SetPublishingMode(context, false);
@@ -312,10 +312,10 @@ namespace Opc.Ua.Server.Tests
             NotificationMessage keepAlive = subscription.Publish(
                 context,
                 out ArrayOf<uint> available,
-                out moreNotifications);
+                out moreNotifications)!;
             Assert.Multiple(() =>
             {
-                Assert.That(keepAlive.NotificationData, Is.Empty);
+                Assert.That(keepAlive!.NotificationData, Is.Empty);
                 Assert.That(keepAlive.SequenceNumber, Is.EqualTo(2u),
                     "The keep-alive announces the next message that will be sent.");
                 Assert.That(available.ToArray(), Is.EqualTo(new uint[] { 1 }));
@@ -324,10 +324,10 @@ namespace Opc.Ua.Server.Tests
 
             subscription.SetPublishingMode(context, true);
 
-            NotificationMessage second = subscription.Publish(context, out _, out moreNotifications);
+            NotificationMessage second = subscription.Publish(context, out _, out moreNotifications)!;
             Assert.Multiple(() =>
             {
-                Assert.That(second.SequenceNumber, Is.EqualTo(2u));
+                Assert.That(second!.SequenceNumber, Is.EqualTo(2u));
                 Assert.That(second.NotificationData, Has.Count.EqualTo(1));
                 Assert.That(moreNotifications, Is.True);
             });
@@ -395,8 +395,8 @@ namespace Opc.Ua.Server.Tests
 
             clock.Advance(TimeSpan.FromMilliseconds(101));
             Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.NotificationsAvailable));
-            NotificationMessage first = subscription.Publish(context, out _, out _);
-            Assert.That(first.SequenceNumber, Is.EqualTo(1u));
+            NotificationMessage first = subscription.Publish(context, out _, out _)!;
+            Assert.That(first!.SequenceNumber, Is.EqualTo(1u));
             subscription.SetPublishingMode(context, false);
 
             Assert.That(subscription.AvailableSequenceNumbersForRetransmission().ToArray(), Is.EqualTo(new uint[] { 1 }));
@@ -406,8 +406,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadMessageNotAvailable));
 
             subscription.SetPublishingMode(context, true);
-            NotificationMessage second = subscription.Publish(context, out ArrayOf<uint> available, out _);
-            Assert.That(second.SequenceNumber, Is.EqualTo(2u));
+            NotificationMessage second = subscription.Publish(context, out ArrayOf<uint> available, out _)!;
+            Assert.That(second!.SequenceNumber, Is.EqualTo(2u));
             Assert.That(available.ToArray(), Is.EqualTo(new uint[] { 1, 2 }));
             Assert.That(subscription.Republish(context, 2).SequenceNumber, Is.EqualTo(2u));
         }
@@ -544,7 +544,7 @@ namespace Opc.Ua.Server.Tests
 
             clock.Advance(TimeSpan.FromMilliseconds(101));
             subscription.PublishTimerExpired();
-            NotificationMessage message = subscription.Publish(context, out _, out _);
+            NotificationMessage message = subscription.Publish(context, out _, out _)!;
 
             Assert.That(message?.NotificationData.Count ?? 0, Is.EqualTo(expectPublished ? 1 : 0));
             VerifyPublished(item, expectPublished ? Times.Once() : Times.Never());
@@ -569,7 +569,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.NotificationsAvailable));
 
             mode = newMode;
-            NotificationMessage message = subscription.Publish(context, out _, out _);
+            NotificationMessage? message = subscription.Publish(context, out _, out _);
 
             Assert.That(message == null || message.NotificationData.Count == 0, Is.True);
             VerifyPublished(item, Times.Never());
@@ -710,7 +710,7 @@ namespace Opc.Ua.Server.Tests
                 .ConfigureAwait(false);
 
             IReadOnlyDictionary<uint, IReadOnlyList<uint>> restoredLinks =
-                ((IStoredSubscriptionTriggering)restored.ToStorableSubscription()).TriggeringLinks;
+                ((IStoredSubscriptionTriggering)restored.ToStorableSubscription()).TriggeringLinks!;
             Assert.That(restoredLinks, Is.Not.Null);
             Assert.That(restoredLinks[1], Is.EqualTo(new uint[] { 2 }));
         }
@@ -834,11 +834,11 @@ namespace Opc.Ua.Server.Tests
         {
             var monitoredItems = (System.Collections.IDictionary)typeof(Subscription)
                 .GetField("m_monitoredItems", BindingFlags.NonPublic | BindingFlags.Instance)!
-                .GetValue(subscription);
+                .GetValue(subscription)!;
             var itemsToCheck = (LinkedList<IMonitoredItem>)typeof(Subscription)
                 .GetField("m_itemsToCheck", BindingFlags.NonPublic | BindingFlags.Instance)!
-                .GetValue(subscription);
-            monitoredItems.Add(item.Id, itemsToCheck.AddLast(item));
+                .GetValue(subscription)!;
+            monitoredItems!.Add(item.Id, itemsToCheck!.AddLast(item));
         }
 
         private static void AddTriggerLink(
@@ -848,8 +848,8 @@ namespace Opc.Ua.Server.Tests
         {
             var itemsToTrigger = (Dictionary<uint, List<ITriggeredMonitoredItem>>)typeof(Subscription)
                 .GetField("m_itemsToTrigger", BindingFlags.NonPublic | BindingFlags.Instance)!
-                .GetValue(subscription);
-            if (!itemsToTrigger.TryGetValue(triggeringId, out List<ITriggeredMonitoredItem> list))
+                .GetValue(subscription)!;
+            if (!itemsToTrigger!.TryGetValue(triggeringId, out List<ITriggeredMonitoredItem>? list))
             {
                 itemsToTrigger[triggeringId] = list = [];
             }

@@ -7,7 +7,6 @@
     <PackageId>IntentViewerClient</PackageId>
     <Description>Robot Intent sample client that maps OpenUSD viewport target picks to OPC UA Robot Intent linear moves and tracks the long-running operation lifecycle.</Description>
     <RootNamespace>IntentViewerClient</RootNamespace>
-    <Nullable>enable</Nullable>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <!-- MCP hosting needs .NET 8+ and the Opc.Ua.Mcp.* projects. Those projects opt into
          $(RestrictForLegacyTfm), so under a legacy $(CustomTestTarget) they build as empty

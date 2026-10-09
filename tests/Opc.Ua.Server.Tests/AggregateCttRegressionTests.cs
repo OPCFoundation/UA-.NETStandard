@@ -182,13 +182,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that direct and live percentage aggregates honor the explicit uncertain-value configuration.
+        /// Verifies that direct and live percentage aggregates count an Uncertain region as neither Good
+        /// nor Bad, whatever TreatUncertainAsBad is (Part 13 §5.4.3.33/34, Mantis 11425 ~0025847).
         /// </summary>
-        [TestCase("PercentGood", false, 50.0)]
+        [TestCase("PercentGood", false, 25.0)]
         [TestCase("PercentBad", false, 50.0)]
         [TestCase("PercentGood", true, 25.0)]
-        [TestCase("PercentBad", true, 75.0)]
-        public async Task DirectAndLivePercentAggregatesHonorExplicitUncertainConfigurationAsync(
+        [TestCase("PercentBad", true, 50.0)]
+        public async Task DirectAndLivePercentAggregatesCountUncertainForNeitherAsync(
             string aggregateName,
             bool treatUncertainAsBad,
             double expected)
@@ -467,13 +468,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that direct and live transition counts include uncertain values only when
-        /// TreatUncertainAsBad is false. With TreatUncertainAsBad the Uncertain values are equivalent
-        /// to Bad (Part 13 §4.2.1.2) and Bad values are not counted (Part 13 §5.4.3.24).
+        /// Verifies that direct and live transition counts include uncertain values whatever
+        /// TreatUncertainAsBad is: only Bad values are not counted (Part 13 §5.4.3.24 speaks of non-Bad
+        /// values; the aggregate definition wins over TreatUncertainAsBad, Mantis 11425 ~0025847,
+        /// 11426 ~0025852).
         /// </summary>
         [TestCase(false, 22)]
-        [TestCase(true, 20)]
-        public async Task DirectAndLiveNumberOfTransitionsCountUncertainValuesOnlyWhenNotTreatedAsBadAsync(
+        [TestCase(true, 22)]
+        public async Task DirectAndLiveNumberOfTransitionsCountUncertainValuesAsync(
             bool treatUncertainAsBad,
             int expectedTransitions)
         {
@@ -632,12 +634,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that Interpolative treats an Uncertain raw value at the interval start as Bad
-        /// when TreatUncertainAsBad is set (Part 13 §4.2.1.2) and interpolates over it.
+        /// Verifies that Interpolative returns an Uncertain raw value at the interval start whatever
+        /// TreatUncertainAsBad is: a non-Bad raw value at the timestamp is the bounding value
+        /// (Part 13 §3.1.8) and TreatUncertainAsBad does not apply to bounds (Mantis 11462).
         /// </summary>
         [TestCase(true)]
         [TestCase(false)]
-        public void InterpolativeHonorsTreatUncertainAsBadForRawValueAtStart(bool treatUncertainAsBad)
+        public void InterpolativeReturnsUncertainRawValueAtStart(bool treatUncertainAsBad)
         {
             List<DataValue> rawValues =
             [
@@ -657,17 +660,8 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(results, Has.Count.EqualTo(1));
             Assert.That(results[0].WrappedValue.TryGetValue(out double value), Is.True);
-            if (treatUncertainAsBad)
-            {
-                Assert.That(value, Is.EqualTo(2.0).Within(1e-9));
-                Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
-                Assert.That(results[0].StatusCode.AggregateBits, Is.EqualTo(AggregateBits.Interpolated));
-            }
-            else
-            {
-                Assert.That(value, Is.EqualTo(5.0));
-                Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainSubstituteValue));
-            }
+            Assert.That(value, Is.EqualTo(5.0), $"TreatUncertainAsBad = {treatUncertainAsBad}");
+            Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainSubstituteValue));
         }
 
         /// <summary>
@@ -806,14 +800,14 @@ namespace Opc.Ua.Server.Tests
         /// value at or before the interval start rather than of the simple bound
         /// (Part 13 §5.4.3.31-.32).
         /// </summary>
-        [TestCase("DurationBad", true, 15_000.0)]
+        [TestCase("DurationBad", true, 10_000.0)]
         [TestCase("DurationGood", true, 15_000.0)]
         [TestCase("DurationBad", false, 10_000.0)]
-        [TestCase("DurationGood", false, 20_000.0)]
-        [TestCase("PercentBad", true, 50.0)]
+        [TestCase("DurationGood", false, 15_000.0)]
+        [TestCase("PercentBad", true, 100.0 / 3.0)]
         [TestCase("PercentGood", true, 50.0)]
         [TestCase("PercentBad", false, 100.0 / 3.0)]
-        [TestCase("PercentGood", false, 200.0 / 3.0)]
+        [TestCase("PercentGood", false, 50.0)]
         public async Task DirectAndLiveDurationFirstRegionUsesRawStatusBeforeIntervalAsync(
             string aggregateName,
             bool treatUncertainAsBad,
@@ -821,7 +815,7 @@ namespace Opc.Ua.Server.Tests
         {
             // Interval [5 s, 35 s): the simple start bound is Uncertain because Bad data follows
             // the Good value at 0 s, but the first region (5-10 s) is Good. 10-20 s is Bad,
-            // 20-30 s Good, and 30-35 s Uncertain (Bad only with TreatUncertainAsBad).
+            // 20-30 s Good, and 30-35 s Uncertain (neither Good nor Bad, Mantis 11425 ~0025847).
             List<DataValue> rawValues =
             [
                 CreateValue(0, StatusCodes.Good, 0),
@@ -1273,7 +1267,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(ServiceResult.IsGood(error), Is.True, error.ToString());
                 Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(result.HistoryData.TryGetValue(out HistoryData historyData), Is.True);
+                Assert.That(result.HistoryData.TryGetValue(out HistoryData? historyData), Is.True);
                 return [.. historyData!.DataValues];
             }
 
@@ -1289,7 +1283,7 @@ namespace Opc.Ua.Server.Tests
                 QualifiedName aggregateName = Aggregators.GetNameForStandardAggregate(aggregateId);
                 await AggregateManager.RegisterFactoryAsync(
                     aggregateId,
-                    aggregateName.Name,
+                    aggregateName.Name!,
                     Aggregators.CreateStandardCalculator,
                     CancellationToken.None).ConfigureAwait(false);
 

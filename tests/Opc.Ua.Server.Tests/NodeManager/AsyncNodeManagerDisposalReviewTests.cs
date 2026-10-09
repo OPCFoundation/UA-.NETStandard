@@ -228,11 +228,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (queues)
             {
                 var manager = new CleanupNodeManager(server.Object);
-                ExecutionContext captured = null;
+                ExecutionContext? captured = null;
                 manager.Cleanup = () =>
                 {
                     Assert.That(manager.FindCachedNode(), Is.SameAs(manager.CachedNode));
-                    captured = ExecutionContext.Capture();
+                    captured = ExecutionContext.Capture()!;
                     return default;
                 };
                 manager.OwnedCleanup = () =>
@@ -319,17 +319,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// <summary>
             /// Gets or sets the asynchronous callback executed during subclass cleanup.
             /// </summary>
-            public Func<ValueTask> Cleanup { get; set; }
+            public Func<ValueTask> Cleanup { get; set; } = null!;
 
             /// <summary>
             /// Gets or sets the deferred write callback whose admission must outlive semaphore ownership.
             /// </summary>
-            public Func<ValueTask> DeferredWrite { get; set; }
+            public Func<ValueTask> DeferredWrite { get; set; } = null!;
 
             /// <summary>
             /// Gets or sets the callback executed after the owned monitored-item manager is disposed.
             /// </summary>
-            public Action OwnedCleanup { get; set; }
+            public Action OwnedCleanup { get; set; } = null!;
 
             /// <summary>
             /// Gets the variable retained in the predefined-node and component caches until cleanup completes.
@@ -356,7 +356,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// </summary>
             public NodeState FindCachedNode()
             {
-                return LookupNodeInComponentCache(SystemContext, m_handle);
+                return LookupNodeInComponentCache(SystemContext, m_handle)!;
             }
 
             /// <summary>

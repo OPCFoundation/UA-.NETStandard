@@ -59,7 +59,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPath=TestNodeName"));
@@ -75,11 +75,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = "TestPath",
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPath"));
@@ -100,7 +100,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPath"));
@@ -115,12 +115,12 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var hierarchyNode = new HierarchyNode
             {
-                RelativePath = null,
-                Instance = null
+                RelativePath = null!,
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string? result = hierarchyNode.ToString();
 
             // Assert
             Assert.That(result, Is.Null);
@@ -136,11 +136,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = string.Empty,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -162,7 +162,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPath="));
@@ -178,11 +178,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = "   ",
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("   "));
@@ -198,11 +198,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = "Test/Path\\With:Special*Chars",
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Test/Path\\With:Special*Chars"));
@@ -224,7 +224,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPath=Node:Name<With>Special&Chars"));
@@ -241,11 +241,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = longPath,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(longPath));
@@ -264,12 +264,12 @@ namespace Opc.Ua.Schema.Model.Tests
             var instance = new NodeDesign { SymbolicId = symbolicId };
             var hierarchyNode = new HierarchyNode
             {
-                RelativePath = null,
+                RelativePath = null!,
                 Instance = instance
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("=TestNodeName"));
@@ -297,7 +297,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPath=TestNodeName"));
@@ -320,7 +320,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = node.ToString();
+            string result = node.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPath"));
@@ -336,11 +336,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var node = new HierarchyNode
             {
                 RelativePath = string.Empty,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = node.ToString();
+            string result = node.ToString()!;
 
             // Assert
             Assert.That(result, Is.Empty);
@@ -355,7 +355,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var node = new HierarchyNode
             {
-                RelativePath = null,
+                RelativePath = null!,
                 Instance = new NodeDesign
                 {
                     SymbolicId = new XmlQualifiedName("TestName", "http://test.namespace")
@@ -363,7 +363,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = node.ToString();
+            string result = node.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("=TestName"));
@@ -381,11 +381,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var node = new HierarchyNode
             {
                 RelativePath = relativePath,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = node.ToString();
+            string result = node.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(relativePath));
@@ -405,11 +405,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var node = new HierarchyNode
             {
                 RelativePath = relativePath,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = node.ToString();
+            string result = node.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(relativePath));
@@ -434,7 +434,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = node.ToString();
+            string result = node.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"Path={symbolicIdName}"));
@@ -457,7 +457,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = node.ToString();
+            string result = node.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("="));
@@ -474,11 +474,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var node = new HierarchyNode
             {
                 RelativePath = longPath,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = node.ToString();
+            string result = node.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(longPath));
@@ -503,7 +503,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = node.ToString();
+            string result = node.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"Path={longName}"));
@@ -519,11 +519,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = "TestPath",
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPath"));
@@ -546,7 +546,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPath"));
@@ -569,7 +569,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPath=TestSymbolic"));
@@ -592,7 +592,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("MyPath"));
@@ -615,7 +615,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Path1=Symbol1"));
@@ -630,12 +630,12 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var hierarchyNode = new HierarchyNode
             {
-                RelativePath = null,
-                Instance = null
+                RelativePath = null!,
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string? result = hierarchyNode.ToString();
 
             // Assert
             Assert.That(result, Is.Null);
@@ -651,11 +651,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = string.Empty,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -671,11 +671,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = "Path/With\\Special_Characters-123",
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Path/With\\Special_Characters-123"));
@@ -698,7 +698,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Path=Name_With-Special.Chars"));
@@ -715,11 +715,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = longPath,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(longPath));
@@ -743,7 +743,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"Path={longName}"));
@@ -767,7 +767,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Path="));
@@ -786,11 +786,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = expectedPath,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(expectedPath));
@@ -818,7 +818,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(expectedPath));
@@ -835,12 +835,12 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var hierarchyNode = new HierarchyNode
             {
-                RelativePath = null,
-                Instance = null
+                RelativePath = null!,
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string? result = hierarchyNode.ToString();
 
             // Assert
             Assert.That(result, Is.Null);
@@ -858,11 +858,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = string.Empty,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -881,11 +881,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = whitespace,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(whitespace));
@@ -904,11 +904,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = specialPath,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(specialPath));
@@ -938,7 +938,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"{relativePath}={symbolicIdName}"));
@@ -962,12 +962,12 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var hierarchyNode = new HierarchyNode
             {
-                RelativePath = null,
+                RelativePath = null!,
                 Instance = mockNodeDesign
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"={symbolicIdName}"));
@@ -996,7 +996,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"={symbolicIdName}"));
@@ -1025,7 +1025,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"{relativePath}="));
@@ -1055,7 +1055,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"{relativePath}={symbolicIdName}"));
@@ -1087,7 +1087,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"{relativePath}={symbolicIdName}"));
@@ -1118,9 +1118,9 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result1 = hierarchyNode.ToString();
-            string result2 = hierarchyNode.ToString();
-            string result3 = hierarchyNode.ToString();
+            string result1 = hierarchyNode.ToString()!;
+            string result2 = hierarchyNode.ToString()!;
+            string result3 = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result1, Is.EqualTo(result2));
@@ -1143,11 +1143,11 @@ namespace Opc.Ua.Schema.Model.Tests
             var hierarchyNode = new HierarchyNode
             {
                 RelativePath = controlChars,
-                Instance = null
+                Instance = null!
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(controlChars));
@@ -1177,7 +1177,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"{relativePath}={symbolicIdName}"));
@@ -1212,7 +1212,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = hierarchyNode.ToString();
+            string result = hierarchyNode.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"{relativePath}={symbolicIdName}"));

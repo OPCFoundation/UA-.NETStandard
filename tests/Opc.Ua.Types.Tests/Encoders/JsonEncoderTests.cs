@@ -468,7 +468,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         [TestCase("", null)]
         [TestCase(null, "")]
         [TestCase("", "")]
-        public void WriteLocalizedTextWithoutTextAndLocaleWritesNull(string locale, string text)
+        public void WriteLocalizedTextWithoutTextAndLocaleWritesNull(string? locale, string? text)
         {
             // Text and Locale are not encoded if null or empty (Part 6 5.4.2.15), so the
             // value is the null LocalizedText: JSON null in Verbose, omitted in Compact.
@@ -611,7 +611,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             (Variant Value, string Json)[] cases =
             [
                 (new Variant(NodeId.Null), """{"Value":{"UaType":17}}"""),
-                (new Variant((string)null), """{"Value":{"UaType":12}}"""),
+                (new Variant((string)null!), """{"Value":{"UaType":12}}"""),
                 (new Variant((ushort)0), """{"Value":{"UaType":5,"Value":0}}"""),
                 (new Variant(false), """{"Value":{"UaType":1,"Value":false}}"""),
                 (new Variant(0.0), """{"Value":{"UaType":11,"Value":0}}"""),
@@ -735,7 +735,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(messageContext))
             {
                 argument.Encode(encoder);
-                body = encoder.CloseAndReturnBuffer();
+                body = encoder.CloseAndReturnBuffer()!;
             }
             var opaque = new ExtensionObject(
                 ObjectIds.Argument_Encoding_DefaultBinary,
@@ -759,10 +759,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(messageContext))
             {
                 encoder.WriteExtensionObject(null, decoded);
-                binary = encoder.CloseAndReturnBuffer();
+                binary = encoder.CloseAndReturnBuffer()!;
             }
             ExtensionObject reDecoded;
-            using (var decoder = new BinaryDecoder(binary, messageContext))
+            using (var decoder = new BinaryDecoder(binary!, messageContext))
             {
                 reDecoded = decoder.ReadExtensionObject(null);
             }
@@ -775,7 +775,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Assert.That(
                     decoded.TypeId,
                     Is.EqualTo((ExpandedNodeId)ObjectIds.Argument_Encoding_DefaultBinary));
-                Assert.That(reDecoded.TryGetValue(out Argument result), Is.True);
+                Assert.That(reDecoded.TryGetValue(out Argument? result), Is.True);
                 Assert.That(result?.Name, Is.EqualTo("In"));
             });
         }
@@ -912,7 +912,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             namespaces.Append("urn:b");
             namespaces.Append("urn:a");
             var servers = new StringTable();
-            servers.Append(messageContext.ServerUris.GetString(0));
+            servers.Append(messageContext.ServerUris.GetString(0)!);
             servers.Append("urn:x");
             servers.Append("urn:s1");
             JsonEncoderOptions options = JsonEncoderOptions.Verbose with { ForceNamespaceUri = false };

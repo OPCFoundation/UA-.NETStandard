@@ -98,7 +98,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
 
-            ReferenceDescription aliasRef = null;
+            ReferenceDescription? aliasRef = null;
             foreach (ReferenceDescription r in response.Results[0].References)
             {
                 if (r.BrowseName.Name == "Aliases")
@@ -138,7 +138,7 @@ namespace Opc.Ua.InformationModel.Tests
             Assert.That(response.Results.Count, Is.EqualTo(1));
             Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True);
 
-            ReferenceDescription tagRef = null;
+            ReferenceDescription? tagRef = null;
             foreach (ReferenceDescription r in response.Results[0].References)
             {
                 if (r.BrowseName.Name == "TagVariables")

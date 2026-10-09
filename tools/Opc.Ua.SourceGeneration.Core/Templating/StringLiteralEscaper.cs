@@ -57,7 +57,7 @@ namespace Opc.Ua.SourceGeneration.Templating
         /// <param name="raw">
         /// The raw input. <c>null</c> is treated as an empty string.
         /// </param>
-        public static string AsCSharpStringLiteralContent(string raw)
+        public static string AsCSharpStringLiteralContent(string? raw)
         {
             return AsCSharpStringLiteralContent(raw, out _);
         }
@@ -75,7 +75,7 @@ namespace Opc.Ua.SourceGeneration.Templating
         /// required. Callers use this signal to emit the
         /// <c>UASG_BROWSENAME_UNSAFE</c> diagnostic.
         /// </param>
-        public static string AsCSharpStringLiteralContent(string raw, out bool modified)
+        public static string AsCSharpStringLiteralContent(string? raw, out bool modified)
         {
             modified = false;
             if (string.IsNullOrEmpty(raw))

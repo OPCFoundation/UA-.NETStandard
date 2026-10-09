@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             isNull.SetOperands([new ElementOperand(1)]);
             ContentFilterElement cast = BuildBinaryElement(
                 FilterOperator.Cast,
-                Variant.From((string)null),
+                Variant.From((string)null!),
                 Variant.From(new NodeId((uint)targetType)));
             var filter = new Ua.ContentFilter { Elements = [isNull, cast] };
 
@@ -179,10 +179,10 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             element.SetOperands([new LiteralOperand(Variant.From(1))]);
             var filter = new Ua.ContentFilter { Elements = [element] };
 
-            Ua.ContentFilter.Result result = null;
+            Ua.ContentFilter.Result? result = null;
             Assert.DoesNotThrow(() => result = filter.Validate(m_filterContext));
 
-            Assert.That(result.Status.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
+            Assert.That(result!.Status.StatusCode, Is.EqualTo(StatusCodes.BadContentFilterInvalid));
             Assert.That(result.ElementResults[0].Status.StatusCode,
                 Is.EqualTo(StatusCodes.BadFilterOperatorInvalid));
             Assert.DoesNotThrow(() => element.ToString((INodeTable)null!));
@@ -714,7 +714,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(IsNull(Variant.From(0.0)), Is.False);
             Assert.That(IsNull(Variant.From(StatusCodes.Good)), Is.False);
             Assert.That(IsNull(Variant.From(string.Empty)), Is.False);
-            Assert.That(IsNull(Variant.From((string)null)), Is.True);
+            Assert.That(IsNull(Variant.From((string)null!)), Is.True);
             Assert.That(IsNull(Variant.From(Uuid.Empty)), Is.True);
             Assert.That(IsNull(Variant.From(NodeId.Null)), Is.True);
             Assert.That(IsNull(Variant.From(Array.Empty<int>().ToArrayOf())), Is.True);

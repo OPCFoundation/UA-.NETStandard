@@ -217,7 +217,7 @@ namespace Opc.Ua.Sessions.Tests
             for (int i = 0; i < endpoints.Count; i++)
             {
                 if (!string.IsNullOrEmpty(endpoints[i].TransportProfileUri) &&
-                    endpoints[i].TransportProfileUri.Contains("uatcp",
+                    endpoints[i].TransportProfileUri!.Contains("uatcp",
                         StringComparison.OrdinalIgnoreCase))
                 {
                     hasTcpTransport = true;

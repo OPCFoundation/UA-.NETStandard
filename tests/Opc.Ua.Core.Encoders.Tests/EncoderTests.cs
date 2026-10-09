@@ -444,7 +444,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             Assert.That(emptyspan.IsEmpty, Is.True);
             Assert.That(emptyspan != ReadOnlySpan<byte>.Empty, Is.True);
 #endif
-            return encoder.CloseAndReturnText();
+            return encoder.CloseAndReturnText()!;
         }
 
         private static void ReadByteStringData(IDecoder decoder)
@@ -584,7 +584,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                         encoderType,
                         Context,
                         encoderStream,
-                        type?.Type,
+                        (type?.Type)!,
                         jsonEncodingType))
                 {
                     encoder.WriteVariantValue(builtInType.ToString(), randomData);
@@ -612,7 +612,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 useXmlParser,
                 Context,
                 decoderStream,
-                type?.Type))
+                (type?.Type)!))
             {
                 result = decoder.ReadVariantValue(
                     builtInType.ToString(),
@@ -726,7 +726,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                     encoderType,
                     Context,
                     encoderStream,
-                    type?.Type,
+                    (type?.Type)!,
                     jsonEncodingType))
                 {
                     encoder.WriteVariantValue(builtInType.ToString(), randomData);
@@ -754,7 +754,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 useXmlParser,
                 Context,
                 decoderStream,
-                type?.Type))
+                (type?.Type)!))
             {
                 result = decoder.ReadVariantValue(
                     builtInType.ToString(),

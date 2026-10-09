@@ -211,7 +211,7 @@ namespace Opc.Ua.Tests
         /// <param name="detail">Optional caller-supplied breakdown (for
         /// example a per-fixture leak summary) appended to the failure
         /// message.</param>
-        public static void AssertNoCertificateLeaks(string detail = null)
+        public static void AssertNoCertificateLeaks(string? detail = null)
         {
             long leaked = WaitForOutstandingDisposals();
             if (leaked <= 0)
@@ -325,7 +325,7 @@ namespace Opc.Ua.Tests
                 int refCount,
                 DateTime createdAt,
                 string stackTrace,
-                string fixtureName) in
+                string? fixtureName) in
                 Certificate.EnumerateLiveCertificates())
             {
                 liveCount++;
@@ -346,7 +346,7 @@ namespace Opc.Ua.Tests
 
             message.AppendLine("UNREACHABLE UNDISPOSED CERTIFICATES:");
             int unreachableCount = 0;
-            foreach ((DateTime createdAt, string stackTrace, string fixtureName) in
+            foreach ((DateTime createdAt, string stackTrace, string? fixtureName) in
                 Certificate.EnumerateUnreachableUndisposedCertificates())
             {
                 unreachableCount++;

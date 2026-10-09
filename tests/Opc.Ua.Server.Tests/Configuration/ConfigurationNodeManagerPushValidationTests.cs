@@ -300,7 +300,7 @@ namespace Opc.Ua.Server.Tests
             Assert.Throws<ArgumentNullException>(() =>
                 ConfigurationNodeManager.SelectOccupiedCertificateSlots(
                     ArrayOf<CertificateIdentifier>.Empty,
-                    null));
+                    null!));
         }
 
         [Test]
@@ -422,7 +422,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
-                        null,
+                        null!,
                         null,
                         "TestGroup",
                         certificate,
@@ -618,7 +618,7 @@ namespace Opc.Ua.Server.Tests
 
         private static bool ContainsStatusCode(ServiceResult result, StatusCode statusCode)
         {
-            for (ServiceResult current = result; current != null; current = current.InnerResult)
+            for (ServiceResult current = result; current != null; current = current.InnerResult!)
             {
                 if (current.StatusCode == statusCode)
                 {

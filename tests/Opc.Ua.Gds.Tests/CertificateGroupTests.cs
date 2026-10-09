@@ -123,9 +123,9 @@ namespace Opc.Ua.Gds.Tests
                 StorePath = authStore.StorePath,
                 StoreType = authStore.StoreType
             };
-            using Certificate authCert = await CertificateIdentifierResolver
+            using Certificate authCert = (await CertificateIdentifierResolver
                 .LoadPrivateKeyAsync(id, passwordProvider: null, applicationUri: null, telemetry)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
             using CertificateCollection storeCerts = await trustedStore.EnumerateAsync().ConfigureAwait(false);
             using CertificateCollection certs = await trustedStore
@@ -133,7 +133,7 @@ namespace Opc.Ua.Gds.Tests
                 .ConfigureAwait(false);
             Assert.That(certs, Is.Not.Empty);
             using Certificate signedCert = CertificateBuilder.Create("CN=signedCert")
-               .SetIssuer(authCert)
+               .SetIssuer(authCert!)
                .CreateForRSA();
             await trustedStore.AddAsync(signedCert).ConfigureAwait(false);
             X509CRL crl = await certificateGroup.RevokeCertificateAsync(signedCert).ConfigureAwait(false);
@@ -188,11 +188,11 @@ namespace Opc.Ua.Gds.Tests
                     StorePath = authStore.StorePath,
                     StoreType = authStore.StoreType
                 };
-                using Certificate authCert = await CertificateIdentifierResolver
+                using Certificate authCert = (await CertificateIdentifierResolver
                     .LoadPrivateKeyAsync(id, passwordProvider: null, applicationUri: null, telemetry)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 using Certificate signedCert = CertificateBuilder.Create("CN=signedCert")
-               .SetIssuer(authCert)
+               .SetIssuer(authCert!)
                .CreateForRSA();
                 await store.AddAsync(signedCert).ConfigureAwait(false);
                 X509CRL crlWithRevokedCert = await certificateGroup.RevokeCertificateAsync(signedCert).ConfigureAwait(false);
@@ -256,9 +256,9 @@ namespace Opc.Ua.Gds.Tests
                 StorePath = authStore.StorePath,
                 StoreType = authStore.StoreType
             };
-            using Certificate authCert = await CertificateIdentifierResolver
+            using Certificate authCert = (await CertificateIdentifierResolver
                 .LoadPrivateKeyAsync(id, passwordProvider: null, applicationUri: null, telemetry)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
             using CertificateCollection storeCerts = await trustedStore.EnumerateAsync().ConfigureAwait(false);
             using CertificateCollection certs = await trustedStore
@@ -267,7 +267,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(certs, Is.Not.Empty);
             using Certificate signedCACert = CertificateBuilder.Create("CN=signedCert")
                 .SetCAConstraint()
-                .SetIssuer(authCert)
+                .SetIssuer(authCert!)
                .CreateForRSA();
             await trustedStore.AddAsync(signedCACert).ConfigureAwait(false);
             X509CRL crl = await certificateGroup.RevokeCertificateAsync(signedCACert).ConfigureAwait(false);
@@ -312,9 +312,9 @@ namespace Opc.Ua.Gds.Tests
                 StorePath = authStore.StorePath,
                 StoreType = authStore.StoreType
             };
-            using Certificate authCert = await CertificateIdentifierResolver
+            using Certificate authCert = (await CertificateIdentifierResolver
                 .LoadPrivateKeyAsync(id, passwordProvider: null, applicationUri: null, telemetry)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             using ICertificateStore trustedStore = certificateStoreIdentifier.OpenStore(telemetry);
             using CertificateCollection storeCerts = await trustedStore.EnumerateAsync().ConfigureAwait(false);
             using CertificateCollection certs = await trustedStore
@@ -323,7 +323,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(certs, Is.Not.Empty);
             using Certificate signedCACert = CertificateBuilder.Create("CN=signedCert")
                 .SetCAConstraint()
-                .SetIssuer(authCert)
+                .SetIssuer(authCert!)
                .CreateForRSA();
             await trustedStore.AddAsync(signedCACert).ConfigureAwait(false);
             ServiceResultException exc = Assert.ThrowsAsync<ServiceResultException>(
