@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 networkInterface);
             await OpenOrIgnoreAsync(publisher).ConfigureAwait(false);
 
-            Socket? socket = publisher.SocketForTest;
+            Socket? socket = publisher.InnerSocket;
             Assert.That(socket, Is.Not.Null);
             byte[] egress = socket!.GetSocketOption(
                 SocketOptionLevel.IP,
@@ -107,7 +107,7 @@ namespace Opc.Ua.PubSub.Udp.Tests
                 networkInterface);
             await OpenOrIgnoreAsync(publisher).ConfigureAwait(false);
 
-            Socket? socket = publisher.SocketForTest;
+            Socket? socket = publisher.InnerSocket;
             Assert.That(socket, Is.Not.Null);
             byte[] egress = socket!.GetSocketOption(
                 SocketOptionLevel.IPv6,

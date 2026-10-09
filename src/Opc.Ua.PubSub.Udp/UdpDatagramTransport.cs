@@ -239,9 +239,9 @@ namespace Opc.Ua.PubSub.Udp
 
         /// <summary>
         /// The socket of the open transport, or <see langword="null"/> while the
-        /// transport is closed. Exposed for tests that inspect the socket options.
+        /// transport is closed.
         /// </summary>
-        internal Socket? SocketForTest
+        internal Socket? InnerSocket
         {
             get
             {
@@ -1444,7 +1444,7 @@ namespace Opc.Ua.PubSub.Udp
             string endpoint);
 
         [LoggerMessage(EventId = PubSubUdpEventIds.UdpDatagramTransport + 19, Level = LogLevel.Debug,
-            Message = "Setting IP_MULTICAST_IF failed for connection '{Connection}'.")]
+            Message = "Setting the multicast send interface failed for connection '{Connection}'.")]
         public static partial void SettingMulticastInterfaceFailed(
             this ILogger logger,
             Exception exception,
