@@ -73,7 +73,7 @@ namespace Opc.Ua.Core.Tests
                 {
                     Apache.Arrow.Schema schema = EncodeSchema(write);
 
-                    string canonical = null;
+                    string? canonical = null;
                     Assert.DoesNotThrow(
                         () => canonical = ArrowSchemaCanonicalForm.Compute(schema),
                         $"canonical form threw for {name}");

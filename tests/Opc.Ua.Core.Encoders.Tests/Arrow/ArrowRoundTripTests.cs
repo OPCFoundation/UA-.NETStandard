@@ -325,9 +325,9 @@ namespace Opc.Ua.Core.Tests
                 e => e.WriteExtensionObject(null, extension),
                 d => d.ReadExtensionObject(null));
 
-            Assert.That(result.TryGetValue(out IEncodeable body), Is.True);
+            Assert.That(result.TryGetValue(out IEncodeable? body), Is.True);
             Assert.That(body, Is.TypeOf<Range>());
-            Assert.That(((Range)body).High, Is.EqualTo(8.0));
+            Assert.That(((Range)body!).High, Is.EqualTo(8.0));
         }
 
         [Test]
@@ -361,8 +361,8 @@ namespace Opc.Ua.Core.Tests
                 e => e.WriteDataValue(null, value),
                 d => d.ReadDataValue(null));
 
-            Assert.That(result.WrappedValue.GetExtensionObject().TryGetValue(out IEncodeable body), Is.True);
-            Assert.That(((Range)body).High, Is.EqualTo(3.0));
+            Assert.That(result.WrappedValue.GetExtensionObject().TryGetValue(out IEncodeable? body), Is.True);
+            Assert.That(((Range)body!).High, Is.EqualTo(3.0));
             Assert.That(result.StatusCode, Is.EqualTo(new StatusCode(0x40000000)));
         }
 
@@ -377,8 +377,8 @@ namespace Opc.Ua.Core.Tests
                 e => e.WriteVariantArray(null, variants),
                 d => d.ReadVariantArray(null));
             Assert.That(variantResult.Count, Is.EqualTo(1));
-            Assert.That(variantResult[0].GetExtensionObject().TryGetValue(out IEncodeable body), Is.True);
-            Assert.That(((Range)body).Low, Is.EqualTo(4.0));
+            Assert.That(variantResult[0].GetExtensionObject().TryGetValue(out IEncodeable? body), Is.True);
+            Assert.That(((Range)body!).Low, Is.EqualTo(4.0));
 
             var dataValues = new ArrayOf<DataValue>(DataValueArrayValues);
             ArrayOf<DataValue> dataValueResult = RoundTripWith(
