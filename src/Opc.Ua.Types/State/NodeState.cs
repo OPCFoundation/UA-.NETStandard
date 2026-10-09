@@ -4295,7 +4295,8 @@ namespace Opc.Ua
                 return [];
             }
 
-            var values = new List<Variant>(attributeIds.Length);
+            // filled in place and wrapped without a copy; a list would be copied again.
+            var values = new Variant[attributeIds.Length];
             var scratch = new DataValue();
 
             for (int ii = 0; ii < attributeIds.Length; ii++)
@@ -4311,10 +4312,10 @@ namespace Opc.Ua
                     default,
                     ref scratch);
 
-                values.Add(ServiceResult.IsBad(result) ? default : scratch.WrappedValue);
+                values[ii] = ServiceResult.IsBad(result) ? default : scratch.WrappedValue;
             }
 
-            return values.ToArrayOf();
+            return values;
         }
 
         /// <summary>

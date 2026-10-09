@@ -654,7 +654,7 @@ namespace Opc.Ua.Server.Tests
                         context.ChannelContext!.EndpointDescription!;
                     SetRestoredSessionTransferSecurityState(
                         session,
-                        context.ChannelContext.ClientChannelCertificate.ToByteString(),
+                        context.ChannelContext.ClientChannelCertificate,
                         endpoint.SecurityPolicyUri ?? SecurityPolicies.None,
                         endpoint.SecurityMode,
                         m_behavior == RestoreBehavior.RestoreWithDifferentOwner

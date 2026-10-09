@@ -714,7 +714,6 @@ namespace Opc.Ua.Server
             ArrayOf<T> nodesList,
             out Dictionary<NodeId, Variant[]> uniqueNodesServiceAttributes)
         {
-            var uniqueNodes = new HashSet<NodeId>();
             Type listType = typeof(T);
 
             if (listType != typeof(ReadValueId) &&
@@ -727,6 +726,8 @@ namespace Opc.Ua.Server
                     nameof(nodesList));
             }
 
+            // uniqueNodesServiceAttributes is the place where the attributes for each unique nodeId are kept on the services
+            uniqueNodesServiceAttributes = new Dictionary<NodeId, Variant[]>(nodesList.Count);
             for (int i = 0; i < nodesList.Count; i++)
             {
                 NodeId nodeId = default;
@@ -746,14 +747,8 @@ namespace Opc.Ua.Server
 
                 if (!nodeId.IsNull)
                 {
-                    uniqueNodes.Add(nodeId);
+                    uniqueNodesServiceAttributes.TryAdd(nodeId, []);
                 }
-            }
-            // uniqueNodesReadAttributes is the place where the attributes for each unique nodeId are kept on the services
-            uniqueNodesServiceAttributes = [];
-            foreach (NodeId uniqueNode in uniqueNodes)
-            {
-                uniqueNodesServiceAttributes.Add(uniqueNode, []);
             }
         }
 
@@ -1223,7 +1218,7 @@ namespace Opc.Ua.Server
             var diagnosticInfos = new List<DiagnosticInfo>(nodesToRead.Count);
 
             // create empty list of errors.
-            var errors = new List<ServiceResult>(values.Count);
+            var errors = new List<ServiceResult>(nodesToRead.Count);
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
                 errors.Add(null!);
@@ -1370,7 +1365,7 @@ namespace Opc.Ua.Server
             // pre-validate items.
             bool validItems = false;
             // create empty list of errors.
-            var errors = new List<ServiceResult>(results.Count);
+            var errors = new List<ServiceResult>(nodesToRead.Count);
             for (int ii = 0; ii < nodesToRead.Count; ii++)
             {
                 errors.Add(null!);
@@ -1709,7 +1704,7 @@ namespace Opc.Ua.Server
             bool validItems = false;
 
             // create empty list of errors.
-            var errors = new List<ServiceResult>(results.Count);
+            var errors = new List<ServiceResult>(nodesToUpdate.Count);
             for (int ii = 0; ii < nodesToUpdate.Count; ii++)
             {
                 errors.Add(null!);
@@ -3854,6 +3849,33 @@ namespace Opc.Ua.Server
                     !metadataRequired))
             {
                 return (StatusCodes.Good, null);
+            }
+
+            // Most callers only need the verdict: validate on the stack instead of
+            // materializing NodeMetadata for every node of the request.
+            if (!metadataRequired && nodeManager is AsyncCustomNodeManager customNodeManager)
+            {
+                try
+                {
+                    (bool handled, ServiceResult? verdict) = await customNodeManager.TryValidatePermissionsAsync(
+                            context,
+                            nodeHandle,
+                            requestedPermission,
+                            uniqueNodesServiceAttributes,
+                            permissionsOnly,
+                            m_logger,
+                            validateAccessRestrictions: true,
+                            cancellationToken)
+                        .ConfigureAwait(false);
+                    if (handled)
+                    {
+                        return (verdict!, null);
+                    }
+                }
+                catch (ServiceResultException exception)
+                {
+                    return (new ServiceResult(exception), null);
+                }
             }
 
             // First attempt to retrieve just the Permission metadata with or without cache optimization

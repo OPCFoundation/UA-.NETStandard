@@ -556,7 +556,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 {
                     InstrumentPublished = (instrument, listener) =>
                     {
-                        if (instrument.Meter.Name == meter.Name)
+                        // Match the meter instance, not its name: every meter
+                        // created by the telemetry context is named after the
+                        // assembly, so a name match would also capture e.g. the
+                        // channel manager metrics of tests running in parallel.
+                        if (ReferenceEquals(instrument.Meter, meter))
                         {
                             listener.EnableMeasurementEvents(instrument);
                         }
