@@ -68,6 +68,11 @@ $env:CustomTestTarget = 'net10.0'
 dotnet run --project tools/Opc.Ua.Lens.AppHost/Opc.Ua.Lens.AppHost.csproj
 ```
 
+The AppHost targets .NET 10 and selects the same framework for its project
+resources without overriding their global build properties. This lets solution
+and AppHost builds share one dependency graph instead of compiling shared
+libraries concurrently into the same output files.
+
 Override AppHost settings with standard configuration environment variables,
 for example `UaLens__SecurityMode`, `UaLens__SecurityPolicy`,
 `UaLens__Username`, and `UaLens__Password`. Do not put passwords in

@@ -14,9 +14,9 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="../../samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj"
-                      AdditionalProperties="CustomTestTarget=net10.0" />
+                      SetTargetFramework="TargetFramework=net10.0" />
     <ProjectReference Include="../Opc.Ua.Lens/Opc.Ua.Lens.csproj"
-                      AdditionalProperties="CustomTestTarget=net10.0;PublishAotEnabled=false" />
+                      SetTargetFramework="TargetFramework=net10.0" />
   </ItemGroup>
   <Import Project="Sdk.targets" Sdk="Aspire.AppHost.Sdk" Version="13.6.0"
           Condition="'$(CustomTestTarget)' == '' OR '$(CustomTestTarget)' == 'net10.0'" />
