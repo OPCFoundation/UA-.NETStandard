@@ -708,8 +708,9 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private static ManifestDto MigrateManifest(ManifestDto manifest)
         {
-            if (manifest.SchemaVersion == CurrentSchemaVersion)
+            if (manifest.SchemaVersion >= 5)
             {
+                manifest.SchemaVersion = CurrentSchemaVersion;
                 return manifest;
             }
 
@@ -799,6 +800,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 ToLabels(manifest.RegistryLabels);
             long generation = manifest.Generation;
             var loadedBlobs = new Dictionary<string, long>(StringComparer.Ordinal);
+            var dependencyGraphs = new DependencyGraphReader(manifest.DependencyGraphs);
             ImmutableDictionary<string, WotResourceGroup>.Builder groups =
                 ImmutableDictionary.CreateBuilder<string, WotResourceGroup>();
             var identities = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
@@ -889,6 +891,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                                     manifestRole,
                                     suppliedBlobs,
                                     deferredVerifications,
+                                    dependencyGraphs,
                                     cancellationToken)
                                 .ConfigureAwait(false);
                             resources[resource.ResourceId] = resource;
@@ -935,6 +938,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string manifestRole,
             IReadOnlyDictionary<string, byte[]>? suppliedBlobs,
             List<string>? deferredVerifications,
+            DependencyGraphReader dependencyGraphs,
             CancellationToken cancellationToken)
         {
             if (dto.AuthorityEstablished is null ||
@@ -1069,9 +1073,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                         BaseUri = version.BaseUri,
                         ModelVersion = version.ModelVersion,
                         Dependencies = FromDto(version.Dependencies, digestHex),
-                        DependencySnapshot = FromDto(version.DependencySnapshot, version.VersionId, committed: true),
+                        DependencySnapshot = FromDto(
+                            version.DependencySnapshot, version.VersionId, committed: true, dependencyGraphs),
                         LastDependencyAttempt = FromDto(
-                            version.LastDependencyAttempt, version.VersionId, committed: false)
+                            version.LastDependencyAttempt, version.VersionId, committed: false, dependencyGraphs)
                     };
                     if (committed)
                     {
@@ -1174,7 +1179,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                     ValidateSegment(input.GroupId, "retained input group id");
                     ValidateSegment(input.ResourceId, "retained input resource id");
                     inputs.Add(await LoadResourceAsync(
-                        input, loadedBlobs, manifestRole, suppliedBlobs, deferredVerifications, cancellationToken)
+                        input, loadedBlobs, manifestRole, suppliedBlobs, deferredVerifications,
+                        dependencyGraphs, cancellationToken)
                         .ConfigureAwait(false));
                 }
                 try
@@ -1203,13 +1209,14 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private static ManifestDto ToManifest(WotRegistrySnapshot snapshot)
         {
+            var dependencyGraphs = new DependencyGraphWriter();
             var groups = new List<GroupDto>(snapshot.Groups.Count);
             foreach (WotResourceGroup group in snapshot.Groups.Values)
             {
                 var resources = new List<ResourceDto>(group.Resources.Count);
                 foreach (WotResource resource in group.Resources.Values)
                 {
-                    resources.Add(ToDto(resource));
+                    resources.Add(ToDto(resource, dependencyGraphs));
                 }
                 groups.Add(new GroupDto
                 {
@@ -1233,16 +1240,17 @@ namespace Opc.Ua.WotCon.Server.Registry
                     ? null
                     : Convert.ToBase64String(snapshot.CanonicalViewGraphState.Span.ToArray()),
                 RegistryLabels = FromLabels(snapshot.Labels),
-                Groups = groups.Count == 0 ? null : [.. groups]
+                Groups = groups.Count == 0 ? null : [.. groups],
+                DependencyGraphs = dependencyGraphs.ToArray()
             };
         }
 
-        private static ResourceDto ToDto(WotResource resource)
+        private static ResourceDto ToDto(WotResource resource, DependencyGraphWriter dependencyGraphs)
         {
             var versions = new VersionDto[resource.Versions.Length];
             for (int i = 0; i < resource.Versions.Length; i++)
             {
-                versions[i] = ToDto(resource.Versions[i]);
+                versions[i] = ToDto(resource.Versions[i], dependencyGraphs);
             }
             return new ResourceDto
             {
@@ -1254,9 +1262,10 @@ namespace Opc.Ua.WotCon.Server.Registry
                 DefaultVersionId = resource.DefaultVersionId,
                 DesiredVersionId = resource.DesiredVersionId,
                 ActiveVersionId = resource.ActiveVersionId,
-                CommittedVersion = resource.CommittedVersion is null ? null : ToDto(resource.CommittedVersion),
+                CommittedVersion = resource.CommittedVersion is null
+                    ? null : ToDto(resource.CommittedVersion, dependencyGraphs),
                 CommittedInputs = resource.CommittedInputs.IsNull
-                    ? null : resource.CommittedInputs.ConvertAll(ToDto).ToArray(),
+                    ? null : resource.CommittedInputs.ConvertAll(input => ToDto(input, dependencyGraphs)).ToArray(),
                 Enabled = resource.Enabled,
                 LoadState = (int)resource.LoadState,
                 Epoch = resource.Epoch,
@@ -1277,7 +1286,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             };
         }
 
-        private static VersionDto ToDto(WotResourceVersion version)
+        private static VersionDto ToDto(WotResourceVersion version, DependencyGraphWriter dependencyGraphs)
         {
             return new VersionDto
             {
@@ -1297,8 +1306,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 BaseUri = version.BaseUri,
                 ModelVersion = version.ModelVersion,
                 Dependencies = ToDto(version.Dependencies),
-                DependencySnapshot = ToDto(version.DependencySnapshot),
-                LastDependencyAttempt = ToDto(version.LastDependencyAttempt)
+                DependencySnapshot = ToDto(version.DependencySnapshot, dependencyGraphs),
+                LastDependencyAttempt = ToDto(version.LastDependencyAttempt, dependencyGraphs)
             };
         }
 
@@ -1389,7 +1398,8 @@ namespace Opc.Ua.WotCon.Server.Registry
                 dto.DataTypeDefinitionNames.ToArrayOf());
         }
 
-        private static DependencySnapshotDto? ToDto(WotDependencySnapshot? snapshot)
+        private static DependencySnapshotDto? ToDto(
+            WotDependencySnapshot? snapshot, DependencyGraphWriter dependencyGraphs)
         {
             return snapshot is null ? null : new DependencySnapshotDto
             {
@@ -1400,6 +1410,14 @@ namespace Opc.Ua.WotCon.Server.Registry
                 IsCommitted = snapshot.IsCommitted,
                 EffectiveInputDigest = snapshot.EffectiveInputDigest.Length == 0
                     ? string.Empty : WotContentDigest.ToHex(snapshot.EffectiveInputDigest),
+                GraphIndex = dependencyGraphs.GetIndex(snapshot)
+            };
+        }
+
+        private static DependencyGraphDto ToGraphDto(WotDependencySnapshot snapshot)
+        {
+            return new DependencyGraphDto
+            {
                 Edges = snapshot.Edges.ToList().Select(edge => new DependencyEdgeDto
                 {
                     SourceXid = edge.SourceXid,
@@ -1427,7 +1445,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         }
 
         private static WotDependencySnapshot? FromDto(
-            DependencySnapshotDto? dto, string versionId, bool committed)
+            DependencySnapshotDto? dto, string versionId, bool committed, DependencyGraphReader dependencyGraphs)
         {
             if (dto is null)
             {
@@ -1435,23 +1453,18 @@ namespace Opc.Ua.WotCon.Server.Registry
             }
             if (dto.SourceVersionId != versionId || dto.RequestId is null ||
                 string.IsNullOrEmpty(dto.ResolvedAt) || dto.IsCommitted != committed ||
-                dto.EffectiveInputDigest is null || dto.Edges is null || dto.Targets is null ||
+                dto.EffectiveInputDigest is null ||
                 ((committed || dto.EffectiveInputDigest.Length != 0) && !IsSha256Hex(dto.EffectiveInputDigest)))
             {
                 throw new InvalidDataException("A dependency observation does not identify its exact Version state.");
             }
             try
             {
+                (ArrayOf<WotDependency> edges, ArrayOf<WotDependencyTargetPin> targets) = dependencyGraphs.Read(dto);
                 return new WotDependencySnapshot(
                     versionId, dto.Generation, dto.RequestId, ParseDate(dto.ResolvedAt), dto.IsCommitted,
                     dto.EffectiveInputDigest.Length == 0 ? ByteString.Empty : FromHexDigest(dto.EffectiveInputDigest),
-                    dto.Edges.Select(edge => new WotDependency(
-                        edge.SourceXid ?? throw new InvalidDataException("Missing dependency source."),
-                        edge.TargetHref ?? throw new InvalidDataException("Missing dependency target."),
-                        edge.TargetXid,
-                        edge.RefType ?? throw new InvalidDataException("Missing dependency relation."),
-                        edge.Resolved)).ToArrayOf(),
-                    dto.Targets.Select(FromDto).ToArrayOf());
+                    edges, targets);
             }
             catch (Exception exception) when (exception is ArgumentException or FormatException)
             {
@@ -2922,7 +2935,7 @@ namespace Opc.Ua.WotCon.Server.Registry
         private const string LockFile = ".wot-registry.lock";
         private const string RegistryXid = "/";
         private const string RegistryNodeIdPath = "WoTRegistry";
-        private const int CurrentSchemaVersion = 5;
+        private const int CurrentSchemaVersion = 6;
         private const int OldestSupportedSchemaVersion = 3;
         private const int Sha256HexLength = 64;
         private const int BlobVerifyChunkSize = 64 * 1024;
@@ -2986,6 +2999,11 @@ namespace Opc.Ua.WotCon.Server.Registry
             /// Gets or sets the resource groups contained in the generation.
             /// </summary>
             public GroupDto[]? Groups { get; set; }
+
+            /// <summary>
+            /// Gets or sets shared exact dependency graphs referenced by Version observations.
+            /// </summary>
+            public DependencyGraphDto[]? DependencyGraphs { get; set; }
         }
 
         /// <summary>
@@ -3143,6 +3161,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             public string? ResolvedAt { get; set; }
             public bool IsCommitted { get; set; }
             public string? EffectiveInputDigest { get; set; }
+            public int? GraphIndex { get; set; }
             public DependencyEdgeDto[]? Edges { get; set; }
             public DependencyTargetDto[]? Targets { get; set; }
         }
@@ -3402,6 +3421,7 @@ namespace Opc.Ua.WotCon.Server.Registry
     [JsonSerializable(typeof(FileWotRegistryStore.GroupDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.ResourceDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.VersionDto))]
+    [JsonSerializable(typeof(FileWotRegistryStore.DependencyGraphDto))]
     [JsonSerializable(typeof(FileWotRegistryStore.ValidationDto))]
     internal sealed partial class WotRegistryStoreJson : JsonSerializerContext;
 }

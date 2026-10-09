@@ -77,6 +77,20 @@ dry runs leave it unchanged. See
 [prepared registry storage](WotRegistryPreparedStore.md) for provider and
 platform requirements.
 
+### File-backed dependency graph storage
+
+**Storage compatibility change:** new FileStore commits write manifest schema 6.
+Complete dependency graphs are shared in a root table instead of repeated for
+every Version's committed and attempted observations. Per-Version identity,
+request, time, generation, fingerprint, ordered edges, and exact target pins
+remain unchanged.
+
+Schema 3-5 manifests remain readable and migrate on the next durable commit.
+Older binaries cannot read schema 6. Preserve the previous manifest and all
+referenced immutable blobs before an upgrade if a binary downgrade is required;
+do not change the schema number by hand or remove dependency evidence. See
+[dependency snapshots](WotDependencySnapshots.md) for the stored representation.
+
 ## Migrating Robotics and Vision MCP requests
 
 The Robotics and Vision MCP tool names remain stable, but their request schemas

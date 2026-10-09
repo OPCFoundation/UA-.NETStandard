@@ -40,6 +40,7 @@ using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
 using Opc.Ua.XRegistry.Server;
 
@@ -78,6 +79,133 @@ namespace Opc.Ua.WotCon.Tests.Registry
             catch (IOException)
             {
             }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SharedGraphsPreserveDistinctCommittedAndAttemptedObservations(bool differentGraph)
+        {
+            await StoreDependencyObservationsAsync(differentGraph).ConfigureAwait(false);
+            JsonObject manifest = await ReadDependencyManifestAsync().ConfigureAwait(false);
+            Assert.That(manifest["DependencyGraphs"]!.AsArray(),
+                Has.Count.EqualTo(differentGraph ? 2 : 1));
+            using var store = new FileWotRegistryStore(m_root);
+            WotResourceVersion version = (await store.LoadAsync().ConfigureAwait(false))
+                .FindResource(WotRegistryGroups.ThingDescriptions, "graph")!.DefaultVersion!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(version.DependencySnapshot!.RequestId, Is.EqualTo("committed"));
+                Assert.That(version.DependencySnapshot.IsCommitted, Is.True);
+                Assert.That(version.DependencySnapshot.Edges[0].TargetHref, Is.EqualTo("urn:dependency"));
+                Assert.That(version.LastDependencyAttempt!.RequestId, Is.EqualTo("attempted"));
+                Assert.That(version.LastDependencyAttempt.IsCommitted, Is.False);
+                Assert.That(version.LastDependencyAttempt.Edges[0].TargetHref,
+                    Is.EqualTo(differentGraph ? "urn:different" : "urn:dependency"));
+            });
+        }
+
+        [Test]
+        public async Task LegacyInlineDependencyGraphsMigrateWithoutLosingObservations()
+        {
+            await StoreDependencyObservationsAsync(differentGraph: false).ConfigureAwait(false);
+            JsonObject manifest = await ReadDependencyManifestAsync().ConfigureAwait(false);
+            JsonObject graph = manifest["DependencyGraphs"]![0]!.AsObject();
+            foreach (JsonNode? group in manifest["Groups"]!.AsArray())
+            {
+                foreach (JsonNode? resource in group!["Resources"]!.AsArray())
+                {
+                    IEnumerable<JsonNode?> versions = resource!["Versions"]!.AsArray()
+                        .Concat([resource["CommittedVersion"]]);
+                    foreach (JsonNode? version in versions.Where(version => version is not null))
+                    {
+                        foreach (string name in new[] { "DependencySnapshot", "LastDependencyAttempt" })
+                        {
+                            if (version![name] is JsonObject observation)
+                            {
+                                observation.Remove("GraphIndex");
+                                observation["Edges"] = graph["Edges"]!.DeepClone();
+                                observation["Targets"] = graph["Targets"]!.DeepClone();
+                            }
+                        }
+                    }
+                }
+            }
+            manifest.Remove("DependencyGraphs");
+            manifest["SchemaVersion"] = 5;
+            await WriteDependencyManifestAsync(manifest).ConfigureAwait(false);
+            using var store = new FileWotRegistryStore(m_root);
+            WotRegistrySnapshot loaded = await store.LoadAsync().ConfigureAwait(false);
+            WotResourceVersion restored = loaded.FindResource(
+                WotRegistryGroups.ThingDescriptions, "graph")!.DefaultVersion!;
+            Assert.That(restored.DependencySnapshot!.Edges[0].TargetHref, Is.EqualTo("urn:dependency"));
+            Assert.That(restored.LastDependencyAttempt!.RequestId, Is.EqualTo("attempted"));
+            await store.CommitAsync(new WotRegistrySnapshot(
+                loaded.Generation + 1, loaded.Groups, loaded.Labels)).ConfigureAwait(false);
+            JsonObject upgraded = await ReadDependencyManifestAsync().ConfigureAwait(false);
+            Assert.That(upgraded["SchemaVersion"]!.GetValue<int>(), Is.EqualTo(6));
+            Assert.That(upgraded["DependencyGraphs"]!.AsArray(), Has.Count.EqualTo(1));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SharedGraphTargetPinsRetainTheirRegistryOrigin(bool differentOrigin)
+        {
+            await StoreDependencyObservationsAsync(differentGraph: false, differentOrigin).ConfigureAwait(false);
+            JsonObject manifest = await ReadDependencyManifestAsync().ConfigureAwait(false);
+            Assert.That(manifest["DependencyGraphs"]!.AsArray(), Has.Count.EqualTo(differentOrigin ? 2 : 1));
+            using var store = new FileWotRegistryStore(m_root);
+            WotResourceVersion version = (await store.LoadAsync().ConfigureAwait(false))
+                .FindResource(WotRegistryGroups.ThingDescriptions, "graph")!.DefaultVersion!;
+            WotDependencyTargetPin committed = version.DependencySnapshot!.Targets[0];
+            WotDependencyTargetPin attempted = version.LastDependencyAttempt!.Targets[0];
+            Assert.Multiple(() =>
+            {
+                Assert.That(committed.OriginRegistry!.OriginUri, Is.EqualTo("urn:registry"));
+                Assert.That(attempted.OriginRegistry!.OriginUri,
+                    Is.EqualTo(differentOrigin ? "urn:other-registry" : "urn:registry"));
+                Assert.That(attempted.EdgeIndex, Is.EqualTo(committed.EdgeIndex));
+                Assert.That(attempted.VersionXid, Is.EqualTo(committed.VersionXid));
+                Assert.That(attempted.VersionNodeId, Is.EqualTo(committed.VersionNodeId));
+                Assert.That(attempted.DocumentUri, Is.EqualTo(committed.DocumentUri));
+                Assert.That(attempted.ContentDigest, Is.EqualTo(committed.ContentDigest));
+            });
+        }
+
+        [TestCase("missing")]
+        [TestCase("negative")]
+        [TestCase("outOfRange")]
+        [TestCase("mixed")]
+        [TestCase("nullGraph")]
+        [TestCase("nullEdge")]
+        public async Task InvalidSharedDependencyGraphFailsClosed(string corruption)
+        {
+            await StoreDependencyObservationsAsync(differentGraph: false).ConfigureAwait(false);
+            JsonObject manifest = await ReadDependencyManifestAsync().ConfigureAwait(false);
+            JsonNode observation = manifest["Groups"]![0]!["Resources"]![0]!["Versions"]![0]!["DependencySnapshot"]!;
+            switch (corruption)
+            {
+                case "missing":
+                    manifest.Remove("DependencyGraphs");
+                    break;
+                case "negative":
+                    observation["GraphIndex"] = -1;
+                    break;
+                case "outOfRange":
+                    observation["GraphIndex"] = 1;
+                    break;
+                case "mixed":
+                    observation["Edges"] = new JsonArray();
+                    break;
+                case "nullGraph":
+                    manifest["DependencyGraphs"]![0] = null;
+                    break;
+                case "nullEdge":
+                    manifest["DependencyGraphs"]![0]!["Edges"]![0] = null;
+                    break;
+            }
+            await WriteDependencyManifestAsync(manifest).ConfigureAwait(false);
+            using var store = new FileWotRegistryStore(m_root);
+            Assert.ThrowsAsync<InvalidDataException>(async () => await store.LoadAsync().ConfigureAwait(false));
         }
 
         /// <summary>
@@ -530,7 +658,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                     File.ReadAllBytes(ManifestPath));
                 Assert.That(
                     manifest.RootElement.GetProperty("SchemaVersion").GetInt32(),
-                    Is.EqualTo(5));
+                    Is.EqualTo(6));
                 Assert.That(resource.DefaultVersionId, Is.EqualTo("v1"));
                 Assert.That(resource.Versions, Has.Length.EqualTo(1));
                 Assert.That(resource.Versions[0].HasContent, Is.False);
@@ -912,13 +1040,13 @@ namespace Opc.Ua.WotCon.Tests.Registry
             await PersistResourceAsync("a", "urn:a").ConfigureAwait(false);
             File.WriteAllBytes(
                 ManifestPath,
-                WithSchemaVersion(File.ReadAllBytes(ManifestPath), schemaVersion: 6));
+                WithSchemaVersion(File.ReadAllBytes(ManifestPath), schemaVersion: 7));
             var store = new FileWotRegistryStore(m_root);
 
             NotSupportedException error = Assert.ThrowsAsync<NotSupportedException>(
                 async () => await store.LoadAsync().ConfigureAwait(false));
 
-            Assert.That(error.Message, Does.Contain("schema 6"));
+            Assert.That(error.Message, Does.Contain("schema 7"));
         }
 
         [Test]
@@ -2414,7 +2542,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
         private static byte[] WithSchemaVersion(byte[] manifest, int schemaVersion)
         {
             string json = Encoding.UTF8.GetString(manifest);
-            const string current = "\"SchemaVersion\": 5";
+            const string current = "\"SchemaVersion\": 6";
             Assert.That(json, Does.Contain(current));
             int index = json.IndexOf(current, StringComparison.Ordinal);
             return Encoding.UTF8.GetBytes(
@@ -2433,6 +2561,59 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Kind = WoTDocumentKindEnum.ThingDescription,
                 Content = ByteString.From(TestMaterialization.Td(thingId))
             };
+        }
+
+        private async Task<JsonObject> ReadDependencyManifestAsync()
+        {
+            using var stream = new FileStream(
+                ManifestPath, FileMode.Open, FileAccess.Read, FileShare.Read, 4096, useAsync: true);
+            JsonNode node = await JsonNode.ParseAsync(stream).ConfigureAwait(false) ??
+                throw new InvalidDataException("The test dependency manifest is null.");
+            return node.AsObject();
+        }
+
+        private async Task WriteDependencyManifestAsync(JsonObject manifest)
+        {
+            using var stream = new FileStream(
+                ManifestPath, FileMode.Create, FileAccess.Write, FileShare.None, 4096, useAsync: true);
+            using var writer = new StreamWriter(stream, new UTF8Encoding(encoderShouldEmitUTF8Identifier: false));
+            await writer.WriteAsync(manifest.ToJsonString()).ConfigureAwait(false);
+            await writer.FlushAsync().ConfigureAwait(false);
+        }
+
+        private async Task StoreDependencyObservationsAsync(bool differentGraph, bool differentOrigin = false)
+        {
+            using var store = new FileWotRegistryStore(m_root);
+            using var registry = new WotRegistryService(store);
+            await registry.InitializeAsync().ConfigureAwait(false);
+            WotResource resource = (await registry.UpsertResourceAsync(TdRequest("graph", "urn:graph"))
+                .ConfigureAwait(false)).Resource!;
+            ByteString digest = WotContentDigest.Compute("graph-input"u8);
+            const string versionXid = "/groups/thingdescriptions/resources/pinned/versions/1";
+            ExpandedNodeId versionNodeId = ExpandedNodeId.Parse("nsu=urn:registry;s=version");
+            var committed = new WotDependencySnapshot(
+                resource.DefaultVersionId!, 1, "committed", DateTime.UtcNow, true, digest,
+                [new WotDependency(resource.Xid, "urn:dependency", resource.Xid, "tm:extends", true)],
+                [new WotDependencyTargetPin(
+                    0, new WotRegistryOrigin("urn:registry"), versionXid, "urn:dependency", versionNodeId, digest)]);
+            var attempted = new WotDependencySnapshot(
+                resource.DefaultVersionId!, 1, "attempted", DateTime.UtcNow, false, digest,
+                [new WotDependency(
+                    resource.Xid, differentGraph ? "urn:different" : "urn:dependency",
+                    resource.Xid, "tm:extends", true)],
+                [new WotDependencyTargetPin(
+                    0, new WotRegistryOrigin(differentOrigin ? "urn:other-registry" : "urn:registry"),
+                    versionXid, differentGraph ? "urn:different" : "urn:dependency", versionNodeId, digest)]);
+            await registry.ApplyProjectionResultsAsync(
+            [
+                new WotResourceProjection(
+                    resource.GroupId, resource.ResourceId, WoTLoadStateEnum.Active,
+                    resource.DefaultVersionId, 1, 0, default, null, [], DateTime.UtcNow)
+                {
+                    DependencySnapshot = committed,
+                    LastDependencyAttempt = attempted
+                }
+            ]).ConfigureAwait(false);
         }
 
         private static byte[] ThingDescriptionWithMetadata(

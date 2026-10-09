@@ -226,6 +226,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             normalized.Generation = original.Generation;
             normalized.RefreshGeneration = original.RefreshGeneration;
             normalized.CanonicalViewGraphState = original.CanonicalViewGraphState;
+            normalized.DependencyGraphs = original.DependencyGraphs;
             GroupDto[] oldGroups = original.Groups ?? [];
             GroupDto[] newGroups = normalized.Groups ?? [];
             if (oldGroups.Length != newGroups.Length)

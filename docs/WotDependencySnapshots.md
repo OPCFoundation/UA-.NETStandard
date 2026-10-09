@@ -273,6 +273,16 @@ the derived dependency metadata through the full validated mutation path before
 using it as a projection-only baseline. Content bytes and entity epochs are not
 rewritten. Legacy providers retain their existing in-memory hydration behavior.
 
+FileStore manifest schema 6 stores each distinct dependency graph once in the
+root `DependencyGraphs` table. Each committed or attempted Version observation
+retains its own source Version, request, time, generation, and fingerprint and
+references the complete ordered graph by `GraphIndex`. This prevents a large
+shared closure from being serialized once per member without dropping edges,
+exact target pins, or registry origins. Schema 3–5 manifests with inline graphs
+remain readable; the next durable commit writes schema 6. Older binaries cannot
+read schema 6, so retain the previous manifest and its blobs before downgrading.
+Missing, out-of-range, or contradictory graph references fail loading explicitly.
+
 The stock binding runtime skips data-only plans that need no fluent callback or
 default namespace. Custom factories still receive every generation's configuration
 callback, including failure/cancellation hooks. Plans with binding/declaration
