@@ -45,6 +45,9 @@ namespace Opc.Ua.Bindings
     /// </summary>
     public class TcpServerChannel : TcpListenerChannel
     {
+        /// <inheritdoc/>
+        protected override bool AppliesReceiveBackpressure => true;
+
         /// <summary>
         /// Attaches the object to an existing socket.
         /// </summary>
@@ -1586,15 +1589,9 @@ namespace Opc.Ua.Bindings
                 return false;
             }
 
-            if (ChannelFull)
-            {
-                m_logger.TcpServerLog13(Id);
-                m_logger.TcpServerLog14(Id);
-                ForceChannelFaultCore(
-                    StatusCodes.BadTcpNotEnoughResources,
-                    "The channel write queue is full.");
-                return false;
-            }
+            // A full write queue no longer faults the channel: the receive loop stops
+            // reading until responses drain (see AppliesReceiveBackpressure). Requests
+            // already read when the queue filled are bounded by the request queue limits.
 
             BufferCollection? chunksToProcess = null;
 
@@ -1776,6 +1773,43 @@ namespace Opc.Ua.Bindings
             }
 
             using (Gate.Enter())
+            {
+                return SendResponseCore(requestId, response);
+            }
+        }
+
+        /// <summary>
+        /// Sends the response for the specified request, waiting for the channel gate
+        /// without blocking the calling thread.
+        /// </summary>
+        /// <remarks>
+        /// Used by the request dispatch path, which runs on thread-pool workers. With many
+        /// requests in flight on one channel, the synchronous <see cref="SendResponse"/>
+        /// parked one pool thread per waiting response on the gate; the receive loop that
+        /// was handed the gate then waited for a free pool thread to continue, and the
+        /// channel stalled until the pool injected more threads.
+        /// </remarks>
+        /// <returns><c>true</c> if the response was retained for delivery after reconnect.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="response"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        public async ValueTask<bool> SendResponseAsync(uint requestId, IServiceResponse response)
+        {
+            if (response == null)
+            {
+                throw new ArgumentNullException(nameof(response));
+            }
+
+            using (await Gate.EnterAsync().ConfigureAwait(false))
+            {
+                return SendResponseCore(requestId, response);
+            }
+        }
+
+        /// <summary>
+        /// Encodes and queues a response while the caller holds the channel gate.
+        /// </summary>
+        private bool SendResponseCore(uint requestId, IServiceResponse response)
+        {
             {
                 // must queue the response if the channel is in the faulted state.
                 if (State == TcpChannelState.Faulted)
@@ -2067,14 +2101,6 @@ namespace Opc.Ua.Bindings
             uint id,
             uint currentToken,
             uint previousToken);
-
-        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 13, Level = LogLevel.Information,
-            Message = "Channel {Id}: full -- delay processing.")]
-        public static partial void TcpServerLog13(this ILogger logger, uint id);
-
-        [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 14, Level = LogLevel.Warning,
-            Message = "Channel {Id}: break socket connection.")]
-        public static partial void TcpServerLog14(this ILogger logger, uint id);
 
         [LoggerMessage(EventId = CoreEventIds.TcpServerChannel + 15, Level = LogLevel.Warning,
             Message = "ChannelId {Id}: ProcessRequestMessage RequestId {RequestId} was aborted.")]
