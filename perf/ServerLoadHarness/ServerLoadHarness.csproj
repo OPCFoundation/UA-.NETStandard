@@ -1,17 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
+  <!-- Server load / profiling harness. Not part of the product; see perf/README.md. -->
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <Nullable>enable</Nullable>
-    <ImplicitUsings>enable</ImplicitUsings>
     <IsPackable>false</IsPackable>
+    <!-- The measured server process runs with the .NET defaults (workstation, concurrent GC)
+         so that results describe an unconfigured deployment; SERVER_DOTNET_gcServer=1
+         switches the server child to Server GC for comparison. -->
     <ServerGarbageCollection>false</ServerGarbageCollection>
     <ConcurrentGarbageCollection>true</ConcurrentGarbageCollection>
-    <TieredPGO>true</TieredPGO>
-    <NoWarn>$(NoWarn);CS1591;CA1303;CA2007;CA1031;CA2000;CA1849;CA5394;RCS1090;CA1515;CA1305;CA1307;CA1310;IDE0005;CA1062;CA1822;CA1859;CA1861;CS0618;RCS1163;CA1002;CA1812;CA1852;CA1050;CA2201;CA1001</NoWarn>
-    <TreatWarningsAsErrors>false</TreatWarningsAsErrors>
-    <EnforceCodeStyleInBuild>false</EnforceCodeStyleInBuild>
-    <AnalysisLevel>none</AnalysisLevel>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\tests\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
