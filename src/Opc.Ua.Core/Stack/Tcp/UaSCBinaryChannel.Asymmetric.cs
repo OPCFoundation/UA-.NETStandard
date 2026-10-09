@@ -104,7 +104,8 @@ namespace Opc.Ua.Bindings
         /// </summary>
         /// <remarks>
         /// Certificate.RawData returns a new copy on every access; the listener needs the
-        /// bytes for every request it dispatches.
+        /// bytes for every request it dispatches. The array never leaves the stack:
+        /// <see cref="SecureChannelContext"/> exposes it as a read-only ByteString view.
         /// </remarks>
         internal byte[]? ClientCertificateRawData => GetCachedRawData(ClientCertificate, ref m_clientCertificateRawData);
 

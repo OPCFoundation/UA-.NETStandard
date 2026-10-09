@@ -193,9 +193,10 @@ namespace Opc.Ua.Server
                 key = m_bindingKeys.GetValue(binding,
                     value => new DerivedKey("user:" + Hash(Encoding.UTF8.GetBytes(value.ClientUserId!)))).Value;
             }
-            else if (secure && channelContext.ClientChannelCertificate is { Length: > 0 } certificate)
+            else if (secure && channelContext.ClientChannelCertificate.Length > 0)
             {
-                key = "application:" + Hash(certificate);
+                // classification-cache miss only
+                key = "application:" + Hash(channelContext.ClientChannelCertificate.ToArray());
             }
             else
             {
@@ -843,8 +844,9 @@ namespace Opc.Ua.Server
                 m_channelId = context.SecureChannelId;
                 SecurityPolicyUri = context.EndpointDescription?.SecurityPolicyUri;
                 SecurityMode = context.EndpointDescription?.SecurityMode ?? MessageSecurityMode.Invalid;
+                // ByteString is a read-only view, so the evidence cannot change after capture.
                 m_certificate = SecurityPolicyUri != SecurityPolicies.None
-                    ? context.ClientChannelCertificate?.AsSpan().ToArray() : null;
+                    ? context.ClientChannelCertificate : default;
                 m_peer = context.PeerAddress?.GetAddressBytes();
                 m_upstreamIdentity = context.UpstreamIdentity;
             }
@@ -868,7 +870,7 @@ namespace Opc.Ua.Server
                     SecurityPolicyUri == context.EndpointDescription?.SecurityPolicyUri &&
                     SecurityMode == (context.EndpointDescription?.SecurityMode ?? MessageSecurityMode.Invalid) &&
                     (SecurityPolicyUri == SecurityPolicies.None ||
-                        m_certificate.AsSpan().SequenceEqual(context.ClientChannelCertificate.AsSpan())) &&
+                        m_certificate.Span.SequenceEqual(context.ClientChannelCertificate.Span)) &&
                     PeerMatches(context.PeerAddress) &&
                     ReferenceEquals(m_upstreamIdentity, context.UpstreamIdentity);
             }
@@ -894,7 +896,7 @@ namespace Opc.Ua.Server
             }
 
             private readonly string m_channelId;
-            private readonly byte[]? m_certificate;
+            private readonly ByteString m_certificate;
             private readonly byte[]? m_peer;
             private readonly IUserIdentity? m_upstreamIdentity;
         }

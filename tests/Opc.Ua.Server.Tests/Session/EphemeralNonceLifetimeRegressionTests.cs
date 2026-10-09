@@ -582,8 +582,8 @@ namespace Opc.Ua.Server.Tests
                     beforeSignature?.Invoke(this);
                     ClientSignature = SecurityPolicies.Default.CreateSignatureData(
                         policy, ClientCertificate, policy.GetClientSignatureData(
-                            channel.ChannelThumbprint, ServerNonce.Data, ServerCertificate.RawData,
-                            channel.ServerChannelCertificate, channel.ClientChannelCertificate, clientNonce.Data));
+                            channel.ChannelThumbprint.ToArrayOrNull(), ServerNonce.Data, ServerCertificate.RawData,
+                            channel.ServerChannelCertificate.ToArrayOrNull(), channel.ClientChannelCertificate.ToArrayOrNull(), clientNonce.Data));
                 }
                 catch
                 {

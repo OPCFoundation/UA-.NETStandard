@@ -298,10 +298,7 @@ namespace Opc.Ua.Gds.Server
         public static ByteString GetClientCertificateFingerprint(ISystemContext context)
         {
             OperationContext operationContext = GetOperationContext(context);
-            byte[] clientCertificate = operationContext.ChannelContext?.ClientChannelCertificate ??
-                throw new ServiceResultException(
-                    StatusCodes.BadSecurityChecksFailed,
-                    "Unable to bind the request to a SecureChannel client certificate.");
+            ByteString clientCertificate = operationContext.ChannelContext?.ClientChannelCertificate ?? default;
 
             if (clientCertificate.Length == 0)
             {
@@ -311,10 +308,10 @@ namespace Opc.Ua.Gds.Server
             }
 
 #if NET6_0_OR_GREATER
-            return ByteString.From(SHA256.HashData(clientCertificate));
+            return ByteString.From(SHA256.HashData(clientCertificate.Span));
 #else
             using SHA256 sha256 = SHA256.Create();
-            return ByteString.From(sha256.ComputeHash(clientCertificate));
+            return ByteString.From(sha256.ComputeHash(clientCertificate.ToArray()));
 #endif
         }
 
