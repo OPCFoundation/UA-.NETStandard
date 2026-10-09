@@ -590,7 +590,22 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteGuid(string? fieldName, Uuid value)
         {
+#if NET6_0_OR_GREATER
+            Span<byte> bytes = stackalloc byte[16];
+            value.Guid.TryWriteBytes(bytes);
+            WriteBytes(bytes);
+#else
+            if (BitConverter.IsLittleEndian)
+            {
+                // the memory layout of a Guid is the layout of ToByteArray
+                // (little endian a, b and c then d to k) on little endian.
+                Span<byte> bytes = stackalloc byte[16];
+                Unsafe.WriteUnaligned(ref bytes[0], value.Guid);
+                WriteBytes(bytes);
+                return;
+            }
             WriteBytes(value.ToByteArray());
+#endif
         }
 
         /// <inheritdoc/>
