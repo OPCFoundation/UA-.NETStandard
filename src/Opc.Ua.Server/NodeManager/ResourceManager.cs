@@ -247,6 +247,7 @@ namespace Opc.Ua.Server
             {
                 TranslationTable? table = GetTable(culture.Name);
                 table!.Translations[key] = text;
+                m_translationSnapshot = null;
             }
         }
 
@@ -284,6 +285,7 @@ namespace Opc.Ua.Server
                 {
                     table!.Translations[translation.Key] = translation.Value;
                 }
+                m_translationSnapshot = null;
             }
         }
 
@@ -406,38 +408,34 @@ namespace Opc.Ua.Server
                         : [];
 #endif
                 // If only mul/qst is requested, return all available translations for the key.
+                TranslationTable[] tables = GetTranslationSnapshot();
                 if (preferredLocales.Count == 1)
                 {
-                    lock (m_lock)
+                    foreach (TranslationTable table in tables)
                     {
-                        foreach (TranslationTable table in m_translationTables)
+                        if (table.Translations
+                            .TryGetValue((info.Key ?? info.Text)!, out string? translation))
                         {
-                            if (table.Translations
-                                .TryGetValue((info.Key ?? info.Text)!, out string? translation))
-                            {
-                                translations[table!.Locale!.Name] = translation!;
-                            }
+                            translations[table!.Locale!.Name] = translation!;
                         }
                     }
                 }
                 else
                 {
                     // mul/qst + specific locales: return only those translations
-                    lock (m_lock)
+                    for (int i = 1; i < preferredLocales.Count; i++)
                     {
-                        for (int i = 1; i < preferredLocales.Count; i++)
+                        string? translation = FindBestTranslation(
+                            tables,
+                            preferredLocales.Slice(i, 1),
+                            (info.Key ?? info.Text)!,
+                            out CultureInfo culture);
+                        if (translation != null)
                         {
-                            string? translation = FindBestTranslation(
-                                preferredLocales.Slice(i, 1),
-                                (info.Key ?? info.Text)!,
-                                out CultureInfo culture);
-                            if (translation != null)
-                            {
-                                // label the text with the locale of the table it came
-                                // from, which may be another region of the requested
-                                // language.
-                                translations[culture.Name] = translation;
-                            }
+                            // label the text with the locale of the table it came
+                            // from, which may be another region of the requested
+                            // language.
+                            translations[culture.Name] = translation;
                         }
                     }
                 }
@@ -453,20 +451,18 @@ namespace Opc.Ua.Server
                 string? translatedText = info.Text;
                 CultureInfo culture = CultureInfo.InvariantCulture;
 
-                lock (m_lock)
-                {
-                    translatedText = FindBestTranslation(
-                        preferredLocales,
-                        (info.Key ?? info.Text)!,
-                        out culture);
+                translatedText = FindBestTranslation(
+                    GetTranslationSnapshot(),
+                    preferredLocales,
+                    (info.Key ?? info.Text)!,
+                    out culture);
 
-                    // use the default if no translation available.
-                    if (translatedText == null)
-                    {
-                        return preferredLocales.Count > 0 && defaultText.Translations == null && info.Text != null
-                            ? new LocalizedText(info)
-                            : defaultText.FilterByPreferredLocales(preferredLocales);
-                    }
+                // use the default if no translation available.
+                if (translatedText == null)
+                {
+                    return preferredLocales.Count > 0 && defaultText.Translations == null && info.Text != null
+                        ? new LocalizedText(info)
+                        : defaultText.FilterByPreferredLocales(preferredLocales);
                 }
 
                 // construct translated localized text.
@@ -481,6 +477,41 @@ namespace Opc.Ua.Server
         {
             public CultureInfo? Locale;
             public SortedDictionary<string, string> Translations = [];
+        }
+
+        /// <summary>
+        /// Returns an immutable copy of the translation tables. Translations are looked up
+        /// for every localized text a service returns (each DisplayName of a Browse), while
+        /// the tables are written almost only at startup, so readers share a snapshot instead
+        /// of serialising on the lock. The dictionaries are copied, never shared with a writer.
+        /// </summary>
+        private TranslationTable[] GetTranslationSnapshot()
+        {
+            TranslationTable[]? snapshot = Volatile.Read(ref m_translationSnapshot);
+            if (snapshot != null)
+            {
+                return snapshot;
+            }
+
+            lock (m_lock)
+            {
+                snapshot = m_translationSnapshot;
+                if (snapshot == null)
+                {
+                    snapshot = new TranslationTable[m_translationTables.Count];
+                    for (int ii = 0; ii < snapshot.Length; ii++)
+                    {
+                        TranslationTable table = m_translationTables[ii];
+                        snapshot[ii] = new TranslationTable
+                        {
+                            Locale = table.Locale,
+                            Translations = new SortedDictionary<string, string>(table.Translations)
+                        };
+                    }
+                    Volatile.Write(ref m_translationSnapshot, snapshot);
+                }
+                return snapshot;
+            }
         }
 
         /// <summary>
@@ -504,6 +535,7 @@ namespace Opc.Ua.Server
                 // add table.
                 var table = new TranslationTable { Locale = new CultureInfo(locale) };
                 m_translationTables.Add(table);
+                m_translationSnapshot = null;
 
                 return table;
             }
@@ -569,7 +601,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Finds the best translation for the requested locales.
         /// </summary>
-        private string? FindBestTranslation(
+        private static string? FindBestTranslation(
+            TranslationTable[] tables,
             ArrayOf<string> preferredLocales,
             string key,
             out CultureInfo culture)
@@ -602,9 +635,9 @@ namespace Opc.Ua.Server
                 // search for translation.
                 string? translatedText = null;
 
-                for (int ii = 0; ii < m_translationTables.Count; ii++)
+                for (int ii = 0; ii < tables.Length; ii++)
                 {
-                    TranslationTable translationTable = m_translationTables[ii];
+                    TranslationTable translationTable = tables[ii];
 
                     // all done if exact match found (locale ids are case-insensitive, RFC 5646).
                     if (string.Equals(
@@ -706,6 +739,12 @@ namespace Opc.Ua.Server
 
         private readonly Lock m_lock = new();
         private readonly List<TranslationTable> m_translationTables;
+
+        /// <summary>
+        /// Immutable copy of <see cref="m_translationTables"/> read without the lock;
+        /// null after a change until the next translation rebuilds it.
+        /// </summary>
+        private TranslationTable[]? m_translationSnapshot;
         private Dictionary<StatusCode, TranslationInfo>? m_statusCodeMapping;
         private Dictionary<XmlQualifiedName, TranslationInfo>? m_symbolicIdMapping;
     }

@@ -519,7 +519,7 @@ namespace Opc.Ua.Redundancy.Server
                 entry,
                 endpoint.SecurityPolicyUri ?? string.Empty,
                 endpoint.SecurityMode,
-                context.ChannelContext.ClientChannelCertificate.ToByteString());
+                EmptyIfNull(context.ChannelContext.ClientChannelCertificate));
             if (decision != RestoreDecision.Authorized)
             {
                 m_logger.DistributedSessionRestoreRejected(TokenDigest(authenticationToken), decision);
@@ -783,7 +783,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             if (entry.OriginalClientChannelCertificate !=
-                context.ChannelContext!.ClientChannelCertificate.ToByteString())
+                context.ChannelContext!.ClientChannelCertificate)
             {
                 return null;
             }
@@ -912,7 +912,7 @@ namespace Opc.Ua.Redundancy.Server
                 ClientCertificateChain = clientCertBlob,
                 SecurityStateVersion = SharedSessionEntry.CurrentSecurityStateVersion,
                 OriginalClientChannelCertificate =
-                    context.ChannelContext!.ClientChannelCertificate.ToByteString(),
+                    EmptyIfNull(context.ChannelContext!.ClientChannelCertificate),
                 ClientUserId = null,
                 ClientUserTokenType = UserTokenType.Anonymous,
                 HasActivatedUserIdentity = false,
@@ -1465,6 +1465,15 @@ namespace Opc.Ua.Redundancy.Server
         private readonly ConcurrentDictionary<NodeId, NodeId> m_tokensBySession = new();
         private readonly ConcurrentDictionary<NodeId, SemaphoreSlim> m_mirrorLocks = new();
         private readonly ConcurrentDictionary<NodeId, long> m_mirroredSequences = new();
+
+        /// <summary>
+        /// The channel certificate as the mirrored session state records it: empty, not
+        /// null, for a channel without a client certificate.
+        /// </summary>
+        private static ByteString EmptyIfNull(ByteString certificate)
+        {
+            return certificate.IsNull ? ByteString.Empty : certificate;
+        }
     }
 
     /// <summary>

@@ -188,11 +188,11 @@ namespace Opc.Ua.Server.TestFramework
                             createSessionResponse.ServerCertificate,
                             server.MessageContext.Telemetry);
                     byte[] dataToSign = securityPolicy.GetClientSignatureData(
-                        secureChannelContext.ChannelThumbprint,
+                        secureChannelContext.ChannelThumbprint.ToArrayOrNull(),
                         createSessionResponse.ServerNonce.ToArray(),
                         serverCertificateChain[0].RawData,
-                        secureChannelContext.ServerChannelCertificate,
-                        secureChannelContext.ClientChannelCertificate,
+                        secureChannelContext.ServerChannelCertificate.ToArrayOrNull(),
+                        secureChannelContext.ClientChannelCertificate.ToArrayOrNull(),
                         clientNonce.ToArray());
                     clientSignature = SecurityPolicies.Default.CreateSignatureData(
                         securityPolicy,
