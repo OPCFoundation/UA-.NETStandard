@@ -95,7 +95,7 @@ source generator project and import its props file:
 Add the `OPCFoundation.NetStandard.Opc.Ua.SourceGeneration` package:
 
 ```bash
-dotnet add package OPCFoundation.NetStandard.Opc.Ua.SourceGeneration --prerelease
+dotnet add package OPCFoundation.NetStandard.Opc.Ua.SourceGeneration
 ```
 
 The package is a development dependency, so the command adds a reference that

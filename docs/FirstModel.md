@@ -37,8 +37,8 @@ This tutorial changes the `GettingStartedServer` and `GettingStartedClient`
 projects from those steps. The applications keep their certificates and already
 trust each other, so you do not repeat the trust steps.
 
-The tutorial was verified with package version `2.0.0-preview.5`, the version
-that Route B installs.
+The tutorial was verified with package version `2.0.0`, the version that Route B
+installs.
 
 If you ran only the repository samples, create the Route B projects first. The
 [MinimalCalcServer sample](../samples/MinimalApi/MinimalCalcServer) uses the
@@ -125,9 +125,9 @@ generator also reads NodeSet2 files: the standard exchange format of modeling
 tools and companion specifications. See
 [Source-generated node managers](NodeManagers.md#source-generated-node-managers).
 
-> Declare method arguments in a method type such as `BoostMethodType`, and
-> reference it with `TypeDefinition`. With version `2.0.0-preview.5`, arguments
-> declared on a method inside an object type produce code that does not compile.
+The `Boost` method takes its arguments from `BoostMethodType`, so other methods
+can share the same arguments. A method can also declare its arguments itself,
+without a method type.
 
 ## 2. Add the model to the server
 
@@ -139,7 +139,7 @@ From the `GettingStartedServer` folder, add the source generator package. It
 runs at build time and adds no assembly to your application.
 
 ```bash
-dotnet add package OPCFoundation.NetStandard.Opc.Ua.SourceGeneration --prerelease
+dotnet add package OPCFoundation.NetStandard.Opc.Ua.SourceGeneration
 ```
 
 Open `GettingStartedServer.csproj`, and add the model file inside the
@@ -310,7 +310,7 @@ In the second terminal, from the `GettingStartedClient` folder, add the source
 generator package:
 
 ```bash
-dotnet add package OPCFoundation.NetStandard.Opc.Ua.SourceGeneration --prerelease
+dotnet add package OPCFoundation.NetStandard.Opc.Ua.SourceGeneration
 ```
 
 Open `GettingStartedClient.csproj`, and add the following inside the `<Project>`
@@ -552,7 +552,6 @@ done, press Ctrl+C in the server terminal.
 | Symptom | Cause | What to do |
 | --- | --- | --- |
 | The client build fails with `error CS0234: The type or namespace name 'Server' does not exist in the namespace 'Opc.Ua'`. | The generator creates server-side helpers, which need the server package. | Set `ModelSourceGeneratorOmitFluentApi` to `true` in the client project. |
-| The server build fails with `error CS0234: The type or namespace name 'BoostMethodState' does not exist in the namespace 'Heating'`. | With `2.0.0-preview.5`, the model declares the method arguments on the method inside `ThermostatType`. | Declare the arguments in a method type, as in [step 1](#1-describe-the-model). |
 | The server build fails with `error MODELGEN035: The NamespaceUri expression ... could not be resolved during source generation`. | `[NodeManager]` uses a generated constant, such as `Namespaces.Heating`. | Use the namespace URI as a string literal. |
 | `The server does not expose the Heating model.` | The server does not register the node manager, or the model uses another namespace URI. | Check the `AddNodeManager` call in the server, and the `TargetNamespace` in the model. |
 | `OPC UA error BadNoMatch [0x806F0000]: A browse path was not found.` | A browse name in the client does not match the model. Browse names are case-sensitive. | Use the generated `Heating.BrowseNames` constants. |

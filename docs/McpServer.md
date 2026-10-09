@@ -175,33 +175,32 @@ Sessions are listed via `resources/list` and detailed via `resources/read`.
 
 ### Option 1: Run without installing (.NET 10 SDK)
 
-Run the public preview directly from nuget.org. `dotnet tool exec` downloads
+Run the published tool directly from nuget.org. `dotnet tool exec` downloads
 and caches the tool without adding a global tool installation:
 
 ```bash
-# Stay on the latest published 2.0.0-preview.N release
-dotnet tool exec "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
+# Run the latest release
+dotnet tool exec OPCFoundation.NetStandard.Opc.Ua.Mcp
 
-# Or resolve the latest prerelease, regardless of preview line
-dotnet tool exec --prerelease OPCFoundation.NetStandard.Opc.Ua.Mcp
+# Or stay on one release line, for example 2.0.x
+dotnet tool exec "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.*"
 
 # Short form of dotnet tool exec
-dnx "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*"
+dnx OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
 ### Option 2: Install as a .NET global tool
 
 ```bash
-dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp --prerelease
+dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
 After installation, the `opcua-mcp` command is available globally.
 
-> **Public preview profile availability.** `2.0.0-preview.3` includes
-> `core`, `services`, `administration`, `pubsub`, `diagnostics`, `robotics`,
-> and `full`. It does not include `Opc.Ua.Mcp.Vision`, so `vision` and
-> composed `vision,robotics` profiles require running the current source
-> until a later preview contains that package.
+The tool includes every [tool profile](#tool-profiles), including `robotics`,
+`vision`, and the composed `vision,robotics` profile. Only the libraries for
+embedding the Robotics and Vision tools in your own server are preview
+packages; see [Packages](#packages).
 
 ### Option 3: Run from source
 
@@ -236,7 +235,7 @@ through `dotnet tool exec`. Put MCP tool arguments after `--`:
       "args": [
         "tool",
         "exec",
-        "OPCFoundation.NetStandard.Opc.Ua.Mcp@2.0.0-preview.*",
+        "OPCFoundation.NetStandard.Opc.Ua.Mcp",
         "--",
         "--profile",
         "core"
@@ -589,7 +588,8 @@ tools/
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` tool | all of the above |
 
 The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
-`net10.0`.
+`net10.0`. `Mcp.Robotics` and `Mcp.Vision` are preview packages; the other
+libraries and the `opcua-mcp` tool, which includes all of them, are stable.
 
 ### Embedding the tools in your own MCP server
 
