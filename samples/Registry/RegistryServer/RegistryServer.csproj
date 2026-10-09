@@ -7,11 +7,14 @@
     <RootNamespace>Opc.Ua.Registry.Samples</RootNamespace>
     <Nullable>enable</Nullable>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+    <PublishAot Condition="'$(RegistryPublishAot)' == 'true' and '$(TargetFramework)' == 'net10.0'">true</PublishAot>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\..\src\Opc.Ua.EndpointRegistry.Server\Opc.Ua.EndpointRegistry.Server.csproj" />
     <ProjectReference Include="..\..\..\src\Opc.Ua.SchemaRegistry.Server\Opc.Ua.SchemaRegistry.Server.csproj" />
-    <ProjectReference Include="..\RegistryClient\RegistryClient.csproj" />
+    <ProjectReference Include="..\RegistryClient\RegistryClient.csproj">
+      <AdditionalProperties Condition="'$(RegistryPublishAot)' == 'true'">RuntimeIdentifier=$(RuntimeIdentifier);SelfContained=true</AdditionalProperties>
+    </ProjectReference>
     <PackageReference Include="Microsoft.Extensions.Hosting" />
     <PackageReference Include="Microsoft.Extensions.Logging.Console" />
     <Compile Include="..\..\..\src\Opc.Ua.EndpointRegistry\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />

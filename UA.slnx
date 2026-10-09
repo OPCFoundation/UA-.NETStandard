@@ -138,6 +138,7 @@
     <Project Path="src/Opc.Ua.EndpointRegistry.Client/Opc.Ua.EndpointRegistry.Client.csproj" />
     <Project Path="src/Opc.Ua.EndpointRegistry.PubSub/Opc.Ua.EndpointRegistry.PubSub.csproj" />
     <Project Path="src/Opc.Ua.EndpointRegistry.Federation/Opc.Ua.EndpointRegistry.Federation.csproj" />
+    <Project Path="src\Opc.Ua.EndpointRegistry.Federation.Server\Opc.Ua.EndpointRegistry.Federation.Server.csproj" />
     <Project Path="src/Opc.Ua.EndpointRegistry.Server/Opc.Ua.EndpointRegistry.Server.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj" />

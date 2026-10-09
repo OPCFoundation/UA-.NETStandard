@@ -356,6 +356,116 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
                 (uri, selector, _) => uri + "#" + selector);
         }
 
+        [Test]
+        public async Task VersionLineageAndKnownProvenancePersistAndNativeCorrelationIsDetachedAsync()
+        {
+            await using var storage = new MemoryRegistryStateStore();
+            using var store = Store(storage);
+            await store.StartAsync().ConfigureAwait(false);
+            store.DescribeVersion = (_, _) => new SchemaVersionMetadata
+            {
+                ModelVersion = "2.1.0",
+                DataTypeEncoding = "Default JSON",
+                ConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 7, MinorVersion = 9 }
+            };
+            SchemaReferenceDataType reference = Reference("lineage", "1");
+            TypedSchemaReadResultDataType admitted = await store.RegisterRawAsync(reference,
+                ByteString.From("""{"type":"number"}"""u8.ToArray())).ConfigureAwait(false);
+            Assert.That(admitted.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(admitted.Document.HasConfigurationVersion, Is.True);
+            Assert.That(admitted.Document.ConfigurationVersion.MajorVersion, Is.EqualTo(7));
+            admitted.Document.ConfigurationVersion.MajorVersion = 999;
+            Assert.That(store.Read(reference).Document.ConfigurationVersion.MajorVersion, Is.EqualTo(7));
+            using var recovered = Store(storage);
+            await recovered.StartAsync().ConfigureAwait(false);
+            Assert.That(recovered.Entries[0].Metadata.Ancestor, Is.EqualTo("1"));
+            Assert.That(recovered.Entries[0].Metadata.ModelVersion, Is.EqualTo("2.1.0"));
+            Assert.That(recovered.Entries[0].Metadata.DataTypeEncoding, Is.EqualTo("Default JSON"));
+            Assert.That(recovered.Read(reference).Document.ConfigurationVersion.MinorVersion, Is.EqualTo(9));
+        }
+
+        [Test]
+        public async Task DurableDraftsHaveNoFabricatedContentAndCloseAdvancesTheirRevisionAsync()
+        {
+            await using var storage = new MemoryRegistryStateStore();
+            using var store = Store(storage);
+            await store.StartAsync().ConfigureAwait(false);
+            var draft = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "urn:example:drafts",
+                SchemaName = "Staged",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "urn:example:drafts:staged-v1"
+            };
+            await store.CreateDraftAsync(draft).ConfigureAwait(false);
+            Assert.That(store.Entries.Count, Is.Zero);
+            Assert.That(store.Drafts.Count, Is.EqualTo(1));
+            using var restarted = Store(storage);
+            await restarted.StartAsync().ConfigureAwait(false);
+            Assert.That(restarted.Drafts[0].SchemaName, Is.EqualTo("Staged"));
+            draft.ExpectedEpoch = 1;
+            TypedSchemaReadResultDataType committed = await restarted.RegisterRawAsync(draft,
+                ByteString.From("""{"type":"number"}"""u8.ToArray())).ConfigureAwait(false);
+            Assert.That(committed.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(committed.Document.Epoch, Is.EqualTo(2));
+            Assert.That(restarted.Drafts.Count, Is.Zero);
+            Assert.That(restarted.Entries.Count, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task CompatibilityClaimsRequireVerificationAndRejectBreakingVersionsAtomicallyAsync()
+        {
+            await using var storage = new MemoryRegistryStateStore();
+            using var store = Store(storage);
+            await store.StartAsync().ConfigureAwait(false);
+            store.DescribeVersion = (_, _) => new SchemaVersionMetadata { Compatibility = "full" };
+            SchemaReferenceDataType first = Reference("compatible", "1");
+            TypedSchemaReadResultDataType unknown = await store.RegisterRawAsync(first,
+                ByteString.From("""{"type":"number"}"""u8.ToArray())).ConfigureAwait(false);
+            Assert.That(unknown.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(store.Entries.Count, Is.Zero);
+            store.VerifyCompatibility = (old, next, _) => old.IsEqual(next);
+            TypedSchemaReadResultDataType accepted = await store.RegisterRawAsync(first,
+                ByteString.From("""{"type":"number"}"""u8.ToArray())).ConfigureAwait(false);
+            Assert.That(accepted.StatusCode, Is.EqualTo(StatusCodes.Good));
+            TypedSchemaReadResultDataType broken = await store.RegisterRawAsync(Reference("compatible", "2"),
+                ByteString.From("""{"type":"string"}"""u8.ToArray())).ConfigureAwait(false);
+            Assert.That(broken.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(store.Entries.Count, Is.EqualTo(1));
+            Assert.That((await storage.ReadAsync().ConfigureAwait(false)).Revision, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task DefaultRegistrationCannotRebindTheLogicalResourceUriAsync()
+        {
+            await using var storage = new MemoryRegistryStateStore();
+            using var store = Store(storage);
+            await store.StartAsync().ConfigureAwait(false);
+            var descriptor = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "urn:example:uri-pin",
+                SchemaName = "Pinned",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "urn:example:uri-pin:v1",
+                ResourceUri = "urn:example:uri-pin:logical",
+                MakeDefault = true
+            };
+            TypedSchemaReadResultDataType first = await store.RegisterRawAsync(descriptor,
+                ByteString.From("""{"type":"number"}"""u8.ToArray())).ConfigureAwait(false);
+            descriptor.VersionId = "2";
+            descriptor.EntityUri = "urn:example:uri-pin:v2";
+            descriptor.ResourceUri = "urn:impostor:logical";
+            TypedSchemaReadResultDataType rejected = await store.RegisterRawAsync(descriptor,
+                ByteString.From("""{"type":"string"}"""u8.ToArray())).ConfigureAwait(false);
+            Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(rejected.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(rejected.Issues[0].Detail, Does.Contain("bound to another entity URI"));
+            Assert.That(store.Entries.Count, Is.EqualTo(1));
+            Assert.That((await storage.ReadAsync().ConfigureAwait(false)).Revision, Is.EqualTo(1));
+        }
+
         private static SchemaReferenceDataType Logical(string name)
         {
             SchemaReferenceDataType reference = Reference(name, "1");

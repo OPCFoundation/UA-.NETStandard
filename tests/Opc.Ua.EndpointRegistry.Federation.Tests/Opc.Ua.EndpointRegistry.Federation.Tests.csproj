@@ -21,6 +21,7 @@
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.EndpointRegistry.Federation\Opc.Ua.EndpointRegistry.Federation.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.EndpointRegistry.Federation.Server\Opc.Ua.EndpointRegistry.Federation.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.SchemaRegistry.Formats\Opc.Ua.SchemaRegistry.Formats.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.EndpointRegistry.Server\Opc.Ua.EndpointRegistry.Server.csproj" />
     <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />

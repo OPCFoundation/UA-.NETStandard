@@ -98,5 +98,21 @@ namespace Opc.Ua.SchemaRegistry.Server
         /// fingerprint ambiguity is evaluated and cannot be read through typed selection.
         /// </summary>
         public Func<ISystemContext, SchemaReferenceDataType, bool>? IsVisible { get; set; }
+
+        /// <summary>
+        /// Gets or sets authoritative lineage and known model/DataSet provenance.
+        /// </summary>
+        public Func<SchemaReferenceDataType, SchemaContentDataType, SchemaVersionMetadata>? DescribeVersion { get; set; }
+
+        /// <summary>
+        /// Gets or sets the verifier for explicitly advertised schema compatibility contracts.
+        /// </summary>
+        public Func<SchemaContentDataType, SchemaContentDataType, string, bool>? VerifyCompatibility { get; set; }
+
+        /// <summary>
+        /// Gets or sets authoritative entity URI assignment for inherited creation.
+        /// The default assigns opaque URNs, not guessed HTTP locators.
+        /// </summary>
+        public Func<string, string>? EntityUri { get; set; }
     }
 }

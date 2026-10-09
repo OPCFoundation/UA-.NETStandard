@@ -132,6 +132,17 @@ binding APIs. Publisher/subscriber/external defaults are unchanged.
 
 ## Validation
 
+The server can be published as a real native executable without changing normal sample defaults:
+
+```powershell
+dotnet publish samples\Registry\RegistryServer\RegistryServer.csproj -f net10.0 -r win-x64 `
+  -p:CustomTestTarget=net10.0 -p:RegistryPublishAot=true
+```
+
+Run the published `RegistryServer.exe` with the ordinary `--schema --self-test` options to prove
+actual SignAndEncrypt TCP calls and bounded native traversal. `RegistryPublishAot` scopes AOT to
+the executable rather than propagating it into managed source generators.
+
 ```powershell
 dotnet build src\Opc.Ua.EndpointRegistry.Client\Opc.Ua.EndpointRegistry.Client.csproj -nologo -v:q
 dotnet build src\Opc.Ua.SchemaRegistry.Client\Opc.Ua.SchemaRegistry.Client.csproj -nologo -v:q

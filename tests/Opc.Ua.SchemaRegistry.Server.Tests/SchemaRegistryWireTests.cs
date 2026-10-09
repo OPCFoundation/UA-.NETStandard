@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -409,6 +410,14 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             }).ConfigureAwait(false);
             Assert.That(capabilities.Document.TryGetValue(out RegistryCapabilitiesDocumentDataType? supported), Is.True);
             Assert.That(supported!.Formats.Count, Is.EqualTo(3));
+            NodeId information = await PathAsync(session,
+                ExpandedNodeId.ToNodeId(ObjectIds.SchemaRegistry, session.NamespaceUris),
+                new QualifiedName(XRegistry.BrowseNames.CapabilitiesInfo, xns)).ConfigureAwait(false);
+            DataValue facts = await session.ReadValueAsync(information).ConfigureAwait(false);
+            Assert.That(facts.WrappedValue.TryGetValue(out ExtensionObject capabilitiesValue), Is.True);
+            Assert.That(capabilitiesValue.TryGetValue(out RegistryCapabilitiesDataType? applicationFacts), Is.True);
+            Assert.That(applicationFacts!.StickyVersions, Is.True);
+            Assert.That(applicationFacts.EnforceCompatibility, Is.False);
             RegistrySnapshotOpenResultDataType snapshot = await access.OpenDocumentAsync(
                 new RegistrySnapshotOpenRequestDataType { TargetXid = "/", DocumentKind = "model", View = 1 })
                 .ConfigureAwait(false);
@@ -468,6 +477,192 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             ServiceResultException released = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await access.CloseDocumentAsync(opened.SnapshotId).ConfigureAwait(false))!;
             Assert.That(released.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+        }
+
+        [Test]
+        public async Task SelectedSchemaMetadataReturnsItsOwnEpochAndNamespaceSourceAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
+                .ConfigureAwait(false);
+            TypedSchemaReadResultDataType registered = await (await AccessAsync(session).ConfigureAwait(false))
+                .RegisterSchemaAsync(new TypedSchemaRegistrationRequestDataType
+                {
+                    Registration = new SchemaRegistrationDataType
+                    {
+                        NamespaceUri = "urn:example:metadata",
+                        SchemaName = "Selection",
+                        Format = "JsonSchema/2020-12",
+                        VersionId = "1",
+                        EntityUri = "urn:example:metadata:selection-v1"
+                    },
+                    Content = new JsonSchemaFormatProvider().Parse("""{"type":"number"}"""u8)
+                }).ConfigureAwait(false);
+            ushort xns = session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.xRegistry);
+            NodeId node = await PathAsync(session,
+                ExpandedNodeId.ToNodeId(ObjectIds.SchemaRegistry, session.NamespaceUris),
+                new QualifiedName(XRegistry.BrowseNames.TypedAccess, xns)).ConfigureAwait(false);
+            var access = new NativeRegistryAccessTypeClient(session, node, m_telemetry!);
+            string groupXid = "/schemagroups/" + registered.Document.Reference.Entity.Xid!.Split('/')[2];
+            RegistryReadResultDataType group = await access.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = groupXid,
+                DocumentKind = "metadata",
+                View = 1,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            Assert.That(group.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(group.Epoch, Is.EqualTo(1));
+            Assert.That(group.Document.TryGetValue(out RegistryMetadataDataType? native), Is.True);
+            Assert.That(native!.Name, Is.EqualTo("urn:example:metadata"));
+            Assert.That(native.Xid, Is.EqualTo(groupXid));
+            RegistryReadResultDataType version = await access.ReadDocumentAsync(new RegistryReadRequestDataType
+            {
+                TargetXid = registered.Document.Reference.Entity.Xid,
+                DocumentKind = "metadata",
+                View = 1,
+                MaxItems = 100
+            }).ConfigureAwait(false);
+            Assert.That(version.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(version.Epoch, Is.EqualTo(registered.Document.Epoch));
+        }
+
+        [Test]
+        public async Task InheritedCreationWritesARealExactSchemaVersionThroughItsStableFileAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
+                .ConfigureAwait(false);
+            var registry = new SchemaRegistryTypeClient(session,
+                ExpandedNodeId.ToNodeId(ObjectIds.SchemaRegistry, session.NamespaceUris), m_telemetry!);
+            (NodeId groupNode, _) = await registry.GetOrCreateGroupAsync(kGroupId).ConfigureAwait(false);
+            var group = new GroupTypeClient(session, groupNode, m_telemetry!);
+            (NodeId versionNode, string versionId, uint handle) =
+                await group.CreateResourceAsync("Legacy.jsonschema", "1", true).ConfigureAwait(false);
+            Assert.That(versionId, Is.EqualTo("1"));
+            ByteString original = ByteString.From("{ \"type\": \"number\", \"x-legacy-test\": true }\n"u8.ToArray());
+            var file = new FileTypeClient(session, versionNode, m_telemetry!);
+            await file.WriteAsync(handle, original).ConfigureAwait(false);
+            await file.CloseAsync(handle).ConfigureAwait(false);
+            uint read = await file.OpenAsync((byte)OpenFileMode.Read).ConfigureAwait(false);
+            Assert.That(await file.ReadAsync(read, 4096).ConfigureAwait(false), Is.EqualTo(original));
+            await file.CloseAsync(read).ConfigureAwait(false);
+            (NodeId repeated, string repeatedVersion, _, _) =
+                await group.GetOrCreateResourceAsync("Legacy.jsonschema", "1", false).ConfigureAwait(false);
+            Assert.That(repeated, Is.EqualTo(versionNode));
+            Assert.That(repeatedVersion, Is.EqualTo("1"));
+            (ByteString fetched, string format, _) = await registry.GetSchemaAsync(
+                new JsonSchemaFormatProvider().ComputeSchemaId(original.Span)).ConfigureAwait(false);
+            Assert.That(fetched, Is.EqualTo(original));
+            Assert.That(format, Is.EqualTo("JsonSchema/2020-12"));
+            ByteString changed = ByteString.From("""{"type":"string","x-legacy-test":true}"""u8.ToArray());
+            uint writer = await file.OpenAsync((byte)(OpenFileMode.Write | OpenFileMode.EraseExisting)).ConfigureAwait(false);
+            ServiceResultException invalidMode = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await file.OpenAsync(0xF2).ConfigureAwait(false))!;
+            Assert.That(invalidMode.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            await file.WriteAsync(writer, changed).ConfigureAwait(false);
+            await file.CloseAsync(writer).ConfigureAwait(false);
+            read = await file.OpenAsync((byte)OpenFileMode.Read).ConfigureAwait(false);
+            Assert.That(await file.ReadAsync(read, 4096).ConfigureAwait(false), Is.EqualTo(changed));
+            await file.CloseAsync(read).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task LogicalProvenancePresenceFollowsTheSelectedDefaultRatherThanVersionSortOrderAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
+                .ConfigureAwait(false);
+            NativeSchemaAccessTypeClient access = await AccessAsync(session).ConfigureAwait(false);
+            var descriptor = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "urn:example:provenance",
+                SchemaName = "DefaultPresence",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "urn:example:provenance:v1",
+                ResourceUri = "urn:example:provenance:logical",
+                MakeDefault = true
+            };
+            try
+            {
+                TypedSchemaReadResultDataType first = await access.RegisterSchemaAsync(
+                    new TypedSchemaRegistrationRequestDataType
+                    {
+                        Registration = descriptor,
+                        Content = new JsonSchemaFormatProvider().Parse("""{"type":"number"}"""u8)
+                    }).ConfigureAwait(false);
+                m_host!.KnownModelVersion = "1.05.02";
+                m_host.KnownConfigurationVersion = new ConfigurationVersionDataType { MajorVersion = 17, MinorVersion = 23 };
+                descriptor.VersionId = "2";
+                descriptor.EntityUri = "urn:example:provenance:v2";
+                TypedSchemaReadResultDataType second = await access.RegisterSchemaAsync(
+                    new TypedSchemaRegistrationRequestDataType
+                    {
+                        Registration = descriptor,
+                        Content = new JsonSchemaFormatProvider().Parse("""{"type":"string"}"""u8)
+                    }).ConfigureAwait(false);
+                Assert.That(first.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(second.StatusCode, Is.EqualTo(StatusCodes.Good));
+                string[] parts = first.Document.Reference.Entity.Xid!.Split('/');
+                ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.SchemaRegistry);
+                NodeId logical = await PathAsync(session,
+                    ExpandedNodeId.ToNodeId(ObjectIds.SchemaRegistry, session.NamespaceUris),
+                    new QualifiedName(parts[2], ns), new QualifiedName(parts[4], ns)).ConfigureAwait(false);
+                NodeId model = await PathAsync(session, logical, new QualifiedName(BrowseNames.ModelVersion, ns))
+                    .ConfigureAwait(false);
+                DataValue value = await session.ReadValueAsync(model).ConfigureAwait(false);
+                Assert.That(value.WrappedValue.TryGetValue(out string modelVersion), Is.True);
+                Assert.That(modelVersion, Is.EqualTo("1.05.02"));
+                NodeId configuration = await PathAsync(session, logical,
+                    new QualifiedName(BrowseNames.ConfigurationVersion, ns)).ConfigureAwait(false);
+                value = await session.ReadValueAsync(configuration).ConfigureAwait(false);
+                Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject encoded), Is.True);
+                Assert.That(encoded.TryGetValue(out ConfigurationVersionDataType? correlation), Is.True);
+                Assert.That(correlation!.MajorVersion, Is.EqualTo(17));
+                ushort xns = session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.xRegistry);
+                NodeId metaEpoch = await PathAsync(session, logical,
+                    new QualifiedName(XRegistry.BrowseNames.MetaEpoch, xns)).ConfigureAwait(false);
+                DataValue metaRevision = await session.ReadValueAsync(metaEpoch).ConfigureAwait(false);
+                Assert.That(metaRevision.WrappedValue.TryGetValue(out uint meta), Is.True);
+                Assert.That(meta, Is.EqualTo(2));
+                NodeId typed = await PathAsync(session,
+                    ExpandedNodeId.ToNodeId(ObjectIds.SchemaRegistry, session.NamespaceUris),
+                    new QualifiedName(XRegistry.BrowseNames.TypedAccess, xns)).ConfigureAwait(false);
+                RegistryReadResultDataType nativeRead = await new NativeRegistryAccessTypeClient(session, typed, m_telemetry!)
+                    .ReadDocumentAsync(new RegistryReadRequestDataType
+                    {
+                        TargetXid = "/schemagroups/" + parts[2] + "/schemas/" + parts[4],
+                        DocumentKind = "metadata",
+                        View = 1,
+                        MaxItems = 100
+                    }).ConfigureAwait(false);
+                Assert.That(nativeRead.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(nativeRead.Epoch, Is.EqualTo(second.Document.Epoch));
+
+                m_host.KnownModelVersion = null;
+                m_host.KnownConfigurationVersion = null;
+                descriptor.VersionId = "1";
+                descriptor.EntityUri = "urn:example:provenance:v1";
+                await access.RegisterSchemaAsync(new TypedSchemaRegistrationRequestDataType
+                {
+                    Registration = descriptor,
+                    Content = first.Document.Content
+                }).ConfigureAwait(false);
+                BrowseResponse properties = await session.BrowseAsync(null, null, 0,
+                [
+                    new BrowseDescription
+                    {
+                        NodeId = logical, BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = Ua.ReferenceTypeIds.HasProperty, IncludeSubtypes = true,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                ], default).ConfigureAwait(false);
+                Assert.That(properties.Results[0].References.ToArray()!.Any(reference =>
+                    reference.BrowseName.Name is BrowseNames.ModelVersion or BrowseNames.ConfigurationVersion), Is.False);
+            }
+            finally
+            {
+                m_host!.KnownModelVersion = null;
+                m_host.KnownConfigurationVersion = null;
+            }
         }
 
         private async Task<ISession> ConnectAsync(string policy, string user, string password)
@@ -589,12 +784,17 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
                     !Revoked && (reference.Entity.Xid!.IndexOf("/hidden.jsonschema/", StringComparison.Ordinal) < 0 ||
                     context is SessionSystemContext caller &&
                     caller.UserIdentity?.GrantedRoleIds.Contains(Ua.ObjectIds.WellKnownRole_SecurityAdmin) == true);
+                options.DescribeVersion = (_, _) => new SchemaVersionMetadata
+                {
+                    ModelVersion = KnownModelVersion,
+                    ConfigurationVersion = KnownConfigurationVersion
+                };
                 options.NamespaceUris.Add(kGroupId, "http://contoso.org/UA/Pumps/");
                 foreach (string format in new[] { "JsonSchema/2020-12", "Avro/1.11", "ApacheArrow/1.0" })
                 {
                     options.SchemaNames.Add(ResourceXid(format, "Schema"), "Schema");
                 }
-                foreach (string name in new[] { "visible", "hidden", "large" })
+                foreach (string name in new[] { "visible", "hidden", "large", "Legacy" })
                 {
                     options.SchemaNames.Add(ResourceXid("JsonSchema/2020-12", name), name);
                 }
@@ -602,6 +802,10 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             }
 
             public bool Revoked { get; set; }
+
+            public string? KnownModelVersion { get; set; }
+
+            public ConfigurationVersionDataType? KnownConfigurationVersion { get; set; }
         }
 
         private ITelemetryContext? m_telemetry;

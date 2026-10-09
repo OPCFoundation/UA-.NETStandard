@@ -43,7 +43,7 @@ namespace Opc.Ua.SchemaRegistry.Server
     /// Owns the exact Versions and explicit default selections of one Schema Registry origin.
     /// Native and raw writes share one validated CAS commit; fingerprints are indexes, not entity keys.
     /// </summary>
-    public sealed class SchemaRegistryStore : IDisposable
+    public sealed partial class SchemaRegistryStore : IDisposable
     {
         /// <summary>
         /// Creates a store. The application owns <paramref name="storage"/> and its disposal.
@@ -142,6 +142,19 @@ namespace Opc.Ua.SchemaRegistry.Server
         /// Runs before any state commit.
         /// </summary>
         public Action<SchemaReferenceDataType>? ValidateReference { get; set; }
+
+        /// <summary>
+        /// Gets or sets the authoritative provider of Version lineage and known provenance.
+        /// </summary>
+        public Func<SchemaReferenceDataType, SchemaContentDataType, SchemaVersionMetadata>? DescribeVersion { get; set; }
+
+        /// <summary>
+        /// Gets or sets compatibility verification for an explicitly advertised Resource contract.
+        /// A compatibility statement is rejected when no verifier is configured.
+        /// </summary>
+        public Func<SchemaContentDataType, SchemaContentDataType, string, bool>? VerifyCompatibility { get; set; }
+
+        internal Action? BeforePublication { get; set; }
 
         /// <summary>
         /// Registers explicit source identities and typed content in one durable transaction.
@@ -451,7 +464,7 @@ namespace Opc.Ua.SchemaRegistry.Server
                     }
                     return;
                 }
-                StatusCode status = await PublishAsync(new Generation(current.Revision, current.Entries, defaults),
+                StatusCode status = await PublishAsync(current with { Defaults = defaults },
                     cancellationToken).ConfigureAwait(false);
                 if (StatusCode.IsUncertain(status))
                 {
@@ -492,7 +505,9 @@ namespace Opc.Ua.SchemaRegistry.Server
                 Generation current = Current;
                 string xid = reference.Entity.Xid!;
                 current.Entries.TryGetValue(xid, out SchemaEntry? previous);
-                if (expectedEpoch != 0 && (previous is null || previous.Epoch != expectedEpoch))
+                uint priorEpoch = previous?.Epoch ?? (current.Drafts.ContainsKey(xid)
+                    ? current.EntityEpochs[xid] : 0u);
+                if (expectedEpoch != 0 && priorEpoch != expectedEpoch)
                 {
                     return Failure(StatusCodes.BadInvalidState, "E_SCHEMA_EPOCH_CONFLICT",
                         "ExpectedEpoch differs from the selected Version.");
@@ -505,6 +520,11 @@ namespace Opc.Ua.SchemaRegistry.Server
                 string resource = ResourceXid(xid, "ExactVersion");
                 if (registration is not null)
                 {
+                    string groupId = xid.Split('/')[2];
+                    if (current.Groups.TryGetValue(groupId, out string? groupUri) && groupUri != registration.NamespaceUri)
+                    {
+                        throw Input("The symbolic identity collides with another namespace.");
+                    }
                     foreach (SchemaEntry entry in current.Entries.Values)
                     {
                         if (entry.Registration is { } source &&
@@ -545,12 +565,24 @@ namespace Opc.Ua.SchemaRegistry.Server
                 canonical.SelectedObjectUri = canonical.EntityUri;
                 var next = new SchemaEntry(canonical, provider.ContentType, bytes,
                     (SchemaContentDataType)content.Clone(),
-                    previous is null ? 1u : previous.Document == bytes ? previous.Epoch : previous.Epoch + 1,
-                    registration is null ? previous?.Registration : (SchemaRegistrationDataType)registration.Clone());
+                    previous is null ? checked(priorEpoch + 1) :
+                        previous.Document == bytes ? previous.Epoch : previous.Epoch + 1,
+                    registration is null ? previous?.Registration : (SchemaRegistrationDataType)registration.Clone())
+                {
+                    Metadata = VersionMetadata(current, canonical, content, previous)
+                };
                 var entries = new SortedDictionary<string, SchemaEntry>(current.Entries, StringComparer.Ordinal)
                 {
                     [xid] = next
                 };
+                Dictionary<string, string> groups = current.Groups;
+                if (registration is not null)
+                {
+                    groups = new Dictionary<string, string>(current.Groups, StringComparer.Ordinal)
+                    {
+                        [xid.Split('/')[2]] = registration.NamespaceUri!
+                    };
+                }
                 Dictionary<string, DefaultSelection> defaults = current.Defaults;
                 if (registration?.MakeDefault == true)
                 {
@@ -559,6 +591,11 @@ namespace Opc.Ua.SchemaRegistry.Server
                         resourceUri.AsSpan().IndexOf('#') >= 0)
                     {
                         throw Input("Default registration requires an explicit logical Resource URI.");
+                    }
+                    if (current.Defaults.TryGetValue(resource, out DefaultSelection? binding) &&
+                        binding.EntityUri != resourceUri)
+                    {
+                        throw Input("The logical Resource is bound to another entity URI.");
                     }
                     defaults = new Dictionary<string, DefaultSelection>(defaults, StringComparer.Ordinal)
                     {
@@ -572,7 +609,15 @@ namespace Opc.Ua.SchemaRegistry.Server
                             ? StatusCodes.UncertainNotAllNodesAvailable : StatusCodes.Good);
                     }
                 }
-                StatusCode status = await PublishAsync(new Generation(current.Revision, entries, defaults),
+                var drafts = new SortedDictionary<string, SchemaRegistrationDataType>(current.Drafts, StringComparer.Ordinal);
+                drafts.Remove(xid);
+                StatusCode status = await PublishAsync(current with
+                {
+                    Entries = entries,
+                    Defaults = defaults,
+                    Drafts = drafts,
+                    Groups = groups
+                },
                     cancellationToken).ConfigureAwait(false);
                 return ProjectionResult(next, status);
             }
@@ -588,10 +633,12 @@ namespace Opc.Ua.SchemaRegistry.Server
 
         private async ValueTask<StatusCode> PublishAsync(Generation next, CancellationToken cancellationToken)
         {
+            BeforePublication?.Invoke();
             if (next.Revision >= uint.MaxValue)
             {
                 throw new ServiceResultException(StatusCodes.BadOutOfRange, "The registry epoch is exhausted.");
             }
+            next = WithEntityEpochs(Current, next);
             RegistryStateCommit commit = await m_storage.CommitAsync(next.Revision, Encode(next), cancellationToken)
                 .ConfigureAwait(false);
             if (StatusCode.IsBad(commit.StatusCode))
@@ -635,6 +682,56 @@ namespace Opc.Ua.SchemaRegistry.Server
                 ];
             }
             return result;
+        }
+
+        private SchemaVersionMetadata VersionMetadata(
+            Generation current, SchemaReferenceDataType reference, SchemaContentDataType content, SchemaEntry? previous)
+        {
+            string xid = reference.Entity.Xid!;
+            string resource = ResourceXid(xid, "ExactVersion");
+            string version = xid.Split('/')[6];
+            SchemaVersionMetadata metadata = DescribeVersion?.Invoke(
+                (SchemaReferenceDataType)reference.Clone(), (SchemaContentDataType)content.Clone()) ??
+                previous?.Metadata ?? new SchemaVersionMetadata();
+            string ancestor = metadata.Ancestor.Length > 0 ? metadata.Ancestor :
+                current.Defaults.TryGetValue(resource, out DefaultSelection? selected)
+                    ? selected.VersionXid.Split('/')[6] : version;
+            if (ancestor != version && !current.Entries.ContainsKey(resource + "/versions/" + ancestor))
+            {
+                throw Input("Ancestor must identify this root Version or an existing Version of the same Resource.");
+            }
+            foreach (SchemaEntry entry in current.Entries.Values)
+            {
+                if (ResourceXid(entry.Reference.Entity.Xid!, "ExactVersion") != resource)
+                {
+                    continue;
+                }
+                if (entry.Metadata.Compatibility != metadata.Compatibility)
+                {
+                    throw Input("Every Version of a schema Resource must retain its compatibility contract.");
+                }
+                if (metadata.Compatibility is { } mode &&
+                    (VerifyCompatibility is null || !VerifyCompatibility(entry.Content, content, mode)))
+                {
+                    throw Input("The schema does not satisfy its Resource compatibility contract.");
+                }
+            }
+            if (metadata.Compatibility is not null && VerifyCompatibility is null)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "A compatibility statement requires an authoritative verifier.");
+            }
+            return metadata.Copy() with
+            {
+                Ancestor = ancestor,
+                DataTypeEncoding = metadata.DataTypeEncoding ?? reference.Format!.ToUpperInvariant() switch
+                {
+                    "JSONSCHEMA/2020-12" => "Default JSON",
+                    "AVRO/1.11" => "Default Avro",
+                    "APACHEARROW/1.0" => "Default Arrow",
+                    _ => null
+                }
+            };
         }
         private ISchemaFormatProvider Validate(
             SchemaReferenceDataType reference, SchemaRegistrationDataType? registration = null)
@@ -768,6 +865,10 @@ namespace Opc.Ua.SchemaRegistry.Server
                     {
                         encoder.WriteEncodeable(null, registration);
                     }
+                    encoder.WriteString(null, entry.Metadata.Ancestor);
+                    encoder.WriteString(null, entry.Metadata.Compatibility);
+                    encoder.WriteString(null, entry.Metadata.DataTypeEncoding);
+                    encoder.WriteString(null, entry.Metadata.ModelVersion);
                 }
                 encoder.WriteUInt32(null, (uint)generation.Defaults.Count);
                 foreach (KeyValuePair<string, DefaultSelection> item in generation.Defaults.OrderBy(
@@ -777,6 +878,23 @@ namespace Opc.Ua.SchemaRegistry.Server
                     encoder.WriteString(null, item.Value.EntityUri);
                     encoder.WriteString(null, item.Value.Format);
                     encoder.WriteString(null, item.Value.VersionXid);
+                }
+                encoder.WriteUInt32(null, (uint)generation.Groups.Count);
+                foreach (KeyValuePair<string, string> group in generation.Groups.OrderBy(item => item.Key, StringComparer.Ordinal))
+                {
+                    encoder.WriteString(null, group.Key);
+                    encoder.WriteString(null, group.Value);
+                }
+                encoder.WriteUInt32(null, (uint)generation.Drafts.Count);
+                foreach (SchemaRegistrationDataType draft in generation.Drafts.Values)
+                {
+                    encoder.WriteEncodeable(null, draft);
+                }
+                encoder.WriteUInt32(null, (uint)generation.EntityEpochs.Count);
+                foreach (KeyValuePair<string, uint> epoch in generation.EntityEpochs.OrderBy(item => item.Key, StringComparer.Ordinal))
+                {
+                    encoder.WriteString(null, epoch.Key);
+                    encoder.WriteUInt32(null, epoch.Value);
                 }
             }
             return ByteString.From(stream.ToArray());
@@ -788,7 +906,9 @@ namespace Opc.Ua.SchemaRegistry.Server
             var context = new ServiceMessageContext(m_context, m_context.Telemetry);
             using var decoder = new BinaryDecoder(stream, context, true);
             string? storageFormat = decoder.ReadString(null);
-            if (storageFormat != kStorageFormat && storageFormat != "SchemaRegistryState/1.0")
+            if (storageFormat != kStorageFormat && storageFormat != "SchemaRegistryState/3.0" &&
+                storageFormat != "SchemaRegistryState/2.0" &&
+                storageFormat != "SchemaRegistryState/1.0")
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Unsupported schema store format.");
             }
@@ -810,20 +930,31 @@ namespace Opc.Ua.SchemaRegistry.Server
             {
                 SchemaDocumentDataType native = decoder.ReadEncodeable<SchemaDocumentDataType>(null);
                 ByteString bytes = decoder.ReadByteString(null);
-                SchemaRegistrationDataType? registration = storageFormat == kStorageFormat && decoder.ReadBoolean(null)
+                SchemaRegistrationDataType? registration = storageFormat != "SchemaRegistryState/1.0" && decoder.ReadBoolean(null)
                     ? decoder.ReadEncodeable<SchemaRegistrationDataType>(null) : null;
+                var metadata = new SchemaVersionMetadata
+                {
+                    Ancestor = storageFormat is kStorageFormat or "SchemaRegistryState/3.0"
+                        ? decoder.ReadString(null)! : native.Reference.Entity.Xid!.Split('/')[6],
+                    Compatibility = storageFormat is kStorageFormat or "SchemaRegistryState/3.0" ? decoder.ReadString(null) : null,
+                    DataTypeEncoding = storageFormat is kStorageFormat or "SchemaRegistryState/3.0" ? decoder.ReadString(null) : null,
+                    ModelVersion = storageFormat is kStorageFormat or "SchemaRegistryState/3.0" ? decoder.ReadString(null) : null,
+                    ConfigurationVersion = native.HasConfigurationVersion
+                        ? (ConfigurationVersionDataType)native.ConfigurationVersion.Clone() : null
+                };
                 ISchemaFormatProvider provider = Validate(native.Reference, registration);
                 Whole(native.Reference, "ExactVersion");
                 SchemaContentDataType content = provider.Parse(bytes.Span);
                 ByteString fingerprint = provider.ComputeSchemaId(bytes.Span);
-                if (native.Epoch == 0 || native.HasConfigurationVersion || !native.Content.IsEqual(content) ||
+                if (native.Epoch == 0 || !native.Content.IsEqual(content) ||
                     native.Reference.SchemaIdAlg != provider.SchemaIdAlgorithm ||
                     native.Reference.SchemaId != fingerprint)
                 {
                     throw new ServiceResultException(StatusCodes.BadDecodingError, "The stored schema integrity differs.");
                 }
                 entries.Add(native.Reference.Entity.Xid!, new SchemaEntry(native.Reference, provider.ContentType,
-                    bytes, content, native.Epoch, registration));
+                    bytes, content, native.Epoch, registration)
+                { Metadata = metadata });
             }
             uint defaultsCount = decoder.ReadUInt32(null);
             if (defaultsCount > count)
@@ -843,11 +974,62 @@ namespace Opc.Ua.SchemaRegistry.Server
                 }
                 defaults.Add(resource, selection);
             }
+            var generation = new Generation(stored.Revision, entries, defaults);
+            if (storageFormat == kStorageFormat)
+            {
+                uint groupCount = ReadCount(decoder);
+                for (uint index = 0; index < groupCount; index++)
+                {
+                    string id = decoder.ReadString(null)!;
+                    string uri = decoder.ReadString(null)!;
+                    if (!Uri.TryCreate(uri, UriKind.Absolute, out _) || XRegistryIdentifier.FromSourceIdentity(uri) != id)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid persisted Group identity.");
+                    }
+                    generation.Groups.Add(id, uri);
+                }
+                uint draftCount = ReadCount(decoder);
+                for (uint index = 0; index < draftCount; index++)
+                {
+                    SchemaRegistrationDataType draft = decoder.ReadEncodeable<SchemaRegistrationDataType>(null);
+                    string xid = RegistrationReference(draft).Entity.Xid!;
+                    if (entries.ContainsKey(xid))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadDecodingError, "A Version cannot be both draft and committed.");
+                    }
+                    generation.Drafts.Add(xid, draft);
+                }
+                uint epochCount = ReadCount(decoder);
+                for (uint index = 0; index < epochCount; index++)
+                {
+                    string xid = decoder.ReadString(null)!;
+                    uint epoch = decoder.ReadUInt32(null);
+                    if (epoch == 0)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid entity epoch.");
+                    }
+                    generation.EntityEpochs.Add(xid, epoch);
+                }
+            }
+            else
+            {
+                generation = WithEntityEpochs(new Generation(0, [], []), generation);
+            }
             if (stream.Position != stream.Length)
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Unexpected schema store trailing bytes.");
             }
-            return new Generation(stored.Revision, entries, defaults);
+            foreach (SchemaEntry entry in entries.Values)
+            {
+                string resource = ResourceXid(entry.Reference.Entity.Xid!, "ExactVersion");
+                string version = entry.Reference.Entity.Xid!.Split('/')[6];
+                if (entry.Metadata.Ancestor != version &&
+                    !entries.ContainsKey(resource + "/versions/" + entry.Metadata.Ancestor))
+                {
+                    throw new ServiceResultException(StatusCodes.BadDecodingError, "Invalid persisted schema lineage.");
+                }
+            }
+            return generation;
         }
 
         private static TypedSchemaReadResultDataType Good(SchemaEntry entry)
@@ -860,7 +1042,9 @@ namespace Opc.Ua.SchemaRegistry.Server
                     Reference = (SchemaReferenceDataType)entry.Reference.Clone(),
                     Epoch = entry.Epoch,
                     Content = (SchemaContentDataType)entry.Content.Clone(),
-                    HasConfigurationVersion = false,
+                    HasConfigurationVersion = entry.Metadata.ConfigurationVersion is not null,
+                    ConfigurationVersion = entry.Metadata.ConfigurationVersion is null ? new ConfigurationVersionDataType() :
+                        (ConfigurationVersionDataType)entry.Metadata.ConfigurationVersion.Clone(),
                     SelectedContent = ExtensionObject.Null
                 },
                 Issues = []
@@ -874,7 +1058,8 @@ namespace Opc.Ua.SchemaRegistry.Server
                 Reference = (SchemaReferenceDataType)entry.Reference.Clone(),
                 Content = (SchemaContentDataType)entry.Content.Clone(),
                 Document = ByteString.From(entry.Document.ToArray()),
-                Registration = entry.Registration is null ? null : (SchemaRegistrationDataType)entry.Registration.Clone()
+                Registration = entry.Registration is null ? null : (SchemaRegistrationDataType)entry.Registration.Clone(),
+                Metadata = entry.Metadata.Copy()
             };
         }
 
@@ -915,12 +1100,22 @@ namespace Opc.Ua.SchemaRegistry.Server
         {
             /// <summary>Gets the provider format identifier.</summary>
             public string Format => Reference.Format!;
+
+            /// <summary>
+            /// Gets the retained lineage and provenance of this Version.
+            /// </summary>
+            public SchemaVersionMetadata Metadata { get; init; } = new();
         }
 
-        private sealed record Generation(ulong Revision, SortedDictionary<string, SchemaEntry> Entries,
-            Dictionary<string, DefaultSelection> Defaults);
+        internal sealed record Generation(ulong Revision, SortedDictionary<string, SchemaEntry> Entries,
+            Dictionary<string, DefaultSelection> Defaults)
+        {
+            public Dictionary<string, string> Groups { get; init; } = new(StringComparer.Ordinal);
+            public SortedDictionary<string, SchemaRegistrationDataType> Drafts { get; init; } = new(StringComparer.Ordinal);
+            public Dictionary<string, uint> EntityEpochs { get; init; } = new(StringComparer.Ordinal);
+        }
 
-        private sealed record DefaultSelection(string EntityUri, string Format, string VersionXid);
+        internal sealed record DefaultSelection(string EntityUri, string Format, string VersionXid);
 
 #pragma warning disable CA1032, RCS1194 // This internal failure always identifies a missing selection.
         private sealed class SchemaSelectionException(string code) : ServiceResultException(StatusCodes.BadNotFound)
@@ -942,7 +1137,7 @@ namespace Opc.Ua.SchemaRegistry.Server
                 "The format has no configured source identity token.")
         };
 
-        private const string kStorageFormat = "SchemaRegistryState/2.0";
+        private const string kStorageFormat = "SchemaRegistryState/4.0";
         private readonly IRegistryStateStore m_storage;
         private readonly IServiceMessageContext m_context;
         private readonly RegistryOriginKey m_origin;

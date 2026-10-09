@@ -82,6 +82,13 @@ determine acceptance, not client-authored trust flags. Group snapshots retain na
 and actual browsed UA targets. Raw metadata must agree with its independent observed epoch.
 Pure Message resolution reads verified cached evidence and never initiates network access.
 
+`Opc.Ua.EndpointRegistry.Federation.Server` binds freshly verified Group observations into
+the referencing catalog. Durable URI-qualified pins, complete source metadata and separate local
+identity share its ordinary CAS generation. Restored pins do not authorize a transport target.
+Read-only OriginRegistry, ExternalReference and GroupUrl appear only after configured verification;
+source loss and retirement invalidate them. The referencing Server maps remote targets into its
+own ServerArray without persisting session-local indexes.
+
 `Opc.Ua.EndpointRegistry.PubSub` binds to the existing PubSub configuration/address-space
 view. It invalidates References before retirement and republishes associations after activation.
 It surfaces read-only provider-owned entries without automatic transport configuration.
@@ -90,10 +97,11 @@ retained expiry/replay handling does not invent native targets.
 
 ## Scope and conformance
 
-Implementation is still undergoing its final conformance pass.
-`tools\registry-conformance.json` records unclaimed facets and remaining prerequisite gaps.
-In particular, the inherited schema creation surface and complete schema Version metadata/
-compatibility semantics must be implemented before claiming Schema Native Writable.
+`tools\registry-conformance.json` maps implemented facets and their shared prerequisites to
+observable runtime evidence. It is not OPC Foundation certification. Each deployment advertises
+only its enabled facets and supplies the required source identity, authorization and trust policies.
+The inherited Schema creation surface, durable drafts, explicit default/lineage/provenance and
+compatibility verification share the same publication generation as native/raw registration.
 Automatic schema materialization, an inbound xRegistry HTTP server and the Schema Server/Full
 facets remain outside the approved scope. Imported models and passing tests alone are not
 conformance claims.

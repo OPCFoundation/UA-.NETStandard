@@ -39,179 +39,282 @@ namespace Opc.Ua.SchemaRegistry.Server
 {
     public sealed partial class SchemaRegistryNodeManager
     {
-        private async ValueTask<BeginSchemaUploadMethodStateResult> BeginUploadAsync(
+        private ValueTask<BeginSchemaUploadMethodStateResult> BeginUploadAsync(
+            ISystemContext caller, SchemaRegistrationDataType registration, CancellationToken cancellationToken,
+            FileState? target = null, byte mode = 6)
+        {
+            return m_store.PrepareFileOpenAsync(() =>
+                BeginUploadCoreAsync(caller, registration, cancellationToken, target, mode), cancellationToken);
+        }
+
+        private async ValueTask<BeginSchemaUploadMethodStateResult> BeginUploadCoreAsync(
             ISystemContext caller,
             SchemaRegistrationDataType registration,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            FileState? target = null,
+            byte mode = 6)
         {
             ServiceResult allowed = m_authorize(caller, RegistryAccessKind.Write);
             if (ServiceResult.IsBad(allowed))
             {
                 return new BeginSchemaUploadMethodStateResult { ServiceResult = allowed };
             }
-            m_store.RegistrationReference(registration);
+            if (target is not null)
+            {
+                target = FindSchemaFile(target.NodeId) ?? throw new ServiceResultException(StatusCodes.BadInvalidState);
+            }
+            if (target is not null && ((mode & 0xF0) != 0 || (mode & (byte)OpenFileMode.Write) == 0 ||
+                (mode & (byte)(OpenFileMode.EraseExisting | OpenFileMode.Append)) ==
+                    (byte)(OpenFileMode.EraseExisting | OpenFileMode.Append)))
+            {
+                return new BeginSchemaUploadMethodStateResult { ServiceResult = StatusCodes.BadInvalidArgument };
+            }
+            SchemaReferenceDataType exactReference = m_store.RegistrationReference(registration);
+            TypedSchemaReadResultDataType existingVersion = m_store.Read(exactReference);
+            if (StatusCode.IsGood(existingVersion.StatusCode) && !IsVisible(caller, existingVersion.Document.Reference))
+            {
+                return new BeginSchemaUploadMethodStateResult { ServiceResult = StatusCodes.BadUserAccessDenied };
+            }
             NodeId session = caller is ISessionSystemContext { SessionId: { IsNull: false } id }
                 ? id : throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
-            var file = new FileState(m_root)
+            var file = target ?? new FileState(m_root)
             {
                 ReferenceTypeId = Ua.ReferenceTypeIds.HasComponent
             };
-            file.Create(SystemContext, Instance("/uploads/" + Guid.NewGuid().ToString("N")),
-                new QualifiedName("Upload", NamespaceIndexes[0]), new LocalizedText("Schema upload"),
-                assignNodeIds: false);
-            var upload = new Upload(session, RegistryAccessPolicy.AuthorizationView(caller),
-                (SchemaRegistrationDataType)registration.Clone(), file);
-            lock (m_uploadGate)
+            if (target is null)
             {
-                int owned = 0;
-                foreach (Upload other in m_uploads.Values)
-                {
-                    owned += other.Session == session ? 1 : 0;
-                }
-                if (owned >= 8 || m_uploads.Count >= 32)
-                {
-                    upload.Dispose();
-                    return new BeginSchemaUploadMethodStateResult { ServiceResult = StatusCodes.BadTooManyOperations };
-                }
-                m_uploads.Add(file.NodeId, upload);
+                file.Create(SystemContext, Instance("/uploads/" + Guid.NewGuid().ToString("N")),
+                    new QualifiedName("Upload", NamespaceIndexes[0]), new LocalizedText("Schema upload"),
+                    assignNodeIds: false);
             }
-            XRegistryProjectionEngine.SetValue(file.Writable, true);
-            XRegistryProjectionEngine.SetValue(file.UserWritable, true);
-            XRegistryProjectionEngine.SetValue(file.OpenCount, (ushort)1);
-            XRegistryProjectionEngine.SetValue(file.Size, 0ul);
-            file.Write!.OnCall = (context, _, _, handle, bytes) =>
+            Upload? pending = new Upload(session, RegistryAccessPolicy.AuthorizationView(caller),
+                (SchemaRegistrationDataType)registration.Clone(), file, target is null);
+            try
             {
-                ServiceResult access = CheckUpload(context, upload, handle);
-                if (ServiceResult.IsBad(access))
+                Upload upload = pending;
+                if (target is not null && (mode & (byte)OpenFileMode.EraseExisting) == 0)
                 {
-                    return access;
+                    SchemaReferenceDataType reference = m_store.RegistrationReference(registration);
+                    TypedSchemaReadResultDataType existing = m_store.Read(reference);
+                    if (StatusCode.IsGood(existing.StatusCode))
+                    {
+                        ByteString bytes = m_store.DocumentBytes(reference);
+                        if (bytes.Length > kMaxUploadBytes)
+                        {
+                            upload.Dispose();
+                            return new BeginSchemaUploadMethodStateResult { ServiceResult = StatusCodes.BadEncodingLimitsExceeded };
+                        }
+                        byte[] initial = bytes.ToArray();
+                        upload.Buffer.Write(initial, 0, initial.Length);
+                        upload.Buffer.Position = (mode & (byte)OpenFileMode.Append) != 0 ? upload.Buffer.Length : 0;
+                    }
                 }
+                var oldWrite = file.Write!.OnCall;
+                var oldGet = file.GetPosition!.OnCall;
+                var oldSet = file.SetPosition!.OnCall;
+                var oldClose = file.Close!.OnCall;
                 lock (m_uploadGate)
                 {
-                    if (!m_uploads.ContainsKey(file.NodeId))
+                    int owned = 0;
+                    foreach (Upload other in m_uploads.Values)
                     {
-                        return StatusCodes.BadInvalidState;
+                        owned += other.Session == session ? 1 : 0;
                     }
-                    if (bytes.IsNull || upload.Buffer.Position > kMaxUploadBytes - bytes.Length)
+                    if (owned >= 8 || m_uploads.Count >= 32)
                     {
-                        return StatusCodes.BadEncodingLimitsExceeded;
+                        upload.Dispose();
+                        return new BeginSchemaUploadMethodStateResult { ServiceResult = StatusCodes.BadTooManyOperations };
                     }
-                    long old = upload.Buffer.Length;
-                    long growth = Math.Max(old, upload.Buffer.Position + bytes.Length) - old;
-                    if (m_uploadBytes > kMaxRetainedUploadBytes - growth)
+                    if (m_uploadBytes > kMaxRetainedUploadBytes - upload.Buffer.Length)
                     {
-                        return StatusCodes.BadEncodingLimitsExceeded;
+                        upload.Dispose();
+                        return new BeginSchemaUploadMethodStateResult { ServiceResult = StatusCodes.BadResourceUnavailable };
                     }
-                    byte[] next = bytes.ToArray();
-                    upload.Buffer.Write(next, 0, next.Length);
-                    m_uploadBytes += upload.Buffer.Length - old;
-                    XRegistryProjectionEngine.SetValue(file.Size, (ulong)upload.Buffer.Length);
-                    return ServiceResult.Good;
+                    if (!m_uploads.TryAdd(file.NodeId, upload))
+                    {
+                        upload.Dispose();
+                        return new BeginSchemaUploadMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                    }
+                    m_uploadBytes += upload.Buffer.Length;
+                    pending = null;
                 }
-            };
-            file.GetPosition!.OnCall = (ISystemContext context, MethodState _, NodeId _, uint handle, ref ulong position) =>
-            {
-                ServiceResult access = CheckUpload(context, upload, handle);
-                if (ServiceResult.IsGood(access))
+                XRegistryProjectionEngine.SetValue(file.Writable, true);
+                XRegistryProjectionEngine.SetValue(file.UserWritable, true);
+                XRegistryProjectionEngine.SetValue(file.OpenCount, (ushort)1);
+                XRegistryProjectionEngine.SetValue(file.Size, (ulong)upload.Buffer.Length);
+                file.Write!.OnCall = (context, _, _, handle, bytes) =>
                 {
+                    if (handle != upload.Handle && oldWrite is not null)
+                    {
+                        return oldWrite(context, file.Write, file.NodeId, handle, bytes);
+                    }
+                    ServiceResult access = CheckUpload(context, upload, handle);
+                    if (ServiceResult.IsBad(access))
+                    {
+                        return access;
+                    }
                     lock (m_uploadGate)
                     {
                         if (!m_uploads.ContainsKey(file.NodeId))
                         {
                             return StatusCodes.BadInvalidState;
                         }
-                        position = (ulong)upload.Buffer.Position;
+                        if (bytes.IsNull || upload.Buffer.Position > kMaxUploadBytes - bytes.Length)
+                        {
+                            return StatusCodes.BadEncodingLimitsExceeded;
+                        }
+                        long old = upload.Buffer.Length;
+                        long growth = Math.Max(old, upload.Buffer.Position + bytes.Length) - old;
+                        if (m_uploadBytes > kMaxRetainedUploadBytes - growth)
+                        {
+                            return StatusCodes.BadEncodingLimitsExceeded;
+                        }
+                        byte[] next = bytes.ToArray();
+                        upload.Buffer.Write(next, 0, next.Length);
+                        m_uploadBytes += upload.Buffer.Length - old;
+                        XRegistryProjectionEngine.SetValue(file.Size, (ulong)upload.Buffer.Length);
+                        return ServiceResult.Good;
                     }
-                }
-                return access;
-            };
-            file.SetPosition!.OnCall = (context, _, _, handle, position) =>
-            {
-                ServiceResult access = CheckUpload(context, upload, handle);
-                if (ServiceResult.IsBad(access))
+                };
+                file.GetPosition!.OnCall = (ISystemContext context, MethodState _, NodeId _, uint handle, ref ulong position) =>
                 {
+                    if (handle != upload.Handle && oldGet is not null)
+                    {
+                        return oldGet(context, file.GetPosition, file.NodeId, handle, ref position);
+                    }
+                    ServiceResult access = CheckUpload(context, upload, handle);
+                    if (ServiceResult.IsGood(access))
+                    {
+                        lock (m_uploadGate)
+                        {
+                            if (!m_uploads.ContainsKey(file.NodeId))
+                            {
+                                return StatusCodes.BadInvalidState;
+                            }
+                            position = (ulong)upload.Buffer.Position;
+                        }
+                    }
                     return access;
-                }
-                lock (m_uploadGate)
+                };
+                file.SetPosition!.OnCall = (context, _, _, handle, position) =>
                 {
-                    if (!m_uploads.ContainsKey(file.NodeId))
+                    if (handle != upload.Handle && oldSet is not null)
                     {
-                        return StatusCodes.BadInvalidState;
+                        return oldSet(context, file.SetPosition, file.NodeId, handle, position);
                     }
-                    if (position > (ulong)upload.Buffer.Length)
+                    ServiceResult access = CheckUpload(context, upload, handle);
+                    if (ServiceResult.IsBad(access))
                     {
-                        return StatusCodes.BadOutOfRange;
+                        return access;
                     }
-                    upload.Buffer.Position = (long)position;
-                }
-                return ServiceResult.Good;
-            };
-            file.Close!.OnCallAsync = async (context, _, _, handle, ct) =>
-            {
-                ServiceResult access = CheckUpload(context, upload, handle);
-                if (ServiceResult.IsBad(access))
+                    lock (m_uploadGate)
+                    {
+                        if (!m_uploads.ContainsKey(file.NodeId))
+                        {
+                            return StatusCodes.BadInvalidState;
+                        }
+                        if (position > (ulong)upload.Buffer.Length)
+                        {
+                            return StatusCodes.BadOutOfRange;
+                        }
+                        upload.Buffer.Position = (long)position;
+                    }
+                    return ServiceResult.Good;
+                };
+                file.Close!.OnCallAsync = async (context, _, _, handle, ct) =>
                 {
-                    return new CloseMethodStateResult { ServiceResult = access };
-                }
-                ByteString bytes;
-                lock (m_uploadGate)
-                {
-                    if (!m_uploads.Remove(file.NodeId))
+                    if (handle != upload.Handle && oldClose is not null)
                     {
-                        return new CloseMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                        return new CloseMethodStateResult { ServiceResult = oldClose(context, file.Close, file.NodeId, handle) };
                     }
-                    bytes = ByteString.From(upload.Buffer.ToArray());
-                    m_uploadBytes -= upload.Buffer.Length;
-                    upload.Dispose();
-                }
+                    ServiceResult access = CheckUpload(context, upload, handle);
+                    if (ServiceResult.IsBad(access))
+                    {
+                        return new CloseMethodStateResult { ServiceResult = access };
+                    }
+                    ByteString bytes;
+                    lock (m_uploadGate)
+                    {
+                        if (!m_uploads.Remove(file.NodeId))
+                        {
+                            return new CloseMethodStateResult { ServiceResult = StatusCodes.BadInvalidState };
+                        }
+                        bytes = ByteString.From(upload.Buffer.ToArray());
+                        m_uploadBytes -= upload.Buffer.Length;
+                        upload.Dispose();
+                    }
+                    try
+                    {
+                        TypedSchemaReadResultDataType committed = await m_store.RegisterRawAsync(upload.Registration, bytes, ct)
+                            .ConfigureAwait(false);
+                        return new CloseMethodStateResult
+                        {
+                            ServiceResult = committed.Issues.Count == 0
+                                ? new ServiceResult(committed.StatusCode)
+                                : new ServiceResult(committed.StatusCode, new LocalizedText(committed.Issues[0].Detail))
+                        };
+                    }
+                    finally
+                    {
+                        if (target is null)
+                        {
+                            await DeleteNodeAsync(SystemContext, file.NodeId, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        else
+                        {
+                            await ProjectSchemasAsync(m_store.Entries, CancellationToken.None).ConfigureAwait(false);
+                        }
+                    }
+                };
+                AssignSchemaNodeIds(file);
+                XRegistryProjectionEngine.LinkMethodArguments(file, SystemContext);
                 try
                 {
-                    TypedSchemaReadResultDataType committed = await m_store.RegisterRawAsync(upload.Registration, bytes, ct)
-                        .ConfigureAwait(false);
-                    return new CloseMethodStateResult
+                    if (target is null)
                     {
-                        ServiceResult = committed.Issues.Count == 0
-                            ? new ServiceResult(committed.StatusCode)
-                            : new ServiceResult(committed.StatusCode, new LocalizedText(committed.Issues[0].Detail))
-                    };
+                        await AddPredefinedNodeAsync(SystemContext, file, cancellationToken).ConfigureAwait(false);
+                    }
+                    bool active;
+                    lock (m_uploadGate)
+                    {
+                        active = m_uploads.ContainsKey(file.NodeId);
+                    }
+                    if (!active)
+                    {
+                        if (target is null)
+                        {
+                            await DeleteNodeAsync(SystemContext, file.NodeId, CancellationToken.None).ConfigureAwait(false);
+                        }
+                        return new BeginSchemaUploadMethodStateResult { ServiceResult = StatusCodes.BadSessionClosed };
+                    }
                 }
-                finally
+                catch
                 {
-                    await DeleteNodeAsync(SystemContext, file.NodeId, CancellationToken.None).ConfigureAwait(false);
+                    lock (m_uploadGate)
+                    {
+                        if (m_uploads.Remove(file.NodeId))
+                        {
+                            m_uploadBytes -= upload.Buffer.Length;
+                        }
+                        upload.Dispose();
+                    }
+                    if (target is null)
+                    {
+                        await DeleteNodeAsync(SystemContext, file.NodeId, CancellationToken.None).ConfigureAwait(false);
+                    }
+                    throw;
                 }
-            };
-            SystemContext.AssignInstanceChildNodeIds(file);
-            XRegistryProjectionEngine.LinkMethodArguments(file, SystemContext);
-            try
-            {
-                await AddPredefinedNodeAsync(SystemContext, file, cancellationToken).ConfigureAwait(false);
-                bool active;
-                lock (m_uploadGate)
+                return new BeginSchemaUploadMethodStateResult
                 {
-                    active = m_uploads.ContainsKey(file.NodeId);
-                }
-                if (!active)
-                {
-                    await DeleteNodeAsync(SystemContext, file.NodeId, CancellationToken.None).ConfigureAwait(false);
-                    return new BeginSchemaUploadMethodStateResult { ServiceResult = StatusCodes.BadSessionClosed };
-                }
+                    ServiceResult = ServiceResult.Good,
+                    UploadFile = file.NodeId,
+                    FileHandle = upload.Handle
+                };
             }
-            catch
+            finally
             {
-                lock (m_uploadGate)
-                {
-                    m_uploads.Remove(file.NodeId);
-                    upload.Dispose();
-                }
-                await DeleteNodeAsync(SystemContext, file.NodeId, CancellationToken.None).ConfigureAwait(false);
-                throw;
+                pending?.Dispose();
             }
-            return new BeginSchemaUploadMethodStateResult
-            {
-                ServiceResult = ServiceResult.Good,
-                UploadFile = file.NodeId,
-                FileHandle = 1
-            };
         }
 
         private ServiceResult CheckUpload(ISystemContext context, Upload upload, uint handle)
@@ -221,7 +324,7 @@ namespace Opc.Ua.SchemaRegistry.Server
             {
                 return allowed;
             }
-            if (handle != 1 || context is not ISessionSystemContext { SessionId: { } session } ||
+            if (handle != upload.Handle || context is not ISessionSystemContext { SessionId: { } session } ||
                 session != upload.Session ||
                 RegistryAccessPolicy.AuthorizationView(context) != upload.AuthorizationView)
             {
@@ -233,9 +336,26 @@ namespace Opc.Ua.SchemaRegistry.Server
             }
         }
 
+        private void CheckPublication()
+        {
+            lock (m_uploadGate)
+            {
+                foreach (Upload upload in m_uploads.Values)
+                {
+                    if (!upload.Temporary)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadInvalidState,
+                            "Close the active inherited FileType writer before another catalog mutation.");
+                    }
+                }
+            }
+        }
+
         private async ValueTask ReleaseUploadsAsync(NodeId? session, CancellationToken cancellationToken)
         {
             var files = new List<NodeId>();
+            var temporaryFiles = new List<NodeId>();
+            bool restoreTargets = false;
             lock (m_uploadGate)
             {
                 foreach (Upload upload in m_uploads.Values)
@@ -243,6 +363,11 @@ namespace Opc.Ua.SchemaRegistry.Server
                     if (session is null || session.Value == upload.Session)
                     {
                         files.Add(upload.File.NodeId);
+                        if (upload.Temporary)
+                        {
+                            temporaryFiles.Add(upload.File.NodeId);
+                        }
+                        restoreTargets |= !upload.Temporary;
                         m_uploadBytes -= upload.Buffer.Length;
                         upload.Dispose();
                     }
@@ -252,14 +377,19 @@ namespace Opc.Ua.SchemaRegistry.Server
                     m_uploads.Remove(file);
                 }
             }
-            foreach (NodeId file in files)
+            foreach (NodeId file in temporaryFiles)
             {
                 await DeleteNodeAsync(SystemContext, file, cancellationToken).ConfigureAwait(false);
+            }
+            if (restoreTargets && session is not null)
+            {
+                await ProjectSchemasAsync(m_store.Entries, cancellationToken).ConfigureAwait(false);
             }
         }
 
         private sealed class Upload(
-            NodeId session, string view, SchemaRegistrationDataType registration, FileState file) : IDisposable
+            NodeId session, string view, SchemaRegistrationDataType registration, FileState file,
+            bool temporary) : IDisposable
         {
             public NodeId Session { get; } = session;
 
@@ -268,6 +398,10 @@ namespace Opc.Ua.SchemaRegistry.Server
             public SchemaRegistrationDataType Registration { get; } = registration;
 
             public FileState File { get; } = file;
+
+            public bool Temporary { get; } = temporary;
+
+            public uint Handle { get; } = temporary ? 1u : uint.MaxValue;
 
             public MemoryStream Buffer { get; } = new();
 

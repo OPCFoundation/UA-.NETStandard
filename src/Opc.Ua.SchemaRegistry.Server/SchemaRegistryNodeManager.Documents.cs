@@ -79,14 +79,17 @@ namespace Opc.Ua.SchemaRegistry.Server
 
         private RegistrySnapshotSource SharedDocument(ISystemContext caller, string? target, string? kind, uint view)
         {
-            if (target is not (null or "" or "/") || view > 1)
+            if (view > 1 || kind != "metadata" && target is not (null or "" or "/"))
             {
                 throw new ServiceResultException(StatusCodes.BadInvalidArgument,
                     "Shared schema registry documents select the root.");
             }
             RegistryObjectValueDataType value;
             string recordType;
-            (ArrayOf<SchemaRegistryStore.SchemaEntry> entries, uint epoch) = m_store.CaptureGeneration();
+            SchemaRegistryStore.Generation catalog = m_store.CaptureCatalog();
+            ArrayOf<SchemaRegistryStore.SchemaEntry> entries = [.. catalog.Entries.Values];
+            uint registryEpoch = checked((uint)Math.Max(1ul, catalog.Revision));
+            uint epoch = registryEpoch;
             if (kind == "metadata")
             {
                 value = new RegistryObjectValueDataType
@@ -97,7 +100,7 @@ namespace Opc.Ua.SchemaRegistry.Server
                         Member("registryid", Text(m_options.RegistryId)),
                         Member("specversion", Text("1.0-rc4")),
                         Member("epoch", Number(epoch)),
-                        Member("schemagroups", SchemaGroups(caller, entries))
+                        Member("schemagroups", SchemaGroups(caller, catalog))
                     ]
                 };
                 recordType = nameof(RegistryMetadataDataType);
@@ -125,7 +128,18 @@ namespace Opc.Ua.SchemaRegistry.Server
                     Members =
                     [
                         Member("formats", new RegistryArrayValueDataType { Kind = 4, Items = formats.ToArray() }),
-                        Member("pagination", new RegistryBooleanValueDataType { Kind = 1, Value = false })
+                        Member("pagination", new RegistryBooleanValueDataType { Kind = 1, Value = false }),
+                        Member("mutable", new RegistryArrayValueDataType { Kind = 4, Items = [Text("entities")] }),
+                        Member("flags", new RegistryArrayValueDataType { Kind = 4, Items = [] }),
+                        Member("specversions", new RegistryArrayValueDataType { Kind = 4, Items = [Text("1.0-rc4")] }),
+                        Member("shortself", new RegistryBooleanValueDataType { Kind = 1, Value = false }),
+                        Member("stickyversions", new RegistryBooleanValueDataType { Kind = 1, Value = true }),
+                        Member("enforcecompatibility", new RegistryBooleanValueDataType
+                        {
+                            Kind = 1, Value = m_options.VerifyCompatibility is not null
+                        }),
+                        Member("apis", new RegistryArrayValueDataType { Kind = 4, Items = [] }),
+                        Member("schemas", new RegistryArrayValueDataType { Kind = 4, Items = formats.ToArray() })
                     ]
                 };
                 recordType = nameof(RegistryCapabilitiesDocumentDataType);
@@ -134,19 +148,66 @@ namespace Opc.Ua.SchemaRegistry.Server
             {
                 throw new ServiceResultException(StatusCodes.BadNotSupported, "The document kind is unsupported.");
             }
-            IEncodeable native = view == 0 ? value : m_documentMapper.Project(value, recordType);
             var visibleReferences = new List<SchemaReferenceDataType>();
             if (kind == "metadata")
             {
                 foreach (SchemaRegistryStore.SchemaEntry entry in entries)
                 {
-                    if (Included(value, entry.Reference.Entity.Xid!))
+                    if (Included(value, entry.Reference.Entity.Xid!) &&
+                        (target is null or "" or "/" || entry.Reference.Entity.Xid == target ||
+                            entry.Reference.Entity.Xid!.StartsWith(target + "/", StringComparison.Ordinal)))
                     {
                         visibleReferences.Add((SchemaReferenceDataType)entry.Reference.Clone());
                     }
+                    foreach (SchemaRegistrationDataType draft in catalog.Drafts.Values)
+                    {
+                        SchemaReferenceDataType reference = m_store.RegistrationReference(draft);
+                        if (Included(value, reference.Entity.Xid!) && (target is null or "" or "/" ||
+                            reference.Entity.Xid == target || reference.Entity.Xid!.StartsWith(target + "/", StringComparison.Ordinal)))
+                        {
+                            visibleReferences.Add(reference);
+                        }
+                    }
                 }
             }
-            return new RegistrySnapshotSource(native, epoch, epoch)
+            if (kind == "metadata" && target is not (null or "" or "/"))
+            {
+                string[] segments = target[0] == '/' ? target.Substring(1).Split('/') : [];
+                if (segments.Length is not (2 or 4 or 6) || segments[0] != "schemagroups" ||
+                    segments.Length >= 4 && segments[2] != "schemas" ||
+                    segments.Length == 6 && segments[4] != "versions")
+                {
+                    throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                }
+                RegistryValueDataType selected = value;
+                foreach (string segment in segments)
+                {
+                    if (selected is not RegistryObjectValueDataType map)
+                    {
+                        throw new ServiceResultException(StatusCodes.BadNotFound);
+                    }
+                    selected = FindMember(map, segment) ?? throw new ServiceResultException(StatusCodes.BadNotFound);
+                }
+                value = (RegistryObjectValueDataType)selected;
+                if (segments.Length == 4 && catalog.Defaults.TryGetValue(target,
+                    out SchemaRegistryStore.DefaultSelection? defaultSelection))
+                {
+                    SchemaRegistryStore.SchemaEntry defaultEntry = catalog.Entries[defaultSelection.VersionXid];
+                    if (!IsVisible(caller, defaultEntry.Reference))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadUserAccessDenied);
+                    }
+                    epoch = defaultEntry.Epoch;
+                }
+                else
+                {
+                    epoch = segments.Length == 6 &&
+                        catalog.Entries.TryGetValue(target, out SchemaRegistryStore.SchemaEntry? entry)
+                            ? entry.Epoch : catalog.EntityEpochs[target];
+                }
+            }
+            IEncodeable native = view == 0 ? value : m_documentMapper.Project(value, recordType);
+            return new RegistrySnapshotSource(native, epoch, registryEpoch)
             {
                 Reauthorize = () =>
                 {
@@ -190,10 +251,11 @@ namespace Opc.Ua.SchemaRegistry.Server
         }
 
         private RegistryObjectValueDataType SchemaGroups(
-            ISystemContext caller, ArrayOf<SchemaRegistryStore.SchemaEntry> entries)
+            ISystemContext caller, SchemaRegistryStore.Generation catalog)
         {
             var groups = new Dictionary<string, RegistryObjectValueDataType>(StringComparer.Ordinal);
-            foreach (SchemaRegistryStore.SchemaEntry entry in entries)
+            var namespaceUris = new Dictionary<string, string>(catalog.Groups, StringComparer.Ordinal);
+            foreach (SchemaRegistryStore.SchemaEntry entry in catalog.Entries.Values)
             {
                 if (!IsVisible(caller, entry.Reference))
                 {
@@ -201,6 +263,7 @@ namespace Opc.Ua.SchemaRegistry.Server
                 }
                 string[] path = entry.Reference.Entity.Xid!.Split('/');
                 string groupId = path[2];
+                namespaceUris[groupId] = entry.Registration?.NamespaceUri ?? m_options.NamespaceUris[groupId];
                 if (!groups.TryGetValue(groupId, out RegistryObjectValueDataType? schemas))
                 {
                     schemas = new RegistryObjectValueDataType { Kind = 5, Members = [] };
@@ -223,12 +286,57 @@ namespace Opc.Ua.SchemaRegistry.Server
                         [
                             Member("schemaid", Text(path[4])),
                             Member("format", Text(entry.Format)),
+                            Member("name", Text(entry.Registration?.SchemaName ?? m_options.SchemaNames[
+                                "/schemagroups/" + groupId + "/schemas/" + path[4]])),
+                            Member("xid", Text("/schemagroups/" + groupId + "/schemas/" + path[4])),
+                            Member("epoch", Number(catalog.EntityEpochs[
+                                "/schemagroups/" + groupId + "/schemas/" + path[4]])),
                             Member("versions", new RegistryObjectValueDataType { Kind = 5, Members = [] })
                         ]
                     };
                     schemas.Members = [.. schemas.Members, Member(path[4], resource)];
                 }
-                var versions = (RegistryObjectValueDataType)resource.Members[2].Value;
+                var versions = (RegistryObjectValueDataType)FindMember(resource, "versions")!;
+                var labels = new List<RegistryMemberDataType>
+                {
+                    Member("opcua.schemafingerprint", Text(entry.Reference.SchemaId.ToHexString().ToLowerInvariant())),
+                    Member("opcua.schemafingerprint.alg", Text(entry.Reference.SchemaIdAlg!))
+                };
+                if (entry.Metadata.ModelVersion is { } modelVersion)
+                {
+                    labels.Add(Member("opcua.modelversion", Text(modelVersion)));
+                }
+                if (entry.Metadata.DataTypeEncoding is { } encoding)
+                {
+                    labels.Add(Member("opcua.datatypeencoding", Text(encoding)));
+                }
+                if (entry.Metadata.ConfigurationVersion is { } configuration)
+                {
+                    labels.Add(Member("opcua.configurationversion", Text(
+                        configuration.MajorVersion.ToString(System.Globalization.CultureInfo.InvariantCulture) + "." +
+                        configuration.MinorVersion.ToString(System.Globalization.CultureInfo.InvariantCulture))));
+                }
+                bool isDefault = catalog.Defaults.TryGetValue("/schemagroups/" + groupId + "/schemas/" + path[4],
+                    out SchemaRegistryStore.DefaultSelection? chosen) && chosen.VersionXid == entry.Reference.Entity.Xid;
+                if (isDefault)
+                {
+                    var delegated = new List<RegistryMemberDataType>();
+                    foreach (RegistryMemberDataType member in resource.Members)
+                    {
+                        if (member.Name != "epoch")
+                        {
+                            delegated.Add(member);
+                        }
+                    }
+                    delegated.Add(Member("epoch", Number(entry.Epoch)));
+                    delegated.Add(Member("defaultversionid", Text(path[6])));
+                    delegated.Add(Member("self", Text(chosen!.EntityUri)));
+                    resource.Members = delegated.ToArray();
+                }
+                if (entry.Metadata.Compatibility is { } compatibility && FindMember(resource, "compatibility") is null)
+                {
+                    resource.Members = [.. resource.Members, Member("compatibility", Text(compatibility))];
+                }
                 versions.Members =
                 [
                     .. versions.Members,
@@ -240,13 +348,63 @@ namespace Opc.Ua.SchemaRegistry.Server
                             Member("versionid", Text(path[6])),
                             Member("epoch", Number(entry.Epoch)),
                             Member("self", Text(entry.Reference.EntityUri!)),
-                            Member("xid", Text(entry.Reference.Entity.Xid!))
+                            Member("xid", Text(entry.Reference.Entity.Xid!)),
+                            Member("ancestor", Text(entry.Metadata.Ancestor)),
+                            Member("contenttype", Text(entry.ContentType)),
+                            Member("isdefault", new RegistryBooleanValueDataType { Kind = 1, Value = isDefault }),
+                            Member("labels", new RegistryObjectValueDataType { Kind = 5, Members = labels.ToArray() })
                         ]
                     })
                 ];
             }
             var members = new List<RegistryMemberDataType>();
-            foreach (KeyValuePair<string, RegistryObjectValueDataType> group in groups)
+            foreach (KeyValuePair<string, SchemaRegistrationDataType> item in catalog.Drafts)
+            {
+                SchemaReferenceDataType reference = m_store.RegistrationReference(item.Value);
+                if (!IsVisible(caller, reference))
+                {
+                    continue;
+                }
+                string[] parts = item.Key.Split('/');
+                namespaceUris[parts[2]] = item.Value.NamespaceUri!;
+                if (!groups.TryGetValue(parts[2], out RegistryObjectValueDataType? schemas))
+                {
+                    schemas = new RegistryObjectValueDataType { Kind = 5, Members = [] };
+                    groups.Add(parts[2], schemas);
+                }
+                string resourceXid = "/schemagroups/" + parts[2] + "/schemas/" + parts[4];
+                var resource = FindMember(schemas, parts[4]) as RegistryObjectValueDataType;
+                if (resource is null)
+                {
+                    resource = new RegistryObjectValueDataType
+                    {
+                        Kind = 5,
+                        Members =
+                        [
+                            Member("schemaid", Text(parts[4])), Member("format", Text(item.Value.Format!)),
+                            Member("name", Text(item.Value.SchemaName!)), Member("xid", Text(resourceXid)),
+                            Member("epoch", Number(catalog.EntityEpochs[resourceXid])),
+                            Member("versions", new RegistryObjectValueDataType { Kind = 5, Members = [] })
+                        ]
+                    };
+                    schemas.Members = [.. schemas.Members, Member(parts[4], resource)];
+                }
+                var versions = (RegistryObjectValueDataType)FindMember(resource, "versions")!;
+                versions.Members =
+                [
+                    .. versions.Members,
+                    Member(parts[6], new RegistryObjectValueDataType
+                    {
+                        Kind = 5, Members =
+                        [
+                            Member("versionid", Text(parts[6])), Member("xid", Text(item.Key)),
+                            Member("self", Text(item.Value.EntityUri!)), Member("epoch", Number(catalog.EntityEpochs[item.Key])),
+                            Member("documentavailable", new RegistryBooleanValueDataType { Kind = 1, Value = false })
+                        ]
+                    })
+                ];
+            }
+            foreach (KeyValuePair<string, string> group in namespaceUris)
             {
                 members.Add(Member(group.Key, new RegistryObjectValueDataType
                 {
@@ -254,7 +412,15 @@ namespace Opc.Ua.SchemaRegistry.Server
                     Members =
                     [
                         Member("schemagroupid", Text(group.Key)),
-                        Member("schemas", group.Value)
+                        Member("name", Text(group.Value)),
+                        Member("xid", Text("/schemagroups/" + group.Key)),
+                        Member("epoch", Number(catalog.EntityEpochs["/schemagroups/" + group.Key])),
+                        Member("labels", new RegistryObjectValueDataType
+                        {
+                            Kind = 5, Members = [Member("opcua.namespaceuri", Text(group.Value))]
+                        }),
+                        Member("schemas", groups.TryGetValue(group.Key, out RegistryObjectValueDataType? schemas)
+                            ? schemas : new RegistryObjectValueDataType { Kind = 5, Members = [] })
                     ]
                 }));
             }
@@ -263,6 +429,18 @@ namespace Opc.Ua.SchemaRegistry.Server
 
         private static RegistryMemberDataType Member(string name, RegistryValueDataType value) =>
             new() { Name = name, Value = value };
+
+        private static RegistryValueDataType? FindMember(RegistryObjectValueDataType value, string name)
+        {
+            foreach (RegistryMemberDataType member in value.Members)
+            {
+                if (member.Name == name)
+                {
+                    return member.Value;
+                }
+            }
+            return null;
+        }
 
         private static RegistryStringValueDataType Text(string value) => new() { Kind = 2, Value = value };
 

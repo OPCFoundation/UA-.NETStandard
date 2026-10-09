@@ -2,6 +2,7 @@
   <PropertyGroup>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <OutputType>Exe</OutputType>
+    <SelfContained Condition="'$(RegistryPublishAot)' == 'true'">true</SelfContained>
     <IsPackable>false</IsPackable>
     <AssemblyName>RegistryClient</AssemblyName>
     <RootNamespace>Opc.Ua.Registry.Samples</RootNamespace>

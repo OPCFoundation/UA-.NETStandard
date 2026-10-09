@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.SchemaRegistry.Formats;
@@ -114,6 +115,9 @@ namespace Opc.Ua.SchemaRegistry.Server
             m_ownedStore = m_options.Store is null ? new MemoryRegistryStateStore() : null;
             m_store = new SchemaRegistryStore(providers, m_options.Store ?? m_ownedStore!, messageContext, origin,
                 m_options.BindSelector);
+            m_store.DescribeVersion = m_options.DescribeVersion;
+            m_store.VerifyCompatibility = m_options.VerifyCompatibility;
+            m_store.BeforePublication = CheckPublication;
             m_store.ValidateReference = reference =>
             {
                 string groupId = reference.Entity.Xid!.Split('/')[2];
@@ -254,6 +258,7 @@ namespace Opc.Ua.SchemaRegistry.Server
                 m_snapshots.Dispose();
                 m_files.Dispose();
                 m_store.Dispose();
+                m_projectionGate.Dispose();
             }
             base.Dispose(disposing);
         }
@@ -299,6 +304,20 @@ namespace Opc.Ua.SchemaRegistry.Server
             };
             root.AddTypedSchemas(context).AddTypedAccess(context);
             BindDocuments(context, root.TypedAccess!);
+            BindCreation(context, root);
+            root.AddCapabilitiesInfo(context);
+            XRegistryProjectionEngine.SetValue(root.CapabilitiesInfo, new RegistryCapabilitiesDataType
+            {
+                Flags = [],
+                Mutable = ["entities"],
+                Pagination = false,
+                ShortSelf = false,
+                SpecVersions = ["1.0-rc4"],
+                StickyVersions = true,
+                EnforceCompatibility = m_options.VerifyCompatibility is not null,
+                Apis = [],
+                Schemas = [.. m_formats.ToArray()!.Select(provider => provider.Format)]
+            });
             XRegistryProjectionEngine.SetValue(root.RegistryId, m_options.RegistryId);
             NativeSchemaAccessState access = root.TypedSchemas!;
             access.AddReadSchema(context).AddWriteSchema(context);

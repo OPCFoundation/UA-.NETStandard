@@ -12,6 +12,25 @@ the same snapshot Methods. Hidden Versions are excluded from metadata, and its c
 epoch are captured from one committed store generation. Shared record descriptors reside in
 xRegistry; Schema Registry has no dependency on the Endpoint Registry assembly.
 
+Metadata reads also select Groups, Resources and exact Versions using their own persisted
+revisions. Empty Groups and uncommitted Versions created through inherited Methods are durable
+drafts, not invented schema documents. FileType Close validates staged bytes before replacing
+the draft with complete native content. Generated child Method NodeIds are stable across refresh.
+
+Inherited `CreateGroup`/`GetOrCreateGroup` require an independently configured namespace source.
+Inherited Resource creation similarly requires configured subject names or an already registered
+Resource; new source identities use `RegisterSchema`. The optional `EntityUri` provider assigns
+exact and logical URIs independently; the default uses opaque URNs, never guessed HTTP addresses.
+Inherited FileType writers are exclusive with catalog publication until close, with independent
+reader handles and finite staging budgets. Session loss discards staged bytes but retains the
+durable draft; another authorized Session may continue by opening its stable Version file.
+
+`DescribeVersion` supplies known ModelVersion, DataTypeEncoding, ancestor and optional DataSet
+ConfigurationVersion facts. Unknown provenance stays omitted. The first Version roots its
+lineage in itself; an explicit ancestor must already exist in the same Resource. Compatibility
+is Resource-wide and immutable across Versions. A stated mode requires `VerifyCompatibility`;
+breaking changes are rejected before publication and need a different Resource.
+
 `SchemaRegistryStore` persists all exact bytes, fingerprints, Version epochs and explicit default
 selections through `IRegistryStateStore`. A typed no-op retains the original bytes; an exact-Version
 read never falls back to a default or another format. A failed pre-commit check changes nothing.

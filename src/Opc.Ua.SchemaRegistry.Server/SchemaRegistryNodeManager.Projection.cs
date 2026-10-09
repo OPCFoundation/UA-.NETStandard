@@ -40,13 +40,31 @@ namespace Opc.Ua.SchemaRegistry.Server
         private async ValueTask ProjectSchemasAsync(
             ArrayOf<SchemaRegistryStore.SchemaEntry> entries, CancellationToken cancellationToken)
         {
+            await m_projectionGate.WaitAsync(cancellationToken).ConfigureAwait(false);
+            try
+            {
+                await ProjectSchemasCoreAsync(cancellationToken).ConfigureAwait(false);
+            }
+            finally
+            {
+                m_projectionGate.Release();
+            }
+        }
+
+        private async ValueTask ProjectSchemasCoreAsync(CancellationToken cancellationToken)
+        {
             if (m_root is null)
             {
                 return;
             }
             var groups = new Dictionary<string, SchemaGroupState>(StringComparer.Ordinal);
             var resources = new Dictionary<string, SchemaFileState>(StringComparer.Ordinal);
-            foreach (SchemaRegistryStore.SchemaEntry entry in entries)
+            SchemaRegistryStore.Generation catalog = m_store.CaptureCatalog();
+            foreach (KeyValuePair<string, string> admitted in catalog.Groups)
+            {
+                groups.Add(admitted.Key, CreateSchemaGroup(admitted.Key, admitted.Value, catalog));
+            }
+            foreach (SchemaRegistryStore.SchemaEntry entry in catalog.Entries.Values)
             {
                 string[] parts = entry.Reference.Entity.Xid!.Substring(1).Split('/');
                 string groupId = parts[1];
@@ -54,21 +72,19 @@ namespace Opc.Ua.SchemaRegistry.Server
                 string resourceXid = "/schemagroups/" + groupId + "/schemas/" + resourceId;
                 if (!groups.TryGetValue(groupId, out SchemaGroupState? group))
                 {
-                    group = new SchemaGroupState(m_root);
-                    group.Create(SystemContext, Instance("/schemagroups/" + groupId),
-                        new QualifiedName(groupId, NamespaceIndexes[0]), new LocalizedText(groupId),
-                        assignNodeIds: false);
-                    group.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
-                    XRegistryProjectionEngine.SetValue(group.GroupId, groupId);
                     string namespaceUri = entry.Registration?.NamespaceUri ?? m_options.NamespaceUris[groupId];
-                    XRegistryProjectionEngine.SetValue(group.Name, namespaceUri);
-                    XRegistryProjectionEngine.SetValue(group.NamespaceUri, namespaceUri);
+                    group = CreateSchemaGroup(groupId, namespaceUri, catalog);
                     groups.Add(groupId, group);
                 }
                 if (!resources.TryGetValue(resourceXid, out SchemaFileState? logical))
                 {
-                    logical = CreateFile(group, resourceXid, resourceId, entry, exact: false);
+                    SchemaRegistryStore.SchemaEntry delegated = catalog.Defaults.TryGetValue(resourceXid,
+                        out SchemaRegistryStore.DefaultSelection? selected)
+                        ? catalog.Entries[selected.VersionXid] : entry;
+                    logical = CreateFile(group, resourceXid, resourceId, delegated, exact: false);
                     logical.AddVersions(SystemContext);
+                    logical.AddMetaEpoch(SystemContext);
+                    XRegistryProjectionEngine.SetValue(logical.MetaEpoch, catalog.EntityEpochs[resourceXid]);
                     group.AddChild(logical);
                     resources.Add(resourceXid, logical);
                 }
@@ -79,6 +95,25 @@ namespace Opc.Ua.SchemaRegistry.Server
                     SetFileValues(logical, entry);
                 }
             }
+            foreach (KeyValuePair<string, SchemaRegistrationDataType> item in catalog.Drafts)
+            {
+                string[] parts = item.Key.Split('/');
+                SchemaRegistrationDataType descriptor = item.Value;
+                if (!groups.TryGetValue(parts[2], out SchemaGroupState? group))
+                {
+                    group = CreateSchemaGroup(parts[2], descriptor.NamespaceUri!, catalog);
+                    groups.Add(parts[2], group);
+                }
+                string resourceXid = "/schemagroups/" + parts[2] + "/schemas/" + parts[4];
+                if (!resources.TryGetValue(resourceXid, out SchemaFileState? logical))
+                {
+                    logical = CreateDraftFile(group, resourceXid, parts[4], descriptor, catalog);
+                    logical.AddVersions(SystemContext);
+                    group.AddChild(logical);
+                    resources.Add(resourceXid, logical);
+                }
+                logical.Versions!.AddChild(CreateDraftFile(logical.Versions, item.Key, parts[6], descriptor, catalog));
+            }
             foreach (SchemaGroupState existing in m_schemaGroups)
             {
                 m_root.RemoveChild(existing);
@@ -87,11 +122,59 @@ namespace Opc.Ua.SchemaRegistry.Server
             m_schemaGroups.Clear();
             foreach (SchemaGroupState group in groups.Values)
             {
-                SystemContext.AssignInstanceChildNodeIds(group);
+                AssignSchemaNodeIds(group);
                 m_root.AddChild(group);
                 await AddPredefinedNodeAsync(SystemContext, group, cancellationToken).ConfigureAwait(false);
                 m_schemaGroups.Add(group);
             }
+        }
+
+        private SchemaGroupState CreateSchemaGroup(string id, string uri, SchemaRegistryStore.Generation catalog)
+        {
+            var group = new SchemaGroupState(m_root);
+            group.Create(SystemContext, Instance("/schemagroups/" + id),
+                new QualifiedName(id, NamespaceIndexes[0]), new LocalizedText(id), assignNodeIds: false);
+            group.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
+            group.AddXid(SystemContext).AddEpoch(SystemContext);
+            XRegistryProjectionEngine.SetValue(group.GroupId, id);
+            XRegistryProjectionEngine.SetValue(group.Name, uri);
+            XRegistryProjectionEngine.SetValue(group.NamespaceUri, uri);
+            XRegistryProjectionEngine.SetValue(group.Xid, "/schemagroups/" + id);
+            XRegistryProjectionEngine.SetValue(group.Epoch, catalog.EntityEpochs["/schemagroups/" + id]);
+            BindGroupCreation(group, id);
+            XRegistryProjectionEngine.LinkMethodArguments(group, SystemContext);
+            return group;
+        }
+
+        private SchemaFileState CreateDraftFile(NodeState parent, string xid, string name,
+            SchemaRegistrationDataType descriptor, SchemaRegistryStore.Generation catalog)
+        {
+            var file = new SchemaFileState(parent);
+            file.Create(SystemContext, Instance(xid), new QualifiedName(name, NamespaceIndexes[0]),
+                new LocalizedText(name), assignNodeIds: false);
+            file.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
+            file.AddXid(SystemContext).AddEpoch(SystemContext).AddFormat(SystemContext).AddVersionId(SystemContext);
+            XRegistryProjectionEngine.SetValue(file.ResourceId, xid.Split('/')[4]);
+            XRegistryProjectionEngine.SetValue(file.SchemaName, descriptor.SchemaName!);
+            XRegistryProjectionEngine.SetValue(file.Name, descriptor.SchemaName! + " (" + descriptor.Format + ")");
+            XRegistryProjectionEngine.SetValue(file.Xid, xid);
+            XRegistryProjectionEngine.SetValue(file.Epoch, catalog.EntityEpochs[xid]);
+            XRegistryProjectionEngine.SetValue(file.Format, descriptor.Format!);
+            XRegistryProjectionEngine.SetValue(file.Size, 0ul);
+            XRegistryProjectionEngine.SetValue(file.Writable, true);
+            XRegistryProjectionEngine.SetValue(file.UserWritable, true);
+            file.Open!.OnCallAsync = async (caller, _, _, mode, ct) =>
+            {
+                if ((mode & (byte)OpenFileMode.Write) == 0 || xid.Split('/').Length != 7)
+                {
+                    return new OpenMethodStateResult { ServiceResult = StatusCodes.BadNotReadable };
+                }
+                BeginSchemaUploadMethodStateResult opened = await BeginUploadAsync(caller, descriptor, ct, file, mode)
+                    .ConfigureAwait(false);
+                return new OpenMethodStateResult { ServiceResult = opened.ServiceResult, FileHandle = opened.FileHandle };
+            };
+            XRegistryProjectionEngine.LinkMethodArguments(file, SystemContext);
+            return file;
         }
 
         private SchemaFileState CreateFile(
@@ -108,6 +191,23 @@ namespace Opc.Ua.SchemaRegistry.Server
             file.AddXid(SystemContext).AddEpoch(SystemContext).AddFormat(SystemContext).AddContentType(SystemContext)
                 .AddVersionId(SystemContext);
             file.AddIsDefault(SystemContext).AddNativeContent(SystemContext);
+            file.AddAncestor(SystemContext);
+            if (entry.Metadata.Compatibility is not null)
+            {
+                file.AddCompatibility(SystemContext);
+            }
+            if (entry.Metadata.DataTypeEncoding is not null)
+            {
+                file.AddDataTypeEncoding(SystemContext);
+            }
+            if (entry.Metadata.ModelVersion is not null)
+            {
+                file.AddModelVersion(SystemContext);
+            }
+            if (entry.Metadata.ConfigurationVersion is not null)
+            {
+                file.AddConfigurationVersion(SystemContext);
+            }
             XRegistryProjectionEngine.SetValue(file.ResourceId, entry.Reference.Entity.Xid!.Split('/')[4]);
             string[] path = xid.Substring(1).Split('/');
             string resourceXid = "/" + string.Join("/", path, 0, 4);
@@ -157,6 +257,35 @@ namespace Opc.Ua.SchemaRegistry.Server
                 }
                 throw new ServiceResultException(StatusCodes.BadNotFound, "No configured schema Version was selected.");
             }, CheckFileAccess);
+            if (exact)
+            {
+                var readOpen = file.Open!.OnCall;
+                XRegistryProjectionEngine.SetValue(file.Writable, true);
+                XRegistryProjectionEngine.SetValue(file.UserWritable, true);
+                file.Open.OnCallAsync = async (caller, method, owner, mode, ct) =>
+                {
+                    if ((mode & (byte)OpenFileMode.Write) == 0)
+                    {
+                        uint handle = 0;
+                        ServiceResult result = readOpen!(caller, method, owner, mode, ref handle);
+                        return new OpenMethodStateResult { ServiceResult = result, FileHandle = handle };
+                    }
+                    var descriptor = entry.Registration is { } registered
+                        ? (SchemaRegistrationDataType)registered.Clone() : new SchemaRegistrationDataType
+                        {
+                            NamespaceUri = m_options.NamespaceUris[path[1]],
+                            SchemaName = schemaName,
+                            Format = entry.Format,
+                            VersionId = path[5],
+                            EntityUri = entry.Reference.EntityUri
+                        };
+                    descriptor.ExpectedEpoch = entry.Epoch;
+                    descriptor.MakeDefault = false;
+                    BeginSchemaUploadMethodStateResult opened = await BeginUploadAsync(caller, descriptor, ct, file, mode)
+                        .ConfigureAwait(false);
+                    return new OpenMethodStateResult { ServiceResult = opened.ServiceResult, FileHandle = opened.FileHandle };
+                };
+            }
             GuardFileValues(file, CheckFileAccess);
             XRegistryProjectionEngine.LinkMethodArguments(file, SystemContext);
             return file;
@@ -190,10 +319,30 @@ namespace Opc.Ua.SchemaRegistry.Server
             XRegistryProjectionEngine.SetValue(file.Epoch, entry.Epoch);
             XRegistryProjectionEngine.SetValue(file.Size, (ulong)entry.Document.Length);
             XRegistryProjectionEngine.SetValue(file.NativeContent, m_store.Read(entry.Reference).Document);
+            XRegistryProjectionEngine.SetValue(file.VersionId, entry.Reference.Entity.Xid!.Split('/')[6]);
+            XRegistryProjectionEngine.SetValue(file.IsDefault, m_store.IsDefault(entry.Reference.Entity.Xid!));
+            XRegistryProjectionEngine.SetValue(file.Ancestor, entry.Metadata.Ancestor);
+            if (entry.Metadata.Compatibility is not null)
+            {
+                XRegistryProjectionEngine.SetValue(file.Compatibility, entry.Metadata.Compatibility);
+            }
+            if (entry.Metadata.DataTypeEncoding is not null)
+            {
+                XRegistryProjectionEngine.SetValue(file.DataTypeEncoding, entry.Metadata.DataTypeEncoding);
+            }
+            if (entry.Metadata.ModelVersion is not null)
+            {
+                XRegistryProjectionEngine.SetValue(file.ModelVersion, entry.Metadata.ModelVersion);
+            }
+            if (entry.Metadata.ConfigurationVersion is not null)
+            {
+                XRegistryProjectionEngine.SetValue(file.ConfigurationVersion, entry.Metadata.ConfigurationVersion);
+            }
         }
 
         private NodeId Instance(string xid) => new("SchemaRegistry" + xid, NamespaceIndexes[0]);
 
         private readonly List<SchemaGroupState> m_schemaGroups = [];
+        private readonly SemaphoreSlim m_projectionGate = new(1, 1);
     }
 }
