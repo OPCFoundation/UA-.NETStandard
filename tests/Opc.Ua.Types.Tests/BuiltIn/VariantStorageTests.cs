@@ -323,10 +323,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
                 var plain = new LocalizedText(text);
                 Assert.That(plain.TryGetTextOnly(out string? raw), Is.True);
-                Assert.That(raw, Is.SameAs(text));
+                Assert.That(raw, Is.SameAs(string.IsNullOrEmpty(text) ? null : text));
                 var emptyLocale = new LocalizedText(string.Empty, text);
-                Assert.That(emptyLocale.TryGetTextOnly(out _), Is.False);
-                Assert.That(new Variant(emptyLocale).GetLocalizedText().Locale, Is.EqualTo(string.Empty));
+                Assert.That(emptyLocale.TryGetTextOnly(out _), Is.True);
+                Assert.That(new Variant(emptyLocale).GetLocalizedText().Locale, Is.Null);
             }
             var formatted = new LocalizedText("key", null!, "Value {0}", 7);
             Assert.That(formatted.TryGetTextOnly(out _), Is.False);
@@ -375,12 +375,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, context);
             Variant decoded = decoder.ReadVariant(null);
             Assert.That(decoded.TypeInfo, Is.EqualTo(value.TypeInfo));
-            Variant binaryExpected = input is LocalizedText localizedText
-                ? new Variant(new LocalizedText(
-                    string.IsNullOrEmpty(localizedText.Locale) ? null : localizedText.Locale,
-                    string.IsNullOrEmpty(localizedText.Text) ? null : localizedText.Text))
-                : value;
-            Assert.That(decoded, Is.EqualTo(binaryExpected));
+            Assert.That(decoded, Is.EqualTo(value));
             var data = new DataValue(value);
             var nested = Variant.From(data);
             Assert.That(nested.GetDataValue().WrappedValue, Is.EqualTo(value));

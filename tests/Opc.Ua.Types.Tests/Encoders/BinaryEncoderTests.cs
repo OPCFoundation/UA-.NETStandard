@@ -10082,7 +10082,7 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Theory]
-        public void WriteVariantValueWithLocaleOnlyLocalizedTextCanonicalizesEmptyText(bool raw)
+        public void WriteVariantValueWithLocaleOnlyLocalizedTextRoundTripsCorrectly(bool raw)
         {
             var value = new LocalizedText("en", string.Empty);
             Variant decoded = RoundTripVariantValue(Variant.From(value), raw);
@@ -10090,6 +10090,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             LocalizedText localizedText = decoded.GetLocalizedText();
             Assert.That(localizedText.Locale, Is.EqualTo("en"));
             Assert.That(localizedText.Text, Is.Null);
+            Assert.That(localizedText, Is.EqualTo(value));
         }
 
         [Theory]

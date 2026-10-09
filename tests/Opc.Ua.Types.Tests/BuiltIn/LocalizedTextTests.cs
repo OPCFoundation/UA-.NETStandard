@@ -251,8 +251,79 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 "French translation should be the same");
         }
 
+        [TestCase(null, null)]
+        [TestCase("", null)]
+        [TestCase(null, "")]
+        [TestCase("", "")]
+        public void EmptyFieldsConstructTheNullValue(string? locale, string? text)
+        {
+            var value = new LocalizedText(locale, text);
+            Assert.That(value.Locale, Is.Null);
+            Assert.That(value.Text, Is.Null);
+            Assert.That(value.IsNull, Is.True);
+            Assert.That(value, Is.EqualTo(LocalizedText.Null));
+            Assert.That(value.GetHashCode(), Is.EqualTo(LocalizedText.Null.GetHashCode()));
+            Assert.That(Variant.From(value), Is.EqualTo(Variant.From(LocalizedText.Null)));
+        }
+
+        [Test]
+        public void TextOnlyEmptyInputConstructsTheNullValue()
+        {
+            var value = new LocalizedText(string.Empty);
+            Assert.That(value.Text, Is.Null);
+            Assert.That(value.IsNull, Is.True);
+            Assert.That(value, Is.EqualTo(LocalizedText.Null));
+        }
+
+        [Test]
+        public void WhitespaceFieldsArePreserved()
+        {
+            var value = new LocalizedText(" ", " ");
+            Assert.That(value.Locale, Is.EqualTo(" "));
+            Assert.That(value.Text, Is.EqualTo(" "));
+            Assert.That(value.IsNull, Is.False);
+        }
+
+        [Test]
+        public void TranslationConstructionNormalizesFieldsWithoutDiscardingMetadata()
+        {
+            var info = new TranslationInfo("Key", string.Empty, string.Empty);
+            LocalizedText[] values =
+            [
+                new LocalizedText("Key", string.Empty, string.Empty),
+                new LocalizedText("Key", string.Empty, string.Empty, 7),
+                new LocalizedText(info),
+                new LocalizedText(string.Empty, string.Empty, info),
+                new LocalizedText(new Dictionary<string, string> { [string.Empty] = string.Empty }),
+                new LocalizedText("Key", new Dictionary<string, string> { [string.Empty] = string.Empty })
+            ];
+            foreach (LocalizedText value in values)
+            {
+                Assert.That(value.Locale, Is.Null);
+                Assert.That(value.Text, Is.Null);
+                Assert.That(value.IsNull, Is.False);
+                Assert.That(value, Is.EqualTo(LocalizedText.Null));
+                Assert.That(value.GetHashCode(), Is.EqualTo(LocalizedText.Null.GetHashCode()));
+            }
+            Assert.That(values[0].TranslationInfo.Key, Is.EqualTo("Key"));
+            Assert.That(values[1].TranslationInfo.Args, Is.EqualTo(new object[] { 7 }));
+            Assert.That(values[2].TranslationInfo, Is.EqualTo(info));
+            Assert.That(values[4].Translations, Has.Count.EqualTo(1));
+        }
+
+        [Test]
+        public void FormattedEmptyTextIsNormalizedWithoutDiscardingTemplate()
+        {
+            var value = new LocalizedText("Key", "en-US", "{0}", string.Empty);
+            Assert.That(value.Text, Is.Null);
+            Assert.That(value.TranslationInfo.Text, Is.EqualTo("{0}"));
+            Assert.That(value.TranslationInfo.Args, Is.EqualTo(new object[] { string.Empty }));
+        }
+
         [TestCase(null, null, 0x00)]
         [TestCase("", "", 0x00)]
+        [TestCase("", null, 0x00)]
+        [TestCase(null, "", 0x00)]
         [TestCase("en-US", null, 0x01)]
         [TestCase("en-US", "", 0x01)]
         [TestCase(null, "Text", 0x02)]
@@ -266,9 +337,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             byte[] buffer;
+            var value = new LocalizedText(locale, text);
             using (var encoder = new BinaryEncoder(messageContext))
             {
-                encoder.WriteLocalizedText(null, new LocalizedText(locale, text));
+                encoder.WriteLocalizedText(null, value);
                 buffer = encoder.CloseAndReturnBuffer() ??
                     throw new AssertionException("The encoder returned no buffer.");
             }
@@ -278,6 +350,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             LocalizedText decoded = decoder.ReadLocalizedText(null);
             Assert.That(decoded.Locale, Is.EqualTo(string.IsNullOrEmpty(locale) ? null : locale));
             Assert.That(decoded.Text, Is.EqualTo(string.IsNullOrEmpty(text) ? null : text));
+            Assert.That(decoded, Is.EqualTo(value));
         }
 
         [Test]

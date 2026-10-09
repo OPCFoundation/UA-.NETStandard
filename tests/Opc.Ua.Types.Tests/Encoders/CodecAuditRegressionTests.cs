@@ -430,7 +430,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 decoder.PushNamespace(kNs);
                 LocalizedText text = decoder.ReadLocalizedText("Text");
-                Assert.That(text.Locale, Is.Empty);
+                Assert.That(text.Locale, Is.Null);
                 Assert.That(text.Text, Is.EqualTo("Site"));
             }
         }
