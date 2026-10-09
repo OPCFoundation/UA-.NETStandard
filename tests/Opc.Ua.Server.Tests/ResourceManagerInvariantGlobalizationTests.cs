@@ -49,7 +49,7 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    public class ResourceManagerInvariantGlobalizationTests
+    public sealed class ResourceManagerInvariantGlobalizationTests
     {
         /// <summary>
         /// The ways the runtime can create the culture of a locale id.
@@ -154,6 +154,8 @@ namespace Opc.Ua.Server.Tests
         [TestCase(CultureMode.Invariant, "de")]
         [TestCase(CultureMode.Normal, "zh-Hans")]
         [TestCase(CultureMode.Invariant, "zh-Hans")]
+        [TestCase(CultureMode.Invariant, "sl-rozaj")]
+        [TestCase(CultureMode.Invariant, "en-a-bbb-x-c")]
         public void AddRejectsNeutralLocale(CultureMode mode, string locale)
         {
             using ResourceManager resourceManager = CreateResourceManager(mode);
@@ -175,6 +177,52 @@ namespace Opc.Ua.Server.Tests
                 () => resourceManager.Add("greeting", "!!", "Hallo"),
                 Throws.TypeOf<CultureNotFoundException>());
             Assert.That(resourceManager.GetAvailableLocales(), Is.Empty);
+        }
+
+        /// <summary>
+        /// In globalization-invariant mode the locale id is parsed, so a tag that does
+        /// not match the RFC 5646 grammar is rejected, even where it starts with a
+        /// language and a region.
+        /// </summary>
+        [TestCase("en-US-x")]
+        [TestCase("en-US-ab")]
+        [TestCase("en-US-ab1")]
+        [TestCase("en-US-u")]
+        [TestCase("en-US-u-a")]
+        [TestCase("en-US-x-abcdefghi")]
+        [TestCase("en-US-abcdefghi")]
+        [TestCase("abcd-efg")]
+        [TestCase("en--US")]
+        [TestCase("en-US-")]
+        public void AddRejectsMalformedLocaleInInvariantMode(string locale)
+        {
+            using ResourceManager resourceManager = CreateResourceManager(CultureMode.Invariant);
+
+            Assert.That(
+                () => resourceManager.Add("greeting", locale, "Hallo"),
+                Throws.TypeOf<CultureNotFoundException>());
+            Assert.That(resourceManager.GetAvailableLocales(), Is.Empty);
+        }
+
+        /// <summary>
+        /// In globalization-invariant mode a well-formed locale id with extended
+        /// language, variant, extension or private use subtags is registered in the
+        /// recommended casing of RFC 5646.
+        /// </summary>
+        [TestCase("de-ch-1996", "de-CH-1996")]
+        [TestCase("en-us-posix", "en-US-posix")]
+        [TestCase("zh-cmn-hans-cn", "zh-cmn-Hans-CN")]
+        [TestCase("en-us-u-ca-gregory", "en-US-u-ca-gregory")]
+        [TestCase("en-us-x-twain", "en-US-x-twain")]
+        public void AddAcceptsWellFormedLocaleInInvariantMode(string locale, string expected)
+        {
+            using ResourceManager resourceManager = CreateResourceManager(CultureMode.Invariant);
+
+            resourceManager.Add("greeting", locale, "Hello");
+
+            string[] locales = resourceManager.GetAvailableLocales();
+            Assert.That(locales, Has.Length.EqualTo(1));
+            Assert.That(locales[0], Is.EqualTo(expected));
         }
 
         private static ResourceManager CreateResourceManager(CultureMode mode)

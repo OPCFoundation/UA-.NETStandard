@@ -615,64 +615,152 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Parses a well-formed locale id (an RFC 5646 language tag) into the casing
-        /// of its culture, and returns whether it names a language without a region.
+        /// Parses a well-formed locale id, a language tag that matches the grammar of
+        /// RFC 5646 section 2.1, into the recommended casing of its subtags, and returns
+        /// whether it names a language without a region.
         /// </summary>
+        /// <remarks>
+        /// Grandfathered tags and tags that consist of a private use sequence only are
+        /// rejected. The subtags are not checked against the IANA registry.
+        /// </remarks>
         private static bool TryParseLocaleId(string locale, out string localeId, out bool isNeutral)
         {
             localeId = string.Empty;
             isNeutral = false;
 
             string[] subtags = locale.Split('-');
+
+            // language = 2*3ALPHA ["-" extlang] / 4ALPHA / 5*8ALPHA
             string language = subtags[0];
-            if (language.Length is < 2 or > 8 || !IsAsciiLetters(language))
+            if (!IsLetterSubtag(language, 2, 8))
             {
                 return false;
             }
 
             var builder = new StringBuilder(locale.Length);
             builder.Append(language.ToLowerInvariant());
+            int index = 1;
 
-            // the script and the region can only follow the language, in this order.
-            int regionIndex = 1;
-            bool hasRegion = false;
-            bool isExtension = false;
-            for (int ii = 1; ii < subtags.Length; ii++)
+            // extlang = 3ALPHA *2("-" 3ALPHA), only after a language of two or three letters.
+            if (language.Length <= 3)
             {
-                string subtag = subtags[ii];
-                if (subtag.Length is < 1 or > 8 || !IsAsciiLettersOrDigits(subtag))
+                for (int count = 0;
+                    count < 3 && index < subtags.Length && IsLetterSubtag(subtags[index], 3, 3);
+                    count++)
+                {
+                    builder.Append('-').Append(subtags[index].ToLowerInvariant());
+                    index++;
+                }
+            }
+
+            // script = 4ALPHA
+            if (index < subtags.Length && IsLetterSubtag(subtags[index], 4, 4))
+            {
+                string script = subtags[index];
+                builder.Append('-')
+                    .Append(char.ToUpperInvariant(script[0]))
+                    .Append(script[1..].ToLowerInvariant());
+                index++;
+            }
+
+            // region = 2ALPHA / 3DIGIT
+            bool hasRegion = false;
+            if (index < subtags.Length &&
+                (IsLetterSubtag(subtags[index], 2, 2) ||
+                    (subtags[index].Length == 3 && IsAsciiDigits(subtags[index]))))
+            {
+                builder.Append('-').Append(subtags[index].ToUpperInvariant());
+                hasRegion = true;
+                index++;
+            }
+
+            // variant = 5*8alphanum / (DIGIT 3alphanum)
+            while (index < subtags.Length && IsVariant(subtags[index]))
+            {
+                builder.Append('-').Append(subtags[index].ToLowerInvariant());
+                index++;
+            }
+
+            // extension = singleton 1*("-" (2*8alphanum))
+            while (index < subtags.Length && IsExtensionSingleton(subtags[index]))
+            {
+                builder.Append('-').Append(subtags[index].ToLowerInvariant());
+                index++;
+                int payloadStart = index;
+                while (index < subtags.Length && IsAlphanumericSubtag(subtags[index], 2, 8))
+                {
+                    builder.Append('-').Append(subtags[index].ToLowerInvariant());
+                    index++;
+                }
+                if (index == payloadStart)
                 {
                     return false;
                 }
+            }
 
-                builder.Append('-');
+            // privateuse = "x" 1*("-" (1*8alphanum))
+            if (index < subtags.Length && subtags[index] is "x" or "X")
+            {
+                builder.Append("-x");
+                index++;
+                int payloadStart = index;
+                while (index < subtags.Length && IsAlphanumericSubtag(subtags[index], 1, 8))
+                {
+                    builder.Append('-').Append(subtags[index].ToLowerInvariant());
+                    index++;
+                }
+                if (index == payloadStart)
+                {
+                    return false;
+                }
+            }
 
-                // a singleton starts an extension or a private use sequence.
-                isExtension |= subtag.Length == 1;
-
-                if (!isExtension && ii == 1 && subtag.Length == 4 && IsAsciiLetters(subtag))
-                {
-                    builder.Append(char.ToUpperInvariant(subtag[0]))
-                        .Append(subtag[1..].ToLowerInvariant());
-                    regionIndex = 2;
-                }
-                else if (!isExtension &&
-                    ii == regionIndex &&
-                    ((subtag.Length == 2 && IsAsciiLetters(subtag)) ||
-                        (subtag.Length == 3 && IsAsciiDigits(subtag))))
-                {
-                    builder.Append(subtag.ToUpperInvariant());
-                    hasRegion = true;
-                }
-                else
-                {
-                    builder.Append(subtag.ToLowerInvariant());
-                }
+            // a subtag that matches no rule, or that follows a later part of the tag.
+            if (index != subtags.Length)
+            {
+                return false;
             }
 
             localeId = builder.ToString();
             isNeutral = !hasRegion;
             return true;
+        }
+
+        /// <summary>
+        /// Returns true if the subtag has a length in the range and contains only
+        /// ASCII letters.
+        /// </summary>
+        private static bool IsLetterSubtag(string subtag, int minLength, int maxLength)
+        {
+            return subtag.Length >= minLength && subtag.Length <= maxLength && IsAsciiLetters(subtag);
+        }
+
+        /// <summary>
+        /// Returns true if the subtag has a length in the range and contains only
+        /// ASCII letters and digits.
+        /// </summary>
+        private static bool IsAlphanumericSubtag(string subtag, int minLength, int maxLength)
+        {
+            return subtag.Length >= minLength && subtag.Length <= maxLength && IsAsciiLettersOrDigits(subtag);
+        }
+
+        /// <summary>
+        /// Returns true if the subtag is a variant: five to eight letters or digits, or
+        /// a digit followed by three letters or digits.
+        /// </summary>
+        private static bool IsVariant(string subtag)
+        {
+            return IsAlphanumericSubtag(subtag, 5, 8) ||
+                (subtag.Length == 4 && subtag[0] is >= '0' and <= '9' && IsAsciiLettersOrDigits(subtag));
+        }
+
+        /// <summary>
+        /// Returns true if the subtag is a singleton that starts an extension. The
+        /// singleton x starts the private use sequence instead.
+        /// </summary>
+        private static bool IsExtensionSingleton(string subtag)
+        {
+            return subtag.Length == 1 && IsAsciiLettersOrDigits(subtag) && subtag is not ("x" or "X");
         }
 
         /// <summary>
