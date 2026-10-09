@@ -1246,6 +1246,7 @@ namespace UaLens.Tests.Companions
 
         [Test]
         [Platform("Win,Linux")]
+        [Category("LensDesktopMainline")]
         [NonParallelizable]
         public async Task CompiledDeploymentBindingsTrackOperationSelectionAndFreshConfirmationAsync()
         {

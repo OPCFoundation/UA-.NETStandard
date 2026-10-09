@@ -90,7 +90,6 @@ public sealed class ViewNodeStateDialogWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task NullOrDisconnectedNodeDisplaysSentinelWithoutRead(bool nullNode)
     {

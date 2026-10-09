@@ -8,10 +8,30 @@ and any failed case.
 
 The count gate selects its named regression methods, not the whole `Desktop`
 namespace. Additional workflow tests use their own process-owned dispatcher
-and the explicit `LensDesktopWorkflow` category. Run them separately from both
+and the `LensDesktopMainline` and `LensDesktopWorkflow` categories. Run them separately from both
 the count gate and ordinary unit tests: the two desktop hosts must not initialize
 Avalonia in the same process, and ordinary chart and offline tests require no
 Avalonia application.
+
+## Ordinary and workflow tests
+
+The shared GitHub runner builds once and runs three disjoint selections in fresh
+processes: ordinary tests, mainline desktop cases, and connected desktop workflows.
+The original category filter, hang budget, coverage collector and failure verdict
+apply to all three. No mainline case is omitted, and each process writes its own
+TRX and coverage report.
+
+```powershell
+pwsh .github/scripts/run-dotnet-tests.ps1 `
+  -Projects tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj `
+  -CustomTestTarget net10.0 -Framework net10.0 -Configuration Release `
+  -Filter 'TestCategory!=LongRunning&TestCategory!=Stress' `
+  -ResultsDirectory TestResults/lens-mainline -Coverage
+```
+
+Use this runner rather than an unfiltered `dotnet test` invocation for the whole
+Lens project. On Linux it supplies Xvfb to every test process. The native fixtures
+retain their Windows/Linux platform requirements; macOS runs the non-desktop cases.
 
 ## Prerequisites and command
 
@@ -62,7 +82,7 @@ dotnet test tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj `
 
 This selection must execute **two** tests, including
 `SecureEndpointAcceptReturnsAnonymousAndCancelReturnsNull`. Use the script for
-the CI count gate, not the direct command. All desktop fixtures remain explicit, but
+the CI count gate, not the direct command. The count-gate fixtures remain explicit, but
 no longer require NUnit to discover an STA fixture on Linux. The harness owns
 one UI thread, uses STA on Windows, installs Avalonia's synchronization context,
 and runs the native dispatcher message loop. NUnit awaits each submitted task;
@@ -74,8 +94,9 @@ Namespace teardown awaits termination of the dispatcher.
 The `LensDesktopWorkflow` category exercises editing, commissioning, connected
 administration, browsing, subscriptions, and document lifecycles through injected
 protocol clients. These cases use real native windows but do not require a remote
-OPC UA server. Class or method-level explicit markers keep their process-owned
-dispatcher out of ordinary unit-test runs, including runs without a display.
+OPC UA server. These are required CI tests, not opt-in tests. Their category places
+the process-owned dispatcher in its own runner invocation; they are not combined
+with ordinary tests that require no Avalonia application.
 
 After building the matching Release graph, run the category in a fresh process:
 
@@ -83,7 +104,7 @@ After building the matching Release graph, run the category in a fresh process:
 dotnet test tests/Opc.Ua.Lens.Tests/Opc.Ua.Lens.Tests.csproj \
   -c Release -f net10.0 -p:CustomTestTarget=net10.0 --no-build --no-restore \
   --filter 'TestCategory=LensDesktopWorkflow' \
-  -- NUnit.ExplicitMode=Relaxed NUnit.NumberOfTestWorkers=0
+  -- NUnit.NumberOfTestWorkers=0
 ```
 
 The Windows desktop CI job runs this category after the separate 24-case gate.

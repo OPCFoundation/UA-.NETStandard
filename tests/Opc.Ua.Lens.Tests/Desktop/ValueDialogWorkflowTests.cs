@@ -45,7 +45,6 @@ namespace UaLens.Tests.Desktop;
 
 [TestFixture]
 [Platform("Win,Linux")]
-[Explicit("Requires a dedicated real-desktop test process.")]
 [Category("LensDesktopWorkflow")]
 [NonParallelizable]
 public sealed class ValueDialogWorkflowTests

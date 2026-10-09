@@ -50,7 +50,6 @@ public sealed class FileSystemWorkflowTests
 {
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task FsNodeLoadRefreshAndFailureReplaceTheExactChildSnapshot()
     {
@@ -112,7 +111,6 @@ public sealed class FileSystemWorkflowTests
     [TestCase(1073741823UL, "1024.0 MiB")]
     [TestCase(1073741824UL, "1.0 GiB")]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task FileMetadataUsesWireValuesAndPreservesLastSuccessfulSnapshotOnFailure(ulong size, string display)
     {
@@ -152,7 +150,6 @@ public sealed class FileSystemWorkflowTests
     [TestCase(1)]
     [TestCase(20019)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task ImportWritesExactBytesAndClosesEveryUaFileHandle(int length)
     {
@@ -189,7 +186,6 @@ public sealed class FileSystemWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task ImportContinuesAfterFaultOrCancellationAndReleasesTheFailedHandle(bool canceled)
     {
@@ -316,7 +312,6 @@ public sealed class FileSystemWorkflowTests
     [TestCase(true, false)]
     [TestCase(true, true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task DeleteRequiresScopedConsentAndRefreshesTheSelectedParent(bool directory, bool accept)
     {
@@ -379,7 +374,6 @@ public sealed class FileSystemWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task DeleteFailureKeepsTheTargetAndReportsItsPath()
     {
@@ -423,7 +417,6 @@ public sealed class FileSystemWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task CreateFolderUsesTheSelectedFilesParentAndOnlyTheAcceptedName(bool accept)
     {
@@ -473,7 +466,6 @@ public sealed class FileSystemWorkflowTests
     [TestCase(" original.bin ", false)]
     [TestCase("  ", false)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task RenameUsesMoveRatherThanCopyAndDoesNotSendUnchangedOrEmptyNames(string name, bool changes)
     {
@@ -522,7 +514,6 @@ public sealed class FileSystemWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task ExpansionLoadsOnceAndExplicitRefreshCanReplaceTheSnapshotWithAnEmptyDirectory()
     {

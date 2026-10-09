@@ -80,7 +80,7 @@ namespace Opc.Ua.Tools.Tests
                 } | ConvertTo-Json -Compress
                 """;
 
-            ScriptResult result = await RunGitHubStartInfoAsync(discovery, invocation).ConfigureAwait(false);
+            ScriptResult result = await RunGitHubFunctionAsync(discovery, invocation).ConfigureAwait(false);
 
             Assert.That(result.ExitCode, Is.Zero, result.Output);
             using JsonDocument document = JsonDocument.Parse(result.Output);
@@ -95,7 +95,7 @@ namespace Opc.Ua.Tools.Tests
         [Test]
         public async Task GitHubBatchRejectsMissingVirtualDisplayWithoutFallbackAsync()
         {
-            ScriptResult result = await RunGitHubStartInfoAsync(
+            ScriptResult result = await RunGitHubFunctionAsync(
                 "function Get-Command { }",
                 $"New-DotnetStartInfo -arguments @('test', {QuotePowerShell(LensProjectFile)}) -linux $true")
                 .ConfigureAwait(false);
@@ -131,7 +131,7 @@ namespace Opc.Ua.Tools.Tests
                 } | ConvertTo-Json -Compress
                 """;
 
-            ScriptResult result = await RunGitHubStartInfoAsync(discovery, invocation).ConfigureAwait(false);
+            ScriptResult result = await RunGitHubFunctionAsync(discovery, invocation).ConfigureAwait(false);
 
             Assert.That(result.ExitCode, Is.Zero, result.Output);
             using JsonDocument document = JsonDocument.Parse(result.Output);
@@ -141,7 +141,63 @@ namespace Opc.Ua.Tools.Tests
                 .Select(static argument => argument.GetString()), Is.EqualTo(expectedArguments));
         }
 
-        private static Task<ScriptResult> RunGitHubStartInfoAsync(string discovery, string invocation)
+        [TestCase(LensProjectFile, "")]
+        [TestCase(LensProjectFile, "TestCategory!=LongRunning&TestCategory!=Stress")]
+        [TestCase(LensProjectFile, "TestCategory=Fast|FullyQualifiedName~Smoke")]
+        public async Task GitHubBatchIsolatesDesktopWithoutLosingTheOriginalSelectionAsync(
+            string project, string filter)
+        {
+            ScriptResult result = await RunGitHubFunctionAsync(
+                string.Empty,
+                $"ConvertTo-Json -Compress -InputObject @(Get-TestProcessSelections " +
+                    $"{QuotePowerShell(project)} {QuotePowerShell(filter)})",
+                "Get-TestProcessSelections").ConfigureAwait(false);
+
+            Assert.That(result.ExitCode, Is.Zero, result.Output);
+            using JsonDocument document = JsonDocument.Parse(result.Output);
+            Assert.That(document.RootElement.GetArrayLength(), Is.EqualTo(3));
+            JsonElement ordinary = document.RootElement[0];
+            JsonElement mainline = document.RootElement[1];
+            JsonElement desktop = document.RootElement[2];
+            string prefix = string.IsNullOrEmpty(filter) ? string.Empty : $"({filter})&";
+            Assert.That(ordinary.GetProperty("Name").GetString(), Is.EqualTo("ordinary"));
+            Assert.That(ordinary.GetProperty("Filter").GetString(),
+                Is.EqualTo(prefix + "TestCategory!=LensDesktopMainline&TestCategory!=LensDesktopWorkflow"));
+            Assert.That(ordinary.GetProperty("Serial").GetBoolean(), Is.False);
+            Assert.That(mainline.GetProperty("Name").GetString(), Is.EqualTo("desktop-mainline"));
+            Assert.That(mainline.GetProperty("Filter").GetString(),
+                Is.EqualTo(prefix + "TestCategory=LensDesktopMainline"));
+            Assert.That(mainline.GetProperty("Serial").GetBoolean(), Is.True);
+            Assert.That(desktop.GetProperty("Name").GetString(), Is.EqualTo("desktop-workflows"));
+            Assert.That(desktop.GetProperty("Filter").GetString(),
+                Is.EqualTo(prefix + "TestCategory=LensDesktopWorkflow&TestCategory!=LensDesktopMainline"));
+            Assert.That(desktop.GetProperty("Serial").GetBoolean(), Is.True);
+        }
+
+        [TestCase("tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj")]
+        [TestCase("tests/Other/Opc.Ua.Lens.Tests.csproj.other")]
+        public async Task GitHubBatchLeavesOtherProjectSelectionsUnchangedAsync(string project)
+        {
+            const string filter = "TestCategory=Fast|FullyQualifiedName~Smoke";
+            ScriptResult result = await RunGitHubFunctionAsync(
+                string.Empty,
+                $"ConvertTo-Json -Compress -InputObject @(Get-TestProcessSelections " +
+                    $"{QuotePowerShell(project)} {QuotePowerShell(filter)})",
+                "Get-TestProcessSelections").ConfigureAwait(false);
+
+            Assert.That(result.ExitCode, Is.Zero, result.Output);
+            using JsonDocument document = JsonDocument.Parse(result.Output);
+            Assert.That(document.RootElement.GetArrayLength(), Is.EqualTo(1));
+            JsonElement selection = document.RootElement[0];
+            Assert.That(selection.GetProperty("Name").GetString(), Is.Empty);
+            Assert.That(selection.GetProperty("Filter").GetString(), Is.EqualTo(filter));
+            Assert.That(selection.GetProperty("Serial").GetBoolean(), Is.False);
+        }
+
+        private static Task<ScriptResult> RunGitHubFunctionAsync(
+            string discovery,
+            string invocation,
+            string functionName = "New-DotnetStartInfo")
         {
             string root = FindRepositoryRoot();
             string executor = Path.Combine(root, ".github", "scripts", "run-dotnet-tests.ps1");
@@ -152,9 +208,9 @@ namespace Opc.Ua.Tools.Tests
                 $definition = $ast.Find({
                     param($node)
                     $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and
-                        $node.Name -eq 'New-DotnetStartInfo'
+                        $node.Name -eq {{QuotePowerShell(functionName)}}
                 }, $true)
-                if ($null -eq $definition) { throw 'The batch runner has no process-start contract.' }
+                if ($null -eq $definition) { throw 'The batch runner function was not found.' }
                 . ([scriptblock]::Create($definition.Extent.Text))
                 {{discovery}}
                 {{invocation}}

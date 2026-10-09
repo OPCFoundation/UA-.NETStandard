@@ -127,7 +127,6 @@ public sealed class EventViewWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task FilterCommandUsesOwnedDialogAndCommitsOnlyAcceptedSelections(bool accept)
     {
@@ -183,7 +182,6 @@ public sealed class EventViewWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task SourceRemovalAndClearCommandsPreserveNeighborConfigurationAndResetSelection()
     {

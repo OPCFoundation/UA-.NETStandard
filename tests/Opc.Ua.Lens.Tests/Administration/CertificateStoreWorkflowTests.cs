@@ -101,7 +101,6 @@ public sealed class CertificateStoreWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task DialogTrustMovesOnlyTheRejectedSelectionAndDeletePreservesTheOtherBuckets()
     {
@@ -157,7 +156,6 @@ public sealed class CertificateStoreWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task DeleteExpiredRemovesOnlyPastCertificatesAndClearRejectedDoesNotTouchTrust(bool issuerBucket)
     {
@@ -211,7 +209,6 @@ public sealed class CertificateStoreWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task DialogRefreshFailureKeepsTheLastCompletedSnapshotAndReleasesTheFaultedStore()
     {
@@ -272,7 +269,6 @@ public sealed class CertificateStoreWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task LegacyTrustDialogReturnsToTheWorkbenchAndRefreshesItsSelectedTemporaryStore()
     {

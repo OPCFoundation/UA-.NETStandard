@@ -88,8 +88,10 @@ Run the whole suite from the solution:
 dotnet test UA.slnx
 ```
 
-UaLens has a separate native-desktop regression lane. Its ordinary unit-test
-selection does not execute the explicit desktop fixtures. Use
+UaLens requires process-isolated ordinary and native workflow selections. Use
+`.github/scripts/run-dotnet-tests.ps1` for its complete mainline suite, rather
+than running that test project unfiltered. The separate count-gated desktop lane
+remains explicit. See
 [the desktop runner](../tools/Opc.Ua.Lens/DesktopTesting.md) for the supported
 platform commands, expected test count, layout matrix, and manual
 assistive-technology checks. The runner rejects missing, skipped, and zero-test

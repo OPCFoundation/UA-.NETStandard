@@ -145,9 +145,13 @@ namespace UaLens.Views
 
         private async Task DisposeCoreAsync()
         {
-            m_lifetime.Cancel();
             try
             {
+                // Failed sample cleanup may be retried after the lifetime source was disposed.
+                if (!m_lifetime.IsCancellationRequested)
+                {
+                    await m_lifetime.CancelAsync().ConfigureAwait(true);
+                }
                 if (m_automaticConnectionTask is not null)
                 {
                     try

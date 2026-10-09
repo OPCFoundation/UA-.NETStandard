@@ -118,7 +118,6 @@ public sealed class GdsManagementWorkflowTests
     [TestCase("endpoint-only", 0)]
     [TestCase("  ", 3)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task FilterMatchesTrimmedCaseInsensitiveDisplayFieldsButNotDiscoveryUrls(string query, int matching)
     {
@@ -202,7 +201,6 @@ public sealed class GdsManagementWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task RegistrationPrefillsFromCurrentContextRatherThanSelectedQueryRowAndCancelDoesNotConnect()
     {
@@ -248,7 +246,6 @@ public sealed class GdsManagementWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task UnregisterCancelOrCloseKeepsTheResolvedApplicationAndStatesTheDestructiveScope(bool close)
     {

@@ -417,9 +417,9 @@ public sealed class ShellDesktopTests
             Assert.That(references.Rows[0].ReferenceType, Is.EqualTo("HasComponentFromWorker"));
             Assert.That(attributeNotifications, Is.GreaterThan(requested.Count));
             Assert.That(referenceNotifications, Is.GreaterThan(1));
-            Assert.That(attributeView.GetVisualDescendants().OfType<ItemsControl>().Single().Items,
+            Assert.That(attributeView.FindControl<ListBox>("AttributesList")!.Items,
                 Has.Count.EqualTo(requested.Count));
-            Assert.That(referenceView.GetVisualDescendants().OfType<ItemsControl>().Single().Items,
+            Assert.That(referenceView.FindControl<ListBox>("ReferenceList")!.Items,
                 Has.Count.EqualTo(1));
             attributes.Clear();
             references.Clear();

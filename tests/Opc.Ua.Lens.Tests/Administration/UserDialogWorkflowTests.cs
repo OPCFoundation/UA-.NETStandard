@@ -99,7 +99,6 @@ public sealed class UserDialogWorkflowTests
     [TestCase(UserConfigurationMask.MustChangePassword | UserConfigurationMask.NoDelete, true)]
     [TestCase(UserConfigurationMask.Disabled | UserConfigurationMask.NoChangeByUser, true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task AddUserTrimsOnlyTheNameAndReturnsTheExactPasswordDescriptionAndFlags(
         UserConfigurationMask mask, bool description)
@@ -136,7 +135,6 @@ public sealed class UserDialogWorkflowTests
     [TestCase("UserNameBox", "User name is required.")]
     [TestCase("PasswordBox", "Password is required.")]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task AddUserRejectsMissingRequiredInputAndCancellationReturnsNoRequest(string field, string error)
     {
@@ -170,7 +168,6 @@ public sealed class UserDialogWorkflowTests
     [TestCase("description")]
     [TestCase("all")]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task ModifyDistinguishesUnchangedFieldsFromExplicitlyClearedFields(string changed)
     {
@@ -218,7 +215,6 @@ public sealed class UserDialogWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task ModifyRejectsNoChangeAndEmptyOptedInPasswordThenAllowsAnExplicitReplacement()
     {
@@ -257,7 +253,6 @@ public sealed class UserDialogWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task CancelModifyDoesNotPublishChangedConfigurationOrDescription()
     {
@@ -292,7 +287,6 @@ public sealed class UserDialogWorkflowTests
     [TestCase("NewPasswordBox")]
     [TestCase("ConfirmPasswordBox")]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task PasswordChangeRequiresAllThreeValuesAndReturnsUntrimmedPasswords(string missing)
     {
@@ -344,7 +338,6 @@ public sealed class UserDialogWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task PasswordMismatchCannotBeAcceptedAndCancelReturnsNoPasswordChange()
     {

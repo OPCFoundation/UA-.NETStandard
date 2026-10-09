@@ -112,7 +112,6 @@ namespace UaLens.Tests.Themes
 
         [Test]
         [Platform("Win,Linux")]
-        [Explicit("Requires a dedicated real-desktop test process.")]
         [Category("LensDesktopWorkflow")]
         public Task ApplyingChartColorsKeepsDataAndZoom()
         {

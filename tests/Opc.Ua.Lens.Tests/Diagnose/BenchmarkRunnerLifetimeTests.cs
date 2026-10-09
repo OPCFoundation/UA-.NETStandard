@@ -153,7 +153,6 @@ public sealed class BenchmarkRunnerLifetimeTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     [NonParallelizable]
     public Task OlderRunCallbackCannotChangeSuccessorMeasurements()

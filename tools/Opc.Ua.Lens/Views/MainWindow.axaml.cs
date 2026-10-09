@@ -105,6 +105,7 @@ namespace UaLens.Views
             }
             DataContext = m_vm;
             InitializeComponent();
+            ClosingBehavior = WindowClosingBehavior.OwnerWindowOnly;
 
             ILogger log = m_vm.Telemetry.CreateLogger("Shell");
             m_nodes = new NodeInteractionController(this, m_vm, log, writeOperations);
@@ -205,6 +206,16 @@ namespace UaLens.Views
 
         private async Task DisposeCoreAsync()
         {
+            Window[] ownedWindows = [.. OwnedWindows];
+            foreach (Window window in ownedWindows)
+            {
+                // Sample windows are drained by their owning connection controller.
+                if (window is not RepositorySamplesWindow && window is IAsyncDisposable disposable)
+                {
+                    await disposable.DisposeAsync().ConfigureAwait(true);
+                    window.Close();
+                }
+            }
             try
             {
                 m_vm.References.PropertyChanged -= OnReferenceInspectorPropertyChanged;

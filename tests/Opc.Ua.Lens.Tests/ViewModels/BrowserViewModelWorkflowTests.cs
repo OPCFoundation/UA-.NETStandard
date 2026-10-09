@@ -71,7 +71,6 @@ public sealed class BrowserViewModelWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task CanceledOrUnchangedViewSelectionDoesNotDiscardExistingTreeButNewKindReloads()
     {

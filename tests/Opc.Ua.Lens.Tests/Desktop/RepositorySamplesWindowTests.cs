@@ -48,6 +48,7 @@ namespace UaLens.Tests.Desktop
 {
     [TestFixture]
     [Platform("Win,Linux")]
+    [Category("LensDesktopMainline")]
     [NonParallelizable]
     public sealed class RepositorySamplesWindowTests
     {

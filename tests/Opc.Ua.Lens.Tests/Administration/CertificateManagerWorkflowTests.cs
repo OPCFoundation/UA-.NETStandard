@@ -457,7 +457,6 @@ public sealed class CertificateManagerWorkflowTests
     [TestCase(0, "")]
     [TestCase(1, "NOT YET VALID")]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task DetailsShowsTheSelectedCertificateAndClosingDoesNotInvalidateItsBorrowedHandle(
         int validity, string warning)

@@ -145,7 +145,6 @@ public sealed class RoleDialogWorkflowTests
     [TestCase("  urn:roles:factory  ", "urn:roles:factory")]
     [TestCase("  ", null)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task AddRoleRejectsBlankNameThenReturnsTrimmedNameAndOptionalNamespace(string ns, string? expected)
     {
@@ -179,7 +178,6 @@ public sealed class RoleDialogWorkflowTests
 
     [TestCaseSource(nameof(CriteriaKinds))]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task IdentityFormValidatesEachCriterionAndReturnsTheSelectedDiscriminator(IdentityCriteriaType kind)
     {
@@ -218,7 +216,6 @@ public sealed class RoleDialogWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task MissingIdentityDiscriminatorCannotBeAcceptedAndCancelReturnsNoRule()
     {
@@ -251,7 +248,6 @@ public sealed class RoleDialogWorkflowTests
     [TestCase(MessageSecurityMode.Sign)]
     [TestCase(MessageSecurityMode.SignAndEncrypt)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task EndpointFormRequiresBothUrlAndModeAndPreservesTheChosenSecurityFields(MessageSecurityMode mode)
     {
@@ -294,7 +290,6 @@ public sealed class RoleDialogWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task ApplicationUriRejectsBlankThenReturnsTheTrimmedNonemptyValue()
     {
@@ -327,7 +322,6 @@ public sealed class RoleDialogWorkflowTests
     [TestCase("application")]
     [TestCase("endpoint")]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task CancelRoleApplicationAndEndpointFormsDoesNotPublishEditedInput(string form)
     {
@@ -362,7 +356,6 @@ public sealed class RoleDialogWorkflowTests
     [TestCase("cancel", false)]
     [TestCase("close", null)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task RoleConfirmationReturnsOnlyTheActualUserChoice(string action, bool? expected)
     {

@@ -192,7 +192,6 @@ public sealed class PerformanceWorkflowTests
     [TestCase(1, 60, "1 h")]
     [TestCase(2, 2, "2 h")]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task SettingsCommandChangesActualBoundWorkloadAndCloseRetainsIntentWithoutStartingARun(
         int unit, int duration, string display)

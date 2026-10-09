@@ -80,7 +80,6 @@ public sealed class GdsDiscoveryWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task OpenAsRoutesTheExactSecureDescriptorToTheRequestedTool(bool management)
     {
@@ -115,7 +114,6 @@ public sealed class GdsDiscoveryWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task QueryFilterAcceptTokenizesIndependentFieldsAndCancelLeavesTheOriginalUnchanged(bool accept)
     {
@@ -173,7 +171,6 @@ public sealed class GdsDiscoveryWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task EmptyQueryFilterAcceptsAnUnrestrictedQueryWithoutManufacturingCapabilityTokens()
     {

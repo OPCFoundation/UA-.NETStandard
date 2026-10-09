@@ -293,7 +293,10 @@ scoped pragma; do not restore project-wide suppression.
 
 ```powershell
 $env:CustomTestTarget = 'net10.0'
-dotnet test tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj -c Release -f net10.0
+pwsh .github\scripts\run-dotnet-tests.ps1 `
+  -Projects tests\Opc.Ua.Lens.Tests\Opc.Ua.Lens.Tests.csproj `
+  -CustomTestTarget net10.0 -Framework net10.0 -Configuration Release `
+  -Filter 'TestCategory!=LongRunning&TestCategory!=Stress' -ResultsDirectory TestResults\lens
 dotnet run --project tools\Opc.Ua.Lens\Opc.Ua.Lens.csproj -c Release -f net10.0 -- --smoke --endpoint opc.tcp://localhost:62541/Quickstarts/ReferenceServer
 ```
 
@@ -310,8 +313,8 @@ The ordinary test suite also drives real Avalonia windows on Windows and Linux:
 editors, administration dialogs, charts, and document lifetimes share one owned
 dispatcher and use controlled services or temporary certificate stores. These
 tests do not require a running server, access the host PKI, or open native file
-pickers. On Linux, run the test command under `xvfb-run -a`; both CI systems do
-this automatically. Cocoa requires the process main thread, so these
+pickers. The runner isolates ordinary and native workflow selections in separate
+processes and uses `xvfb-run -a` on Linux. Cocoa requires the process main thread, so these
 dispatcher-thread desktop fixtures do not run on macOS; non-desktop tests still do.
 
 The opt-in `StructuredEditorDialogTests` fixture exercises the real Models,

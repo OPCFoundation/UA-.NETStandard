@@ -225,7 +225,6 @@ public sealed class HistorianWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task PickRangeCommandAppliesOnlyAcceptedFixedUtcRange(bool accept)
     {
@@ -265,7 +264,6 @@ public sealed class HistorianWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task AdvancedDialogIsSingleInstanceUntilClosedAndDoesNotExecuteAnUpdate()
     {

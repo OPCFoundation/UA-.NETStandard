@@ -136,7 +136,6 @@ public sealed class PluginDocumentLifecycleTests
     [TestCase(1)]
     [TestCase(3)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task SubscriptionStateApplyAndCapturePreserveSettingsItemsAndModesWithoutServerIds(int count)
     {

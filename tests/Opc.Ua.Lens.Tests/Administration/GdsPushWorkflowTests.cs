@@ -87,7 +87,6 @@ public sealed class GdsPushWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [NUnit.Framework.Category("LensDesktopWorkflow")]
     public Task DisconnectClearsCachedTrustAndServerStatusButPreservesBucketAndMaskIntent()
     {
@@ -154,7 +153,6 @@ public sealed class GdsPushWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [NUnit.Framework.Category("LensDesktopWorkflow")]
     public Task ApplyChangesRequiresConsentAndCancelOrCloseNeverStartsASecondaryConnection(bool close)
     {
@@ -200,7 +198,6 @@ public sealed class GdsPushWorkflowTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [NUnit.Framework.Category("LensDesktopWorkflow")]
     public Task AddCertificateCancellationKeepsTheActiveBucketAndDoesNotResolveAClient()
     {

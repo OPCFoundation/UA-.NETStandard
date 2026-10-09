@@ -52,7 +52,6 @@ public sealed class SubscriptionViewModelLifecycleTests
 {
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task UnboundItemsHaveDistinctDocumentIdsAndPreserveIntent()
     {
@@ -375,7 +374,6 @@ public sealed class SubscriptionViewModelLifecycleTests
     [TestCase("configure")]
     [TestCase("mode")]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task FailedItemMutationsRetainLocalIntentAndConfirmedAdapterStateAndReportOriginalFailure(string operation)
     {
@@ -498,7 +496,6 @@ public sealed class SubscriptionViewModelLifecycleTests
     [TestCase("created", "Uncertain")]
     [TestCase("unknown", "Uncertain")]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task StatusShowsRevisedSettingsItemResultAndExactSample(string resultKind, string expectedStatus)
     {
@@ -549,7 +546,6 @@ public sealed class SubscriptionViewModelLifecycleTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task SuccessfulItemChangesForwardExactIdentityAndKeepNeighbors()
     {
@@ -609,7 +605,6 @@ public sealed class SubscriptionViewModelLifecycleTests
 
     [Test]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task FailedPublishingApplyKeepsRequestedIntentAndReportsStructuredFailure()
     {

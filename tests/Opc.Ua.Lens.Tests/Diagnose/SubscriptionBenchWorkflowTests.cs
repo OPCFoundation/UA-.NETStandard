@@ -122,7 +122,6 @@ public sealed class SubscriptionBenchWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task SubscriptionSettingsCommandCommitsOnlyAcceptedIntentWithoutStartingTopology(bool accept)
     {
@@ -172,7 +171,6 @@ public sealed class SubscriptionBenchWorkflowTests
     [TestCase(false)]
     [TestCase(true)]
     [Platform("Win,Linux")]
-    [Explicit("Requires a dedicated real-desktop test process.")]
     [Category("LensDesktopWorkflow")]
     public Task ItemSettingsCommandCommitsAcceptedSamplingQueueModeAndFilterWithoutStartingTopology(bool accept)
     {

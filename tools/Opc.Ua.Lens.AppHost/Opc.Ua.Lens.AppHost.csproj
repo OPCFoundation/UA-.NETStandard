@@ -1,11 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
-  <Sdk Name="Aspire.AppHost.Sdk" Version="13.6.0" />
+  <Import Project="Sdk.props" Sdk="Aspire.AppHost.Sdk" Version="13.6.0"
+          Condition="'$(CustomTestTarget)' == '' OR '$(CustomTestTarget)' == 'net10.0'" />
   <PropertyGroup>
     <OutputType>Exe</OutputType>
     <TargetFramework>net10.0</TargetFramework>
-    <IsAspireHost>true</IsAspireHost>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+    <IsAspireHost Condition="'$(CustomTestTarget)' == '' OR '$(CustomTestTarget)' == 'net10.0'">true</IsAspireHost>
     <AspireUseCliBundle>true</AspireUseCliBundle>
-    <Nullable>enable</Nullable>
     <RootNamespace>UaLens.AppHost</RootNamespace>
   </PropertyGroup>
   <ItemGroup>
@@ -17,4 +18,6 @@
     <ProjectReference Include="../Opc.Ua.Lens/Opc.Ua.Lens.csproj"
                       AdditionalProperties="CustomTestTarget=net10.0;PublishAotEnabled=false" />
   </ItemGroup>
+  <Import Project="Sdk.targets" Sdk="Aspire.AppHost.Sdk" Version="13.6.0"
+          Condition="'$(CustomTestTarget)' == '' OR '$(CustomTestTarget)' == 'net10.0'" />
 </Project>
