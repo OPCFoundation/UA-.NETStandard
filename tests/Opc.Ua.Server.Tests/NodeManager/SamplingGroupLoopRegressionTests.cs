@@ -490,6 +490,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(restarts, Is.GreaterThan(0));
         }
 
+        /// <summary>
+        /// Long waits convert to a delay without overflowing at the 1 GHz timestamp frequency
+        /// of Unix: the default one-hour sampling group would otherwise compute 3.6e19 ticks.
+        /// </summary>
+        [Test]
+        public void ScheduleWaitOfAnHourConvertsWithoutOverflowAtOneGigahertz()
+        {
+            const long frequency = 1_000_000_000;
+            var schedule = SamplingSchedule.Create(3_600_000, frequency, 0);
+
+            TimeSpan wait = SamplingSchedule.ToTimeSpan(schedule.GetWait(0), frequency);
+
+            Assert.That(wait, Is.EqualTo(TimeSpan.FromHours(1)));
+        }
+
         private const long kTicksPerSecond = 10_000_000;
 
         private static long Ticks(double milliseconds)

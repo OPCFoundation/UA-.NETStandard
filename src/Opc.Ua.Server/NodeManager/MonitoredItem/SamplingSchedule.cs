@@ -84,6 +84,18 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Converts a span of timestamp ticks to a <see cref="TimeSpan"/>.
+        /// </summary>
+        /// <remarks>
+        /// Scaled through a double: multiplying first overflows a long for long intervals at
+        /// a 1 GHz timestamp frequency (Unix), e.g. one hour is 3.6e12 ticks times 1e7.
+        /// </remarks>
+        public static TimeSpan ToTimeSpan(long timestampTicks, long frequency)
+        {
+            return TimeSpan.FromTicks((long)(timestampTicks * ((double)TimeSpan.TicksPerSecond / frequency)));
+        }
+
+        /// <summary>
         /// The ticks to wait before the next sample; zero or less when it is due.
         /// </summary>
         public readonly long GetWait(long now)

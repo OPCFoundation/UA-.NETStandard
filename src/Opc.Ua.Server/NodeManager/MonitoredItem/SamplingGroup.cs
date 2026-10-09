@@ -585,7 +585,7 @@ namespace Opc.Ua.Server
                         if (remaining > 0)
                         {
                             await Task.Delay(
-                                TimeSpan.FromTicks(remaining * TimeSpan.TicksPerSecond / frequency),
+                                SamplingSchedule.ToTimeSpan(remaining, frequency),
                                 cancellationToken).ConfigureAwait(false);
                         }
                         else
