@@ -39,6 +39,9 @@ using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
+using Opc.Ua.PubSub.Security;
+using Opc.Ua.PubSub.Security.Policies;
+using Opc.Ua.PubSub.Tests.Security;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
 using Opc.Ua.Tests;
@@ -56,6 +59,7 @@ namespace Opc.Ua.PubSub.Tests.Application
         private const ushort WriterGroupIdValue = 7;
         private const ushort DataSetWriterIdValue = 42;
         private const string PublishedDataSetName = "pds-1";
+        private const string SecurityGroupIdValue = "discovery-group";
 
         [Test]
         public async Task RequestDiscoveryAsyncEncodesRequestAndCollectsResponse()
@@ -176,6 +180,71 @@ namespace Opc.Ua.PubSub.Tests.Application
             Assert.That(endpoints.PublisherEndpoints[0].EndpointUrl, Is.EqualTo(url));
         }
 
+        /// <summary>
+        /// A subscriber and a publisher whose connections are secured with the same
+        /// SecurityGroup exchange discovery requests, responses, and the publisher's
+        /// transport-specific announcements, and no frame leaves either connection
+        /// without a SecurityHeader.
+        /// </summary>
+        [Test]
+        [TestSpec("7.2.4.6.3")]
+        public async Task SecuredSubscriberDiscoversSecuredPublisherWithoutPlaintextFramesAsync()
+        {
+            const string url = "opc.udp://239.0.0.1:4840";
+            using PubSubSecurityKeyRing publisherRing = NewKeyRing();
+            using PubSubSecurityKeyRing subscriberRing = NewKeyRing();
+            var bus = new LoopbackBus();
+            await using IPubSubApplication publisher = BuildPublisherApp(
+                url,
+                new LoopbackTransportFactory(bus),
+                new StaticSecurityKeyProvider(SecurityGroupIdValue, publisherRing));
+            await using IPubSubApplication subscriber = BuildSubscriberApp(
+                url,
+                new LoopbackTransportFactory(bus),
+                new StaticSecurityKeyProvider(SecurityGroupIdValue, subscriberRing));
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(10));
+            await publisher.StartAsync(cts.Token).ConfigureAwait(false);
+            await subscriber.StartAsync(cts.Token).ConfigureAwait(false);
+
+            // Each request collects responses for its whole timeout, so the endpoints
+            // request is sent after the publisher's startup announcement of its
+            // endpoints has left the 500 ms duplicate-response window.
+            PubSubDiscoveryResult metaData = await subscriber.RequestDiscoveryAsync(
+                new PubSubDiscoveryRequest
+                {
+                    DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                    DataSetWriterIds = [DataSetWriterIdValue]
+                },
+                TimeSpan.FromMilliseconds(600),
+                cts.Token).ConfigureAwait(false);
+            PubSubDiscoveryResult writerConfiguration = await subscriber.RequestDiscoveryAsync(
+                new PubSubDiscoveryRequest
+                {
+                    DiscoveryType = UadpDiscoveryType.DataSetWriterConfiguration,
+                    DataSetWriterIds = [DataSetWriterIdValue]
+                },
+                TimeSpan.FromMilliseconds(600),
+                cts.Token).ConfigureAwait(false);
+            PubSubDiscoveryResult endpoints = await subscriber.RequestDiscoveryAsync(
+                new PubSubDiscoveryRequest
+                {
+                    DiscoveryType = UadpDiscoveryType.PublisherEndpoints
+                },
+                TimeSpan.FromMilliseconds(600),
+                cts.Token).ConfigureAwait(false);
+
+            Assert.That(metaData.DataSetMetaDataEntries, Has.Count.EqualTo(1));
+            Assert.That(
+                metaData.DataSetMetaDataEntries[0].DataSetMetaData?.Name,
+                Is.EqualTo(PublishedDataSetName));
+            Assert.That(writerConfiguration.WriterConfigurations, Has.Count.EqualTo(1));
+            Assert.That(endpoints.PublisherEndpoints, Is.Not.Empty);
+            Assert.That(bus.AnnouncementCount, Is.GreaterThan(0),
+                "The publisher sent no transport-specific discovery announcement.");
+            Assert.That(bus.PlaintextFrames, Is.Empty,
+                "Every frame of a secured connection must carry a SecurityHeader.");
+        }
+
         private static IPubSubApplication BuildDiscoveryOnlyApp(IPubSubTransportFactory factory)
         {
             return new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
@@ -203,10 +272,35 @@ namespace Opc.Ua.PubSub.Tests.Application
 
         private static IPubSubApplication BuildPublisherApp(
             string url,
-            IPubSubTransportFactory factory)
+            IPubSubTransportFactory factory,
+            IPubSubSecurityKeyProvider? securityKeyProvider = null)
         {
             DataSetMetaDataType metaData = NewMetaData();
-            return new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+            var writerGroup = new WriterGroupDataType
+            {
+                Name = "writer-group",
+                WriterGroupId = WriterGroupIdValue,
+                PublishingInterval = 600_000,
+                DataSetWriters =
+                [
+                    new DataSetWriterDataType
+                    {
+                        Name = "writer",
+                        DataSetWriterId = DataSetWriterIdValue,
+                        DataSetName = PublishedDataSetName
+                    }
+                ]
+            };
+            var readerGroup = new ReaderGroupDataType
+            {
+                Name = "discovery-listener"
+            };
+            if (securityKeyProvider is not null)
+            {
+                SecureGroup(writerGroup);
+                SecureGroup(readerGroup);
+            }
+            PubSubApplicationBuilder builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .WithApplicationId("discovery-publisher")
                 .UseConfiguration(new PubSubConfigurationDataType
                 {
@@ -221,31 +315,8 @@ namespace Opc.Ua.PubSub.Tests.Application
                             {
                                 Url = url
                             }),
-                            WriterGroups =
-                            [
-                                new WriterGroupDataType
-                                {
-                                    Name = "writer-group",
-                                    WriterGroupId = WriterGroupIdValue,
-                                    PublishingInterval = 600_000,
-                                    DataSetWriters =
-                                    [
-                                        new DataSetWriterDataType
-                                        {
-                                            Name = "writer",
-                                            DataSetWriterId = DataSetWriterIdValue,
-                                            DataSetName = PublishedDataSetName
-                                        }
-                                    ]
-                                }
-                            ],
-                            ReaderGroups =
-                            [
-                                new ReaderGroupDataType
-                                {
-                                    Name = "discovery-listener"
-                                }
-                            ]
+                            WriterGroups = [writerGroup],
+                            ReaderGroups = [readerGroup]
                         }
                     ],
                     PublishedDataSets =
@@ -259,35 +330,71 @@ namespace Opc.Ua.PubSub.Tests.Application
                 })
                 .AddDataSetSource(PublishedDataSetName, new MetaDataOnlySource(metaData))
                 .UseAllStandardEncoders()
-                .AddTransportFactory(factory)
-                .Build();
+                .AddTransportFactory(factory);
+            if (securityKeyProvider is not null)
+            {
+                builder.AddSecurityKeyProvider(securityKeyProvider);
+            }
+            return builder.Build();
         }
 
         private static IPubSubApplication BuildSubscriberApp(
             string url,
-            IPubSubTransportFactory factory)
+            IPubSubTransportFactory factory,
+            IPubSubSecurityKeyProvider? securityKeyProvider = null)
         {
-            return new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
+            var connection = new PubSubConnectionDataType
+            {
+                Name = "subscriber",
+                TransportProfileUri = Profiles.PubSubUdpUadpTransport,
+                Address = new ExtensionObject(new NetworkAddressUrlDataType
+                {
+                    Url = url
+                })
+            };
+            if (securityKeyProvider is not null)
+            {
+                var readerGroup = new ReaderGroupDataType
+                {
+                    Name = "secured-listener"
+                };
+                SecureGroup(readerGroup);
+                connection.ReaderGroups = [readerGroup];
+            }
+            PubSubApplicationBuilder builder = new PubSubApplicationBuilder(NUnitTelemetryContext.Create())
                 .WithApplicationId("discovery-subscriber")
                 .UseConfiguration(new PubSubConfigurationDataType
                 {
-                    Connections =
-                    [
-                        new PubSubConnectionDataType
-                        {
-                            Name = "subscriber",
-                            TransportProfileUri = Profiles.PubSubUdpUadpTransport,
-                            Address = new ExtensionObject(new NetworkAddressUrlDataType
-                            {
-                                Url = url
-                            })
-                        }
-                    ],
+                    Connections = [connection],
                     PublishedDataSets = []
                 })
                 .UseAllStandardEncoders()
-                .AddTransportFactory(factory)
-                .Build();
+                .AddTransportFactory(factory);
+            if (securityKeyProvider is not null)
+            {
+                builder.AddSecurityKeyProvider(securityKeyProvider);
+            }
+            return builder.Build();
+        }
+
+        private static void SecureGroup(PubSubGroupDataType group)
+        {
+            group.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            group.SecurityGroupId = SecurityGroupIdValue;
+            group.SecurityKeyServices = new ArrayOf<EndpointDescription>(new[]
+            {
+                new EndpointDescription { EndpointUrl = "opc.tcp://localhost:4840/SecurityKeyService" }
+            });
+        }
+
+        private static PubSubSecurityKeyRing NewKeyRing()
+        {
+            var ring = new PubSubSecurityKeyRing(SecurityGroupIdValue);
+            ring.SetCurrent(TestSecurityKeyFactory.Create(
+                1,
+                PubSubAes256CtrPolicy.Instance.SigningKeyLength,
+                PubSubAes256CtrPolicy.Instance.EncryptingKeyLength));
+            return ring;
         }
 
         private static DataSetMetaDataType NewMetaData()
@@ -434,6 +541,201 @@ namespace Opc.Ua.PubSub.Tests.Application
                         DateTimeUtc.From(DateTimeOffset.UtcNow)));
                 }
                 m_signal.Release();
+            }
+        }
+
+        /// <summary>
+        /// Delivers every frame that one transport sends to all other transports of
+        /// the bus, and records the frames that carry no SecurityHeader.
+        /// </summary>
+        private sealed class LoopbackBus
+        {
+            private readonly List<LoopbackTransport> m_transports = [];
+            private readonly List<string> m_plaintextFrames = [];
+            private readonly Lock m_gate = new();
+            private int m_announcementCount;
+
+            public int AnnouncementCount => Volatile.Read(ref m_announcementCount);
+
+            public IReadOnlyList<string> PlaintextFrames
+            {
+                get
+                {
+                    lock (m_gate)
+                    {
+                        return [.. m_plaintextFrames];
+                    }
+                }
+            }
+
+            public void Attach(LoopbackTransport transport)
+            {
+                lock (m_gate)
+                {
+                    m_transports.Add(transport);
+                }
+            }
+
+            public void Deliver(LoopbackTransport sender, ReadOnlyMemory<byte> payload, bool isAnnouncement)
+            {
+                if (isAnnouncement)
+                {
+                    Interlocked.Increment(ref m_announcementCount);
+                }
+                var receivers = new List<LoopbackTransport>();
+                lock (m_gate)
+                {
+                    if (!UadpDecoder.TryReadOuterPrefix(payload, out _, out bool securityEnabled, out _, out _) ||
+                        !securityEnabled)
+                    {
+                        byte[] head = payload.Slice(0, Math.Min(8, payload.Length)).ToArray();
+                        m_plaintextFrames.Add(BitConverter.ToString(head));
+                    }
+                    foreach (LoopbackTransport transport in m_transports)
+                    {
+                        if (!ReferenceEquals(transport, sender))
+                        {
+                            receivers.Add(transport);
+                        }
+                    }
+                }
+                foreach (LoopbackTransport receiver in receivers)
+                {
+                    receiver.Enqueue(payload);
+                }
+            }
+        }
+
+        private sealed class LoopbackTransportFactory : IPubSubTransportFactory
+        {
+            private readonly LoopbackBus m_bus;
+
+            public LoopbackTransportFactory(LoopbackBus bus)
+            {
+                m_bus = bus;
+            }
+
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public IPubSubTransport Create(
+                PubSubConnectionDataType connection,
+                ITelemetryContext telemetry,
+                TimeProvider timeProvider)
+            {
+                _ = connection;
+                _ = telemetry;
+                _ = timeProvider;
+                var transport = new LoopbackTransport(m_bus);
+                m_bus.Attach(transport);
+                return transport;
+            }
+        }
+
+        /// <summary>
+        /// An in-memory datagram transport that, like the UDP transport, sends
+        /// transport-specific discovery announcements to a separate destination.
+        /// </summary>
+        private sealed class LoopbackTransport : IPubSubTransport, IPubSubDiscoveryAnnouncementTransport
+        {
+            private readonly LoopbackBus m_bus;
+            private readonly Queue<PubSubTransportFrame> m_frames = new();
+            private readonly SemaphoreSlim m_signal = new(0, int.MaxValue);
+            private readonly Lock m_gate = new();
+            private bool m_disposed;
+
+            public LoopbackTransport(LoopbackBus bus)
+            {
+                m_bus = bus;
+            }
+
+            public string TransportProfileUri => Profiles.PubSubUdpUadpTransport;
+
+            public PubSubTransportDirection Direction => PubSubTransportDirection.SendReceive;
+
+            public bool IsConnected { get; private set; }
+
+            public uint DiscoveryAnnounceRate => 0;
+
+            public event EventHandler<PubSubTransportStateChangedEventArgs>? StateChanged
+            {
+                add { }
+                remove { }
+            }
+
+            public ValueTask OpenAsync(CancellationToken cancellationToken = default)
+            {
+                _ = cancellationToken;
+                IsConnected = true;
+                return default;
+            }
+
+            public ValueTask CloseAsync(CancellationToken cancellationToken = default)
+            {
+                _ = cancellationToken;
+                IsConnected = false;
+                return default;
+            }
+
+            public ValueTask SendAsync(
+                ReadOnlyMemory<byte> payload,
+                string? topic = null,
+                CancellationToken cancellationToken = default)
+            {
+                _ = topic;
+                cancellationToken.ThrowIfCancellationRequested();
+                m_bus.Deliver(this, payload, isAnnouncement: false);
+                return default;
+            }
+
+            public ValueTask SendDiscoveryAnnouncementAsync(
+                ReadOnlyMemory<byte> payload,
+                CancellationToken cancellationToken = default)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                m_bus.Deliver(this, payload, isAnnouncement: true);
+                return default;
+            }
+
+            public async IAsyncEnumerable<PubSubTransportFrame> ReceiveAsync(
+                [EnumeratorCancellation] CancellationToken cancellationToken = default)
+            {
+                while (!cancellationToken.IsCancellationRequested)
+                {
+                    await m_signal.WaitAsync(cancellationToken).ConfigureAwait(false);
+                    PubSubTransportFrame frame;
+                    lock (m_gate)
+                    {
+                        frame = m_frames.Dequeue();
+                    }
+                    yield return frame;
+                }
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                lock (m_gate)
+                {
+                    m_disposed = true;
+                    IsConnected = false;
+                }
+                m_signal.Dispose();
+                return default;
+            }
+
+            public void Enqueue(ReadOnlyMemory<byte> payload)
+            {
+                lock (m_gate)
+                {
+                    if (m_disposed)
+                    {
+                        return;
+                    }
+                    m_frames.Enqueue(new PubSubTransportFrame(
+                        payload.ToArray(),
+                        topic: null,
+                        DateTimeUtc.From(DateTimeOffset.UtcNow)));
+                    m_signal.Release();
+                }
             }
         }
 

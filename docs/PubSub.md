@@ -1222,6 +1222,11 @@ subscribers that need to find publishers and bind to metadata at runtime.
   duplicate probes are suppressed, and identical responses are throttled.
 - MQTT publishes retained discovery messages on the standard status, connection,
   application, endpoint, and metadata topics.
+- A UADP connection configured for message security signs and encrypts its
+  discovery requests, responses, and announcements with the keys of its
+  SecurityGroup, so only applications that hold those keys can discover each
+  other. The MQTT last-will status message is the exception: the broker
+  publishes it later, so it is sent unsecured.
 
 ```csharp
 PubSubDiscoveryResult result = await application.RequestDiscoveryAsync(

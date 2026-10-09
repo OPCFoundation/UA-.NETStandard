@@ -102,6 +102,21 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             }
         }
 
+        /// <summary>
+        /// The security boundary is defined for UADP data, action, and discovery
+        /// messages only; any other message cannot be secured.
+        /// </summary>
+        [Test]
+        public void EncodeWithSecurityBoundaryRejectsAMessageItCannotSecure()
+        {
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            var message = new Opc.Ua.PubSub.Encoding.Json.JsonNetworkMessage { MessageId = "json" };
+
+            Assert.That(
+                () => UadpEncoder.EncodeWithSecurityBoundary(message, context, out _),
+                Throws.ArgumentException);
+        }
+
         [Test]
         public void DiscoveryRequest_DataSetMetaData_RoundTrips()
         {
