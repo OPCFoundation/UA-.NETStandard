@@ -5,7 +5,7 @@
     <Uri>http://opcfoundation.org/UA/SchemaRegistry/</Uri>
   </NamespaceUris>
   <Models>
-    <Model ModelUri="http://opcfoundation.org/UA/SchemaRegistry/" Version="0.8.0" PublicationDate="2026-09-29T00:00:00Z">
+    <Model ModelUri="http://opcfoundation.org/UA/SchemaRegistry/" Version="0.9.0" PublicationDate="2026-10-09T00:00:00Z">
       <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.06" PublicationDate="2025-11-08T00:00:00Z" />
       <RequiredModel ModelUri="http://opcfoundation.org/UA/xRegistry/" Version="0.10.0" PublicationDate="2026-09-29T00:00:00Z" />
     </Model>
@@ -451,7 +451,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62520</Reference>
     </References>
     <Value>
-      <uax:String>0.8.0</uax:String>
+      <uax:String>0.9.0</uax:String>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=62523" BrowseName="2:NamespacePublicationDate" ParentNodeId="ns=2;i=62520" DataType="DateTime" ValueRank="-1">
@@ -461,7 +461,7 @@
       <Reference ReferenceType="HasProperty" IsForward="false">ns=2;i=62520</Reference>
     </References>
     <Value>
-      <uax:DateTime>2026-09-29T00:00:00Z</uax:DateTime>
+      <uax:DateTime>2026-10-09T00:00:00Z</uax:DateTime>
     </Value>
   </UAVariable>
   <UAVariable NodeId="ns=2;i=62524" BrowseName="2:IsNamespaceSubset" ParentNodeId="ns=2;i=62520" DataType="Boolean" ValueRank="-1">
@@ -1816,6 +1816,8 @@
       <Reference ReferenceType="i=45" IsForward="false">i=58</Reference>
       <Reference ReferenceType="i=47">ns=2;i=62664</Reference>
       <Reference ReferenceType="i=47">ns=2;i=62667</Reference>
+      <Reference ReferenceType="i=47">ns=2;i=62684</Reference>
+      <Reference ReferenceType="i=47">ns=2;i=62687</Reference>
     </References>
   </UAObjectType>
   <UAMethod NodeId="ns=2;i=62664" BrowseName="2:ReadSchema" ParentNodeId="ns=2;i=62400">
@@ -2181,4 +2183,246 @@
       <Reference ReferenceType="i=40">i=76</Reference>
     </References>
   </UAObject>
+  <UADataType NodeId="ns=2;i=62310" BrowseName="2:SchemaRegistrationDataType">
+    <DisplayName>SchemaRegistrationDataType</DisplayName>
+    <Description>Explicit source identities and exact Version admission. Default selection is requested explicitly.</Description>
+    <Category>SREG-NativeSchemaWrite</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62680</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62681</Reference>
+    </References>
+    <Definition Name="SchemaRegistrationDataType">
+      <Field Name="NamespaceUri" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="SchemaName" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="Format" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="VersionId" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="EntityUri" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="ResourceUri" DataType="i=12">
+        <Description />
+      </Field>
+      <Field Name="ExpectedEpoch" DataType="i=7">
+        <Description />
+      </Field>
+      <Field Name="MakeDefault" DataType="i=1">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62680" BrowseName="Default Binary" ParentNodeId="ns=2;i=62310">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62310</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62681" BrowseName="Default JSON" ParentNodeId="ns=2;i=62310">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62310</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UADataType NodeId="ns=2;i=62311" BrowseName="2:TypedSchemaRegistrationRequestDataType">
+    <DisplayName>TypedSchemaRegistrationRequestDataType</DisplayName>
+    <Description>Native content admission with independently authored namespace and schema subject identities.</Description>
+    <Category>SREG-NativeSchemaWrite</Category>
+    <References>
+      <Reference ReferenceType="i=45" IsForward="false">i=22</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62682</Reference>
+      <Reference ReferenceType="i=38">ns=2;i=62683</Reference>
+    </References>
+    <Definition Name="TypedSchemaRegistrationRequestDataType">
+      <Field Name="Registration" DataType="ns=2;i=62310">
+        <Description />
+      </Field>
+      <Field Name="Content" DataType="ns=2;i=62200" AllowSubTypes="true">
+        <Description />
+      </Field>
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=2;i=62682" BrowseName="Default Binary" ParentNodeId="ns=2;i=62311">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62311</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=2;i=62683" BrowseName="Default JSON" ParentNodeId="ns=2;i=62311">
+    <DisplayName>Default JSON</DisplayName>
+    <References>
+      <Reference ReferenceType="i=38" IsForward="false">ns=2;i=62311</Reference>
+      <Reference ReferenceType="i=40">i=76</Reference>
+    </References>
+  </UAObject>
+  <UAMethod NodeId="ns=2;i=62684" BrowseName="2:RegisterSchema" ParentNodeId="ns=2;i=62400">
+    <DisplayName>RegisterSchema</DisplayName>
+    <Description>Register a native schema without reversing its symbolic identifier.</Description>
+    <Category>SREG-NativeSchemaWrite</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=2;i=62400</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62685</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62686</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=2;i=62685" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=2;i=62684">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62684</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Request</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=2;i=62311</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Explicit namespace, schema subject, Version and native content.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62686" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=2;i=62684">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62684</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Result</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=2;i=62234</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Committed exact Version or diagnostics.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAMethod NodeId="ns=2;i=62687" BrowseName="2:BeginSchemaUpload" ParentNodeId="ns=2;i=62400">
+    <DisplayName>BeginSchemaUpload</DisplayName>
+    <Description>Stage raw schema bytes without changing a committed Version before Close.</Description>
+    <Category>SREG-NativeSchemaWrite</Category>
+    <References>
+      <Reference ReferenceType="i=47" IsForward="false">ns=2;i=62400</Reference>
+      <Reference ReferenceType="i=37">i=80</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62688</Reference>
+      <Reference ReferenceType="i=46">ns=2;i=62689</Reference>
+    </References>
+  </UAMethod>
+  <UAVariable NodeId="ns=2;i=62688" BrowseName="InputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="1" ParentNodeId="ns=2;i=62687">
+    <DisplayName>InputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62687</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>Registration</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>ns=2;i=62310</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Explicit source identity, format and exact Version admission.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
+  <UAVariable NodeId="ns=2;i=62689" BrowseName="OutputArguments" DataType="i=296" ValueRank="1" AccessLevel="1" UserAccessLevel="1" ArrayDimensions="2" ParentNodeId="ns=2;i=62687">
+    <DisplayName>OutputArguments</DisplayName>
+    <References>
+      <Reference ReferenceType="i=46" IsForward="false">ns=2;i=62687</Reference>
+      <Reference ReferenceType="i=40">i=68</Reference>
+      <Reference ReferenceType="i=37">i=78</Reference>
+    </References>
+    <Value>
+      <uax:ListOfExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>UploadFile</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=17</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Session-owned temporary FileType staging node.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+        <uax:ExtensionObject>
+          <uax:TypeId>
+            <uax:Identifier>i=297</uax:Identifier>
+          </uax:TypeId>
+          <uax:Body>
+            <uax:Argument>
+              <uax:Name>FileHandle</uax:Name>
+              <uax:DataType>
+                <uax:Identifier>i=7</uax:Identifier>
+              </uax:DataType>
+              <uax:ValueRank>-1</uax:ValueRank>
+              <uax:ArrayDimensions />
+              <uax:Description>
+                <uax:Text>Write handle; Close validates and atomically commits the staged document.</uax:Text>
+              </uax:Description>
+            </uax:Argument>
+          </uax:Body>
+        </uax:ExtensionObject>
+      </uax:ListOfExtensionObject>
+    </Value>
+  </UAVariable>
 </UANodeSet>

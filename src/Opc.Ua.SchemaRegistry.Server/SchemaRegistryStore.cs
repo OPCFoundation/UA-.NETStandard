@@ -135,6 +135,89 @@ namespace Opc.Ua.SchemaRegistry.Server
         public Action<SchemaReferenceDataType>? ValidateReference { get; set; }
 
         /// <summary>
+        /// Registers explicit source identities and typed content in one durable transaction.
+        /// </summary>
+        public ValueTask<TypedSchemaReadResultDataType> RegisterAsync(
+            TypedSchemaRegistrationRequestDataType request,
+            CancellationToken cancellationToken = default)
+        {
+            if (request?.Registration is null || request.Content is null)
+            {
+                throw new ArgumentException("A registration descriptor and native content are required.", nameof(request));
+            }
+            SchemaRegistrationDataType registration = request.Registration;
+            SchemaReferenceDataType reference = RegistrationReference(registration);
+            return CommitAsync(reference, registration.ExpectedEpoch, provider =>
+            {
+                if (request.Content.Format != provider.Format)
+                {
+                    throw Input("The registration format differs from native content.");
+                }
+                ByteString bytes = provider.Serialize(request.Content);
+                SchemaContentDataType content = provider.Parse(bytes.Span);
+                if (!content.IsEqual(request.Content))
+                {
+                    throw new ServiceResultException(StatusCodes.BadNotSupported,
+                        "The native content cannot be serialized losslessly.");
+                }
+                return (bytes, content);
+            }, cancellationToken, registration);
+        }
+
+        /// <summary>
+        /// Admits staged raw bytes with explicit namespace, subject and Version source identities.
+        /// </summary>
+        public ValueTask<TypedSchemaReadResultDataType> RegisterRawAsync(
+            SchemaRegistrationDataType registration,
+            ByteString document,
+            CancellationToken cancellationToken = default)
+        {
+            SchemaReferenceDataType reference = RegistrationReference(registration);
+            return CommitAsync(reference, registration.ExpectedEpoch, provider =>
+            {
+                if (document.IsNull)
+                {
+                    throw Input("A non-null schema document is required.");
+                }
+                return (ByteString.From(document.ToArray()), provider.Parse(document.Span));
+            }, cancellationToken, registration);
+        }
+
+        /// <summary>
+        /// Derives an exact reference from independently supplied source identities.
+        /// </summary>
+        public SchemaReferenceDataType RegistrationReference(SchemaRegistrationDataType registration)
+        {
+            if (registration is null || string.IsNullOrEmpty(registration.SchemaName) ||
+                !Uri.TryCreate(registration.NamespaceUri, UriKind.Absolute, out _) ||
+                !Uri.TryCreate(registration.EntityUri, UriKind.Absolute, out _) ||
+                string.IsNullOrEmpty(registration.VersionId) ||
+                registration.VersionId.AsSpan().IndexOfAny('/', '\\') >= 0 ||
+                registration.VersionId is "." or "..")
+            {
+                throw Input("Explicit namespace, schema name, VersionId and entity URI are required.");
+            }
+            string token = FormatToken(registration.Format!);
+            string group = XRegistryIdentifier.FromSourceIdentity(registration.NamespaceUri!);
+            string resource = XRegistryIdentifier.FromSourceIdentity(registration.SchemaName + "/" + token);
+            return new SchemaReferenceDataType
+            {
+                Entity = new RegistryEntityReferenceDataType
+                {
+                    OriginUri = m_origin.OriginUri,
+                    ApplicationUri = m_origin.ApplicationUri,
+                    RegistryNode = m_origin.RegistryNode,
+                    Xid = "/schemagroups/" + group + "/schemas/" + resource + "/versions/" + registration.VersionId,
+                    Role = "ExactVersion"
+                },
+                EntityUri = registration.EntityUri,
+                SelectedObjectUri = registration.EntityUri,
+                Selector = string.Empty,
+                Format = registration.Format
+            };
+        }
+
+        /// <summary>
         /// Loads and validates stored bytes. Corrupt state fails startup without repair or defaults.
         /// </summary>
         public async ValueTask StartAsync(CancellationToken cancellationToken = default)
@@ -377,12 +460,13 @@ namespace Opc.Ua.SchemaRegistry.Server
             SchemaReferenceDataType reference,
             uint expectedEpoch,
             Func<ISchemaFormatProvider, (ByteString Bytes, SchemaContentDataType Content)> prepare,
-            CancellationToken cancellationToken)
+            CancellationToken cancellationToken,
+            SchemaRegistrationDataType? registration = null)
         {
             await m_gate.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                ISchemaFormatProvider provider = Validate(reference);
+                ISchemaFormatProvider provider = Validate(reference, registration);
                 Whole(reference, "ExactVersion");
                 Generation current = Current;
                 string xid = reference.Entity.Xid!;
@@ -398,6 +482,18 @@ namespace Opc.Ua.SchemaRegistry.Server
                     throw Input("The Version is bound to another format or entity URI.");
                 }
                 string resource = ResourceXid(xid, "ExactVersion");
+                if (registration is not null)
+                {
+                    foreach (SchemaEntry entry in current.Entries.Values)
+                    {
+                        if (entry.Registration is { } source &&
+                            ResourceXid(entry.Reference.Entity.Xid!, "ExactVersion") == resource &&
+                            (source.NamespaceUri != registration.NamespaceUri || source.SchemaName != registration.SchemaName))
+                        {
+                            throw Input("The symbolic identity collides with another namespace or schema subject.");
+                        }
+                    }
+                }
                 foreach (SchemaEntry entry in current.Entries.Values)
                 {
                     if (ResourceXid(entry.Reference.Entity.Xid!, "ExactVersion") == resource &&
@@ -409,7 +505,7 @@ namespace Opc.Ua.SchemaRegistry.Server
                 (ByteString bytes, SchemaContentDataType content) = prepare(provider);
                 ByteString fingerprint = provider.ComputeSchemaId(bytes.Span);
                 Claim(reference, provider.SchemaIdAlgorithm, fingerprint);
-                if (previous is not null && previous.Document == bytes)
+                if (previous is not null && previous.Document == bytes && registration?.MakeDefault != true)
                 {
                     return Good(previous);
                 }
@@ -424,12 +520,34 @@ namespace Opc.Ua.SchemaRegistry.Server
                 canonical.Selector = string.Empty;
                 canonical.SelectedObjectUri = canonical.EntityUri;
                 var next = new SchemaEntry(canonical, provider.ContentType, bytes,
-                    (SchemaContentDataType)content.Clone(), previous is null ? 1u : previous.Epoch + 1);
+                    (SchemaContentDataType)content.Clone(),
+                    previous is null ? 1u : previous.Document == bytes ? previous.Epoch : previous.Epoch + 1,
+                    registration is null ? previous?.Registration : (SchemaRegistrationDataType)registration.Clone());
                 var entries = new SortedDictionary<string, SchemaEntry>(current.Entries, StringComparer.Ordinal)
                 {
                     [xid] = next
                 };
-                StatusCode status = await PublishAsync(new Generation(current.Revision, entries, current.Defaults),
+                Dictionary<string, DefaultSelection> defaults = current.Defaults;
+                if (registration?.MakeDefault == true)
+                {
+                    string? resourceUri = registration.ResourceUri;
+                    if (!Uri.TryCreate(resourceUri, UriKind.Absolute, out _) ||
+                        resourceUri.AsSpan().IndexOf('#') >= 0)
+                    {
+                        throw Input("Default registration requires an explicit logical Resource URI.");
+                    }
+                    defaults = new Dictionary<string, DefaultSelection>(defaults, StringComparer.Ordinal)
+                    {
+                        [resource] = new DefaultSelection(resourceUri!, provider.Format, xid)
+                    };
+                    if (previous is not null && previous.Document == bytes &&
+                        current.Defaults.TryGetValue(resource, out DefaultSelection? selected) &&
+                        selected == defaults[resource])
+                    {
+                        return Good(previous);
+                    }
+                }
+                StatusCode status = await PublishAsync(new Generation(current.Revision, entries, defaults),
                     cancellationToken).ConfigureAwait(false);
                 TypedSchemaReadResultDataType result = Good(next);
                 if (StatusCode.IsUncertain(status))
@@ -487,7 +605,8 @@ namespace Opc.Ua.SchemaRegistry.Server
             return StatusCodes.Good;
         }
 
-        private ISchemaFormatProvider Validate(SchemaReferenceDataType reference)
+        private ISchemaFormatProvider Validate(
+            SchemaReferenceDataType reference, SchemaRegistrationDataType? registration = null)
         {
             if (reference?.Entity is null)
             {
@@ -512,7 +631,24 @@ namespace Opc.Ua.SchemaRegistry.Server
             {
                 throw Input("An absent native target must be null.");
             }
-            ValidateReference?.Invoke(reference);
+            bool sourceKnown = registration is not null;
+            if (!sourceKnown && m_current is { } current)
+            {
+                string resource = ResourceXid(reference.Entity.Xid!, reference.Entity.Role!);
+                foreach (SchemaEntry entry in current.Entries.Values)
+                {
+                    if (entry.Registration is not null &&
+                        ResourceXid(entry.Reference.Entity.Xid!, "ExactVersion") == resource)
+                    {
+                        sourceKnown = true;
+                        break;
+                    }
+                }
+            }
+            if (!sourceKnown)
+            {
+                ValidateReference?.Invoke(reference);
+            }
             return reference.Format is not null && m_providers.TryGetValue(reference.Format,
                 out ISchemaFormatProvider? provider)
                 ? provider
@@ -596,6 +732,11 @@ namespace Opc.Ua.SchemaRegistry.Server
                 {
                     encoder.WriteEncodeable(null, Good(entry).Document);
                     encoder.WriteByteString(null, entry.Document);
+                    encoder.WriteBoolean(null, entry.Registration is not null);
+                    if (entry.Registration is { } registration)
+                    {
+                        encoder.WriteEncodeable(null, registration);
+                    }
                 }
                 encoder.WriteUInt32(null, (uint)generation.Defaults.Count);
                 foreach (KeyValuePair<string, DefaultSelection> item in generation.Defaults.OrderBy(
@@ -615,7 +756,8 @@ namespace Opc.Ua.SchemaRegistry.Server
             using var stream = new MemoryStream(stored.Document.ToArray(), writable: false);
             var context = new ServiceMessageContext(m_context, m_context.Telemetry);
             using var decoder = new BinaryDecoder(stream, context, true);
-            if (decoder.ReadString(null) != kStorageFormat)
+            string? storageFormat = decoder.ReadString(null);
+            if (storageFormat != kStorageFormat && storageFormat != "SchemaRegistryState/1.0")
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Unsupported schema store format.");
             }
@@ -637,7 +779,9 @@ namespace Opc.Ua.SchemaRegistry.Server
             {
                 SchemaDocumentDataType native = decoder.ReadEncodeable<SchemaDocumentDataType>(null);
                 ByteString bytes = decoder.ReadByteString(null);
-                ISchemaFormatProvider provider = Validate(native.Reference);
+                SchemaRegistrationDataType? registration = storageFormat == kStorageFormat && decoder.ReadBoolean(null)
+                    ? decoder.ReadEncodeable<SchemaRegistrationDataType>(null) : null;
+                ISchemaFormatProvider provider = Validate(native.Reference, registration);
                 Whole(native.Reference, "ExactVersion");
                 SchemaContentDataType content = provider.Parse(bytes.Span);
                 ByteString fingerprint = provider.ComputeSchemaId(bytes.Span);
@@ -648,7 +792,7 @@ namespace Opc.Ua.SchemaRegistry.Server
                     throw new ServiceResultException(StatusCodes.BadDecodingError, "The stored schema integrity differs.");
                 }
                 entries.Add(native.Reference.Entity.Xid!, new SchemaEntry(native.Reference, provider.ContentType,
-                    bytes, content, native.Epoch));
+                    bytes, content, native.Epoch, registration));
             }
             uint defaultsCount = decoder.ReadUInt32(null);
             if (defaultsCount > count)
@@ -698,7 +842,8 @@ namespace Opc.Ua.SchemaRegistry.Server
             {
                 Reference = (SchemaReferenceDataType)entry.Reference.Clone(),
                 Content = (SchemaContentDataType)entry.Content.Clone(),
-                Document = ByteString.From(entry.Document.ToArray())
+                Document = ByteString.From(entry.Document.ToArray()),
+                Registration = entry.Registration is null ? null : (SchemaRegistrationDataType)entry.Registration.Clone()
             };
         }
 
@@ -734,7 +879,8 @@ namespace Opc.Ua.SchemaRegistry.Server
             string ContentType,
             ByteString Document,
             SchemaContentDataType Content,
-            uint Epoch)
+            uint Epoch,
+            SchemaRegistrationDataType? Registration = null)
         {
             /// <summary>Gets the provider format identifier.</summary>
             public string Format => Reference.Format!;
@@ -755,7 +901,17 @@ namespace Opc.Ua.SchemaRegistry.Server
         private Generation Current => Volatile.Read(ref m_current) ??
             throw new InvalidOperationException("The schema store is not started.");
 
-        private const string kStorageFormat = "SchemaRegistryState/1.0";
+        /// <summary>Returns the symbolic source token of a supported schema format.</summary>
+        public static string FormatToken(string format) => format.ToUpperInvariant() switch
+        {
+            "JSONSCHEMA/2020-12" => "jsonschema",
+            "AVRO/1.11" => "avro",
+            "APACHEARROW/1.0" => "arrow",
+            _ => throw new ServiceResultException(StatusCodes.BadNotSupported,
+                "The format has no configured source identity token.")
+        };
+
+        private const string kStorageFormat = "SchemaRegistryState/2.0";
         private readonly IRegistryStateStore m_storage;
         private readonly IServiceMessageContext m_context;
         private readonly RegistryOriginKey m_origin;

@@ -295,6 +295,81 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             Assert.That(wrongKind.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
+        [Test]
+        public async Task RegisterSchemaCreatesAnUnconfiguredNativeSubjectAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
+                .ConfigureAwait(false);
+            NativeSchemaAccessTypeClient access = await AccessAsync(session).ConfigureAwait(false);
+            var registration = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "urn:example:new-namespace",
+                SchemaName = "DynamicTemperature",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "https://schemas.example.test/dynamic-v1",
+                ResourceUri = "https://schemas.example.test/dynamic",
+                MakeDefault = true
+            };
+            TypedSchemaReadResultDataType registered = await access.RegisterSchemaAsync(
+                new TypedSchemaRegistrationRequestDataType
+                {
+                    Registration = registration,
+                    Content = new JsonSchemaFormatProvider().Parse("""{"type":"number"}"""u8)
+                }).ConfigureAwait(false);
+            Assert.That(registered.StatusCode, Is.EqualTo(StatusCodes.Good), Issue(registered));
+            Assert.That(registered.Document.Reference.Entity.Xid,
+                Does.EndWith("/DynamicTemperature.jsonschema/versions/1"));
+            SchemaReferenceDataType logical = (SchemaReferenceDataType)registered.Document.Reference.Clone();
+            logical.Entity.Xid = logical.Entity.Xid!.Substring(0,
+                logical.Entity.Xid.LastIndexOf("/versions/", StringComparison.Ordinal));
+            logical.Entity.Role = "LogicalResource";
+            logical.EntityUri = registration.ResourceUri;
+            logical.SelectedObjectUri = registration.ResourceUri;
+            TypedSchemaReadResultDataType read = await access.ReadSchemaAsync(logical).ConfigureAwait(false);
+            Assert.That(read.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(read.Document.Reference.Entity.Xid, Is.EqualTo(registered.Document.Reference.Entity.Xid));
+        }
+
+        [Test]
+        public async Task RawUploadIsSessionBoundAndPublishesOnlyOnValidatedCloseAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
+                .ConfigureAwait(false);
+            NativeSchemaAccessTypeClient access = await AccessAsync(session).ConfigureAwait(false);
+            var registration = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "urn:example:uploads",
+                SchemaName = "RawTemperature",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "https://schemas.example.test/raw-v1"
+            };
+            (NodeId fileId, uint handle) = await access.BeginSchemaUploadAsync(registration).ConfigureAwait(false);
+            var file = new FileTypeClient(session, fileId, m_telemetry!);
+            ByteString raw = ByteString.From("{ \"type\" : \"number\", \"default\" : 1.00 }\n"u8.ToArray());
+            await file.WriteAsync(handle, raw).ConfigureAwait(false);
+            using ISession other = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
+                .ConfigureAwait(false);
+            var guessed = new FileTypeClient(other, fileId, m_telemetry!);
+            ServiceResultException denied = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await guessed.CloseAsync(handle).ConfigureAwait(false))!;
+            Assert.That(denied.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            await file.CloseAsync(handle).ConfigureAwait(false);
+            var registry = new SchemaRegistryTypeClient(session,
+                ExpandedNodeId.ToNodeId(ObjectIds.SchemaRegistry, session.NamespaceUris), m_telemetry!);
+            ByteString fingerprint = new JsonSchemaFormatProvider().ComputeSchemaId(raw.Span);
+            (ByteString downloaded, _, _) = await registry.GetSchemaAsync(fingerprint).ConfigureAwait(false);
+            Assert.That(downloaded, Is.EqualTo(raw));
+            registration.SchemaName = "InvalidUpload";
+            registration.EntityUri = "https://schemas.example.test/invalid-upload-v1";
+            (NodeId badFileId, uint badHandle) = await access.BeginSchemaUploadAsync(registration).ConfigureAwait(false);
+            var badFile = new FileTypeClient(session, badFileId, m_telemetry!);
+            await badFile.WriteAsync(badHandle, ByteString.From("not-json"u8.ToArray())).ConfigureAwait(false);
+            ServiceResultException invalid = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await badFile.CloseAsync(badHandle).ConfigureAwait(false))!;
+            Assert.That(invalid.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+        }
         private async Task<ISession> ConnectAsync(string policy, string user, string password)
         {
             ISession session = await m_client!.ConnectAsync(

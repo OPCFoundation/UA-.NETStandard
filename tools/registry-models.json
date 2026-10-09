@@ -1,6 +1,6 @@
 {
   "repository": "OPCF-Members/OPC30450-CloudInitiative",
-  "commit": "79e3ca0c1783685a78cea920cc204818ac78228b",
+  "commit": "fa6055c7435a69ba7d298a01b06b804828fe9923",
   "uncommittedSource": false,
   "files": [
     {
@@ -22,23 +22,23 @@
     {
       "source": "model\\Opc.Ua.SchemaRegistry.NodeSet2.xml",
       "target": "src\\Opc.Ua.SchemaRegistry\\Model\\Opc.Ua.SchemaRegistry.NodeSet2.xml",
-      "sha256": "24157b323c302fffd1a823719c9ae2f00f8cc0aab27bd37cd3aa127206274f42",
+      "sha256": "6dc4faf11467032d00369a15cdbffe6640ae10ab940a1077e1c9042c8b41f7a9",
       "namespaceUri": "http://opcfoundation.org/UA/SchemaRegistry/",
-      "version": "0.8.0",
-      "publicationDate": "2026-09-29"
+      "version": "0.9.0",
+      "publicationDate": "2026-10-09"
     },
     {
       "source": "model\\Opc.Ua.SchemaRegistry.NodeIds.csv",
       "target": "src\\Opc.Ua.SchemaRegistry\\Model\\Opc.Ua.SchemaRegistry.NodeIds.csv",
-      "sha256": "a101baa6f495d480905340d862c8dbafd56c2fffb6046da58c4cecff4656031e",
+      "sha256": "63d34ba5a2f036e66e3c80997456ecd64ef7d1e6edad821ad1df305a7e894951",
       "namespaceUri": "http://opcfoundation.org/UA/SchemaRegistry/",
-      "version": "0.8.0",
-      "publicationDate": "2026-09-29"
+      "version": "0.9.0",
+      "publicationDate": "2026-10-09"
     },
     {
       "source": "model\\Opc.Ua.EndpointRegistry.NodeSet2.xml",
       "target": "src\\Opc.Ua.EndpointRegistry\\Model\\Opc.Ua.EndpointRegistry.NodeSet2.xml",
-      "sha256": "889deb46b963edecaf5580dabd3a8ed50500faf0c91d4dbf53ccdb173561cff2",
+      "sha256": "39eae1549611da72ff415091d307bd6daab55192d402f18161119e2c049d2008",
       "namespaceUri": "http://opcfoundation.org/UA/EndpointRegistry/",
       "version": "0.3.0",
       "publicationDate": "2026-09-29"

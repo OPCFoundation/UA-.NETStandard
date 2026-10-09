@@ -222,13 +222,14 @@ namespace Opc.Ua.SchemaRegistry.Server
         }
 
         /// <inheritdoc/>
-        public override ValueTask SessionClosingAsync(
+        public override async ValueTask SessionClosingAsync(
             OperationContext context, NodeId sessionId, bool deleteSubscriptions,
             CancellationToken cancellationToken = default)
         {
             m_snapshots.ReleaseSession(sessionId);
             m_files.ReleaseSession(sessionId);
-            return base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken);
+            await ReleaseUploadsAsync(sessionId, cancellationToken).ConfigureAwait(false);
+            await base.SessionClosingAsync(context, sessionId, deleteSubscriptions, cancellationToken).ConfigureAwait(false);
         }
 
         /// <inheritdoc/>
@@ -247,6 +248,7 @@ namespace Opc.Ua.SchemaRegistry.Server
         /// <inheritdoc/>
         public override async ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
         {
+            await ReleaseUploadsAsync(null, cancellationToken).ConfigureAwait(false);
             await base.DeleteAddressSpaceAsync(cancellationToken).ConfigureAwait(false);
             if (m_ownedStore is not null)
             {
@@ -286,6 +288,22 @@ namespace Opc.Ua.SchemaRegistry.Server
             XRegistryProjectionEngine.SetValue(root.RegistryId, m_options.RegistryId);
             NativeSchemaAccessState access = root.TypedSchemas!;
             access.AddReadSchema(context).AddWriteSchema(context);
+            access.AddRegisterSchema(context).AddBeginSchemaUpload(context);
+            access.RegisterSchema!.OnCallAsync = async (caller, _, _, request, ct) =>
+            {
+                ServiceResult allowed = m_authorize(caller, RegistryAccessKind.Write);
+                if (ServiceResult.IsBad(allowed))
+                {
+                    return new RegisterSchemaMethodStateResult { ServiceResult = allowed };
+                }
+                return new RegisterSchemaMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Good,
+                    Result = await m_store.RegisterAsync(request, ct).ConfigureAwait(false)
+                };
+            };
+            access.BeginSchemaUpload!.OnCallAsync = (caller, _, _, registration, ct) =>
+                BeginUploadAsync(caller, registration, ct);
             access.ReadSchema!.OnCallAsync = (caller, _, _, reference, ct) =>
             {
                 ct.ThrowIfCancellationRequested();

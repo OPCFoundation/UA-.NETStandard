@@ -213,6 +213,69 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
             Assert.That(recovered.Read(reference).Document.Epoch, Is.EqualTo(1));
         }
 
+        [Test]
+        public async Task RegistrationPersistsSourceIdentitiesAndAnExplicitDefaultInOneCommitAsync()
+        {
+            await using var storage = new MemoryRegistryStateStore();
+            using var store = Store(storage);
+            await store.StartAsync().ConfigureAwait(false);
+            var registration = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "http://contoso.org/UA/Pumps/",
+                SchemaName = "Temperature",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "https://schemas.example.test/temperature-v1",
+                ResourceUri = "https://schemas.example.test/temperature",
+                MakeDefault = true
+            };
+            TypedSchemaReadResultDataType result = await store.RegisterAsync(
+                new TypedSchemaRegistrationRequestDataType
+                {
+                    Registration = registration,
+                    Content = new JsonSchemaFormatProvider().Parse("""{"type":"number"}"""u8)
+                }).ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.Document.Reference.Entity.Xid,
+                Is.EqualTo("/schemagroups/org.contoso.UA.Pumps/schemas/Temperature.jsonschema/versions/1"));
+            RegistryStoredState committed = await storage.ReadAsync().ConfigureAwait(false);
+            Assert.That(committed.Revision, Is.EqualTo(1), "Source identities, Version and default commit together.");
+            using var recovered = Store(storage);
+            await recovered.StartAsync().ConfigureAwait(false);
+            Assert.That(recovered.Entries[0].Registration!.SchemaName, Is.EqualTo("Temperature"));
+            SchemaReferenceDataType logical = recovered.ReferenceForXid(
+                "/schemagroups/org.contoso.UA.Pumps/schemas/Temperature.jsonschema");
+            Assert.That(logical.EntityUri, Is.EqualTo(registration.ResourceUri));
+            Assert.That(recovered.Read(logical).Document.Epoch, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task FailedRegistrationPublishesNeitherSubjectNorDefaultAsync()
+        {
+            await using var storage = new MemoryRegistryStateStore();
+            using var store = Store(storage);
+            await store.StartAsync().ConfigureAwait(false);
+            var registration = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "urn:new:schemas",
+                SchemaName = "NeverPublished",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "https://schemas.example.test/v1",
+                MakeDefault = true,
+                ResourceUri = "not-an-absolute-uri"
+            };
+            TypedSchemaReadResultDataType result = await store.RegisterAsync(
+                new TypedSchemaRegistrationRequestDataType
+                {
+                    Registration = registration,
+                    Content = new JsonSchemaFormatProvider().Parse("""{"type":"number"}"""u8)
+                }).ConfigureAwait(false);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(store.Entries.Count, Is.Zero);
+            Assert.That((await storage.ReadAsync().ConfigureAwait(false)).Revision, Is.Zero);
+        }
+
         private static SchemaRegistryStore Store(IRegistryStateStore storage)
         {
             var context = ServiceMessageContext.Create(null);

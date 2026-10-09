@@ -60,8 +60,9 @@ namespace Opc.Ua.SchemaRegistry.Server
                         assignNodeIds: false);
                     group.ReferenceTypeId = Ua.ReferenceTypeIds.Organizes;
                     XRegistryProjectionEngine.SetValue(group.GroupId, groupId);
-                    XRegistryProjectionEngine.SetValue(group.Name, m_options.NamespaceUris[groupId]);
-                    XRegistryProjectionEngine.SetValue(group.NamespaceUri, m_options.NamespaceUris[groupId]);
+                    string namespaceUri = entry.Registration?.NamespaceUri ?? m_options.NamespaceUris[groupId];
+                    XRegistryProjectionEngine.SetValue(group.Name, namespaceUri);
+                    XRegistryProjectionEngine.SetValue(group.NamespaceUri, namespaceUri);
                     groups.Add(groupId, group);
                 }
                 if (!resources.TryGetValue(resourceXid, out SchemaFileState? logical))
@@ -110,7 +111,7 @@ namespace Opc.Ua.SchemaRegistry.Server
             XRegistryProjectionEngine.SetValue(file.ResourceId, entry.Reference.Entity.Xid!.Split('/')[4]);
             string[] path = xid.Substring(1).Split('/');
             string resourceXid = "/" + string.Join("/", path, 0, 4);
-            string schemaName = m_options.SchemaNames[resourceXid];
+            string schemaName = entry.Registration?.SchemaName ?? m_options.SchemaNames[resourceXid];
             XRegistryProjectionEngine.SetValue(file.Name, schemaName + " (" + entry.Format + ")");
             XRegistryProjectionEngine.SetValue(file.SchemaName, schemaName);
             XRegistryProjectionEngine.SetValue(file.Xid, xid);
