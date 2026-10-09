@@ -53,7 +53,7 @@ namespace Opc.Ua.Subscriptions.Tests
         public async Task PublishPreservesAllInitialValuesBeyondRetransmissionBudgetAsync(CancellationToken ct)
         {
             const int kItemCount = 251;
-            Assert.That(ServerFixture.Config.ServerConfiguration.MaxMessageQueueSize * 10, Is.LessThan(kItemCount),
+            Assert.That(ServerFixture.Config.ServerConfiguration!.MaxMessageQueueSize * 10, Is.LessThan(kItemCount),
                 "The initial values must exceed the configured message budget.");
             CreateSubscriptionResponse subscription = await Session.CreateSubscriptionAsync(
                 null, 100, 1000, 10, 10, true, 0, ct).ConfigureAwait(false);
@@ -1033,7 +1033,7 @@ namespace Opc.Ua.Subscriptions.Tests
             foreach (ExtensionObject ext in pub.NotificationMessage.NotificationData)
             {
                 var dcn = ExtensionObject.ToEncodeable(ext) as DataChangeNotification;
-                if (dcn != null && dcn.MonitoredItems != default && dcn.MonitoredItems.Count > 0)
+                if (dcn != null && dcn.MonitoredItems != default! && dcn.MonitoredItems.Count > 0)
                 {
                     return true;
                 }

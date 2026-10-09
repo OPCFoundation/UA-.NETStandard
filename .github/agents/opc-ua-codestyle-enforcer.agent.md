@@ -11,9 +11,9 @@ You are a code-style enforcement specialist for the OPC UA .NET Standard reposit
 
 - **Solution:** `UA.slnx` at the repo root.
 - **Build command:** `dotnet build UA.slnx -c Debug --nologo -v:m`
-- **TFMs:** Projects multi-target `net472;net48;netstandard2.1;net8.0;net9.0;net10.0`. Fixes must compile on ALL TFMs.
+- **TFMs:** Projects multi-target `net48;net8.0;net9.0;net10.0` (`Opc.Ua.Types` additionally `netstandard2.0` for the source generators). Fixes must compile on ALL TFMs.
 - **Config files:**
-  - `common.props` — `TreatWarningsAsErrors=true`, `CodeAnalysisTreatWarningsAsErrors=false`, `AnalysisMode=all`, `AnalysisLevel=preview`.
+  - `common.props` — `TreatWarningsAsErrors=true`, `CodeAnalysisTreatWarningsAsErrors=true`, `AnalysisMode=all`, `AnalysisLevel=preview`. Any CA rule reported at `warning` severity therefore fails the build, just like compiler warnings.
   - `.editorconfig` — Roslyn style rules + Roslynator analyzers. Several CA/RCS rules are promoted to `severity = error` (CA1014, CA1305, CA1307, CA2007, CA2016, CA2213, CA2000, RCS1166, NUnit4002, NUnit2046).
   - `Directory.Build.props` → imports `common.props` + `targets.props` + `version.props`.
 - **Analyzers:** Roslynator.Analyzers, Roslynator.Formatting.Analyzers, NUnit.Analyzers, plus built-in .NET analyzers.
@@ -225,7 +225,7 @@ For each batch:
 | RCS1249 removing `!` operators | CS8602 on net48/472/net8.0+ | The nullable flow analysis differs across TFMs. Always build after applying RCS1249 and revert files that break. |
 | `await using var x = expr.ConfigureAwait(false)` | Changes variable type to `ConfiguredAsyncDisposable` | Skip `await using var` declarations for ConfigureAwait; the short-hand form can't configure the dispose-await. Use the block-scope form instead. |
 | Collection expressions `[]` on net48 | Usually fine (compiler lowers them) | But watch for `IDE0330` and other net9.0+-only features. |
-| CA1835 `Memory<byte>` overload on net48 | Overload doesn't exist on `net472`/`net48` | Gate with `#if NETSTANDARD2_1_OR_GREATER \|\| NET` to keep the byte[] overload on older TFMs. |
+| CA1835 `Memory<byte>` overload on net48 | Overload doesn't exist on `net48` | Gate with `#if NET` to keep the byte[] overload on older TFMs. |
 
 ### Manual-fix reference table
 
@@ -233,12 +233,12 @@ For each batch:
 
 | Warning | Typical fix |
 |---|---|
-| **CA1835** (use `Memory<byte>` overload of `Stream.ReadAsync`) | Switch to the `Memory<byte>` / `ReadOnlyMemory<byte>` overload; on `net472`/`net48` keep the byte[] overload behind `#if NETSTANDARD2_1_OR_GREATER \|\| NET`. |
+| **CA1835** (use `Memory<byte>` overload of `Stream.ReadAsync`) | Switch to the `Memory<byte>` / `ReadOnlyMemory<byte>` overload; on `net48` keep the byte[] overload behind `#if NET`. |
 | **CA2007** on a plain `await something` | Add `.ConfigureAwait(false)`. |
 | **CA2007** on an `await using` declaration | Convert to block-scope form (see Dispose patterns below). |
 | **CA2213** (disposable field not disposed) | Dispose in `Dispose(bool)`. If ownership is intentional, `#pragma warning disable CA2213` with a comment explaining why. |
 | **CA2215** (overriding `DisposeAsync` should call base) | Override per the MS docs pattern (see below). |
-| **CA1844** (override `Memory<byte>` `ReadAsync`/`WriteAsync`) | Add the matching `Memory`-based override (gated by `#if NETSTANDARD2_1_OR_GREATER \|\| NET`). |
+| **CA1844** (override `Memory<byte>` `ReadAsync`/`WriteAsync`) | Add the matching `Memory`-based override (gated by `#if NET`). |
 | **CA1861** (prefer `static readonly` array fields) | For test assertions, suppress at file level with a comment. Otherwise lift to a `static readonly` field. |
 | **CA1068** (`CancellationToken` should be last parameter) | Move `CancellationToken` to last position at the method and all call sites. |
 | **CA1859** (return concrete type for perf) | Change return type from interface to concrete type for `private`/`internal` methods. |
@@ -309,7 +309,7 @@ dotnet_diagnostic.CAXXXX.severity = error
 Before promoting:
 1. Verify the rule has genuinely 0 hits: `dotnet build UA.slnx 2>&1 | Select-String "CAXXXX"`.
 2. Prefer rules that catch real bugs (CA2213, CA2016, RCS1166, CA1307) over stylistic ones (CA1861).
-3. Do NOT flip `CodeAnalysisTreatWarningsAsErrors=true` globally — too many rules are intentionally at lower severity.
+3. Keep `CodeAnalysisTreatWarningsAsErrors=true` in `common.props` — do NOT turn it off or downgrade rules to silence new hits. Rules that are intentionally not enforced stay at `suggestion`/`silent`/`none` in `.editorconfig`; raising one to `warning` makes it build-breaking, so clean up all hits first.
 
 ### New project checklist
 

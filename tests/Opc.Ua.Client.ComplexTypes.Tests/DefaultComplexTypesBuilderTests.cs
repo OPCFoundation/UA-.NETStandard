@@ -74,7 +74,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 case StructureType.StructureWithOptionalFields:
                     var optionalFields = instance as Encoders.StructureWithOptionalFields;
                     Assert.That(optionalFields, Is.Not.Null);
-                    Assert.That(optionalFields.EncodingMask, Is.Zero);
+                    Assert.That(optionalFields!.EncodingMask, Is.Zero);
                     Assert.That(
                         propertyBuiltInTypes,
                         Is.EqualTo(optionalFields.GetFields().Count));
@@ -83,7 +83,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 case StructureType.UnionWithSubtypedValues:
                     var union = instance as ComplexUnion;
                     Assert.That(union, Is.Not.Null);
-                    Assert.That(union.SwitchField, Is.Zero);
+                    Assert.That(union!.SwitchField, Is.Zero);
                     Assert.That(propertyBuiltInTypes, Is.EqualTo(union.GetFields().Count));
                     Assert.That(union.Value.IsNull, Is.True);
                     break;
@@ -92,9 +92,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             IEncodeable encodeable = instance;
             Assert.That(encodeable, Is.Not.Null);
 
-            foreach (IStructureField accessorName in structure.GetFields())
+            foreach (IStructureField accessorName in structure!.GetFields())
             {
-                _ = structure[accessorName.Name];
+                _ = structure[accessorName.Name!];
             }
 
             for (int i = 0; i < structure.GetFields().Count; i++)

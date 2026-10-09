@@ -289,8 +289,8 @@ namespace Opc.Ua.Server.Tests.Hosting
             HistoryServerCapabilitiesState history = fixture.Context
                 .FindNodeManagers<IDiagnosticsNodeManager>().Single()
                 .FindPredefinedNode<HistoryServerCapabilitiesState>(observations.HistoryNodeId);
-            Assert.That(history.MaxReturnDataValues.Value, Is.EqualTo(73u));
-            Assert.That(history.MaxReturnEventValues.Value, Is.EqualTo(29u));
+            Assert.That(history.MaxReturnDataValues!.Value, Is.EqualTo(73u));
+            Assert.That(history.MaxReturnEventValues!.Value, Is.EqualTo(29u));
         }
 
         [TestCase(false)]
@@ -453,8 +453,8 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(info.ProductUri, Is.EqualTo("urn:composition:loaded-override"));
             Assert.That(seenConfiguration, Is.SameAs(fixture.Configuration));
             Assert.That(factory.Configuration, Is.SameAs(seenConfiguration));
-            Assert.That(seenConfiguration.TransportQuotas.MaxStringLength, Is.EqualTo(654321));
-            Assert.That(seenConfiguration.ServerConfiguration.MaxSessionCount, Is.EqualTo(77));
+            Assert.That(seenConfiguration.TransportQuotas!.MaxStringLength, Is.EqualTo(654321));
+            Assert.That(seenConfiguration.ServerConfiguration!.MaxSessionCount, Is.EqualTo(77));
             Assert.That(callbackCount, Is.EqualTo(1));
             Assert.That(factory.CreateCount, Is.EqualTo(1));
             AssertMarker(fixture.Context, factory.NamespacesUris[0], 42);
@@ -839,8 +839,8 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(factoryCalls, Is.EqualTo(1));
             Assert.That(userCalls, Is.EqualTo(1));
             Assert.That(certificateCalls, Is.EqualTo(1));
-            Assert.That(fixture.Configuration.ServerConfiguration.UserTokenPolicies
-                .ToArray().Select(policy => policy.TokenType), Is.EqualTo(s_anonymousTokens),
+            Assert.That(fixture.Configuration.ServerConfiguration!.UserTokenPolicies
+                .ToArray()!.Select(policy => policy.TokenType), Is.EqualTo(s_anonymousTokens),
                 "Registering authentication must not implicitly advertise username or certificate policies.");
         }
 
@@ -1037,7 +1037,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             AssertMarker(fixture.Context, factory.NamespacesUris[0], 91);
             Assert.That(observations.StartupCount, Is.EqualTo(1));
             Assert.That(identity.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
-            Assert.That(identity.Identity.TokenType, Is.EqualTo(UserTokenType.Anonymous));
+            Assert.That(identity.Identity!.TokenType, Is.EqualTo(UserTokenType.Anonymous));
         }
 
         [TestCase(false, false, false)]
@@ -1113,8 +1113,8 @@ namespace Opc.Ua.Server.Tests.Hosting
             followingTask.Verify(task => task.OnServerStartingAsync(
                 It.IsAny<IServerContext>(), It.IsAny<CancellationToken>()), Times.Once);
             AliasNameCategoryState category = fixture.Context
-                .FindPredefinedNode<AliasNameCategoryState>(categoryId);
-            ArrayOf<AliasNameDataType> aliases = await FindAliasesAsync(fixture.Context, category)
+                .FindPredefinedNode<AliasNameCategoryState>(categoryId)!;
+            ArrayOf<AliasNameDataType> aliases = await FindAliasesAsync(fixture.Context, category!)
                 .ConfigureAwait(false);
             Assert.That(aliases.Count, Is.EqualTo(1));
             Assert.That(aliases[0].AliasName.Name, Is.EqualTo("InitializedAlias"));
@@ -1130,8 +1130,8 @@ namespace Opc.Ua.Server.Tests.Hosting
             {
                 var aliasId = ExpandedNodeId.ToNodeId(
                     browseAliases[0].TargetId, fixture.Context.DefaultSystemContext.NamespaceUris);
-                AliasNameState alias = fixture.Context.FindPredefinedNode<AliasNameState>(aliasId);
-                Assert.That(alias.BrowseName.Name, Is.EqualTo("InitializedAlias"));
+                AliasNameState alias = fixture.Context.FindPredefinedNode<AliasNameState>(aliasId)!;
+                Assert.That(alias!.BrowseName.Name, Is.EqualTo("InitializedAlias"));
                 Assert.That(alias.ReferenceExists(ReferenceTypeIds.AliasFor, false,
                     VariableIds.Server_ServerStatus_BuildInfo_ProductName), Is.True);
                 Assert.That(category.FindAliasVerbose, Is.Not.Null);
@@ -1240,7 +1240,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             await fixture.StartAsync().ConfigureAwait(false);
 
             AliasNameCategoryState category = fixture.Context
-                .FindPredefinedNode<AliasNameCategoryState>(categoryId);
+                .FindPredefinedNode<AliasNameCategoryState>(categoryId)!;
             Assert.That(category, Is.Not.Null);
             ArrayOf<AliasNameDataType> initial = await FindAliasesAsync(fixture.Context, category)
                 .ConfigureAwait(false);
@@ -1256,7 +1256,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 .Where(reference => reference.ReferenceTypeId == ReferenceTypeIds.Organizes && !reference.IsInverse)
                 .Select(reference => fixture.Context.FindPredefinedNode<AliasNameState>(
                     ExpandedNodeId.ToNodeId(reference.TargetId, fixture.Context.DefaultSystemContext.NamespaceUris)))
-                .Where(node => node != null)];
+                .Where(node => node != null)!];
             Assert.That(aliases, Has.Length.EqualTo(materialize ? 1 : 0));
             if (materialize)
             {
@@ -1268,12 +1268,12 @@ namespace Opc.Ua.Server.Tests.Hosting
                 Assert.That(alias.ReferenceExists(ReferenceTypeIds.AliasFor, false,
                     VariableIds.Server_ServerStatus_BuildInfo_ProductName), Is.True);
                 BaseVariableState target = fixture.Context.FindPredefinedNode<BaseVariableState>(
-                    VariableIds.Server_ServerStatus_BuildInfo_ProductName);
-                Assert.That(target.ReferenceExists(ReferenceTypeIds.AliasFor, true, aliasId), Is.True);
+                    VariableIds.Server_ServerStatus_BuildInfo_ProductName)!;
+                Assert.That(target!.ReferenceExists(ReferenceTypeIds.AliasFor, true, aliasId), Is.True);
                 Assert.That(category.FindAliasVerbose, Is.Not.Null);
                 Assert.That(category.AddAliasesToCategory, Is.Not.Null);
                 Assert.That(category.DeleteAliasesFromCategory, Is.Not.Null);
-                Assert.That(category.LastChange.Value, Is.Zero);
+                Assert.That(category.LastChange!.Value, Is.Zero);
             }
             else
             {
@@ -1311,7 +1311,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 .ConfigureAwait(false);
             Assert.That(changes, Has.Length.EqualTo(1));
             Assert.That(changes[0].Code, Is.EqualTo((uint)StatusCodes.Good));
-            Assert.That(current.ToArray().Select(alias => alias.AliasName.Name),
+            Assert.That(current.ToArray()!.Select(alias => alias.AliasName.Name),
                 Is.EquivalentTo(s_mutatedAliases));
             references.Clear();
             category.GetReferences(fixture.Context.DefaultSystemContext, references);
@@ -1321,17 +1321,17 @@ namespace Opc.Ua.Server.Tests.Hosting
                 "Materialized aliases must follow store changes by default.");
             if (materialize)
             {
-                Assert.That(category.LastChange.Value, Is.EqualTo(1u));
+                Assert.That(category.LastChange!.Value, Is.EqualTo(1u));
                 Assert.That(fixture.Context.FindPredefinedNode<AliasNameState>(aliasId), Is.SameAs(aliases[0]));
-                AliasNameState addedAlias = fixture.Context.FindPredefinedNode<AliasNameState>(addedAliasId);
+                AliasNameState addedAlias = fixture.Context.FindPredefinedNode<AliasNameState>(addedAliasId)!;
                 Assert.That(addedAlias, Is.Not.Null);
                 Assert.That(addedAlias.BrowseName.Name, Is.EqualTo("BuildNumber"));
                 Assert.That(addedAlias.TypeDefinitionId, Is.EqualTo(ObjectTypeIds.AliasNameType));
                 Assert.That(addedAlias.ReferenceExists(
                     ReferenceTypeIds.AliasFor, false, VariableIds.Server_ServerStatus_BuildInfo_BuildNumber), Is.True);
                 BaseVariableState target = fixture.Context.FindPredefinedNode<BaseVariableState>(
-                    VariableIds.Server_ServerStatus_BuildInfo_BuildNumber);
-                Assert.That(target.ReferenceExists(ReferenceTypeIds.AliasFor, true, addedAliasId), Is.True);
+                    VariableIds.Server_ServerStatus_BuildInfo_BuildNumber)!;
+                Assert.That(target!.ReferenceExists(ReferenceTypeIds.AliasFor, true, addedAliasId), Is.True);
             }
         }
 
@@ -1359,17 +1359,17 @@ namespace Opc.Ua.Server.Tests.Hosting
             });
             await using ConfiguredAsyncDisposable cleanup = fixture.ConfigureAwait(false);
             await fixture.StartAsync().ConfigureAwait(false);
-            AliasNameCategoryState category = fixture.Context.FindPredefinedNode<AliasNameCategoryState>(categoryId);
+            AliasNameCategoryState category = fixture.Context.FindPredefinedNode<AliasNameCategoryState>(categoryId)!;
             ushort ns = fixture.Context.DefaultSystemContext.NamespaceUris.GetIndexOrAppend(
                 Ua.Namespaces.OpcUa + "Diagnostics");
             var originalId = new NodeId(Utils.Format("{0}.{1}", categoryId, "BuildName"), ns);
             var addedId = new NodeId(Utils.Format("{0}.{1}", categoryId, "BuildNumber"), ns);
-            AliasNameState original = fixture.Context.FindPredefinedNode<AliasNameState>(originalId);
+            AliasNameState original = fixture.Context.FindPredefinedNode<AliasNameState>(originalId)!;
             var published = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             if (materialize)
             {
                 Assert.That(original, Is.Not.Null);
-                category.OnStateChanged += (_, _, _) =>
+                category!.OnStateChanged += (_, _, _) =>
                 {
                     if (fixture.Context.FindPredefinedNode<AliasNameState>(addedId) != null)
                     {
@@ -1386,19 +1386,19 @@ namespace Opc.Ua.Server.Tests.Hosting
                 await published.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
                 Assert.That(fixture.Context.FindPredefinedNode<AliasNameState>(originalId), Is.SameAs(original));
                 BaseVariableState target = fixture.Context.FindPredefinedNode<BaseVariableState>(
-                    VariableIds.Server_ServerStatus_BuildInfo_BuildNumber);
-                Assert.That(target.ReferenceExists(ReferenceTypeIds.AliasFor, true, addedId), Is.True);
+                    VariableIds.Server_ServerStatus_BuildInfo_BuildNumber)!;
+                Assert.That(target!.ReferenceExists(ReferenceTypeIds.AliasFor, true, addedId), Is.True);
             }
             else
             {
                 Assert.That(fixture.Context.FindPredefinedNode<AliasNameState>(addedId), Is.Null);
-                Assert.That(category.FindAliasVerbose, Is.Null);
+                Assert.That(category!.FindAliasVerbose, Is.Null);
                 Assert.That(category.AddAliasesToCategory, Is.Null);
                 Assert.That(category.DeleteAliasesFromCategory, Is.Null);
             }
-            ArrayOf<AliasNameDataType> current = await FindAliasesAsync(fixture.Context, category)
+            ArrayOf<AliasNameDataType> current = await FindAliasesAsync(fixture.Context, category!)
                 .ConfigureAwait(false);
-            Assert.That(current.ToArray().Select(alias => alias.AliasName.Name), Is.EquivalentTo(s_mutatedAliases));
+            Assert.That(current.ToArray()!.Select(alias => alias.AliasName.Name), Is.EquivalentTo(s_mutatedAliases));
         }
 
         [Test]
@@ -1506,8 +1506,8 @@ namespace Opc.Ua.Server.Tests.Hosting
         private static BuildInfo ReadBuildInfo(IServerContext context)
         {
             DataValue value = ReadValue(context, VariableIds.Server_ServerStatus_BuildInfo);
-            Assert.That(value.WrappedValue.TryGetStructure(out BuildInfo info), Is.True);
-            return info;
+            Assert.That(value.WrappedValue.TryGetStructure<BuildInfo>(out BuildInfo? info), Is.True);
+            return info!;
         }
 
         private static DataValue ReadValue(IServerContext context, NodeId nodeId)
@@ -1536,8 +1536,8 @@ namespace Opc.Ua.Server.Tests.Hosting
                 .Select(manager => manager.FindPredefinedNode<BaseVariableState>(nodeId))
                 .Concat(context.FindNodeManagers<LegacyMarkerNodeManager>()
                     .Select(manager => manager.FindPredefinedNode<BaseVariableState>(nodeId)))
-                .Single(value => value != null);
-            DataValue value = ReadValue(context, node);
+                .Single(value => value != null)!;
+            DataValue value = ReadValue(context, node!);
             Assert.That(value.WrappedValue.GetInt32(), Is.EqualTo(marker));
         }
 
@@ -1558,7 +1558,7 @@ namespace Opc.Ua.Server.Tests.Hosting
         {
             var argumentErrors = new List<ServiceResult>();
             var output = new List<Variant>();
-            ServiceResult result = await category.FindAlias.CallAsync(
+            ServiceResult result = await category.FindAlias!.CallAsync(
                 context.DefaultSystemContext, category.NodeId,
                 [new Variant("%"), new Variant(NodeId.Null)],
                 argumentErrors, output, CancellationToken.None).ConfigureAwait(false);
@@ -1670,8 +1670,8 @@ namespace Opc.Ua.Server.Tests.Hosting
                 IDiagnosticsNodeManager diagnostics = server.FindNodeManagers<IDiagnosticsNodeManager>().Single();
                 HistoryServerCapabilitiesState history = await diagnostics
                     .GetDefaultHistoryCapabilitiesAsync(cancellationToken).ConfigureAwait(false);
-                history.MaxReturnDataValues.Value = 73;
-                history.MaxReturnEventValues.Value = 29;
+                history.MaxReturnDataValues!.Value = 73;
+                history.MaxReturnEventValues!.Value = 29;
                 observations.HistoryNodeId = history.NodeId;
             }
         }
@@ -1764,7 +1764,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                     Value = marker
                 };
                 variable.AddReference(ReferenceTypeIds.Organizes, true, ObjectIds.ObjectsFolder);
-                if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out IList<IReference> references))
+                if (!externalReferences.TryGetValue(ObjectIds.ObjectsFolder, out IList<IReference>? references))
                 {
                     references = [];
                     externalReferences[ObjectIds.ObjectsFolder] = references;
@@ -2022,7 +2022,7 @@ namespace Opc.Ua.Server.Tests.Hosting
                 LogLevel logLevel,
                 EventId eventId,
                 TState state,
-                Exception exception,
+                Exception? exception,
                 Func<TState, Exception, string> formatter)
             {
                 if (logLevel == LogLevel.Error && exception != null)
@@ -2203,7 +2203,7 @@ namespace Opc.Ua.Server.Tests.Hosting
             Assert.That(reverse.GetReverseConnections()[enabled].ConfigEntry, Is.True);
             Assert.That(reverse.GetReverseConnections()[enabled].Timeout, Is.EqualTo(2345));
             Assert.That(reverse.GetReverseConnections()[disabled].Enabled, Is.False);
-            Assert.That(fixture.Configuration.ServerConfiguration.ReverseConnect.ConnectTimeout, Is.EqualTo(6000));
+            Assert.That(fixture.Configuration.ServerConfiguration!.ReverseConnect!.ConnectTimeout, Is.EqualTo(6000));
             Assert.That(ReadBuildInfo(fixture.Context).ProductName, Is.EqualTo("XmlComposition"));
 
             clock.Advance(TimeSpan.FromMilliseconds(500));
@@ -2219,8 +2219,8 @@ namespace Opc.Ua.Server.Tests.Hosting
             void OverrideReverseConnection(ApplicationConfiguration configuration)
             {
                 overrides++;
-                ReverseConnectServerConfiguration loaded = configuration.ServerConfiguration.ReverseConnect;
-                Assert.That(loaded.Clients.Count, Is.EqualTo(2));
+                ReverseConnectServerConfiguration loaded = configuration.ServerConfiguration!.ReverseConnect!;
+                Assert.That(loaded!.Clients.Count, Is.EqualTo(2));
                 Assert.That(loaded.ConnectInterval, Is.EqualTo(3000));
                 Assert.That(loaded.Clients[0].Timeout, Is.EqualTo(1234));
                 loaded.ConnectInterval = 1500;

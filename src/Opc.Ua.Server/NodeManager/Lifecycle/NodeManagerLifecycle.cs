@@ -1685,7 +1685,7 @@ namespace Opc.Ua.Server
                     "The NodeManager lifecycle is shutting down.");
             }
 
-            if (m_server.CurrentState != ServerState.Running)
+            if (m_server.CurrentState is not (ServerState.Running or ServerState.NoConfiguration))
             {
                 throw new InvalidOperationException(
                     "NodeManagers can only be changed while the server is running.");
@@ -1838,7 +1838,7 @@ namespace Opc.Ua.Server
             {
                 return !m_disposed &&
                     !m_shuttingDown &&
-                    m_server.CurrentState == ServerState.Running &&
+                    m_server.CurrentState is (ServerState.Running or ServerState.NoConfiguration) &&
                     ReferenceEquals(m_server.CurrentInstance, server) &&
                     ReferenceEquals(server.NodeManager, host);
             }
@@ -3451,7 +3451,7 @@ namespace Opc.Ua.Server
                 return false;
             }
             if (!allowShuttingDown &&
-                m_server.CurrentState != ServerState.Running)
+                m_server.CurrentState is not (ServerState.Running or ServerState.NoConfiguration))
             {
                 return false;
             }

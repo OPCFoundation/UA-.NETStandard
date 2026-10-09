@@ -3,9 +3,10 @@ name: Images CI
 on:
   push:
     branches: [ master, release/*, docker* ]
-    paths-ignore:
-    - 'docs/**'
-    - 'tests/**'
+    # No paths-ignore here either: every push to master or release/* must
+    # report `images summary`, which the Release ruleset requires before a
+    # release branch can be cut from that commit. The discover job skips the
+    # image builds for documentation- or test-only pushes instead.
   pull_request:
     branches: [ master, main, master378, develop/*, release/* ]
     # NOTE: deliberately no `paths-ignore` filter, and the same branch list as
@@ -21,13 +22,36 @@ on:
   # image security update that changes nothing in this repository.
   workflow_dispatch:
 
+# Pull requests and feature branches cancel a superseded run: only the newest
+# commit's result matters there. A push to a protected line (master, main,
+# master378, release/*) never cancels, and each commit gets its own group,
+# because a queued run in a shared group is replaced as well as a running one
+# being cancelled. Every protected commit therefore finishes its required
+# checks ('build-and-test summary', 'images summary'), which the Release
+# ruleset demands before a release/<major>.<minor> branch can be cut from it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || ((github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) && github.sha) || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || !(github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) }}
 
 env:
   REGISTRY: ghcr.io
   DOCKERSIGN: false
+  # Every published sample image. `publish-samples` compiles each project
+  # once, natively, and `build-and-push-image` runs one leg per entry that
+  # only copies the published output into the multi-platform image.
+  IMAGES: >-
+    [
+      {"image": "refserver", "project": "samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj", "dockerfile": "./samples/Reference/ConsoleReferenceServer/Dockerfile"},
+      {"image": "ldsserver", "project": "samples/Lds/ConsoleLdsServer/ConsoleLdsServer.csproj", "dockerfile": "./samples/Lds/ConsoleLdsServer/Dockerfile"},
+      {"image": "boilerserver", "project": "samples/MinimalApi/MinimalBoilerServer/MinimalBoilerServer.csproj", "dockerfile": "./samples/MinimalApi/MinimalBoilerServer/Dockerfile"},
+      {"image": "calcserver", "project": "samples/MinimalApi/MinimalCalcServer/MinimalCalcServer.csproj", "dockerfile": "./samples/MinimalApi/MinimalCalcServer/Dockerfile"},
+      {"image": "mcpserver", "project": "tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj", "dockerfile": "./tools/Opc.Ua.Mcp/Dockerfile"},
+      {"image": "redundantserver", "project": "samples/Redundancy/RedundantServer/RedundantServer.csproj", "dockerfile": "./samples/Redundancy/RedundantServer/Dockerfile"},
+      {"image": "pumpserver", "project": "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj", "dockerfile": "./samples/DI/PumpDeviceIntegrationServer/Dockerfile"},
+      {"image": "redundantclient", "project": "samples/Redundancy/RedundantClient/RedundantClient.csproj", "dockerfile": "./samples/Redundancy/RedundantClient/Dockerfile"},
+      {"image": "redundantpubsub", "project": "samples/Redundancy/RedundantPubSub/RedundantPubSub.csproj", "dockerfile": "./samples/Redundancy/RedundantPubSub/Dockerfile"},
+      {"image": "pubsubclient", "project": "samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj", "dockerfile": "./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile"}
+    ]
 
 jobs:
   discover:
@@ -37,6 +61,7 @@ jobs:
       contents: read
     outputs:
       relevant_changes: ${{ steps.relevance.outputs.relevant_changes }}
+      images: ${{ steps.images.outputs.images }}
     steps:
     - uses: actions/checkout@v7
       with:
@@ -49,22 +74,38 @@ jobs:
       env:
         EVENT_NAME: ${{ github.event_name }}
         BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        BEFORE_SHA: ${{ github.event.before }}
       run: |
-        # Reproduces the `paths-ignore` allow-list that used to sit on the
-        # pull_request trigger: an image is rebuilt for any change that is not
-        # purely documentation or test code. Filtering the whole workflow out
-        # would stop `images summary` from ever reporting, which would block
-        # every documentation-only pull request once it becomes required.
+        # Reproduces the `paths-ignore` allow-list that used to sit on both
+        # triggers: an image is rebuilt for any change that is not purely
+        # documentation or test code. Filtering the whole workflow out would
+        # stop `images summary` from ever reporting, which would block every
+        # documentation-only pull request, and every documentation-only push
+        # as a release-branch cut point, since the check is required.
         $relevantChanges = $true
+        $range = $null
         if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
             # Triple-dot: diff from the merge base, not from the current base
             # branch head, so a change that landed on the base branch after
             # this one was cut is not misread as an image-relevant change.
-            $changed = @(& git diff --name-only "$($env:BASE_SHA)...HEAD")
+            $range = "$($env:BASE_SHA)...HEAD"
+        }
+        elseif ($env:EVENT_NAME -eq 'push' -and $env:BEFORE_SHA -match '^[0-9a-f]{40}$' -and
+            $env:BEFORE_SHA -notmatch '^0+$') {
+            # A new branch has an all-zero 'before', and a force push can name
+            # a commit this clone does not have: build everything in both cases
+            # rather than guess what changed.
+            & git cat-file -e "$($env:BEFORE_SHA)^{commit}" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $range = "$($env:BEFORE_SHA)..HEAD"
+            }
+        }
+        if ($range) {
+            $changed = @(& git diff --name-only $range)
             if ($LASTEXITCODE -ne 0) {
                 throw (
-                    "Could not diff pull-request base '$($env:BASE_SHA)' against HEAD " +
-                    "(git exit code $LASTEXITCODE). Refusing to skip required image builds.")
+                    "Could not diff '$range' (git exit code $LASTEXITCODE). " +
+                    'Refusing to skip required image builds.')
             }
             $relevantChanges = $false
             foreach ($file in $changed) {
@@ -78,9 +119,78 @@ jobs:
         }
         "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" |
             Out-File -FilePath $env:GITHUB_OUTPUT -Append
+    - name: Resolve image matrix
+      id: images
+      shell: pwsh
+      run: |
+        $images = @($env:IMAGES | ConvertFrom-Json)
+        "images=$(ConvertTo-Json -InputObject $images -Compress)" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+  publish-samples:
+    # Compiles every sample once, natively on the x64 runner. The output is
+    # framework-dependent portable IL (no runtime identifier, no app host), so
+    # the same files serve linux/amd64 and linux/arm64. Compiling inside the
+    # image build instead ran the SDK for arm64 under QEMU emulation, which
+    # took over an hour per image.
+    name: Publish sample applications
+    needs: discover
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Set up .NET 10
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.401'
+
+    - name: Set Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Publish samples
+      shell: pwsh
+      run: |
+        # The same options the Dockerfiles use when they build from source.
+        $options = @(
+            '-c', 'Release',
+            '-f', 'net10.0',
+            '-p:PublishAot=false',
+            '-p:UseAppHost=false',
+            '-p:CustomTestTarget=net10.0',
+            '-p:Dockerbuild=true',
+            "-p:Version=$env:NBGV_Version",
+            "-p:AssemblyVersion=$env:NBGV_SimpleVersion",
+            "-p:FileVersion=$env:NBGV_Version",
+            "-p:InformationalVersion=$env:NBGV_AssemblyInformationalVersion")
+        foreach ($entry in @($env:IMAGES | ConvertFrom-Json)) {
+            Write-Host "::group::$($entry.image) ($($entry.project))"
+            & dotnet publish $entry.project @options -o "artifacts/docker/publish/$($entry.image)"
+            $exitCode = $LASTEXITCODE
+            Write-Host '::endgroup::'
+            if ($exitCode -ne 0) {
+                throw "Publishing $($entry.project) failed (exit code $exitCode)."
+            }
+        }
+
+    - name: Upload published samples
+      uses: actions/upload-artifact@v7
+      with:
+        name: docker-publish
+        path: artifacts/docker/publish
+        if-no-files-found: error
+        retention-days: 1
 
   build-and-push-image:
-    needs: discover
+    name: build-and-push-image (${{ matrix.image }})
+    needs:
+    - discover
+    - publish-samples
     # Skipped rather than filtered out when nothing image-relevant changed, so
     # the summary below still reports a result.
     if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
@@ -88,30 +198,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Sample servers
-          - image: refserver
-            dockerfile: ./samples/Reference/ConsoleReferenceServer/Dockerfile
-          - image: ldsserver
-            dockerfile: ./samples/Lds/ConsoleLdsServer/Dockerfile
-          - image: boilerserver
-            dockerfile: ./samples/MinimalApi/MinimalBoilerServer/Dockerfile
-          - image: calcserver
-            dockerfile: ./samples/MinimalApi/MinimalCalcServer/Dockerfile
-          - image: mcpserver
-            dockerfile: ./tools/Opc.Ua.Mcp/Dockerfile
-          - image: redundantserver
-            dockerfile: ./samples/Redundancy/RedundantServer/Dockerfile
-          - image: pumpserver
-            dockerfile: ./samples/DI/PumpDeviceIntegrationServer/Dockerfile
-          # Redundant client
-          - image: redundantclient
-            dockerfile: ./samples/Redundancy/RedundantClient/Dockerfile
-          # PubSub samples
-          - image: redundantpubsub
-            dockerfile: ./samples/Redundancy/RedundantPubSub/Dockerfile
-          - image: pubsubclient
-            dockerfile: ./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile
+        include: ${{ fromJSON(needs.discover.outputs.images) }}
     env:
       IMAGE_NAME: ${{ matrix.image }}
       IS_NOT_PR: ${{ !github.head_ref && true }}
@@ -277,20 +364,25 @@ jobs:
       with:
         images: ${{ env.IMAGE_REPOSITORY }}
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v4
+    - name: Download published samples
+      uses: actions/download-artifact@v8
+      with:
+        name: docker-publish
+        path: artifacts/docker/publish
 
     # Build and push Docker image with Buildx (don't push on PR)
     # https://github.com/docker/build-push-action
+    # The "prebuilt" stage only copies the output of publish-samples into the
+    # runtime base image, so no instruction runs for a foreign platform and
+    # QEMU is not needed for the arm64 image.
     - name: Build and push Docker image
       id: build-and-push
       uses: docker/build-push-action@v7
       with:
         context: .
         build-args: |
-          Version=${{ env.NBGV_Version }}
-          SimpleVersion=${{ env.NBGV_SimpleVersion }}
-          InformationalVersion=${{ env.NBGV_AssemblyInformationalVersion }}
+          PUBLISH_SOURCE=prebuilt
+          PUBLISH_DIR=artifacts/docker/publish/${{ matrix.image }}
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.TAG_BRANCH }},${{ env.TAG_LATEST }}${{ env.TAG_RELEASE }}
         platforms: linux/amd64,linux/arm64/v8
@@ -326,6 +418,7 @@ jobs:
     if: ${{ always() }}
     needs:
     - discover
+    - publish-samples
     - build-and-push-image
     steps:
     - name: Evaluate job results
@@ -333,6 +426,7 @@ jobs:
       env:
         RELEVANT_CHANGES: ${{ needs.discover.outputs.relevant_changes }}
         DISCOVER_RESULT: ${{ needs.discover.result }}
+        PUBLISH_RESULT: ${{ needs.publish-samples.result }}
         IMAGES_RESULT: ${{ needs.build-and-push-image.result }}
       run: |
         if ($env:RELEVANT_CHANGES -eq 'true') {
@@ -344,6 +438,7 @@ jobs:
 
         $results = [ordered]@{
           'discover'             = $env:DISCOVER_RESULT
+          'publish-samples'      = $env:PUBLISH_RESULT
           'build-and-push-image' = $env:IMAGES_RESULT
         }
 

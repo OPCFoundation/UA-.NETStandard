@@ -77,7 +77,7 @@ namespace Opc.Ua.OpenUsd.Tests
 
         public static UsdValue Dictionary(params KeyValuePair<string, UsdValue>[] entries)
         {
-            // The IEnumerable<KeyValuePair<,>> constructor is not available on net48/net472,
+            // The IEnumerable<KeyValuePair<,>> constructor is not available on net48,
             // so fill the dictionary explicitly.
             var map = new Dictionary<string, UsdValue>(StringComparer.Ordinal);
             foreach (KeyValuePair<string, UsdValue> entry in entries)

@@ -612,7 +612,7 @@ namespace Opc.Ua.Server.Tests
                     CreateStoredMonitoredItem(11, recoverNodeId),
                     CreateStoredMonitoredItem(12, deleteNodeId)
                 };
-                var restoredItems = new List<IMonitoredItem> { null, null };
+                var restoredItems = new List<IMonitoredItem> { null!, null! };
 
                 await master.RestoreMonitoredItemsAsync(
                     storedItems,
@@ -938,14 +938,14 @@ namespace Opc.Ua.Server.Tests
             using (queueFactory)
             {
                 var nodeManager = new Mock<IAsyncNodeManager>();
-                using TrackingSamplingGroupManager samplingGroups = useSamplingGroups
+                using TrackingSamplingGroupManager samplingGroups = (useSamplingGroups
                     ? new TrackingSamplingGroupManager(server.Object, nodeManager.Object)
-                    : null;
+                    : null)!;
                 using IMonitoredItemManager manager = useSamplingGroups
                     ? new SamplingGroupMonitoredItemManager(
                         nodeManager.Object,
                         server.Object,
-                        samplingGroups)
+                        samplingGroups!)
                     : new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
                 var lifecycle = (IMonitoredItemManagerLifecycle)manager;
                 var node = new BaseDataVariableState(null)
@@ -1042,14 +1042,14 @@ namespace Opc.Ua.Server.Tests
             using (queueFactory)
             {
                 var nodeManager = new Mock<IAsyncNodeManager>();
-                using TrackingSamplingGroupManager samplingGroups = useSamplingGroups
+                using TrackingSamplingGroupManager samplingGroups = (useSamplingGroups
                     ? new TrackingSamplingGroupManager(server.Object, nodeManager.Object)
-                    : null;
+                    : null)!;
                 using IMonitoredItemManager manager = useSamplingGroups
                     ? new SamplingGroupMonitoredItemManager(
                         nodeManager.Object,
                         server.Object,
-                        samplingGroups)
+                        samplingGroups!)
                     : new MonitoredNodeMonitoredItemManager(nodeManager.Object, server.Object);
                 var lifecycle = (IMonitoredItemManagerLifecycle)manager;
                 var unsupported = new Mock<ISampledDataChangeMonitoredItem>();
@@ -1239,7 +1239,7 @@ namespace Opc.Ua.Server.Tests
                 };
                 var handle = new NodeHandle(node.NodeId, node);
                 IMonitoredItemManager manager;
-                TrackingSamplingGroupManager samplingGroups = null;
+                TrackingSamplingGroupManager? samplingGroups = null;
                 if (useSamplingGroups)
                 {
                     samplingGroups = new TrackingSamplingGroupManager(
@@ -1345,8 +1345,8 @@ namespace Opc.Ua.Server.Tests
                                 MonitoringMode = MonitoringMode.Reporting,
                                 RequestedParameters = new MonitoringParameters { ClientHandle = 3, QueueSize = 10 }
                             },
-                            null,
-                            null,
+                            null!,
+                            null!,
                             1000,
                             10,
                             false,
@@ -1355,7 +1355,8 @@ namespace Opc.Ua.Server.Tests
                             RemoveReference,
                             context => CreateMonitoredItem(
                                 context.Server, context.NodeManager, context.Handle,
-                                context.Handle.NodeId, context.MonitoredItemId)));
+                                context.Handle.NodeId, context.MonitoredItemId),
+                            initialValueQueued: false));
                     }
                 }
 
@@ -1610,7 +1611,7 @@ namespace Opc.Ua.Server.Tests
                     entered.TrySetResult(true);
                     await release.Task.WaitAsync(ct).ConfigureAwait(false);
                 };
-                Task<ServiceResult> lifecycleTransition = null;
+                Task<ServiceResult>? lifecycleTransition = null;
                 Task transition;
                 if (deleteNode)
                 {
@@ -1624,8 +1625,8 @@ namespace Opc.Ua.Server.Tests
                         : owner.Lifecycle.AttachMonitoredItemAsync(eventItem, transitionCancellation.Token).AsTask();
                     transition = lifecycleTransition;
                 }
-                Task<MonitoredItem> creation = null;
-                MonitoredItem created = null;
+                Task<MonitoredItem>? creation = null;
+                MonitoredItem? created = null;
                 try
                 {
                     await entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
@@ -1669,7 +1670,7 @@ namespace Opc.Ua.Server.Tests
                     }
                     else
                     {
-                        ServiceResult result = await lifecycleTransition.WaitAsync(TimeSpan.FromSeconds(10))
+                        ServiceResult result = await lifecycleTransition!.WaitAsync(TimeSpan.FromSeconds(10))
                             .ConfigureAwait(false);
                         Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
                     }
@@ -1747,7 +1748,7 @@ namespace Opc.Ua.Server.Tests
             session.SetupGet(item => item.EffectiveIdentity).Returns(identity.Object);
             session.SetupGet(item => item.PreferredLocales).Returns([]);
             using var context = new OperationContext(
-                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
+                new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
             var errors = new ServiceResult[1];
             var filterErrors = new MonitoringFilterResult[1];
             var items = new IMonitoredItem[1];
@@ -2012,7 +2013,7 @@ namespace Opc.Ua.Server.Tests
             public int RestoreCount { get; private set; }
 
             public ValueTask<IReadOnlyList<IMonitoredItem>> GetMonitoredItemsSnapshotAsync(
-                IReadOnlyCollection<NodeId> nodeIds = null,
+                IReadOnlyCollection<NodeId>? nodeIds = null,
                 CancellationToken cancellationToken = default)
             {
                 return new ValueTask<IReadOnlyList<IMonitoredItem>>([]);
@@ -2052,8 +2053,8 @@ namespace Opc.Ua.Server.Tests
 
         private sealed class ManagerOwner : IDisposable
         {
-            private readonly TestableAsyncCustomNodeManager m_asyncManager;
-            private readonly TestableCustomNodeManager2 m_syncManager;
+            private readonly TestableAsyncCustomNodeManager m_asyncManager = null!;
+            private readonly TestableCustomNodeManager2 m_syncManager = null!;
 
             public ManagerOwner(TestableAsyncCustomNodeManager manager)
             {
@@ -2176,7 +2177,7 @@ namespace Opc.Ua.Server.Tests
             public override void StartMonitoring(
                 OperationContext context,
                 ISampledDataChangeMonitoredItem monitoredItem,
-                IUserIdentity savedOwnerIdentity = null)
+                IUserIdentity? savedOwnerIdentity = null)
             {
                 StartCount++;
             }

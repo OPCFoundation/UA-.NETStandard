@@ -102,7 +102,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(id.NamespaceIndex, Is.EqualTo(123));
             Assert.That(id.TryGetValue(out ByteString o1), Is.True);
             Assert.That(o1, Is.EqualTo(id2));
-            id = new NodeId(null, 0);
+            id = new NodeId(null!, 0);
             Assert.That(id.IsNull, Is.True);
             id = new NodeId(string.Empty, 0);
             Assert.That(id.IsNull, Is.True);
@@ -145,13 +145,13 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(nodeGuid1, Is.Not.EqualTo(id2));
 
             Assert.Throws<ServiceResultException>(
-                () => _ = NodeId.Create(123, "urn:xyz", null));
+                () => _ = NodeId.Create(123, "urn:xyz", null!));
             Assert.Throws<ServiceResultException>(() => _ = NodeId.Parse("ns="));
             Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("nsu="));
             Assert.Throws<ArgumentException>(() => _ = NodeId.Parse("Test"));
             Assert.Throws<ArgumentException>(() =>
                 _ = NodeId.Parse("nsu=http://opcfoundation.org/Tests;s=Test"));
-            Assert.That(NodeId.ToExpandedNodeId(default, null).IsNull, Is.True);
+            Assert.That(NodeId.ToExpandedNodeId(default, null!).IsNull, Is.True);
 
             // IsNull
             Assert.That(new ExpandedNodeId(NodeId.Null).IsNull, Is.True);
@@ -265,7 +265,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     nodeId = new NodeId(ByteString.Empty);
                     break;
                 case (IdType)100:
-                    nodeId = new NodeId((ByteString)null);
+                    nodeId = new NodeId((ByteString)null!);
                     break;
                 default:
                     nodeId = NodeId.Null;
@@ -278,15 +278,15 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(nodeId, Is.EqualTo(new NodeId(0, 0)));
             Assert.That(nodeId, Is.EqualTo(new NodeId(Guid.Empty)));
             Assert.That(nodeId, Is.EqualTo(new NodeId(ByteString.Empty)));
-            Assert.That(nodeId, Is.EqualTo(new NodeId((ByteString)null)));
-            Assert.That(nodeId, Is.EqualTo(NodeId.Parse(null)));
+            Assert.That(nodeId, Is.EqualTo(new NodeId((ByteString)null!)));
+            Assert.That(nodeId, Is.EqualTo(NodeId.Parse(null!)));
 
             Assert.That(nodeId, Is.EqualTo(NodeId.Null));
             Assert.That(nodeId, Is.EqualTo(new NodeId(0, 0)));
             Assert.That(nodeId, Is.EqualTo(new NodeId(Guid.Empty)));
             Assert.That(nodeId, Is.EqualTo(new NodeId(ByteString.Empty)));
-            Assert.That(nodeId, Is.EqualTo(new NodeId((ByteString)null)));
-            Assert.That(nodeId, Is.EqualTo(NodeId.Parse(null)));
+            Assert.That(nodeId, Is.EqualTo(new NodeId((ByteString)null!)));
+            Assert.That(nodeId, Is.EqualTo(NodeId.Parse(null!)));
 
             var nodeIdBasedDataValue = new DataValue(new Variant(nodeId));
 
@@ -382,7 +382,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.NamespaceIndex, Is.EqualTo(2));
 
             // Test null and empty
-            Assert.That(NodeId.TryParse(null, out result), Is.True);
+            Assert.That(NodeId.TryParse(null!, out result), Is.True);
             Assert.That(result, Is.EqualTo(NodeId.Null));
             Assert.That(NodeId.TryParse(string.Empty, out result), Is.True);
             Assert.That(result, Is.EqualTo(NodeId.Null));
@@ -441,7 +441,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(NodeId.TryParse(context, "nsu=http://unknown.org/;i=1234", out result), Is.False);
             Assert.That(result, Is.EqualTo(NodeId.Null));
             // Test null/empty
-            Assert.That(NodeId.TryParse(context, null, out result), Is.True);
+            Assert.That(NodeId.TryParse(context, null!, out result), Is.True);
             Assert.That(result, Is.EqualTo(NodeId.Null));
 
             Assert.That(NodeId.TryParse(context, string.Empty, out result), Is.True);
@@ -495,7 +495,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.IsNull, Is.True);
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         [Test]
         public void TryFormatMatchesFormatForNonUriForm(
             [Values] bool useNamespaceUri)
@@ -679,7 +679,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryParseWithContextAndOptions()
         {
             var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
-            bool result = NodeId.TryParse(context, "i=99", null, out NodeId value);
+            bool result = NodeId.TryParse(context, "i=99", null!, out NodeId value);
             Assert.That(result, Is.True);
             Assert.That(value, Is.EqualTo(new NodeId(99u)));
         }
@@ -688,7 +688,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryParseWithContextAndOptionsAndError()
         {
             var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
-            bool result = NodeId.TryParse(context, "i=77", null, out NodeId value, out NodeIdParseError error);
+            bool result = NodeId.TryParse(context, "i=77", null!, out NodeId value, out NodeIdParseError error);
             Assert.That(result, Is.True);
             Assert.That(error, Is.EqualTo(NodeIdParseError.None));
             Assert.That(value, Is.EqualTo(new NodeId(77u)));
@@ -701,7 +701,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void TryParseWithContextRejectsMissingEqualsAfterIdType(string text)
         {
             var context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
-            bool result = NodeId.TryParse(context, text, null, out NodeId _, out NodeIdParseError error);
+            bool result = NodeId.TryParse(context, text, null!, out NodeId _, out NodeIdParseError error);
             Assert.That(result, Is.False);
             Assert.That(error, Is.EqualTo(NodeIdParseError.InvalidIdentifierType));
         }
@@ -959,7 +959,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CreateWithNullNamespaceTableThrows()
         {
             Assert.Throws<ServiceResultException>(() =>
-                NodeId.Create(42u, "http://unknown.org/", null));
+                NodeId.Create(42u, "http://unknown.org/", null!));
         }
 
 #pragma warning disable CS0618 // Type or member is obsolete
@@ -1178,7 +1178,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NodeId nullId = NodeId.Null;
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(nullId.CompareTo((string)null), Is.Zero);
+            Assert.That(nullId.CompareTo((string)null!), Is.Zero);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
             Assert.That(nullId.CompareTo(string.Empty), Is.Zero);
         }
@@ -1290,11 +1290,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void CompareToObjectNull()
         {
             NodeId nullId = NodeId.Null;
-            Assert.That(nullId.CompareTo((object)null), Is.Zero);
+            Assert.That(nullId.CompareTo((object)null!), Is.Zero);
 
             // non-null nodeId vs null
             var nodeId = new NodeId(42u);
-            Assert.That(nodeId.CompareTo((object)null), Is.EqualTo(1));
+            Assert.That(nodeId.CompareTo((object)null!), Is.EqualTo(1));
         }
 
         [Test]
@@ -1434,12 +1434,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             NodeId nullId = NodeId.Null;
 #pragma warning disable NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
-            Assert.That(nullId.Equals((object)null));
+            Assert.That(nullId.Equals((object)null!));
 #pragma warning restore NUnit2010 // Use EqualConstraint for better assertion messages in case of failure
 
             var nodeId = new NodeId(42u);
 #pragma warning disable NUnit4002 // Use Specific constraint
-            Assert.That(nodeId, Is.Not.EqualTo((object)null));
+            Assert.That(nodeId, Is.Not.EqualTo((object)null!));
 #pragma warning restore NUnit4002 // Use Specific constraint
         }
 
@@ -1611,7 +1611,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var nullId = new NodeId(string.Empty, 0);
 #pragma warning disable NUnit4002 // Use Specific constraint
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(nullId, Is.EqualTo((string)null));
+            Assert.That(nullId, Is.EqualTo((string)null!));
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore NUnit4002 // Use Specific constraint
             Assert.That(nullId, Is.EqualTo(string.Empty));
@@ -1898,7 +1898,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ObsoleteObjectConstructorNullString()
         {
-            var nodeId = new NodeId((object)null, 0);
+            var nodeId = new NodeId((object)null!, 0);
             Assert.That(nodeId.IdType, Is.EqualTo(IdType.String));
         }
 
@@ -2080,7 +2080,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseNullStringReturnsNull()
         {
-            bool result = NodeId.TryParse(null, out NodeId value);
+            bool result = NodeId.TryParse(null!, out NodeId value);
             Assert.That(result, Is.True);
             Assert.That(value.IsNull, Is.True);
         }
@@ -2158,7 +2158,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormThrowsWhenTableIsNull()
         {
             Assert.That(
-                () => NodeId.ParseLongForm("i=42", null),
+                () => NodeId.ParseLongForm("i=42", null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -2166,7 +2166,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void ParseLongFormReturnsNullForNullText()
         {
             NamespaceTable table = BuildParseLongFormNamespaces();
-            var result = NodeId.ParseLongForm(null, table);
+            var result = NodeId.ParseLongForm(null!, table);
             Assert.That(result, Is.EqualTo(NodeId.Null));
         }
 
@@ -2252,7 +2252,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ParseFallbackToStringIdentifierRecoversMalformedTypedIdentifier()
         {
-            var context = ServiceMessageContext.CreateEmpty(null);
+            var context = ServiceMessageContext.CreateEmpty(null!);
             context.NamespaceUris = BuildParseLongFormNamespaces();
             var result = NodeId.Parse(
                 context,

@@ -105,7 +105,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RedactNullString()
         {
-            const string original = null;
+            const string? original = null;
 
             string result = Redact.Create(original).ToString();
 
@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RedactNullUri()
         {
-            Uri uri = null;
+            Uri? uri = null;
 
             string result = Redact.Create(uri).ToString();
 
@@ -152,7 +152,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void RedactNullException()
         {
-            Exception exception = null;
+            Exception? exception = null;
 
             string result = Redact.Create(exception).ToString();
 

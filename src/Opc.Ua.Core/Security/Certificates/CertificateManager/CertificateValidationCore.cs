@@ -686,6 +686,11 @@ namespace Opc.Ua
                                 .ConfigureAwait(false);
                         }
                     }
+
+                    // An issuer found in the issuer list only completes the
+                    // chain; it is not a trust anchor. The walk continues so a
+                    // CA further up that is on the trust list still makes the
+                    // chain trusted (OPC 10000-4 6.1.3, Certificate trusted).
                 }
                 else
                 {
@@ -1122,7 +1127,11 @@ namespace Opc.Ua
                 // check if certificate issuer is trusted.
                 if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
                 {
-                    const string message = "Certificate Issuer is not trusted.";
+                    string message = issuers.Count > 0 && !chainIncomplete
+                        ? "Certificate Issuer is not trusted. The issuer chain was built, but none of its CAs " +
+                            "is a trusted certificate; issuer certificates only complete the chain. Add the CA " +
+                            "to the trusted certificates to trust the certificates it issues."
+                        : "Certificate Issuer is not trusted.";
                     sresult = new ServiceResult(
                         null,
                         StatusCodes.BadCertificateUntrusted,
@@ -2260,13 +2269,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The list of suppressible status codes.
+        /// The list of suppressible status codes. Bad_CertificateChainIncomplete
+        /// is not one of them: OPC 10000-4 Table 100 (Build Certificate Chain)
+        /// "An error during the chain creation may not be suppressed."
         /// </summary>
         private static readonly HashSet<StatusCode> s_suppressibleStatusCodes = new(
             [
                 StatusCodes.BadCertificateHostNameInvalid,
                 StatusCodes.BadCertificateIssuerRevocationUnknown,
-                StatusCodes.BadCertificateChainIncomplete,
                 StatusCodes.BadCertificateIssuerTimeInvalid,
                 StatusCodes.BadCertificateIssuerUseNotAllowed,
                 StatusCodes.BadCertificateRevocationUnknown,

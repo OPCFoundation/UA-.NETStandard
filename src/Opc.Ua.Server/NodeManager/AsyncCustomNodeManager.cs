@@ -1877,6 +1877,7 @@ namespace Opc.Ua.Server
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
+            NodeId modelChangeParentId = GetModelChangeParentNodeId(contextToUse, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(contextToUse, node);
             IReadOnlyList<IMonitoredItem> detachedItems =
                 await DetachMonitoredItemsForNodeDeletionAsync(
@@ -1941,6 +1942,10 @@ namespace Opc.Ua.Server
             if (ModelChangeEmissionEnabled)
             {
                 ModelChangeAggregator.RecordNodeDeleted(nodeId, deletedTypeDefinition);
+                if (!modelChangeParentId.IsNull)
+                {
+                    ModelChangeAggregator.RecordReferenceDeleted(modelChangeParentId);
+                }
                 EmitModelChange(contextToUse);
             }
 
@@ -1991,7 +1996,8 @@ namespace Opc.Ua.Server
             }
 
             var typeDefinitionId = ExpandedNodeId.ToNodeId(item.TypeDefinition, Server.NamespaceUris);
-            ServiceResult typeDefinitionResult = ValidateAddNodesTypeDefinition(item.NodeClass, typeDefinitionId);
+            ServiceResult typeDefinitionResult = await ValidateAddNodesTypeDefinitionAsync(
+                item.NodeClass, typeDefinitionId, cancellationToken).ConfigureAwait(false);
             if (ServiceResult.IsBad(typeDefinitionResult))
             {
                 return (typeDefinitionResult, NodeId.Null);
@@ -2001,6 +2007,9 @@ namespace Opc.Ua.Server
             try
             {
                 instance = CreateInstanceForAddNodes(item, typeDefinitionId);
+                await AddMandatoryInstanceDeclarationsAsync(
+                    systemContext, instance, instance.TypeDefinitionId, 0, cancellationToken)
+                    .ConfigureAwait(false);
             }
             catch (ServiceResultException ex)
             {
@@ -2111,6 +2120,11 @@ namespace Opc.Ua.Server
             try
             {
                 instance.NodeId = newNodeId;
+
+                // the Mandatory InstanceDeclarations copied from the type still
+                // carry the declaration NodeIds; mint per-instance ones now that
+                // the identifier of the new node is final.
+                systemContext.AssignInstanceChildNodeIds(instance, NodeId.Null);
                 if (parentNode != null)
                 {
                     parentNode.AddChild(instance);
@@ -2319,6 +2333,7 @@ namespace Opc.Ua.Server
 
             NodeId? deletedTypeDefinition = (node as BaseInstanceState)?.TypeDefinitionId;
             NodeId parentId = (node as BaseInstanceState)?.Parent?.NodeId ?? default;
+            NodeId modelChangeParentId = GetModelChangeParentNodeId(systemContext, node);
             List<NodeState> removedNotifiers = GetSubtreeNotifiers(systemContext, node);
             IReadOnlyList<IMonitoredItem> detachedItems =
                 await DetachMonitoredItemsForNodeDeletionAsync(
@@ -2384,10 +2399,43 @@ namespace Opc.Ua.Server
             if (ModelChangeEmissionEnabled)
             {
                 ModelChangeAggregator.RecordNodeDeleted(item.NodeId, deletedTypeDefinition);
+                if (!modelChangeParentId.IsNull)
+                {
+                    ModelChangeAggregator.RecordReferenceDeleted(modelChangeParentId);
+                }
                 EmitModelChange(systemContext);
             }
 
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Returns the node that loses a hierarchical Reference when
+        /// <paramref name="node"/> is deleted: its parent, or for a node
+        /// placed below a node of another NodeManager the source of its first
+        /// inverse hierarchical Reference.
+        /// </summary>
+        private NodeId GetModelChangeParentNodeId(ISystemContext context, NodeState node)
+        {
+            if (node is BaseInstanceState { Parent: NodeState parent })
+            {
+                return parent.NodeId;
+            }
+
+            var references = new List<IReference>();
+            node.GetReferences(context, references);
+            foreach (IReference reference in references)
+            {
+                if (reference.IsInverse &&
+                    !reference.TargetId.IsAbsolute &&
+                    Server.TypeTree.IsTypeOf(
+                        reference.ReferenceTypeId,
+                        ReferenceTypeIds.HierarchicalReferences))
+                {
+                    return ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris);
+                }
+            }
+            return NodeId.Null;
         }
 
         private List<NodeState> GetSubtreeNotifiers(ISystemContext context, NodeState node)
@@ -2573,6 +2621,14 @@ namespace Opc.Ua.Server
             }
 
             source.AddReference(item.ReferenceTypeId, isInverse, item.TargetNodeId);
+
+            // Part 3 5.x/9.32.2: the NodeVersion of the source is updated and a
+            // ModelChangeEvent reported whenever one of its References is added.
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordReferenceAdded(source.NodeId);
+                EmitModelChange(SystemContext.Copy(context));
+            }
             return new ValueTask<ServiceResult>(ServiceResult.Good);
         }
 
@@ -2607,6 +2663,12 @@ namespace Opc.Ua.Server
             if (!removed)
             {
                 return new ValueTask<ServiceResult>(new ServiceResult(StatusCodes.BadNoMatch));
+            }
+
+            if (ModelChangeEmissionEnabled)
+            {
+                ModelChangeAggregator.RecordReferenceDeleted(source.NodeId);
+                EmitModelChange(SystemContext.Copy(context));
             }
 
             return new ValueTask<ServiceResult>(ServiceResult.Good);
@@ -2657,6 +2719,158 @@ namespace Opc.Ua.Server
                 m_nodeIdFactory.DefaultNamespaceIndex,
                 context.NamespaceUris);
         }
+
+        /// <summary>
+        /// Gives a node created by AddNodes the Mandatory InstanceDeclarations
+        /// of its TypeDefinition (Part 4 5.8.2.1, Part 3 6.4.2).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// The declarations are collected from the TypeDefinition and its
+        /// supertypes, the most derived declaration of a BrowseName winning
+        /// (an overriding InstanceDeclaration replaces the inherited one).
+        /// Each Mandatory declaration is copied together with its own
+        /// Mandatory descendants; Optional and placeholder declarations, and
+        /// nodes without a ModellingRule, are not instantiated. A copied child
+        /// is completed from its own TypeDefinition in turn, so a child whose
+        /// declaration omits a Mandatory member of its type still gets it.
+        /// </para>
+        /// <para>
+        /// The copies keep the declaration NodeIds; the caller rebases the
+        /// subtree onto per-instance NodeIds once the identifier of the new
+        /// node is final. Type nodes that are not available as NodeStates are
+        /// skipped.
+        /// </para>
+        /// </remarks>
+        private async ValueTask AddMandatoryInstanceDeclarationsAsync(
+            ISystemContext context,
+            NodeState instance,
+            NodeId typeDefinitionId,
+            int depth,
+            CancellationToken cancellationToken)
+        {
+            if (typeDefinitionId.IsNull || depth > kMaxInstanceDeclarationDepth)
+            {
+                return;
+            }
+
+            var existing = new List<BaseInstanceState>();
+            instance.GetChildren(context, existing);
+            var browseNames = new HashSet<QualifiedName>();
+            foreach (BaseInstanceState child in existing)
+            {
+                browseNames.Add(child.BrowseName);
+            }
+
+            var added = new List<BaseInstanceState>();
+            var visitedTypes = new HashSet<NodeId>();
+            NodeId typeId = typeDefinitionId;
+            while (!typeId.IsNull && visitedTypes.Add(typeId))
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                NodeState? typeNode = await FindTypeNodeAsync(typeId, cancellationToken)
+                    .ConfigureAwait(false);
+                if (typeNode != null)
+                {
+                    var declarations = new List<BaseInstanceState>();
+                    typeNode.GetChildren(context, declarations);
+                    foreach (BaseInstanceState declaration in declarations)
+                    {
+                        if (declaration.BrowseName.IsNull ||
+                            !browseNames.Add(declaration.BrowseName) ||
+                            declaration.ModellingRuleId != ObjectIds.ModellingRule_Mandatory)
+                        {
+                            // the BrowseName is claimed by the instance or by a
+                            // more derived declaration even when it is not
+                            // Mandatory, so the inherited one is not used.
+                            continue;
+                        }
+
+                        var copy = (BaseInstanceState)declaration.Clone();
+                        PrepareInstanceDeclarationCopy(context, copy);
+                        instance.AddChild(copy);
+                        added.Add(copy);
+                    }
+                }
+
+                if (typeId == ObjectTypeIds.BaseObjectType ||
+                    typeId == VariableTypeIds.BaseVariableType)
+                {
+                    break;
+                }
+                typeId = Server.TypeTree.FindSuperType(typeId);
+            }
+
+            // complete every copied node - including the descendants copied
+            // with a declaration - from its own TypeDefinition.
+            foreach (BaseInstanceState child in added)
+            {
+                await AddMandatoryInstanceDeclarationsToSubtreeAsync(
+                    context, child, depth + 1, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        private async ValueTask AddMandatoryInstanceDeclarationsToSubtreeAsync(
+            ISystemContext context,
+            BaseInstanceState node,
+            int depth,
+            CancellationToken cancellationToken)
+        {
+            if (depth > kMaxInstanceDeclarationDepth || node is not (BaseObjectState or BaseVariableState))
+            {
+                return;
+            }
+
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(context, children);
+            await AddMandatoryInstanceDeclarationsAsync(
+                context, node, node.TypeDefinitionId, depth, cancellationToken).ConfigureAwait(false);
+            foreach (BaseInstanceState child in children)
+            {
+                await AddMandatoryInstanceDeclarationsToSubtreeAsync(
+                    context, child, depth + 1, cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Turns a copy of an InstanceDeclaration into an instance node,
+        /// keeping only its Mandatory descendants.
+        /// </summary>
+        /// <remarks>
+        /// The copy is re-parented by <see cref="NodeState.AddChild"/>; the
+        /// clones of its descendants are already parented to their copied
+        /// parents. The copy still carries the declaration NodeId.
+        /// </remarks>
+        private static void PrepareInstanceDeclarationCopy(
+            ISystemContext context,
+            BaseInstanceState copy)
+        {
+            copy.Handle = null;
+            copy.IsPartOfTypeHierarchy = false;
+            copy.ModellingRuleId = NodeId.Null;
+            if (copy is MethodState method && method.MethodDeclarationId.IsNull)
+            {
+                method.MethodDeclarationId = copy.NodeId;
+            }
+
+            var children = new List<BaseInstanceState>();
+            copy.GetChildren(context, children);
+            foreach (BaseInstanceState child in children)
+            {
+                bool keep = child.ModellingRuleId == ObjectIds.ModellingRule_Mandatory ||
+                    (copy is MethodState &&
+                        (child.BrowseName.Name == BrowseNames.InputArguments ||
+                            child.BrowseName.Name == BrowseNames.OutputArguments));
+                if (!keep)
+                {
+                    copy.RemoveChild(child);
+                    continue;
+                }
+                PrepareInstanceDeclarationCopy(context, child);
+            }
+        }
+
+        private const int kMaxInstanceDeclarationDepth = 16;
 
         private static BaseInstanceState CreateInstanceForAddNodes(
             AddNodesItem item,
@@ -2709,9 +2923,23 @@ namespace Opc.Ua.Server
             }
         }
 
-        private ServiceResult ValidateAddNodesTypeDefinition(
+        /// <summary>
+        /// Checks that the TypeDefinition of an AddNodes item is a known,
+        /// concrete type of the matching NodeClass.
+        /// </summary>
+        /// <remarks>
+        /// An abstract type cannot be the TypeDefinition of an instance (Part 3
+        /// 5.5.2 and 5.6.5), and an Interface - every subtype of
+        /// BaseInterfaceType - shall never be the TargetNode of a
+        /// HasTypeDefinition Reference (Part 3 4.10.2). Both are rejected with
+        /// Bad_TypeDefinitionInvalid. BaseVariableType is abstract as well, so
+        /// a Variable has to use BaseDataVariableType, PropertyType or a
+        /// concrete subtype.
+        /// </remarks>
+        private async ValueTask<ServiceResult> ValidateAddNodesTypeDefinitionAsync(
             NodeClass nodeClass,
-            NodeId typeDefinitionId)
+            NodeId typeDefinitionId,
+            CancellationToken cancellationToken)
         {
             if (nodeClass is not NodeClass.Object and
                 not NodeClass.Variable)
@@ -2728,9 +2956,29 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
             }
 
-            if (typeDefinitionId == expectedBaseTypeId)
+            if (typeDefinitionId == ObjectTypeIds.BaseObjectType)
             {
-                return ServiceResult.Good;
+                return nodeClass == NodeClass.Object
+                    ? ServiceResult.Good
+                    : new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
+            // the concrete standard VariableTypes every Variable may use.
+            if (typeDefinitionId == VariableTypeIds.BaseDataVariableType ||
+                typeDefinitionId == VariableTypeIds.PropertyType)
+            {
+                return nodeClass == NodeClass.Variable
+                    ? ServiceResult.Good
+                    : new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
+            // well-known abstract roots, rejected even when the type node is
+            // not available as a NodeState to read IsAbstract from.
+            if (typeDefinitionId == VariableTypeIds.BaseVariableType ||
+                typeDefinitionId == ObjectTypeIds.BaseEventType ||
+                typeDefinitionId == ObjectTypeIds.BaseInterfaceType)
+            {
+                return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
             }
 
             if (!Server.TypeTree.IsKnown(typeDefinitionId) ||
@@ -2739,7 +2987,45 @@ namespace Opc.Ua.Server
                 return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
             }
 
+            if (nodeClass == NodeClass.Object &&
+                Server.TypeTree.IsTypeOf(typeDefinitionId, ObjectTypeIds.BaseInterfaceType))
+            {
+                return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
+            NodeState? typeNode = await FindTypeNodeAsync(typeDefinitionId, cancellationToken)
+                .ConfigureAwait(false);
+            if (typeNode is BaseTypeState { IsAbstract: true })
+            {
+                return new ServiceResult(StatusCodes.BadTypeDefinitionInvalid);
+            }
+
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Finds the NodeState of a type, looking in this NodeManager first and
+        /// then in the rest of the address space.
+        /// </summary>
+        private async ValueTask<NodeState?> FindTypeNodeAsync(
+            NodeId typeId,
+            CancellationToken cancellationToken)
+        {
+            if (typeId.IsNull)
+            {
+                return null;
+            }
+            if (PredefinedNodes.TryGetValue(typeId, out NodeState? local))
+            {
+                return local;
+            }
+            IMasterNodeManager? master = Server.NodeManager;
+            if (master == null)
+            {
+                return null;
+            }
+            return await master.FindNodeInAddressSpaceAsync(typeId, cancellationToken)
+                .ConfigureAwait(false);
         }
 
         private async ValueTask<ServiceResult> ValidateVariableAttributesAsync(
@@ -2751,8 +3037,10 @@ namespace Opc.Ua.Server
             NodeId typeDataType = DataTypeIds.BaseDataType;
             int typeValueRank = ValueRanks.Any;
             ArrayOf<uint> typeDimensions = default;
+            // the standard concrete types constrain neither DataType nor ValueRank.
             if (variable.TypeDefinitionId != VariableTypeIds.BaseVariableType &&
-                variable.TypeDefinitionId != VariableTypeIds.BaseDataVariableType)
+                variable.TypeDefinitionId != VariableTypeIds.BaseDataVariableType &&
+                variable.TypeDefinitionId != VariableTypeIds.PropertyType)
             {
                 BaseVariableTypeState? localType = FindPredefinedNode<BaseVariableTypeState>(
                     variable.TypeDefinitionId);
@@ -3803,6 +4091,48 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Resolves a Method declaration found in the ObjectType hierarchy to the
+        /// Method of the Object with the same BrowseName.
+        /// Per OPC UA spec Part 4 section 5.12.2.2 the RolePermissions are always
+        /// verified with the Method that is the target of a HasComponent from the
+        /// Object, independent of the methodId of the call.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="source">The Object the method is called on.</param>
+        /// <param name="declaration">The Method declaration of the ObjectType.</param>
+        /// <returns>The Method of the Object, or the declaration if the Object has none.</returns>
+        private MethodState FindObjectMethodForDeclaration(
+            ISystemContext context,
+            NodeState source,
+            MethodState declaration)
+        {
+            if (source.FindChildWithQualifiedName(context, declaration.BrowseName) is MethodState child)
+            {
+                return child;
+            }
+
+            // check for loose coupling via a HasComponent reference of the Object.
+            var references = new List<IReference>();
+            source.GetReferences(context, references, ReferenceTypeIds.HasComponent, false);
+            foreach (IReference reference in references)
+            {
+                if (reference.TargetId.IsNull || reference.TargetId.IsAbsolute)
+                {
+                    continue;
+                }
+
+                MethodState? method = FindPredefinedNode<MethodState>(
+                    ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris));
+                if (method != null && method.BrowseName == declaration.BrowseName)
+                {
+                    return method;
+                }
+            }
+
+            return declaration;
+        }
+
+        /// <summary>
         /// Frees any resources allocated for the address space.
         /// </summary>
         /// <remarks>
@@ -4318,6 +4648,8 @@ namespace Opc.Ua.Server
             {
                 return;
             }
+
+            ViewDescriptionValidator.ValidateParameters(view);
 
             _ =
                 FindPredefinedNode<ViewState>(view.ViewId)
@@ -4972,6 +5304,24 @@ namespace Opc.Ua.Server
                         }
                     }
 
+                    // an OptionSet write is validated and merged with the stored bits (Part 3 8.40).
+                    DataValue valueToWrite = nodeToWrite.Value;
+                    if (nodeToWrite.AttributeId == Attributes.Value &&
+                        handle.Node is BaseVariableState variableToWrite)
+                    {
+                        ServiceResult? optionSetResult = OptionSetWriteMerge.Apply(
+                            systemContext,
+                            variableToWrite,
+                            nodeToWrite.ParsedIndexRange,
+                            ref valueToWrite);
+
+                        if (optionSetResult != null)
+                        {
+                            errors[ii] = optionSetResult;
+                            continue;
+                        }
+                    }
+
 #if DEBUG
                     m_logger.Write(nodeToWrite.NodeId, nodeToWrite.Value.WrappedValue, nodeToWrite.IndexRange);
 #endif
@@ -4999,7 +5349,7 @@ namespace Opc.Ua.Server
                         systemContext,
                         nodeToWrite.AttributeId,
                         nodeToWrite.ParsedIndexRange,
-                        nodeToWrite.Value,
+                        valueToWrite,
                         cancellationToken).ConfigureAwait(false);
 
                     // report the write value audit event
@@ -5052,15 +5402,86 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
         }
 
-        private void CheckIfSemanticsHaveChanged(
-            ServerSystemContext systemContext,
+        /// <summary>
+        /// Reports that server or application code changed the value of a Property, so that
+        /// a change of a Property with semantic meaning is handled like a change made through
+        /// the Write service (Part 3 5.6.2): a SemanticChangeEvent is raised and the
+        /// SemanticsChanged bit is set on the next value notification of the monitored items
+        /// of the Property's owner.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// Assigning a Property value directly (for example <c>analogItem.EURange.Value = ...</c>)
+        /// does not raise a SemanticChangeEvent by itself. Call this method after such an
+        /// assignment, passing the value the Property had before.
+        /// </para>
+        /// <para>
+        /// A change is reported only if the value differs from
+        /// <paramref name="previousValue"/> and the Property has semantic meaning: its
+        /// AccessLevelEx has the SemanticChange bit set, or it is one of the Properties that
+        /// Part 8 defines as semantic for the owning DataItem (EURange, EngineeringUnits,
+        /// InstrumentRange, Title, AxisDefinition, X/Y/ZAxisDefinition, TrueState, FalseState,
+        /// EnumStrings). Use <see cref="ReportSemanticChange(ISystemContext, PropertyState)"/>
+        /// to report a change unconditionally.
+        /// </para>
+        /// </remarks>
+        /// <param name="context">The context of the change; the node manager's context if <c>null</c>.</param>
+        /// <param name="property">The Property whose value was changed.</param>
+        /// <param name="previousValue">The value of the Property before the change.</param>
+        /// <returns><c>true</c> if a semantic change was reported.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="property"/> is <c>null</c>.</exception>
+        public bool ReportPropertyValueChanged(
+            ISystemContext? context,
+            PropertyState property,
+            Variant previousValue)
+        {
+            if (property == null)
+            {
+                throw new ArgumentNullException(nameof(property));
+            }
+
+            return CheckIfSemanticsHaveChanged(
+                context ?? SystemContext,
+                property,
+                property.Value,
+                previousValue,
+                force: false);
+        }
+
+        /// <summary>
+        /// Reports unconditionally that the semantics of the owner of
+        /// <paramref name="property"/> changed (Part 3 5.6.2): a SemanticChangeEvent is raised
+        /// for the owner and the SemanticsChanged bit is set on the next value notification of
+        /// the monitored items of the owner's Value.
+        /// </summary>
+        /// <param name="context">The context of the change; the node manager's context if <c>null</c>.</param>
+        /// <param name="property">The Property whose change altered the semantics of its owner.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="property"/> is <c>null</c>.</exception>
+        public void ReportSemanticChange(ISystemContext? context, PropertyState property)
+        {
+            if (property == null)
+            {
+                throw new ArgumentNullException(nameof(property));
+            }
+
+            CheckIfSemanticsHaveChanged(
+                context ?? SystemContext,
+                property,
+                default,
+                default,
+                force: true);
+        }
+
+        private bool CheckIfSemanticsHaveChanged(
+            ISystemContext systemContext,
             PropertyState property,
             Variant newPropertyValue,
-            Variant previousPropertyValue)
+            Variant previousPropertyValue,
+            bool force = false)
         {
             // check if the changed property is one that can trigger semantic changes
             string? propertyName = property.BrowseName.Name;
-            bool hasSemanticChangeFlag = HasSemanticChangeFlag(property);
+            bool hasSemanticChangeFlag = force || HasSemanticChangeFlag(property);
 
             if (!hasSemanticChangeFlag &&
                 propertyName is not BrowseNames.EURange
@@ -5075,13 +5496,13 @@ namespace Opc.Ua.Server
                     and not BrowseNames.YAxisDefinition
                     and not BrowseNames.ZAxisDefinition)
             {
-                return;
+                return false;
             }
 
             // ceck if property value changed
-            if (Utils.IsEqual(newPropertyValue, previousPropertyValue))
+            if (!force && Utils.IsEqual(newPropertyValue, previousPropertyValue))
             {
-                return;
+                return false;
             }
 
             // the SemanticChangeEvent is raised once per change, whether or not the
@@ -5091,7 +5512,7 @@ namespace Opc.Ua.Server
                 !hasSemanticChangeFlag &&
                 !IsSemanticChangeProperty(changedNode, propertyName))
             {
-                return;
+                return false;
             }
 
             foreach (KeyValuePair<uint, IMonitoredItem> kvp in MonitoredItems)
@@ -5141,7 +5562,10 @@ namespace Opc.Ua.Server
             if (changedNode != null)
             {
                 RaiseSemanticChangeEvent(systemContext, changedNode, property);
+                return true;
             }
+
+            return false;
         }
 
         /// <summary>
@@ -6332,9 +6756,16 @@ namespace Opc.Ua.Server
                         }
                         else
                         {
-                            validation = readEventDetails.Filter.Validate(
-                                new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry))
-                                .Status;
+                            EventFilter.Result filterResult = readEventDetails.Filter.Validate(
+                                new FilterContext(Server.NamespaceUris, Server.TypeTree, context, Server.Telemetry));
+                            validation = filterResult.Status;
+
+                            // HistoryRead has no per-clause filter result, so keep rejecting
+                            // a filter with any invalid select clause.
+                            if (ServiceResult.IsGood(validation) && filterResult.HasSelectClauseErrors)
+                            {
+                                validation = StatusCodes.BadEventFilterInvalid;
+                            }
                         }
                         validated = true;
                     }
@@ -7031,6 +7462,10 @@ namespace Opc.Ua.Server
             if (method == null && source is BaseInstanceState instanceState)
             {
                 method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
+                if (method != null)
+                {
+                    method = FindObjectMethodForDeclaration(systemContext, source, method);
+                }
             }
 
             return method!;
@@ -7099,6 +7534,19 @@ namespace Opc.Ua.Server
                 if (method == null)
                 {
                     errors[ii] = StatusCodes.BadMethodInvalid;
+                    continue;
+                }
+
+                // Part 3 §8.55 Call: the Call permission is required on the Object
+                // passed as ObjectId and on the Method.
+                errors[ii] = await ValidateRolePermissionsAsync(
+                    context,
+                    methodToCall.ObjectId,
+                    PermissionType.Call,
+                    cancellationToken).ConfigureAwait(false);
+
+                if (ServiceResult.IsBad(errors[ii]))
+                {
                     continue;
                 }
 
@@ -8164,12 +8612,13 @@ namespace Opc.Ua.Server
                 MaxQueueSize,
                 MaxDurableQueueSize);
 
-            // validate the monitoring filter.
+            // validate the monitoring filter against the sampling interval the item gets,
+            // so the revised processing interval is at least twice it (Part 4 7.22.4).
             ValidateMonitoringFilterResult validateMonitoringFilterResult = await ValidateMonitoringFilterAsync(
                 context,
                 handle,
                 itemToCreate.ItemToMonitor.AttributeId,
-                samplingInterval,
+                GetGroupSamplingInterval(samplingInterval),
                 revisedQueueSize,
                 parameters.Filter,
                 cancellationToken).ConfigureAwait(false);
@@ -8210,7 +8659,8 @@ namespace Opc.Ua.Server
                         monitoredItemId,
                         AddNodeToComponentCache,
                         RemoveNodeFromComponentCache,
-                        decision.Factory!);
+                        decision.Factory!,
+                        decision.QueueInitialValue);
                 }
                 else
                 {
@@ -8977,14 +9427,14 @@ namespace Opc.Ua.Server
                     context,
                     QualifiedName.From(BrowseNames.EURange)) is not PropertyState property)
                 {
-                    result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
+                    result.StatusCode = StatusCodes.BadDeadbandFilterInvalid;
                     return result;
                 }
 
                 Range tmpRange;
                 if (!property.Value.TryGetStructure(out tmpRange!))
                 {
-                    result.StatusCode = StatusCodes.BadMonitoredItemFilterUnsupported;
+                    result.StatusCode = StatusCodes.BadDeadbandFilterInvalid;
                     return result;
                 }
 
@@ -8997,6 +9447,17 @@ namespace Opc.Ua.Server
             // no other type of filter supported.
             result.StatusCode = StatusCodes.BadFilterNotAllowed;
             return result;
+        }
+
+        /// <summary>
+        /// Returns the sampling interval a data item with the revised sampling interval gets
+        /// once a sampling group rounds it to a supported rate.
+        /// </summary>
+        private double GetGroupSamplingInterval(double samplingInterval)
+        {
+            return m_monitoredItemManager is SamplingGroupMonitoredItemManager samplingGroups
+                ? samplingGroups.GetGroupSamplingInterval(samplingInterval)
+                : samplingInterval;
         }
 
         /// <summary>
@@ -9024,17 +9485,9 @@ namespace Opc.Ua.Server
                 TimestampStructuredDataKeySelector.Instance;
             if (provider == null)
             {
-                if (filterToUse.ProcessingInterval < samplingInterval)
-                {
-                    filterToUse.ProcessingInterval = samplingInterval;
-                }
-
-                if (filterToUse.ProcessingInterval <
-                    Server.AggregateManager.MinimumProcessingInterval)
-                {
-                    filterToUse.ProcessingInterval =
-                        Server.AggregateManager.MinimumProcessingInterval;
-                }
+                filterToUse.ReviseProcessingInterval(
+                    samplingInterval,
+                    Server.AggregateManager.MinimumProcessingInterval);
 
                 DateTimeUtc currentTime =
                     ((Server as ITimeProviderProvider)?.TimeProvider ??
@@ -9104,17 +9557,10 @@ namespace Opc.Ua.Server
                         capabilities.DefaultAggregateConfiguration);
             }
 
-            double minimumFromSampling = samplingInterval > 0 &&
-                samplingInterval.IsFinite()
-                    ? samplingInterval
-                    : 0;
-            filterToUse.ProcessingInterval = Math.Max(
-                filterToUse.ProcessingInterval,
-                Math.Max(
-                    minimumFromSampling,
-                    Math.Max(
-                        Server.AggregateManager.MinimumProcessingInterval,
-                        providerInterval)));
+            filterToUse.ReviseProcessingInterval(
+                samplingInterval,
+                Server.AggregateManager.MinimumProcessingInterval,
+                providerInterval);
 
             DateTimeUtc utcNow = ((Server as ITimeProviderProvider)?.TimeProvider ??
                 TimeProvider.System).GetUtcNow().UtcDateTime;
@@ -9287,20 +9733,15 @@ namespace Opc.Ua.Server
                 itemToModify.RequestedParameters.QueueSize,
                 MaxQueueSize,
                 MaxDurableQueueSize);
-            uint filterQueueSize = revisedQueueSize;
-            if (filterQueueSize == 0 &&
-                m_monitoredItemManager is SamplingGroupMonitoredItemManager)
-            {
-                filterQueueSize = datachangeItem.QueueSize;
-            }
 
-            // validate the monitoring filter.
+            // validate the monitoring filter against the sampling interval the item gets,
+            // so the revised processing interval is at least twice it (Part 4 7.22.4).
             ValidateMonitoringFilterResult validateMonitoringFilterResult = await ValidateMonitoringFilterAsync(
                 context,
                 handle,
                 datachangeItem.AttributeId,
-                samplingInterval,
-                filterQueueSize,
+                GetGroupSamplingInterval(samplingInterval),
+                revisedQueueSize,
                 parameters.Filter,
                 cancellationToken).ConfigureAwait(false);
 
@@ -9560,7 +10001,13 @@ namespace Opc.Ua.Server
                     if (ServiceResult.IsGood(errors[ii]))
                     {
                         deletedItems.Add(monitoredItems[ii]);
-                        RemoveNodeFromComponentCache(systemContext, handle);
+
+                        // only MonitoredNode items hold a component-cache reference;
+                        // sampling-group items never took one (see create).
+                        if (m_monitoredItemManager is MonitoredNodeMonitoredItemManager)
+                        {
+                            RemoveNodeFromComponentCache(systemContext, handle);
+                        }
                     }
                 }
                 m_monitoredItemManager.ApplyChanges();
@@ -10370,7 +10817,7 @@ namespace Opc.Ua.Server
         protected IMonitoredItemManager m_monitoredItemManager;
         private readonly ConditionalWeakTable<ServerAggregateFilter, object>
             m_prevalidatedInitialValueRequests =
-#if NETFRAMEWORK || NETSTANDARD2_0
+#if NETFRAMEWORK
                 new();
 #else
                 [];

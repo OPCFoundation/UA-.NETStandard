@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Linq;
 using NUnit.Framework;
@@ -348,6 +346,54 @@ namespace Opc.Ua.Core.Tests.Stack.WebApi
             Assert.That(
                 WebApiServiceRoutes.TryGetByRequestType(typeof(ReadResponse), out _),
                 Is.False);
+        }
+
+        private static readonly string[] s_sessionlessOperationIds =
+        [
+            "Read",
+            "Write",
+            "HistoryRead",
+            "HistoryUpdate",
+            "Call",
+            "Browse",
+            "BrowseNext",
+            "TranslateBrowsePathsToNodeIds"
+        ];
+
+        [Test]
+        public void GetRoutesOfAllServicesReturnsEveryRoute()
+        {
+            Assert.That(
+                WebApiServiceRoutes.GetRoutes(WebApiServiceSet.AllServices).ToArray()!,
+                Is.EqualTo(WebApiServiceRoutes.Routes));
+        }
+
+        [Test]
+        public void GetRoutesOfSessionlessReturnsTheEightSessionlessServices()
+        {
+            WebApiServiceRoute[] routes =
+                WebApiServiceRoutes.GetRoutes(WebApiServiceSet.Sessionless).ToArray()!;
+
+            Assert.That(routes.Select(r => r.OperationId), Is.EqualTo(s_sessionlessOperationIds));
+        }
+
+        [Test]
+        public void SessionlessRoutesAreASubsetOfAllRoutesInTheSameOrder()
+        {
+            WebApiServiceRoute[] expected =
+            [
+                .. WebApiServiceRoutes.Routes.Where(r => s_sessionlessOperationIds.Contains(r.OperationId))
+            ];
+
+            Assert.That(WebApiServiceRoutes.GetRoutes(WebApiServiceSet.Sessionless).ToArray()!, Is.EqualTo(expected));
+        }
+
+        [Test]
+        public void GetRoutesThrowsForUndefinedServiceSet()
+        {
+            Assert.That(
+                () => WebApiServiceRoutes.GetRoutes((WebApiServiceSet)42),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
         }
     }
 }

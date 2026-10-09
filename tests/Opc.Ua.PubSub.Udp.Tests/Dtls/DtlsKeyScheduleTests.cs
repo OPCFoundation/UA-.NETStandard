@@ -29,7 +29,6 @@
 
 using System.Security.Cryptography;
 using NUnit.Framework;
-#if NET8_0_OR_GREATER
 using Opc.Ua.PubSub.Tests;
 using Opc.Ua.PubSub.Udp.Dtls;
 
@@ -121,4 +120,3 @@ namespace Opc.Ua.PubSub.Udp.Tests.Dtls
         }
     }
 }
-#endif

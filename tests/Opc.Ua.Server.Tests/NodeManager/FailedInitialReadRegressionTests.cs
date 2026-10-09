@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             /// Gets the variable retained in the component cache, if any.
             /// </summary>
             public NodeState CachedNode => LookupNodeInComponentCache(
-                SystemContext, new NodeHandle { NodeId = m_node.NodeId });
+                SystemContext, new NodeHandle { NodeId = m_node.NodeId })!;
 
             /// <summary>
             /// Attempts to create a disabled data-change item and returns its admission result and registered instance.
@@ -213,9 +213,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         DiscardOldest = true
                     }
                 };
-                var errors = new List<ServiceResult> { null };
-                var filterErrors = new List<MonitoringFilterResult> { null };
-                var items = new List<IMonitoredItem> { null };
+                var errors = new List<ServiceResult> { null! };
+                var filterErrors = new List<MonitoringFilterResult> { null! };
+                var items = new List<IMonitoredItem> { null! };
                 CreateMonitoredItems(
                     context, 1, 1000, TimestampsToReturn.Both, [request],
                     errors, filterErrors, items, false, m_ids);

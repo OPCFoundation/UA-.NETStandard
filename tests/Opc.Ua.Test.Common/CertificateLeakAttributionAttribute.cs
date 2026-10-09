@@ -54,7 +54,7 @@ namespace Opc.Ua.Tests
                 Certificate.InstancesCreated,
                 Certificate.InstancesDisposed,
                 test.FullName,
-                s_baseline.Value);
+                s_baseline.Value!);
             Certificate.LeakTrackingScope = test.FullName;
         }
 

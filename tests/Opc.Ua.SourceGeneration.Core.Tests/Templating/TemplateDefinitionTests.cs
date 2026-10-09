@@ -103,7 +103,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             var templateDefinition = new TemplateDefinition();
             var mockContext = new Mock<IWriteContext>();
-            IWriteContext receivedContext = null;
+            IWriteContext? receivedContext = null;
 
             templateDefinition.OnTemplateWrite = (ctx) =>
             {
@@ -127,7 +127,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             var templateDefinition = new TemplateDefinition
             {
-                OnTemplateLoad = null
+                OnTemplateLoad = null!
             };
 
             var expectedTemplateString = (TemplateString)"test template content";
@@ -135,7 +135,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             mockContext.Setup(c => c.TemplateString).Returns(expectedTemplateString);
 
             // Act
-            TemplateString result = templateDefinition.Load(mockContext.Object);
+            TemplateString result = templateDefinition.Load(mockContext.Object)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(expectedTemplateString));
@@ -152,14 +152,14 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             // Arrange
             var templateDefinition = new TemplateDefinition
             {
-                OnTemplateLoad = null
+                OnTemplateLoad = null!
             };
 
             var mockContext = new Mock<ILoadContext>();
-            mockContext.Setup(c => c.TemplateString).Returns((TemplateString)null);
+            mockContext.Setup(c => c.TemplateString).Returns((TemplateString)null!);
 
             // Act
-            TemplateString result = templateDefinition.Load(mockContext.Object);
+            TemplateString? result = templateDefinition.Load(mockContext.Object);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -183,7 +183,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             };
 
             // Act
-            TemplateString result = templateDefinition.Load(mockContext.Object);
+            TemplateString result = templateDefinition.Load(mockContext.Object)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(expectedTemplateString));
@@ -199,7 +199,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         {
             // Arrange
             var mockContext = new Mock<ILoadContext>();
-            ILoadContext capturedContext = null;
+            ILoadContext? capturedContext = null;
             var returnTemplateString = (TemplateString)"result";
 
             var templateDefinition = new TemplateDefinition
@@ -231,11 +231,11 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
 
             var templateDefinition = new TemplateDefinition
             {
-                OnTemplateLoad = (ctx) => null
+                OnTemplateLoad = (ctx) => null!
             };
 
             // Act
-            TemplateString result = templateDefinition.Load(mockContext.Object);
+            TemplateString? result = templateDefinition.Load(mockContext.Object);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -263,7 +263,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             };
 
             // Act
-            TemplateString result = templateDefinition.Load(null);
+            TemplateString result = templateDefinition.Load(null!)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(expectedTemplateString));

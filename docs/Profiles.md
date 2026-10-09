@@ -406,10 +406,11 @@ Modern AEAD cipher alternatives for traditional ECC curves:
 - **RSA_DH_ChaChaPoly** — RSA Diffie-Hellman key agreement with ChaCha20-Poly1305
 
 **Platform requirements for ECC.** Certificate creation, storage, and validation
-are distinct from ECC SecureChannel and user-token security policies. Those policies
-require the stack's .NET 8.0-or-later target assets; running a .NET Standard asset
-on a newer runtime does not add the raw-secret APIs excluded at build time.
-Curve and cipher availability also depends on the OS and runtime probes
+are distinct from ECC SecureChannel and user-token security policies. On .NET 8.0 or
+later those policies use the platform's raw ECDH agreement and authenticated ciphers;
+on .NET Framework the agreement and the AES-GCM and ChaCha20-Poly1305 ciphers run in
+the managed BouncyCastle implementation. Curve and cipher availability also depends on
+the OS and, on .NET 8+, the runtime probes
 (`AesGcm.IsSupported` / `ChaCha20Poly1305.IsSupported`). See the
 [ECC platform limitations](EccProfiles.md#known-limitations) for the certificate-operation
 and channel-policy boundaries. PubSub has its own
@@ -559,6 +560,23 @@ Compliance Test Tool will exercise every claimed facet. Bringing the
 reference-server and CTT configs in line with the facets the stack
 actually implements is tracked in
 [#3875](https://github.com/OPCFoundation/UA-.NETStandard/issues/3875).
+
+### Contributed profiles and conformance units
+
+Node managers that implement `IConformanceContributor`, such as the
+companion node managers, contribute the facets and conformance units they
+actually wire. At startup the server registers them with the
+`ConformanceUnitsManager` and publishes the aggregate to
+`Server/ServerCapabilities/ConformanceUnits` and `ServerProfileArray`.
+
+The manager keeps the registered contributors and reads them again on every
+`PublishAsync`, because the ServerCapabilities describe the current
+configuration of the server (OPC 10000-5 §6.3.2). A contributor whose
+support changes at runtime calls `PublishAsync` afterwards (the manager is
+`ServerInternalData.ConformanceUnitsManager`); a unit or profile
+that no contributor reports any more is withdrawn. `Unregister` removes a
+contributor. The profiles from the `ServerProfileArray` configuration are
+always kept.
 
 ### Security policy configuration
 

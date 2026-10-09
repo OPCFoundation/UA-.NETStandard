@@ -152,7 +152,7 @@ namespace Opc.Ua.Client.Tests.Identity
                 GetIdentityCallCount++;
                 var identity = new UserIdentity(DisplayName, "password"u8)
                 {
-                    PolicyId = policy.PolicyId
+                    PolicyId = policy.PolicyId!
                 };
                 return new ValueTask<IUserIdentity>(identity);
             }

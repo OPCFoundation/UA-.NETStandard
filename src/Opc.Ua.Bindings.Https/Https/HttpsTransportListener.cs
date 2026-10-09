@@ -28,12 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using System.IO;
 using System.Net;
 using System.Net.Security;
 using System.Net.WebSockets;
 using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Security.Authentication;
+using System.Security.Claims;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -50,9 +53,7 @@ using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 using System.Collections.Generic;
 
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Security.Cryptography;
-#endif
 
 namespace Opc.Ua.Bindings
 {
@@ -285,7 +286,7 @@ namespace Opc.Ua.Bindings
         /// <param name="accessor">
         /// Late-bound accessor that resolves to the
         /// <see cref="SharedKestrelHost"/> serving this Kestrel host.
-        /// Set by <see cref="SharedKestrelHostRegistry.AcquireAsync"/> before
+        /// Set by <see cref="SharedKestrelHostRegistry.AcquireAsync(SharedHostKey, HttpsTransportListener, string, Func{SharedHostAccessor, IHost}, string, string, CancellationToken)"/> before
         /// the host is started.
         /// </param>
         /// <exception cref="ArgumentNullException"><paramref name="accessor"/> is <c>null</c>.</exception>
@@ -392,28 +393,6 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(bufferManagerFactory));
         }
 
-        /// <summary>
-        /// Gets a value indicating whether the WSS (WebSocket Secure) transport
-        /// listener is functional in this compiled assembly.
-        /// </summary>
-        /// <remarks>
-        /// The WSS listener is hosted on Kestrel. The <c>netstandard2.1</c>
-        /// build binds against the legacy ASP.NET Core hosting packages, which
-        /// cannot open a Kestrel WebSocket listener when the assembly is loaded
-        /// on a modern .NET runtime, so the WSS transport is unavailable there.
-        /// Every other build (.NET Framework and .NET 5 or later) can open the
-        /// listener, so this probe returns <see langword="true"/> for them and
-        /// <see langword="false"/> only for the <c>netstandard2.1</c> build,
-        /// allowing callers and tests to react at runtime instead of assuming
-        /// compile-time availability.
-        /// </remarks>
-        public static bool IsWssTransportSupported =>
-#if NET5_0_OR_GREATER || NETFRAMEWORK
-            true;
-#else
-            false;
-#endif
-
         /// <inheritdoc/>
         public string UriScheme { get; }
 
@@ -515,12 +494,28 @@ namespace Opc.Ua.Bindings
             // listener's ConnectionWaiting event when the server's
             // ReverseHello arrives.
             m_reverseConnectListener = settings.ReverseConnectListener;
+            // A reverse connection handed off to the client keeps its physical
+            // lease until it closes, but like on the opc.tcp listeners it no
+            // longer counts against MaxChannelCount, which bounds only the
+            // connections still waiting for their ReverseHello hand-off.
             m_admission = new UaScConnectionAdmission(
                 settings.MaxChannelCount,
                 settings.ConnectionRateLimiter,
                 settings.ResourceIsolationProvider,
                 m_quotas.HandshakeTimeout,
-                telemetry: m_telemetry);
+                telemetry: m_telemetry,
+                limitPendingHandshakesOnly: m_reverseConnectListener);
+
+            // The settings a shared Kestrel host takes from the listener that
+            // builds it; listeners that differ in them must not share a host.
+            m_sharedHostSettings = string.Join(
+                ";",
+                "mtls=" + (m_mutualTlsEnabled ? "1" : "0"),
+                "reverse=" + (m_reverseConnectListener ? "1" : "0"),
+                "maxChannels=" + settings.MaxChannelCount.ToString(CultureInfo.InvariantCulture),
+                "handshakeTimeout=" + m_quotas.HandshakeTimeout.ToString("c", CultureInfo.InvariantCulture),
+                "rateLimiter=" + (settings.ConnectionRateLimiter?.GetType().FullName ?? "none"),
+                "isolation=" + (settings.ResourceIsolationProvider?.GetType().FullName ?? "none"));
 
             // buffer manager used by the WSS path to rent send / receive chunks.
             m_bufferManager = new BufferManager(
@@ -644,6 +639,7 @@ namespace Opc.Ua.Bindings
                         EndpointUrl.AbsolutePath,
                         BuildSharedHostInstance,
                         thumbprint,
+                        GetSharedHostSettings(),
                         ct).ConfigureAwait(false);
                     return;
                 }
@@ -703,9 +699,26 @@ namespace Opc.Ua.Bindings
                     return;
                 }
 
-                int length = (int)(context.Request.ContentLength ?? 0);
+                // A chunked body (Part 6 7.4.1 requires HTTP chunking) carries no
+                // Content-Length; the bounded reader enforces MaxMessageSize while
+                // it reads.
+                long? contentLength = context.Request.ContentLength;
                 int maxMessageSize = m_quotas.MessageContext.MaxMessageSize;
-                if (maxMessageSize > 0 && length > maxMessageSize)
+                byte[]? buffer = null;
+                if (maxMessageSize <= 0 || !(contentLength > maxMessageSize))
+                {
+                    try
+                    {
+                        buffer = await ReadBodyAsync(context.Request, maxMessageSize, ct)
+                            .ConfigureAwait(false);
+                    }
+                    catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadRequestTooLarge)
+                    {
+                        buffer = null;
+                    }
+                }
+
+                if (buffer == null)
                 {
                     message = "HTTPSLISTENER - Request body exceeds MaxMessageSize.";
                     await WriteResponseAsync(
@@ -714,10 +727,9 @@ namespace Opc.Ua.Bindings
                         HttpStatusCode.RequestEntityTooLarge).ConfigureAwait(false);
                     return;
                 }
-                byte[] buffer = await ReadBodyAsync(context.Request, maxMessageSize, ct)
-                    .ConfigureAwait(false);
 
-                if (buffer.Length != length)
+                int length = buffer.Length;
+                if (contentLength.HasValue && length != contentLength.Value)
                 {
                     message = "HTTPSLISTENER - Invalid buffer.";
                     await WriteResponseAsync(context.Response, message, HttpStatusCode.BadRequest)
@@ -748,22 +760,24 @@ namespace Opc.Ua.Bindings
 
                 if (m_mutualTlsEnabled && input.TypeId == DataTypeIds.CreateSessionRequest)
                 {
-                    // Match the TLS certificate against the application certificate in CreateSessionRequest.
-                    var tlsClientCertificate = ByteString.From(context.Connection.ClientCertificate?.RawData);
+                    // Match the TLS certificate against the application certificate in
+                    // CreateSessionRequest. The request may carry the leaf followed by its
+                    // issuers; TLS presents only the leaf.
+                    byte[]? tlsClientCertificate = context.Connection.ClientCertificate?.RawData;
                     ByteString opcUaClientCertificate = ((CreateSessionRequest)input).ClientCertificate;
 
-                    if (context.Connection.ClientCertificate?.RawData == null ||
-                        tlsClientCertificate != opcUaClientCertificate)
+                    if (!IsLeafOfCertificateChain(tlsClientCertificate, opcUaClientCertificate))
                     {
-                        message =
+                        m_logger.ClientTlsCertificateMismatch(
                             "Client TLS certificate does not match with ClientCertificate " +
-                            "provided in CreateSessionRequest";
-                        m_logger.ClientTlsCertificateMismatch(message);
-                        await WriteResponseAsync(
-                            context.Response,
-                            message,
-                            HttpStatusCode.Unauthorized)
-                            .ConfigureAwait(false);
+                            "provided in CreateSessionRequest");
+                        IServiceResponse mismatchFault = EndpointBase.CreateFault(
+                            m_logger,
+                            input,
+                            new ServiceResultException(
+                                StatusCodes.BadSecurityChecksFailed,
+                                "The TLS client certificate does not match the ClientCertificate."));
+                        await WriteServiceResponseAsync(context, mismatchFault, ct).ConfigureAwait(false);
                         return;
                     }
                 }
@@ -1112,6 +1126,37 @@ namespace Opc.Ua.Bindings
             // "force renegotiate" requirement; existing Sessions remain
             // valid and the client's reconnect logic re-binds them over
             // the freshly-issued TLS endpoint.
+            //
+            // A shared host serves one TLS certificate for every listener on
+            // its (host, port): rotate it at host level. A stop / start of
+            // only this listener would leave the host on the old certificate
+            // for the other listeners and could not rebind the port.
+            if (m_sharedHostLease != null && m_pinnedServerCert != null && EndpointUrl != null)
+            {
+                // The host keeps its TLS certificate when only a non-TLS
+                // application certificate (e.g. ECC) rotates, so the WSS
+                // SecureChannels and the outbound reverse-connect channels of
+                // this listener are cut here rather than by a host restart.
+                // Closed before PrepareTlsCertificate releases the pinned
+                // certificate the reverse transports present.
+                CloseActiveConnections();
+
+                // Keep the previous TLS certificate so the registry can restart
+                // the shared host with it when the new host fails to start.
+                using Certificate previousCertificate = m_pinnedServerCert.AddRef();
+                PrepareTlsCertificate();
+                if (await SharedKestrelHostRegistry.Instance.RotateCertificateAsync(
+                        new SharedHostKey(EndpointUrl.Host, EndpointUrl.Port),
+                        this,
+                        BuildSharedHostInstance,
+                        m_pinnedServerCertX509!.Thumbprint,
+                        accessor => BuildSharedHostInstance(accessor, previousCertificate),
+                        ct).ConfigureAwait(false))
+                {
+                    return [];
+                }
+            }
+
             await StopAsync(ct).ConfigureAwait(false);
             await StartAsync(ct).ConfigureAwait(false);
 
@@ -1132,10 +1177,6 @@ namespace Opc.Ua.Bindings
             try
             {
                 m_admission?.Stop();
-                foreach (UaScConnectionAdmission.Lease upgrade in m_activeUpgrades.Keys)
-                {
-                    upgrade.Close();
-                }
             }
             catch (AggregateException ex)
             {
@@ -1147,23 +1188,7 @@ namespace Opc.Ua.Bindings
             // Drain outbound reverse-connect channels first so the
             // ServerCertificateChain handles loaded during the asymmetric
             // ChannelOpen handshake are released before m_pinnedServerCert.
-            // Snapshot the set under the concurrent dictionary's enumerator
-            // contract; subsequent OnReverseConnectChannelStatusChanged
-            // callbacks against disposed channels are no-ops because the
-            // dictionary has been cleared.
-            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
-            m_reverseConnectChannels.Clear();
-            foreach (TcpServerChannel channel in reverseChannels)
-            {
-                try
-                {
-                    channel.Dispose();
-                }
-                catch
-                {
-                    // best-effort; teardown must continue regardless.
-                }
-            }
+            CloseActiveConnections();
 
             SharedHostLease? lease = m_sharedHostLease;
             m_sharedHostLease = null;
@@ -1190,6 +1215,47 @@ namespace Opc.Ua.Bindings
                     // Best-effort shutdown.
                 }
                 host.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Closes this listener's admitted WebSocket upgrades and disposes its
+        /// outbound reverse-connect channels. Used by teardown and by
+        /// certificate rotation (Part 12 7.10.9), which must cut the channels
+        /// even when the shared host keeps serving the same TLS certificate.
+        /// </summary>
+        private void CloseActiveConnections()
+        {
+            foreach (UaScConnectionAdmission.Lease upgrade in m_activeUpgrades.Keys)
+            {
+                try
+                {
+                    upgrade.Close();
+                }
+                catch (Exception ex)
+                {
+                    m_logger.WssAdmissionStopFailed(ex);
+                }
+            }
+
+            // Snapshot the set under the concurrent dictionary's enumerator
+            // contract; status callbacks of the disposed channels no longer
+            // find them in the set and so do not dispose them twice.
+            TcpServerChannel[] reverseChannels = [.. m_reverseConnectChannels.Keys];
+            foreach (TcpServerChannel channel in reverseChannels)
+            {
+                if (!m_reverseConnectChannels.TryRemove(channel, out _))
+                {
+                    continue;
+                }
+                try
+                {
+                    channel.Dispose();
+                }
+                catch
+                {
+                    // best-effort; teardown must continue regardless.
+                }
             }
         }
 
@@ -1266,6 +1332,34 @@ namespace Opc.Ua.Bindings
         /// (so unconfigured deployments cannot silently accept tokens).
         /// </summary>
         internal Func<HttpContext, string, Task<bool>>? WssBearerTokenValidator { get; set; }
+
+        /// <summary>
+        /// Optional authenticator of the plain <c>opcua+openapi</c>
+        /// WebSocket upgrade. Registered by the WebApi contributor when
+        /// the application opted into REST authentication, so the upgrade
+        /// is held to the same credential as the REST routes (the route
+        /// authorization never sees the upgrade, which the terminal
+        /// dispatcher handles). It returns <c>true</c> when the request
+        /// authenticated and is authorized; otherwise it has answered the
+        /// request (401 with the scheme challenges, or 403) and returns
+        /// <c>false</c>. When it is not registered no HTTP-level
+        /// authentication is configured and the upgrade is accepted.
+        /// </summary>
+        internal Func<HttpContext, Task<bool>>? WssOpenApiUpgradeAuthenticator { get; set; }
+
+        /// <summary>
+        /// Optional mapping of the principal authenticated on an
+        /// <c>opcua+openapi</c> WebSocket upgrade to the OPC UA identity
+        /// published on <see cref="SecureChannelContext.UpstreamIdentity"/>
+        /// of the channel, the same hook the REST routes use.
+        /// </summary>
+        internal Func<HttpContext, IUserIdentity?>? WssOpenApiIdentityResolver { get; set; }
+
+        /// <summary>
+        /// The clock against which the credential expiry of an
+        /// <c>opcua+openapi</c> WebSocket is checked and enforced.
+        /// </summary>
+        internal TimeProvider TimeProvider { get; set; } = TimeProvider.System;
 
         /// <summary>
         /// Holds physical connection admission through the host pipeline and releases it after transport closure.
@@ -1454,15 +1548,26 @@ namespace Opc.Ua.Bindings
         /// </summary>
         private IHost BuildSharedHostInstance(SharedHostAccessor accessor)
         {
+            return BuildSharedHostInstance(accessor, m_pinnedServerCert!);
+        }
+
+        /// <summary>
+        /// Builds the shared host serving <paramref name="tlsCertificate"/>,
+        /// e.g. the previous certificate when a rotation is rolled back.
+        /// </summary>
+#pragma warning disable CA1859 // the registry takes an IHost factory on every target
+        private IHost BuildSharedHostInstance(SharedHostAccessor accessor, Certificate tlsCertificate)
+#pragma warning restore CA1859
+        {
 #if NET8_0_OR_GREATER
             return new HostBuilder()
-                .ConfigureWebHostDefaults(builder => ConfigureSharedWebHost(builder, accessor))
+                .ConfigureWebHostDefaults(builder => ConfigureSharedWebHost(builder, accessor, tlsCertificate))
                 .Build();
 #else
             // Legacy WebHostBuilder.Start() can't be split into Build+Start; use
             // Build() on the IWebHost equivalent and start in AttachAndStart.
             var sharedHostBuilder = new WebHostBuilder();
-            ConfigureSharedWebHost(sharedHostBuilder, accessor);
+            ConfigureSharedWebHost(sharedHostBuilder, accessor, tlsCertificate);
             IWebHost webHost = sharedHostBuilder.UseUrls(Utils.ReplaceLocalhost(EndpointUrl.ToString())).Build();
             return new WebHostAsIHost(webHost);
 #endif
@@ -1476,10 +1581,19 @@ namespace Opc.Ua.Bindings
         /// <see cref="PrepareTlsCertificate"/>.
         /// </summary>
 #pragma warning disable CA1859 // see ConfigureWebHost rationale
-        private void ConfigureSharedWebHost(IWebHostBuilder webHostBuilder, SharedHostAccessor accessor)
+        private void ConfigureSharedWebHost(
+            IWebHostBuilder webHostBuilder,
+            SharedHostAccessor accessor,
+            Certificate tlsCertificate)
 #pragma warning restore CA1859
         {
             UaScConnectionAdmission physicalAdmission = m_admission!.CreateIndependentScope();
+
+            // The shared host owns its own copy of the TLS certificate: it can
+            // outlive this listener (other listeners keep it alive), so it must
+            // not serve the listener's pinned instance that Dispose releases.
+            X509Certificate2 hostCertificate = tlsCertificate.AsX509Certificate2();
+            accessor.Instance!.OwnCertificate(hostCertificate);
             var httpsOptions = new HttpsConnectionAdapterOptions
             {
                 // TLS-layer revocation is intentionally disabled: certificate
@@ -1498,7 +1612,7 @@ namespace Opc.Ua.Bindings
                 ClientCertificateMode = m_mutualTlsEnabled
                     ? ClientCertificateMode.AllowCertificate
                     : ClientCertificateMode.NoCertificate,
-                ServerCertificate = m_pinnedServerCertX509,
+                ServerCertificate = hostCertificate,
                 ClientCertificateValidation = ValidateClientCertificate,
                 SslProtocols = SslProtocols.None
             };
@@ -1530,6 +1644,36 @@ namespace Opc.Ua.Bindings
             });
             webHostBuilder.UseStartup<SharedHostStartup>();
         }
+
+        /// <summary>
+        /// Describes the settings a shared Kestrel host takes from this
+        /// listener, including the middleware contributors, which may be
+        /// assigned after the listener was opened.
+        /// </summary>
+        /// <remarks>
+        /// Contributors are identified by instance, not only by type: the
+        /// shared host registers services from the first listener's
+        /// contributors only, so a listener whose contributor instance
+        /// carries different services (for example the REST
+        /// authentication of another application container) must not
+        /// reuse that host.
+        /// </remarks>
+        internal string GetSharedHostSettings()
+        {
+            var contributors = new List<string>(StartupContributors.Count);
+            foreach (IHttpsListenerStartupContributor contributor in StartupContributors)
+            {
+                string id = s_contributorIds.GetValue(
+                    contributor,
+                    static _ => Interlocked.Increment(ref s_nextContributorId)
+                        .ToString(CultureInfo.InvariantCulture));
+                contributors.Add((contributor.GetType().FullName ?? contributor.GetType().Name) + "#" + id);
+            }
+            return m_sharedHostSettings + ";contributors=" + string.Join(",", contributors);
+        }
+
+        private static readonly ConditionalWeakTable<IHttpsListenerStartupContributor, string> s_contributorIds = new();
+        private static long s_nextContributorId;
 
         /// <summary>
         /// Starts a dedicated host when no compatible shared host can serve the listener.
@@ -1566,7 +1710,6 @@ namespace Opc.Ua.Bindings
             using CertificateEntry? instanceEntry = m_serverCertProvider
                 .AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https);
             Certificate? serverCertificate = instanceEntry?.Certificate?.AddRef();
-#if NETSTANDARD2_1 || NET472_OR_GREATER || NET5_0_OR_GREATER
             try
             {
                 // Create a copy of the certificate with the private key on platforms
@@ -1589,7 +1732,6 @@ namespace Opc.Ua.Bindings
             {
                 m_logger.PrivateKeyCopyDenied(ce.Message);
             }
-#endif
             // pin the cert for the lifetime of the listener so that the
             // OS-level private key handle backing the Kestrel-held
             // X509Certificate2 cannot be invalidated by a concurrent cert
@@ -1712,7 +1854,7 @@ namespace Opc.Ua.Bindings
             context.Response.ContentLength = payload.Length;
             context.Response.ContentType = Profiles.OpcUaJsonContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await context.Response.Body
                 .WriteAsync(payload.AsMemory(0, payload.Length), ct)
                 .ConfigureAwait(false);
@@ -1732,6 +1874,13 @@ namespace Opc.Ua.Bindings
             UaScConnectionAdmission.Lease lease)
         {
             m_activeUpgrades.TryAdd(lease, 0);
+            // A refused upgrade ends the connection. The accepted upgrade
+            // replaces this header with "Connection: Upgrade"; HTTP/2
+            // forbids connection-specific headers.
+            if (context.Request.Protocol.StartsWith("HTTP/1.", StringComparison.Ordinal))
+            {
+                context.Response.Headers["Connection"] = "close";
+            }
             try
             {
                 if (Volatile.Read(ref m_admissionStopped) != 0)
@@ -1744,8 +1893,44 @@ namespace Opc.Ua.Bindings
             finally
             {
                 m_activeUpgrades.TryRemove(lease, out _);
-                lease.Close();
+                ReleaseUpgradeLease(context, lease);
             }
+        }
+
+        /// <summary>
+        /// Ends the admission of an upgrade request once it is processed.
+        /// </summary>
+        /// <remarks>
+        /// An accepted upgrade has run to completion and its lease is
+        /// closed with the connection. A refused upgrade (401, 403, 503,
+        /// ...) must not abort the connection, which would reset it before
+        /// Kestrel has sent the response. When the lease is the physical
+        /// connection's own, the connection outlives the request: on
+        /// HTTP/1.x Kestrel closes it after the response
+        /// (<c>Connection: close</c>), while an HTTP/2 connection stays
+        /// usable for other streams. The lease is then left to
+        /// <see cref="RunHttpsConnectionAsync"/>, which keeps the connection
+        /// counted until it really closes; the handshake is complete since
+        /// the connection served a response. A lease taken for this
+        /// request alone is released now.
+        /// </remarks>
+        private static void ReleaseUpgradeLease(HttpContext context, UaScConnectionAdmission.Lease lease)
+        {
+            bool refused = context.Response.HasStarted &&
+                context.Response.StatusCode != (int)HttpStatusCode.SwitchingProtocols &&
+                !context.RequestAborted.IsCancellationRequested;
+            if (!refused)
+            {
+                lease.Close();
+                return;
+            }
+            if (ReferenceEquals(context.Features.Get<IHttpsTransportAdmissionFeature>()?.Lease, lease))
+            {
+                lease.CompleteHandshake();
+                return;
+            }
+            lease.SetAbortAction(static () => { });
+            lease.Close();
         }
 
         /// <summary>
@@ -1763,6 +1948,45 @@ namespace Opc.Ua.Bindings
             }
             if (string.Equals(selected, Profiles.OpcUaWsSubProtocolOpenApi, StringComparison.Ordinal))
             {
+                // The REST route authorization does not cover the upgrade,
+                // so hold it to the configured credential here.
+                Func<HttpContext, Task<bool>>? authenticator = WssOpenApiUpgradeAuthenticator;
+                if (authenticator != null)
+                {
+                    bool authenticated;
+                    try
+                    {
+                        authenticated = await authenticator(context).ConfigureAwait(false);
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.OpenApiUpgradeAuthenticatorThrew(ex);
+                        if (!context.Response.HasStarted)
+                        {
+                            await WriteResponseAsync(
+                                context.Response,
+                                "HTTPSLISTENER - opcua+openapi upgrade authentication failed.",
+                                HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                        }
+                        return;
+                    }
+                    if (!authenticated)
+                    {
+                        // The challenge sets the status and the
+                        // WWW-Authenticate header but leaves the response
+                        // unsent; complete it before the lease closes the
+                        // connection, or the client sees a reset instead
+                        // of the 401.
+                        if (!context.Response.HasStarted)
+                        {
+                            await WriteResponseAsync(
+                                context.Response,
+                                "HTTPSLISTENER - opcua+openapi upgrade not authorized.",
+                                (HttpStatusCode)context.Response.StatusCode).ConfigureAwait(false);
+                        }
+                        return;
+                    }
+                }
                 await AcceptWebSocketOpenApiAsync(context, lease, accessToken: null).ConfigureAwait(false);
                 return;
             }
@@ -2221,7 +2445,7 @@ namespace Opc.Ua.Bindings
                     byte[] responseBytes = JsonRequestMapper.EncodeResponse(
                         responseToSend,
                         m_quotas.MessageContext);
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     await ws.SendAsync(
                         new ReadOnlyMemory<byte>(responseBytes, 0, responseBytes.Length),
                         WebSocketMessageType.Text,
@@ -2307,6 +2531,40 @@ namespace Opc.Ua.Bindings
                 ? Profiles.OpcUaWsSubProtocolOpenApi
                 : Profiles.OpcUaWsSubProtocolOpenApiBearerPrefix + accessToken;
 
+            // A scheme may skip lifetime validation or allow clock skew;
+            // the channel outlives the upgrade, so a credential that has
+            // already expired is refused and the channel closes when it
+            // expires.
+            DateTimeOffset? credentialExpiry = GetCredentialExpiry(context.User);
+            if (credentialExpiry is DateTimeOffset expiry && expiry <= TimeProvider.GetUtcNow())
+            {
+                m_logger.OpenApiCredentialExpired(expiry);
+                await WriteResponseAsync(
+                    context.Response,
+                    "HTTPSLISTENER - the credential of the opcua+openapi upgrade has expired.",
+                    HttpStatusCode.Unauthorized).ConfigureAwait(false);
+                return;
+            }
+
+            IUserIdentity? upstreamIdentity = null;
+            Func<HttpContext, IUserIdentity?>? identityResolver = WssOpenApiIdentityResolver;
+            if (identityResolver != null)
+            {
+                try
+                {
+                    upstreamIdentity = identityResolver(context);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.OpenApiIdentityResolverThrew(ex);
+                    await WriteResponseAsync(
+                        context.Response,
+                        "HTTPSLISTENER - the identity of the opcua+openapi upgrade could not be resolved.",
+                        HttpStatusCode.InternalServerError).ConfigureAwait(false);
+                    return;
+                }
+            }
+
             WebSocket ws = await context.WebSockets
                 .AcceptWebSocketAsync(selectedSubProtocol)
                 .ConfigureAwait(false);
@@ -2347,14 +2605,108 @@ namespace Opc.Ua.Bindings
                 RequestEncoding.Json,
                 context.Connection.ClientCertificate?.RawData,
                 ServerChannelCertificate,
-                peerAddress: context.Connection.RemoteIpAddress);
+                peerAddress: context.Connection.RemoteIpAddress)
+            {
+                // Publish the principal authenticated on the upgrade like
+                // the REST routes do for each request.
+                UpstreamIdentity = upstreamIdentity
+            };
 
-            await ReceiveOpenApiWebSocketMessagesAsync(
-                ws,
-                channelContext,
-                MakeEndpoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort),
-                ct).ConfigureAwait(false);
+            var expiryWatch = new CancellationTokenSource();
+            Task expiryWatcher = Task.CompletedTask;
+            try
+            {
+                if (credentialExpiry is DateTimeOffset expiresAt)
+                {
+#pragma warning disable CA2025 // The watcher is awaited in the finally below before the source is disposed.
+                    expiryWatcher = WatchCredentialExpiryAsync(expiresAt, ws, expiryWatch.Token);
+#pragma warning restore CA2025
+                }
+                await ReceiveOpenApiWebSocketMessagesAsync(
+                    ws,
+                    channelContext,
+                    MakeEndpoint(context.Connection.RemoteIpAddress, context.Connection.RemotePort),
+                    ct).ConfigureAwait(false);
+            }
+            finally
+            {
+                try
+                {
+                    expiryWatch.Cancel();
+                    await expiryWatcher.ConfigureAwait(false);
+                }
+                finally
+                {
+                    // Only after the watcher has completed.
+                    expiryWatch.Dispose();
+                }
+            }
         }
+
+        /// <summary>
+        /// Returns the expiry (<c>exp</c> claim, RFC 7519 NumericDate) of
+        /// the credential the request authenticated with, or <c>null</c>
+        /// when the principal carries none (Basic, mutual TLS).
+        /// </summary>
+        internal static DateTimeOffset? GetCredentialExpiry(ClaimsPrincipal? user)
+        {
+            if (user?.Identity?.IsAuthenticated != true)
+            {
+                return null;
+            }
+            Claim? exp = user.FindFirst("exp");
+            if (exp == null ||
+                !double.TryParse(exp.Value, NumberStyles.Float, CultureInfo.InvariantCulture, out double seconds) ||
+                double.IsNaN(seconds))
+            {
+                return null;
+            }
+            // Out-of-range values clamp, so a garbage exp fails closed
+            // (minimum) or never fires (maximum).
+            if (seconds <= DateTimeOffset.MinValue.ToUnixTimeSeconds())
+            {
+                return DateTimeOffset.MinValue;
+            }
+            if (seconds >= DateTimeOffset.MaxValue.ToUnixTimeSeconds())
+            {
+                return DateTimeOffset.MaxValue;
+            }
+            return DateTimeOffset.FromUnixTimeMilliseconds((long)(seconds * 1000));
+        }
+
+        /// <summary>
+        /// Aborts the OpenAPI WebSocket when the credential of its upgrade
+        /// expires, unless <paramref name="ct"/> is cancelled first. A
+        /// single timer wait is capped, so the wait is re-armed until the
+        /// expiry however far away it lies.
+        /// </summary>
+        private async Task WatchCredentialExpiryAsync(
+            DateTimeOffset expiresAt,
+            WebSocket ws,
+            CancellationToken ct)
+        {
+            try
+            {
+                TimeSpan remaining;
+                while ((remaining = expiresAt - TimeProvider.GetUtcNow()) > TimeSpan.Zero)
+                {
+                    TimeSpan delay = remaining < s_maxTimerDelay ? remaining : s_maxTimerDelay;
+#if NET8_0_OR_GREATER
+                    await Task.Delay(delay, TimeProvider, ct).ConfigureAwait(false);
+#else
+                    await TimeProvider.Delay(delay, ct).ConfigureAwait(false);
+#endif
+                }
+                m_logger.OpenApiWebSocketCredentialExpired(expiresAt);
+                ws.Abort();
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The WebSocket ended before its credential expired.
+            }
+        }
+
+        private static readonly TimeSpan s_maxTimerDelay = TimeSpan.FromMilliseconds(int.MaxValue);
 
         /// <summary>
         /// Receives concurrent OpenAPI requests with admission before copying or scheduling.
@@ -2652,7 +3004,22 @@ namespace Opc.Ua.Bindings
                 IServiceRequest request = JsonDecoder.DecodeMessage<IServiceRequest>(
                     messageBytes, m_quotas.MessageContext);
                 request.RequestHeader ??= new RequestHeader();
-                response = await m_callback!.ProcessRequestAsync(channelContext, request, ct).ConfigureAwait(false);
+                if (channelContext.EndpointDescription == null && !IsDiscoveryRequest(request.TypeId))
+                {
+                    // Fail closed like the binary and JSON paths: without a matching
+                    // SecurityMode.None endpoint the channel is discovery-only.
+                    response = EndpointBase.CreateFault(
+                        m_logger,
+                        request,
+                        new ServiceResultException(
+                            StatusCodes.BadSecurityPolicyRejected,
+                            "Channel can only be used for discovery."));
+                }
+                else
+                {
+                    response = await m_callback!.ProcessRequestAsync(channelContext, request, ct)
+                        .ConfigureAwait(false);
+                }
             }
             catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
@@ -2699,7 +3066,7 @@ namespace Opc.Ua.Bindings
             context.Response.ContentLength = encodedResponse.Length;
             context.Response.ContentType = context.Request.ContentType;
             context.Response.StatusCode = (int)HttpStatusCode.OK;
-#if NETSTANDARD2_1 || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await context
                 .Response.Body.WriteAsync(encodedResponse.AsMemory(0, encodedResponse.Length), ct)
                 .ConfigureAwait(false);
@@ -2732,6 +3099,19 @@ namespace Opc.Ua.Bindings
             return typeId == DataTypeIds.GetEndpointsRequest ||
                 typeId == DataTypeIds.FindServersRequest ||
                 typeId == DataTypeIds.FindServersOnNetworkRequest;
+        }
+
+        /// <summary>
+        /// Returns true when the DER encoded TLS client certificate is the leaf
+        /// (first certificate) of the CreateSession ClientCertificate chain blob.
+        /// A DER certificate is self-delimiting, so a byte prefix match means the
+        /// first element of the blob is exactly that certificate.
+        /// </summary>
+        internal static bool IsLeafOfCertificateChain(byte[]? tlsCertificate, ByteString certificateChain)
+        {
+            return tlsCertificate != null &&
+                tlsCertificate.Length > 0 &&
+                certificateChain.Span.StartsWith(tlsCertificate);
         }
 
         /// <summary>
@@ -3052,6 +3432,7 @@ namespace Opc.Ua.Bindings
         private Certificate? m_pinnedServerCert;
         private X509Certificate2? m_pinnedServerCertX509;
         private bool m_mutualTlsEnabled;
+        private string m_sharedHostSettings = string.Empty;
         private bool m_reverseConnectListener;
 
         /// <summary>
@@ -3145,5 +3526,21 @@ namespace Opc.Ua.Bindings
         [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 14, Level = LogLevel.Error,
             Message = "WSSLISTENER - failed to close one or more admitted connections during listener shutdown.")]
         public static partial void WssAdmissionStopFailed(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 15, Level = LogLevel.Error,
+            Message = "WSSLISTENER - opcua+openapi upgrade rejected: authenticator threw.")]
+        public static partial void OpenApiUpgradeAuthenticatorThrew(this ILogger logger, Exception exception);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 16, Level = LogLevel.Warning,
+            Message = "WSSLISTENER - opcua+openapi upgrade rejected: the credential expired at {Expiry}.")]
+        public static partial void OpenApiCredentialExpired(this ILogger logger, DateTimeOffset expiry);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 17, Level = LogLevel.Information,
+            Message = "WSSLISTENER - opcua+openapi WebSocket closed: the credential expired at {Expiry}.")]
+        public static partial void OpenApiWebSocketCredentialExpired(this ILogger logger, DateTimeOffset expiry);
+
+        [LoggerMessage(EventId = BindingsHttpsEventIds.HttpsTransportListener + 18, Level = LogLevel.Error,
+            Message = "WSSLISTENER - opcua+openapi upgrade rejected: identity resolution threw.")]
+        public static partial void OpenApiIdentityResolverThrew(this ILogger logger, Exception exception);
     }
 }

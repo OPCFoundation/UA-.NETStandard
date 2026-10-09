@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Concurrent;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -60,6 +61,7 @@ namespace Opc.Ua.PubSub.Adapter.Subscriber
         private readonly IServerSession m_session;
         private readonly AdapterMetrics? m_metrics;
         private readonly ILogger m_logger;
+        private readonly ConcurrentDictionary<NodeId, StrippedTimestamps> m_strippedTimestamps = new();
 
         /// <summary>
         /// Creates a new external-server target variable writer over the supplied
@@ -113,30 +115,56 @@ namespace Opc.Ua.PubSub.Adapter.Subscriber
                     .ResolveNodeIdAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
 
-                var writeValue = new WriteValue
+                // Part 14 6.2.11.1: a received timestamp is not used when the
+                // target Variable does not allow writing timestamps. A rejected
+                // write is retried first without the ServerTimestamp (which many
+                // Servers never accept) and then without the SourceTimestamp; the
+                // timestamp kinds a target rejected are remembered per kind, so a
+                // rejected ServerTimestamp does not suppress the SourceTimestamp.
+                StrippedTimestamps stripped = m_strippedTimestamps.TryGetValue(
+                    targetNodeId,
+                    out StrippedTimestamps known) ? known : StrippedTimestamps.None;
+
+                StatusCode? result = await WriteValueAsync(
+                    targetNodeId,
+                    attributeId,
+                    writeIndexRange,
+                    WithoutTimestamps(value, stripped),
+                    cancellationToken).ConfigureAwait(false);
+
+                while (result == StatusCodes.BadWriteNotSupported)
                 {
-                    NodeId = targetNodeId,
-                    AttributeId = attributeId,
-                    Value = value
-                };
-                if (!string.IsNullOrEmpty(writeIndexRange))
-                {
-                    writeValue.IndexRange = writeIndexRange;
+                    StrippedTimestamps next = NextStrip(value, stripped);
+                    if (next == stripped)
+                    {
+                        break;
+                    }
+
+                    stripped = next;
+                    result = await WriteValueAsync(
+                        targetNodeId,
+                        attributeId,
+                        writeIndexRange,
+                        WithoutTimestamps(value, stripped),
+                        cancellationToken).ConfigureAwait(false);
+
+                    if (result != null && StatusCode.IsGood(result.Value))
+                    {
+                        m_strippedTimestamps.AddOrUpdate(
+                            targetNodeId,
+                            stripped,
+                            (_, previous) => previous | stripped);
+                    }
                 }
 
-                ArrayOf<WriteValue> nodesToWrite = [writeValue];
-                ArrayOf<StatusCode> results = await m_session
-                    .WriteAsync(nodesToWrite, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (results.IsNull || results.Count == 0)
+                if (result == null)
                 {
                     m_metrics?.RecordWrite(false);
                     m_logger.WriteReturnedNoStatus(nodeId);
                     return StatusCodes.BadCommunicationError;
                 }
-                m_metrics?.RecordWrite(StatusCode.IsGood(results[0]));
-                return results[0];
+                m_metrics?.RecordWrite(StatusCode.IsGood(result.Value));
+                return result.Value;
             }
             catch (OperationCanceledException)
             {
@@ -154,6 +182,91 @@ namespace Opc.Ua.PubSub.Adapter.Subscriber
                 m_logger.WriteFailed(ex, nodeId);
                 return StatusCodes.BadCommunicationError;
             }
+        }
+
+        private async ValueTask<StatusCode?> WriteValueAsync(
+            NodeId targetNodeId,
+            uint attributeId,
+            string? writeIndexRange,
+            DataValue value,
+            CancellationToken cancellationToken)
+        {
+            var writeValue = new WriteValue
+            {
+                NodeId = targetNodeId,
+                AttributeId = attributeId,
+                Value = value
+            };
+            if (!string.IsNullOrEmpty(writeIndexRange))
+            {
+                writeValue.IndexRange = writeIndexRange;
+            }
+
+            ArrayOf<WriteValue> nodesToWrite = [writeValue];
+            ArrayOf<StatusCode> results = await m_session
+                .WriteAsync(nodesToWrite, cancellationToken)
+                .ConfigureAwait(false);
+
+            if (results.IsNull || results.Count == 0)
+            {
+                return null;
+            }
+            return results[0];
+        }
+
+        /// <summary>
+        /// Returns the timestamp kinds to strip on the next retry: the
+        /// ServerTimestamp first, then the SourceTimestamp. Returns
+        /// <paramref name="stripped"/> unchanged if no timestamp is left.
+        /// </summary>
+        private static StrippedTimestamps NextStrip(DataValue value, StrippedTimestamps stripped)
+        {
+            if (value.ServerTimestamp != DateTimeUtc.MinValue &&
+                (stripped & StrippedTimestamps.Server) == 0)
+            {
+                return stripped | StrippedTimestamps.Server;
+            }
+
+            if (value.SourceTimestamp != DateTimeUtc.MinValue &&
+                (stripped & StrippedTimestamps.Source) == 0)
+            {
+                return stripped | StrippedTimestamps.Source;
+            }
+
+            return stripped;
+        }
+
+        private static DataValue WithoutTimestamps(DataValue value, StrippedTimestamps stripped)
+        {
+            bool stripServer = (stripped & StrippedTimestamps.Server) != 0 &&
+                value.ServerTimestamp != DateTimeUtc.MinValue;
+            bool stripSource = (stripped & StrippedTimestamps.Source) != 0 &&
+                value.SourceTimestamp != DateTimeUtc.MinValue;
+
+            if (!stripServer && !stripSource)
+            {
+                return value;
+            }
+
+            // the StatusCode is kept: a target that rejects it reports the
+            // failure to the reader (Part 14 6.2.11.1, OverrideValueHandling
+            // Disabled).
+            return new DataValue(
+                value.WrappedValue,
+                value.StatusCode,
+                stripSource ? DateTimeUtc.MinValue : value.SourceTimestamp,
+                stripServer ? DateTimeUtc.MinValue : value.ServerTimestamp);
+        }
+
+        /// <summary>
+        /// The timestamp kinds a target Variable rejected.
+        /// </summary>
+        [Flags]
+        private enum StrippedTimestamps
+        {
+            None = 0,
+            Server = 1,
+            Source = 2
         }
     }
 

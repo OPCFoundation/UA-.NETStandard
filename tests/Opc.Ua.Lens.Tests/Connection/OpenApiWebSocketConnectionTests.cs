@@ -36,7 +36,6 @@ using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua;
-using Opc.Ua.Bindings;
 using Opc.Ua.Client;
 using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Identity;
@@ -96,7 +95,6 @@ public sealed class OpenApiWebSocketConnectionTests
     [Test]
     public async Task LensDiscoversConnectsBrowsesReadsAndMonitorsOverWssOpenApiAsync()
     {
-        SkipIfWssUnsupported();
         using var deadline = new CancellationTokenSource(TimeSpan.FromSeconds(45));
         var transports = new ConnectionTransportCatalog();
         var channels = new ClientChannelManager(m_clientFixture.Config, transports);
@@ -246,14 +244,6 @@ public sealed class OpenApiWebSocketConnectionTests
                 Assert.That(adapter.Counters.DataValues, Is.GreaterThan(0));
                 Assert.That(adapter.Counters.EventValues, Is.GreaterThan(0));
             }
-        }
-    }
-
-    private static void SkipIfWssUnsupported()
-    {
-        if (!HttpsTransportListener.IsWssTransportSupported)
-        {
-            Assert.Ignore("The WSS transport listener is unavailable in this build.");
         }
     }
 

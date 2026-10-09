@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Moq;
@@ -57,27 +58,144 @@ namespace Opc.Ua.Server.Tests
                 failure);
         }
 
+        /// <summary>
+        /// Verifies an RSAEncryptedSecret whose KeyData fails RSA unpadding and one whose KeyData
+        /// unpads but does not hold the expected keys produce the same error, with no inner result
+        /// a client asking for inner diagnostics could use to tell them apart (OPC 10000-4 7.40.2.1).
+        /// </summary>
+        [TestCase(SecurityPolicies.Basic128Rsa15)]
+        [TestCase(SecurityPolicies.Basic256Sha256)]
+        [TestCase(SecurityPolicies.Aes256_Sha256_RsaPss)]
+        public async Task RsaEncryptedSecretKeyDataFailuresAreIndistinguishableAsync(string policyUri)
+        {
+            ServiceResultException badPadding = await ActivateWithRsaEncryptedSecretAsync(
+                policyUri, wellFormedPadding: false).ConfigureAwait(false);
+            ServiceResultException badLayout = await ActivateWithRsaEncryptedSecretAsync(
+                policyUri, wellFormedPadding: true).ConfigureAwait(false);
+
+            foreach (ServiceResultException error in new[] { badPadding, badLayout })
+            {
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+                Assert.That(error.InnerResult, Is.Null);
+            }
+            Assert.That(badLayout.Result.LocalizedText, Is.EqualTo(badPadding.Result.LocalizedText));
+            Assert.That(badLayout.AdditionalInfo, Is.EqualTo(badPadding.AdditionalInfo));
+        }
+
         [TestCaseSource(nameof(s_rejectionCodes))]
         public Task AuthenticatorRejectionPreservesStatusAndMessageAsync(StatusCode statusCode)
         {
             var error = new ServiceResult(statusCode, new LocalizedText("Authenticator rejection must survive."));
             var registry = new ServerIdentityRegistry(new UserNamePasswordAuthenticator(
                 (_, _) => throw new ServiceResultException(error)));
-            return AssertActivationRejectionAsync(registry, statusCode, error.LocalizedText.Text);
+            return AssertActivationRejectionAsync(registry, statusCode, error.LocalizedText.Text!);
         }
 
         [Test]
         public Task UnhandledNonAnonymousTokenStillFailsClosedAsync()
         {
             return AssertActivationRejectionAsync(
-                new ServerIdentityRegistry(), StatusCodes.BadIdentityTokenRejected, null);
+                new ServerIdentityRegistry(), StatusCodes.BadIdentityTokenRejected, null!);
         }
 
         private static async Task AssertActivationRejectionAsync(
             ServerIdentityRegistry registry,
             StatusCode expectedStatus,
             string expectedMessage,
-            string decryptionFailure = null)
+            string? decryptionFailure = null)
+        {
+            ServiceResultException error = await ActivateAsync(
+                registry,
+                decryptionFailure == null ? SecurityPolicies.None : SecurityPolicies.Basic128Rsa15,
+                (certificate, _) =>
+                {
+                    var token = new UserNameIdentityToken
+                    {
+                        PolicyId = "username",
+                        UserName = "test-user",
+                        Password = ByteString.From([1])
+                    };
+                    if (decryptionFailure != null)
+                    {
+                        using RSA rsa = certificate.GetRSAPublicKey()!;
+                        token.Password = decryptionFailure == "padding"
+                            ? ByteString.From(new byte[rsa!.KeySize / 8])
+                            : ByteString.From(rsa!.Encrypt(
+                                [0xFF, 0xFF, 0xFF, 0x7F], RSAEncryptionPadding.Pkcs1));
+                        token.EncryptionAlgorithm = decryptionFailure == "algorithm"
+                            ? SecurityAlgorithms.RsaOaep
+                            : SecurityAlgorithms.Rsa15;
+                    }
+                    return token;
+                }).ConfigureAwait(false);
+
+            Assert.That(error.StatusCode, Is.EqualTo(expectedStatus));
+            if (expectedMessage != null)
+            {
+                Assert.That(error.Result.LocalizedText.Text, Is.EqualTo(expectedMessage));
+            }
+            if (decryptionFailure != null)
+            {
+                Assert.That(error.InnerResult, Is.Null);
+            }
+        }
+
+        /// <summary>
+        /// Activates with a UserName token whose password is an RSAEncryptedSecret carrying a
+        /// KeyData block that either fails RSA unpadding or unpads to a KeyData of the wrong layout.
+        /// </summary>
+        private static Task<ServiceResultException> ActivateWithRsaEncryptedSecretAsync(
+            string policyUri,
+            bool wellFormedPadding)
+        {
+            return ActivateAsync(
+                new ServerIdentityRegistry(),
+                policyUri,
+                (certificate, serverNonce) =>
+                {
+                    IServiceMessageContext messageContext =
+                        ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
+                    using var encryptor = EncryptedSecret.CreateForRsa(messageContext, policyUri, certificate);
+                    byte[] encoded = encryptor.EncryptRsa([1, 2, 3, 4], serverNonce.ToArray());
+
+                    // locate the KeyData behind the fixed RSAEncryptedSecret header.
+                    using var decoder = new BinaryDecoder(encoded, messageContext);
+                    decoder.ReadNodeId(null);
+                    decoder.ReadByte(null);
+                    decoder.ReadUInt32(null);
+                    decoder.ReadString(null);
+                    decoder.ReadByteString(null);
+                    decoder.ReadDateTime(null);
+                    int keyDataLength = decoder.ReadUInt16(null);
+                    int keyDataStart = decoder.Position;
+
+                    using RSA rsa = certificate.GetRSAPublicKey()!;
+                    byte[] keyData = wellFormedPadding
+                        ? rsa!.Encrypt(
+                            [0x03, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03],
+                            policyUri switch
+                            {
+                                SecurityPolicies.Basic128Rsa15 => RSAEncryptionPadding.Pkcs1,
+                                SecurityPolicies.Aes256_Sha256_RsaPss => RSAEncryptionPadding.OaepSHA256,
+                                _ => RSAEncryptionPadding.OaepSHA1
+                            })
+                        : new byte[rsa!.KeySize / 8];
+                    Assert.That(keyData, Has.Length.EqualTo(keyDataLength));
+                    Buffer.BlockCopy(keyData, 0, encoded, keyDataStart, keyDataLength);
+
+                    return new UserNameIdentityToken
+                    {
+                        PolicyId = "username",
+                        UserName = "test-user",
+                        Password = ByteString.From(encoded)
+                    };
+                });
+        }
+
+        private static async Task<ServiceResultException> ActivateAsync(
+            ServerIdentityRegistry registry,
+            string tokenSecurityPolicyUri,
+            Func<Certificate, ByteString, UserIdentityToken> createToken)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var server = new Mock<IServerInternal>();
@@ -111,9 +229,7 @@ namespace Opc.Ua.Server.Tests
                     {
                         PolicyId = "username",
                         TokenType = UserTokenType.UserName,
-                        SecurityPolicyUri = decryptionFailure == null
-                            ? SecurityPolicies.None
-                            : SecurityPolicies.Basic128Rsa15
+                        SecurityPolicyUri = tokenSecurityPolicyUri
                     }
                 ]
             };
@@ -127,34 +243,14 @@ namespace Opc.Ua.Server.Tests
                 endpoint.EndpointUrl, null, [], 60000, 64 * 1024, default).ConfigureAwait(false);
             try
             {
-                var token = new UserNameIdentityToken
-                {
-                    PolicyId = "username",
-                    UserName = "test-user",
-                    Password = ByteString.From([1])
-                };
-                if (decryptionFailure != null)
-                {
-                    using RSA rsa = certificate.GetRSAPublicKey();
-                    token.Password = decryptionFailure == "padding"
-                        ? ByteString.From(new byte[rsa.KeySize / 8])
-                        : ByteString.From(rsa.Encrypt(
-                            [0xFF, 0xFF, 0xFF, 0x7F], RSAEncryptionPadding.Pkcs1));
-                    token.EncryptionAlgorithm = decryptionFailure == "algorithm"
-                        ? SecurityAlgorithms.RsaOaep
-                        : SecurityAlgorithms.Rsa15;
-                }
+                UserIdentityToken token = createToken(certificate, created.ServerNonce);
                 ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await manager.ActivateSessionAsync(
                         context, created.AuthenticationToken, new SignatureData(), new ExtensionObject(token),
                         new SignatureData(), [], default).ConfigureAwait(false));
 
-                Assert.That(error.StatusCode, Is.EqualTo(expectedStatus));
-                if (expectedMessage != null)
-                {
-                    Assert.That(error.Result.LocalizedText.Text, Is.EqualTo(expectedMessage));
-                }
                 Assert.That(created.Session.Activated, Is.False);
+                return error;
             }
             finally
             {

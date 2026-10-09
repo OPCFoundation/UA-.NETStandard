@@ -629,7 +629,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
         {
             public bool IsLeader { get; private set; }
 
-            public event Action<bool> LeadershipChanged;
+            public event Action<bool>? LeadershipChanged;
 
             public void SetLeader(bool isLeader)
             {
@@ -694,8 +694,8 @@ namespace Opc.Ua.Client.Redundancy.Tests
             ConfiguredEndpoint endpoint,
             NodeId expectedAuthenticationToken,
             NodeId ownAuthenticationToken = default,
-            List<(NodeId Token, bool DeleteSubscriptions)> closedTokens = null,
-            List<(NodeId Token, bool DeleteSubscriptions)> closedOnReactivatedChannel = null)
+            List<(NodeId Token, bool DeleteSubscriptions)>? closedTokens = null,
+            List<(NodeId Token, bool DeleteSubscriptions)>? closedOnReactivatedChannel = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = new(telemetry)
@@ -889,7 +889,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     typeof(IClientChannelManager),
                     typeof(IClientConnectGate)
                 ],
-                null);
+                null)!;
 
             Assert.That(ctor, Is.Not.Null);
 

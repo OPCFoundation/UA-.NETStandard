@@ -72,7 +72,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ConnectToSecurePolicyAsync(
-                ep.SecurityPolicyUri).ConfigureAwait(false);
+                ep!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 Assert.That(session.Connected, Is.True);
@@ -96,7 +96,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ConnectToSecurePolicyAsync(
-                ep.SecurityPolicyUri).ConfigureAwait(false);
+                ep!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 Assert.That(session.Connected, Is.True);
@@ -118,7 +118,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            Assert.That(cert.NotBefore, Is.LessThanOrEqualTo(DateTime.UtcNow),
+            Assert.That(cert!.NotBefore, Is.LessThanOrEqualTo(DateTime.UtcNow),
                 "Certificate NotBefore must not be in the future.");
         }
 
@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            Assert.That(cert.NotAfter, Is.GreaterThan(DateTime.UtcNow),
+            Assert.That(cert!.NotAfter, Is.GreaterThan(DateTime.UtcNow),
                 "Certificate NotAfter must not be expired.");
         }
 
@@ -146,15 +146,15 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            string appUri = endpoints[0].Server.ApplicationUri;
+            string appUri = endpoints[0].Server.ApplicationUri!;
             bool found = false;
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext.Oid?.Value == "2.5.29.17")
                 {
                     string formatted = ext.Format(true);
                     if (formatted.Contains(
-                        appUri, StringComparison.OrdinalIgnoreCase))
+                        appUri!, StringComparison.OrdinalIgnoreCase))
                     {
                         found = true;
                     }
@@ -176,7 +176,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             bool found = false;
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext.Oid?.Value is X509SubjectAltNameExtension.SubjectAltNameOid
                     or X509SubjectAltNameExtension.SubjectAltName2Oid)
@@ -217,13 +217,13 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            using RSA rsa = cert.GetRSAPublicKey();
+            using RSA? rsa = cert!.GetRSAPublicKey();
             if (rsa == null)
             {
                 Assert.Fail("Certificate does not use RSA.");
             }
 
-            Assert.That(rsa.KeySize, Is.GreaterThanOrEqualTo(2048),
+            Assert.That(rsa!.KeySize, Is.GreaterThanOrEqualTo(2048),
                 "RSA key must be at least 2048 bits.");
         }
 
@@ -237,7 +237,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext is X509KeyUsageExtension ku)
                 {
@@ -262,7 +262,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext is X509KeyUsageExtension ku)
                 {
@@ -288,7 +288,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext is X509EnhancedKeyUsageExtension eku)
                 {
@@ -322,7 +322,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext is X509EnhancedKeyUsageExtension eku)
                 {
@@ -356,7 +356,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            bool selfSigned = cert.Subject == cert.Issuer;
+            bool selfSigned = cert!.Subject == cert.Issuer;
             Assert.That(
                 selfSigned || !string.IsNullOrEmpty(cert.Issuer), Is.True,
                 "Certificate must be self-signed or have a valid issuer.");
@@ -394,10 +394,10 @@ namespace Opc.Ua.Core.Security.Tests
                 }
 
                 if (certsByPolicy.TryGetValue(
-                    ep.SecurityPolicyUri, out byte[] existing))
+                    ep.SecurityPolicyUri!, out byte[]? existing))
                 {
                     bool isEccPolicy =
-                        ep.SecurityPolicyUri.Contains("EccNistP", StringComparison.Ordinal) ||
+                        ep.SecurityPolicyUri!.Contains("EccNistP", StringComparison.Ordinal) ||
                         ep.SecurityPolicyUri.Contains("EccBrainpool", StringComparison.Ordinal);
 
                     if (!isEccPolicy)
@@ -411,7 +411,7 @@ namespace Opc.Ua.Core.Security.Tests
                 }
                 else
                 {
-                    certsByPolicy[ep.SecurityPolicyUri] =
+                    certsByPolicy[ep.SecurityPolicyUri!] =
                         ep.ServerCertificate.ToArray();
                 }
             }
@@ -426,7 +426,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 if (ep.SecurityMode != MessageSecurityMode.None)
                 {
-                    policies.Add(ep.SecurityPolicyUri);
+                    policies.Add(ep.SecurityPolicyUri!);
                 }
             }
 
@@ -470,7 +470,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            Assert.That(cert.SerialNumber, Is.Not.Null.And.Not.Empty,
+            Assert.That(cert!.SerialNumber, Is.Not.Null.And.Not.Empty,
                 "Certificate serial number must not be empty.");
         }
 
@@ -484,7 +484,7 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            Assert.That(cert.Version, Is.EqualTo(3),
+            Assert.That(cert!.Version, Is.EqualTo(3),
                 "OPC UA certificates must be X.509 v3.");
         }
 
@@ -496,7 +496,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 if (!ep.ServerCertificate.IsEmpty)
                 {
-                    X509Certificate2 cert = null;
+                    X509Certificate2? cert = null;
                     try
                     {
                         cert = X509CertificateLoader.LoadCertificate(
@@ -523,16 +523,16 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint with certificate found.");
             }
 
-            string endpointAppUri = endpoints[0].Server.ApplicationUri;
+            string endpointAppUri = endpoints[0].Server.ApplicationUri!;
             bool found = false;
 
-            foreach (X509Extension ext in cert.Extensions)
+            foreach (X509Extension ext in cert!.Extensions)
             {
                 if (ext.Oid?.Value == "2.5.29.17")
                 {
                     string formatted = ext.Format(true);
                     if (formatted.Contains(
-                        endpointAppUri, StringComparison.OrdinalIgnoreCase))
+                        endpointAppUri!, StringComparison.OrdinalIgnoreCase))
                     {
                         found = true;
                     }
@@ -557,7 +557,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ConnectToSecurePolicyAsync(
-                secureEp.SecurityPolicyUri).ConfigureAwait(false);
+                secureEp!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 byte[] sessionCert = session.ConfiguredEndpoint
@@ -590,7 +590,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 session = await ConnectToSecurePolicyAsync(
-                    secureEp.SecurityPolicyUri).ConfigureAwait(false);
+                    secureEp!.SecurityPolicyUri!).ConfigureAwait(false);
             }
             catch (ServiceResultException sre)
             {
@@ -627,7 +627,7 @@ namespace Opc.Ua.Core.Security.Tests
             // that the server nonce changes. Both sessions succeeding
             // confirms nonce uniqueness.
             ISession session1 = await ConnectToSecurePolicyAsync(
-                secureEp.SecurityPolicyUri).ConfigureAwait(false);
+                secureEp!.SecurityPolicyUri!).ConfigureAwait(false);
             NodeId id1;
             try
             {
@@ -640,7 +640,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session2 = await ConnectToSecurePolicyAsync(
-                secureEp.SecurityPolicyUri).ConfigureAwait(false);
+                secureEp.SecurityPolicyUri!).ConfigureAwait(false);
             NodeId id2;
             try
             {
@@ -684,7 +684,7 @@ namespace Opc.Ua.Core.Security.Tests
         public async Task Basic256Sha256UsesSha256SignaturesAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
-            EndpointDescription ep = null;
+            EndpointDescription? ep = null;
             foreach (EndpointDescription e in endpoints)
             {
                 if (e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256 &&
@@ -702,7 +702,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             using X509Certificate2 cert =
                 X509CertificateLoader.LoadCertificate(
-                    ep.ServerCertificate.ToArray());
+                    ep!.ServerCertificate.ToArray());
             string sigAlg = cert.SignatureAlgorithm.FriendlyName ?? string.Empty;
             Assert.That(
                 sigAlg.Contains("SHA256", StringComparison.OrdinalIgnoreCase) ||
@@ -715,7 +715,7 @@ namespace Opc.Ua.Core.Security.Tests
         public async Task ConnectWithAes128Sha256RsaOaepIfAdvertisedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
-            EndpointDescription ep = null;
+            EndpointDescription? ep = null;
             foreach (EndpointDescription e in endpoints)
             {
                 if (e.SecurityPolicyUri == SecurityPolicies.Aes128_Sha256_RsaOaep)
@@ -731,7 +731,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ConnectToSecurePolicyAsync(
-                ep.SecurityPolicyUri).ConfigureAwait(false);
+                ep!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 Assert.That(session.Connected, Is.True);
@@ -747,7 +747,7 @@ namespace Opc.Ua.Core.Security.Tests
         public async Task ConnectWithAes256Sha256RsaPssIfAdvertisedAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
-            EndpointDescription ep = null;
+            EndpointDescription? ep = null;
             foreach (EndpointDescription e in endpoints)
             {
                 if (e.SecurityPolicyUri == SecurityPolicies.Aes256_Sha256_RsaPss)
@@ -763,7 +763,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ConnectToSecurePolicyAsync(
-                ep.SecurityPolicyUri).ConfigureAwait(false);
+                ep!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 Assert.That(session.Connected, Is.True);
@@ -790,7 +790,7 @@ namespace Opc.Ua.Core.Security.Tests
                 using X509Certificate2 cert =
                     X509CertificateLoader.LoadCertificate(
                         ep.ServerCertificate.ToArray());
-                using RSA rsa = cert.GetRSAPublicKey();
+                using RSA? rsa = cert.GetRSAPublicKey();
                 if (rsa == null)
                 {
                     continue;
@@ -822,7 +822,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             // Validate certificate has valid dates
-            Assert.That(cert.NotBefore, Is.LessThanOrEqualTo(DateTime.UtcNow),
+            Assert.That(cert!.NotBefore, Is.LessThanOrEqualTo(DateTime.UtcNow),
                 "Certificate NotBefore should be in the past.");
             Assert.That(cert.NotAfter, Is.GreaterThan(DateTime.UtcNow),
                 "Certificate NotAfter should be in the future.");
@@ -843,7 +843,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             // Validate ApplicationUri in SAN
-            string appUri = endpoints[0].Server.ApplicationUri;
+            string appUri = endpoints[0].Server.ApplicationUri!;
             bool sanContainsUri = false;
             foreach (X509Extension ext in cert.Extensions)
             {
@@ -851,7 +851,7 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     string formatted = ext.Format(true);
                     if (formatted.Contains(
-                        appUri, StringComparison.OrdinalIgnoreCase))
+                        appUri!, StringComparison.OrdinalIgnoreCase))
                     {
                         sanContainsUri = true;
                     }
@@ -875,11 +875,11 @@ namespace Opc.Ua.Core.Security.Tests
                 Assert.Fail("No secure endpoint available.");
             }
 
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await ConnectToSecurePolicyAsync(
-                    secureEp.SecurityPolicyUri).ConfigureAwait(false);
+                    secureEp!.SecurityPolicyUri!).ConfigureAwait(false);
                 Assert.That(session.Connected, Is.True,
                     "Connection with known but untrusted CA cert " +
                     "should succeed when server auto-accepts.");
@@ -916,7 +916,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             // The OPC UA stack requires a valid client certificate
             // for secure channels; omitting it should fail
-            Assert.That(secureEp.SecurityMode,
+            Assert.That(secureEp!.SecurityMode,
                 Is.Not.EqualTo(MessageSecurityMode.None),
                 "Secure endpoint requires a certificate.");
         }
@@ -935,11 +935,11 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             // With auto-accept enabled, untrusted certs are accepted
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await ConnectToSecurePolicyAsync(
-                    secureEp.SecurityPolicyUri).ConfigureAwait(false);
+                    secureEp!.SecurityPolicyUri!).ConfigureAwait(false);
                 Assert.That(session.Connected, Is.True,
                     "Auto-accept mode accepts untrusted certs.");
             }
@@ -1189,7 +1189,7 @@ namespace Opc.Ua.Core.Security.Tests
             // either way: the server processes the cert and either
             // accepts it (per AutoAccept policy) or rejects it with a
             // certificate-validation status code per Part 4 §7.39.
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await OpenSessionWithClientCertAsync(cert, appUri).ConfigureAwait(false);
@@ -1252,7 +1252,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             ISession session = await ConnectToSecurePolicyAsync(
-                secureEp.SecurityPolicyUri).ConfigureAwait(false);
+                secureEp!.SecurityPolicyUri!).ConfigureAwait(false);
             try
             {
                 Assert.That(session.Connected, Is.True,
@@ -1326,7 +1326,7 @@ namespace Opc.Ua.Core.Security.Tests
             // initially), so retry: trust the cert in the server's
             // store and try again. We just assert the cert itself is
             // not the cause of any rejection.
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 try
@@ -1424,13 +1424,13 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 if (ep.SecurityMode != MessageSecurityMode.None &&
                     !ep.ServerCertificate.IsEmpty &&
-                    !IsEccPolicy(ep.SecurityPolicyUri))
+                    !IsEccPolicy(ep.SecurityPolicyUri!))
                 {
                     return X509CertificateLoader.LoadCertificate(
                         ep.ServerCertificate.ToArray());
                 }
             }
-            return null;
+            return null!;
         }
 
         private static X509Certificate2 FindAnySecureEndpointCert(
@@ -1446,13 +1446,13 @@ namespace Opc.Ua.Core.Security.Tests
                 }
             }
 
-            return null;
+            return null!;
         }
 
         private EndpointDescription FindEndpoint(
             ArrayOf<EndpointDescription> endpoints,
             MessageSecurityMode mode,
-            string policyUri = null)
+            string? policyUri = null)
         {
             // Without an explicit policyUri, prefer RSA-based endpoints
             // (the TestCertificateFactory in this fixture only produces
@@ -1461,13 +1461,13 @@ namespace Opc.Ua.Core.Security.Tests
             // BadConfigurationError before any cert-validity code runs).
             if (policyUri == null)
             {
-                EndpointDescription rsa = FindMatchingEndpoint(endpoints, mode, null, requireRsa: true);
+                EndpointDescription rsa = FindMatchingEndpoint(endpoints, mode, null!, requireRsa: true);
                 if (rsa != null)
                 {
                     return rsa;
                 }
             }
-            return FindMatchingEndpoint(endpoints, mode, policyUri, requireRsa: false);
+            return FindMatchingEndpoint(endpoints, mode, policyUri!, requireRsa: false);
         }
 
         private static EndpointDescription FindMatchingEndpoint(
@@ -1486,13 +1486,13 @@ namespace Opc.Ua.Core.Security.Tests
                 {
                     continue;
                 }
-                if (requireRsa && IsEccPolicy(ep.SecurityPolicyUri))
+                if (requireRsa && IsEccPolicy(ep.SecurityPolicyUri!))
                 {
                     continue;
                 }
                 return ep;
             }
-            return null;
+            return null!;
         }
 
         private static bool IsEccPolicy(string policyUri)
@@ -1534,7 +1534,7 @@ namespace Opc.Ua.Core.Security.Tests
             Certificate clientCert,
             string applicationUri,
             MessageSecurityMode mode = MessageSecurityMode.SignAndEncrypt,
-            string policyUri = null)
+            string? policyUri = null)
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
             EndpointDescription ep = FindEndpoint(endpoints, mode, policyUri)

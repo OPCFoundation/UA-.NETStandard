@@ -8,7 +8,6 @@
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Nullable>enable</Nullable>
     <DefineConstants>$(DefineConstants);OPCUA_V1_CLIENT</DefineConstants>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
     <EnableConfigurationBindingGenerator>true</EnableConfigurationBindingGenerator>
@@ -29,6 +28,7 @@
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Session.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Sessions.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Https.WebApi.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Classic.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Subscriptions.Durable.Tests" />

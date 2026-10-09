@@ -52,7 +52,7 @@ namespace Opc.Ua.Client.Tests
             public bool SessionReconnecting { get; init; }
             public bool SessionKeepAliveStopped { get; init; }
 
-            public string ToString(string format, IFormatProvider formatProvider)
+            public string ToString(string? format, IFormatProvider? formatProvider)
             {
                 return $"Connected={SessionConnected}, " +
                     $"reconnecting={SessionReconnecting}, " +
@@ -92,7 +92,7 @@ namespace Opc.Ua.Client.Tests
             return Task.Delay(Subscription.RepublishMessageTimeout + 100, ct);
         }
 
-        private static ISession BuildSessionMock(Func<uint, uint, bool> republishHandler = null, Action<Mock<ISession>> setup = null)
+        private static ISession BuildSessionMock(Func<uint, uint, bool>? republishHandler = null, Action<Mock<ISession>>? setup = null)
         {
             uint subscriptionIdSeed = 0u;
 
@@ -234,7 +234,7 @@ namespace Opc.Ua.Client.Tests
                 {
                     return $"{nameof(NotificationMessage)}: {other.SequenceNumber}";
                 }
-                return null;
+                return null!;
             });
         }
 
@@ -516,7 +516,7 @@ namespace Opc.Ua.Client.Tests
             await Task.WhenAny(delivered.Task, Task.Delay(Timeout.Infinite, ct)).ConfigureAwait(false);
             Assert.That(delivered.Task.IsCompleted, Is.True, "The transferred notification was not delivered.");
             await delivered.Task.ConfigureAwait(false);
-            Assert.That(received, Is.EquivalentTo(available.ToArray()));
+            Assert.That(received, Is.EquivalentTo(available.ToArray()!));
             foreach (uint sequenceNumber in available)
             {
                 Mock.Get(session).Verify(value =>

@@ -1698,6 +1698,25 @@ namespace Opc.Ua
                 return StatusCodes.BadUserAccessDenied;
             }
 
+            // only the status code and timestamp the AccessLevel allows may be written.
+            ServiceResult? statusOrTimestampResult = CheckStatusAndTimestampWritable(
+                statusCode,
+                sourceTimestamp,
+                userAccessLevel);
+
+            if (statusOrTimestampResult != null)
+            {
+                return statusOrTimestampResult;
+            }
+
+            // verify the data type before any handler sees the value (Part 4 5.11.4.2).
+            ServiceResult? typeResult = CheckValueType(context, value);
+
+            if (typeResult != null)
+            {
+                return typeResult;
+            }
+
             NodeValueEventHandler? onWriteValue = OnWriteValue;
 
             // check if the write behavior has been overridden.
@@ -1721,7 +1740,7 @@ namespace Opc.Ua
                 // the write half-applied. The handler ran outside the lock, above.
                 lock (m_attributeLock)
                 {
-                    m_value = value;
+                    m_value = MergeIndexRange(indexRange, value);
                     m_statusCode = statusCode;
                     m_timestamp = sourceTimestamp == DateTimeUtc.MinValue
                         ? DateTimeUtc.Now
@@ -1737,38 +1756,6 @@ namespace Opc.Ua
             if (sourceTimestamp == DateTimeUtc.MinValue)
             {
                 sourceTimestamp = DateTimeUtc.Now;
-            }
-
-            // verify data type.
-            var typeInfo = TypeInfo.IsInstanceOfDataType(
-                value,
-                m_dataType,
-                m_valueRank,
-                context.NamespaceUris,
-                context.TypeTable);
-
-            if (typeInfo.IsUnknown)
-            {
-                //if xml element data decoding error appeared : a value of type status code is received with the error code
-                if (DataTypeIds.XmlElement == m_dataType)
-                {
-                    var statusCodeTypeInfo = TypeInfo.IsInstanceOfDataType(
-                        value,
-                        DataTypeIds.UInt32,
-                        -1,
-                        context.NamespaceUris,
-                        context.TypeTable);
-                    if (!statusCodeTypeInfo.IsUnknown)
-                    {
-                        //the error code
-                        return (StatusCode)(uint)value;
-                    }
-                }
-                // test for special case Null type
-                if (!(m_dataType.IsNull && value.IsNull))
-                {
-                    return StatusCodes.BadTypeMismatch;
-                }
             }
 
             // copy passed in value.
@@ -1834,6 +1821,231 @@ namespace Opc.Ua
             ChangeMasks |= NodeStateChangeMasks.Value;
 
             return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Enforces the StatusWrite and TimestampWrite bits of the AccessLevel (Part 3 8.57)
+        /// for a Value written through the Write service: without StatusWrite only the
+        /// StatusCode Good may be written, without TimestampWrite only a null SourceTimestamp.
+        /// Anything else is rejected with Bad_WriteNotSupported (Part 4 5.11.4.2, Table 55),
+        /// or with Bad_UserAccessDenied if the AccessLevel allows it but the effective
+        /// UserAccessLevel of the caller does not (Part 3 5.6.2).
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// "StatusCode Good" is identified by the code bits (bits 16-31) only: the low 16 bits
+        /// are flags that "do not affect the meaning of the StatusCode" (Part 4 7.38.1), so
+        /// Good with info bits (for example SemanticsChanged or LimitBits) is still Good.
+        /// A Good-severity code with a non-zero SubCode (for example Good_Clamped) is not.
+        /// </para>
+        /// <para>
+        /// Server-internal updates assign <see cref="Value"/>, <see cref="StatusCode"/> and
+        /// <see cref="Timestamp"/> directly and are not affected.
+        /// </para>
+        /// </remarks>
+        /// <param name="statusCode">The written status code.</param>
+        /// <param name="sourceTimestamp">The written source timestamp.</param>
+        /// <param name="userAccessLevel">The effective UserAccessLevel of the caller.</param>
+        /// <returns><c>null</c> if the combination may be written; the error otherwise.</returns>
+        private ServiceResult? CheckStatusAndTimestampWritable(
+            StatusCode statusCode,
+            DateTimeUtc sourceTimestamp,
+            byte userAccessLevel)
+        {
+            uint accessLevel;
+            lock (m_attributeLock)
+            {
+                accessLevel = m_accessLevel;
+            }
+
+            if (!statusCode.Equals(StatusCodes.Good, StatusCodeComparison.CodeBitsOnly))
+            {
+                if ((accessLevel & AccessLevels.StatusWrite) == 0)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadWriteNotSupported,
+                        "The AccessLevel of the Variable does not allow writing the StatusCode.");
+                }
+
+                if ((userAccessLevel & AccessLevels.StatusWrite) == 0)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "The UserAccessLevel of the Variable does not allow writing the StatusCode.");
+                }
+            }
+
+            if (sourceTimestamp != DateTimeUtc.MinValue)
+            {
+                if ((accessLevel & AccessLevels.TimestampWrite) == 0)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadWriteNotSupported,
+                        "The AccessLevel of the Variable does not allow writing the SourceTimestamp.");
+                }
+
+                if ((userAccessLevel & AccessLevels.TimestampWrite) == 0)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadUserAccessDenied,
+                        "The UserAccessLevel of the Variable does not allow writing the SourceTimestamp.");
+                }
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Verifies that a value written through the Write service matches the DataType and
+        /// ValueRank of the Variable (Bad_TypeMismatch, Part 4 5.11.4.2) and, for an
+        /// Enumeration DataType known to the encodeable factory, that every written value
+        /// is a defined enumeration value (Bad_OutOfRange, Part 4 Table 55).
+        /// </summary>
+        /// <param name="context">The context of the write.</param>
+        /// <param name="value">The written value (the slice when an IndexRange is used).</param>
+        /// <returns><c>null</c> if the value is acceptable; the error otherwise.</returns>
+        private ServiceResult? CheckValueType(ISystemContext context, Variant value)
+        {
+            NodeId dataType = m_dataType;
+
+            var typeInfo = TypeInfo.IsInstanceOfDataType(
+                value,
+                dataType,
+                m_valueRank,
+                context.NamespaceUris,
+                context.TypeTable);
+
+            if (typeInfo.IsUnknown)
+            {
+                //if xml element data decoding error appeared : a value of type status code is received with the error code
+                if (DataTypeIds.XmlElement == dataType)
+                {
+                    var statusCodeTypeInfo = TypeInfo.IsInstanceOfDataType(
+                        value,
+                        DataTypeIds.UInt32,
+                        -1,
+                        context.NamespaceUris,
+                        context.TypeTable);
+                    if (!statusCodeTypeInfo.IsUnknown)
+                    {
+                        //the error code
+                        return new ServiceResult((StatusCode)(uint)value);
+                    }
+                }
+                // test for special case Null type
+                if (!(dataType.IsNull && value.IsNull))
+                {
+                    return StatusCodes.BadTypeMismatch;
+                }
+
+                return null;
+            }
+
+            if (!IsDefinedEnumerationValue(context, dataType, value))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadOutOfRange,
+                    "The value is not a defined value of the Enumeration DataType.");
+            }
+
+            return null;
+        }
+
+        /// <summary>
+        /// Returns <c>false</c> if <paramref name="dataType"/> is an Enumeration whose
+        /// definition is registered with the encodeable factory and the Int32 value (or one
+        /// element of the array or matrix) is not one of its defined values. Returns <c>true</c> in all
+        /// other cases, including when the enumeration definition is unknown.
+        /// </summary>
+        internal static bool IsDefinedEnumerationValue(
+            ISystemContext context,
+            NodeId dataType,
+            in Variant value)
+        {
+            if (value.IsNull ||
+                dataType.IsNull ||
+                value.TypeInfo.BuiltInType is not (BuiltInType.Int32 or BuiltInType.Enumeration) ||
+                dataType == DataTypeIds.Enumeration ||
+                dataType == DataTypeIds.Int32)
+            {
+                return true;
+            }
+
+            ITypeTable? typeTable = context.TypeTable;
+            IEncodeableFactory? factory = context.EncodeableFactory;
+
+            if (typeTable == null ||
+                factory == null ||
+                !typeTable.IsTypeOf(dataType, DataTypeIds.Enumeration) ||
+                !factory.TryGetEnumeratedType(
+                    NodeId.ToExpandedNodeId(dataType, context.NamespaceUris),
+                    out IEnumeratedType? enumeratedType))
+            {
+                return true;
+            }
+
+            try
+            {
+                if (value.TypeInfo.IsScalar)
+                {
+                    return !value.TryGetValue(out EnumValue scalar) ||
+                        enumeratedType.TryGetSymbol(scalar.Value, out _);
+                }
+
+                if (value.TypeInfo.IsArray && value.TryGetValue(out ArrayOf<EnumValue> array))
+                {
+                    foreach (EnumValue element in array)
+                    {
+                        if (!enumeratedType.TryGetSymbol(element.Value, out _))
+                        {
+                            return false;
+                        }
+                    }
+                }
+                else if (value.TypeInfo.IsMatrix &&
+                    value.TryGetValue(out MatrixOf<EnumValue> matrix))
+                {
+                    foreach (EnumValue element in matrix)
+                    {
+                        if (!enumeratedType.TryGetSymbol(element.Value, out _))
+                        {
+                            return false;
+                        }
+                    }
+                }
+            }
+            catch (ArgumentException)
+            {
+                // the registered type cannot map the value; treat the definition as unknown.
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Returns the value to cache for a write: the written value, or, for an IndexRange
+        /// write, the written slice merged into the cached value. If the cache cannot
+        /// represent the slice the cached value is kept rather than replaced by the slice.
+        /// Must be called while holding <c>m_attributeLock</c>.
+        /// </summary>
+        private Variant MergeIndexRange(NumericRange indexRange, Variant value)
+        {
+            if (indexRange.IsNull)
+            {
+                return value;
+            }
+
+            Variant merged = m_value;
+
+            if (StatusCode.IsBad(indexRange.UpdateRange(ref merged, value)))
+            {
+                // the handler accepted the write but the cache cannot represent it; keep the
+                // cached value rather than storing the slice, but still report the change so
+                // monitored items re-read the value.
+                return m_value;
+            }
+
+            return merged;
         }
 
         /// <summary>
@@ -2043,15 +2255,21 @@ namespace Opc.Ua
                 StatusCode statusCode = value.StatusCode;
                 DateTimeUtc sourceTimestamp = value.SourceTimestamp;
 
-                var typeInfo = TypeInfo.IsInstanceOfDataType(
-                    valueToWrite,
-                    m_dataType,
-                    m_valueRank,
-                    context.NamespaceUris,
-                    context.TypeTable);
-                if (typeInfo.IsUnknown && (!m_dataType.IsNull || !valueToWrite.IsNull))
+                ServiceResult? statusOrTimestampResult = CheckStatusAndTimestampWritable(
+                    statusCode,
+                    sourceTimestamp,
+                    userAccessLevel);
+
+                if (statusOrTimestampResult != null)
                 {
-                    return StatusCodes.BadTypeMismatch;
+                    return statusOrTimestampResult;
+                }
+
+                ServiceResult? typeResult = CheckValueType(context, valueToWrite);
+
+                if (typeResult != null)
+                {
+                    return typeResult;
                 }
 
                 if (onWriteValueAsync != null)
@@ -2071,24 +2289,7 @@ namespace Opc.Ua
 
                     lock (m_attributeLock)
                     {
-                        Variant newValue = valueToWrite;
-
-                        // an index-range write carries only the slice: merge it into the
-                        // cached value instead of replacing the whole value with the slice.
-                        if (!indexRange.IsNull)
-                        {
-                            newValue = m_value;
-
-                            if (StatusCode.IsBad(indexRange.UpdateRange(ref newValue, valueToWrite)))
-                            {
-                                // the handler accepted the write but the cache cannot represent
-                                // it; keep the cached value rather than storing the slice, but
-                                // still report the change so monitored items re-read the value.
-                                newValue = m_value;
-                            }
-                        }
-
-                        m_value = newValue;
+                        m_value = MergeIndexRange(indexRange, valueToWrite);
                         m_statusCode = statusCode;
                         m_timestamp = effectiveTimestamp;
                         ChangeMasks |= NodeStateChangeMasks.Value;

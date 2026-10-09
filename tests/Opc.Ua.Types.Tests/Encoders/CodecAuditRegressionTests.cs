@@ -97,7 +97,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.PushNamespace(kNs);
                 encoder.WriteEncodeableMatrix("Samples", input);
                 encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             Assert.That(xml, Does.Contain("Samples"));
@@ -161,10 +161,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(context))
             {
                 encoder.WriteString("Value", value);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
-            using var decoder = new BinaryDecoder(buffer, context);
+            using var decoder = new BinaryDecoder(buffer!, context);
             Assert.That(decoder.ReadString("Value"), Is.EqualTo(value));
         }
 
@@ -183,11 +183,11 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.PushNamespace(kNs);
                 encoder.WriteEncodeableMatrix("Samples", input);
                 encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             // Claim three columns for a payload that only carries two elements.
-            string tampered = xml.Replace(
+            string tampered = xml!.Replace(
                 "<Int32>2</Int32>",
                 "<Int32>3</Int32>",
                 StringComparison.Ordinal);
@@ -251,14 +251,14 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.WriteExtensionObject(
                     "Body",
                     new ExtensionObject(new Sample { Value = 7 }));
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
-            using var decoder = new BinaryDecoder(buffer, context);
+            using var decoder = new BinaryDecoder(buffer!, context);
             ExtensionObject decoded = decoder.ReadExtensionObject("Body");
 
-            Assert.That(decoded.TryGetValue(out Sample sample), Is.True);
-            Assert.That(sample.Value, Is.EqualTo(7));
+            Assert.That(decoded.TryGetValue(out Sample? sample), Is.True);
+            Assert.That(sample!.Value, Is.EqualTo(7));
         }
 
         [Test]
@@ -294,10 +294,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using (var encoder = new BinaryEncoder(context))
             {
                 encoder.WriteEncodeable("Value", new Sample { Value = 1 }, Sample.TypeIdStatic);
-                buffer = encoder.CloseAndReturnBuffer();
+                buffer = encoder.CloseAndReturnBuffer()!;
             }
 
-            using var decoder = new BinaryDecoder(buffer, context);
+            using var decoder = new BinaryDecoder(buffer!, context);
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
                 () => decoder.ReadEncodeable<ReadValueId>(null, Sample.TypeIdStatic));
@@ -345,7 +345,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.PushNamespace(kNs);
                 encoder.WriteString("Value", "   ");
                 encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             Assert.That(xml, Does.Contain("   "));
@@ -369,7 +369,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.PushNamespace(kNs);
                 encoder.WriteString("Value", value);
                 encoder.PopNamespace();
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
 
             string textXml;
@@ -378,11 +378,11 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.PushNamespace(kNs);
                 encoder.WriteLocalizedText("Text", new LocalizedText(" en ", value));
                 encoder.PopNamespace();
-                textXml = encoder.CloseAndReturnText();
+                textXml = encoder.CloseAndReturnText()!;
             }
 
             using (var decoder = new XmlDecoder(
-                XmlReader.Create(new StringReader(xml), CoreUtils.DefaultXmlReaderSettings()),
+                XmlReader.Create(new StringReader(xml!), CoreUtils.DefaultXmlReaderSettings()),
                 context))
             {
                 decoder.PushNamespace(kNs);
@@ -390,7 +390,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             using (var decoder = new XmlDecoder(
-                XmlReader.Create(new StringReader(textXml), CoreUtils.DefaultXmlReaderSettings()),
+                XmlReader.Create(new StringReader(textXml!), CoreUtils.DefaultXmlReaderSettings()),
                 context))
             {
                 decoder.PushNamespace(kNs);
@@ -505,16 +505,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 Assert.That(
                     Assert.Throws<ServiceResultException>(
-                        () => encoder.WriteString("Value", text)).StatusCode,
+                        () => encoder.WriteString("Value", text))!.StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
 
                 Assert.That(
                     Assert.Throws<ServiceResultException>(
-                        () => ReadStringFromXml(text, context, useParser: false)).StatusCode,
+                        () => ReadStringFromXml(text, context, useParser: false))!.StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(
                     Assert.Throws<ServiceResultException>(
-                        () => ReadStringFromXml(text, context, useParser: true)).StatusCode,
+                        () => ReadStringFromXml(text, context, useParser: true))!.StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
             });
         }
@@ -549,7 +549,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 using var parser = new XmlParser(document, context);
                 parser.PushNamespace(kNs);
-                return parser.ReadString("Value");
+                return parser.ReadString("Value")!;
             }
 
             using var decoder = new XmlDecoder(
@@ -558,7 +558,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                     CoreUtils.DefaultXmlReaderSettings()),
                 context);
             decoder.PushNamespace(kNs);
-            return decoder.ReadString("Value");
+            return decoder.ReadString("Value")!;
         }
 
         [Test]
@@ -616,15 +616,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteXmlElement(
                 "Body",
                 XmlElement.From("<?xml version=\"1.0\" encoding=\"utf-8\"?><a x=\"1\" />"));
-            string xml = encoder.CloseAndReturnText();
+            string xml = encoder.CloseAndReturnText()!;
 
             Assert.Multiple(() =>
             {
                 Assert.That(xml, Does.Not.Contain("<?xml version=\"1.0\" encoding=\"utf-8\"?><a"));
-                Assert.That(xml, Does.Contain("<a x=\"1\""));
+                // the body is in no namespace, not in the default namespace in scope.
+                Assert.That(xml, Does.Contain("<a xmlns=\"\" x=\"1\""));
 
                 // and the result is parseable, which is the point of the check.
-                Assert.DoesNotThrow(() => XDocument.Parse(xml));
+                Assert.DoesNotThrow(() => XDocument.Parse(xml!));
             });
         }
 
@@ -826,8 +827,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var decoder = new BinaryDecoder(buffer, context);
             ExtensionObject decoded = decoder.ReadExtensionObject("Body");
-            Assert.That(decoded.TryGetValue(out Nested result), Is.True);
-            Assert.That(result.IsEqual(root), Is.True);
+            Assert.That(decoded.TryGetValue(out Nested? result), Is.True);
+            Assert.That(result!.IsEqual(root), Is.True);
         }
 
         [Test]
@@ -870,19 +871,19 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Child = decoder.ReadExtensionObject("Child");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 if (encodeable is not Nested other)
                 {
                     return false;
                 }
-                bool hasChild = Child.TryGetValue(out Nested mine);
-                bool otherHasChild = other.Child.TryGetValue(out Nested theirs);
+                bool hasChild = Child.TryGetValue(out Nested? mine);
+                bool otherHasChild = other.Child.TryGetValue(out Nested? theirs);
                 if (hasChild != otherHasChild)
                 {
                     return false;
                 }
-                return !hasChild || mine.IsEqual(theirs);
+                return !hasChild || mine!.IsEqual(theirs!);
             }
 
             public object Clone()
@@ -914,7 +915,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is Sample other && other.Value == Value;
             }

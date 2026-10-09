@@ -105,6 +105,31 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Verifies that the current sample format preserves the triggering links between
+        /// monitored items (OPC 10000-4 §5.13.1.6).
+        /// </summary>
+        [Test]
+        public void RoundTripSubscriptionTriggeringLinks()
+        {
+            StoredSubscription original = CreateMinimalSubscription(id: 45);
+            original.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>
+            {
+                [1] = [2u, 3u],
+                [4] = [5u]
+            };
+
+            StoredSubscription result = RoundTripSubscription(original);
+
+            Assert.That(result.TriggeringLinks, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.TriggeringLinks.Keys, Is.EquivalentTo(new uint[] { 1, 4 }));
+                Assert.That(result.TriggeringLinks[1], Is.EqualTo(new uint[] { 2, 3 }));
+                Assert.That(result.TriggeringLinks[4], Is.EqualTo(new uint[] { 5 }));
+            });
+        }
+
+        /// <summary>
         /// Verifies that version-one sample records migrate to the safe default publishing state.
         /// </summary>
         [Test]
@@ -113,7 +138,7 @@ namespace Opc.Ua.Server.Tests
             using var encoder = new BinaryEncoder(m_context);
             StoredSubscription original = CreateMinimalSubscription(id: 44);
             WriteLegacySubscription(encoder, original);
-            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer(), m_context);
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, m_context);
 
             StoredSubscription result = SubscriptionStore.DecodeSubscription(decoder, version: 1);
 
@@ -209,8 +234,8 @@ namespace Opc.Ua.Server.Tests
                 encoder.WriteDataValue(null, new DataValue(Variant.Null, StatusCodes.BadCommunicationError));
                 encoder.WriteStatusCode(null, StatusCodes.BadCommunicationError);
             }
-            byte[] bytes = encoder.CloseAndReturnBuffer();
-            using var decoder = new BinaryDecoder(bytes, m_context);
+            byte[] bytes = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(bytes!, m_context);
 
             Assert.That(
                 () => SubscriptionStore.DecodeSubscription(decoder, version: 2),
@@ -231,10 +256,10 @@ namespace Opc.Ua.Server.Tests
             subscription.MonitoredItems = [item];
             using var encoder = new BinaryEncoder(m_context);
             SubscriptionStore.EncodeSubscription(encoder, subscription);
-            byte[] bytes = encoder.CloseAndReturnBuffer();
-            using var decoder = new BinaryDecoder(bytes, m_context);
+            byte[] bytes = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(bytes!, m_context);
 
-            IStoredMonitoredItem restored = SubscriptionStore.DecodeSubscription(decoder, version: 3)
+            IStoredMonitoredItem restored = SubscriptionStore.DecodeSubscription(decoder, version: 4)
                 .MonitoredItems.Single();
 
             Assert.That(restored.Id, Is.EqualTo(item.Id));
@@ -330,7 +355,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void RoundTripStorableDataChangeQueueWithBatches()
         {
-            var values = new List<(DataValue, ServiceResult)>
+            var values = new List<(DataValue, ServiceResult?)>
             {
                 (new DataValue(new Variant(1), StatusCodes.Good), null),
                 (new DataValue(new Variant("hello"), StatusCodes.Good),
@@ -473,11 +498,11 @@ namespace Opc.Ua.Server.Tests
             stream.Position = 0;
             using var decoder = new BinaryDecoder(
                 stream, m_context, true);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> srvUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> srvUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(
-                new NamespaceTable(nsUris.Memory.ToArray()),
-                new StringTable(srvUris.Memory.ToArray()));
+                new NamespaceTable(nsUris.Memory.ToArray().Select(uri => uri!)),
+                new StringTable(srvUris.Memory.ToArray().Select(uri => uri!)));
             int count = decoder.ReadInt32(null);
             var results = new List<StoredSubscription>(count);
             for (int i = 0; i < count; i++)
@@ -509,11 +534,11 @@ namespace Opc.Ua.Server.Tests
             stream.Position = 0;
             using var decoder = new BinaryDecoder(
                 stream, m_context, true);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> srvUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> srvUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(
-                new NamespaceTable(nsUris.Memory.ToArray()),
-                new StringTable(srvUris.Memory.ToArray()));
+                new NamespaceTable(nsUris.Memory.ToArray().Select(uri => uri!)),
+                new StringTable(srvUris.Memory.ToArray().Select(uri => uri!)));
             return DurableMonitoredItemQueueFactory
                 .DecodeDataChangeQueue(decoder);
         }
@@ -539,11 +564,11 @@ namespace Opc.Ua.Server.Tests
             stream.Position = 0;
             using var decoder = new BinaryDecoder(
                 stream, m_context, true);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> srvUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> srvUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(
-                new NamespaceTable(nsUris.Memory.ToArray()),
-                new StringTable(srvUris.Memory.ToArray()));
+                new NamespaceTable(nsUris.Memory.ToArray().Select(uri => uri!)),
+                new StringTable(srvUris.Memory.ToArray().Select(uri => uri!)));
             return DurableMonitoredItemQueueFactory
                 .DecodeEventQueue(decoder);
         }
@@ -557,7 +582,7 @@ namespace Opc.Ua.Server.Tests
             using IDisposable scope =
                 AmbientMessageContext.SetScopedContext(m_context);
 
-            var values = new List<(DataValue, ServiceResult)>
+            var values = new List<(DataValue, ServiceResult?)>
             {
                 (new DataValue(new Variant(42), StatusCodes.Good), null),
                 (new DataValue(new Variant("test"), StatusCodes.Good),
@@ -632,7 +657,7 @@ namespace Opc.Ua.Server.Tests
             using IDisposable scope =
                 AmbientMessageContext.SetScopedContext(m_context);
 
-            var values = new List<(DataValue, ServiceResult)>
+            var values = new List<(DataValue, ServiceResult?)>
             {
                 (new DataValue(new Variant(1), StatusCodes.Good), null)
             };

@@ -37,6 +37,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NUnit.Framework;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Connections;
+using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Json;
@@ -281,30 +282,186 @@ namespace Opc.Ua.PubSub.Tests.Connections
         }
 
         [Test]
+        [TestSpec("7.2.5.5.6", Summary = "JSON ua-connection has a unique MessageId and no Address or properties")]
+        public async Task ConvertDiscoveryMessageForTransportJsonConnectionFollowsTable192Async()
+        {
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubMqttJsonTransport,
+                new Dictionary<string, INetworkMessageEncoder>(),
+                new Dictionary<string, INetworkMessageDecoder>());
+            var property = new KeyValuePair { Key = new QualifiedName("p"), Value = new Variant(1) };
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromString("P"),
+                DiscoveryType = UadpDiscoveryType.PubSubConnection,
+                SequenceNumber = 5,
+                Connection = new PubSubConnectionDataType
+                {
+                    Name = "c",
+                    Address = new ExtensionObject(new NetworkAddressUrlDataType { Url = "mqtt://broker" }),
+                    ConnectionProperties = [property],
+                    WriterGroups =
+                    [
+                        new WriterGroupDataType
+                        {
+                            Name = "wg",
+                            GroupProperties = [property],
+                            DataSetWriters =
+                            [
+                                new DataSetWriterDataType
+                                {
+                                    Name = "w",
+                                    DataSetWriterProperties = [property]
+                                }
+                            ]
+                        }
+                    ],
+                    ReaderGroups = [new ReaderGroupDataType { Name = "rg" }]
+                }
+            };
+
+            var message = InvokePrivate<JsonDiscoveryMessage>(
+                connection,
+                "ConvertDiscoveryMessageForTransport",
+                response);
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+                .EncodeAsync(message, OpcUaPubSubJsonTests.JsonTestUtilities.NewContext())
+                .ConfigureAwait(false);
+            using var document = System.Text.Json.JsonDocument.Parse(bytes);
+
+            PubSubConnectionDataType sent = message.Connection!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Guid.TryParse(document.RootElement.GetProperty("MessageId").GetString(), out _),
+                    Is.True);
+                Assert.That(sent.Address.IsNull, Is.True);
+                Assert.That(sent.ConnectionProperties, Is.Empty);
+                Assert.That(sent.ReaderGroups, Is.Empty);
+                Assert.That(sent.WriterGroups[0].GroupProperties, Is.Empty);
+                Assert.That(sent.WriterGroups[0].DataSetWriters[0].DataSetWriterProperties, Is.Empty);
+                Assert.That(sent.WriterGroups[0].DataSetWriters[0].Name, Is.EqualTo("w"));
+                Assert.That(response.Connection.ConnectionProperties, Has.Count.EqualTo(1));
+            });
+        }
+
+        [Test]
+        [TestSpec("7.2.5.5.4", Summary = "JSON ua-status last will has a globally unique MessageId")]
+        public async Task ConvertDiscoveryMessageForTransportJsonStatusDoesNotUseSequenceNumberAsync()
+        {
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubMqttJsonTransport,
+                new Dictionary<string, INetworkMessageEncoder>(),
+                new Dictionary<string, INetworkMessageDecoder>());
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromString("P"),
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                ApplicationStatus = new UadpApplicationStatus { Status = PubSubState.Error },
+                SequenceNumber = 5
+            };
+
+            var message = InvokePrivate<JsonDiscoveryMessage>(
+                connection,
+                "ConvertDiscoveryMessageForTransport",
+                response);
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+                .EncodeAsync(message, OpcUaPubSubJsonTests.JsonTestUtilities.NewContext())
+                .ConfigureAwait(false);
+            using var document = System.Text.Json.JsonDocument.Parse(bytes);
+
+            string? messageId = document.RootElement.GetProperty("MessageId").GetString();
+            Assert.That(Guid.TryParse(messageId, out _), Is.True, messageId);
+        }
+
+        [Test]
+        [TestSpec("7.2.5.5.2", Summary = "JSON ua-metadata discovery responses carry the writer names")]
+        public async Task ConvertDiscoveryMessageForTransportJsonMetaDataCarriesWriterNamesAsync()
+        {
+            var pds = new PublishedDataSet(
+                new PublishedDataSetDataType { Name = "pds" },
+                new Moq.Mock<IPublishedDataSetSource>().Object);
+            var writer = new DataSetWriter(
+                new DataSetWriterDataType { Name = "writer-3", DataSetWriterId = 3, DataSetName = "pds" },
+                pds,
+                NUnitTelemetryContext.Create());
+            var group = new WriterGroup(
+                new WriterGroupDataType { Name = "group-2", WriterGroupId = 2, PublishingInterval = 100 },
+                [writer],
+                new PubSub.Scheduling.PubSubSchedule(
+                    TimeSpan.FromMilliseconds(100),
+                    TimeSpan.Zero,
+                    TimeSpan.Zero,
+                    TimeSpan.Zero),
+                new Moq.Mock<PubSub.Scheduling.IPubSubScheduler>().Object,
+                NUnitTelemetryContext.Create(),
+                TimeProvider.System);
+            await using PubSubConnection connection = CreateConnection(
+                Profiles.PubSubMqttJsonTransport,
+                new Dictionary<string, INetworkMessageEncoder>(),
+                new Dictionary<string, INetworkMessageDecoder>(),
+                writerGroups: [group]);
+            var response = new UadpDiscoveryResponseMessage
+            {
+                PublisherId = PublisherId.FromString("P"),
+                WriterGroupId = 2,
+                DataSetWriterId = 3,
+                DiscoveryType = UadpDiscoveryType.DataSetMetaData,
+                DataSetMetaData = new DataSetMetaDataType { Name = "pds" },
+                SequenceNumber = 5
+            };
+
+            var message = InvokePrivate<JsonMetaDataMessage>(
+                connection,
+                "ConvertDiscoveryMessageForTransport",
+                response);
+            ReadOnlyMemory<byte> bytes = await new Opc.Ua.PubSub.Encoding.Json.JsonEncoder()
+                .EncodeAsync(message, OpcUaPubSubJsonTests.JsonTestUtilities.NewContext())
+                .ConfigureAwait(false);
+            using var document = System.Text.Json.JsonDocument.Parse(bytes);
+            System.Text.Json.JsonElement root = document.RootElement;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(root.GetProperty("MessageType").GetString(), Is.EqualTo("ua-metadata"));
+                Assert.That(Guid.TryParse(root.GetProperty("MessageId").GetString(), out _), Is.True);
+                Assert.That(root.GetProperty("WriterGroupName").GetString(), Is.EqualTo("group-2"));
+                Assert.That(root.GetProperty("DataSetWriterName").GetString(), Is.EqualTo("writer-3"));
+                Assert.That(root.GetProperty("DataSetWriterId").GetInt32(), Is.EqualTo(3));
+            });
+        }
+
+        [Test]
         [TestSpec("7.2.4.4.4", Summary = "Large UADP frames are chunked before transport send")]
         public async Task SendNetworkMessageAsync_WithLargeUadpPayload_UsesChunkingAsync()
         {
-            byte[] payload = new byte[48];
-            for (int i = 0; i < payload.Length; i++)
-            {
-                payload[i] = 0x5A;
-            }
-            var encoder = new StubEncoder(Profiles.PubSubUdpUadpTransport, payload);
             await using PubSubConnection connection = CreateConnection(
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>
                 {
-                    [Profiles.PubSubUdpUadpTransport] = encoder
+                    [Profiles.PubSubUdpUadpTransport] = new UadpEncoder()
                 },
                 new Dictionary<string, INetworkMessageDecoder>(),
-                maxNetworkMessageSize: 16);
+                maxNetworkMessageSize: 32);
             var transport = new SpyTransport();
             SetPrivateField(connection, "m_transport", transport);
 
             var message = new UadpNetworkMessage
             {
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
                 PublisherId = PublisherId.FromUInt16(11),
-                WriterGroupId = 7
+                WriterGroupId = 7,
+                DataSetMessages =
+                [
+                    new PubSub.Encoding.Uadp.UadpDataSetMessage
+                    {
+                        DataSetWriterId = 5,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [new DataSetField { Value = new Variant(new byte[48]) }]
+                    }
+                ]
             };
 
             await InvokePrivateAsync(
@@ -314,6 +471,15 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(transport.SentPayloads, Has.Count.GreaterThan(1));
+            foreach (ReadOnlyMemory<byte> sent in transport.SentPayloads)
+            {
+                // Every frame is a Part 14 chunk NetworkMessage of the writer.
+                Assert.That(sent.Length, Is.LessThanOrEqualTo(32));
+                Assert.That(UadpDecoder.TryReadPrefix(sent, out UadpPrefixInfo prefix), Is.True);
+                Assert.That(prefix.ChunkMessage, Is.True);
+                Assert.That(prefix.ChunkDataSetWriterId, Is.EqualTo((ushort?)5));
+                Assert.That(prefix.WriterGroupId, Is.EqualTo((ushort)7));
+            }
         }
 
         [Test]
@@ -329,14 +495,34 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 diagnostics: diagnostics);
             var transport = new SpyTransport();
 
+            var message = new UadpNetworkMessage
+            {
+                ContentMask = UadpNetworkMessageContentMask.PublisherId,
+                PublisherId = PublisherId.FromUInt16(1),
+                DataSetMessages =
+                [
+                    new PubSub.Encoding.Uadp.UadpDataSetMessage
+                    {
+                        DataSetWriterId = 2,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [new DataSetField { Value = new Variant(1) }]
+                    }
+                ]
+            };
+            var context = new PubSubNetworkMessageContext(
+                ServiceMessageContext.CreateEmpty(null!),
+                new DataSetMetaDataRegistry(),
+                diagnostics,
+                TimeProvider.System);
+
             ArgumentOutOfRangeException? exception = Assert.ThrowsAsync<ArgumentOutOfRangeException>(async () =>
                 await InvokePrivateAsync(
                     connection,
                     "SendChunkedAsync",
                     transport,
-                    new ReadOnlyMemory<byte>([1, 2, 3, 4]),
-                    PublisherId.FromUInt16(1),
-                    (ushort?)2,
+                    message,
+                    context,
+                    null,
                     CancellationToken.None).ConfigureAwait(false));
 
             Assert.That(exception, Is.Not.Null);
@@ -399,7 +585,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     [Profiles.PubSubUdpUadpTransport] = decoder
                 },
-                registry: registry);
+                registry: registry,
+                readerGroups: new[] { NewWildcardReaderGroup() });
             SetPrivateField(
                 connection,
                 "m_transport",
@@ -464,7 +651,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 {
                     [Profiles.PubSubUdpUadpTransport] = decoder
                 },
-                registry: registry);
+                registry: registry,
+                readerGroups: new[] { NewWildcardReaderGroup() });
             SetPrivateField(
                 connection,
                 "m_transport",
@@ -495,13 +683,14 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 new Dictionary<string, INetworkMessageDecoder>(),
                 diagnostics: diagnostics);
 
+            // Chunk NetworkMessage header followed by a truncated chunk payload.
+            byte[] frame = [0x91, 0x80, 0x01, 0x01, 0xAA, 0xBB, 0xCC];
+            Assert.That(UadpDecoder.TryReadPrefix(frame, out UadpPrefixInfo prefix), Is.True);
             ReadOnlyMemory<byte>? result = InvokePrivate<ReadOnlyMemory<byte>?>(
                 connection,
                 "TryReassembleChunk",
-                new ReadOnlyMemory<byte>([0xAA, 0xBB, 0xCC]),
-                1,
-                PublisherId.FromUInt16(1),
-                (ushort)2);
+                new ReadOnlyMemory<byte>(frame),
+                prefix);
 
             Assert.That(result, Is.Null);
             Assert.That(
@@ -517,41 +706,57 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 Profiles.PubSubUdpUadpTransport,
                 new Dictionary<string, INetworkMessageEncoder>(),
                 new Dictionary<string, INetworkMessageDecoder>());
-            byte[] encoded = new byte[24];
-            for (int ii = 0; ii < encoded.Length; ii++)
+            byte[] fieldBytes = new byte[24];
+            for (int ii = 0; ii < fieldBytes.Length; ii++)
             {
-                encoded[ii] = (byte)(ii + 1);
+                fieldBytes[ii] = (byte)(ii + 1);
+            }
+            var message = new UadpNetworkMessage
+            {
+                ContentMask = UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.WriterGroupId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
+                PublisherId = PublisherId.FromUInt16(7),
+                WriterGroupId = 8,
+                DataSetMessages =
+                [
+                    new PubSub.Encoding.Uadp.UadpDataSetMessage
+                    {
+                        DataSetWriterId = 9,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [new DataSetField { Value = new Variant(fieldBytes) }]
+                    }
+                ]
+            };
+            PubSubNetworkMessageContext context = new(
+                ServiceMessageContext.CreateEmpty(null!),
+                new DataSetMetaDataRegistry(),
+                new PubSubDiagnostics(PubSubDiagnosticsLevel.Low),
+                TimeProvider.System);
+            IReadOnlyList<UadpChunkFrame> chunks = UadpEncoder.EncodeChunks(
+                message, context, maxNetworkMessageSize: 32, securityOverhead: 0,
+                securityEnabled: false, fallbackSequenceNumber: 5);
+            Assert.That(chunks, Has.Count.GreaterThan(1));
+
+            ReadOnlyMemory<byte>? result = null;
+            for (int i = 0; i < chunks.Count; i++)
+            {
+                Assert.That(UadpDecoder.TryReadPrefix(chunks[i].Frame, out UadpPrefixInfo prefix), Is.True);
+                result = InvokePrivate<ReadOnlyMemory<byte>?>(
+                    connection,
+                    "TryReassembleChunk",
+                    chunks[i].Frame,
+                    prefix);
+                Assert.That(result.HasValue, Is.EqualTo(i == chunks.Count - 1));
             }
 
-            IReadOnlyList<byte[]> chunks = new UadpChunker().Split(encoded, 5, 18);
-            byte[] prefix = [0x11, 0x22];
-
-            ReadOnlyMemory<byte>? first = InvokePrivate<ReadOnlyMemory<byte>?>(
-                connection,
-                "TryReassembleChunk",
-                new ReadOnlyMemory<byte>(Combine(prefix, chunks[0])),
-                prefix.Length,
-                PublisherId.FromUInt16(7),
-                (ushort)8);
-            ReadOnlyMemory<byte>? second = InvokePrivate<ReadOnlyMemory<byte>?>(
-                connection,
-                "TryReassembleChunk",
-                new ReadOnlyMemory<byte>(Combine(prefix, chunks[1])),
-                prefix.Length,
-                PublisherId.FromUInt16(7),
-                (ushort)8);
-            ReadOnlyMemory<byte>? third = InvokePrivate<ReadOnlyMemory<byte>?>(
-                connection,
-                "TryReassembleChunk",
-                new ReadOnlyMemory<byte>(Combine(prefix, chunks[2])),
-                prefix.Length,
-                PublisherId.FromUInt16(7),
-                (ushort)8);
-
-            Assert.That(first, Is.Null);
-            Assert.That(second, Is.Null);
-            Assert.That(third.HasValue, Is.True);
-            Assert.That(third!.Value.ToArray(), Is.EqualTo(encoded));
+            // The rebuilt cleartext NetworkMessage decodes to the original.
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(result!.Value, context);
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(decoded.DataSetMessages[0].DataSetWriterId, Is.EqualTo((ushort)9));
+            Assert.That(decoded.DataSetMessages[0].Fields[0].Value.TryGetValue(out ByteString value), Is.True);
+            Assert.That(value.Span.ToArray(), Is.EqualTo(fieldBytes));
         }
 
         [Test]
@@ -774,7 +979,9 @@ namespace Opc.Ua.PubSub.Tests.Connections
             int maxNetworkMessageSize = 0,
             PubSubDiagnostics? diagnostics = null,
             IDataSetMetaDataRegistry? registry = null,
-            UadpSecurityWrapper? securityWrapper = null)
+            UadpSecurityWrapper? securityWrapper = null,
+            ArrayOf<ReaderGroup> readerGroups = default,
+            WriterGroup[]? writerGroups = null)
         {
             return new PubSubConnection(
                 new PubSubConnectionDataType
@@ -785,8 +992,8 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 new StubTransportFactory(),
                 encoders,
                 decoders,
-                Array.Empty<WriterGroup>(),
-                Array.Empty<ReaderGroup>(),
+                writerGroups ?? Array.Empty<WriterGroup>(),
+                readerGroups,
                 registry ?? new DataSetMetaDataRegistry(),
                 diagnostics ?? new PubSubDiagnostics(PubSubDiagnosticsLevel.High),
                 NUnitTelemetryContext.Create(),
@@ -794,6 +1001,20 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 securityWrapper,
                 UadpSecurityWrapOptions.SignAndEncrypt,
                 maxNetworkMessageSize);
+        }
+
+        private static ReaderGroup NewWildcardReaderGroup()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var reader = new DataSetReader(
+                new DataSetReaderDataType { Name = "any-publisher" },
+                new Moq.Mock<ISubscribedDataSetSink>().Object,
+                telemetry,
+                TimeProvider.System);
+            return new ReaderGroup(
+                new ReaderGroupDataType { Name = "rg" },
+                new[] { reader },
+                telemetry);
         }
 
         private static UadpSecurityWrapper CreateSecurityWrapper(
@@ -806,14 +1027,6 @@ namespace Opc.Ua.PubSub.Tests.Connections
                 new FakeNonceProvider(),
                 new FakeTokenWindow(acceptInbound),
                 NUnitTelemetryContext.Create());
-        }
-
-        private static byte[] Combine(byte[] prefix, byte[] payload)
-        {
-            byte[] combined = new byte[prefix.Length + payload.Length];
-            Buffer.BlockCopy(prefix, 0, combined, 0, prefix.Length);
-            Buffer.BlockCopy(payload, 0, combined, prefix.Length, payload.Length);
-            return combined;
         }
 
         private static T InvokePrivate<T>(object instance, string methodName, params object?[] arguments)

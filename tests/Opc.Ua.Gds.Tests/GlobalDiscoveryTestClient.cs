@@ -42,8 +42,8 @@ namespace Opc.Ua.Gds.Tests
 {
     public sealed class GlobalDiscoveryTestClient : IDisposable
     {
-        public GlobalDiscoveryServerClient GDSClient { get; private set; }
-        public string EndpointUrl { get; private set; }
+        public GlobalDiscoveryServerClient GDSClient { get; private set; } = null!;
+        public string EndpointUrl { get; private set; } = null!;
         public static bool AutoAccept { get; set; }
 
         public GlobalDiscoveryTestClient(
@@ -57,17 +57,17 @@ namespace Opc.Ua.Gds.Tests
             m_storeType = storeType;
         }
 
-        public IUserIdentity AppUser { get; private set; }
-        public IUserIdentity AdminUser { get; private set; }
-        public IUserIdentity Anonymous { get; private set; }
-        public ApplicationTestData OwnApplicationTestData { get; private set; }
-        public ApplicationConfiguration Configuration { get; private set; }
+        public IUserIdentity AppUser { get; private set; } = null!;
+        public IUserIdentity AdminUser { get; private set; } = null!;
+        public IUserIdentity Anonymous { get; private set; } = null!;
+        public ApplicationTestData OwnApplicationTestData { get; private set; } = null!;
+        public ApplicationConfiguration Configuration { get; private set; } = null!;
 
         public void Dispose()
         {
             GDSClient?.Dispose();
             m_application?.DisposeAsync().AsTask().GetAwaiter().GetResult();
-            m_application = null;
+            m_application = null!;
         }
 
         public async Task LoadClientConfigurationAsync(int port = -1, bool clean = true)
@@ -88,7 +88,7 @@ namespace Opc.Ua.Gds.Tests
             if (m_application != null)
             {
                 await m_application.DisposeAsync().ConfigureAwait(false);
-                m_application = null;
+                m_application = null!;
             }
             m_application = new ApplicationInstance(m_telemetry)
             {
@@ -139,13 +139,13 @@ namespace Opc.Ua.Gds.Tests
 
             if (clean)
             {
-                string thumbprint = Configuration.SecurityConfiguration.ApplicationCertificate.Thumbprint;
+                string thumbprint = Configuration.SecurityConfiguration.ApplicationCertificate!.Thumbprint!;
                 if (thumbprint != null)
                 {
                     using ICertificateStore store = CertificateIdentifierResolver
                         .OpenStore(
                             Configuration.SecurityConfiguration.ApplicationCertificate,
-                            m_telemetry);
+                            m_telemetry)!;
                     if (store != null)
                     {
                         await store.DeleteAsync(thumbprint).ConfigureAwait(false);
@@ -167,7 +167,7 @@ namespace Opc.Ua.Gds.Tests
                     .ConfigureAwait(false);
                 await TestUtils
                     .CleanupTrustListAsync(
-                        Configuration.SecurityConfiguration.RejectedCertificateStore, m_telemetry)
+                        Configuration.SecurityConfiguration.RejectedCertificateStore!, m_telemetry)
                     .ConfigureAwait(false);
             }
 
@@ -183,10 +183,10 @@ namespace Opc.Ua.Gds.Tests
             Configuration.CertificateManager.AcceptError = AcceptCertificate;
 
             GlobalDiscoveryTestClientConfiguration gdsClientConfiguration =
-                Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>();
+                Configuration.ParseExtension<GlobalDiscoveryTestClientConfiguration>()!;
             GDSClient = new GlobalDiscoveryServerClient(Configuration);
             EndpointUrl = TestUtils.PatchOnlyGDSEndpointUrlPort(
-                gdsClientConfiguration.GlobalDiscoveryServerUrl,
+                gdsClientConfiguration!.GlobalDiscoveryServerUrl,
                 port);
             await SetEndpointAsync(SecurityPolicies.Aes256_Sha256_RsaPss)
                 .ConfigureAwait(false);
@@ -263,7 +263,7 @@ namespace Opc.Ua.Gds.Tests
             if (GDSClient != null)
             {
                 GlobalDiscoveryServerClient gdsClient = GDSClient;
-                GDSClient = null;
+                GDSClient = null!;
                 try
                 {
                     await gdsClient.DisconnectAsync().ConfigureAwait(false);
@@ -283,7 +283,7 @@ namespace Opc.Ua.Gds.Tests
             using Certificate certWithPrivateKey = DefaultCertificateFactory.Instance.CreateWithPEMPrivateKey(
                 x509,
                 privateKey.ToArray());
-            CertificateIdentifier oldId = GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate;
+            CertificateIdentifier oldId = GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate!;
             var newId = new CertificateIdentifier
             {
                 Thumbprint = certWithPrivateKey.Thumbprint,
@@ -293,8 +293,8 @@ namespace Opc.Ua.Gds.Tests
                 CertificateType = oldId?.CertificateType ?? CertificateIdentifier.GetCertificateType(certWithPrivateKey)
             };
             GDSClient.Configuration.SecurityConfiguration.ApplicationCertificate = newId;
-            using ICertificateStore store = CertificateIdentifierResolver.OpenStore(newId, m_telemetry);
-            await store.AddAsync(certWithPrivateKey).ConfigureAwait(false);
+            using ICertificateStore store = CertificateIdentifierResolver.OpenStore(newId, m_telemetry)!;
+            await store!.AddAsync(certWithPrivateKey).ConfigureAwait(false);
         }
 
         private async Task<(ByteString certificate, ByteString privateKey)> FinishKeyPairAsync(
@@ -396,7 +396,7 @@ namespace Opc.Ua.Gds.Tests
             ArrayOf<EndpointDescription> endpoints =
                 await discoveryClient.GetEndpointsAsync(default, ct).ConfigureAwait(false);
             await discoveryClient.CloseAsync(ct).ConfigureAwait(false);
-            EndpointDescription selectedEndpoint = null;
+            EndpointDescription? selectedEndpoint = null;
             foreach (EndpointDescription ep in endpoints)
             {
                 if (ep.SecurityPolicyUri == securityPolicyUri)
@@ -412,7 +412,7 @@ namespace Opc.Ua.Gds.Tests
             GDSClient.Endpoint = new ConfiguredEndpoint(null, selectedEndpoint, endpointConfiguration);
         }
 
-        private ApplicationInstance m_application;
+        private ApplicationInstance m_application = null!;
         private readonly string m_storeType;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
@@ -425,18 +425,18 @@ namespace Opc.Ua.Gds.Tests
     public partial class GlobalDiscoveryTestClientConfiguration
     {
         [DataTypeField(Order = 1)]
-        public string GlobalDiscoveryServerUrl { get; set; }
+        public string GlobalDiscoveryServerUrl { get; set; } = null!;
 
         [DataTypeField(Order = 2)]
-        public string AppUserName { get; set; }
+        public string AppUserName { get; set; } = null!;
 
         [DataTypeField(Order = 3)]
-        public string AppPassword { get; set; }
+        public string AppPassword { get; set; } = null!;
 
         [DataTypeField(Order = 4)]
-        public string AdminUserName { get; set; }
+        public string AdminUserName { get; set; } = null!;
 
         [DataTypeField(Order = 5)]
-        public string AdminPassword { get; set; }
+        public string AdminPassword { get; set; } = null!;
     }
 }

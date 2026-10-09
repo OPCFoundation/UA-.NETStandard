@@ -1,0 +1,72 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Scales</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Scales</PackageId>
+    <RootNamespace>Opc.Ua.Scales</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591;CS0108</NoWarn>
+    <Description>Server/client-independent OPC 40200 Weighing Technology (Scales) contracts and source-generated model over the OPC 10000-100 DI, OPC 10000-200 IA, OPC 40001-1 Machinery and OPC 30050 PackML base models, including model identifiers, typed node states, client proxies and the weighing contracts shared by the client and server packages.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Scales.Server" />
+    <InternalsVisibleTo Include="Opc.Ua.Scales.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.Scales.Tests" />
+  </ItemGroup>
+  <!-- OPC 40200 binds all four base models directly: the scale types build on
+       DI and Machinery, the stacklight and state building blocks come from IA,
+       and ScaleDeviceType/State is typed by the PackML state machines. Every
+       model assembly has to be referenced for the generator to resolve those
+       base types out of the [ModelDependencyAttribute] payloads they publish. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\Opc.Ua.IA\Opc.Ua.IA.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Machinery\Opc.Ua.Machinery.csproj" />
+    <ProjectReference Include="..\Opc.Ua.PackML\Opc.Ua.PackML.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <ItemGroup>
+    <None Remove="Model\Opc.Ua.Scales.NodeSet2.xml" />
+    <None Remove="Model\Opc.Ua.Scales.NodeIds.csv" />
+  </ItemGroup>
+  <!-- The NodeSet2 XML is the unmodified OPC Foundation publication from
+       UA-Nodeset/latest/Scales (model http://opcfoundation.org/UA/Scales/V2/,
+       version 2.00, 2025-03-01). Model\Opc.Ua.Scales.NodeIds.csv is a drift
+       guard, not a NodeId source: it is derived from the unmodified
+       publication (Model\Opc.Ua.Scales.Upstream.NodeIds.csv, kept out of
+       AdditionalFiles) with tools/nodesets/derive-identifier-table.py, and the
+       generator fails the build when model and table disagree. -->
+  <ItemGroup>
+    <AdditionalFiles Include="Model\Opc.Ua.Scales.NodeSet2.xml">
+      <ModelSourceGeneratorModelUri>http://opcfoundation.org/UA/Scales/V2/</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>Scales</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>Opc.Ua.Scales</ModelSourceGeneratorPrefix>
+      <ModelSourceGeneratorIdentifierFile>Opc.Ua.Scales.NodeIds.csv</ModelSourceGeneratorIdentifierFile>
+    </AdditionalFiles>
+    <AdditionalFiles Include="Model\Opc.Ua.Scales.NodeIds.csv" />
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <!-- Model-only assembly: opt out of typed-accessor emission since the
+         emitted code references Opc.Ua.Server.Fluent.* which this project does
+         not reference. Opc.Ua.Scales.Server re-links this NodeSet with
+         ModelSourceGeneratorFluentAccessorsOnly to supply them. -->
+    <ModelSourceGeneratorOmitFluentApi>true</ModelSourceGeneratorOmitFluentApi>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

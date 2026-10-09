@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             const uint serverId = 123u;
 
             // Act
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change), Is.True);
             Assert.That(change, Is.Not.Null);
             Assert.That(((IMonitoredItemApplyState)sut).HasPendingChanges, Is.True);
             change.SetCreateResult(new MonitoredItemCreateRequest
@@ -109,8 +109,8 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
             var sut = new TestMonitoredItem(m_context,
                 m_options, m_telemetry.CreateLogger("MonitoredItem"));
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
-            change.SetCreateResult(new MonitoredItemCreateRequest
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change), Is.True);
+            change!.SetCreateResult(new MonitoredItemCreateRequest
             {
                 MonitoringMode = MonitoringMode.Sampling,
                 RequestedParameters = new MonitoringParameters
@@ -154,9 +154,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
             var sut = new TestMonitoredItem(m_context,
                 m_options, m_telemetry.CreateLogger("MonitoredItem"));
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change),
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change),
                 Is.True);
-            change.SetCreateResult(new MonitoredItemCreateRequest
+            change!.SetCreateResult(new MonitoredItemCreateRequest
             {
                 MonitoringMode = MonitoringMode.Reporting,
                 RequestedParameters = new MonitoringParameters
@@ -177,7 +177,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(sut.TryRequeue(), Is.True);
             Assert.That(sut.HasPendingChanges, Is.True);
             Assert.That(sut.TryGetPendingChange(
-                out MonitoredItem.Change requeued), Is.True);
+                out MonitoredItem.Change? requeued), Is.True);
             Assert.That(requeued, Is.Not.SameAs(change));
             Assert.That(requeued.ForceRecreate, Is.True);
             Assert.That(sut.TryRequeue(), Is.False);
@@ -192,9 +192,9 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
             var sut = new TestMonitoredItem(m_context,
                 m_options, m_telemetry.CreateLogger("MonitoredItem"));
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change),
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change),
                 Is.True);
-            change.SetCreateResult(new MonitoredItemCreateRequest
+            change!.SetCreateResult(new MonitoredItemCreateRequest
             {
                 MonitoringMode = MonitoringMode.Sampling,
                 RequestedParameters = new MonitoringParameters
@@ -249,7 +249,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 m_options, m_telemetry.CreateLogger("MonitoredItem"));
 
             // Act
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change), Is.True);
             Assert.That(change, Is.Not.Null);
             change.SetMonitoringModeResult(MonitoringMode.Sampling, StatusCodes.Bad,
                 0, [], new ResponseHeader());
@@ -276,7 +276,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                m_options, m_telemetry.CreateLogger("MonitoredItem"));
 
             // Act
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change), Is.True);
             Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
@@ -316,7 +316,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var filterResult = new EventFilterResult();
 
             // Act
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change), Is.True);
             Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
@@ -359,7 +359,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(sut.CurrentMonitoringMode, Is.Not.EqualTo(MonitoringMode.Sampling));
 
             // Act
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change), Is.True);
             Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
@@ -395,7 +395,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Assert.That(sut.CurrentMonitoringMode, Is.Not.EqualTo(MonitoringMode.Sampling));
 
             // Act
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change), Is.True);
             Assert.That(change, Is.Not.Null);
             change.SetMonitoringModeResult(MonitoringMode.Sampling, StatusCodes.Good,
                 0, [], new ResponseHeader());
@@ -417,7 +417,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var currentSamplingInterval = TimeSpan.FromMilliseconds(500);
 
             // Act
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change), Is.True);
             Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
@@ -452,7 +452,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             const uint currentQueueSize = 5u;
 
             // Act
-            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
+            Assert.That(sut.TryGetPendingChange(out MonitoredItem.Change? change), Is.True);
             Assert.That(change, Is.Not.Null);
             change.SetCreateResult(new MonitoredItemCreateRequest
             {
@@ -541,7 +541,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
 
             var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
-            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
+            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change? c))
             {
                 monitoredItem.CompleteChange(c);
             }
@@ -550,7 +550,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
 
             // Assert
-            Assert.That(monitoredItem.TryGetPendingChange(out MonitoredItem.Change change), Is.True);
+            Assert.That(monitoredItem.TryGetPendingChange(out MonitoredItem.Change? change), Is.True);
             Assert.That(change?.Create, Is.Not.Null);
             Assert.That(change.Create.RequestedParameters.QueueSize, Is.EqualTo(6)); // (500 / 100) + 1 = 6
         }
@@ -571,7 +571,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
 
             var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
-            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
+            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change? c))
             {
                 monitoredItem.CompleteChange(c);
             }
@@ -580,7 +580,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
 
             // Assert
-            Assert.That(monitoredItem.TryGetPendingChange(out MonitoredItem.Change change), Is.False);
+            Assert.That(monitoredItem.TryGetPendingChange(out MonitoredItem.Change? change), Is.False);
         }
 
         [Test]
@@ -599,7 +599,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
 
             var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
-            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
+            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change? c))
             {
                 monitoredItem.CompleteChange(c);
             }
@@ -608,7 +608,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.Zero);
 
             // Assert
-            Assert.That(monitoredItem.TryGetPendingChange(out MonitoredItem.Change change), Is.False);
+            Assert.That(monitoredItem.TryGetPendingChange(out MonitoredItem.Change? change), Is.False);
         }
 
         [Test]
@@ -627,7 +627,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
 
             var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
-            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
+            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change? c))
             {
                 monitoredItem.CompleteChange(c);
             }
@@ -636,7 +636,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
 
             // Assert
-            Assert.That(monitoredItem.TryGetPendingChange(out MonitoredItem.Change change), Is.False);
+            Assert.That(monitoredItem.TryGetPendingChange(out MonitoredItem.Change? change), Is.False);
         }
 
         [Test]
@@ -655,7 +655,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             });
 
             var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
-            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change c))
+            while (monitoredItem.TryGetPendingChange(out MonitoredItem.Change? c))
             {
                 monitoredItem.CompleteChange(c);
             }
@@ -664,7 +664,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             monitoredItem.OnSubscriptionStateChange(SubscriptionState.Created, TimeSpan.FromMilliseconds(500));
 
             // Assert
-            Assert.That(monitoredItem.TryGetPendingChange(out MonitoredItem.Change change), Is.False);
+            Assert.That(monitoredItem.TryGetPendingChange(out MonitoredItem.Change? change), Is.False);
         }
 
         [Test]
@@ -683,7 +683,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             var monitoredItem = new TestMonitoredItem(mockContext, options, telemetry.CreateLogger("MonitoredItem"));
 
             // Act
-            string result = monitoredItem.ToString();
+            string result = monitoredItem.ToString()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"Test#{monitoredItem.ClientHandle}|0 (TestItem)"));

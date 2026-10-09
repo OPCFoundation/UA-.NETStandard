@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
 using System;
 using System.Runtime.InteropServices;
 #if NET5_0_OR_GREATER

@@ -119,7 +119,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var session = new Mock<ISession>();
             session.SetupGet(value => value.Id).Returns(new NodeId(1));
             return new OperationContext(
-                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
+                new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, session.Object);
         }
 
         /// <summary>

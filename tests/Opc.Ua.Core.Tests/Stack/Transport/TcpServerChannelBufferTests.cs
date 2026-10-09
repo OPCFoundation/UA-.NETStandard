@@ -502,8 +502,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 channel.ExpectClientCertificateForTest(expectedCertificate);
             }
-            Exception auditedError = null;
-            channel.SetReportOpenSecureChannelAuditCallback((_, _, _, error) => auditedError = error);
+            Exception? auditedError = null;
+            channel.SetReportOpenSecureChannelAuditCallback((_, _, _, error) => auditedError = error!);
 
             await channel.FeedReceivedChunkAsync(channel.CreateOpenChunkForTest(sequenceNumber: 0))
                 .ConfigureAwait(false);
@@ -567,8 +567,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             var pool = new TrackingArrayPool(poisonOnReturn: true);
             using TestServerChannel channel = CreateOpenChannel(pool);
-            WriteRequest received = null;
-            channel.SetRequestReceivedCallback((_, _, request) => received = request as WriteRequest);
+            WriteRequest? received = null;
+            channel.SetRequestReceivedCallback((_, _, request) => received = (request as WriteRequest)!);
             var request = new WriteRequest
             {
                 NodesToWrite =
@@ -669,6 +669,48 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.OutstandingCount, Is.Zero);
         }
 
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.2: OpenSecureChannel and CloseSecureChannel messages are always a single final
+        /// chunk, so an intermediate or abort chunk faults the channel with Bad_TcpMessageTypeInvalid before it
+        /// is security checked or kept for reassembly.
+        /// </summary>
+        [TestCase(TcpMessageType.Open, TcpMessageType.Intermediate, false)]
+        [TestCase(TcpMessageType.Open, TcpMessageType.Abort, false)]
+        [TestCase(TcpMessageType.Open, TcpMessageType.Intermediate, true)]
+        [TestCase(TcpMessageType.Close, TcpMessageType.Intermediate, false)]
+        [TestCase(TcpMessageType.Close, TcpMessageType.Abort, false)]
+        public async Task NonFinalOpenOrCloseChunkIsRejectedWithoutReassemblyAsync(
+            uint baseType,
+            uint chunkType,
+            bool opening)
+        {
+            var pool = new TrackingArrayPool();
+            var budget = new ChunkReassemblyBudget(1024 * 1024);
+            using TestServerChannel channel = CreateOpenChannel(pool, budget: budget);
+            if (opening)
+            {
+                channel.StartOpeningForTest(1);
+            }
+            var transport = new GateByteTransport(expectedSendCount: 1, captureSentChunks: true);
+            transport.Complete();
+            channel.SetTransport(transport);
+            ArraySegment<byte> chunk = baseType == TcpMessageType.Open
+                ? channel.CreateOpenChunkForTest(1)
+                : channel.CreateRequestChunkForTest(TcpMessageType.Close, true, 1, 1);
+            BitConverter.GetBytes(baseType | chunkType).CopyTo(chunk.Array!, chunk.Offset);
+
+            await channel.FeedReceivedChunkAsync(chunk).ConfigureAwait(false);
+
+            Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
+            Assert.That(budget.ReservedBytes, Is.Zero);
+            byte[] sent = transport.LastSentChunk;
+            Assert.That(sent, Is.Not.Null);
+            Assert.That(GetMessageType(sent), Is.EqualTo(TcpMessageType.Error));
+            Assert.That(BitConverter.ToUInt32(sent, 8), Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
+            Assert.That(await WaitForOutstandingCountAsync(pool, expected: 0, 5).ConfigureAwait(false), Is.True);
+            Assert.That(pool.DuplicateReturnCount, Is.Zero);
+        }
+
         [TestCase(false)]
         [TestCase(true)]
         public async Task FirstChunkExceedingTheRequestChunkLimitReleasesThePartialMessageAsync(bool isFinal)
@@ -701,9 +743,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(pool.ReturnCount, Is.EqualTo(pool.RentCount));
         }
 
-        [TestCase(true)]
-        [TestCase(false)]
-        public async Task IncompleteMessagesReleaseBuffersDespiteContinuingChunksAsync(bool opening)
+        [Test]
+        public async Task IncompleteMessagesReleaseBuffersDespiteContinuingChunksAsync()
         {
             const int channelCount = 3;
             var pool = new TrackingArrayPool();
@@ -728,20 +769,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             for (uint channelId = 1; channelId <= channelCount; channelId++)
             {
                 var channel = new TestServerChannel(listener, buffers, quotas, telemetry, clock);
-                if (opening)
-                {
-                    channel.StartOpeningForTest(channelId);
-                }
-                else
-                {
-                    channel.OpenForTest(channelId);
-                }
+                channel.OpenForTest(channelId);
                 channels.Add(channel);
                 registeredChannels[channelId] = channel;
                 await channel.FeedReceivedChunkAsync(
-                    opening
-                        ? channel.CreateOpenChunkForTest(1, intermediate: true)
-                        : channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 1, 1))
+                    channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 1, 1))
                     .ConfigureAwait(false);
             }
 
@@ -750,9 +782,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             foreach (TestServerChannel channel in channels)
             {
                 await channel.FeedReceivedChunkAsync(
-                    opening
-                        ? channel.CreateOpenChunkForTest(2, intermediate: true)
-                        : channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 2, 1))
+                    channel.CreateRequestChunkForTest(TcpMessageType.Message, false, 2, 1))
                     .ConfigureAwait(false);
             }
             Assert.That(pool.OutstandingCount, Is.EqualTo(channelCount * 2));
@@ -1027,10 +1057,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         /// <summary>
-        /// An intermediate CloseSecureChannel chunk is handed to the partial
-        /// message and reported as owned. Reporting it as not owned returned the
-        /// same buffer to the pool a second time, so two callers could then be
-        /// handed the same array.
+        /// An intermediate CloseSecureChannel chunk is not a valid chunk type
+        /// (OPC 10000-6 §6.7.2.2), so it faults the channel; its buffer is
+        /// returned to the pool exactly once.
         /// </summary>
         [Test]
         public async Task IntermediateCloseSecureChannelChunkIsNotReturnedTwiceAsync()
@@ -1050,7 +1079,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
                 Assert.That(pool.DuplicateReturnCount, Is.Zero);
                 Assert.That(pool.OutstandingCount, Is.Zero);
-                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Closed));
+                Assert.That(channel.CurrentState, Is.EqualTo(TcpChannelState.Faulted));
             }
             finally
             {
@@ -1888,11 +1917,11 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             TrackingArrayPool pool,
             int maxBufferSize = 64 * 1024,
             int? maxStringLength = null,
-            FakeTimeProvider clock = null,
+            FakeTimeProvider? clock = null,
             int? channelLifetime = null,
-            ChunkReassemblyBudget budget = null,
-            ISessionBindingProvider bindingProvider = null,
-            IServerResourceIsolationProvider isolation = null)
+            ChunkReassemblyBudget? budget = null,
+            ISessionBindingProvider? bindingProvider = null,
+            IServerResourceIsolationProvider? isolation = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.Create(telemetry);
@@ -2194,7 +2223,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 uint sequenceNumber,
                 uint requestId,
                 int bodySize = 8,
-                byte[] body = null)
+                byte[]? body = null)
             {
                 if (body != null)
                 {
@@ -2304,13 +2333,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// <summary>
             /// Creates an OpenSecureChannel chunk with a controlled sequence header and request identifier.
             /// </summary>
-            public ArraySegment<byte> CreateOpenChunkForTest(uint sequenceNumber, bool intermediate = false)
+            public ArraySegment<byte> CreateOpenChunkForTest(uint sequenceNumber)
             {
                 ArraySegment<byte> chunk = CreateTruncatedOpenChunkForTest(TcpMessageLimits.SequenceHeaderSize);
-                if (intermediate)
-                {
-                    BitConverter.GetBytes(TcpMessageType.Open | TcpMessageType.Intermediate).CopyTo(chunk.Array!, 0);
-                }
                 BitConverter.GetBytes(sequenceNumber).CopyTo(chunk.Array!, chunk.Count - 8);
                 BitConverter.GetBytes(1u).CopyTo(chunk.Array!, chunk.Count - 4);
                 return chunk;
@@ -2347,9 +2372,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 m_captureSentChunks = captureSentChunks;
             }
 
-            public EndPoint LocalEndpoint => null;
+            public EndPoint LocalEndpoint => null!;
 
-            public EndPoint RemoteEndpoint => null;
+            public EndPoint RemoteEndpoint => null!;
 
             public TransportChannelFeatures Features => default;
 
@@ -2374,7 +2399,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     {
                         if (m_sentChunks.Count == 0)
                         {
-                            return null;
+                            return null!;
                         }
                         return m_sentChunks[^1];
                     }
@@ -2503,7 +2528,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         private sealed class RecordingIsolation : IServerResourceIsolationProvider
         {
             public bool UseFairScheduling { get; set; } = true;
-            public event Action<ResourceIsolationStage> CapacityAvailable
+            public event Action<ResourceIsolationStage>? CapacityAvailable
             {
                 add { }
                 remove { }
@@ -2514,9 +2539,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             public int AcquireCalls { get; private set; }
             public ResourceIsolationStage ExpectedStage { get; set; } = ResourceIsolationStage.ReassemblyBytes;
             public bool Refuse { get; set; }
-            public Action OnClassify { get; set; }
+            public Action OnClassify { get; set; } = null!;
 
-            public ResourceIsolationOwner ClassifyConnection(IPEndPoint remoteEndpoint)
+            public ResourceIsolationOwner ClassifyConnection(IPEndPoint? remoteEndpoint)
             {
                 throw new NotSupportedException();
             }
@@ -2548,7 +2573,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 failure = default;
                 if (Refuse)
                 {
-                    lease = null;
+                    lease = null!;
                     return false;
                 }
                 OutstandingBytes += amount;
@@ -2577,13 +2602,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             public bool UseFairScheduling => inner.UseFairScheduling;
 
-            public event Action<ResourceIsolationStage> CapacityAvailable
+            public event Action<ResourceIsolationStage>? CapacityAvailable
             {
                 add => inner.CapacityAvailable += value;
                 remove => inner.CapacityAvailable -= value;
             }
 
-            public ResourceIsolationOwner ClassifyConnection(IPEndPoint remoteEndpoint)
+            public ResourceIsolationOwner ClassifyConnection(IPEndPoint? remoteEndpoint)
             {
                 return inner.ClassifyConnection(remoteEndpoint);
             }

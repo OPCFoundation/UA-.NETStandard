@@ -263,7 +263,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 NUnitTelemetryContext.Create(),
                 metadataByteCount: 0);
 
-#if NET5_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET5_0_OR_GREATER
             const int minimumExpectedSize = 16;
 #else
             const int minimumExpectedSize = 32;
@@ -594,9 +594,9 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
 
         private sealed class TrackingArrayPool : ArrayPool<byte>
         {
-            public TrackingArrayPool(Func<int, byte[]> createBuffer = null)
+            public TrackingArrayPool(Func<int, byte[]>? createBuffer = null)
             {
-                m_createBuffer = createBuffer;
+                m_createBuffer = createBuffer!;
             }
 
             public int RentCount { get; private set; }
@@ -605,9 +605,9 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
 
             public int LastMinimumLength { get; private set; }
 
-            public byte[] LastRented { get; private set; }
+            public byte[] LastRented { get; private set; } = null!;
 
-            public byte[] LastReturned { get; private set; }
+            public byte[] LastReturned { get; private set; } = null!;
 
             public int OutstandingCount => m_outstanding.Count;
 
@@ -627,7 +627,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 Assert.That(m_outstanding.Remove(array), Is.True);
             }
 
-            private readonly Func<int, byte[]> m_createBuffer;
+            private readonly Func<int, byte[]> m_createBuffer = null!;
             private readonly HashSet<byte[]> m_outstanding = [];
         }
     }

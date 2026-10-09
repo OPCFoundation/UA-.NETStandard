@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -77,7 +75,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 harness.Admit(accepted);
                 using var stream = new NetworkStream(client, ownsSocket: false);
                 byte[] reverseHello = WssAdmissionTests.CreateReverseHello();
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 await stream.WriteAsync(reverseHello.AsMemory()).ConfigureAwait(false);
 #else
                 await stream.WriteAsync(reverseHello, 0, reverseHello.Length).ConfigureAwait(false);
@@ -110,6 +108,91 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
         }
 
+        /// <summary>
+        /// A reverse-connect listener at its channel limit closes the oldest connection
+        /// that has not sent a ReverseHello, so silent connections cannot lock out a server
+        /// until the handshake deadline.
+        /// </summary>
+        [Test]
+        public async Task SilentReverseConnectionIsReclaimedForAServerSendingReverseHelloAsync()
+        {
+            await using var harness = new AcceptHarness(
+                NUnitTelemetryContext.Create(), maxChannels: 1, reverse: true);
+            var adopted = new TaskCompletionSource<IUaSCByteTransport>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            harness.Listener.ConnectionWaiting += (_, args) =>
+            {
+                args.Accepted = true;
+                adopted.TrySetResult(((TcpConnectionWaitingEventArgs)args).Transport);
+                return Task.CompletedTask;
+            };
+            (Socket silent, Socket accepted) = await harness.CreateFirstConnectionAsync().ConfigureAwait(false);
+            using (silent)
+            {
+                harness.Admit(accepted);
+                TcpListenerChannel original = harness.Channels.Values.Single();
+
+                // The accept loop admits the next connection itself.
+                using Socket server = await harness.ConnectAsync().ConfigureAwait(false);
+                using (var silentStream = new NetworkStream(silent, ownsSocket: false))
+                {
+                    try
+                    {
+                        Assert.That(await silentStream.ReadAsync(new byte[1], 0, 1)
+                            .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.Zero);
+                    }
+                    catch (IOException ex) when (ex.InnerException is SocketException)
+                    {
+                        // The reclaimed connection may be reset rather than closed.
+                    }
+                }
+                await WaitForAsync(() =>
+                    harness.Channels.Count == 1 && !harness.Channels.ContainsKey(original.Id))
+                    .ConfigureAwait(false);
+
+                using var stream = new NetworkStream(server, ownsSocket: false);
+                byte[] reverseHello = WssAdmissionTests.CreateReverseHello();
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                await stream.WriteAsync(reverseHello.AsMemory()).ConfigureAwait(false);
+#else
+                await stream.WriteAsync(reverseHello, 0, reverseHello.Length).ConfigureAwait(false);
+#endif
+                IUaSCByteTransport transport = await adopted.Task.WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+                transport.Close();
+            }
+        }
+
+        /// <summary>
+        /// Only a reverse connection that has not sent its ReverseHello may be reclaimed while
+        /// it is connecting; one that sent it, and a forward connection, keep their slot.
+        /// </summary>
+        [Test]
+        public async Task ReverseConnectionIsReclaimableWhileConnectingOnlyBeforeItsReverseHelloAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            await using var harness = new AcceptHarness(telemetry, reverse: true);
+            PropertyInfo state = typeof(UaSCUaBinaryChannel)
+                .GetProperty("State", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+            using var forward = new IdleChannel(harness.Listener, harness.Buffers, harness.Quotas, telemetry);
+            state.SetValue(forward, TcpChannelState.Connecting);
+            Assert.That(forward.TryIdleCleanupForAdmission(), Is.False);
+
+            using var answered = new TcpReverseConnectChannel(
+                "answered", harness.Listener, harness.Buffers, harness.Quotas, [], telemetry, new FakeTimeProvider());
+            state.SetValue(answered, TcpChannelState.Connecting);
+            typeof(TcpReverseConnectChannel)
+                .GetField("m_messageReceived", BindingFlags.Instance | BindingFlags.NonPublic)!
+                .SetValue(answered, true);
+            Assert.That(answered.TryIdleCleanupForAdmission(), Is.False);
+
+            using var silent = new TcpReverseConnectChannel(
+                "silent", harness.Listener, harness.Buffers, harness.Quotas, [], telemetry, new FakeTimeProvider());
+            state.SetValue(silent, TcpChannelState.Connecting);
+            Assert.That(silent.TryIdleCleanupForAdmission(), Is.True);
+        }
+
         [Test]
         public async Task ForwardHelloDoesNotCompleteAdmissionBeforeOpenSecureChannelAsync()
         {
@@ -133,6 +216,113 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                     .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false), Is.Zero);
                 Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.Zero);
                 Assert.That(provider.Active(ResourceIsolationStage.Connection), Is.Zero);
+            }
+        }
+
+        /// <summary>
+        /// OPC 10000-6 §7.1.2.3: a server without resources for a new SecureChannel answers
+        /// the Hello with Bad_TcpNotEnoughResources and closes the socket gracefully.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RefusedConnectionAnswersHelloWithNotEnoughResourcesAsync(bool channelLimit)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var limiter = new UaScConnectionAdmissionTests.SwitchableLimiter { Allow = channelLimit };
+            await using var harness = new AcceptHarness(
+                telemetry, maxChannels: channelLimit ? 1 : 0, limiter: limiter);
+            using var busy = new IdleChannel(harness.Listener, harness.Buffers, harness.Quotas, telemetry);
+            if (channelLimit)
+            {
+                // A handshake still in progress cannot be reclaimed for the new connection.
+                typeof(UaSCUaBinaryChannel).GetProperty("State", BindingFlags.Instance | BindingFlags.NonPublic)!
+                    .SetValue(busy, TcpChannelState.Connecting);
+                harness.Channels[1] = busy;
+            }
+            (Socket client, Socket accepted) = await harness.CreateFirstConnectionAsync().ConfigureAwait(false);
+            using (client)
+            {
+                harness.Admit(accepted);
+                using var stream = new NetworkStream(client, ownsSocket: false);
+                byte[] hello = harness.CreateHello();
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                await stream.WriteAsync(hello.AsMemory()).ConfigureAwait(false);
+#else
+                await stream.WriteAsync(hello, 0, hello.Length).ConfigureAwait(false);
+#endif
+                byte[] error = new byte[16];
+                int offset = 0;
+                while (offset < error.Length)
+                {
+                    int read = await stream.ReadAsync(error, offset, error.Length - offset)
+                        .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    Assert.That(read, Is.GreaterThan(0));
+                    offset += read;
+                }
+                Assert.That(BitConverter.ToUInt32(error, 0), Is.EqualTo(TcpMessageType.Error));
+                Assert.That(
+                    BitConverter.ToUInt32(error, 8),
+                    Is.EqualTo(StatusCodes.BadTcpNotEnoughResources.Code));
+                int reasonLength = BitConverter.ToInt32(error, 12);
+                Assert.That(BitConverter.ToInt32(error, 4), Is.EqualTo(16 + reasonLength));
+                byte[] rest = new byte[reasonLength + 1];
+                offset = 0;
+                while (true)
+                {
+                    int read = await stream.ReadAsync(rest, offset, rest.Length - offset)
+                        .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                    if (read == 0)
+                    {
+                        break;
+                    }
+                    offset += read;
+                }
+                Assert.That(offset, Is.EqualTo(reasonLength));
+                Assert.That(harness.Channels, Has.Count.EqualTo(channelLimit ? 1 : 0));
+            }
+        }
+
+        /// <summary>
+        /// A refused reverse connection whose ReverseHello carries the longest valid
+        /// ServerUri and EndpointUrl (above 8192 bytes in total) is still answered with
+        /// Bad_TcpNotEnoughResources.
+        /// </summary>
+        [Test]
+        public async Task RefusedReverseConnectionAnswersLargestReverseHelloWithNotEnoughResourcesAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var limiter = new UaScConnectionAdmissionTests.SwitchableLimiter { Allow = false };
+            await using var harness = new AcceptHarness(telemetry, limiter: limiter, reverse: true);
+            int maxLength = TcpMessageLimits.MaxEndpointUrlLength - 1;
+            byte[] buffer = new byte[TcpTransportListener.kMaxRejectedHelloSize];
+            int count;
+            using (var encoder = new BinaryEncoder(buffer, 0, buffer.Length, harness.Context))
+            {
+                encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteString(null, "urn:" + new string('s', maxLength - 4));
+                encoder.WriteString(null, "opc.tcp://localhost/" + new string('e', maxLength - 20));
+                count = encoder.Close();
+            }
+            Assert.That(count, Is.GreaterThan(TcpMessageLimits.MinBufferSize));
+            BitConverter.GetBytes(count).CopyTo(buffer, 4);
+
+            (Socket client, Socket accepted) = await harness.CreateFirstConnectionAsync().ConfigureAwait(false);
+            using (client)
+            {
+                harness.Admit(accepted);
+                using var stream = new NetworkStream(client, ownsSocket: false);
+#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+                await stream.WriteAsync(buffer.AsMemory(0, count)).ConfigureAwait(false);
+#else
+                await stream.WriteAsync(buffer, 0, count).ConfigureAwait(false);
+#endif
+                byte[] error = new byte[12];
+                await ReadExactAsync(stream, error, 0, error.Length).ConfigureAwait(false);
+                Assert.That(BitConverter.ToUInt32(error, 0), Is.EqualTo(TcpMessageType.Error));
+                Assert.That(
+                    BitConverter.ToUInt32(error, 8),
+                    Is.EqualTo(StatusCodes.BadTcpNotEnoughResources.Code));
             }
         }
 
@@ -222,7 +412,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 Assert.That(provider.Active(ResourceIsolationStage.Handshake), Is.EqualTo(1));
                 byte[] open = harness.CreateOpenChunk();
                 using var stream = new NetworkStream(client, ownsSocket: false);
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 await stream.WriteAsync(open.AsMemory()).ConfigureAwait(false);
 #else
                 await stream.WriteAsync(open, 0, open.Length).ConfigureAwait(false);
@@ -277,7 +467,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public async Task IncompleteOpenMessagesStayWithinSharedBudgetAndANewClientConnectsAfterCleanupAsync()
+        public async Task IncompleteMessagesWithoutSessionStayWithinSharedBudgetAndANewClientConnectsAfterCleanupAsync()
         {
             var budget = new ChunkReassemblyBudget(64 * 1024);
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
@@ -293,30 +483,40 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             harness.Quotas.ChannelLifetime = 1000;
             harness.Quotas.ChunkReassemblyBudget = budget;
             var clients = new List<Socket>();
+            var tokens = new List<(uint ChannelId, uint TokenId)>();
             try
             {
                 (Socket first, Socket accepted) = await harness.CreateFirstConnectionAsync().ConfigureAwait(false);
                 clients.Add(first);
                 harness.Admit(accepted);
                 await CompleteHelloAsync(harness, first).ConfigureAwait(false);
+                tokens.Add(await OpenNoneChannelAsync(harness, first).ConfigureAwait(false));
                 for (int i = 1; i < 3; i++)
                 {
                     Socket client = await harness.ConnectAsync().ConfigureAwait(false);
                     clients.Add(client);
                     await CompleteHelloAsync(harness, client).ConfigureAwait(false);
+                    tokens.Add(await OpenNoneChannelAsync(harness, client).ConfigureAwait(false));
                 }
                 Assert.That(harness.Channels, Has.Count.EqualTo(3));
 
+                // OpenSecureChannel is always a single chunk (OPC 10000-6 §6.7.2.2), so the
+                // reassembly budget of a channel without an activated session is filled with
+                // intermediate request chunks on the opened channels.
                 bool peerClosed = false;
-                for (uint sequence = 1; sequence <= 2 && !peerClosed && harness.Channels.Count == 3; sequence++)
+                for (uint sequence = 2; sequence <= 3 && !peerClosed && harness.Channels.Count == 3; sequence++)
                 {
-                    byte[] chunk = harness.CreateIntermediateOpenChunk(sequence);
-                    foreach (Socket client in clients)
+                    for (int index = 0; index < clients.Count; index++)
                     {
+                        Socket client = clients[index];
+                        byte[] chunk = harness.CreateIntermediateRequestChunk(
+                            tokens[index].ChannelId,
+                            tokens[index].TokenId,
+                            sequence);
                         using var stream = new NetworkStream(client, ownsSocket: false);
                         try
                         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                             await stream.WriteAsync(chunk.AsMemory()).ConfigureAwait(false);
 #else
                             await stream.WriteAsync(chunk, 0, chunk.Length).ConfigureAwait(false);
@@ -391,7 +591,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             using Socket allowed = await harness.ConnectAsync().ConfigureAwait(false);
             using var allowedStream = new NetworkStream(allowed, ownsSocket: false);
             byte[] hello = harness.CreateHello();
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await allowedStream.WriteAsync(hello.AsMemory()).ConfigureAwait(false);
 #else
             await allowedStream.WriteAsync(hello, 0, hello.Length).ConfigureAwait(false);
@@ -570,7 +770,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             using var stream = new NetworkStream(socket, ownsSocket: false);
             byte[] hello = harness.CreateHello();
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await stream.WriteAsync(hello.AsMemory()).ConfigureAwait(false);
 #else
             await stream.WriteAsync(hello, 0, hello.Length).ConfigureAwait(false);
@@ -586,6 +786,53 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             }
             Assert.That(BitConverter.ToUInt32(acknowledge, 0), Is.EqualTo(TcpMessageType.Acknowledge));
             Assert.That(BitConverter.ToUInt32(acknowledge, 24), Is.EqualTo(4));
+        }
+
+        /// <summary>
+        /// Opens a SecurityPolicy None channel and returns its channel and token identifiers.
+        /// </summary>
+        private static async Task<(uint ChannelId, uint TokenId)> OpenNoneChannelAsync(
+            AcceptHarness harness,
+            Socket socket)
+        {
+            using var stream = new NetworkStream(socket, ownsSocket: false);
+            byte[] open = harness.CreateOpenChunk();
+#if NET5_0_OR_GREATER
+            await stream.WriteAsync(open.AsMemory()).ConfigureAwait(false);
+#else
+            await stream.WriteAsync(open, 0, open.Length).ConfigureAwait(false);
+#endif
+            byte[] header = new byte[8];
+            await ReadExactAsync(stream, header, 0, header.Length).ConfigureAwait(false);
+            Assert.That(BitConverter.ToUInt32(header, 0), Is.EqualTo(TcpMessageType.Open | TcpMessageType.Final));
+            byte[] response = new byte[BitConverter.ToInt32(header, 4)];
+            header.CopyTo(response, 0);
+            await ReadExactAsync(stream, response, header.Length, response.Length - header.Length)
+                .ConfigureAwait(false);
+
+            using var decoder = new BinaryDecoder(
+                new ArraySegment<byte>(response, header.Length, response.Length - header.Length),
+                harness.Context);
+            uint channelId = decoder.ReadUInt32(null);
+            _ = decoder.ReadString(null);
+            _ = decoder.ReadByteString(null);
+            _ = decoder.ReadByteString(null);
+            _ = decoder.ReadUInt32(null);
+            _ = decoder.ReadUInt32(null);
+            OpenSecureChannelResponse message = decoder.DecodeMessage<OpenSecureChannelResponse>();
+            return (channelId, message.SecurityToken.TokenId);
+        }
+
+        private static async Task ReadExactAsync(NetworkStream stream, byte[] buffer, int offset, int count)
+        {
+            while (count > 0)
+            {
+                int read = await stream.ReadAsync(buffer, offset, count)
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(read, Is.GreaterThan(0));
+                offset += read;
+                count -= read;
+            }
         }
 
         private static async Task WaitForAsync(Func<bool> condition)
@@ -868,16 +1115,14 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 return buffer.AsSpan(0, count).ToArray();
             }
 
-            public byte[] CreateIntermediateOpenChunk(uint sequence)
+            public byte[] CreateIntermediateRequestChunk(uint channelId, uint tokenId, uint sequence)
             {
                 byte[] buffer = new byte[8192];
                 using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, Context);
-                encoder.WriteUInt32(null, TcpMessageType.Open | TcpMessageType.Intermediate);
+                encoder.WriteUInt32(null, TcpMessageType.Message | TcpMessageType.Intermediate);
                 encoder.WriteUInt32(null, 0);
-                encoder.WriteUInt32(null, 0);
-                encoder.WriteString(null, SecurityPolicies.None);
-                encoder.WriteByteString(null, ByteString.Empty);
-                encoder.WriteByteString(null, ByteString.Empty);
+                encoder.WriteUInt32(null, channelId);
+                encoder.WriteUInt32(null, tokenId);
                 encoder.WriteUInt32(null, sequence);
                 encoder.WriteUInt32(null, 1);
                 byte[] body = new byte[8000];

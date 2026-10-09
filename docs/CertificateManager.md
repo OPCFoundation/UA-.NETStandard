@@ -147,8 +147,9 @@ var options = new CertificateValidationOptions
 {
     AutoAcceptUntrustedCertificates = true,
     AcceptError = (certificate, error) =>
-        // Suppress chain-incomplete errors only for self-test scenarios.
-        error.StatusCode == StatusCodes.BadCertificateChainIncomplete
+        // Suppress host-name mismatches only for self-test scenarios. An incomplete
+        // chain (BadCertificateChainIncomplete) is never suppressible.
+        error.StatusCode == StatusCodes.BadCertificateHostNameInvalid
 };
 CertificateValidationResult devResult = await manager.ValidateAsync(
     serverCertificate,
@@ -525,7 +526,7 @@ A malformed subject returns `Bad_InvalidArgument` before key generation or
 pending-key changes; the active certificate and any earlier pending key remain
 unchanged.
 
-`CreateSigningRequest(regeneratePrivateKey: true)` additionally requires the caller to supply at least **32 bytes** of additional entropy in the `Nonce` argument (§7.10.10); a shorter or missing `Nonce` is rejected with `Bad_InvalidArgument` and leaves all state unchanged. The default `AdditionalEntropyCertificateKeyGenerator` genuinely incorporates that entropy: it instantiates a NIST SP 800-90A HMAC-DRBG from a fresh server-side cryptographic seed concatenated with the caller `Nonce`, and derives the RSA primes (via managed `BigInteger` prime generation, on every target framework) or the EC private scalar from that DRBG. Because the server seed is always present, a weak or adversarial `Nonce` can never weaken the key; a strong `Nonce` genuinely adds entropy. On .NET Framework and `netstandard2.1` the platform cannot import a private-only EC scalar, so genuine additional-entropy incorporation into an ECC key is unavailable there: an ECC `regeneratePrivateKey: true` request is rejected with `Bad_NotSupported` rather than silently generating a key that ignores the mandated `Nonce` (use an RSA `CertificateType`, or run the server on .NET 8 or later, to regenerate an ECC key). RSA keys remain fully nonce-derived on all frameworks.
+`CreateSigningRequest(regeneratePrivateKey: true)` additionally requires the caller to supply at least **32 bytes** of additional entropy in the `Nonce` argument (§7.10.10); a shorter or missing `Nonce` is rejected with `Bad_InvalidArgument` and leaves all state unchanged. The default `AdditionalEntropyCertificateKeyGenerator` genuinely incorporates that entropy: it instantiates a NIST SP 800-90A HMAC-DRBG from a fresh server-side cryptographic seed concatenated with the caller `Nonce`, and derives the RSA primes (via managed `BigInteger` prime generation, on every target framework) or the EC private scalar from that DRBG. Because the server seed is always present, a weak or adversarial `Nonce` can never weaken the key; a strong `Nonce` genuinely adds entropy. On .NET Framework the platform cannot import a private-only EC scalar, so genuine additional-entropy incorporation into an ECC key is unavailable there: an ECC `regeneratePrivateKey: true` request is rejected with `Bad_NotSupported` rather than silently generating a key that ignores the mandated `Nonce` (use an RSA `CertificateType`, or run the server on .NET 8 or later, to regenerate an ECC key). RSA keys remain fully nonce-derived on all frameworks.
 
 TrustList file operations reject a closed handle with `Bad_InvalidArgument`;
 another Session's live handle remains protected with `Bad_UserAccessDenied`.

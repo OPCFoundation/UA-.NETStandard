@@ -332,7 +332,7 @@ namespace Opc.Ua.Schema.Json
                         dataType == DataTypeIds.Integer ||
                         dataType == DataTypeIds.UInteger)
                     {
-                        // Abstract numeric fields need a concrete wire type, even when its default payload is omitted.
+                        // Abstract numeric fields must retain their concrete Variant wire type.
                         schema["required"] = new JsonArray("UaType");
                         schema["properties"] = new JsonObject
                         {

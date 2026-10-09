@@ -98,26 +98,26 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
         [DatapointSource]
         public static readonly JsonValidationData[] Data = new JsonValidationDataCollection
         {
-            { BuiltInType.Boolean, false, null, "false" },
-            { BuiltInType.Boolean, true, "true", null },
-            { BuiltInType.Byte, (byte)0, null, "0" },
-            { BuiltInType.Byte, (byte)88, "88", null },
-            { BuiltInType.SByte, (sbyte)0, null, "0" },
-            { BuiltInType.UInt16, (ushort)12345, "12345", null },
-            { BuiltInType.Int16, (short)-12345, "-12345", null },
-            { BuiltInType.UInt32, (uint)1234567, "1234567", null },
-            { BuiltInType.Int32, -12345678, "-12345678", null },
+            { BuiltInType.Boolean, false, null!, "false" },
+            { BuiltInType.Boolean, true, "true", null! },
+            { BuiltInType.Byte, (byte)0, null!, "0" },
+            { BuiltInType.Byte, (byte)88, "88", null! },
+            { BuiltInType.SByte, (sbyte)0, null!, "0" },
+            { BuiltInType.UInt16, (ushort)12345, "12345", null! },
+            { BuiltInType.Int16, (short)-12345, "-12345", null! },
+            { BuiltInType.UInt32, (uint)1234567, "1234567", null! },
+            { BuiltInType.Int32, -12345678, "-12345678", null! },
             {
                 BuiltInType.Int64,
                 kInt64Value,
                 Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)),
-                null
+                null!
             },
             {
                 BuiltInType.UInt64,
                 kUInt64Value,
                 Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)),
-                null
+                null!
             },
             { BuiltInType.Float, 3.14f, "3.14", "3.14" },
             { BuiltInType.Double, 7.77, "7.77", "7.77" }
@@ -134,13 +134,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExpandedNodeId nodeId;
             Type complexType;
             (nodeId, complexType) = TypeDictionary[StructureType.Structure];
-            object emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType)!;
             var baseType = emittedType as BaseComplexType;
-            baseType[jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
+            baseType![jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
             ExtensionObject extensionObject = CreateExtensionObject(
                 StructureType.Structure,
                 nodeId,
-                emittedType);
+                emittedType!);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
                 MemoryStreamType.ArraySegmentStream,
@@ -162,13 +162,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExpandedNodeId nodeId;
             Type complexType;
             (nodeId, complexType) = TypeDictionary[StructureType.StructureWithOptionalFields];
-            object emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType)!;
             var baseType = emittedType as BaseComplexType;
-            baseType[jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
+            baseType![jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
             ExtensionObject extensionObject = CreateExtensionObject(
                 StructureType.StructureWithOptionalFields,
                 nodeId,
-                emittedType);
+                emittedType!);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
                 MemoryStreamType.ArraySegmentStream,
@@ -189,13 +189,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             ExpandedNodeId nodeId;
             Type complexType;
             (nodeId, complexType) = TypeDictionary[StructureType.Union];
-            object emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType)!;
             var baseType = emittedType as BaseComplexType;
-            baseType[jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
+            baseType![jsonValidationData.BuiltInType.ToString()] = jsonValidationData.Instance;
             ExtensionObject extensionObject = CreateExtensionObject(
                 StructureType.Union,
                 nodeId,
-                emittedType);
+                emittedType!);
             EncodeJsonComplexTypeVerifyResult(
                 jsonValidationData.BuiltInType,
                 MemoryStreamType.ArraySegmentStream,
@@ -234,8 +234,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 buffer = encoderStream.ToArray();
             }
 
-            string formattedResult = null;
-            string result = null;
+            string? formattedResult = null;
+            string? result = null;
             try
             {
                 result = Encoding.UTF8.GetString(buffer);
@@ -294,7 +294,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             if (!expectedIsEmpty || jsonEncoding == JsonEncodingType.Compact)
             {
-                if (data.TryGetValue(out UnionComplexType union))
+                if (data.TryGetValue(out UnionComplexType? union))
                 {
                     string json = $"{{\"{builtInType}\" :{{";
 
@@ -321,7 +321,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     json += "}}";
                     expected = json;
                 }
-                else if (data.TryGetValue(out OptionalFieldsComplexType optional))
+                else if (data.TryGetValue(out OptionalFieldsComplexType? optional))
                 {
                     string json = $"{{\"{builtInType}\" :{{";
 
@@ -349,7 +349,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
                     expected = json;
                 }
-                else if (data.TryGetValue(out BaseComplexType structure))
+                else if (data.TryGetValue(out BaseComplexType? structure))
                 {
                     string body = string.Empty;
                     bool commaNeeded = false;

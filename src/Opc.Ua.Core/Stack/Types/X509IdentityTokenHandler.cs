@@ -280,12 +280,11 @@ namespace Opc.Ua
                 // channel-level signature checks and throws the channel-level
                 // BadSecurityChecksFailed when the SignatureData carries an
                 // unexpected/mismatched signature algorithm. For a user identity
-                // token that is a token-level fault, so surface it as
-                // BadIdentityTokenInvalid per OPC UA Part 4 (ActivateSession
-                // user identity token validation) rather than leaking a
-                // channel-security status out of the user-token path.
+                // token that is an invalid user token signature, so surface it as
+                // BadUserSignatureInvalid (OPC UA Part 4 5.7.3.3) rather than
+                // leaking a channel-security status out of the user-token path.
                 throw ServiceResultException.Create(
-                    StatusCodes.BadIdentityTokenInvalid,
+                    StatusCodes.BadUserSignatureInvalid,
                     sre,
                     "User identity token signature uses an unexpected algorithm.");
             }

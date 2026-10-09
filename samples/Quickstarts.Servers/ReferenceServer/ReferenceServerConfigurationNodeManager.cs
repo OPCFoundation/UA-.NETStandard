@@ -30,6 +30,7 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 
@@ -60,6 +61,26 @@ namespace Quickstarts.ReferenceServer
             IServerInternal server,
             ApplicationConfiguration configuration)
             : base(server, configuration)
+        {
+        }
+
+        /// <summary>
+        /// Initializes the configuration node manager with the optional
+        /// ServerConfiguration surface (for example <c>InApplicationSetup</c>
+        /// while the server runs in provisioning mode).
+        /// </summary>
+        public ReferenceServerConfigurationNodeManager(
+            IServerInternal server,
+            ApplicationConfiguration configuration,
+            ServerConfigurationOptions? serverConfigurationOptions)
+            : base(
+                server,
+                configuration,
+                server.Telemetry.CreateLogger<ConfigurationNodeManager>(),
+                timeProvider: null,
+                coordinator: null,
+                pendingKeyStore: null,
+                serverConfigurationOptions: serverConfigurationOptions)
         {
         }
 

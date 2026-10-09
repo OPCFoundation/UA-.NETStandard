@@ -69,7 +69,7 @@ namespace Opc.Ua
                     {
                         builder.Append('.');
                     }
-#if NET5_0_OR_GREATER || NETSTANDARD2_1
+#if NET5_0_OR_GREATER
                     builder.Append(fields[ii].AsSpan(3));
 #else
                     builder.Append(fields[ii][3..]);
@@ -327,6 +327,21 @@ namespace Opc.Ua
                 return constraints.CertificateAuthority;
             }
             return false;
+        }
+
+        /// <summary>
+        /// Determines whether the certificate is an X.509 version 3
+        /// certificate, the only version OPC 10000-6 §6.2.2 permits.
+        /// </summary>
+        public static bool IsX509Version3(Certificate certificate)
+        {
+            if (certificate == null)
+            {
+                throw new ArgumentNullException(nameof(certificate));
+            }
+
+            using X509Certificate2 x509 = certificate.AsX509Certificate2();
+            return x509.Version == 3;
         }
 
         /// <summary>

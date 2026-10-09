@@ -8,12 +8,12 @@
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
     <GenerateDocumentationFile>true</GenerateDocumentationFile>
-    <Nullable>enable</Nullable>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core" />
+    <InternalsVisibleTo Include="Opc.Ua.PubSub.Udp" />
     <!-- Push configuration reuses the internal CSR overload that accepts a subject with the existing key. -->
     <InternalsVisibleTo Include="Opc.Ua.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
@@ -27,8 +27,9 @@
     <PackageReference Include="System.Formats.Asn1" />
     <PackageReference Include="System.Text.Json" />
   </ItemGroup>
-  <!-- Add additional crypto library version -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48'">
+  <!-- Add additional crypto library version: certificate creation and the
+       raw ECDH agreement polyfill for the ECC security policies. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <PackageReference Include="BouncyCastle.Cryptography" />
   </ItemGroup>
   <ItemGroup>

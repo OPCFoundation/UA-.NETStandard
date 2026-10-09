@@ -34,6 +34,29 @@ namespace Opc.Ua.OneFuzz.Validator.Tests
         }
 
         [Test]
+        public async Task DropReachedThroughALinkedDirectoryIsValidatedAsync()
+        {
+            // The host reports dependency paths with links resolved (macOS reports
+            // /private/var for /var, where every temporary drop lives), so a drop
+            // addressed through a link must still recognise its own files.
+            using var drop = new ContractDrop(m_fixture);
+            drop.Save();
+            string link = Path.Combine(drop.Home, "linked drop");
+            await CreateDirectoryLinkAsync(drop, link, drop.Root).ConfigureAwait(false);
+            try
+            {
+                ProcessResult result = await RunAsync(
+                    drop, "validate", "--drop", link, "--results", drop.Results).ConfigureAwait(false);
+
+                AssertCompleted(drop, result, hasConfig: true);
+            }
+            finally
+            {
+                Directory.Delete(link);
+            }
+        }
+
+        [Test]
         public async Task MissingExactSeedCannotBeReplacedByANeighbouringFileOrAnotherBucketAsync()
         {
             using var drop = new ContractDrop(m_fixture);
@@ -138,21 +161,7 @@ namespace Opc.Ua.OneFuzz.Validator.Tests
             string relative = nested ? ContractDrop.FirstBucket + "/linked seeds" : "linked corpus";
             string link = drop.PathFor(relative);
             string destination = drop.PathFor(ContractDrop.SecondBucket);
-            if (OperatingSystem.IsWindows())
-            {
-                // An NTFS directory junction does not require symlink privileges or
-                // Developer Mode. It still exercises the reparse-point contract.
-                ProcessResult creation = await ProcessRunner.RunAsync(
-                    Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe",
-                    ["/d", "/c", "mklink", "/J", link, destination],
-                    drop.Home,
-                    TimeSpan.FromSeconds(15)).ConfigureAwait(false);
-                AssertSuccess(creation);
-            }
-            else
-            {
-                Directory.CreateSymbolicLink(link, destination);
-            }
+            await CreateDirectoryLinkAsync(drop, link, destination).ConfigureAwait(false);
 
             try
             {
@@ -169,6 +178,28 @@ namespace Opc.Ua.OneFuzz.Validator.Tests
             finally
             {
                 Directory.Delete(link);
+            }
+        }
+
+        /// <summary>
+        /// Creates a directory link: an NTFS directory junction on Windows, which
+        /// does not require symlink privileges or Developer Mode and still
+        /// exercises the reparse-point contract, and a symbolic link elsewhere.
+        /// </summary>
+        private static async Task CreateDirectoryLinkAsync(ContractDrop drop, string link, string destination)
+        {
+            if (OperatingSystem.IsWindows())
+            {
+                ProcessResult creation = await ProcessRunner.RunAsync(
+                    Environment.GetEnvironmentVariable("COMSPEC") ?? "cmd.exe",
+                    ["/d", "/c", "mklink", "/J", link, destination],
+                    drop.Home,
+                    TimeSpan.FromSeconds(15)).ConfigureAwait(false);
+                AssertSuccess(creation);
+            }
+            else
+            {
+                Directory.CreateSymbolicLink(link, destination);
             }
         }
     }

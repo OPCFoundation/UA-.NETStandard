@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Net;
@@ -429,6 +427,74 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
+        public async Task ReceiveChunkAsyncRentsOnlyWhatTheChunkNeeds()
+        {
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                byte[] payload = BuildValidChunk(TcpMessageType.Acknowledge, 16);
+                await serverSocket
+                    .SendAsync(new ArraySegment<byte>(payload), SocketFlags.None)
+                    .ConfigureAwait(false);
+
+                ArraySegment<byte> chunk = await client
+                    .ReceiveChunkAsync(CancellationToken.None)
+                    .ConfigureAwait(false);
+                try
+                {
+                    Assert.That(chunk, Has.Count.EqualTo(payload.Length));
+                    Assert.That(chunk.Array!, Has.Length.LessThan(kBufferSize));
+                }
+                finally
+                {
+                    m_bufferManager.ReturnBuffer(chunk.Array, nameof(ReceiveChunkAsyncRentsOnlyWhatTheChunkNeeds));
+                }
+            }
+        }
+
+        [Test]
+        public async Task ReceiveChunkAsyncDoesNotHoldReceiveBufferWhileIdle()
+        {
+            int budget = new FastBufferManager("sizing", kBufferSize, m_telemetry)
+                .GetExpectedBufferSize(kBufferSize);
+            using var factory = new DefaultBufferManagerFactory(new BufferManagerFactoryOptions
+            {
+                ImplementationKind = BufferManagerImplementationKind.Fast,
+                MaxOutstandingBytesPerProcess = budget
+            });
+            m_bufferManager = new BufferManager(factory.Create("idle", kBufferSize, m_telemetry));
+            (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
+                await CreateConnectedPairAsync().ConfigureAwait(false);
+            using var _l = new ListenerScope(listener);
+            using Socket _s = serverSocket;
+            using (client)
+            {
+                // The peer sends nothing: the pending receive must not consume the
+                // budget, so another renter is not blocked by an idle connection.
+                Task<ArraySegment<byte>> receive = client.ReceiveChunkAsync(CancellationToken.None).AsTask();
+                await Task.Delay(100).ConfigureAwait(false);
+                Task<byte[]> rent = Task.Run(() => m_bufferManager.TakeBuffer(kBufferSize, "other"));
+                Assert.That(
+                    await Task.WhenAny(rent, Task.Delay(TimeSpan.FromSeconds(5))).ConfigureAwait(false),
+                    Is.SameAs(rent));
+                m_bufferManager.ReturnBuffer(await rent.ConfigureAwait(false), "other");
+
+                byte[] payload = BuildValidChunk(TcpMessageType.Acknowledge, 16);
+                await serverSocket
+                    .SendAsync(new ArraySegment<byte>(payload), SocketFlags.None)
+                    .ConfigureAwait(false);
+                ArraySegment<byte> chunk = await receive.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                byte[] copy = new byte[chunk.Count];
+                Buffer.BlockCopy(chunk.Array!, chunk.Offset, copy, 0, chunk.Count);
+                m_bufferManager.ReturnBuffer(chunk.Array, "idle");
+                Assert.That(copy, Is.EqualTo(payload));
+            }
+        }
+
+        [Test]
         public async Task ReceiveChunkAsyncRejectsInvalidMessageType()
         {
             (TcpByteTransport client, Socket serverSocket, TcpListener listener) =
@@ -587,7 +653,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// <summary>
         /// Adapts <see cref="TcpListener.Stop"/> to <see cref="IDisposable"/>;
         /// <see cref="TcpListener"/> only became <see cref="IDisposable"/> in
-        /// .NET Standard 2.1, so test code that targets net472/net48 cannot
+        /// .NET Core 3.0, so test code that targets net48 cannot
         /// place the listener in a <c>using</c> directly.
         /// </summary>
         private readonly struct ListenerScope : IDisposable

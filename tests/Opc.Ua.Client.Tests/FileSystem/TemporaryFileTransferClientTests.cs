@@ -255,7 +255,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
                 var sessionMock = new Mock<ISession>(MockBehavior.Loose);
                 sessionMock.SetupGet(s => s.MessageContext).Returns(messageContext);
 
-                TempTransferHarness harness = null;
+                TempTransferHarness? harness = null;
                 sessionMock
                     .Setup(s => s.CallAsync(
                         It.IsAny<RequestHeader>(),
@@ -300,7 +300,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             public async Task WriteSomeBytesAsync(UaTemporaryWriteFile temp)
             {
                 byte[] payload = [1, 2, 3];
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
                 await temp.Stream
                     .WriteAsync(payload.AsMemory(), CancellationToken.None)
                     .ConfigureAwait(false);

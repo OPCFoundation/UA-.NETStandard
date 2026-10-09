@@ -6,8 +6,9 @@
 
 - [Centralised certificate cache via `ICertificateProvider`](#centralised-certificate-cache-via-icertificateprovider)
 - [Certificate Management](#certificate-management)
-  - [ECC security policies require .NET 8 or later](#ecc-security-policies-require-net-8-or-later)
+  - [ECC and AEAD security policies on .NET Framework use BouncyCastle](#ecc-and-aead-security-policies-on-net-framework-use-bouncycastle)
   - [Certificates with an empty distinguished name are always rejected](#certificates-with-an-empty-distinguished-name-are-always-rejected)
+  - [An incomplete certificate chain can no longer be accepted](#an-incomplete-certificate-chain-can-no-longer-be-accepted)
   - [Certificate and CertificateCollection wrapper types](#certificate-and-certificatecollection-wrapper-types)
   - [CertificateManager and segregated interfaces](#certificatemanager-and-segregated-interfaces)
   - [CertificateIdentifier is metadata-only](#certificateidentifier-is-metadata-only)
@@ -54,18 +55,25 @@ UserIdentity userIdentity = await UserIdentity.CreateAsync(
 
 ## Certificate Management
 
-### ECC security policies require .NET 8 or later
+### ECC and AEAD security policies on .NET Framework use BouncyCastle
 
-The built-in ECC SecureChannel and user-token policies are unavailable in the
-.NET Framework 4.7.2/4.8 and .NET Standard 2.1 builds. OPC UA Part 6 requires
-raw ECDH shared-secret agreement before HKDF; the older `DeriveKeyMaterial`
-API applies an additional hash and cannot interoperate with compliant peers.
-`SecurityPolicies.GetInfo` returns `null` for these policies on downlevel builds.
+OPC UA Part 6 requires the raw ECDH shared secret before HKDF, which the
+.NET Framework BCL cannot produce (`DeriveKeyMaterial` always hashes it). The
+.NET Framework 4.8 build computes that agreement with the managed
+`BouncyCastle.Cryptography` package, already a dependency of
+`Opc.Ua.Security.Certificates` on that target. The authenticated ciphers the
+`_AesGcm` and `_ChaChaPoly` policies need (`AesGcm`, `ChaCha20Poly1305`) are
+not in the .NET Framework BCL either, so that build runs AES-GCM and
+ChaCha20-Poly1305 in BouncyCastle too. All ECC SecureChannel and user-token
+policies (`ECC_nistP256`, `ECC_nistP384`, `ECC_brainpoolP256r1`,
+`ECC_brainpoolP384r1` and their `_AesGcm` / `_ChaChaPoly` variants) and
+`RSA_DH_AesGcm` / `RSA_DH_ChaChaPoly` are available there.
 
-**Migration:** target .NET 8 or later and use its matching stack assets for ECC,
-or configure a supported RSA security policy on both peers. Loading downlevel
-stack assets on a newer runtime does not restore raw-secret support.
-ECC certificate parsing and signing alone do not imply ECC policy support.
+**Migration:** nothing is required. Note that on .NET Framework the agreement
+and the authenticated ciphers do not run in a platform-validated cryptographic
+module, so `CryptoCompliancePolicy.FipsOnly` withholds the ECC and AEAD
+policies there; deployments with FIPS or certified-module requirements should
+use the .NET 8+ build or an RSA policy.
 See [ECC platform requirements](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/EccProfiles.md#known-limitations).
 
 ### Certificates with an empty distinguished name are always rejected
@@ -87,6 +95,20 @@ if (DistinguishedNameUtils.HasEmptyDistinguishedName(certificate))
     // Bad_CertificateInvalid - re-issue with a real subject and issuer.
 }
 ```
+
+### An incomplete certificate chain can no longer be accepted
+
+`Bad_CertificateChainIncomplete` is now **non-suppressible**. OPC 10000-4 §6.1.3 (Table 100, Build Certificate Chain) states that "an error during the chain creation may not be suppressed": a certificate is only trusted when every certificate of its chain can be found.
+
+On 1.5.378 the validator classified this error as suppressible, so a `CertificateValidation` event handler that set `e.Accept = true`, or an `AcceptError` callback that returned `true`, could approve a CA-signed certificate whose CA was neither installed nor sent by the peer. That approval is now ignored: the callback is not invoked for this error and validation fails. `AutoAcceptUntrustedCertificates` is unaffected; it never accepted this error.
+
+The same rule applies to PushManagement `UpdateCertificate` for the default application group: the `issuerCertificates` argument is ignored (OPC 10000-12 §7.10.5), so the issuing CA must already be in the group's TrustList, or the call fails with `Bad_CertificateChainIncomplete`.
+
+**Migration steps:**
+
+- Install the issuing CA certificates (and their CRLs) in the trusted or issuer certificate store, or make sure the peer sends its full chain.
+- Remove `BadCertificateChainIncomplete` from any list of approved codes in validation callbacks; it no longer has an effect.
+- Before calling `UpdateCertificate` with a CA-signed certificate, add the CA to the server's TrustList (for example with `UpdateTrustList` or `AddCertificate`).
 
 ### Certificate and CertificateCollection wrapper types
 

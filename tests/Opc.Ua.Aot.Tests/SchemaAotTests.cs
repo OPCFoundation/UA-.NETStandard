@@ -27,15 +27,15 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Text.Json.Nodes;
 using System.Xml;
 using System.Xml.Linq;
 using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Bindings;
 using Opc.Ua.Schema;
 using Opc.Ua.Schema.Bsd;
 using Opc.Ua.Schema.Json;
+using Opc.Ua.Schema.OpenApi;
 using Opc.Ua.Schema.Xsd;
 
 namespace Opc.Ua.Aot.Tests
@@ -52,6 +52,18 @@ namespace Opc.Ua.Aot.Tests
             ISchemaProvider provider = services.GetRequiredService<ISchemaProvider>();
 
             await AssertAllFormatsAsync(provider, outer);
+        }
+
+        [Test]
+        public async Task WebApiOpenApiDocumentIsAotSafeAsync()
+        {
+            var generator = new WebApiOpenApiGenerator();
+
+            JsonObject document = generator.Generate(WebApiServiceSet.AllServices, includeSchemas: true);
+
+            await Assert.That(document["paths"]!.AsObject().Count).IsEqualTo(WebApiServiceRoutes.Count);
+            await Assert.That(document["components"]!["schemas"]!.AsObject().ContainsKey("ReadRequest")).IsTrue();
+            await Assert.That(document.ToJsonString()).Contains("DataValue");
         }
 
         [Test]

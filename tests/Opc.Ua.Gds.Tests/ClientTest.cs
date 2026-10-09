@@ -69,7 +69,7 @@ namespace Opc.Ua.Gds.Tests
             public string SecurityProfileUri { get; set; }
             public MessageSecurityMode MessageSecurityMode { get; set; }
 
-            public string ToString(string format, IFormatProvider formatProvider)
+            public string ToString(string? format, IFormatProvider? formatProvider)
             {
                 return $"{SecurityProfileUri.Split('#').Last()}:{MessageSecurityMode}";
             }
@@ -127,14 +127,14 @@ namespace Opc.Ua.Gds.Tests
             m_supportedCertificateTypes =
             [
                 .. m_server
-                    .Config.ParseExtension<GlobalDiscoveryServerConfiguration>()
+                    .Config.ParseExtension<GlobalDiscoveryServerConfiguration>()!
                     .CertificateGroups
                     .ToList()
                     .Where(cg => cg.Id == "Default")
                     .SelectMany(cg => cg.CertificateTypes.ToList())
                     .Select(Ua.ObjectTypeIds.GetIdentifier)
                     .Where(n => !n.IsNull && Utils.IsSupportedCertificateType(n))
-#if NETFRAMEWORK || SKIP_ECC_CERTIFICATE_REQUEST_SIGNING
+#if NETFRAMEWORK
                     // Only rsa gds issuance supported in net framework
                     .Where(n =>
                         n == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType ||
@@ -151,9 +151,9 @@ namespace Opc.Ua.Gds.Tests
         {
             await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
             m_gdsClient.Dispose();
-            m_gdsClient = null;
+            m_gdsClient = null!;
             await m_server.DisposeAsync().ConfigureAwait(false);
-            m_server = null;
+            m_server = null!;
             Thread.Sleep(1000);
         }
 
@@ -707,7 +707,7 @@ namespace Opc.Ua.Gds.Tests
                     Assert.That(atLeastOneServer.Count, Is.Zero);
                 }
 
-                string searchName = application.ApplicationRecord.ApplicationNames[0].Text.Trim();
+                string searchName = application.ApplicationRecord.ApplicationNames[0].Text!.Trim();
                 if (searchName.Length > searchPatternLength)
                 {
                     searchName = $"{searchName[..searchPatternLength]}%";
@@ -746,8 +746,8 @@ namespace Opc.Ua.Gds.Tests
                     Assert.That(atLeastOneServer.Count, Is.Zero);
                 }
 
-                string searchName = application.ApplicationRecord.ApplicationUri;
-                if (searchName.Length > searchPatternLength)
+                string searchName = application.ApplicationRecord.ApplicationUri!;
+                if (searchName!.Length > searchPatternLength)
                 {
                     searchName = $"{searchName[..searchPatternLength]}%";
                 }
@@ -785,8 +785,8 @@ namespace Opc.Ua.Gds.Tests
                     Assert.That(atLeastOneServer.Count, Is.Zero);
                 }
 
-                string searchName = application.ApplicationRecord.ProductUri;
-                if (searchName.Length > searchPatternLength)
+                string searchName = application.ApplicationRecord.ProductUri!;
+                if (searchName!.Length > searchPatternLength)
                 {
                     searchName = $"{searchName[..searchPatternLength]}%";
                 }
@@ -933,11 +933,11 @@ namespace Opc.Ua.Gds.Tests
                                 Assert.That(issuerCertificates.IsNull, Is.False);
                                 application.Certificate = certificate.ToArray();
                                 application.PrivateKey = privateKey.ToArray();
-                                application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray();
+                                application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!;
                                 X509TestUtils.VerifySignedApplicationCert(
                                     application,
                                     application.Certificate,
-                                    application.IssuerCertificates);
+                                    application.IssuerCertificates!);
                                 await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                     application.Certificate,
                                     application.PrivateKey,
@@ -1051,11 +1051,11 @@ namespace Opc.Ua.Gds.Tests
                                 Assert.That(privateKey.IsNull, Is.True);
                                 Assert.That(issuerCertificates.IsNull, Is.False);
                                 application.Certificate = certificate.ToArray();
-                                application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray();
+                                application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!;
                                 X509TestUtils.VerifySignedApplicationCert(
                                     application,
                                     application.Certificate,
-                                    application.IssuerCertificates);
+                                    application.IssuerCertificates!);
                                 await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                     application.Certificate,
                                     application.PrivateKey,
@@ -1409,11 +1409,11 @@ namespace Opc.Ua.Gds.Tests
                             Assert.That(privateKey.IsEmpty, Is.True);
                             Assert.That(issuerCertificates.IsNull, Is.False);
                             application.Certificate = certificate.ToArray();
-                            application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray();
+                            application.IssuerCertificates = issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!;
                             X509TestUtils.VerifySignedApplicationCert(
                                 application,
                                 application.Certificate,
-                                application.IssuerCertificates);
+                                application.IssuerCertificates!);
                             await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                 application.Certificate,
                                 application.PrivateKey,
@@ -1535,13 +1535,13 @@ namespace Opc.Ua.Gds.Tests
                             X509TestUtils.VerifySignedApplicationCert(
                                 application,
                                 certificate.ToArray(),
-                                issuerCertificates.ConvertAll(c => c.ToArray()).ToArray());
+                                issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!);
                             await X509TestUtils.VerifyApplicationCertIntegrityAsync(
                                 certificate.ToArray(),
                                 privateKey.ToArray(),
                                 application.PrivateKeyPassword,
                                 application.PrivateKeyFormat,
-                                issuerCertificates.ConvertAll(c => c.ToArray()).ToArray(),
+                                issuerCertificates.ConvertAll(c => c.ToArray()).ToArray()!,
                                 telemetry).ConfigureAwait(false);
                         }
                         else
@@ -1571,6 +1571,83 @@ namespace Opc.Ua.Gds.Tests
                     logger.LogInformation("Waiting for certificate approval");
                 }
             } while (requestBusy);
+
+            await DisconnectGDSAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §6.5.3: FindApplications can be called by any Client,
+        /// so an anonymous ApplicationSelfAdmin session finds its own record
+        /// and gets an empty result for an unregistered ApplicationUri.
+        /// </summary>
+        [Test]
+        [Order(632)]
+        public async Task FindApplicationsAsSelfAdminAsync()
+        {
+            AssertIgnoreTestWithoutGdsRegisteredTestClient();
+            AssertIgnoreTestWithoutGoodRegistration();
+
+            ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
+
+            await ConnectGDSAsync(false, true).ConfigureAwait(false);
+
+            ArrayOf<ApplicationRecordDataType> result = await m_gdsClient.GDSClient.FindApplicationAsync(
+                application.ApplicationRecord.ApplicationUri).ConfigureAwait(false);
+            Assert.That(result.Count, Is.EqualTo(1));
+            Assert.That(
+                result[0].ApplicationId,
+                Is.EqualTo(application.ApplicationRecord.ApplicationId));
+
+            result = await m_gdsClient.GDSClient.FindApplicationAsync(
+                "urn:not:registered:" + Guid.NewGuid()).ConfigureAwait(false);
+            Assert.That(result.Count, Is.Zero);
+
+            ApplicationRecordDataType record = await m_gdsClient.GDSClient.GetApplicationAsync(
+                application.ApplicationRecord.ApplicationId).ConfigureAwait(false);
+            Assert.That(record.ApplicationUri, Is.EqualTo(application.ApplicationRecord.ApplicationUri));
+
+            await DisconnectGDSAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.9.3: StartSigningRequest rejects an RSA CSR for
+        /// an ECC certificate type with Bad_InvalidArgument instead of
+        /// returning a RequestId that FinishRequest later fails.
+        /// </summary>
+        [Test]
+        [Order(632)]
+        public async Task StartSigningRequestWithMismatchedKeyTypeAsSelfAdminAsync()
+        {
+            AssertIgnoreTestWithoutGdsRegisteredTestClient();
+            AssertIgnoreTestWithoutGoodRegistration();
+            if (!m_supportedCertificateTypes.Contains(Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType))
+            {
+                Assert.Ignore("The GDS does not support EccNistP256ApplicationCertificateType.");
+            }
+
+            ApplicationTestData application = m_gdsClient.OwnApplicationTestData;
+
+            using var rsa = System.Security.Cryptography.RSA.Create(2048);
+            var request = new System.Security.Cryptography.X509Certificates.CertificateRequest(
+                "CN=" + application.ApplicationRecord.ApplicationNames[0].Text,
+                rsa,
+                System.Security.Cryptography.HashAlgorithmName.SHA256,
+                System.Security.Cryptography.RSASignaturePadding.Pkcs1);
+            var altNames = new System.Security.Cryptography.X509Certificates.SubjectAlternativeNameBuilder();
+            altNames.AddUri(new Uri(application.ApplicationRecord.ApplicationUri!));
+            altNames.AddDnsName("localhost");
+            request.CertificateExtensions.Add(altNames.Build());
+            byte[] certificateRequest = request.CreateSigningRequest();
+
+            await ConnectGDSAsync(false, true).ConfigureAwait(false);
+
+            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(() =>
+                m_gdsClient.GDSClient.StartSigningRequestAsync(
+                    application.ApplicationRecord.ApplicationId,
+                    default,
+                    Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType,
+                    certificateRequest.ToByteString()).AsTask());
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument), sre.Result.ToString());
 
             await DisconnectGDSAsync().ConfigureAwait(false);
         }

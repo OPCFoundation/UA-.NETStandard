@@ -32,6 +32,7 @@ using System;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.PubSub.Diagnostics;
 using Opc.Ua.PubSub.Encoding;
 using Opc.Ua.PubSub.Encoding.Uadp;
 
@@ -302,6 +303,183 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
             Assert.That(decoded.DataSetMessages[0].MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
             Assert.That(decoded.DataSetMessages[1].DataSetWriterId, Is.EqualTo((ushort)2));
             Assert.That(decoded.DataSetMessages[1].MessageType, Is.EqualTo(PubSubDataSetMessageType.KeepAlive));
+        }
+
+        [TestCase((byte)0x0C)]
+        [TestCase((byte)0x10)]
+        [TestCase((byte)0x14)]
+        [TestCase((byte)0x1C)]
+        [TestCase((byte)0x40)]
+        [TestCase((byte)0x80)]
+        public void ReservedExtendedFlags2ValuesAreRejected(byte ext2)
+        {
+            // Probe-shaped body after the header so that a lenient decoder
+            // would accept the frame.
+            byte[] frame = [0x91, 0x80, ext2, 0x00, 0x01, 0x00, 0x00, 0x00, 0x00, 0x81, 0x03];
+            Assert.That(UadpDecoder.Decode(frame, UadpTestUtilities.NewContext()), Is.Null);
+            Assert.That(UadpDecoder.TryReadOuterPrefix(frame, out _, out _, out _, out _), Is.False);
+        }
+
+        [Test]
+        public void PayloadHeaderWithZeroCountReturnsNull()
+        {
+            // UADPFlags 0x41 (PayloadHeader), Count 0, then a keep-alive
+            // DataSetMessage that must not be decoded.
+            byte[] frame = [0x41, 0x00, 0x81, 0x03];
+            Assert.That(UadpDecoder.Decode(frame, UadpTestUtilities.NewContext()), Is.Null);
+            Assert.That(UadpDecoder.TryReadOuterPrefix(frame, out _, out _, out _, out _), Is.False);
+        }
+
+        [Test]
+        public void AbsentPublisherIdDecodesAsNullInBothPaths()
+        {
+            byte[] frame = [0x01, 0x81, 0x03];
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext());
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(
+                UadpDecoder.TryReadOuterPrefix(frame, out _, out _, out PublisherId prefixPublisherId, out _),
+                Is.True);
+            Assert.That(decoded!.PublisherId.IsNull, Is.True);
+            Assert.That(decoded.PublisherId, Is.EqualTo(prefixPublisherId));
+            Assert.That(
+                ((UadpNetworkMessage)decoded).ContentMask.HasFlag(UadpNetworkMessageContentMask.PublisherId),
+                Is.False);
+        }
+
+        [Test]
+        public void InvalidDataSetMessageIsSkippedWhenSizeIsKnown()
+        {
+            byte[] frame =
+            [
+                0x41,
+                0x02,
+                0x01, 0x00,
+                0x02, 0x00,
+                0x02, 0x00,
+                0x02, 0x00,
+                0x80, 0x03, // DataSetFlags1 bit 0 (valid) clear
+                0x81, 0x03
+            ];
+
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.DataSetMessages, Has.Count.EqualTo(1));
+            Assert.That(decoded.DataSetMessages[0].DataSetWriterId, Is.EqualTo((ushort)2));
+        }
+
+        [Test]
+        public void InvalidSingleDataSetMessageIsNotDecoded()
+        {
+            // No PayloadHeader, one DataSetMessage whose valid bit is clear,
+            // followed by bytes that are not a valid field payload.
+            byte[] frame = [0x01, 0x80, 0x00, 0xFF, 0xFF];
+
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext());
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(decoded!.DataSetMessages, Is.Empty);
+        }
+
+        [Test]
+        public void DiscoveryRequestRejectsWriterIdCountBeyondRemainingBytes()
+        {
+            // UADPFlags 0x91, ExtFlags1 0x80, ExtFlags2 0x04 (probe),
+            // PublisherId 0x00, DiscoveryType 1, count 0x7FFFFFC0 with no ids.
+            byte[] frame = [0x91, 0x80, 0x04, 0x00, 0x01, 0xC0, 0xFF, 0xFF, 0x7F];
+            PubSubNetworkMessage? decoded = null;
+            Assert.DoesNotThrow(() => decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext()));
+            Assert.That(decoded, Is.Null);
+        }
+
+        [Test]
+        public void DiscoveryResponseRejectsEndpointCountBeyondRemainingBytes()
+        {
+            // ExtFlags2 0x08 (announcement), type PublisherEndpoints,
+            // sequence 0, endpoint count 0x7FFFFFFF with no endpoints.
+            byte[] frame = [0x91, 0x80, 0x08, 0x00, 0x01, 0x00, 0x00, 0xFF, 0xFF, 0xFF, 0x7F];
+            PubSubNetworkMessage? decoded = null;
+            Assert.DoesNotThrow(() => decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext()));
+            Assert.That(decoded, Is.Null);
+        }
+
+        [Test]
+        public void DiscoveryResponseRejectsWriterIdCountBeyondRemainingBytes()
+        {
+            // Type DataSetWriterConfiguration, count 3 but only one id present.
+            byte[] frame = [0x91, 0x80, 0x08, 0x00, 0x03, 0x00, 0x00, 0x03, 0x00, 0x00, 0x00, 0x01, 0x00];
+            PubSubNetworkMessage? decoded = null;
+            Assert.DoesNotThrow(() => decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext()));
+            Assert.That(decoded, Is.Null);
+        }
+
+        [Test]
+        public void DiscoveryRequestRejectsWriterIdCountAboveMaxArrayLength()
+        {
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            ((ServiceMessageContext)context.MessageContext).MaxArrayLength = 1;
+            // Two writer ids present, but MaxArrayLength is 1.
+            byte[] frame = [0x91, 0x80, 0x04, 0x00, 0x01, 0x02, 0x00, 0x00, 0x00, 0x01, 0x00, 0x02, 0x00];
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, context);
+            Assert.That(decoded, Is.Null);
+        }
+
+        [Test]
+        public void DiscoveryProbeWithTruncatedTransportProfileArrayReturnsNull()
+        {
+            // Probe type 6, 0 writer ids, three null strings, filter bytes,
+            // TransportProfileUris count 5 with no entries.
+            byte[] frame =
+            [
+                0x91, 0x80, 0x04, 0x00, 0x06,
+                0x00, 0x00, 0x00, 0x00,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0x00, 0x00, 0x00,
+                0x05, 0x00, 0x00, 0x00
+            ];
+            PubSubNetworkMessageContext context = UadpTestUtilities.NewContext();
+            PubSubNetworkMessage? decoded = null;
+            Assert.DoesNotThrow(() => decoded = UadpDecoder.Decode(frame, context));
+            Assert.That(decoded, Is.Null);
+            Assert.That(
+                context.Diagnostics.Read(PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages),
+                Is.EqualTo(1));
+        }
+
+        [Test]
+        public void DiscoveryProbeAcceptsNullArrays()
+        {
+            // Part 14 Table 180 / Part 6 §5.2.5: arrays are Int32-counted and
+            // -1 is a null array. Probe type 6 with null writer ids, three
+            // null strings, filter bytes and null TransportProfileUris.
+            byte[] frame =
+            [
+                0x91, 0x80, 0x04, 0x00, 0x06,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0xFF, 0xFF, 0xFF, 0xFF,
+                0x00, 0x00, 0x00,
+                0xFF, 0xFF, 0xFF, 0xFF
+            ];
+            PubSubNetworkMessage? decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext());
+            Assert.That(decoded, Is.InstanceOf<UadpDiscoveryRequestMessage>());
+            var request = (UadpDiscoveryRequestMessage)decoded!;
+            Assert.That(request.DataSetWriterIds.Count, Is.Zero);
+            Assert.That(request.ProbeFilter, Is.Not.Null);
+            Assert.That(request.ProbeFilter!.TransportProfileUris.Count, Is.Zero);
+        }
+
+        [Test]
+        public void DiscoveryRequestRejectsNegativeArrayLengthOtherThanNull()
+        {
+            // Writer id count -2 is neither null nor a valid length.
+            byte[] frame = [0x91, 0x80, 0x04, 0x00, 0x01, 0xFE, 0xFF, 0xFF, 0xFF];
+            PubSubNetworkMessage? decoded = null;
+            Assert.DoesNotThrow(() => decoded = UadpDecoder.Decode(frame, UadpTestUtilities.NewContext()));
+            Assert.That(decoded, Is.Null);
         }
     }
 }

@@ -308,12 +308,13 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // count the values.
+            // count the values. Part 13 §4.2.1.2: with TreatUncertainAsBad = false an
+            // Uncertain value is equivalent to Good, so it is counted (IsGood applies the setting).
             int count = 0;
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (StatusCode.IsGood(values[ii].StatusCode))
+                if (IsGood(values[ii]))
                 {
                     count++;
                 }
@@ -447,9 +448,12 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // The first non-Bad value is a transition when no previous non-Bad value exists.
-            // Part 13 §4.2.1.2: with TreatUncertainAsBad an Uncertain value is equivalent to Bad,
-            // so it is neither counted nor used as the previous value (IsGood applies the setting).
+            // Part 13 §5.4.3.24: the earliest non-Bad value in the interval is compared to the
+            // previous non-Bad value, which is a transition when no previous non-Bad value exists;
+            // Bad values are not included. The definition speaks of non-Bad values, so an Uncertain
+            // value counts whatever TreatUncertainAsBad is (Table 72 "Bound Uncertain: Use as value";
+            // the aggregate definition wins over TreatUncertainAsBad, Mantis 11425 ~0025847,
+            // 11426 ~0025852). The EarlyBound is the last non-Bad value before the interval.
             LinkedListNode<DataValue>? previousValue = slice.EarlyBound;
             bool hasLastValue = previousValue != null;
             Variant lastValue = previousValue != null
@@ -461,7 +465,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (!IsGood(values[ii]))
+                if (!IsBoundCandidate(values[ii]))
                 {
                     continue;
                 }
@@ -482,8 +486,13 @@ namespace Opc.Ua.Server
                 StatusCodes.Good,
                 GetTimestamp(slice),
                 GetTimestamp(slice));
-            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
             value = value.WithStatus(GetValueBasedStatusCode(slice, values, value.StatusCode));
+
+            // like Count, a Bad result carries no value and no aggregate bits.
+            if (!StatusCode.IsBad(value.StatusCode))
+            {
+                value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
+            }
 
             // return result.
             return value;

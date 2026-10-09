@@ -69,7 +69,7 @@ namespace Opc.Ua.Server.Tests
         private ReferenceServer m_server;
         private RequestHeader m_requestHeader;
         private SecureChannelContext m_secureChannelContext;
-        private OperationLimits m_operationLimits;
+        private OperationLimits m_operationLimits = null!;
         private ArrayOf<ReferenceDescription> m_referenceDescriptions;
         private RandomSource m_random;
         private DataGenerator m_generator;
@@ -92,7 +92,7 @@ namespace Opc.Ua.Server.Tests
                 AutoAccept = true
             };
             await m_fixture.LoadConfigurationAsync().ConfigureAwait(false);
-            m_fixture.Config.ServerConfiguration.UserTokenPolicies =
+            m_fixture.Config.ServerConfiguration!.UserTokenPolicies =
             [
                 new UserTokenPolicy(UserTokenType.Anonymous),
                 new UserTokenPolicy(UserTokenType.UserName)
@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.Tests
             {
                 m_requestHeader.Timestamp = DateTimeUtc.Now;
                 await m_server.CloseSessionAsync(m_secureChannelContext, m_requestHeader, CancellationToken.None).ConfigureAwait(false);
-                m_requestHeader = null;
+                m_requestHeader = null!;
             }
         }
 
@@ -150,7 +150,7 @@ namespace Opc.Ua.Server.Tests
             {
                 AllNodeManagers = true
             };
-            m_server = await m_fixture.StartAsync(null).ConfigureAwait(false);
+            m_server = await m_fixture.StartAsync(null!).ConfigureAwait(false);
             (m_requestHeader, m_secureChannelContext) = await m_server.CreateAndActivateSessionAsync("Bench").ConfigureAwait(false);
         }
 
@@ -680,9 +680,9 @@ namespace Opc.Ua.Server.Tests
                 Is.True);
             Assert.That(enumValues, Has.Count.EqualTo(3));
             Assert.That(
-                enumValues[0].TryGetValue(out EnumValueType firstEnumValue),
+                enumValues[0].TryGetValue(out EnumValueType? firstEnumValue),
                 Is.True);
-            Assert.That(firstEnumValue.Value, Is.Zero);
+            Assert.That(firstEnumValue!.Value, Is.Zero);
             Assert.That(firstEnumValue.DisplayName.Text, Is.EqualTo("open"));
 
             Assert.That(
@@ -718,16 +718,22 @@ namespace Opc.Ua.Server.Tests
                 nodesToRead,
                 RequestLifetime.None).ConfigureAwait(false);
 
+            // the reference server grants StatusWrite and TimestampWrite on every
+            // writable variable (OPC 10000-3 8.57).
+            const byte expectedAccessLevel = (byte)(
+                AccessLevels.CurrentReadOrWrite |
+                AccessLevels.StatusWrite |
+                AccessLevels.TimestampWrite);
             Assert.That(response.Results, Has.Count.EqualTo(nodesToRead.Count));
             Assert.That(response.Results[0].WrappedValue.GetByte(),
-                Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+                Is.EqualTo(expectedAccessLevel));
             Assert.That(response.Results[1].WrappedValue.GetByte(),
-                Is.EqualTo(AccessLevels.CurrentReadOrWrite));
+                Is.EqualTo(expectedAccessLevel));
 
             uint accessLevelEx = response.Results[2].WrappedValue.GetUInt32();
             Assert.That(
                 accessLevelEx & 0xff,
-                Is.EqualTo((uint)AccessLevels.CurrentReadOrWrite));
+                Is.EqualTo((uint)expectedAccessLevel));
             Assert.That(
                 accessLevelEx & (uint)AccessLevelExType.NonatomicRead,
                 Is.EqualTo((uint)AccessLevelExType.NonatomicRead));
@@ -788,8 +794,8 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(response.Results[ii].StatusCode, Is.EqualTo(StatusCodes.Good), arrayItems[ii]);
                 Assert.That(response.Results[ii].WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
-                Assert.That(extension.TryGetValue(out EUInformation units), Is.True, arrayItems[ii]);
-                Assert.That(units.NamespaceUri, Is.EqualTo("http://www.opcfoundation.org/UA/units/un/cefact"));
+                Assert.That(extension.TryGetValue(out EUInformation? units), Is.True, arrayItems[ii]);
+                Assert.That(units!.NamespaceUri, Is.EqualTo("http://www.opcfoundation.org/UA/units/un/cefact"));
                 Assert.That(units.UnitId, Is.EqualTo(12890), arrayItems[ii]);
                 Assert.That(units.DisplayName.Text, Is.EqualTo("mV"));
                 Assert.That(units.Description.Text, Is.EqualTo("millivolt"));
@@ -797,14 +803,14 @@ namespace Opc.Ua.Server.Tests
 
             DataValue axis = response.Results[arrayItems.Length];
             Assert.That(axis.WrappedValue.TryGetValue(out ExtensionObject axisExtension), Is.True);
-            Assert.That(axisExtension.TryGetValue(out AxisInformation axisInformation), Is.True);
-            Assert.That(axisInformation.EngineeringUnits.UnitId, Is.EqualTo(5457219));
+            Assert.That(axisExtension.TryGetValue(out AxisInformation? axisInformation), Is.True);
+            Assert.That(axisInformation!.EngineeringUnits.UnitId, Is.EqualTo(5457219));
             Assert.That(axisInformation.EngineeringUnits.DisplayName.Text, Is.EqualTo("s"));
 
             DataValue range = response.Results[arrayItems.Length + 1];
             Assert.That(range.WrappedValue.TryGetValue(out ExtensionObject rangeExtension), Is.True);
-            Assert.That(rangeExtension.TryGetValue(out Range euRange), Is.True);
-            Assert.That(euRange.High, Is.GreaterThan(euRange.Low));
+            Assert.That(rangeExtension.TryGetValue(out Range? euRange), Is.True);
+            Assert.That(euRange!.High, Is.GreaterThan(euRange.Low));
         }
 
         /// <summary>
@@ -1019,9 +1025,9 @@ namespace Opc.Ua.Server.Tests
                 RequestLifetime.None).ConfigureAwait(false);
 
             Assert.That(response.Results, Has.Count.EqualTo(1));
-            ReferenceDescription[] references = response.Results[0].References.ToArray();
+            ReferenceDescription[] references = response.Results[0].References.ToArray()!;
             Assert.That(
-                references.Count(r => r.ReferenceTypeId == ReferenceTypeIds.HasComponent),
+                references!.Count(r => r.ReferenceTypeId == ReferenceTypeIds.HasComponent),
                 Is.GreaterThanOrEqualTo(3));
             Assert.That(
                 references.Count(r => r.ReferenceTypeId == ReferenceTypeIds.HasAddIn),
@@ -1065,8 +1071,49 @@ namespace Opc.Ua.Server.Tests
             Assert.That(response.Results, Has.Count.EqualTo(1));
             Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             ArrayOf<ReferenceDescription> references = response.Results[0].References;
-            Assert.That(references.ToArray().Count(r => r.NodeClass == nodeClass), Is.GreaterThanOrEqualTo(2));
-            Assert.That(references.ToArray().Count(r => r.NodeClass != nodeClass), Is.GreaterThanOrEqualTo(1));
+            Assert.That(references.ToArray()!.Count(r => r.NodeClass == nodeClass), Is.GreaterThanOrEqualTo(2));
+            Assert.That(references.ToArray()!.Count(r => r.NodeClass != nodeClass), Is.GreaterThanOrEqualTo(1));
+        }
+
+        /// <summary>
+        /// Views can only be the source of hierarchical References (Part 3 §5.4), and the
+        /// CTT (Base Info Core Structure 2 001.js) also rejects Views targeted by
+        /// non-hierarchical References.
+        /// </summary>
+        [Test]
+        [TestCase("Views_Operations")]
+        [TestCase("Views_Engineering")]
+        [TestCase("Views_Maintenance")]
+        public async Task SampleViewsHaveNoNonHierarchicalReferencesAsync(string identifier)
+        {
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                Quickstarts.ReferenceServer.Namespaces.ReferenceServer);
+            ArrayOf<BrowseDescription> nodesToBrowse =
+            [
+                new BrowseDescription
+                {
+                    NodeId = new NodeId(identifier, namespaceIndex),
+                    BrowseDirection = BrowseDirection.Both,
+                    ReferenceTypeId = ReferenceTypeIds.NonHierarchicalReferences,
+                    IncludeSubtypes = true,
+                    NodeClassMask = 0,
+                    ResultMask = (uint)BrowseResultMask.All
+                }
+            ];
+
+            var requestHeader = (RequestHeader)m_requestHeader.Clone();
+            requestHeader.Timestamp = DateTimeUtc.Now;
+            BrowseResponse response = await m_server.BrowseAsync(
+                m_secureChannelContext,
+                requestHeader,
+                null,
+                0,
+                nodesToBrowse,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.Results, Has.Count.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results[0].References.ToArray(), Is.Empty);
         }
 
         /// <summary>
@@ -1111,8 +1158,8 @@ namespace Opc.Ua.Server.Tests
             DataValue currencyUnit = readResponse.Results[1];
             Assert.That(currencyUnit.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(currencyUnit.WrappedValue.TryGetValue(out ExtensionObject currencyUnitObject), Is.True);
-            Assert.That(currencyUnitObject.TryGetValue(out CurrencyUnitType unit), Is.True);
-            Assert.That(unit.NumericCode, Is.EqualTo(978));
+            Assert.That(currencyUnitObject.TryGetValue(out CurrencyUnitType? unit), Is.True);
+            Assert.That(unit!.NumericCode, Is.EqualTo(978));
             Assert.That(unit.Exponent, Is.EqualTo(2));
             Assert.That(unit.AlphabeticCode, Is.EqualTo("EUR"));
 
@@ -1275,7 +1322,7 @@ namespace Opc.Ua.Server.Tests
                 serverTestServices,
                 m_referenceDescriptions,
                 m_requestHeader,
-                m_operationLimits).ConfigureAwait(false);
+                m_operationLimits!).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -1387,12 +1434,12 @@ namespace Opc.Ua.Server.Tests
             Assert.IsNotNull(publishResponse.NotificationMessage.NotificationData);
             Assert.IsTrue(publishResponse.NotificationMessage.NotificationData.Count > 0);
 
-            publishResponse.NotificationMessage.NotificationData[0].TryGetValue(out EventNotificationList eventNotification);
+            publishResponse.NotificationMessage.NotificationData[0].TryGetValue(out EventNotificationList? eventNotification);
             Assert.IsNotNull(eventNotification);
             Assert.IsTrue(eventNotification.Events.Count > 0);
 
             EventFieldList targetEvent = eventNotification.Events.ToList().FirstOrDefault(
-                x => x.EventFields[5].TryGetValue(out LocalizedText lt) && lt.Text == eventMessage);
+                x => x.EventFields[5].TryGetValue(out LocalizedText lt) && lt.Text == eventMessage)!;
             Assert.IsNotNull(targetEvent, "Did not receive the target event.");
 
             ArrayOf<Variant> eventFields = targetEvent.EventFields;
@@ -1461,8 +1508,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscriptionIds, Is.Unique);
             foreach (uint id in subscriptionIds)
             {
-                Assert.That(subscriptionManager.TryGetSubscription(id, out ISubscription subscription), Is.True);
-                Assert.That(subscription.Session, Is.Null);
+                Assert.That(subscriptionManager.TryGetSubscription(id, out ISubscription? subscription), Is.True);
+                Assert.That(subscription!.Session, Is.Null);
             }
             Assert.That(subscriptionManager.CaptureAbandonedPublishTimerSnapshot()
                 .Select(subscription => subscription.Id), Is.SupersetOf(subscriptionIds));
@@ -1884,7 +1931,7 @@ namespace Opc.Ua.Server.Tests
 
                     foreach (ExtensionObject item in publishResponse.NotificationMessage.NotificationData)
                     {
-                        if (item.TryGetValue(out DataChangeNotification dcn))
+                        if (item.TryGetValue(out DataChangeNotification? dcn))
                         {
                             totalNotifications += dcn.MonitoredItems.Count;
                         }
@@ -2143,7 +2190,7 @@ namespace Opc.Ua.Server.Tests
 
             foreach (ExtensionObject data in publishResponse.NotificationMessage.NotificationData)
             {
-                if (data.TryGetValue(out DataChangeNotification dcn))
+                if (data.TryGetValue(out DataChangeNotification? dcn))
                 {
                     foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                     {
@@ -2157,7 +2204,7 @@ namespace Opc.Ua.Server.Tests
                         }
                     }
                 }
-                else if (data.TryGetValue(out EventNotificationList enl))
+                else if (data.TryGetValue(out EventNotificationList? enl))
                 {
                     foreach (EventFieldList e in enl.Events)
                     {
@@ -2450,7 +2497,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.HistoryData.IsNull, Is.False, "HistoryData should not be null");
 
             // Verify we got HistoryData back
-            if (result.HistoryData.TryGetValue(out HistoryData historyData))
+            if (result.HistoryData.TryGetValue(out HistoryData? historyData))
             {
                 if (logger.IsEnabled(LogLevel.Information))
                 {
@@ -2588,6 +2635,16 @@ namespace Opc.Ua.Server.Tests
 
             // Verify provisioning mode is enabled
             Assert.That(server.ProvisioningMode, Is.True, "Server should be in provisioning mode");
+
+            // OPC 10000-12 Annex G.2: the application setup state is reported
+            // as ServerState NoConfiguration and through InApplicationSetup.
+            Assert.That(server.CurrentInstance.CurrentState, Is.EqualTo(ServerState.NoConfiguration));
+            Assert.That(server.CurrentInstance.IsRunning, Is.True, "NoConfiguration still serves requests");
+            var configurationManager = (ConfigurationNodeManager)server.CurrentInstance.ConfigurationNodeManager;
+            ServerConfigurationState configuration = configurationManager
+                .FindPredefinedNode<ServerConfigurationState>(ObjectIds.ServerConfiguration);
+            Assert.That(configuration.InApplicationSetup, Is.Not.Null);
+            Assert.That(configuration.InApplicationSetup.Value, Is.True);
 
             // Get endpoints - in provisioning mode, anonymous authentication should not be allowed
             ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
@@ -3122,9 +3179,9 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(response.Results[3].References.Count, Is.EqualTo(1));
             });
             ReferenceDescription component = response.Results[0].References[0];
-            ReferenceDescription orderedComponent = response.Results[1].References.ToArray()
+            ReferenceDescription orderedComponent = response.Results[1].References.ToArray()!
                 .Single(reference => reference.ReferenceTypeId == ReferenceTypeIds.HasOrderedComponent);
-            ReferenceDescription[] allReferences = response.Results[4].References.ToArray();
+            ReferenceDescription[] allReferences = response.Results[4].References.ToArray()!;
             Assert.Multiple(() =>
             {
                 Assert.That(component.ReferenceTypeId, Is.EqualTo(ReferenceTypeIds.HasComponent));
@@ -3137,7 +3194,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(response.Results[3].References[0].IsForward, Is.False);
                 Assert.That(response.Results[3].References[0].NodeId, Is.EqualTo(new ExpandedNodeId(nodeId)));
                 Assert.That(allReferences, Has.Length.EqualTo(4));
-                Assert.That(allReferences.Any(reference =>
+                Assert.That(allReferences!.Any(reference =>
                     reference.ReferenceTypeId == ReferenceTypeIds.HasTypeDefinition &&
                     reference.IsForward &&
                     reference.NodeId == VariableTypeIds.BaseDataVariableType), Is.True);
@@ -3145,10 +3202,10 @@ namespace Opc.Ua.Server.Tests
                     reference.ReferenceTypeId == ReferenceTypeIds.Organizes &&
                     !reference.IsForward &&
                     reference.NodeId == new NodeId("References", (ushort)namespaceIndex)), Is.True);
-                Assert.That(response.Results[5].References.ToArray().Any(reference =>
+                Assert.That(response.Results[5].References.ToArray()!.Any(reference =>
                     !reference.IsForward &&
                     reference.NodeId == new NodeId("Scalar", (ushort)namespaceIndex)), Is.True);
-                Assert.That(response.Results[6].References.ToArray().Any(reference =>
+                Assert.That(response.Results[6].References.ToArray()!.Any(reference =>
                     !reference.IsForward &&
                     reference.NodeId == new NodeId("Scalar_Static", (ushort)namespaceIndex)), Is.True);
             });
@@ -3450,7 +3507,7 @@ namespace Opc.Ua.Server.Tests
         {
             foreach (ExtensionObject extObj in message.NotificationData)
             {
-                if (extObj.TryGetValue(out DataChangeNotification dcn))
+                if (extObj.TryGetValue(out DataChangeNotification? dcn))
                 {
                     foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                     {
@@ -3476,7 +3533,7 @@ namespace Opc.Ua.Server.Tests
             var values = new List<DataValue>();
             foreach (ExtensionObject extObj in message.NotificationData)
             {
-                if (extObj.TryGetValue(out DataChangeNotification dcn))
+                if (extObj.TryGetValue(out DataChangeNotification? dcn))
                 {
                     foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                     {

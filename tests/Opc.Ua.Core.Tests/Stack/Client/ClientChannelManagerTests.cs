@@ -28,8 +28,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
@@ -513,7 +511,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Mock<ITransportChannelBindings> transportBindingsMock = CreateBindings(channelMock, telemetry);
             var policy = new Mock<IChannelReconnectPolicy>();
             policy.Setup(p => p.GetDelay(It.IsAny<int>())).Returns(TimeSpan.Zero);
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             policy.Setup(p => p.GetDelay(It.IsAny<int>(), It.IsAny<IRetryBudget>())).Returns(TimeSpan.Zero);
             policy.SetupGet(p => p.ParticipantTimeout).Returns(Timeout.InfiniteTimeSpan);
 #endif
@@ -786,5 +784,29 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         public interface IChannel : ITransportChannel, ISecureChannel;
+
+        /// <summary>
+        /// A Sign-only token of a policy that derives no encrypting key or IV still yields a
+        /// diagnostic key record (and so a Wireshark keyset entry) with its signing key length.
+        /// </summary>
+        [Test]
+        public void ChannelKeyIsReportedForSignOnlyTokenWithoutEncryptingKey()
+        {
+            ChannelKey? signOnly = ClientChannelManager.ToChannelKey([], [], new byte[32]);
+            Assert.That(signOnly, Is.Not.Null);
+            Assert.That(signOnly!.Iv, Is.Empty);
+            Assert.That(signOnly.Key, Is.Empty);
+            Assert.That(signOnly.SigLen, Is.EqualTo(32));
+
+            ChannelKey? full = ClientChannelManager.ToChannelKey([1, 2], [3, 4], new byte[16]);
+            Assert.That(full, Is.Not.Null);
+            Assert.That(full!.Iv, Is.EqualTo(new byte[] { 1, 2 }));
+            Assert.That(full.Key, Is.EqualTo(new byte[] { 3, 4 }));
+            Assert.That(full.SigLen, Is.EqualTo(16));
+
+            Assert.That(ClientChannelManager.ToChannelKey([1], [2], []), Is.Null);
+            Assert.That(ClientChannelManager.ToChannelKey([1], [], [3]), Is.Null);
+            Assert.That(ClientChannelManager.ToChannelKey(null, null, null), Is.Null);
+        }
     }
 }

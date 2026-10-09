@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Diagnostics.CodeAnalysis;
@@ -464,6 +462,36 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 {
                     Assert.That(admission.TryAcquire(null, out _), Is.True);
                 }
+            }
+            finally
+            {
+                admission.Stop();
+            }
+        }
+
+        [Test]
+        public void PendingHandshakeCeilingExcludesCompletedHandshakes()
+        {
+            var admission = new UaScConnectionAdmission(1, null, limitPendingHandshakesOnly: true);
+            try
+            {
+                Assert.That(admission.TryAcquire(null, out UaScConnectionAdmission.Lease? first), Is.True);
+                Assert.That(admission.TryAcquire(null, out _), Is.False);
+                first!.CompleteHandshake();
+                first.CompleteHandshake();
+                Assert.That(admission.TryAcquire(null, out UaScConnectionAdmission.Lease? second), Is.True);
+                Assert.That(admission.TryAcquire(null, out _), Is.False,
+                    "A repeated completion must not free a second slot.");
+                first.Close();
+                Assert.That(admission.TryAcquire(null, out _), Is.False,
+                    "Closing a completed connection frees no pending slot.");
+                second!.Close();
+                Assert.That(admission.TryAcquire(null, out UaScConnectionAdmission.Lease? third), Is.True);
+                Assert.That(admission.CreateIndependentScope().TryAcquire(null, out UaScConnectionAdmission.Lease? scoped),
+                    Is.True);
+                scoped!.CompleteHandshake();
+                scoped.Close();
+                third!.Close();
             }
             finally
             {

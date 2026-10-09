@@ -63,6 +63,80 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// Part 4 §5.12.2.2: a Call whose methodId is the Method declaration of the
+        /// ObjectType resolves to the Method of the Object, so the RolePermissions
+        /// of the Object's Method are verified and that Method is invoked.
+        /// </summary>
+        [Test]
+        public async Task FindMethodStateResolvesTypeDeclarationToObjectMethodAsync()
+        {
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+
+            try
+            {
+                const string ns = "http://test.org/UA/MethodResolution/";
+                StandardServer server = await fixture.StartAsync()
+                    .ConfigureAwait(false);
+
+                using var nodeManager = new TestableCustomNodeManger2(server.CurrentInstance, ns);
+                ushort index = (ushort)server.CurrentInstance.NamespaceUris.GetIndex(ns);
+                ServerSystemContext context = nodeManager.SystemContext;
+
+                var objectType = new BaseObjectTypeState
+                {
+                    NodeId = new NodeId("ResolveType", index),
+                    BrowseName = new QualifiedName("ResolveType", index),
+                    SuperTypeId = ObjectTypeIds.BaseObjectType
+                };
+                var declaration = new MethodState(objectType)
+                {
+                    NodeId = new NodeId("ResolveType.Reset", index),
+                    BrowseName = new QualifiedName("Reset", index)
+                };
+                objectType.AddChild(declaration);
+
+                var instance = new BaseObjectState(null)
+                {
+                    NodeId = new NodeId("ResolveInstance", index),
+                    BrowseName = new QualifiedName("ResolveInstance", index),
+                    TypeDefinitionId = objectType.NodeId
+                };
+                var instanceMethod = new MethodState(instance)
+                {
+                    NodeId = new NodeId("ResolveInstance.Reset", index),
+                    BrowseName = new QualifiedName("Reset", index)
+                };
+                instance.AddChild(instanceMethod);
+
+                nodeManager.AddPredefinedNode(context, objectType);
+                nodeManager.AddPredefinedNode(context, instance);
+                server.CurrentInstance.TypeTree.AddSubtype(
+                    objectType.NodeId,
+                    ObjectTypeIds.BaseObjectType);
+
+                var operationContext = new OperationContext(
+                    new RequestHeader(),
+                    null,
+                    RequestType.Call,
+                    RequestLifetime.None);
+
+                MethodState resolved = nodeManager.FindMethodState(
+                    operationContext,
+                    new CallMethodRequest
+                    {
+                        ObjectId = instance.NodeId,
+                        MethodId = declaration.NodeId
+                    });
+
+                Assert.That(resolved, Is.SameAs(instanceMethod));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
         /// Tests the Predefined Nodes methods with multiple threads
         /// </summary>
         [Test]
@@ -93,7 +167,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(nodeManager.PredefinedNodes.ContainsKey(nodeId), Is.True);
 
-                NodeState nodeState = nodeManager.Find(nodeId);
+                NodeState nodeState = nodeManager.Find(nodeId)!;
                 Assert.That(nodeState, Is.Not.Null);
 
                 var handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
@@ -103,7 +177,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(nodeManager.PredefinedNodes, Is.Empty);
 
-                nodeState = nodeManager.Find(nodeId);
+                nodeState = nodeManager.Find(nodeId)!;
                 Assert.That(nodeState, Is.Null);
 
                 handle = nodeManager.GetManagerHandle(nodeId) as NodeHandle;
@@ -187,12 +261,12 @@ namespace Opc.Ua.Server.Tests
             await Task.CompletedTask.ConfigureAwait(false);
         }
 
-        private static async Task<(bool IsSuccess, Exception Error)> RunTaskInParallelAsync(
+        private static async Task<(bool IsSuccess, Exception? Error)> RunTaskInParallelAsync(
             Func<Task> task,
             int iterations)
         {
             using var cancellationTokenSource = new CancellationTokenSource();
-            Exception error = null;
+            Exception? error = null;
             int tasksCompletedCount = 0;
             ParallelLoopResult result = Parallel.For(
                 0,
@@ -251,7 +325,7 @@ namespace Opc.Ua.Server.Tests
 
         public new NodeState LookupNodeInComponentCache(ISystemContext context, NodeHandle handle)
         {
-            return base.LookupNodeInComponentCache(context, handle);
+            return base.LookupNodeInComponentCache(context, handle)!;
         }
 
         public new NodeIdDictionary<NodeState> PredefinedNodes => base.PredefinedNodes;

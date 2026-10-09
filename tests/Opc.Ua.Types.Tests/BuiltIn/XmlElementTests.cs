@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Xml.Linq;
 using NUnit.Framework;
@@ -513,6 +511,52 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 "<root><child>value</child></root>");
             var xmlElement = (XmlElement)xElement;
             Assert.That(xmlElement, Is.EqualTo(xElement));
+        }
+
+        [Test]
+        public void EqualsAndGetHashCodeDoNotRecurseIntoDeeplyNestedElements()
+        {
+            // XNode.DeepEquals and XElement.Value recurse once per level; a
+            // value this deep exhausted the stack and killed the process.
+            string xml = CreateNestedXml(100_000);
+            var first = new XmlElement(xml);
+            var second = new XmlElement(new string(xml.ToCharArray()));
+            var other = new XmlElement("<b>" + CreateNestedXml(99_999) + "</b>");
+
+            bool equal = first.Equals(second);
+            bool equalToOther = first.Equals(other);
+            bool equalToXElement = first.Equals(new XElement("a"));
+
+            Assert.That(equal, Is.True);
+            Assert.That(first.GetHashCode(), Is.EqualTo(second.GetHashCode()));
+            Assert.That(equalToOther, Is.False);
+            Assert.That(equalToXElement, Is.False);
+        }
+
+        [Test]
+        public void EqualsComparesShallowElementsStructurally()
+        {
+            var first = new XmlElement("<a><b x=\"1\"/></a>");
+            var second = new XmlElement("<a>\n  <b x=\"1\" />\n</a>");
+
+            bool equal = first.Equals(second);
+
+            Assert.That(equal, Is.True);
+            Assert.That(first.GetHashCode(), Is.EqualTo(second.GetHashCode()));
+        }
+
+        private static string CreateNestedXml(int depth)
+        {
+            var builder = new System.Text.StringBuilder(depth * 7);
+            for (int ii = 0; ii < depth; ii++)
+            {
+                builder.Append("<a>");
+            }
+            for (int ii = 0; ii < depth; ii++)
+            {
+                builder.Append("</a>");
+            }
+            return builder.ToString();
         }
     }
 }

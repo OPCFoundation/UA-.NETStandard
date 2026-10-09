@@ -38,9 +38,7 @@
     (see targets.props).
 
  .PARAMETER Framework
-    The target framework the tests actually execute on. It differs from
-    CustomTestTarget for the standard profiles: netstandard2.0 hosts its tests on
-    net48 and netstandard2.1 hosts them on net8.0.
+    The target framework the tests actually execute on.
 
  .PARAMETER Configuration
     Debug or Release.
@@ -321,6 +319,10 @@ foreach ($project in $projectList) {
         total         = 0
         passed        = 0
         failed        = 0
+        # Wall-clock seconds, read by update-test-durations.ps1 to refresh
+        # the weights get-ci-matrix.ps1 packs batches with.
+        buildSeconds  = 0
+        testSeconds   = 0
     }
 
     try {
@@ -380,6 +382,7 @@ foreach ($project in $projectList) {
         $projectBudget = [System.Diagnostics.Stopwatch]::StartNew()
 
         $build = Invoke-Dotnet $buildArguments $projectBudget $PerProjectTimeoutMinutes $logPath
+        $record.buildSeconds = [int]$projectBudget.Elapsed.TotalSeconds
         if ($build.TimedOut) {
             throw ("The build exhausted the $PerProjectTimeoutMinutes-minute per-project ceiling, " +
                 'which the build and the test share.')
@@ -420,6 +423,7 @@ foreach ($project in $projectList) {
         }
 
         $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath
+        $record.testSeconds = [int]$projectBudget.Elapsed.TotalSeconds - $record.buildSeconds
 
         $results = Measure-TestResults $projectResults
         $record.total = $results.Total
@@ -476,11 +480,11 @@ $summaryPath = Join-Path $resultsRoot 'batch-summary.json'
 $lines = @(
     "### $CustomTestTarget / $Framework / $Configuration",
     '',
-    '| Project | Outcome | Passed | Total | Detail |',
-    '| --- | --- | ---: | ---: | --- |')
+    '| Project | Outcome | Passed | Total | Build (s) | Test (s) | Detail |',
+    '| --- | --- | ---: | ---: | ---: | ---: | --- |')
 foreach ($record in $records) {
     $detail = $record.reason -replace '\r?\n', ' '
-    $lines += "| $([System.IO.Path]::GetFileNameWithoutExtension($record.project)) | $($record.outcome) | $($record.passed) | $($record.total) | $detail |"
+    $lines += "| $([System.IO.Path]::GetFileNameWithoutExtension($record.project)) | $($record.outcome) | $($record.passed) | $($record.total) | $($record.buildSeconds) | $($record.testSeconds) | $detail |"
 }
 $lines += ''
 if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {

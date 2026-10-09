@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -39,10 +37,14 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Http.Features;
+#if NET6_0_OR_GREATER
+using Microsoft.Extensions.Hosting;
+#endif
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Bindings;
+using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
 
 namespace Opc.Ua.Core.Tests.Stack.Transport
@@ -190,8 +192,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(rejected.Context.Response.StatusCode, Is.EqualTo(503));
         }
 
+        /// <summary>
+        /// A handed-off reverse connection keeps its physical connection alive
+        /// but, as on the opc.tcp listeners, no longer holds one of the
+        /// MaxChannelCount slots, which bound only pending reverse connections.
+        /// </summary>
         [Test]
-        public async Task ReverseHandoffRetainsCapacityUntilAdoptedTransportClosesAsync()
+        public async Task ReverseHandoffKeepsConnectionButReleasesPendingCapacityAsync()
         {
             await using HttpsTransportListener listener = CreateListener(reverse: true);
             var adopted = new TaskCompletionSource<IUaSCByteTransport>(
@@ -202,6 +209,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 adopted.TrySetResult(((TcpConnectionWaitingEventArgs)args).Transport);
                 return Task.CompletedTask;
             };
+
+            // a reverse connection still waiting for its ReverseHello holds the slot.
+            using (var pending = new UpgradeRequest())
+            {
+                Task pendingHandler = listener.AcceptWebSocketAsync(pending.Context);
+                await pending.ReceiveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                using var rejected = new UpgradeRequest();
+                await listener.AcceptWebSocketAsync(rejected.Context).ConfigureAwait(false);
+                Assert.That(rejected.UpgradeCalls, Is.Zero);
+                Assert.That(rejected.Context.Response.StatusCode, Is.EqualTo(503));
+                pending.Context.Abort();
+                await pendingHandler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+
             using var request = new UpgradeRequest(CreateReverseHello());
             Task handler = listener.AcceptWebSocketAsync(request.Context);
             IUaSCByteTransport transport = await adopted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -209,10 +230,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 Assert.That(handler.IsCompleted, Is.False);
                 Assert.That(request.Context.RequestAborted.IsCancellationRequested, Is.False);
-                using var rejected = new UpgradeRequest();
-                await listener.AcceptWebSocketAsync(rejected.Context).ConfigureAwait(false);
-                Assert.That(rejected.UpgradeCalls, Is.Zero);
-                Assert.That(rejected.Context.Response.StatusCode, Is.EqualTo(503));
+                await AssertHealthyUpgradeAsync(listener).ConfigureAwait(false);
+                Assert.That(handler.IsCompleted, Is.False, "The adopted connection stays open.");
             }
             finally
             {
@@ -309,6 +328,45 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             body.VerifyNoOtherCalls();
         }
 
+#if NET6_0_OR_GREATER
+        /// <summary>
+        /// Rotating an application certificate that is not the TLS certificate
+        /// (e.g. ECC) leaves the shared host on the same TLS certificate; the
+        /// listener must still cut its WSS SecureChannels (Part 12 7.10.9).
+        /// </summary>
+        [Test]
+        public async Task SharedHostRotationWithUnchangedTlsCertificateClosesWssChannelsAsync()
+        {
+            using Certificate tlsCertificate = CertificateBuilder.Create("CN=WssRotationTls").CreateForRSA();
+            using Certificate rotatedCertificate = CertificateBuilder.Create("CN=WssRotationEcc").CreateForRSA();
+            await using HttpsTransportListener listener = CreateListener();
+            var registry = new Mock<ICertificateRegistry>();
+            registry.Setup(value => value.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Https))
+                .Returns(() => new CertificateEntry(
+                    tlsCertificate, new CertificateCollection(), ObjectTypeIds.RsaSha256ApplicationCertificateType));
+            SetField(listener, "m_serverCertProvider", registry.Object);
+            var key = new SharedHostKey($"wss-rotation-{Guid.NewGuid():N}", 4843);
+            typeof(HttpsTransportListener).GetProperty(nameof(HttpsTransportListener.EndpointUrl))!
+                .SetValue(listener, new Uri($"opc.wss://{key.Host}:{key.Port}/a"));
+            SharedHostLease hostLease = await SharedKestrelHostRegistry.Instance.AcquireAsync(
+                key, listener, "/a", _ => new HostBuilder().Build(), tlsCertificate.Thumbprint)
+                .ConfigureAwait(false);
+            SetField(listener, "m_sharedHostLease", hostLease);
+            SetField(listener, "m_pinnedServerCert", tlsCertificate.AddRef());
+
+            using var request = new UpgradeRequest();
+            Task handler = listener.AcceptWebSocketAsync(request.Context);
+            await request.ReceiveEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+            await listener.CloseChannelsForCertificateAsync(rotatedCertificate).ConfigureAwait(false);
+
+            await handler.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(SharedKestrelHostRegistry.Instance.ListenerCount(key), Is.EqualTo(1),
+                "The listener stays on the shared host.");
+            await AssertHealthyUpgradeAsync(listener).ConfigureAwait(false);
+        }
+#endif
+
         private static async Task AssertHealthyUpgradeAsync(HttpsTransportListener listener)
         {
             using var request = new UpgradeRequest();
@@ -335,7 +393,8 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var listener = new HttpsTransportListener(Utils.UriSchemeWss, telemetry);
-            SetField(listener, "m_admission", new UaScConnectionAdmission(1, limiter, provider, timeProvider: clock));
+            SetField(listener, "m_admission", new UaScConnectionAdmission(
+                1, limiter, provider, timeProvider: clock, limitPendingHandshakesOnly: reverse));
             SetField(listener, "m_quotas", new ChannelQuotas(ServiceMessageContext.Create(telemetry))
             {
                 ResourceIsolationProvider = provider

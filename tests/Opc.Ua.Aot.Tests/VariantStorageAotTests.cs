@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Buffers;
 
 namespace Opc.Ua.Aot.Tests
@@ -151,7 +149,10 @@ namespace Opc.Ua.Aot.Tests
                 await Assert.That(actual.Text).IsEqualTo(input.Text);
                 await Assert.That(ReferenceEquals(actual.Translations, input.Translations)).IsTrue();
                 await Assert.That(actual.TranslationInfo.Equals(input.TranslationInfo)).IsTrue();
-                await Assert.That(value.CompareTo(value)).IsEqualTo(int.MinValue);
+                // LocalizedText has no order, except that an absent value
+                // (equal to Variant.Null) compares as 0 like Variant.Null.
+                int expectedOrder = value.Equals(Variant.Null) ? 0 : int.MinValue;
+                await Assert.That(value.CompareTo(value)).IsEqualTo(expectedOrder);
                 await Assert.That(value.GetHashCode()).IsEqualTo(input.GetHashCode());
                 await CheckAsync(input, value, default(VariantBuilder)).ConfigureAwait(false);
             }

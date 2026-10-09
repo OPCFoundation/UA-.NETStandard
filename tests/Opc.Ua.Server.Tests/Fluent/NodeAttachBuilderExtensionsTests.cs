@@ -36,8 +36,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Fluent
 {
     /// <summary>
@@ -364,6 +362,38 @@ namespace Opc.Ua.Server.Tests.Fluent
                     Is.Not.Zero,
                     "attaching an alarm promotes the parent notifier");
             });
+
+            await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    alarm.EnabledState?.Id?.Value,
+                    Is.False,
+                    "teardown must disable the condition");
+                Assert.That(
+                    parentObject.EventNotifier & EventNotifiers.SubscribeToEvents,
+                    Is.Zero,
+                    "teardown must clear the notifier bit it set");
+            });
+        }
+
+        [Test]
+        public async Task GenericAlarmWiringIsUndoneOnTeardownAsync()
+        {
+            using var manager = new TestBehaviorManager();
+            manager.SeedSiblings(1);
+
+            NodeManagerBuilder builder = manager.NewBuilder();
+            INodeBuilder parent = builder.Node(new NodeId(100u, 1));
+            var parentObject = (BaseObjectState)parent.Node;
+
+            TripAlarmState alarm = parent
+                .CreateAlarm(new QualifiedName("Trip", 1), node => new TripAlarmState(node))
+                .Alarm;
+
+            await manager.ActivateAsync().ConfigureAwait(false);
+            Assert.That(alarm.EnabledState?.Id?.Value, Is.True, "attaching an alarm enables it");
 
             await manager.DeleteAddressSpaceAsync().ConfigureAwait(false);
 

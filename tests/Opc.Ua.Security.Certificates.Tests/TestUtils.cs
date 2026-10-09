@@ -95,7 +95,7 @@ namespace Opc.Ua.Tests
     {
         public static string[] EnumerateTestAssets(string searchPattern)
         {
-            string assetsPath = Utils.GetAbsoluteDirectoryPath("Assets", true, false, false);
+            string assetsPath = Utils.GetAbsoluteDirectoryPath("Assets", true, false, false)!;
             if (assetsPath != null)
             {
                 return [.. Directory.EnumerateFiles(assetsPath, searchPattern)];
@@ -106,7 +106,7 @@ namespace Opc.Ua.Tests
         public static void ValidateSelSignedBasicConstraints(Certificate certificate)
         {
             X509BasicConstraintsExtension basicConstraintsExtension =
-                certificate.Extensions.FindExtension<X509BasicConstraintsExtension>();
+                certificate.Extensions.FindExtension<X509BasicConstraintsExtension>()!;
             Assert.That(basicConstraintsExtension, Is.Not.Null);
             Assert.That(basicConstraintsExtension.CertificateAuthority, Is.False);
             Assert.That(basicConstraintsExtension.Critical, Is.True);

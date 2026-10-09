@@ -1,0 +1,10 @@
+{
+  "ComplexTypes": {
+    "reason": "gopcua 0.9.1 has no DataTypeDefinition based decoding of custom structures (only compile-time registered Go types)",
+    "issue": "https://github.com/gopcua/opcua (feature not available)"
+  },
+  "LegacyClientInteropTests.LegacyClientCheckAsync(\"Aes256_Sha256_RsaPss-*": {
+    "reason": "gopcua 0.9.1 defines RSAOAEPMinPaddingSHA256 as (2 * 64) + 2 = 130 instead of 2 * 32 + 2 = 66 (RFC 8017: 2 hLen + 2), so its RSA-OAEP-SHA256 plaintext blocks are 64 bytes short and the .NET stacks reject the OpenSecureChannel of Aes256_Sha256_RsaPss; with the constant fixed the channel opens",
+    "issue": "upstream issue to be filed at https://github.com/gopcua/opcua/issues (uapolicy/crypto_rsaoaep.go)"
+  }
+}

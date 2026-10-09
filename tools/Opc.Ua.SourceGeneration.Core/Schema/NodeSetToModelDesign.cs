@@ -72,12 +72,12 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Nodes by qualified name.
         /// </summary>
-        public IDictionary<XmlQualifiedName, NodeDesign> NodesByQName { get; set; }
+        public IDictionary<XmlQualifiedName, NodeDesign>? NodesByQName { get; set; }
 
         /// <summary>
         /// Namespace tables by model uri.
         /// </summary>
-        public IDictionary<string, string[]> NamespaceTables { get; set; }
+        public IDictionary<string, string[]>? NamespaceTables { get; set; }
 
         /// <summary>
         /// Nodes by node id.
@@ -117,7 +117,8 @@ namespace Opc.Ua.Schema.Model
             m_symbolicIds = [];
 
             using Stream istrm = m_fileSystem.OpenRead(filePath);
-            m_nodeset = UANodeSet.Read(istrm);
+            m_nodeset = UANodeSet.Read(istrm) ??
+                throw new InvalidOperationException($"The file {filePath} does not contain a UANodeSet.");
 
             if (m_nodeset.NamespaceUris != null)
             {
@@ -135,15 +136,15 @@ namespace Opc.Ua.Schema.Model
                     $"NodeSet ({filePath}) does not declare a <Models> entry with a ModelUri.");
             }
 
-            m_settings.NamespaceTables[m_nodeset.Models[0].ModelUri] =
-                m_nodeset.NamespaceUris;
+            m_settings.NamespaceTables![m_nodeset.Models[0].ModelUri!] =
+                m_nodeset.NamespaceUris!;
 
             if (m_nodeset.Aliases != null)
             {
                 foreach (NodeIdAlias ii in m_nodeset.Aliases)
                 {
-                    m_aliases[ii.Alias] = ImportNodeId(ii.Value, false);
-                    if (m_aliases[ii.Alias].IsNull)
+                    m_aliases[ii.Alias!] = ImportNodeId(ii.Value, false);
+                    if (m_aliases[ii.Alias!].IsNull)
                     {
                         throw new InvalidDataException(
                             $"Alias ({ii.Alias}) is not valid.");
@@ -257,7 +258,7 @@ namespace Opc.Ua.Schema.Model
             return false;
         }
 
-        private static T Load<T>(IFileSystem fileSystem, string path)
+        private static T? Load<T>(IFileSystem fileSystem, string path)
         {
             var settings = new XmlReaderSettings
             {
@@ -268,7 +269,7 @@ namespace Opc.Ua.Schema.Model
             var serializer = new XmlSerializer(typeof(T));
 
             using var reader = XmlReader.Create(stream, settings);
-            return (T)serializer.Deserialize(reader);
+            return (T?)serializer.Deserialize(reader);
         }
 
         private static void CollectModels(ModelTableEntry model, List<ModelTableEntry> models)
@@ -300,7 +301,7 @@ namespace Opc.Ua.Schema.Model
         {
             Namespace ns;
 
-            if (model.ModelUri.StartsWith(Namespaces.OpcUa, StringComparison.Ordinal))
+            if (model.ModelUri!.StartsWith(Namespaces.OpcUa, StringComparison.Ordinal))
             {
                 ns = new Namespace
                 {
@@ -371,11 +372,11 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(filePath));
             }
-            UANodeSet nodeset = Load<UANodeSet>(fileSystem, filePath);
+            UANodeSet? nodeset = Load<UANodeSet>(fileSystem, filePath);
 
             List<ModelTableEntry> models = [];
 
-            if (nodeset.Models != null)
+            if (nodeset!.Models != null)
             {
                 foreach (ModelTableEntry model in nodeset.Models)
                 {
@@ -388,7 +389,7 @@ namespace Opc.Ua.Schema.Model
             foreach (ModelTableEntry model in models)
             {
                 Namespace ns = CreateNamespace(model);
-                ModelTableEntry topLevelModel = nodeset.Models
+                ModelTableEntry? topLevelModel = nodeset.Models!
                     .FirstOrDefault(x => x.ModelUri == model.ModelUri);
 
                 if (topLevelModel != null)
@@ -404,7 +405,7 @@ namespace Opc.Ua.Schema.Model
 
         private static void ImportModel(IList<Namespace> namespaces, ModelTableEntry model)
         {
-            Namespace ns = namespaces.FirstOrDefault(x => x.Value == model.ModelUri);
+            Namespace? ns = namespaces.FirstOrDefault(x => x.Value == model.ModelUri);
             if (ns != null)
             {
                 return;
@@ -423,12 +424,12 @@ namespace Opc.Ua.Schema.Model
 
         private bool IsTypeOf(NodeId subTypeId, NodeId superTypeId)
         {
-            if (!m_settings.NodesById.TryGetValue(subTypeId, out NodeDesign node1))
+            if (!m_settings.NodesById.TryGetValue(subTypeId, out NodeDesign? node1))
             {
                 return false;
             }
 
-            if (!m_settings.NodesById.TryGetValue(superTypeId, out NodeDesign node2))
+            if (!m_settings.NodesById.TryGetValue(superTypeId, out NodeDesign? node2))
             {
                 return false;
             }
@@ -449,12 +450,12 @@ namespace Opc.Ua.Schema.Model
                     {
                         return true;
                     }
-                    if (!m_settings.NodesByQName.TryGetValue(parentId, out NodeDesign parent))
+                    if (!m_settings.NodesByQName!.TryGetValue(parentId, out NodeDesign? parent))
                     {
                         return false;
                     }
 
-                    td1 = parent as TypeDesign;
+                    td1 = (parent as TypeDesign)!;
 
                     if (td1?.BaseType == null)
 
@@ -470,17 +471,17 @@ namespace Opc.Ua.Schema.Model
 
         private XmlQualifiedName ImportSymbolicName(UANode input)
         {
-            XmlQualifiedName browseName = ImportQualifiedName(input.BrowseName);
+            XmlQualifiedName? browseName = ImportQualifiedName(input.BrowseName);
 
             if (!string.IsNullOrEmpty(input.SymbolicName))
             {
-                if (input.BrowseName.Contains(":<", StringComparison.Ordinal) &&
+                if (input.BrowseName!.Contains(":<", StringComparison.Ordinal) &&
                     !input.SymbolicName.EndsWith("_Placeholder", StringComparison.Ordinal))
                 {
-                    return new XmlQualifiedName(input.SymbolicName + "_Placeholder", browseName.Namespace);
+                    return new XmlQualifiedName(input.SymbolicName + "_Placeholder", browseName!.Namespace);
                 }
 
-                return new XmlQualifiedName(input.SymbolicName, browseName.Namespace);
+                return new XmlQualifiedName(input.SymbolicName, browseName!.Namespace);
             }
 
             // A placeholder browse name "<Name>" (no explicit SymbolicName in the
@@ -489,7 +490,7 @@ namespace Opc.Ua.Schema.Model
             // from the equivalent ModelDesign source (e.g. a combined NodeSet
             // that incorporates a model authored as ModelDesign). The raw browse
             // name is used because ImportQualifiedName rewrites '<' and '>' to '_'.
-            string rawName = QualifiedName.Parse(input.BrowseName).Name;
+            string? rawName = QualifiedName.Parse(input.BrowseName!).Name;
             if (rawName != null &&
                 rawName.Length > 2 &&
                 rawName[0] == '<' &&
@@ -497,7 +498,7 @@ namespace Opc.Ua.Schema.Model
             {
                 return new XmlQualifiedName(
                     ToSymbolicName(rawName[1..^1]) + "_Placeholder",
-                    browseName.Namespace);
+                    browseName!.Namespace);
             }
 
             // ImportQualifiedName replaces a leading digit with '_', which
@@ -505,8 +506,8 @@ namespace Opc.Ua.Schema.Model
             // (see CollectDigitPreservingNames) keep the digit, following the
             // ToSymbolicName convention for a leading digit ("1Axis" ->
             // "n1Axis").
-            if (m_digitPreservingNames.Contains(input.NodeId) &&
-                browseName.Name.Length > 0 &&
+            if (m_digitPreservingNames.Contains(input.NodeId!) &&
+                browseName!.Name.Length > 0 &&
                 rawName is { Length: > 0 })
             {
                 return new XmlQualifiedName(
@@ -514,10 +515,10 @@ namespace Opc.Ua.Schema.Model
                     browseName.Namespace);
             }
 
-            return new XmlQualifiedName(ToSymbolicName(browseName.Name), browseName.Namespace);
+            return new XmlQualifiedName(ToSymbolicName(browseName!.Name), browseName.Namespace);
         }
 
-        private static LocalizedText ImportLocalizedText(Export.LocalizedText[] input)
+        private static LocalizedText? ImportLocalizedText(Export.LocalizedText[]? input)
         {
             if (input == null || input.Length == 0)
             {
@@ -528,7 +529,7 @@ namespace Opc.Ua.Schema.Model
             // NodeSet may list several translations in any order, so prefer the
             // invariant or English entry over whichever happens to come first,
             // and never let an empty first entry hide a later translation.
-            Export.LocalizedText selected =
+            Export.LocalizedText? selected =
                 Array.Find(input, x => !string.IsNullOrWhiteSpace(x?.Value) &&
                     string.IsNullOrEmpty(x.Locale)) ??
                 Array.Find(input, x => !string.IsNullOrWhiteSpace(x?.Value) &&
@@ -543,21 +544,21 @@ namespace Opc.Ua.Schema.Model
             return new LocalizedText { Value = selected.Value, IsAutogenerated = false };
         }
 
-        private static bool IsEnglishLocale(string locale)
+        private static bool IsEnglishLocale(string? locale)
         {
             return locale != null &&
                 (string.Equals(locale, "en", StringComparison.OrdinalIgnoreCase) ||
                 locale.StartsWith("en-", StringComparison.OrdinalIgnoreCase));
         }
 
-        private ReferenceTypeDesign FindReferenceType(ExpandedNodeId targetId)
+        private ReferenceTypeDesign? FindReferenceType(ExpandedNodeId targetId)
         {
-            if (m_settings.NodesById.TryGetValue((NodeId)targetId, out NodeDesign design))
+            if (m_settings.NodesById.TryGetValue((NodeId)targetId, out NodeDesign? design))
             {
                 return design as ReferenceTypeDesign;
             }
 
-            if (m_index.TryGetValue((NodeId)targetId, out UANode node) && node is UAReferenceType rt)
+            if (m_index.TryGetValue((NodeId)targetId, out UANode? node) && node is UAReferenceType rt)
             {
                 return ImportReferenceType(rt);
             }
@@ -565,18 +566,18 @@ namespace Opc.Ua.Schema.Model
             return null;
         }
 
-        private T FindNode<T>(ExpandedNodeId targetId) where T : NodeDesign
+        private T? FindNode<T>(ExpandedNodeId targetId) where T : NodeDesign
         {
             if (targetId.IsNull)
             {
                 return default;
             }
-            if (m_settings.NodesById.TryGetValue((NodeId)targetId, out NodeDesign design))
+            if (m_settings.NodesById.TryGetValue((NodeId)targetId, out NodeDesign? design))
             {
                 return design as T;
             }
 
-            if (m_index.TryGetValue((NodeId)targetId, out UANode node))
+            if (m_index.TryGetValue((NodeId)targetId, out UANode? node))
             {
                 return ImportNode(node) as T;
             }
@@ -584,7 +585,7 @@ namespace Opc.Ua.Schema.Model
             return null;
         }
 
-        private T FindSuperType<T>(UAType source) where T : TypeDesign
+        private T? FindSuperType<T>(UAType source) where T : TypeDesign
         {
             if (source.References != null)
             {
@@ -614,7 +615,7 @@ namespace Opc.Ua.Schema.Model
         private ReferenceTypeDesign ImportReferenceType(UAReferenceType input)
         {
             NodeId nodeId = ImportNodeId(input.NodeId);
-            NodeDesign existing = null;
+            NodeDesign? existing = null;
 
             if (nodeId.IsNull || m_settings.NodesById.TryGetValue(nodeId, out existing))
             {
@@ -623,13 +624,13 @@ namespace Opc.Ua.Schema.Model
                     return rt;
                 }
                 throw new InvalidDataException(
-                    $"Node exists and it is not a ReferenceType: {existing.SymbolicId}'.");
+                    $"Node exists and it is not a ReferenceType: {existing!.SymbolicId}'.");
             }
 
             var output = new ReferenceTypeDesign
             {
                 SymbolicName = ImportSymbolicName(input),
-                BrowseName = QualifiedName.Parse(input.BrowseName).Name,
+                BrowseName = QualifiedName.Parse(input.BrowseName!).Name,
                 Description = ImportLocalizedText(input.Description),
                 DisplayName = ImportLocalizedText(input.DisplayName),
                 WriteAccess = input.WriteMask,
@@ -647,12 +648,12 @@ namespace Opc.Ua.Schema.Model
             // <References> is optional in the schema.
             foreach (Export.Reference ii in input.References ?? [])
             {
-                ReferenceNode reference = ImportReference(ii);
+                ReferenceNode? reference = ImportReference(ii);
 
-                if (reference.ReferenceTypeId == ReferenceTypes.HasSubtype &&
+                if (reference!.ReferenceTypeId == ReferenceTypes.HasSubtype &&
                     reference.IsInverse)
                 {
-                    ReferenceTypeDesign superType = FindReferenceType(reference.TargetId);
+                    ReferenceTypeDesign? superType = FindReferenceType(reference.TargetId);
 
                     if (superType != null)
                     {
@@ -670,7 +671,7 @@ namespace Opc.Ua.Schema.Model
                     $"Could not find supertype for '{input.BrowseName}'.");
             }
 
-            m_settings.NodesByQName[output.SymbolicId] = output;
+            m_settings.NodesByQName![output.SymbolicId] = output;
             m_settings.NodesById[nodeId] = output;
 
             return output;
@@ -738,12 +739,12 @@ namespace Opc.Ua.Schema.Model
             // base type and can legitimately arrive without one.
             foreach (Export.Reference ii in input.References ?? [])
             {
-                ReferenceNode reference = ImportReference(ii);
+                ReferenceNode? reference = ImportReference(ii);
 
-                if (reference.ReferenceTypeId == ReferenceTypes.HasSubtype &&
+                if (reference!.ReferenceTypeId == ReferenceTypes.HasSubtype &&
                     reference.IsInverse)
                 {
-                    TypeDesign superType = FindNode<TypeDesign>(reference.TargetId);
+                    TypeDesign? superType = FindNode<TypeDesign>(reference.TargetId);
 
                     if (superType != null)
                     {
@@ -762,7 +763,7 @@ namespace Opc.Ua.Schema.Model
             }
         }
 
-        private void UpdateVariableTypeDesign(UAVariableType input, VariableTypeDesign output)
+        private void UpdateVariableTypeDesign(UAVariableType? input, VariableTypeDesign output)
         {
             if (input == null || output == null)
             {
@@ -795,7 +796,7 @@ namespace Opc.Ua.Schema.Model
             output.DataTypeNode = dataType;
         }
 
-        private void UpdateObjectTypeDesign(UAObjectType input, ObjectTypeDesign output)
+        private void UpdateObjectTypeDesign(UAObjectType? input, ObjectTypeDesign output)
         {
             if (input == null || output == null)
             {
@@ -804,7 +805,7 @@ namespace Opc.Ua.Schema.Model
             UpdateTypeDesign(input, output);
         }
 
-        private void UpdateReferenceTypeDesign(UAReferenceType input, ReferenceTypeDesign output)
+        private void UpdateReferenceTypeDesign(UAReferenceType? input, ReferenceTypeDesign output)
         {
             if (input == null || output == null)
             {
@@ -840,7 +841,7 @@ namespace Opc.Ua.Schema.Model
             {
                 return true;
             }
-            TypeDesign parent = FindSuperType<TypeDesign>(subtype);
+            TypeDesign? parent = FindSuperType<TypeDesign>(subtype);
 
             // A root type may declare itself as its own supertype (see the
             // other IsTypeOf overload); stop instead of walking that forever.
@@ -911,7 +912,7 @@ namespace Opc.Ua.Schema.Model
             return 64;
         }
 
-        private void UpdateDataTypeDesign(UADataType input, DataTypeDesign output)
+        private void UpdateDataTypeDesign(UADataType? input, DataTypeDesign output)
         {
             if (input == null || output == null)
             {
@@ -966,11 +967,11 @@ namespace Opc.Ua.Schema.Model
                 {
                     foreach (DataTypeField ii in input.Definition.Field)
                     {
-                        string symbolicName = ii.SymbolicName;
+                        string? symbolicName = ii.SymbolicName;
 
                         if (string.IsNullOrEmpty(symbolicName))
                         {
-                            symbolicName = ToSymbolicName(ii.Name);
+                            symbolicName = ToSymbolicName(ii.Name!);
                         }
 
                         var field = new Parameter
@@ -1060,11 +1061,11 @@ namespace Opc.Ua.Schema.Model
             // has no type definition either, which the check below reports.
             foreach (Export.Reference ii in input.References ?? [])
             {
-                ReferenceNode reference = ImportReference(ii);
+                ReferenceNode? reference = ImportReference(ii);
 
-                if (reference.ReferenceTypeId == ReferenceTypes.HasTypeDefinition && !reference.IsInverse)
+                if (reference!.ReferenceTypeId == ReferenceTypes.HasTypeDefinition && !reference.IsInverse)
                 {
-                    TypeDesign typeDefinition = FindNode<TypeDesign>(reference.TargetId);
+                    TypeDesign? typeDefinition = FindNode<TypeDesign>(reference.TargetId);
 
                     if (typeDefinition != null)
                     {
@@ -1086,7 +1087,7 @@ namespace Opc.Ua.Schema.Model
             }
         }
 
-        private void UpdateObjectDesign(UAObject input, ObjectDesign output)
+        private void UpdateObjectDesign(UAObject? input, ObjectDesign output)
         {
             if (input == null || output == null)
             {
@@ -1098,7 +1099,7 @@ namespace Opc.Ua.Schema.Model
             output.SupportsEventsSpecified = true;
         }
 
-        private static void UpdateViewDesign(UAView input, ViewDesign output)
+        private static void UpdateViewDesign(UAView? input, ViewDesign output)
         {
             if (input == null || output == null)
             {
@@ -1108,7 +1109,7 @@ namespace Opc.Ua.Schema.Model
             output.ContainsNoLoops = input.ContainsNoLoops;
         }
 
-        private void UpdateVariableDesign(UAVariable input, VariableDesign output)
+        private void UpdateVariableDesign(UAVariable? input, VariableDesign output)
         {
             if (input == null || output == null)
             {
@@ -1122,7 +1123,7 @@ namespace Opc.Ua.Schema.Model
             output.ArrayDimensions = ImportArrayDimensions(input.ValueRank, input.ArrayDimensions);
             output.MinimumSamplingInterval = ImportMinimumSamplingInterval(
                 input.MinimumSamplingInterval,
-                input.BrowseName);
+                input.BrowseName!);
             output.MinimumSamplingIntervalSpecified = true;
             output.Historizing = input.Historizing;
             output.HistorizingSpecified = input.Historizing;
@@ -1222,13 +1223,13 @@ namespace Opc.Ua.Schema.Model
             var output = new List<Parameter>();
             foreach (System.Xml.XmlElement argument in FindElements(input, "Argument"))
             {
-                string name = GetElementValue(argument, "Name");
-                string dataTypeText = GetElementValue(argument, "DataType", "Identifier");
+                string? name = GetElementValue(argument, "Name");
+                string? dataTypeText = GetElementValue(argument, "DataType", "Identifier");
                 NodeId dataTypeId = ImportNodeId(dataTypeText);
                 DataTypeDesign dataType = FindNode<DataTypeDesign>(dataTypeId) ??
                     throw new InvalidDataException(
                         $"Method ({method.SymbolicId.Name}) argument ({name}) datatype ({dataTypeText}) not found.");
-                string valueRankText = GetElementValue(argument, "ValueRank");
+                string? valueRankText = GetElementValue(argument, "ValueRank");
                 int valueRank = int.TryParse(
                     valueRankText,
                     NumberStyles.Integer,
@@ -1236,7 +1237,7 @@ namespace Opc.Ua.Schema.Model
                     out int parsedValueRank)
                         ? parsedValueRank
                         : -1;
-                string description = GetElementValue(argument, "Description", "Text");
+                string? description = GetElementValue(argument, "Description", "Text");
                 output.Add(new Parameter
                 {
                     Name = name,
@@ -1282,11 +1283,11 @@ namespace Opc.Ua.Schema.Model
             }
         }
 
-        private static string GetElementValue(
+        private static string? GetElementValue(
             System.Xml.XmlElement element,
             params string[] path)
         {
-            System.Xml.XmlElement current = element;
+            System.Xml.XmlElement? current = element;
             foreach (string localName in path)
             {
                 current = current?.ChildNodes
@@ -1301,11 +1302,11 @@ namespace Opc.Ua.Schema.Model
         /// ListOfUInt32) joined with ','. InnerText would concatenate them
         /// without a separator, turning dimensions 2 and 3 into "23".
         /// </summary>
-        private static string GetListElementValue(
+        private static string? GetListElementValue(
             System.Xml.XmlElement element,
             string localName)
         {
-            System.Xml.XmlElement list = element?.ChildNodes
+            System.Xml.XmlElement? list = element?.ChildNodes
                 .OfType<System.Xml.XmlElement>()
                 .FirstOrDefault(child => child.LocalName == localName);
             if (list == null)
@@ -1328,7 +1329,7 @@ namespace Opc.Ua.Schema.Model
             return string.Join(",", items);
         }
 
-        private void UpdateMethodDesign(UAMethod input, MethodDesign output)
+        private void UpdateMethodDesign(UAMethod? input, MethodDesign output)
         {
             if (input == null || output == null)
             {
@@ -1341,9 +1342,9 @@ namespace Opc.Ua.Schema.Model
             {
                 foreach (Export.Reference ii in input.References)
                 {
-                    ReferenceNode reference = ImportReference(ii);
+                    ReferenceNode? reference = ImportReference(ii);
 
-                    if (reference.ReferenceTypeId == ReferenceTypes.HasModellingRule && !reference.IsInverse)
+                    if (reference!.ReferenceTypeId == ReferenceTypes.HasModellingRule && !reference.IsInverse)
                     {
                         output.ModellingRule = ImportModellingRule(reference.TargetId);
                         output.ModellingRuleSpecified = true;
@@ -1371,8 +1372,8 @@ namespace Opc.Ua.Schema.Model
             {
                 foreach (Export.Reference reference in input.References)
                 {
-                    ReferenceNode importedReference = ImportReference(reference);
-                    if (importedReference.ReferenceTypeId == ReferenceTypes.HasProperty &&
+                    ReferenceNode? importedReference = ImportReference(reference);
+                    if (importedReference!.ReferenceTypeId == ReferenceTypes.HasProperty &&
                         !importedReference.IsInverse)
                     {
                         propertyIds.Add(importedReference.TargetId);
@@ -1391,8 +1392,8 @@ namespace Opc.Ua.Schema.Model
 
                 if (property.References.Any(reference =>
                     {
-                        ReferenceNode importedReference = ImportReference(reference);
-                        return importedReference.ReferenceTypeId == ReferenceTypes.HasProperty &&
+                        ReferenceNode? importedReference = ImportReference(reference);
+                        return importedReference!.ReferenceTypeId == ReferenceTypes.HasProperty &&
                             importedReference.IsInverse &&
                             importedReference.TargetId == methodId;
                     }))
@@ -1403,7 +1404,7 @@ namespace Opc.Ua.Schema.Model
 
             foreach (ExpandedNodeId propertyId in propertyIds.Distinct())
             {
-                VariableDesign property = FindNode<VariableDesign>(propertyId);
+                VariableDesign? property = FindNode<VariableDesign>(propertyId);
                 if (property?.DefaultValue == null)
                 {
                     continue;
@@ -1437,14 +1438,14 @@ namespace Opc.Ua.Schema.Model
             if (m_variablesByParent == null)
             {
                 m_variablesByParent = [];
-                foreach (UAVariable variable in m_nodeset.Items.OfType<UAVariable>())
+                foreach (UAVariable variable in m_nodeset.Items!.OfType<UAVariable>())
                 {
                     NodeId key = ImportNodeId(variable.ParentNodeId);
                     if (key.IsNull)
                     {
                         continue;
                     }
-                    if (!m_variablesByParent.TryGetValue(key, out List<UAVariable> list))
+                    if (!m_variablesByParent.TryGetValue(key, out List<UAVariable>? list))
                     {
                         m_variablesByParent.Add(key, list = []);
                     }
@@ -1452,7 +1453,7 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            return m_variablesByParent.TryGetValue(parentId, out List<UAVariable> variables)
+            return m_variablesByParent.TryGetValue(parentId, out List<UAVariable>? variables)
                 ? variables
                 : [];
         }
@@ -1467,7 +1468,7 @@ namespace Opc.Ua.Schema.Model
             {
                 return;
             }
-            NodeDesign referenceType = null;
+            NodeDesign? referenceType = null;
             bool nonHierarchical = false;
 
             UANode parentNode = FindNode(parentId) ??
@@ -1475,7 +1476,7 @@ namespace Opc.Ua.Schema.Model
                     $"ParentNode ({input.ParentNodeId}) not found for node " +
                     $"{input.NodeId} ({input.BrowseName}).");
 
-            if (!m_settings.NodesById.TryGetValue(parentId, out NodeDesign parent))
+            if (!m_settings.NodesById.TryGetValue(parentId, out NodeDesign? parent))
             {
                 parent = ImportNode(parentNode);
             }
@@ -1486,8 +1487,8 @@ namespace Opc.Ua.Schema.Model
             // reference first would shadow a perfectly good inverse HasComponent
             // on the child and drop the node out of the parent's Children.
             referenceType =
-                FindHierarchicalReference(parentNode.References, input.NodeId, forward: true) ??
-                FindHierarchicalReference(input.References, input.ParentNodeId, forward: false);
+                FindHierarchicalReference(parentNode.References!, input.NodeId!, forward: true) ??
+                FindHierarchicalReference(input.References!, input.ParentNodeId!, forward: false);
 
             if (referenceType == null)
             {
@@ -1495,8 +1496,8 @@ namespace Opc.Ua.Schema.Model
                 // reference to this child - scanning the child for a reference
                 // to itself never matches anything.
                 referenceType =
-                    FindAnyReference(parentNode.References, input.NodeId, forward: true) ??
-                    FindAnyReference(input.References, input.ParentNodeId, forward: false);
+                    FindAnyReference(parentNode.References!, input.NodeId!, forward: true) ??
+                    FindAnyReference(input.References!, input.ParentNodeId!, forward: false);
 
                 nonHierarchical = referenceType != null;
             }
@@ -1520,9 +1521,9 @@ namespace Opc.Ua.Schema.Model
                 return;
             }
 
-            if (m_settings.NodesById.TryGetValue(nodeId, out NodeDesign child))
+            if (m_settings.NodesById.TryGetValue(nodeId, out NodeDesign? child))
             {
-                LinkChildToParent(parent, referenceType.SymbolicId, child as InstanceDesign);
+                LinkChildToParent(parent, referenceType.SymbolicId, (child as InstanceDesign)!);
             }
         }
 
@@ -1531,7 +1532,7 @@ namespace Opc.Ua.Schema.Model
         /// <paramref name="references"/> that points at <paramref name="targetId"/>
         /// in the requested direction, or <c>null</c> when there is none.
         /// </summary>
-        private NodeDesign FindHierarchicalReference(
+        private NodeDesign? FindHierarchicalReference(
             Export.Reference[] references,
             string targetId,
             bool forward)
@@ -1543,7 +1544,7 @@ namespace Opc.Ua.Schema.Model
         /// Same as <see cref="FindHierarchicalReference"/> but accepting any
         /// reference type, hierarchical or not.
         /// </summary>
-        private NodeDesign FindAnyReference(
+        private NodeDesign? FindAnyReference(
             Export.Reference[] references,
             string targetId,
             bool forward)
@@ -1551,13 +1552,13 @@ namespace Opc.Ua.Schema.Model
             return FindReference(references, targetId, forward, hierarchicalOnly: false);
         }
 
-        private NodeDesign FindReference(
+        private NodeDesign? FindReference(
             Export.Reference[] references,
             string targetId,
             bool forward,
             bool hierarchicalOnly)
         {
-            NodeDesign referenceType = null;
+            NodeDesign? referenceType = null;
 
             foreach (Export.Reference reference in references ?? [])
             {
@@ -1598,7 +1599,7 @@ namespace Opc.Ua.Schema.Model
             if (parent.Children?.Items != null)
 
             {
-                children.AddRange(parent.Children?.Items);
+                children.AddRange((parent.Children?.Items)!);
             }
             child.Parent = parent;
             child.ReferenceType = referenceTypeId;
@@ -1611,14 +1612,14 @@ namespace Opc.Ua.Schema.Model
         {
             NodeId nodeId = ImportNodeId(input.NodeId);
 
-            if (m_settings.NodesById.TryGetValue(nodeId, out NodeDesign existing))
+            if (m_settings.NodesById.TryGetValue(nodeId, out NodeDesign? existing))
             {
                 return existing;
             }
 
             NodeDesign output = CreateNodeDesign(input);
 
-            output.SymbolicId = m_symbolicIds[input.NodeId];
+            output.SymbolicId = m_symbolicIds[input.NodeId!];
             output.SymbolicName = ImportSymbolicName(input);
             output.Extensions = input.Extensions;
 
@@ -1630,11 +1631,11 @@ namespace Opc.Ua.Schema.Model
             if (HasCollisionSuffix(input))
             {
                 output.SymbolicName = new XmlQualifiedName(
-                    $"{output.SymbolicName.Name}_{GetCollisionSuffix(input.NodeId)}",
+                    $"{output.SymbolicName!.Name}_{GetCollisionSuffix(input.NodeId!)}",
                     output.SymbolicName.Namespace);
             }
 
-            output.BrowseName = QualifiedName.Parse(input.BrowseName).Name;
+            output.BrowseName = QualifiedName.Parse(input.BrowseName!).Name;
             output.Description = ImportLocalizedText(input.Description);
             output.DisplayName = ImportLocalizedText(input.DisplayName);
             output.WriteAccess = input.WriteMask;
@@ -1644,7 +1645,7 @@ namespace Opc.Ua.Schema.Model
             // All four identifier types of OPC 10000-3 5.2.2 are carried over.
             output.SetIdentifier(ImportIdentifier(nodeId));
 
-            m_settings.NodesByQName[output.SymbolicId] = output;
+            m_settings.NodesByQName![output.SymbolicId] = output;
             m_settings.NodesById[nodeId] = output;
 
             switch (output)
@@ -1687,7 +1688,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         private bool HasCollisionSuffix(UANode node)
         {
-            return node is UAType && m_collisionSuffixed.Contains(node.NodeId);
+            return node is UAType && m_collisionSuffixed.Contains(node.NodeId!);
         }
 
         /// <summary>
@@ -1711,7 +1712,7 @@ namespace Opc.Ua.Schema.Model
             return builder.ToString();
         }
 
-        internal static XmlQualifiedName NormalizeSymbolicNameNamespace(
+        internal static XmlQualifiedName? NormalizeSymbolicNameNamespace(
             UANode input,
             XmlQualifiedName symbolicId,
             XmlQualifiedName symbolicName)
@@ -1732,14 +1733,14 @@ namespace Opc.Ua.Schema.Model
         /// index built by the constructor; a linear scan parsing every NodeId
         /// per lookup made large instance NodeSets quadratic.
         /// </summary>
-        private UANode FindNode(NodeId targetId)
+        private UANode? FindNode(NodeId targetId)
         {
             if (targetId.IsNull)
             {
                 return null;
             }
 
-            return m_index.TryGetValue(targetId, out UANode node) ? node : null;
+            return m_index.TryGetValue(targetId, out UANode? node) ? node : null;
         }
 
         private NodeId FindTarget(
@@ -1754,9 +1755,9 @@ namespace Opc.Ua.Schema.Model
             }
             foreach (Export.Reference ii in source.References)
             {
-                ReferenceNode reference = ImportReference(ii);
+                ReferenceNode? reference = ImportReference(ii);
 
-                if (reference.ReferenceTypeId == referenceTypeId && reference.IsInverse == isInverse)
+                if (reference!.ReferenceTypeId == referenceTypeId && reference.IsInverse == isInverse)
                 {
                     if (!targetId.IsNull && reference.TargetId != targetId)
                     {
@@ -1788,7 +1789,7 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 NodeId dataTypeId = FindTarget(input, ReferenceTypeIds.HasEncoding, true);
-                UANode dataType = dataTypeId.IsNull
+                UANode? dataType = dataTypeId.IsNull
                     ? FindDataTypeByEncoding(ImportNodeId(input.NodeId))
                     : FindNode(dataTypeId);
 
@@ -1811,17 +1812,17 @@ namespace Opc.Ua.Schema.Model
         /// encoding without the inverse reference; the index is built once
         /// instead of scanning all DataTypes per encoding.
         /// </summary>
-        private UANode FindDataTypeByEncoding(NodeId encodingId)
+        private UANode? FindDataTypeByEncoding(NodeId encodingId)
         {
             if (m_dataTypesByEncoding == null)
             {
                 m_dataTypesByEncoding = [];
-                foreach (UANode dataType in m_nodeset.Items.Where(x => x is UADataType))
+                foreach (UANode dataType in m_nodeset.Items!.Where(x => x is UADataType))
                 {
                     foreach (Export.Reference ii in dataType.References ?? [])
                     {
-                        ReferenceNode reference = ImportReference(ii);
-                        if (reference.ReferenceTypeId != ReferenceTypeIds.HasEncoding ||
+                        ReferenceNode? reference = ImportReference(ii);
+                        if (reference!.ReferenceTypeId != ReferenceTypeIds.HasEncoding ||
                             reference.IsInverse)
                         {
                             continue;
@@ -1838,7 +1839,7 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            return m_dataTypesByEncoding.TryGetValue(encodingId, out UANode node) ? node : null;
+            return m_dataTypesByEncoding.TryGetValue(encodingId, out UANode? node) ? node : null;
         }
 
         /// <summary>
@@ -1854,7 +1855,7 @@ namespace Opc.Ua.Schema.Model
 
             if (HasCollisionSuffix(dataType))
             {
-                name += "_" + GetCollisionSuffix(dataType.NodeId);
+                name += "_" + GetCollisionSuffix(dataType.NodeId!);
             }
 
             return name;
@@ -1864,7 +1865,7 @@ namespace Opc.Ua.Schema.Model
         {
             NodeId nodeId = ImportNodeId(input.NodeId);
 
-            if (!m_settings.NodesById.TryGetValue(nodeId, out NodeDesign existing))
+            if (!m_settings.NodesById.TryGetValue(nodeId, out NodeDesign? existing))
             {
                 return;
             }
@@ -1880,14 +1881,14 @@ namespace Opc.Ua.Schema.Model
                 foreach (Export.Reference ii in input.References)
                 {
                     NodeId referenceTypeId = ImportNodeId(ii.ReferenceType);
-                    NodeDesign referenceType = FindNode<NodeDesign>(referenceTypeId);
+                    NodeDesign? referenceType = FindNode<NodeDesign>(referenceTypeId);
 
                     if (referenceType == null)
                     {
                         continue;
                     }
                     NodeId targetId = ImportNodeId(ii.Value);
-                    NodeDesign target = FindNode<NodeDesign>(targetId);
+                    NodeDesign? target = FindNode<NodeDesign>(targetId);
 
                     if (target == null)
                     {
@@ -2035,7 +2036,7 @@ namespace Opc.Ua.Schema.Model
             return [.. permissions];
         }
 
-        private RolePermissionSet ToPermissionSet(Export.RolePermission[] input)
+        private RolePermissionSet? ToPermissionSet(Export.RolePermission[]? input)
         {
             if (input == null)
             {
@@ -2046,7 +2047,7 @@ namespace Opc.Ua.Schema.Model
             foreach (Export.RolePermission ii in input)
             {
                 NodeId roleId = ImportNodeId(ii.Value);
-                NodeDesign role = FindNode<NodeDesign>(roleId);
+                NodeDesign? role = FindNode<NodeDesign>(roleId);
 
                 if (role == null)
 
@@ -2139,7 +2140,7 @@ namespace Opc.Ua.Schema.Model
         {
             NodeId nodeId = ImportNodeId(input.NodeId);
 
-            if (!m_settings.NodesById.TryGetValue(nodeId, out NodeDesign existing))
+            if (!m_settings.NodesById.TryGetValue(nodeId, out NodeDesign? existing))
             {
                 return;
             }
@@ -2180,7 +2181,7 @@ namespace Opc.Ua.Schema.Model
                     m_settings.NamespaceUris.GetString(nodeId.NamespaceIndex));
             }
 
-            if (parentId.IsNull || !m_index.TryGetValue(parentId, out UANode parent))
+            if (parentId.IsNull || !m_index.TryGetValue(parentId, out UANode? parent))
             {
                 throw new InvalidDataException(
                     $"Parent node ({instance.ParentNodeId}) for {node.NodeId} not found.");
@@ -2204,14 +2205,14 @@ namespace Opc.Ua.Schema.Model
         /// Imports a node from the set.
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
-        public ModelDesign Import(string prefix, string name)
+        public ModelDesign Import(string? prefix, string? name)
         {
             var dictionary = new ModelDesign();
 
             if (m_nodeset.Models == null || m_nodeset.Models.Length == 0)
             {
                 throw new InvalidOperationException(
-                    $"NodeSet ({m_nodeset.NamespaceUris[0]}) does not have any Models defined!");
+                    $"NodeSet ({m_nodeset.NamespaceUris![0]}) does not have any Models defined!");
             }
 
             if (m_nodeset.Models != null)
@@ -2244,7 +2245,7 @@ namespace Opc.Ua.Schema.Model
 
             AssignSymbolicIds();
 
-            foreach (UANode node in m_nodeset.Items)
+            foreach (UANode node in m_nodeset.Items!)
             {
                 ImportNode(node);
             }
@@ -2252,7 +2253,7 @@ namespace Opc.Ua.Schema.Model
             foreach (UANode node in m_nodeset.Items)
             {
                 if (node is UAMethod method &&
-                    m_settings.NodesById.TryGetValue(ImportNodeId(method.NodeId), out NodeDesign design) &&
+                    m_settings.NodesById.TryGetValue(ImportNodeId(method.NodeId), out NodeDesign? design) &&
                     design is MethodDesign methodDesign)
                 {
                     UpdateMethodArguments(method, methodDesign);
@@ -2292,14 +2293,14 @@ namespace Opc.Ua.Schema.Model
                 NodeId nodeId = ImportNodeId(node.NodeId);
 
                 if (!nodeId.IsNull &&
-                    m_settings.NodesById.TryGetValue(nodeId, out NodeDesign design))
+                    m_settings.NodesById.TryGetValue(nodeId, out NodeDesign? design))
                 {
                     items.Add(design);
                 }
             }
 
             Dictionary<XmlQualifiedName, MethodDesign> methods = [];
-            CollectMethodDefinitions(dictionary.TargetNamespace, methods);
+            CollectMethodDefinitions(dictionary.TargetNamespace!, methods);
 
             items.AddRange(methods
                 .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
@@ -2451,7 +2452,7 @@ namespace Opc.Ua.Schema.Model
             m_symbolicIds.Clear();
             m_collisionSuffixed.Clear();
 
-            foreach (UANode node in m_nodeset.Items)
+            foreach (UANode node in m_nodeset.Items!)
             {
                 // hack to ensure DataTypeEncodings have right symbolic names.
                 if (node is UAObject)
@@ -2473,6 +2474,14 @@ namespace Opc.Ua.Schema.Model
                         node.SymbolicName = nameof(BrowseNames.DefaultXml);
                     }
                 }
+
+                // Every ParentNodeId is normalized before any id is built:
+                // BuildSymbolicId recurses into the parent, so a child listed
+                // ahead of a parent whose ParentNodeId is only recovered from an
+                // inverse reference (OPC 30050 PackML declares method arguments
+                // before their methods) would otherwise be named from the
+                // parent's bare name instead of its qualified one.
+                NormalizeParentNodeId(node);
             }
 
             CollectDigitPreservingNames();
@@ -2482,8 +2491,6 @@ namespace Opc.Ua.Schema.Model
 
             foreach (UANode node in m_nodeset.Items)
             {
-                NormalizeParentNodeId(node);
-
                 // A DataTypeEncoding is named after its DataType's final
                 // SymbolicName, which is only known once the DataType's own id
                 // (and any collision suffix) has been assigned.
@@ -2515,12 +2522,12 @@ namespace Opc.Ua.Schema.Model
             while (!usedIds.Add(symbolicId))
             {
                 symbolicId = new XmlQualifiedName(
-                    $"{symbolicId.Name}_{GetCollisionSuffix(node.NodeId)}",
+                    $"{symbolicId.Name}_{GetCollisionSuffix(node.NodeId!)}",
                     symbolicId.Namespace);
-                m_collisionSuffixed.Add(node.NodeId);
+                m_collisionSuffixed.Add(node.NodeId!);
             }
 
-            m_symbolicIds[node.NodeId] = symbolicId;
+            m_symbolicIds[node.NodeId!] = symbolicId;
         }
 
         /// <summary>
@@ -2539,7 +2546,7 @@ namespace Opc.Ua.Schema.Model
             var browseNamesBySymbolicName = new Dictionary<XmlQualifiedName, HashSet<string>>();
             var candidates = new List<(UANode Node, XmlQualifiedName Name)>();
 
-            foreach (UANode node in m_nodeset.Items)
+            foreach (UANode node in m_nodeset.Items!)
             {
                 if (string.IsNullOrEmpty(node.BrowseName))
                 {
@@ -2547,11 +2554,11 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 XmlQualifiedName name = ImportSymbolicName(node);
-                if (!browseNamesBySymbolicName.TryGetValue(name, out HashSet<string> browseNames))
+                if (!browseNamesBySymbolicName.TryGetValue(name, out HashSet<string>? browseNames))
                 {
                     browseNamesBySymbolicName.Add(name, browseNames = new HashSet<string>(StringComparer.Ordinal));
                 }
-                browseNames.Add(QualifiedName.Parse(node.BrowseName).Name);
+                browseNames.Add(QualifiedName.Parse(node.BrowseName).Name!);
 
                 if (node is UAInstance && HasLeadingDigitBrowseName(node))
                 {
@@ -2563,7 +2570,7 @@ namespace Opc.Ua.Schema.Model
             {
                 if (browseNamesBySymbolicName[name].Count > 1)
                 {
-                    m_digitPreservingNames.Add(node.NodeId);
+                    m_digitPreservingNames.Add(node.NodeId!);
                 }
             }
         }
@@ -2579,7 +2586,7 @@ namespace Opc.Ua.Schema.Model
                 return false;
             }
 
-            string rawName = QualifiedName.Parse(node.BrowseName).Name;
+            string? rawName = QualifiedName.Parse(node.BrowseName).Name;
             return rawName != null &&
                 rawName.Length > 0 &&
                 rawName[0] is >= '0' and <= '9';
@@ -2592,7 +2599,7 @@ namespace Opc.Ua.Schema.Model
             // derives.
             AssignSymbolicIds();
 
-            foreach (UANode node in m_nodeset.Items)
+            foreach (UANode node in m_nodeset.Items!)
             {
                 NodeId nodeId = ImportNodeId(node.NodeId, false);
                 if (!nodeId.TryGetValue(out uint numericId))
@@ -2600,7 +2607,7 @@ namespace Opc.Ua.Schema.Model
                     continue;
                 }
 
-                XmlQualifiedName symbolicId = m_symbolicIds[node.NodeId];
+                XmlQualifiedName symbolicId = m_symbolicIds[node.NodeId!];
                 if (!string.Equals(symbolicId.Namespace, modelUri, StringComparison.Ordinal))
                 {
                     continue;
@@ -2699,16 +2706,16 @@ namespace Opc.Ua.Schema.Model
                 }
 
                 var baseName = new XmlQualifiedName(
-                    method.SymbolicName.Name + "MethodType",
+                    method.SymbolicName!.Name + "MethodType",
                     method.SymbolicId.Namespace);
                 if (!groupedCandidates.TryGetValue(
                     baseName,
-                    out List<List<MethodDesign>> signatureGroups))
+                    out List<List<MethodDesign>>? signatureGroups))
                 {
                     groupedCandidates.Add(baseName, signatureGroups = []);
                 }
 
-                List<MethodDesign> signatureGroup = signatureGroups.FirstOrDefault(
+                List<MethodDesign>? signatureGroup = signatureGroups.FirstOrDefault(
                     group => MethodDesignArgumentResolver.HaveSameDeclaredSignature(
                         group[0],
                         method));
@@ -2723,7 +2730,7 @@ namespace Opc.Ua.Schema.Model
             }
 
             var reservedNames = new HashSet<XmlQualifiedName>(
-                m_settings.NodesByQName.Keys);
+                m_settings.NodesByQName!.Keys);
             foreach (KeyValuePair<XmlQualifiedName, List<List<MethodDesign>>> entry
                 in groupedCandidates
                     .OrderBy(entry => entry.Key.Namespace, StringComparer.Ordinal)
@@ -2764,7 +2771,7 @@ namespace Opc.Ua.Schema.Model
                     // signature and result even when the incorporated
                     // NodeSet declares the method-type argument nodes apart
                     // from the concrete method.
-                    if (existingByName.TryGetValue(name, out MethodDesign declared) &&
+                    if (existingByName.TryGetValue(name, out MethodDesign? declared) &&
                         !signatureGroup.Any(method => ReferenceEquals(declared, method)))
                     {
                         declared.InputArguments = representative.InputArguments;
@@ -2822,7 +2829,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Creates an decoder to restore Variant values.
         /// </summary>
-        private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string sourceNodeSetUri = null)
+        private XmlDecoder CreateDecoder(System.Xml.XmlElement source, string? sourceNodeSetUri = null)
         {
             return CreateDecoder(source, sourceNodeSetUri, mapNamespaces: true, out _);
         }
@@ -2843,7 +2850,7 @@ namespace Opc.Ua.Schema.Model
 
         private XmlDecoder CreateDecoder(
             System.Xml.XmlElement source,
-            string sourceNodeSetUri,
+            string? sourceNodeSetUri,
             bool mapNamespaces,
             out NamespaceTable sourceNamespaceUris)
         {
@@ -2854,7 +2861,7 @@ namespace Opc.Ua.Schema.Model
             var namespaceUris = new DecodedValueNamespaceTable(m_serverUris);
 
             if (sourceNodeSetUri == null ||
-                !m_settings.NamespaceTables.TryGetValue(sourceNodeSetUri, out string[] nodeSetNamespaceUris))
+                !m_settings.NamespaceTables!.TryGetValue(sourceNodeSetUri, out string[]? nodeSetNamespaceUris))
             {
                 nodeSetNamespaceUris = m_nodeset.NamespaceUris;
             }
@@ -2886,7 +2893,7 @@ namespace Opc.Ua.Schema.Model
                 // NodeSet's <ServerUris> table does not list (its first entry
                 // is svr=1). m_serverUris is seeded with a local placeholder,
                 // so svr=n in a value maps onto m_nodeset.ServerUris[n-1].
-                serverUris.Append(m_serverUris.GetString(0));
+                serverUris.Append(m_serverUris.GetString(0)!);
 
                 for (int ii = 0; ii < m_nodeset.ServerUris.Length; ii++)
                 {
@@ -2924,7 +2931,7 @@ namespace Opc.Ua.Schema.Model
         /// </remarks>
         private static IEncodeableFactory CreateValueDecodingFactory()
         {
-            IEncodeableFactory factory = ServiceMessageContext.CreateEmpty(null).Factory;
+            IEncodeableFactory factory = ServiceMessageContext.CreateEmpty(null!).Factory;
             factory.AddEncodeableTypes(typeof(Argument).Assembly);
             return factory;
         }
@@ -3040,7 +3047,7 @@ namespace Opc.Ua.Schema.Model
             return ModellingRule.None;
         }
 
-        private static string ImportCategories(string[] input)
+        private static string? ImportCategories(string[]? input)
         {
             if (input != null)
             {
@@ -3075,7 +3082,7 @@ namespace Opc.Ua.Schema.Model
         ///  Imports a NodeId
         /// </summary>
         /// <exception cref="InvalidDataException"></exception>
-        private ReferenceNode ImportReference(Export.Reference source)
+        private ReferenceNode? ImportReference(Export.Reference source)
         {
             if (source == null)
             {
@@ -3102,7 +3109,7 @@ namespace Opc.Ua.Schema.Model
         /// <see cref="NodeDesign"/>. All four identifier types defined by
         /// OPC 10000-3 5.2.2 are supported.
         /// </summary>
-        private static object ImportIdentifier(NodeId nodeId)
+        private static object? ImportIdentifier(NodeId nodeId)
         {
             if (nodeId.TryGetValue(out uint numericId))
             {
@@ -3126,7 +3133,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         ///  Imports a NodeId
         /// </summary>
-        private NodeId ImportNodeId(string source, bool lookupAlias = true)
+        private NodeId ImportNodeId(string? source, bool lookupAlias = true)
         {
             if (string.IsNullOrEmpty(source))
             {
@@ -3156,7 +3163,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Imports a ExpandedNodeId
         /// </summary>
-        private ExpandedNodeId ImportExpandedNodeId(string source)
+        private ExpandedNodeId ImportExpandedNodeId(string? source)
         {
             if (string.IsNullOrEmpty(source))
             {
@@ -3177,7 +3184,7 @@ namespace Opc.Ua.Schema.Model
             }
 
             // parse the node.
-            var nodeId = ExpandedNodeId.Parse(source);
+            var nodeId = ExpandedNodeId.Parse(source!);
 
             if (nodeId.ServerIndex <= 0 &&
                 nodeId.NamespaceIndex <= 0 &&
@@ -3195,7 +3202,7 @@ namespace Opc.Ua.Schema.Model
 
             if (serverIndex > 0)
             {
-                string namespaceUri = nodeId.NamespaceUri;
+                string? namespaceUri = nodeId.NamespaceUri;
 
                 if (string.IsNullOrEmpty(nodeId.NamespaceUri))
                 {
@@ -3211,7 +3218,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Imports a QualifiedName
         /// </summary>
-        private XmlQualifiedName ImportQualifiedName(string source)
+        private XmlQualifiedName? ImportQualifiedName(string? source)
         {
             if (string.IsNullOrEmpty(source))
             {
@@ -3222,7 +3229,7 @@ namespace Opc.Ua.Schema.Model
 
             var builder = new StringBuilder();
 
-            foreach (char ch in qname.Name)
+            foreach (char ch in qname.Name!)
             {
                 if (builder.Length == 0)
                 {
@@ -3259,7 +3266,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Imports the array dimensions.
         /// </summary>
-        private static string ImportArrayDimensions(ArrayOf<uint> arrayDimensions)
+        private static string? ImportArrayDimensions(ArrayOf<uint> arrayDimensions)
         {
             if (arrayDimensions.IsEmpty)
             {
@@ -3287,7 +3294,7 @@ namespace Opc.Ua.Schema.Model
         /// ValueRank of n &gt; 1 without ArrayDimensions (optional in NodeSet2)
         /// gets n unknown-length (0) dimensions instead of losing the rank.
         /// </summary>
-        private static string ImportArrayDimensions(int valueRank, string arrayDimensions)
+        private static string? ImportArrayDimensions(int valueRank, string? arrayDimensions)
         {
             if (valueRank > 1 && string.IsNullOrWhiteSpace(arrayDimensions))
             {
@@ -3471,8 +3478,8 @@ namespace Opc.Ua.Schema.Model
         private readonly Dictionary<string, XmlQualifiedName> m_symbolicIds;
         private readonly HashSet<string> m_digitPreservingNames = [];
         private readonly HashSet<string> m_collisionSuffixed = new(StringComparer.Ordinal);
-        private Dictionary<NodeId, List<UAVariable>> m_variablesByParent;
-        private Dictionary<NodeId, UANode> m_dataTypesByEncoding;
+        private Dictionary<NodeId, List<UAVariable>>? m_variablesByParent;
+        private Dictionary<NodeId, UANode>? m_dataTypesByEncoding;
     }
 
     /// <summary>

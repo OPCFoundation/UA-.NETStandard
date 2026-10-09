@@ -156,7 +156,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         public void AddJwtIssuerConfigurationMatchesServerBuilderRegistration()
         {
             IConfiguration section = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string>
+                .AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["IssuerUri"] = "https://issuer.example",
                     ["JwksUri"] = "https://issuer.example/.well-known/jwks"
@@ -173,7 +173,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         private static IConfiguration BuildConfiguration(string key, string value)
         {
             return new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string> { [key] = value })
+                .AddInMemoryCollection(new Dictionary<string, string?> { [key] = value })
                 .Build();
         }
 
@@ -194,15 +194,23 @@ namespace Opc.Ua.Gds.Tests.Hosting
             const string defaultAuthenticatorOptions =
                 "Opc.Ua.Gds.Server.Hosting.GdsDefaultIdentityAuthenticatorOptions";
 
+            const string gdsDefaultsRegistration =
+                "Opc.Ua.Gds.Server.Hosting.GdsDefaultIdentityAuthenticatorsRegistration";
+
             Assert.That(gdsDelta.Take(serverDelta.Count), Is.EqualTo(serverDelta));
-            Assert.That(gdsDelta.Skip(serverDelta.Count).ToArray(), Has.Length.EqualTo(2));
+            Assert.That(gdsDelta.Skip(serverDelta.Count).ToArray(), Has.Length.EqualTo(3));
+
+            // the GDS records its defaults so the hosted GDS keeps its own
+            // role-aware UserName and X.509 authenticators.
+            Assert.That(gdsDelta[serverDelta.Count], Does.StartWith(
+                string.Join("|", ServiceLifetime.Singleton, gdsDefaultsRegistration)));
             Assert.That(
-                gdsDelta[serverDelta.Count],
+                gdsDelta[serverDelta.Count + 1],
                 Does.Contain("Microsoft.Extensions.Options.IPostConfigureOptions`1[[" + defaultAuthenticatorOptions));
             Assert.That(
-                gdsDelta[serverDelta.Count],
+                gdsDelta[serverDelta.Count + 1],
                 Does.Contain("Microsoft.Extensions.Options.PostConfigureOptions`1[[" + defaultAuthenticatorOptions));
-            Assert.That(gdsDelta[serverDelta.Count + 1], Is.EqualTo(selfAdminRegistration));
+            Assert.That(gdsDelta[serverDelta.Count + 2], Is.EqualTo(selfAdminRegistration));
         }
 
         private static string[] CaptureServerDelta(Action<IOpcUaServerBuilder> configure)
@@ -240,7 +248,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 "|",
                 descriptor.Lifetime,
                 GetTypeName(descriptor.ServiceType),
-                GetTypeName(descriptor.ImplementationType),
+                GetTypeName(descriptor.ImplementationType!),
                 descriptor.ImplementationFactory == null ? string.Empty : "factory",
                 descriptor.ImplementationInstance == null
                     ? string.Empty
@@ -256,7 +264,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         {
             public UserTokenType TokenType => UserTokenType.Anonymous;
 
-            public string IssuedTokenProfileUri => null;
+            public string IssuedTokenProfileUri => null!;
 
             public ValueTask<AuthenticationResult> AuthenticateAsync(
                 AuthenticationContext context,

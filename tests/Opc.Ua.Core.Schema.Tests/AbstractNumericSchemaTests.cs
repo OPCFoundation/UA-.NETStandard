@@ -128,7 +128,8 @@ namespace Opc.Ua.Schema.Tests
 
             Assert.That(result.IsValid, Is.True, result.ToString());
             Assert.That(encoded["Scalar"]!["UaType"]!.GetValue<int>(), Is.EqualTo(11));
-            Assert.That(encoded["Scalar"]!.AsObject().ContainsKey("Value"), Is.EqualTo(verbose));
+            Assert.That(encoded["Scalar"]!["Value"]!.GetValue<double>(), Is.Zero);
+            Assert.That(encoded["Array"]![0]!["Value"]!.GetValue<double>(), Is.Zero);
         }
 
         [Test]

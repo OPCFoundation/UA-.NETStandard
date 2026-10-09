@@ -91,6 +91,7 @@ namespace Opc.Ua.Server
             m_maxFailedAuthenticationAttempts = configuration.ServerConfiguration
                 .MaxFailedAuthenticationAttempts;
             m_maxRequestAge = configuration.ServerConfiguration.MaxRequestAge;
+            m_httpsMutualTls = configuration.ServerConfiguration.HttpsMutualTls;
             m_maxBrowseContinuationPoints = configuration.ServerConfiguration
                 .MaxBrowseContinuationPoints;
             m_maxHistoryContinuationPoints = configuration.ServerConfiguration
@@ -103,10 +104,30 @@ namespace Opc.Ua.Server
             m_failureExpirationTicks = ticksPerSecond * 1 * 60;
 
             m_sessions = new NodeIdDictionary<ISession>(m_maxSessionCount);
-            m_lastSessionId = BitConverter.ToUInt32(Nonce.CreateRandomNonceData(sizeof(uint)), 0);
 
             // create a event to signal shutdown.
             m_shutdownEvent = new ManualResetEvent(true);
+        }
+
+        /// <summary>
+        /// Gets or sets the built-in Session-less Service invocation
+        /// (OPC 10000-4 §6.3). <see langword="null"/>, the default, disables
+        /// it unless a <see cref="ValidateSessionLessRequest"/> handler
+        /// decides.
+        /// </summary>
+        /// <remarks>
+        /// While set, the Session-less requests of this manager are limited by
+        /// <see cref="SessionlessInvocationOptions.MaxConcurrentRequests"/> and
+        /// <see cref="SessionlessInvocationOptions.MaxConcurrentRequestsPerChannel"/>,
+        /// including those a <see cref="ValidateSessionLessRequest"/> handler
+        /// decides. Setting it starts a new budget.
+        /// </remarks>
+        public SessionlessInvocationOptions? SessionlessInvocation
+        {
+            get => Volatile.Read(ref m_sessionlessBudget)?.Options;
+            set => Volatile.Write(
+                ref m_sessionlessBudget,
+                value != null ? new SessionlessRequestBudget(value) : null);
         }
 
         /// <summary>
@@ -223,7 +244,35 @@ namespace Opc.Ua.Server
             m_workerCts?.Dispose();
             m_workerCts = null;
 
-            CloseAllSessions();
+            // Sessions still open at shutdown are closed like any other session: the Closing
+            // event is raised, the SessionDiagnostics node is removed and the session count
+            // is decremented, rather than the sessions only being disposed.
+            foreach (ISession session in DetachAllSessions())
+            {
+                // The monitor has stopped, so no timeout can claim the session any more. A
+                // session a client close or a timeout claimed before is audited by that close;
+                // every other session is terminated by the server, which is audited once per
+                // session (OPC 10000-5 6.4.7) through the same close claim.
+                bool terminated = SessionTermination.TryClaimClose(session);
+                try
+                {
+                    RaiseSessionEvent(session, SessionEventReason.Closing);
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    m_logger.FailedToCloseSessionAtShutdown(e, session.Id);
+                }
+                finally
+                {
+                    session.Dispose();
+                    m_server.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount--);
+                    if (terminated)
+                    {
+                        m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Terminated");
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -231,19 +280,33 @@ namespace Opc.Ua.Server
         /// </summary>
         private void CloseAllSessions()
         {
-            KeyValuePair<NodeId, ISession>[] sessions;
+            foreach (ISession session in DetachAllSessions())
+            {
+                session.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Stops admitting sessions and empties the session table.
+        /// </summary>
+        /// <returns>The sessions that were tracked.</returns>
+        private List<ISession> DetachAllSessions()
+        {
+            var sessions = new List<ISession>();
             lock (m_bindingsLock)
             {
                 m_stopping = true;
-                sessions = [.. m_sessions];
+                foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in m_sessions)
+                {
+                    if (sessionKeyValue.Value != null)
+                    {
+                        sessions.Add(sessionKeyValue.Value);
+                    }
+                }
                 m_sessions.Clear();
                 m_channelSessionCounts.Clear();
             }
-
-            foreach (KeyValuePair<NodeId, ISession> sessionKeyValue in sessions)
-            {
-                sessionKeyValue.Value?.Dispose();
-            }
+            return sessions;
         }
 
         /// <summary>
@@ -273,6 +336,17 @@ namespace Opc.Ua.Server
             Nonce? serverNonceObject = null;
             bool reserved = false;
 
+            // A request that is rejected for a duplicate clientNonce must not close
+            // another Session to make room for itself, so the nonce is checked before
+            // the cap eviction. The check under the lock below stays authoritative
+            // for concurrent creations.
+            ThrowIfClientNonceInUse(context, clientNonce);
+
+            // Part 4 5.7.2.1: at the cap, the oldest Session that was never
+            // activated is closed to make room, so Sessions that are created
+            // and abandoned cannot lock legitimate Clients out.
+            await EvictNonActivatedSessionsAtCapAsync(cancellationToken).ConfigureAwait(false);
+
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
@@ -282,45 +356,28 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadTooManySessions);
                 }
 
-                // check for same Nonce in another session. A None channel does
-                // not require a random nonce, so a client reusing one there is
-                // not rejected.
-                if (!clientNonce.IsEmpty &&
-                    context.ChannelContext?.EndpointDescription?.SecurityMode != MessageSecurityMode.None)
-                {
-                    // iterate over key/value pairs in the dictionary with a thread safe iterator
-                    foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
-                    {
-                        ByteString sessionClientNonce =
-                            sessionKeyValueIterator.Value?.ClientNonce ?? default;
-                        if (sessionClientNonce == clientNonce)
-                        {
-                            throw new ServiceResultException(StatusCodes.BadNonceInvalid);
-                        }
-                    }
-                }
+                // check for same Nonce in another session.
+                ThrowIfClientNonceInUse(context, clientNonce);
 
-                // can assign a simple identifier if secured.
-                authenticationToken = default;
+                // always assign a hard-to-guess id. A secure channel id does not
+                // make a sequential token safe: HTTPS (and the HTTPS hosted
+                // WebSocket profiles) share one SecureChannelId between every
+                // client of a listener, so the token is the only secret that
+                // binds a request to its session (Part 6 7.4.1, Part 4 7.35).
+                byte[] token = Nonce.CreateRandomNonceData(32);
+                authenticationToken = new NodeId(token.ToByteString());
+
                 // CreateSession is reached only after a secure channel is bound.
                 SecureChannelContext channelContext = context.ChannelContext!;
-                if (!string.IsNullOrEmpty(channelContext.SecureChannelId) &&
-                    channelContext.EndpointDescription!
-                        .SecurityMode != MessageSecurityMode.None)
-                {
-                    authenticationToken = new NodeId(
-                        Utils.IncrementIdentifier(ref m_lastSessionId));
-                }
 
-                // must assign a hard-to-guess id if not secured.
-                if (authenticationToken.IsNull)
+                // determine session timeout. Every comparison with NaN is false,
+                // so NaN is revised explicitly instead of being returned as the
+                // revisedSessionTimeout (Part 4 5.7.2.2).
+                if (double.IsNaN(requestedSessionTimeout))
                 {
-                    byte[] token = Nonce.CreateRandomNonceData(32);
-                    authenticationToken = new NodeId(token.ToByteString());
+                    revisedSessionTimeout = m_minSessionTimeout;
                 }
-
-                // determine session timeout.
-                if (requestedSessionTimeout > m_maxSessionTimeout)
+                else if (requestedSessionTimeout > m_maxSessionTimeout)
                 {
                     revisedSessionTimeout = m_maxSessionTimeout;
                 }
@@ -334,10 +391,15 @@ namespace Opc.Ua.Server
                 tempNonce = Nonce.CreateNonce(kSessionNonceLength);
                 serverNonceObject = tempNonce;
 
-                // assign client name.
+                // assign client name (Part 4 5.7.2.2). The session id is only
+                // assigned by InitializeAsync, so a separate counter keeps the
+                // names (and the diagnostics BrowseNames) distinct. It is not
+                // derived from the authentication token, which must stay secret.
                 if (string.IsNullOrEmpty(sessionName))
                 {
-                    sessionName = Utils.Format("Session {0}", sessionId);
+                    sessionName = Utils.Format(
+                        "Session {0}",
+                        Utils.IncrementIdentifier(ref m_lastSessionNameId));
                 }
 
                 // create instance of session.
@@ -358,6 +420,21 @@ namespace Opc.Ua.Server
                     m_maxRequestAge,
                     m_maxBrowseContinuationPoints);
                 tempNonce = null; // ownership transferred to session
+
+                // A client certificate whose validation error was accepted establishes
+                // no trusted application identity. Recorded before the session is
+                // published, so a concurrent request, role evaluation or a derived
+                // manager mirroring the session never reads it as validated.
+                if (context.ClientCertificateErrorAccepted)
+                {
+                    ClientCertificateProvenance.SetValidated(session, false);
+                }
+
+                // Part 5 12.11: MaxResponseMessageSize is a mandatory field of
+                // SessionDiagnosticsDataType and reports the CreateSession request
+                // value. Set before InitializeAsync publishes the diagnostics node.
+                session.UpdateDiagnostics(d => d.MaxResponseMessageSize = maxResponseMessageSize);
+
                 m_sessionActivationStates.Add(
                     session,
                     new SessionActivationState(
@@ -454,6 +531,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Rejects a clientNonce that another Session already uses with
+        /// Bad_NonceInvalid (Part 4 5.7.2.2). A None channel does not require a
+        /// random nonce, so a client reusing one there is not rejected.
+        /// </summary>
+        private void ThrowIfClientNonceInUse(OperationContext context, ByteString clientNonce)
+        {
+            if (clientNonce.IsEmpty ||
+                context.ChannelContext?.EndpointDescription?.SecurityMode == MessageSecurityMode.None)
+            {
+                return;
+            }
+
+            // iterate over key/value pairs in the dictionary with a thread safe iterator
+            foreach (KeyValuePair<NodeId, ISession> sessionKeyValueIterator in m_sessions)
+            {
+                ByteString sessionClientNonce =
+                    sessionKeyValueIterator.Value?.ClientNonce ?? default;
+                if (sessionClientNonce == clientNonce)
+                {
+                    throw new ServiceResultException(StatusCodes.BadNonceInvalid);
+                }
+            }
+        }
+
+        /// <summary>
         /// Activates an existing session
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -468,6 +570,8 @@ namespace Opc.Ua.Server
         {
             ISession? session = null;
             ISession? restoredSession = null;
+            ISession? admittedRestore = null;
+            bool activated = false;
             IUserIdentityTokenHandler? newIdentity = null;
             string? clientKey = null;
             SemaphoreSlim? activationLock = null;
@@ -483,9 +587,10 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
             }
+            PendingRestore? pendingRestore = null;
             if (!m_sessions.TryGetValue(authenticationToken, out _) && SupportsSessionRestore)
             {
-                restoredSession = await RestoreSessionAsync(
+                (pendingRestore, restoredSession) = await JoinRestoreAsync(
                     authenticationToken,
                     context,
                     cancellationToken).ConfigureAwait(false);
@@ -513,28 +618,41 @@ namespace Opc.Ua.Server
                             throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                         }
 
-                        // Restore completed outside the global lock. Re-check
-                        // under the lock in case another concurrent activation
-                        // already admitted the same mirrored session.
+                        // Restore completed outside the global lock. Concurrent
+                        // activations of the same token share one restored session
+                        // (JoinRestoreAsync); the first to get here admits it.
                         lock (m_bindingsLock)
                         {
                             if (m_stopping)
                             {
                                 throw new ServiceResultException(StatusCodes.BadServerHalted);
                             }
-                            if (!m_sessions.TryAdd(authenticationToken, restoredSession) &&
-                                !m_sessions.TryGetValue(authenticationToken, out session))
+
+                            // A restore that was admitted once and is gone again was
+                            // discarded or closed meanwhile and must not come back.
+                            if (pendingRestore!.Admitted ||
+                                !m_sessions.TryAdd(authenticationToken, restoredSession))
                             {
-                                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                                if (!m_sessions.TryGetValue(authenticationToken, out session))
+                                {
+                                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                                }
+                            }
+                            else
+                            {
+                                pendingRestore.Admitted = true;
+                                RemovePendingRestoreLocked(authenticationToken, pendingRestore);
                             }
                         }
 
-                        session ??= restoredSession;
-                        if (!ReferenceEquals(session, restoredSession))
+                        if (session == null)
                         {
-                            restoredSession.Dispose();
+                            // This activation admitted the restored session: it is
+                            // discarded again if no activation commits it.
+                            session = restoredSession;
+                            admittedRestore = restoredSession;
+                            m_server.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount++);
                         }
-                        restoredSession = null;
                     }
 
                     // get client lockout key.
@@ -560,7 +678,7 @@ namespace Opc.Ua.Server
                 if (sessionExpired)
                 {
                     // Close re-enters this manager, so it must run outside the global gate.
-                    // The shared timeout claim also prevents duplicate audit and diagnostic updates.
+                    // The shared close claim also prevents duplicate audit and diagnostic updates.
                     await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
@@ -578,9 +696,24 @@ namespace Opc.Ua.Server
 
                 try
                 {
-                    if (!m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
-                        !ReferenceEquals(currentSession, session))
+                    // Admit the activation under the lock the cap eviction claims its
+                    // victim under: either the eviction sees this activation in flight
+                    // and skips the session, or the activation sees the claim and fails.
+                    lock (m_bindingsLock)
                     {
+                        if (activationState.CapEvictionClaimed)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                        }
+                        activationState.ActivationInFlight = true;
+                    }
+
+                    if (!m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
+                        !ReferenceEquals(currentSession, session) ||
+                        SessionTermination.IsClosingOrClaimed(session))
+                    {
+                        // A timeout or server termination may already be tearing the
+                        // session down; it then waits for this lock only to remove it.
                         throw new ServiceResultException(StatusCodes.BadSessionClosed);
                     }
 
@@ -767,6 +900,16 @@ namespace Opc.Ua.Server
                     // restriction is enforced separately by AddMandatoryRoles.
                     activationStatus = ComputeActivationStatus(effectiveIdentity);
 
+                    // Re-check after the (possibly slow) authentication: a close that started
+                    // meanwhile has already abandoned the session's subscriptions, so
+                    // reporting a successful activation would hand the client a session that
+                    // is removed as soon as this lock is released (OPC 10000-4 5.7.2.1).
+                    if (SessionTermination.IsClosingOrClaimed(session))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                    }
+
+
                     lock (m_bindingsLock)
                     {
                         activationState.IsCommitting = true;
@@ -797,6 +940,41 @@ namespace Opc.Ua.Server
                     }
                     serverNonceObject = null; // ownership transferred to session
                     tempIdentity = null; // ownership transferred to session
+
+                    // The first activation of a restored session consumes the restore
+                    // (e.g. a mirrored single-use nonce) only once it passed every check
+                    // and the session was activated locally, so a failed or abandoned
+                    // attempt leaves it for another one. Only the binding commit, which
+                    // fails only for a session that is being closed, follows. Until it,
+                    // the session is unbound and is discarded when the activation fails.
+                    if (activationState.RestorePending)
+                    {
+                        bool admitted = false;
+                        try
+                        {
+                            admitted = await AdmitRestoredSessionAsync(
+                                authenticationToken,
+                                session,
+                                context,
+                                CancellationToken.None).ConfigureAwait(false);
+                        }
+                        finally
+                        {
+                            if (!admitted)
+                            {
+                                lock (m_bindingsLock)
+                                {
+                                    activationState.IsCommitting = false;
+                                }
+                            }
+                        }
+                        if (!admitted)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                        }
+                        activationState.RestorePending = false;
+                    }
+
                     activationState.ClientUserId = clientUserId;
                     activationState.ClientUserTokenType = clientUserTokenType;
                     activationState.HasClientUserId = true;
@@ -807,21 +985,39 @@ namespace Opc.Ua.Server
                     // that a newer concurrent activation has already superseded.
                     activationSequence = ++activationState.ActivationSequence;
                     CommitSessionBinding(authenticationToken, session, activationState);
+                    activated = true;
                 }
                 finally
                 {
+                    lock (m_bindingsLock)
+                    {
+                        activationState.ActivationInFlight = false;
+                    }
                     activationLock.Release();
                     activationLock = null;
                 }
 
-                await OnSessionActivatedAsync(
-                    authenticationToken,
-                    session,
-                    serverNonce,
-                    clientUserTokenType,
-                    clientUserId,
-                    activationSequence,
-                    cancellationToken).ConfigureAwait(false);
+                // The session already holds serverNonce and is bound to this channel;
+                // a fault now would hide the nonce from the client and desync it
+                // (Part 4 5.7.3.1), so a failing callback is only logged. The work
+                // can no longer change the outcome, so the request token (TimeoutHint,
+                // Cancel) does not apply: a cancelled mirror write would leave a
+                // persisted activation state older than the one the client now uses.
+                try
+                {
+                    await OnSessionActivatedAsync(
+                        authenticationToken,
+                        session,
+                        serverNonce,
+                        clientUserTokenType,
+                        clientUserId,
+                        activationSequence,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception e)
+                {
+                    m_logger.SessionActivatedCallbackFailed(e, session.Id);
+                }
 
                 // External callbacks run after the activation transaction has
                 // committed and released its per-Session gate.
@@ -834,9 +1030,143 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                restoredSession?.Dispose();
                 serverNonceObject?.Dispose();
                 activationLock?.Release();
+
+                // A restored session that no activation admitted already registered
+                // its diagnostics node, which must not outlive it; the last activation
+                // sharing the restore releases it.
+                if (pendingRestore != null &&
+                    LeaveRestore(authenticationToken, pendingRestore) &&
+                    restoredSession != null)
+                {
+                    await CloseUnadmittedRestoredSessionAsync(restoredSession).ConfigureAwait(false);
+                }
+
+                // A restored session no activation committed is removed again, so it
+                // neither holds a session slot nor times out into a close that a
+                // distributed manager would treat as the end of the mirrored session.
+                if (admittedRestore != null && !activated)
+                {
+                    await DiscardRestoredSessionAsync(authenticationToken, admittedRestore).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Restores a session for an unknown token, sharing the restore with every
+        /// concurrent activation of the same token. The replica materializes one copy of
+        /// the session, so a retry racing the first attempt neither competes with it for
+        /// the identity of the session (for example its SessionId) nor fails because the
+        /// first attempt consumed the restore.
+        /// </summary>
+        private async ValueTask<(PendingRestore Pending, ISession? Session)> JoinRestoreAsync(
+            NodeId authenticationToken,
+            OperationContext context,
+            CancellationToken cancellationToken)
+        {
+            PendingRestore? pending;
+            bool start = false;
+            lock (m_bindingsLock)
+            {
+                if (!m_pendingRestores.TryGetValue(authenticationToken, out pending))
+                {
+                    pending = new PendingRestore();
+                    m_pendingRestores.Add(authenticationToken, pending);
+                    start = true;
+                }
+                pending.Users++;
+            }
+
+            if (start)
+            {
+                try
+                {
+                    pending.Completion.TrySetResult(await RestoreSessionAsync(
+                        authenticationToken,
+                        context,
+                        cancellationToken).ConfigureAwait(false));
+                }
+                catch (Exception e)
+                {
+                    pending.Completion.TrySetException(e);
+                }
+            }
+
+            try
+            {
+                return (pending, await pending.Completion.Task.ConfigureAwait(false));
+            }
+            catch
+            {
+                LeaveRestore(authenticationToken, pending);
+                throw;
+            }
+        }
+
+        /// <summary>
+        /// Leaves a shared restore.
+        /// </summary>
+        /// <returns>
+        /// <c>true</c> when this was the last activation sharing it and no activation
+        /// admitted the restored session, which the caller then releases.
+        /// </returns>
+        private bool LeaveRestore(NodeId authenticationToken, PendingRestore pending)
+        {
+            lock (m_bindingsLock)
+            {
+                pending.Users--;
+                if (pending.Users > 0)
+                {
+                    return false;
+                }
+                RemovePendingRestoreLocked(authenticationToken, pending);
+                return !pending.Admitted;
+            }
+        }
+
+        private void RemovePendingRestoreLocked(NodeId authenticationToken, PendingRestore pending)
+        {
+            if (m_pendingRestores.TryGetValue(authenticationToken, out PendingRestore? current) &&
+                ReferenceEquals(current, pending))
+            {
+                m_pendingRestores.Remove(authenticationToken);
+            }
+        }
+
+        /// <summary>
+        /// A restore shared by the concurrent activations of one authentication token;
+        /// guarded by the bindings lock.
+        /// </summary>
+        private sealed class PendingRestore
+        {
+            public TaskCompletionSource<ISession?> Completion { get; } =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+            public int Users { get; set; }
+
+            public bool Admitted { get; set; }
+        }
+
+        /// <summary>
+        /// Releases a restored Session that was never admitted to the session table.
+        /// </summary>
+        private async ValueTask CloseUnadmittedRestoredSessionAsync(ISession session)
+        {
+            try
+            {
+                if (!session.Id.IsNull)
+                {
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+            }
+            catch (Exception e)
+            {
+                m_logger.FailedToDiscardRestoredSession(e, session.Id);
+            }
+            finally
+            {
+                session.Dispose();
             }
         }
 
@@ -903,8 +1233,10 @@ namespace Opc.Ua.Server
                     // raise session related event.
                     RaiseSessionEvent(session, SessionEventReason.Closing);
 
-                    // close the session.
-                    await session.CloseAsync(cancellationToken).ConfigureAwait(false);
+                    // close the session. The session is already removed, so the teardown
+                    // must finish: a cancelled close would leave its SessionDiagnostics
+                    // node and array entry behind for a session that no longer exists.
+                    await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
                 }
                 finally
                 {
@@ -973,7 +1305,7 @@ namespace Opc.Ua.Server
             // Session diagnostics callbacks can query membership while holding a Session lock.
             // Probe Session state without the index lock, then check that the snapshot is still current.
             if (!session.Activated ||
-                session.IsClosing ||
+                SessionTermination.IsClosingOrClaimed(session) ||
                 session.HasExpired ||
                 !string.Equals(binding.SecureChannelId, channelContext.SecureChannelId, StringComparison.Ordinal) ||
                 !session.IsSecureChannelValid(channelContext.SecureChannelId) ||
@@ -1008,9 +1340,11 @@ namespace Opc.Ua.Server
             lock (m_bindingsLock)
             {
                 state.IsCommitting = false;
-                // Shutdown can remove the session while authentication is awaiting a provider.
+                // Shutdown can remove the session while authentication is awaiting a provider,
+                // and a timeout or termination can start closing it.
                 if (!m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
-                    !ReferenceEquals(current, session))
+                    !ReferenceEquals(current, session) ||
+                    SessionTermination.IsClosingOrClaimed(session))
                 {
                     throw new ServiceResultException(StatusCodes.BadSessionClosed);
                 }
@@ -1104,6 +1438,91 @@ namespace Opc.Ua.Server
             state.ClientUserId = clientUserId;
             state.HasClientUserId = true;
             state.RequiresNewChannelChecks = true;
+            state.RestorePending = true;
+        }
+
+        /// <summary>
+        /// Called once for a Session materialized by <see cref="RestoreSessionAsync"/>,
+        /// after its first <c>ActivateSession</c> passed the client signature, user
+        /// identity and continuity checks and the session was activated locally, immediately
+        /// before the activation is bound and committed.
+        /// </summary>
+        /// <remarks>
+        /// A distributed manager consumes its single-use restore state here (for example
+        /// the mirrored server nonce), so an activation that fails validation leaves that
+        /// state intact for another attempt or another replica. Returning <c>false</c>
+        /// rejects the activation with <see cref="StatusCodes.BadSessionIdInvalid"/>. When
+        /// the first activation of a restored Session fails for any reason, the Session is
+        /// discarded from this manager without going through
+        /// <see cref="CloseSessionAsync"/>, so mirrored state is not deleted. Only the binding,
+        /// which fails only for a session that is being closed, commits after this call returns
+        /// <c>true</c>, so the request's cancellation is not passed: a restore must not be
+        /// consumed and then abandoned. Work that must only happen for a committed activation
+        /// belongs in <see cref="OnSessionActivatedAsync"/>.
+        /// </remarks>
+        /// <param name="authenticationToken">The Session authentication token.</param>
+        /// <param name="session">The restored Session.</param>
+        /// <param name="context">The operation context of the activation.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns><c>true</c> to commit the activation; <c>false</c> to reject it.</returns>
+        protected virtual ValueTask<bool> AdmitRestoredSessionAsync(
+            NodeId authenticationToken,
+            ISession session,
+            OperationContext context,
+            CancellationToken cancellationToken)
+        {
+            return new ValueTask<bool>(true);
+        }
+
+        /// <summary>
+        /// Removes a restored Session whose first activation failed, without the
+        /// virtual <see cref="CloseSessionAsync"/> and therefore without deleting any
+        /// mirrored state. Its diagnostics node is removed and the session disposed.
+        /// </summary>
+        private async ValueTask DiscardRestoredSessionAsync(NodeId authenticationToken, ISession session)
+        {
+            // Under the activation gate, so a concurrent activation of the same restored
+            // session either committed it already or fails once it is removed.
+            if (!m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state))
+            {
+                return;
+            }
+            await state.Lock.WaitAsync().ConfigureAwait(false);
+            try
+            {
+                lock (m_bindingsLock)
+                {
+                    // A restored session that an activation committed is bound; one whose
+                    // activation failed after Session.Activate (or after its admission) is not.
+                    if (state.BindingContext != null ||
+                        !m_sessions.TryGetValue(authenticationToken, out ISession? current) ||
+                        !ReferenceEquals(current, session) ||
+                        !SessionTermination.TryClaimClose(session) ||
+                        !m_sessions.TryRemove(authenticationToken, out _))
+                    {
+                        return;
+                    }
+                    RemoveSessionBinding(state);
+                }
+            }
+            finally
+            {
+                state.Lock.Release();
+            }
+
+            try
+            {
+                await session.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                m_logger.FailedToDiscardRestoredSession(e, session.Id);
+            }
+            finally
+            {
+                session.Dispose();
+                m_server.UpdateServerDiagnostics(diagnostics => diagnostics.CurrentSessionCount--);
+            }
         }
 
         /// <summary>
@@ -1124,7 +1543,11 @@ namespace Opc.Ua.Server
         /// activation gate use it to discard writes that a newer concurrent
         /// activation has already superseded.
         /// </param>
-        /// <param name="cancellationToken">The cancellation token.</param>
+        /// <param name="cancellationToken">
+        /// The cancellation token. The activation has already committed and the
+        /// callback cannot fail it (a failure is only logged), so the request's
+        /// cancellation is not passed; implementations bound their own work.
+        /// </param>
         protected virtual ValueTask OnSessionActivatedAsync(
             NodeId authenticationToken,
             ISession session,
@@ -1171,31 +1594,32 @@ namespace Opc.Ua.Server
                 // find session.
                 if (!m_sessions.TryGetValue(requestHeader.AuthenticationToken, out session))
                 {
-                    EventHandler<ValidateSessionLessRequestEventArgs>? handler = m_ValidateSessionLessRequest;
-
-                    if (handler != null)
+                    // Session-less invocation (OPC 10000-4 §6.3) is limited to
+                    // the View (without RegisterNodes/UnregisterNodes),
+                    // Attribute, Method, NodeManagement and Query Service Sets;
+                    // everything else needs a Session.
+                    if (!IsSessionlessService(requestType))
                     {
-                        var args = new ValidateSessionLessRequestEventArgs(
-                            requestHeader.AuthenticationToken,
-                            requestType);
-                        handler(this, args);
-
-                        if (ServiceResult.IsBad(args.Error))
-                        {
-                            throw new ServiceResultException(args.Error);
-                        }
-
-                        return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, args.Identity);
+                        throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
                     }
 
-                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                    return await CreateSessionlessContextAsync(
+                            requestHeader,
+                            secureChannelContext,
+                            requestType,
+                            requestLifetime)
+                        .ConfigureAwait(false);
                 }
 
                 // validate request header.
                 session!.ValidateRequest(requestHeader, secureChannelContext, requestType);
 
-                // validate user has permissions for additional info
-                session.ValidateDiagnosticInfo(requestHeader);
+                // A Session rejects requests itself once it is closing; a custom ISession
+                // whose close was only claimed by the server cannot, so it is checked here.
+                if (SessionTermination.IsClosingOrClaimed(session))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
 
                 // Lazily reconcile the RoleManager subscription. The
                 // RoleManager is bound during server startup, after
@@ -1211,21 +1635,383 @@ namespace Opc.Ua.Server
                 // so that downstream access checks see the current grants.
                 ReevaluateIdentityIfStale(session, secureChannelContext);
 
+                // validate user has permissions for additional info. Decided after the
+                // re-evaluation so the privilege reflects the roles the request runs with.
+                session.ValidateDiagnosticInfo(requestHeader);
+
                 // return context.
                 return new OperationContext(requestHeader, secureChannelContext, requestType, requestLifetime, session);
             }
             catch (ServiceResultException sre)
             {
-                if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
+                if ((sre.StatusCode == StatusCodes.BadSessionClosed ||
+                        sre.StatusCode == StatusCodes.BadSessionNotActivated) &&
+                    session != null &&
+                    !SessionTermination.IsClosingOrClaimed(session) &&
+                    session.HasExpired)
                 {
-                    await CloseSessionAsync(session.Id, requestLifetime.CancellationToken).ConfigureAwait(false);
+                    // The request found the session timed out before the session monitor
+                    // did: terminate it now (OPC 10000-4 5.7.2.1), as ActivateSession does.
+                    // A never-activated session that has also expired is a timeout too.
+                    // The shared close claim keeps the count and audit single-shot.
+                    await CloseTimedOutSessionAsync(session).ConfigureAwait(false);
                 }
+                else if (sre.StatusCode == StatusCodes.BadSessionNotActivated && session != null)
+                {
+                    // The server terminates the session because of the client's error, so
+                    // it goes through the regular close path and is counted and audited as
+                    // an abort. Not cancellable by the rejected request: a close cut short
+                    // by the request's timeout or transport cancellation must not leave the
+                    // session half torn down.
+                    await m_server.TerminateSessionAsync(
+                        session.Id,
+                        deleteSubscriptions: false,
+                        m_logger,
+                        CancellationToken.None).ConfigureAwait(false);
+                }
+                throw;
+            }
+            catch (OperationCanceledException)
+            {
+                // The request was cancelled or timed out, for example while a
+                // Session-less Access Token was validated: the endpoint maps it
+                // to the status of the request lifetime.
                 throw;
             }
             catch (Exception e)
             {
                 throw ServiceResultException.Unexpected(e, e.Message);
             }
+        }
+
+        /// <summary>
+        /// Creates the context of a request that names no Session: it runs
+        /// within the Session-less request budget, as the identity the
+        /// <see cref="ValidateSessionLessRequest"/> handler or the
+        /// <see cref="SessionlessInvocation"/> options decide.
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// The request carries no acceptable identity, or the handler or the options refuse it.
+        /// </exception>
+        /// <exception cref="ServerBusyException">
+        /// The Session-less request budget has no place for the request.
+        /// </exception>
+        private async ValueTask<OperationContext> CreateSessionlessContextAsync(
+            RequestHeader requestHeader,
+            SecureChannelContext secureChannelContext,
+            RequestType requestType,
+            RequestLifetime requestLifetime)
+        {
+            EventHandler<ValidateSessionLessRequestEventArgs>? handler = m_ValidateSessionLessRequest;
+            SessionlessRequestBudget? budget = Volatile.Read(ref m_sessionlessBudget);
+            SessionlessInvocationOptions? sessionless = budget?.Options;
+
+            if (handler == null && sessionless == null)
+            {
+                // No authenticationToken at all is a Session-less call; a
+                // Server without support answers Bad_ServiceUnsupported
+                // (§6.3.1). A token that names no Session stays
+                // Bad_SessionIdInvalid, which is what a Client whose
+                // Session expired needs to see.
+                if (requestHeader.AuthenticationToken.IsNull)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadServiceUnsupported,
+                        "Session-less Service invocation is not enabled on this Server.");
+                }
+                throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+            }
+
+            // The request has no Session to be accounted for: take its place in
+            // the Session-less budget before any identity is checked, which
+            // bounds the validations that run at the same time as well. The
+            // context returns the lease when the request is done, and every
+            // other way out of here does.
+            IDisposable? lease = null;
+            if (budget != null)
+            {
+                SessionlessLimit limit = budget.TryAcquire(secureChannelContext, out lease);
+                if (limit != SessionlessLimit.None)
+                {
+                    m_logger.SessionlessRequestRefused(limit, requestType);
+                    throw new ServerBusyException(
+                        new ServiceResult(
+                            StatusCodes.BadServerTooBusy,
+                            new LocalizedText(limit == SessionlessLimit.Server
+                                ? "The Server runs the maximum number of Session-less requests."
+                                : "The channel runs the maximum number of Session-less requests.")),
+                        retryAfter: null);
+                }
+            }
+
+            try
+            {
+                OperationContext context;
+                if (handler != null)
+                {
+                    var args = new ValidateSessionLessRequestEventArgs(
+                        requestHeader.AuthenticationToken,
+                        requestType);
+                    handler(this, args);
+
+                    if (ServiceResult.IsBad(args.Error))
+                    {
+                        throw new ServiceResultException(args.Error);
+                    }
+
+                    context = new OperationContext(
+                        requestHeader,
+                        secureChannelContext,
+                        requestType,
+                        requestLifetime,
+                        MapSessionlessRoles(args.Identity, secureChannelContext));
+                }
+                else
+                {
+                    IUserIdentity identity = await ValidateSessionlessRequestAsync(
+                            requestHeader.AuthenticationToken,
+                            secureChannelContext,
+                            sessionless!,
+                            requestLifetime.CancellationToken)
+                        .ConfigureAwait(false);
+                    context = new OperationContext(
+                        requestHeader,
+                        secureChannelContext,
+                        requestType,
+                        requestLifetime,
+                        MapSessionlessRoles(identity, secureChannelContext));
+                }
+
+                if (lease != null)
+                {
+                    context.AttachSessionlessLease(lease);
+                    lease = null;
+                }
+                return context;
+            }
+            finally
+            {
+                lease?.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Maps the roles of the identity of a Session-less request the way
+        /// ActivateSession maps those of a Session, so that role-mapped Nodes
+        /// are accessed under the same rules. Without a Session there is no
+        /// client application certificate, so no TrustedApplication role and
+        /// no application-based role mapping.
+        /// </summary>
+        private IUserIdentity MapSessionlessRoles(
+            IUserIdentity? identity,
+            SecureChannelContext secureChannelContext)
+        {
+            if (identity == null)
+            {
+                return null!;
+            }
+            return ResolveRoles(identity, null, secureChannelContext.EndpointDescription);
+        }
+
+        /// <summary>
+        /// Returns whether a Service may be invoked without a Session
+        /// (OPC 10000-4 §6.3.1): the View (without RegisterNodes and
+        /// UnregisterNodes), Attribute, Method, NodeManagement and Query
+        /// Service Sets.
+        /// </summary>
+        /// <param name="requestType">The Service.</param>
+        /// <returns>
+        /// <see langword="true"/> if the Service may be invoked without a
+        /// Session; otherwise <see langword="false"/>.
+        /// </returns>
+        public static bool IsSessionlessService(RequestType requestType)
+        {
+            return requestType is
+                RequestType.Browse or
+                RequestType.BrowseNext or
+                RequestType.TranslateBrowsePathsToNodeIds or
+                RequestType.Read or
+                RequestType.HistoryRead or
+                RequestType.Write or
+                RequestType.HistoryUpdate or
+                RequestType.Call or
+                RequestType.AddNodes or
+                RequestType.AddReferences or
+                RequestType.DeleteNodes or
+                RequestType.DeleteReferences or
+                RequestType.QueryFirst or
+                RequestType.QueryNext;
+        }
+
+        /// <summary>
+        /// Determines the identity a Session-less request runs as, per
+        /// <paramref name="options"/>.
+        /// </summary>
+        /// <param name="authenticationToken">
+        /// The <c>authenticationToken</c> of the request header.
+        /// </param>
+        /// <param name="secureChannelContext">The channel the request arrived on.</param>
+        /// <param name="options">The Session-less invocation options.</param>
+        /// <param name="cancellationToken">Cancels the validation.</param>
+        /// <returns>The identity the request runs as.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="secureChannelContext"/> or <paramref name="options"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The request carries no acceptable identity.
+        /// </exception>
+        protected virtual async ValueTask<IUserIdentity> ValidateSessionlessRequestAsync(
+            NodeId authenticationToken,
+            SecureChannelContext secureChannelContext,
+            SessionlessInvocationOptions options,
+            CancellationToken cancellationToken)
+        {
+            if (secureChannelContext == null)
+            {
+                throw new ArgumentNullException(nameof(secureChannelContext));
+            }
+            if (options == null)
+            {
+                throw new ArgumentNullException(nameof(options));
+            }
+
+            EndpointDescription? endpoint = secureChannelContext.EndpointDescription;
+
+            if (!authenticationToken.IsNull)
+            {
+                // An Access Token (§6.3.1). Session tokens are UInt32 or
+                // ByteString NodeIds; a String NodeId carries the token itself.
+                if (!options.AcceptAccessTokens ||
+                    !authenticationToken.TryGetValue(out string accessToken) ||
+                    string.IsNullOrEmpty(accessToken))
+                {
+                    throw new ServiceResultException(StatusCodes.BadSessionIdInvalid);
+                }
+
+                // "The SecureChannel shall have encryption enabled to prevent
+                // eavesdroppers from seeing the Access Token." HTTPS encrypts
+                // at the transport.
+                if (endpoint == null || !IsConfidential(endpoint))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityModeInsufficient,
+                        "An Access Token requires an encrypted SecureChannel.");
+                }
+
+                var tokenHandler = new IssuedIdentityTokenHandler(
+                    Profiles.JwtUserToken,
+                    System.Text.Encoding.UTF8.GetBytes(accessToken));
+                var policy = new UserTokenPolicy
+                {
+                    TokenType = UserTokenType.IssuedToken,
+                    IssuedTokenType = Profiles.JwtUserToken
+                };
+                AuthenticationResult result = await m_server.IdentityRegistry
+                    .AuthenticateAsync(
+                        new AuthenticationContext(tokenHandler, policy, endpoint, m_server.MessageContext),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+                if (result.Outcome == AuthenticationOutcome.Accepted && result.Identity != null)
+                {
+                    return result.Identity;
+                }
+
+                m_logger.SessionlessAccessTokenRejected(result.Outcome);
+                throw new ServiceResultException(
+                    result.Error ?? new ServiceResult(StatusCodes.BadIdentityTokenRejected));
+            }
+
+            if (options.AllowAnonymous)
+            {
+                ValidateAnonymousSessionlessChannel(endpoint, secureChannelContext);
+                return new UserIdentity();
+            }
+
+            throw ServiceResultException.Create(
+                StatusCodes.BadIdentityTokenInvalid,
+                "The Session-less request carries no Access Token.");
+        }
+
+        /// <summary>
+        /// Checks that a Session-less request without an Access Token may run
+        /// as an anonymous user on the channel it arrived on.
+        /// </summary>
+        /// <remarks>
+        /// "If application authentication through the SecureChannel is
+        /// sufficient, Servers may not require the Access Token and assume an
+        /// anonymous user" (OPC 10000-4 §6.3.1). The request therefore has to
+        /// meet what the endpoint demands of CreateSession and ActivateSession:
+        /// the client application certificate of the channel where the
+        /// endpoint uses security, or HTTPS with mutual TLS, and an anonymous
+        /// user token policy.
+        /// </remarks>
+        /// <exception cref="ServiceResultException">
+        /// The channel does not authenticate the application, or the endpoint
+        /// offers no anonymous user token policy.
+        /// </exception>
+        private void ValidateAnonymousSessionlessChannel(
+            EndpointDescription? endpoint,
+            SecureChannelContext secureChannelContext)
+        {
+            if (endpoint == null)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityModeInsufficient,
+                    "The endpoint of the Session-less request is not known.");
+            }
+
+            // An application certificate is required as ActivateSession requires it
+            // for a new channel; HTTPS with mutual TLS asks for it on every request.
+            bool requiresClientCertificate =
+                endpoint.SecurityMode != MessageSecurityMode.None ||
+                !string.Equals(endpoint.SecurityPolicyUri, SecurityPolicies.None, StringComparison.Ordinal) ||
+                (m_httpsMutualTls &&
+                    endpoint.EndpointUrl != null &&
+                    Utils.IsUriHttpsScheme(endpoint.EndpointUrl));
+            if (requiresClientCertificate &&
+                (secureChannelContext.ClientChannelCertificate == null ||
+                    secureChannelContext.ClientChannelCertificate.Length == 0))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The Session-less request carries no Access Token and its channel has no client certificate.");
+            }
+
+            // Anonymous only where an anonymous Session would be possible: the
+            // check of ActivateSession for an anonymous user identity token.
+            if (!endpoint.UserIdentityTokens.IsEmpty && !OffersAnonymousUserTokenPolicy(endpoint))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenRejected,
+                    "Anonymous user token policy not supported.");
+            }
+        }
+
+        /// <summary>
+        /// Returns whether <paramref name="endpoint"/> lists an anonymous user token policy.
+        /// </summary>
+        private static bool OffersAnonymousUserTokenPolicy(EndpointDescription endpoint)
+        {
+            for (int ii = 0; ii < endpoint.UserIdentityTokens.Count; ii++)
+            {
+                if (endpoint.UserIdentityTokens[ii].TokenType == UserTokenType.Anonymous)
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns whether the channel of <paramref name="endpoint"/> keeps
+        /// an Access Token confidential: SignAndEncrypt, or an HTTPS
+        /// endpoint, whose transport encrypts.
+        /// </summary>
+        private static bool IsConfidential(EndpointDescription endpoint)
+        {
+            return endpoint.SecurityMode == MessageSecurityMode.SignAndEncrypt ||
+                (endpoint.EndpointUrl != null && Utils.IsUriHttpsScheme(endpoint.EndpointUrl));
         }
 
         /// <summary>
@@ -1366,6 +2152,39 @@ namespace Opc.Ua.Server
             OperationContext context,
             IUserIdentity effectiveIdentity)
         {
+            // Only a client certificate that passed validation identifies the
+            // application. One whose validation error an OnApplicationCertificateError
+            // override accepted still signs the session but grants neither
+            // TrustedApplication nor application-based role mappings.
+            Certificate? applicationCertificate =
+                ClientCertificateProvenance.IsValidated(session)
+                    ? session.ClientCertificate
+                    : null;
+
+            return ResolveRoles(
+                effectiveIdentity,
+                applicationCertificate,
+                context.ChannelContext?.EndpointDescription);
+        }
+
+        /// <summary>
+        /// Maps the roles of an identity: the restriction of a user that must change
+        /// the password, the TrustedApplication role and the live
+        /// <see cref="IRoleManager"/> identity-mapping rules. A Session receives them
+        /// through <see cref="AddMandatoryRoles"/>, a Session-less request through
+        /// <see cref="CreateSessionlessContextAsync"/>, so both resolve the roles alike.
+        /// </summary>
+        /// <param name="effectiveIdentity">The identity to map the roles of.</param>
+        /// <param name="applicationCertificate">
+        /// The validated application certificate of the client, or <see langword="null"/>
+        /// if the client has none or its certificate did not pass validation.
+        /// </param>
+        /// <param name="endpoint">The endpoint the request arrived on.</param>
+        private IUserIdentity ResolveRoles(
+            IUserIdentity effectiveIdentity,
+            Certificate? applicationCertificate,
+            EndpointDescription? endpoint)
+        {
             // Part 18 5.2.8 - the Session "shall have only the Role Anonymous" if
             // the user has MustChangePassword set, so every other role and any
             // role-derived privilege of the impersonated identity is discarded
@@ -1384,8 +2203,8 @@ namespace Opc.Ua.Server
             }
 
             // Assign TrustedApplication role per OPC UA Part 3 §4.9.
-            if (session.ClientCertificate != null &&
-                context.ChannelContext?.EndpointDescription?.SecurityMode >= MessageSecurityMode.Sign)
+            if (applicationCertificate != null &&
+                endpoint?.SecurityMode >= MessageSecurityMode.Sign)
             {
                 if (effectiveIdentity is RoleBasedIdentity rbi)
                 {
@@ -1408,8 +2227,8 @@ namespace Opc.Ua.Server
             {
                 IList<NodeId> dynamicRoleIds = roleManager.ResolveGrantedRoles(
                     effectiveIdentity,
-                    session.ClientCertificate,
-                    context.ChannelContext?.EndpointDescription);
+                    applicationCertificate,
+                    endpoint);
 
                 if (dynamicRoleIds.Count > 0)
                 {
@@ -1730,33 +2549,136 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Counts, audits and closes a session whose timeout has elapsed. Only the first
-        /// caller for a session does so; ActivateSession and the session monitor can both
-        /// observe the same expiry before the session is removed.
+        /// Closes, counts and audits a session whose timeout has elapsed. Only the caller
+        /// that claims the close does so; ActivateSession, request validation and the
+        /// session monitor can all observe the same expiry, and a client close, a
+        /// termination or a cap eviction may already be closing the session.
         /// </summary>
         private async ValueTask CloseTimedOutSessionAsync(ISession session)
         {
-            SessionActivationState state = m_sessionActivationStates.GetValue(
-                session,
-                _ => new SessionActivationState(
-                    default,
-                    SecurityPolicies.None,
-                    MessageSecurityMode.None));
-            if (!state.TryClaimTimeout())
+            if (session.IsClosing || !SessionTermination.TryClaimClose(session))
             {
                 return;
             }
 
-            // update diagnostics.
-            m_server.UpdateServerDiagnostics(diagnostics => diagnostics.SessionTimeoutCount++);
+            try
+            {
+                // Deliberately not cancellable: a close already under way must finish so the
+                // session is torn down cleanly even when shutdown has cancelled the monitor loop.
+                await m_server.CloseClaimedSessionAsync(session, false, CancellationToken.None)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                // update diagnostics; the session is removed even when a part of its
+                // teardown fails.
+                m_server.UpdateServerDiagnostics(diagnostics => diagnostics.SessionTimeoutCount++);
 
-            // raise audit event for session closed because of timeout
-            m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
+                // raise audit event for session closed because of timeout
+                m_server.ReportAuditCloseSessionEvent(null!, session, m_logger, "Session/Timeout");
+            }
+        }
 
-            // Deliberately not cancellable: a close already under way must finish so the
-            // session is torn down cleanly even when shutdown has cancelled the monitor loop.
-            await m_server.CloseSessionAsync(null!, session.Id, false, CancellationToken.None)
-                .ConfigureAwait(false);
+        /// <summary>
+        /// Closes the oldest Sessions that were never activated while the Session
+        /// table is at its cap (Part 4 5.7.2.1). A cap filled with activated
+        /// Sessions is left alone and CreateSession fails with Bad_TooManySessions.
+        /// </summary>
+        /// <remarks>
+        /// Runs before the session-manager lock is taken, because closing a Session
+        /// takes its activation lock first. A Session whose ActivateSession is in
+        /// flight is not a victim: it may be about to become activated, and closing it
+        /// would wait for its activation (and authentication) to finish. Each victim is
+        /// claimed under the bindings lock, so an activation that has not committed yet
+        /// fails in CommitSessionBinding and concurrent creators never close the same
+        /// Session twice; the check is repeated a bounded number of times.
+        /// </remarks>
+        private async ValueTask EvictNonActivatedSessionsAtCapAsync(CancellationToken cancellationToken)
+        {
+            for (int attempt = 0;
+                attempt < kMaxCapEvictionAttempts &&
+                    m_maxSessionCount > 0 &&
+                    m_sessions.Count >= m_maxSessionCount;
+                attempt++)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+
+                ISession? victim = null;
+                DateTimeUtc victimConnectionTime = DateTimeUtc.MaxValue;
+                long victimSequence = long.MaxValue;
+                foreach (KeyValuePair<NodeId, ISession> entry in m_sessions)
+                {
+                    ISession candidate = entry.Value;
+                    if (candidate == null ||
+                        candidate.Id.IsNull ||
+                        !IsCapEvictionCandidate(candidate) ||
+                        !m_sessionActivationStates.TryGetValue(candidate, out SessionActivationState? candidateState))
+                    {
+                        continue;
+                    }
+
+                    // The oldest by connection time; sessions created within one clock tick
+                    // are ordered by creation, not by the table's enumeration order.
+                    DateTimeUtc connectionTime = candidate.ReadDiagnostics(d => d.ClientConnectionTime);
+                    if (victim == null ||
+                        connectionTime < victimConnectionTime ||
+                        (connectionTime == victimConnectionTime &&
+                            candidateState.CreationSequence < victimSequence))
+                    {
+                        victim = candidate;
+                        victimConnectionTime = connectionTime;
+                        victimSequence = candidateState.CreationSequence;
+                    }
+                }
+
+                if (victim == null)
+                {
+                    return;
+                }
+
+                // Re-checked and claimed under the lock CommitSessionBinding re-checks
+                // IsClosing under, without taking a Session lock while it is held.
+                // An activation registers itself in flight under the same lock after
+                // it acquired its gate, and fails once the eviction claim is recorded.
+                lock (m_bindingsLock)
+                {
+                    if (!IsCapEvictionCandidate(victim) ||
+                        !m_sessionActivationStates.TryGetValue(victim, out SessionActivationState? victimState) ||
+                        !SessionTermination.TryClaimClose(victim))
+                    {
+                        continue;
+                    }
+                    victimState.CapEvictionClaimed = true;
+                }
+
+                m_logger.ClosingNonActivatedSessionAtCap(victim.Id, m_maxSessionCount);
+
+                // Not cancellable for the same reason as a timed-out close: a close
+                // that started must finish so the slot is really released. Counted and
+                // audited once, as a termination by the server.
+                await m_server.TerminateClaimedSessionAsync(
+                    victim,
+                    deleteSubscriptions: true,
+                    m_logger,
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Whether the session may be closed to make room at the session cap: it was never
+        /// activated, is not closing and has no ActivateSession in flight. Takes no Session
+        /// lock, so it can be called under the bindings lock; the in-flight flag is only
+        /// authoritative there.
+        /// </summary>
+        private bool IsCapEvictionCandidate(ISession session)
+        {
+            return !session.Activated &&
+                !SessionTermination.IsClosingOrClaimed(session) &&
+                m_sessionActivationStates.TryGetValue(session, out SessionActivationState? state) &&
+                !state.IsCommitting &&
+                !state.ActivationInFlight &&
+                !state.CapEvictionClaimed &&
+                state.Lock.CurrentCount != 0;
         }
 
         /// <summary>
@@ -1831,6 +2753,7 @@ namespace Opc.Ua.Server
         private readonly ILogger m_logger;
         private readonly NodeIdDictionary<ISession> m_sessions;
         private readonly Lock m_bindingsLock = new();
+        private readonly Dictionary<NodeId, PendingRestore> m_pendingRestores = [];
         private readonly Dictionary<string, int> m_channelSessionCounts = new(StringComparer.Ordinal);
         private bool m_stopping;
 
@@ -1842,7 +2765,7 @@ namespace Opc.Ua.Server
                 new();
 #endif
 
-        private uint m_lastSessionId;
+        private uint m_lastSessionNameId;
         private readonly ManualResetEvent m_shutdownEvent;
         private Task? m_monitorWorkerTask;
         private CancellationTokenSource? m_workerCts;
@@ -1850,6 +2773,7 @@ namespace Opc.Ua.Server
         private readonly int m_minSessionTimeout;
         private readonly int m_maxSessionTimeout;
         private readonly int m_maxSessionCount;
+        private readonly bool m_httpsMutualTls;
         private readonly int m_maxRequestAge;
 
         private readonly int m_maxBrowseContinuationPoints;
@@ -1868,6 +2792,7 @@ namespace Opc.Ua.Server
         private event SessionEventHandler? m_SessionChannelKeepAlive;
         private event ImpersonateEventHandler? m_ImpersonateUser;
         private event EventHandler<ValidateSessionLessRequestEventArgs>? m_ValidateSessionLessRequest;
+        private SessionlessRequestBudget? m_sessionlessBudget;
 
         /// <summary>
         /// Last <see cref="IRoleManager"/> we wired
@@ -1890,6 +2815,7 @@ namespace Opc.Ua.Server
         /// separate value carried in the AdditionalParameters ECDHKey entry.
         /// </remarks>
         private const int kSessionNonceLength = 32;
+        private const int kMaxCapEvictionAttempts = 3;
 
         /// <summary>
         /// Pairs an activated identity with the effective identity it was mapped to.
@@ -1910,6 +2836,12 @@ namespace Opc.Ua.Server
 
             public SemaphoreSlim Lock { get; } = new(1, 1);
 
+            /// <summary>
+            /// Orders sessions by creation where ClientConnectionTime cannot: on a coarse
+            /// clock (about 15 ms on .NET Framework) sessions created back to back share it.
+            /// </summary>
+            public long CreationSequence { get; } = Interlocked.Increment(ref s_lastCreationSequence);
+
             public ByteString OriginalClientChannelCertificate { get; set; }
 
             public string SecurityPolicyUri { get; set; }
@@ -1924,11 +2856,29 @@ namespace Opc.Ua.Server
 
             public bool RequiresNewChannelChecks { get; set; }
 
+            /// <summary>
+            /// The session was materialized by <see cref="RestoreSessionAsync"/> and no
+            /// activation has committed it yet; read and cleared under the activation gate.
+            /// </summary>
+            public bool RestorePending { get; set; }
+
             public long ActivationSequence { get; set; }
 
             public SessionBindingContext? BindingContext { get; set; }
 
             public bool IsCommitting { get; set; }
+
+            /// <summary>
+            /// An ActivateSession holds the activation gate and was admitted; set and read
+            /// under the bindings lock.
+            /// </summary>
+            public bool ActivationInFlight { get; set; }
+
+            /// <summary>
+            /// The session was claimed as a cap eviction victim; set and read under the
+            /// bindings lock. An activation that acquires the gate afterwards fails.
+            /// </summary>
+            public bool CapEvictionClaimed { get; set; }
 
             /// <summary>
             /// The effective identity the authenticator (or ImpersonateUser callback) returned
@@ -1943,16 +2893,7 @@ namespace Opc.Ua.Server
             }
 
             private ImpersonatedIdentity? m_impersonated;
-
-            /// <summary>
-            /// Claims the timeout of the session; returns <c>true</c> for the first caller only.
-            /// </summary>
-            public bool TryClaimTimeout()
-            {
-                return Interlocked.Exchange(ref m_timeoutClaimed, 1) == 0;
-            }
-
-            private int m_timeoutClaimed;
+            private static long s_lastCreationSequence;
         }
 
         /// <inheritdoc/>
@@ -2316,6 +3257,48 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.SessionManager + 9, Level = LogLevel.Error,
             Message = "Server - Session Monitor failed to process session {SessionId}.")]
         public static partial void FailedToCloseTimedOutSession(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 17, Level = LogLevel.Warning,
+            Message = "Server - Session activated callback failed for session {SessionId}; the activation stands.")]
+        public static partial void SessionActivatedCallbackFailed(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 11, Level = LogLevel.Information,
+            Message = "Server - Closing non-activated session {SessionId}: the session limit of " +
+                "{MaxSessionCount} is reached.")]
+        public static partial void ClosingNonActivatedSessionAtCap(
+            this ILogger logger,
+            NodeId sessionId,
+            int maxSessionCount);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 10, Level = LogLevel.Warning,
+            Message = "Server - Failed to close session {SessionId} at shutdown.")]
+        public static partial void FailedToCloseSessionAtShutdown(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 18, Level = LogLevel.Warning,
+            Message = "Server - Rejected the access token of a session-less request ({Outcome}).")]
+        public static partial void SessionlessAccessTokenRejected(
+            this ILogger logger,
+            AuthenticationOutcome outcome);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 19, Level = LogLevel.Debug,
+            Message = "Server - Refused a session-less {RequestType} request, the {Limit} limit is reached.")]
+        public static partial void SessionlessRequestRefused(
+            this ILogger logger,
+            SessionlessLimit limit,
+            RequestType requestType);
+
+        [LoggerMessage(EventId = ServerEventIds.SessionManager + 12, Level = LogLevel.Warning,
+            Message = "Server - Failed to discard restored session {SessionId} after its activation failed.")]
+        public static partial void FailedToDiscardRestoredSession(
             this ILogger logger,
             Exception ex,
             NodeId sessionId);

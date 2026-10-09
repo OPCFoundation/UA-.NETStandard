@@ -56,7 +56,7 @@ This document starts with the bindings that ship today and how to register them,
 
 | Project, assembly, or namespace | Contents | Availability and dependencies |
 | --- | --- | --- |
-| `src/Opc.Ua.WotCon.Bindings` / `Opc.Ua.WotCon.Bindings` | Stable interfaces, plan model, codecs, the eight planner/validator binders, and registry. No sample binding ships in this library. | Base package `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`; full `net472;net48;netstandard2.1;net8.0;net9.0;net10.0` matrix. |
+| `src/Opc.Ua.WotCon.Bindings` / `Opc.Ua.WotCon.Bindings` | Stable interfaces, plan model, codecs, the eight planner/validator binders, and registry. No sample binding ships in this library. | Base package `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`; full `net48;net8.0;net9.0;net10.0` matrix. |
 | `Opc.Ua.WotCon.Bindings.Http` | HTTP executor and options, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; `HttpClient`. |
 | `Opc.Ua.WotCon.Bindings.Modbus` | Modbus TCP client, executor, addressing, and conversion, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; sockets only. |
 | `Opc.Ua.WotCon.Bindings.OpcUa` | OPC UA-to-OPC UA executor and options, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; `Opc.Ua.Client`. |
@@ -1520,8 +1520,7 @@ For the converter-default compatibility note, see
 
 Current sample limitation: the upstream cavitation signal is proven to raise the
 upstream alarm and leave it unacknowledged, but the Pump1 Asset's `Supervision`
-view currently organizes no event affordance, Pump1 carries no `GeneratesEvent`
-reference for its cavitation alarm, and acknowledgement does not round-trip
+view currently organizes no event affordance, and acknowledgement does not round-trip
 because the projected pump actions are Start, Stop and Reset rather than
 Condition Methods carrying `uav:conditionAction` / `uav:actsOn`.
 

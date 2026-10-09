@@ -32,6 +32,7 @@ using System.IO;
 using System.Linq;
 using System.Net;
 using System.Net.WebSockets;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.AspNetCore.Builder;
@@ -63,7 +64,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     /// <c>http://127.0.0.1:0</c> with <see cref="WebSocketOptions"/>
     /// enabled — plain <c>ws://</c> sidesteps the TLS / certificate
     /// management overhead unit tests don't need. The same wire
-    /// envelope (<c>{TypeId, Body}</c> standard OPC UA JSON message)
+    /// envelope (<c>UaTypeId</c> with inline service fields)
     /// is reused, so the channel exercises the same encode/decode path
     /// it does against the real <c>HttpsTransportListener.AcceptWebSocketOpenApiAsync</c>.
     /// </remarks>
@@ -79,6 +80,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         private ServiceMessageContext? m_messageContext;
         private string? m_lastNegotiatedSubProtocol;
         private IServiceRequest? m_lastRequest;
+        private ByteString m_lastResponseBytes;
         private Func<IServiceRequest, IServiceResponse>? m_responder;
         private bool m_stallResponse;
 
@@ -96,6 +98,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .Commit();
             m_lastNegotiatedSubProtocol = null;
             m_lastRequest = null;
+            m_lastResponseBytes = default;
             m_responder = DefaultResponder;
             m_stallResponse = false;
 
@@ -152,6 +155,11 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(response, Is.InstanceOf<ReadResponse>());
             Assert.That(m_lastRequest, Is.InstanceOf<ReadRequest>());
             Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(4242u));
+            using var envelope = JsonDocument.Parse(m_lastResponseBytes.Memory);
+            Assert.That(envelope.RootElement.GetProperty("UaTypeId").GetString(), Is.EqualTo("i=632"));
+            Assert.That(envelope.RootElement.GetProperty("ResponseHeader").GetProperty("RequestHandle").GetUInt32(),
+                Is.EqualTo(4242u));
+            Assert.That(envelope.RootElement.TryGetProperty("UaBody", out _), Is.False);
         }
 
         [Test]
@@ -517,6 +525,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                     }
                     responseBytes = stream.ToArray();
                 }
+                m_lastResponseBytes = ByteString.From(responseBytes);
                 await ws.SendAsync(
                     new ArraySegment<byte>(responseBytes),
                     WebSocketMessageType.Text,

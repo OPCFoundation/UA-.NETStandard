@@ -53,7 +53,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
-            bool result = method.Equals((object)null);
+            bool result = method.Equals((object)null!);
 #pragma warning restore CA1508 // Avoid dead conditional code
 
             // Assert
@@ -923,7 +923,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
 #pragma warning disable CA1508 // Avoid dead conditional code
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            bool result = method.Equals((MethodDesign)null);
+            bool result = method.Equals((MethodDesign)null!);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore CA1508 // Avoid dead conditional code
 

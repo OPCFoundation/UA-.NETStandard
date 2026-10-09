@@ -37,7 +37,7 @@ without any other context.
   [Versioning](DeveloperGuide.md#versioning)). Every package in the solution
   shares the same root version except the **preview-only families**.
 - **Preview-only families** - the XRegistry, WoT Connectivity, Vision,
-  Robotics, Redundancy, Positioning, OpenUSD, ISA95, AI, and DI package
+  Robotics, Redundancy, Positioning, OpenUSD, and AI package
   families, the Robotics/Vision MCP extensions, and the OpenUSD connector
   tools. `version.targets` keeps these on a `-preview.N` suffix even when the
   root version is an exact stable release. The full, single source of truth
@@ -116,7 +116,7 @@ Every procedure below starts here.
        ConvertFrom-Json | ForEach-Object name
    ```
    Repeat for a representative sample of the preview-only families (at
-   minimum XRegistry, DI, and one MCP/connector package); they are versioned
+   minimum XRegistry, Robotics, and one MCP/connector package); they are versioned
    together but published independently, so check more than one. If any
    published number is greater than or equal to the committed
    `PreviewPackageBuildNumber`, raise it (in the same PR that changes the
@@ -582,14 +582,11 @@ fails the promotion instead of being silently skipped.
    appears. Do not expect any `.Debug` package ID on nuget.org; inspect
    GitHub Packages for those IDs instead.
 
-4. Tag the released commit and publish the GitHub Release, binding both to
-   the exact source SHA the candidate was built from (recorded in the
-   promotion manifest as `commit`):
-   ```powershell
-   git tag 2.0.0 <commit-sha-from-manifest>
-   git push origin 2.0.0
-   gh release create 2.0.0 --target <commit-sha-from-manifest> --generate-notes
-   ```
+4. The successful promotion automatically creates the version tag and GitHub
+   Release, both bound to the exact source SHA recorded in the promotion
+   manifest as `commit`. On a recovery re-run, it verifies that any existing
+   tag and Release already point to that same candidate, and fails rather than
+   moving either one.
 
 5. Record the [release handoff](#release-handoff-template) in the GitHub
    Release description or the tracking issue.
@@ -668,6 +665,13 @@ What stays the same for the GitHub Packages preview feed:
    partial preview publication exactly as in
    [Failed or partial release](#failed-or-partial-release), keeping
    `channel=preview` on the re-run.
+
+5. Confirm the promotion created a prerelease GitHub Release and version tag
+   for the exact candidate commit:
+   ```powershell
+   git rev-parse 2.0.0-preview.6
+   gh release view 2.0.0-preview.6 --json targetCommitish,isPrerelease
+   ```
 
 ## Failed or partial release
 

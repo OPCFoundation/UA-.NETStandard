@@ -95,7 +95,7 @@ namespace Opc.Ua.Server.Tests
                 using var item = new MonitoredItem(
                     server.Object,
                     new Mock<IAsyncNodeManager>().Object,
-                    null,
+                    null!,
                     1,
                     2,
                     new ReadValueId { NodeId = new NodeId(1, 1), AttributeId = Attributes.Value },
@@ -150,6 +150,80 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(item.Publish(context, notifications, diagnostics, 4, NullLogger.Instance), Is.False);
                     Assert.That(notifications, Is.Empty);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Verifies that published aggregate values carry the end of their processing interval as ServerTimestamp
+        /// (Part 4 §7.22.4, M5-2), whether the calculator stamps the interval start or an actual raw time inside it.
+        /// </summary>
+        [TestCase(2000, 3000)]
+        [TestCase(2500, 3000)]
+        [TestCase(0, 1000)]
+        public async Task AggregateServerTimestampIsEndOfProcessingIntervalAsync(
+            int sourceOffsetMilliseconds,
+            int expectedServerOffsetMilliseconds)
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var aggregates = new AggregateManager(server.Object))
+            {
+                server.SetupGet(value => value.AggregateManager).Returns(aggregates);
+                server.SetupGet(value => value.DiagnosticsNodeManager).Returns(new Mock<IDiagnosticsNodeManager>().Object);
+                var startTime = new DateTimeUtc(new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+                DateTimeUtc sourceTimestamp = startTime.AddMilliseconds(sourceOffsetMilliseconds);
+                var calculator = new Mock<IAggregateCalculator>();
+                calculator.Setup(value => value.HasEndTimePassed(It.IsAny<DateTimeUtc>())).Returns(false);
+                calculator.Setup(value => value.QueueRawValue(It.IsAny<DataValue>())).Returns(true);
+                var completedValue = new DataValue(new Variant(42.0), StatusCodes.Good, sourceTimestamp, sourceTimestamp);
+                calculator.SetupSequence(value => value.TryGetProcessedValue(false, out completedValue))
+                    .Returns(true)
+                    .Returns(false);
+                var aggregateId = new NodeId("TimestampAggregate", 1);
+                await aggregates.RegisterFactoryAsync(
+                    aggregateId,
+                    "Timestamp aggregate",
+                    (id, start, end, interval, stepped, configuration, telemetry) => calculator.Object)
+                    .ConfigureAwait(false);
+                var filter = new ServerAggregateFilter
+                {
+                    AggregateType = aggregateId,
+                    StartTime = startTime,
+                    ProcessingInterval = 1000,
+                    AggregateConfiguration = new AggregateConfiguration(),
+                    PrimeInitialValue = false
+                };
+                using var item = new MonitoredItem(
+                    server.Object,
+                    new Mock<IAsyncNodeManager>().Object,
+                    null!,
+                    1,
+                    2,
+                    new ReadValueId { NodeId = new NodeId(1, 1), AttributeId = Attributes.Value },
+                    DiagnosticsMasks.None,
+                    TimestampsToReturn.Both,
+                    MonitoringMode.Reporting,
+                    3,
+                    filter,
+                    filter,
+                    null,
+                    0,
+                    4,
+                    true,
+                    1000);
+
+                item.QueueValue(new DataValue(1.0), ServiceResult.Good);
+                var notifications = new Queue<MonitoredItemNotification>();
+                var diagnostics = new Queue<DiagnosticInfo>();
+                item.Publish(new OperationContext(item), notifications, diagnostics, 4, NullLogger.Instance);
+
+                Assert.That(notifications, Has.Count.EqualTo(1));
+                DataValue published = notifications.Dequeue().Value;
+                AssertValue(published, 42.0);
+                Assert.That(published.SourceTimestamp, Is.EqualTo(sourceTimestamp));
+                Assert.That(
+                    published.ServerTimestamp,
+                    Is.EqualTo(startTime.AddMilliseconds(expectedServerOffsetMilliseconds)));
             }
         }
 

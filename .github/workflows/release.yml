@@ -43,7 +43,7 @@ on:
 
 permissions:
   actions: read
-  contents: read
+  contents: write
   id-token: write
   packages: write
 
@@ -413,6 +413,111 @@ jobs:
             -Feed 'GitHub Packages' `
             -GitHubToken $env:GITHUB_PACKAGES_TOKEN `
             -RequirePresent
+
+      - name: Tag published package candidate
+        if: ${{ !inputs.dry_run }}
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_COMMIT: ${{ steps.source.outputs.commit }}
+          RELEASE_CHANNEL: ${{ inputs.channel }}
+        run: |
+          $manifest = Get-Content -LiteralPath 'promotion/release-manifest.json' -Raw | ConvertFrom-Json
+          $tag = if ($manifest.schemaVersion -eq 2) {
+             [string]$manifest.basePackageVersion
+          }
+          else {
+             [string]$manifest.packageVersion
+          }
+          if ([string]::IsNullOrWhiteSpace($tag)) {
+             throw 'The promotion manifest does not contain a package version for the release tag.'
+          }
+
+          $tagRef = gh api "repos/$env:GITHUB_REPOSITORY/git/ref/tags/$tag" 2>&1
+          if ($LASTEXITCODE -eq 0) {
+             $tagObject = $tagRef | ConvertFrom-Json
+             if ($tagObject.object.type -cne 'commit' -or
+                 $tagObject.object.sha -cne $env:RELEASE_COMMIT) {
+                 throw "Existing tag '$tag' does not point to candidate commit $env:RELEASE_COMMIT."
+             }
+          }
+          elseif ($tagRef -match 'HTTP 404') {
+             gh api --method POST "repos/$env:GITHUB_REPOSITORY/git/refs" `
+                 -f "ref=refs/tags/$tag" `
+                 -f "sha=$env:RELEASE_COMMIT"
+             if ($LASTEXITCODE -ne 0) {
+                 throw "Failed to create tag '$tag' for candidate commit $env:RELEASE_COMMIT."
+             }
+          }
+          else {
+             throw "Unable to determine whether tag '$tag' already exists: $tagRef"
+          }
+
+          $release = gh api "repos/$env:GITHUB_REPOSITORY/releases/tags/$tag" 2>&1
+          $isPrerelease = $env:RELEASE_CHANNEL -ceq 'preview'
+          if ($LASTEXITCODE -eq 0) {
+             $releaseObject = $release | ConvertFrom-Json
+             if ($releaseObject.draft -or
+                 $releaseObject.target_commitish -cne $env:RELEASE_COMMIT -or
+                 [bool]$releaseObject.prerelease -ne $isPrerelease) {
+                 throw "Existing GitHub Release '$tag' does not match the promoted candidate."
+             }
+          }
+          elseif ($release -match 'HTTP 404') {
+             # GitHub generates notes against the latest release when no
+             # previous tag is given. That is a 1.5.378 maintenance release
+             # on another branch, so the 2.0.0 notes listed every commit
+             # since the branches split and exceeded the 125000-character
+             # body limit (HTTP 422). Start from the greatest lower release
+             # of the same major (see Get-PreviousReleaseTag) and cap the
+             # body regardless.
+             . ./.azurepipelines/package-version-policy.ps1
+             $releaseTags = @(gh api --paginate "repos/$env:GITHUB_REPOSITORY/releases?per_page=100" `
+                 --jq '.[] | select(.draft | not) | .tag_name')
+             if ($LASTEXITCODE -ne 0) {
+                 throw 'Unable to list existing GitHub Releases.'
+             }
+             $previousTag = Get-PreviousReleaseTag -Tag $tag -ReleaseTags $releaseTags
+
+             $notesRequest = @('--method', 'POST', "repos/$env:GITHUB_REPOSITORY/releases/generate-notes",
+                 '-f', "tag_name=$tag", '-f', "target_commitish=$env:RELEASE_COMMIT")
+             if ($previousTag) {
+                 $notesRequest += @('-f', "previous_tag_name=$previousTag")
+             }
+             $notes = gh api @notesRequest | ConvertFrom-Json
+             if ($LASTEXITCODE -ne 0) {
+                 throw "Failed to generate release notes for '$tag'."
+             }
+
+             $body = [string]$notes.body
+             $maxBodyLength = 120000
+             if ($body.Length -gt $maxBodyLength) {
+                 $compare = if ($previousTag) {
+                     "https://github.com/$env:GITHUB_REPOSITORY/compare/$previousTag...$tag"
+                 }
+                 else {
+                     "https://github.com/$env:GITHUB_REPOSITORY/commits/$tag"
+                 }
+                 $cut = $body.LastIndexOf("`n", $maxBodyLength)
+                 $body = $body.Substring(0, [Math]::Max($cut, 0)) +
+                     "`n`n_The generated notes were truncated to fit the GitHub Release size limit. Full changelog: $($compare)_`n"
+             }
+             $notesFile = Join-Path $env:RUNNER_TEMP 'release-notes.md'
+             Set-Content -LiteralPath $notesFile -Value $body -Encoding utf8NoBOM
+
+             $arguments = @('release', 'create', $tag, '--target', $env:RELEASE_COMMIT,
+                 '--title', [string]$notes.name, '--notes-file', $notesFile)
+             if ($isPrerelease) {
+                 $arguments += '--prerelease'
+             }
+             gh @arguments
+             if ($LASTEXITCODE -ne 0) {
+                 throw "Failed to create GitHub Release '$tag'."
+             }
+          }
+          else {
+             throw "Unable to determine whether GitHub Release '$tag' already exists: $release"
+          }
 
       - name: Summary
         if: always()

@@ -133,7 +133,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
             };
             using var encoder = new BinaryEncoder(context);
             original.Encode(encoder);
-            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer(), context);
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, context);
             var decoded = (ComplexStructure)original.CreateInstance();
             decoded.Decode(decoder);
             ArrayOf<EnumValue> actual = valueRank switch
@@ -204,8 +204,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
 
             using var encoder = new BinaryEncoder(context);
             original.Encode(encoder);
-            byte[] encoded = encoder.CloseAndReturnBuffer();
-            using var decoder = new BinaryDecoder(encoded, context);
+            byte[] encoded = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(encoded!, context);
             var decoded = (ComplexStructure)original.CreateInstance();
             decoded.Decode(decoder);
             ArrayOf<EnumValue> actual = decoded["State"].GetEnumerationArray();
@@ -276,9 +276,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests
                 using var encoder = new XmlEncoder(context);
                 encoder.PushNamespace(namespaceUri);
                 encoder.WriteEncodeable("Machine", original, original.TypeId);
-                xml = encoder.CloseAndReturnText();
+                xml = encoder.CloseAndReturnText()!;
             }
-            using var reader = XmlReader.Create(new StringReader(xml));
+            using var reader = XmlReader.Create(new StringReader(xml!));
             using IDecoder decoder = useParser ? new XmlParser(xml, context) : new XmlDecoder(reader, context);
             decoder.PushNamespace(namespaceUri);
             ComplexStructure decoded = decoder.ReadEncodeable<ComplexStructure>("Machine", original.TypeId);

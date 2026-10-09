@@ -136,12 +136,12 @@ namespace Opc.Ua.Core.Tests.Security
         [Test]
         public void LookupHelpersHandleKnownShortFullAndUnknownPolicies()
         {
-            SecurityPolicyInfo none = SecurityPolicies.Default.GetInfo(null);
+            SecurityPolicyInfo none = SecurityPolicies.Default.GetInfo(null!)!;
             Assert.That(none, Is.SameAs(SecurityPolicyInfo.None));
             Assert.That(SecurityPolicies.Default.GetInfo(string.Empty), Is.SameAs(SecurityPolicyInfo.None));
 
-            SecurityPolicyInfo basicByUri = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256);
-            SecurityPolicyInfo basicByName = SecurityPolicies.Default.GetInfo(nameof(SecurityPolicies.Basic256Sha256));
+            SecurityPolicyInfo basicByUri = SecurityPolicies.Default.GetInfo(SecurityPolicies.Basic256Sha256)!;
+            SecurityPolicyInfo basicByName = SecurityPolicies.Default.GetInfo(nameof(SecurityPolicies.Basic256Sha256))!;
             Assert.That(basicByUri, Is.Not.Null);
             Assert.That(basicByName, Is.SameAs(basicByUri));
             Assert.That(SecurityPolicies.Default.GetUri(nameof(SecurityPolicies.Basic256Sha256)), Is.EqualTo(SecurityPolicies.Basic256Sha256));
@@ -218,9 +218,9 @@ namespace Opc.Ua.Core.Tests.Security
             {
                 foreach (string policyUri in policyUris)
                 {
-                    SecurityPolicyInfo info = SecurityPolicies.Default.GetInfo(policyUri);
+                    SecurityPolicyInfo info = SecurityPolicies.Default.GetInfo(policyUri)!;
                     Assert.That(info, Is.Not.Null, policyUri);
-                    Assert.That(SecurityPolicies.Default.GetUri(info.Name), Is.EqualTo(policyUri), policyUri);
+                    Assert.That(SecurityPolicies.Default.GetUri(info!.Name), Is.EqualTo(policyUri), policyUri);
                     Assert.That(SecurityPolicies.Default.GetDisplayName(policyUri), Is.EqualTo(info.Name), policyUri);
                     Assert.That(SecurityPolicies.Default.GetDisplayNames(), Does.Contain(info.Name), policyUri);
                 }
@@ -307,11 +307,11 @@ namespace Opc.Ua.Core.Tests.Security
             _ = NUnitTelemetryContext.Create().CreateLogger<SecurityPoliciesTests>();
             byte[] plainText = [1, 2, 3];
 
-            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null, string.Empty, plainText);
+            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null!, string.Empty, plainText);
             Assert.That(encrypted.Algorithm, Is.Null);
             Assert.That(encrypted.Data, Is.EqualTo(plainText));
-            Assert.That(SecurityPolicies.Default.Decrypt(null, string.Empty, encrypted), Is.EqualTo(plainText));
-            Assert.That(SecurityPolicies.Default.Decrypt(null, string.Empty, null), Is.Null);
+            Assert.That(SecurityPolicies.Default.Decrypt(null!, string.Empty, encrypted), Is.EqualTo(plainText));
+            Assert.That(SecurityPolicies.Default.Decrypt(null!, string.Empty, null), Is.Null);
 
             using Certificate certificate = CertificateBuilder
                 .Create("CN=SecurityPolicies NoOp")
@@ -328,7 +328,7 @@ namespace Opc.Ua.Core.Tests.Security
                 null,
                 null);
             Assert.That(emptyPolicySignature.Algorithm, Is.Null);
-            Assert.That(SecurityPolicies.Default.VerifySignatureData(null, string.Empty, certificate, null, null, null, null, null, null), Is.True);
+            Assert.That(SecurityPolicies.Default.VerifySignatureData(null!, string.Empty, certificate, null, null, null, null, null, null), Is.True);
 
             SignatureData noneSignature = SecurityPolicies.Default.CreateSignatureData(
                 SecurityPolicyInfo.None,
@@ -341,21 +341,21 @@ namespace Opc.Ua.Core.Tests.Security
 
         [Test]
         public async Task NoSecurityEncryptAndDecryptAreNoOpsAsync(
-            [Values(null, "", SecurityPolicies.None, "None")] string policyUri,
+            [Values(null, "", SecurityPolicies.None, "None")] string? policyUri,
             [Values] bool empty)
         {
             byte[] plainText = empty ? [] : [1, 2, 3];
 
-            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null, policyUri, plainText);
+            EncryptedData encrypted = SecurityPolicies.Default.Encrypt(null!, policyUri!, plainText);
             Assert.That(encrypted.Algorithm, Is.Null);
             Assert.That(encrypted.Data, Is.EqualTo(plainText));
-            Assert.That(SecurityPolicies.Default.Decrypt(null, policyUri, encrypted), Is.SameAs(encrypted.Data));
-            Assert.That(SecurityPolicies.Default.Decrypt(null, policyUri, null), Is.Null);
+            Assert.That(SecurityPolicies.Default.Decrypt(null!, policyUri!, encrypted), Is.SameAs(encrypted.Data));
+            Assert.That(SecurityPolicies.Default.Decrypt(null!, policyUri!, null), Is.Null);
             Assert.That(
-                await SecurityPolicies.Default.DecryptAsync(null, policyUri, encrypted).ConfigureAwait(false),
+                await SecurityPolicies.Default.DecryptAsync(null!, policyUri!, encrypted).ConfigureAwait(false),
                 Is.SameAs(encrypted.Data));
             Assert.That(
-                await SecurityPolicies.Default.DecryptAsync(null, policyUri, null).ConfigureAwait(false),
+                await SecurityPolicies.Default.DecryptAsync(null!, policyUri!, null).ConfigureAwait(false),
                 Is.Null);
         }
 
@@ -372,7 +372,7 @@ namespace Opc.Ua.Core.Tests.Security
                 .Create("CN=Missing Signature")
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
-            SignatureData signature = signatureKind switch
+            SignatureData signature = (signatureKind switch
             {
                 "null" => null,
                 "missing" => new SignatureData(),
@@ -381,10 +381,10 @@ namespace Opc.Ua.Core.Tests.Security
                     Algorithm = SecurityAlgorithms.RsaSha256,
                     Signature = ByteString.Empty
                 }
-            };
+            })!;
 
             Assert.That(SecurityPolicies.Default.VerifySignatureData(
-                signature, policyUri, certificate, [1, 2, 3]),
+                signature!, policyUri, certificate, [1, 2, 3]),
                 Is.EqualTo(policyUri == SecurityPolicies.None));
         }
 
@@ -395,11 +395,11 @@ namespace Opc.Ua.Core.Tests.Security
             var encrypted = new EncryptedData { Algorithm = "unknown", Data = [1] };
 
             ServiceResultException encryptException = Assert.Throws<ServiceResultException>(
-                () => SecurityPolicies.Default.Encrypt(null, "UnknownPolicy", [1]));
+                () => SecurityPolicies.Default.Encrypt(null!, "UnknownPolicy", [1]));
             Assert.That(encryptException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
 
             ServiceResultException decryptException = Assert.Throws<ServiceResultException>(
-                () => SecurityPolicies.Default.Decrypt(null, "UnknownPolicy", encrypted));
+                () => SecurityPolicies.Default.Decrypt(null!, "UnknownPolicy", encrypted));
             Assert.That(decryptException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
 
             using Certificate certificate = CertificateBuilder
@@ -438,7 +438,7 @@ namespace Opc.Ua.Core.Tests.Security
             Assert.That(encrypted.Algorithm, Is.EqualTo(expectedAlgorithm));
             Assert.That(encrypted.Data, Is.Not.EqualTo(plainText));
 
-            byte[] decrypted = SecurityPolicies.Default.Decrypt(certificate, policyUri, encrypted);
+            byte[] decrypted = SecurityPolicies.Default.Decrypt(certificate, policyUri, encrypted)!;
             Assert.That(decrypted, Is.EqualTo(plainText));
         }
 
@@ -559,7 +559,7 @@ namespace Opc.Ua.Core.Tests.Security
             Assert.That(secured, Is.EqualTo(withoutMode));
             if (policy.SecureChannelEnhancements)
             {
-                // CA1850: SHA256.HashData() is .NET 5+ only and the suite still targets net472/net48.
+                // CA1850: SHA256.HashData() is .NET 5+ only and the suite still targets net48.
 #pragma warning disable CA1850
                 using var hash = System.Security.Cryptography.SHA256.Create();
                 Assert.That(policy.CertificateThumbprintAlgorithm, Is.EqualTo(CertificateThumbprintAlgorithm.SHA256));

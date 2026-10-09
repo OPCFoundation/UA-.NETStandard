@@ -58,7 +58,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             m_nodeTable = new NodeTable(m_namespaceTable, m_serverTable, m_typeTable);
         }
 
-        private static Node CreateNode(uint id, string name = null)
+        private static Node CreateNode(uint id, string? name = null)
         {
             name ??= $"Node{id}";
             return new Node
@@ -70,7 +70,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             };
         }
 
-        private Node AttachNode(uint id, string name = null)
+        private Node AttachNode(uint id, string? name = null)
         {
             Node node = CreateNode(id, name);
             m_nodeTable.Attach(node);
@@ -157,7 +157,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithNullExpandedNodeIdReturnsNull()
         {
-            INode result = m_nodeTable.Find(ExpandedNodeId.Null);
+            INode? result = m_nodeTable.Find(ExpandedNodeId.Null);
             Assert.That(result, Is.Null);
         }
 
@@ -179,7 +179,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Remote")
             });
 
-            INode result = m_nodeTable.Find(remoteId);
+            INode result = m_nodeTable.Find(remoteId)!;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.BrowseName, Is.EqualTo(new QualifiedName("Remote")));
         }
@@ -187,7 +187,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void FindWithUnknownRemoteNodeIdReturnsNull()
         {
-            INode result = m_nodeTable.Find(RemoteExpanded(999));
+            INode? result = m_nodeTable.Find(RemoteExpanded(999));
             Assert.That(result, Is.Null);
         }
 
@@ -195,14 +195,14 @@ namespace Opc.Ua.Types.Tests.Nodes
         public void FindWithUnknownNamespaceUriReturnsNull()
         {
             var nodeId = new ExpandedNodeId(1u, "http://unknown.namespace/");
-            INode result = m_nodeTable.Find(nodeId);
+            INode? result = m_nodeTable.Find(nodeId);
             Assert.That(result, Is.Null);
         }
 
         [Test]
         public void FindWithNonExistentLocalNodeIdReturnsNull()
         {
-            INode result = m_nodeTable.Find(LocalExpanded(999));
+            INode? result = m_nodeTable.Find(LocalExpanded(999));
             Assert.That(result, Is.Null);
         }
 
@@ -214,7 +214,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 ReferenceTypeIds.Organizes,
                 false,
                 false,
-                new QualifiedName("Target"));
+                new QualifiedName("Target"))!;
             Assert.That(result, Is.Null);
         }
 
@@ -234,7 +234,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 ReferenceTypeIds.Organizes,
                 false,
                 false,
-                new QualifiedName("Target"));
+                new QualifiedName("Target"))!;
             Assert.That(result, Is.Null);
         }
 
@@ -254,7 +254,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 ReferenceTypeIds.Organizes,
                 false,
                 false,
-                QualifiedName.Null);
+                QualifiedName.Null)!;
             Assert.That(result, Is.Not.Null);
         }
 
@@ -274,7 +274,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 ReferenceTypeIds.Organizes,
                 false,
                 false,
-                new QualifiedName("Target", 1));
+                new QualifiedName("Target", 1))!;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.BrowseName, Is.EqualTo(new QualifiedName("Target", 1)));
         }
@@ -294,7 +294,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 ReferenceTypeIds.Organizes,
                 false,
                 false,
-                new QualifiedName("NonExistent"));
+                new QualifiedName("NonExistent"))!;
             Assert.That(result, Is.Null);
         }
 
@@ -314,7 +314,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 ReferenceTypeIds.Organizes,
                 false,
                 false,
-                new QualifiedName("WrongName", 1));
+                new QualifiedName("WrongName", 1))!;
             Assert.That(result, Is.Null);
         }
 
@@ -398,7 +398,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Variable 1")
             };
 
-            INode result = m_nodeTable.Import(refDesc);
+            INode result = m_nodeTable.Import(refDesc)!;
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<Node>());
             Assert.That(result.NodeClass, Is.EqualTo(NodeClass.Variable));
@@ -420,7 +420,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("Remote Object")
             };
 
-            INode result = m_nodeTable.Import(refDesc);
+            INode result = m_nodeTable.Import(refDesc)!;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.NodeClass, Is.EqualTo(NodeClass.Object));
             Assert.That(result.BrowseName, Is.EqualTo(new QualifiedName("RemoteObj")));
@@ -445,7 +445,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 NodeClass = NodeClass.Variable,
                 BrowseName = new QualifiedName("Updated", 1),
                 DisplayName = new LocalizedText("Updated")
-            });
+            })!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.NodeClass, Is.EqualTo(NodeClass.Variable));
@@ -465,7 +465,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 TypeDefinition = new ExpandedNodeId(ObjectTypeIds.BaseObjectType)
             };
 
-            INode result = m_nodeTable.Import(refDesc);
+            INode result = m_nodeTable.Import(refDesc)!;
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<Node>());
         }
@@ -482,7 +482,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 TypeDefinition = ExpandedNodeId.Null
             };
 
-            INode result = m_nodeTable.Import(refDesc);
+            INode result = m_nodeTable.Import(refDesc)!;
             Assert.That(result, Is.Not.Null);
         }
 
@@ -506,7 +506,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 BrowseName = new QualifiedName("Updated"),
                 DisplayName = new LocalizedText("Updated"),
                 TypeDefinition = new ExpandedNodeId(VariableTypeIds.BaseDataVariableType)
-            });
+            })!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.NodeClass, Is.EqualTo(NodeClass.Variable));
@@ -517,7 +517,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public void ImportNullNodeSetReturnsEmptyList()
         {
-            List<Node> result = m_nodeTable.Import(null, null);
+            List<Node> result = m_nodeTable.Import(null!, null);
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Empty);
         }
@@ -580,7 +580,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 DisplayName = new LocalizedText("New")
             });
 
-            List<Node> result = null;
+            List<Node>? result = null;
             Assert.DoesNotThrow(() => result = m_nodeTable.Import(second, null));
 
             Assert.That(result, Has.Count.EqualTo(2));
@@ -636,9 +636,9 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             var parentNode = m_nodeTable.Find(new NodeId(1100, 0)) as ILocalNode;
             var childNode = m_nodeTable.Find(new NodeId(1101, 0)) as ILocalNode;
-            Assert.That(childNode.BrowseName.Name, Is.EqualTo("New"));
+            Assert.That(childNode!.BrowseName.Name, Is.EqualTo("New"));
             Assert.That(
-                parentNode.References.Exists(ReferenceTypeIds.HasComponent, false, new NodeId(1101, 0), false, null),
+                parentNode!.References.Exists(ReferenceTypeIds.HasComponent, false, new NodeId(1101, 0), false, null),
                 Is.True,
                 "A neighbour outside the import must keep its reference to the replaced node.");
             Assert.That(
@@ -823,7 +823,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             m_nodeTable.Attach(duplicate);
 
             Assert.That(m_nodeTable, Has.Count.EqualTo(1));
-            INode found = m_nodeTable.Find(LocalExpanded(1));
+            INode found = m_nodeTable.Find(LocalExpanded(1))!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(new QualifiedName("Duplicate", 1)));
         }
@@ -836,7 +836,7 @@ namespace Opc.Ua.Types.Tests.Nodes
 
             Assert.That(m_nodeTable, Has.Count.EqualTo(1));
             Assert.That(m_nodeTable.Exists(LocalExpanded(1)), Is.True);
-            INode found = m_nodeTable.Find(LocalExpanded(1));
+            INode found = m_nodeTable.Find(LocalExpanded(1))!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(new QualifiedName("TestNode", 1)));
         }
@@ -1225,7 +1225,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 ReferenceTypeIds.Organizes,
                 false,
                 false,
-                new QualifiedName("Child", 1));
+                new QualifiedName("Child", 1))!;
             Assert.That(found, Is.Not.Null);
 
             // Verify find list

@@ -444,7 +444,8 @@ self-contained stage and streams the live OPC UA values into
 ## Running in Docker
 
 A [`Dockerfile`](./Dockerfile) is provided that builds the Release
-publish output on the .NET **AzureLinux 3** base images and runs it as a
+publish output with the .NET **Azure Linux 3** SDK and runs it on the
+Azure Linux 3 distroless-extra runtime image as a
 non-root user.
 
 > **Build from the repository root**, not from this folder. The image

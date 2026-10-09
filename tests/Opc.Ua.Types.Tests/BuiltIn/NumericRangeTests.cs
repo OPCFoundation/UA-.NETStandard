@@ -381,7 +381,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ValidateReturnsGoodForNullString()
         {
-            ServiceResult result = NumericRange.Validate(null, out NumericRange range);
+            ServiceResult result = NumericRange.Validate(null!, out NumericRange range);
             Assert.That(ServiceResult.IsBad(result), Is.False);
             Assert.That(range, Is.EqualTo(NumericRange.Null));
         }
@@ -537,7 +537,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ParseReturnsEmptyForNullString()
         {
-            var range = NumericRange.Parse(null);
+            var range = NumericRange.Parse(null!);
             Assert.That(range, Is.EqualTo(NumericRange.Null));
         }
 
@@ -629,7 +629,7 @@ namespace Opc.Ua.Types.Tests.Utils
             StatusCode statusCode = numericRange.ApplyRange(ref value);
             Assert.That(statusCode, Is.EqualTo(StatusCodes.Good));
 
-            int[,] range = (int[,])value.GetInt32Matrix();
+            int[,] range = (int[,])value.GetInt32Matrix()!;
             Assert.That(range, Is.Not.Null, "Applied range null");
             Assert.That(range.Rank, Is.EqualTo(2));
             Assert.That(range[0, 0], Is.EqualTo(5));
@@ -733,8 +733,8 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase("2147483646:2147483647,0", null, null)]
         public void ApplyRangeMatrixOfClipsUpperBoundsToSource(
             string range,
-            int[] expectedDimensions,
-            int[] expectedValues)
+            int[]? expectedDimensions,
+            int[]? expectedValues)
         {
             int[,] source = new int[,]
             {
@@ -777,14 +777,14 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(
                 strings.Span.ToArray(),
                 Is.EqualTo(Array.ConvertAll(
-                    expectedValues,
+                    expectedValues!,
                     v => v.ToString(CultureInfo.InvariantCulture))));
             Assert.That(byteStringStatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(byteStrings.Dimensions, Is.EqualTo(expectedDimensions));
             Assert.That(
                 byteStrings.Span.ToArray(),
                 Is.EqualTo(Array.ConvertAll(
-                    expectedValues,
+                    expectedValues!,
                     v => ByteString.From((byte)v))));
         }
 
@@ -1240,6 +1240,99 @@ namespace Opc.Ua.Types.Tests.Utils
             Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
         }
 
+        /// <summary>
+        /// CTT Attribute Write Index Err-001.js: a range that starts beyond
+        /// the target has no data (Part 4 7.27), even when the written data
+        /// also has a different size than the range.
+        /// </summary>
+        [Test]
+        public void UpdateRangeArrayReturnsNoDataForRangeBeyondTargetWithWrongSourceLength()
+        {
+            var dst = Variant.From([10, 20, 30]);
+            var src = Variant.From([10, 20, 30]);
+            var range = NumericRange.Parse("1073741824:1073741827");
+            StatusCode result = range.UpdateRange(ref dst, src);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        [Test]
+        public void UpdateRangeStringReturnsNoDataForRangeBeyondTargetWithWrongSourceLength()
+        {
+            Variant dst = "abc";
+            Variant src = "xyz";
+            var range = new NumericRange(5, 8);
+            StatusCode result = range.UpdateRange(ref dst, src);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        [Test]
+        public void UpdateRangeMatrixReturnsNoDataForRangeBeyondTargetWithWrongSliceDimensions()
+        {
+            MatrixOf<int> dst = new int[,] { { 1, 2 }, { 3, 4 } }.ToMatrixOf();
+            MatrixOf<int> slice = new int[,] { { 9 } }.ToMatrixOf();
+            var range = NumericRange.Parse("5:6,0:1");
+            StatusCode result = range.UpdateRange(ref dst, slice);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        [Test]
+        public void UpdateRangeStringArrayReturnsNoDataForSubstringBeyondElementsWithWrongSliceLength()
+        {
+            ArrayOf<string> dst = ["a", "b"];
+            ArrayOf<string> slice = ["xy"];
+            var range = NumericRange.Parse("0:1,5:6");
+            StatusCode result = range.UpdateRange(ref dst, slice);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        [Test]
+        public void UpdateRangeByteStringArrayReturnsNoDataForSubstringBeyondElementsWithWrongSliceLength()
+        {
+            ArrayOf<ByteString> dst = new[]
+            {
+                ByteString.From(new byte[] { 0x01 }),
+                ByteString.From(new byte[] { 0x02 })
+            }.ToArrayOf();
+            ArrayOf<ByteString> slice = new[] { ByteString.From(new byte[] { 0xAA, 0xBB }) }.ToArrayOf();
+            var range = NumericRange.Parse("0:1,5:6");
+            StatusCode result = range.UpdateRange(ref dst, slice);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        [Test]
+        public void UpdateRangeStringArrayReturnsDataMismatchForSubstringWithinElementsAndWrongSliceLength()
+        {
+            ArrayOf<string> dst = ["abcdefg", "abcdefg"];
+            ArrayOf<string> slice = ["xy"];
+            var range = NumericRange.Parse("0:1,5:6");
+            StatusCode result = range.UpdateRange(ref dst, slice);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
+        }
+
+        [Test]
+        public void UpdateRangeStringMatrixReturnsNoDataForSubstringBeyondElementsWithWrongSliceDimensions()
+        {
+            MatrixOf<string> dst = new string[,] { { "a", "b" }, { "c", "d" } }.ToMatrixOf();
+            MatrixOf<string> slice = new string[,] { { "xy" } }.ToMatrixOf();
+            var range = NumericRange.Parse("0:1,0:1,5:6");
+            StatusCode result = range.UpdateRange(ref dst, slice);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
+        [Test]
+        public void UpdateRangeByteStringMatrixReturnsNoDataForSubstringBeyondElementsWithWrongSliceDimensions()
+        {
+            ByteString one = ByteString.From(new byte[] { 0x01 });
+            MatrixOf<ByteString> dst = new ByteString[,] { { one, one }, { one, one } }.ToMatrixOf();
+            MatrixOf<ByteString> slice = new ByteString[,]
+            {
+                { ByteString.From(new byte[] { 0xAA, 0xBB }) }
+            }.ToMatrixOf();
+            var range = NumericRange.Parse("0:1,0:1,5:6");
+            StatusCode result = range.UpdateRange(ref dst, slice);
+            Assert.That(result, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+        }
+
         [Test]
         public void UpdateRangeArrayReturnsNoDataWhenOutOfBounds()
         {
@@ -1435,12 +1528,12 @@ namespace Opc.Ua.Types.Tests.Utils
         public void ApplyMultiRangeNoDataFoundReturnsNoData()
         {
             // Create an array where all extracted elements would be null
-            var value = Variant.From(new string[] { null, null, null });
+            var value = Variant.From(new string[] { null!, null!, null! });
             var range = new NumericRange(0, 1, [new NumericRange(0, 1)]);
             StatusCode result = range.ApplyRange(ref value);
             // null elements are skipped
             Assert.That(result, Is.EqualTo(StatusCodes.Good));
-            Assert.That(value.GetStringArray(), Is.EqualTo(new string[] { null, null }));
+            Assert.That(value.GetStringArray(), Is.EqualTo(new string[] { null!, null! }));
         }
 
         [Test]
@@ -2212,7 +2305,7 @@ namespace Opc.Ua.Types.Tests.Utils
                 NumericRange[] range1 = [new(1, 3)];
                 NumericRange[] range2 = [new(2, 4)];
                 NumericRange[] empty = [];
-                NumericRange[] nullValue = null;
+                NumericRange[]? nullValue = null;
 
                 yield return new TestCaseData(range1, range2).Returns(false);
                 yield return new TestCaseData(empty, range1).Returns(false);

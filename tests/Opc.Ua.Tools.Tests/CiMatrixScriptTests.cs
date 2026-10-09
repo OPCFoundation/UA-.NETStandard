@@ -71,7 +71,7 @@ namespace Opc.Ua.Tools.Tests
         }
 
         /// <summary>
-        /// The batch size is computed from the whole profile table so that
+        /// The batch target is computed from the whole profile table so that
         /// turning macOS off does not reshuffle which projects run together on
         /// the remaining runners, which would make two runs incomparable.
         /// </summary>
@@ -81,7 +81,7 @@ namespace Opc.Ua.Tools.Tests
             MatrixResult withMac = await RunMatrixAsync("pr").ConfigureAwait(false);
             MatrixResult withoutMac = await RunMatrixAsync("pr", excludeMacOs: true).ConfigureAwait(false);
 
-            Assert.That(withoutMac.BatchSize, Is.EqualTo(withMac.BatchSize));
+            Assert.That(withoutMac.BatchTargetMinutes, Is.EqualTo(withMac.BatchTargetMinutes));
             Assert.That(
                 withoutMac.Tests.Any(entry => entry.Os == "macos"),
                 Is.False,
@@ -143,6 +143,112 @@ namespace Opc.Ua.Tools.Tests
             }
 
             Assert.That(missing, Is.Empty, "These test projects are on disk but nothing schedules them.");
+        }
+
+        /// <summary>
+        /// Packing by duration must never drop or repeat a project: within a
+        /// profile, the batches together hold the profile's tier exactly once.
+        /// </summary>
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task EveryProfileRunsEachOfItsProjectsExactlyOnceAsync(string scope)
+        {
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+
+            HashSet<string> mainline = matrix.Tests
+                .Where(entry => entry.Tier == "mainline")
+                .SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                .ToHashSet(StringComparer.Ordinal);
+
+            foreach (IGrouping<string, MatrixEntry> profile in matrix.Tests.GroupBy(entry => entry.Profile))
+            {
+                string[] projects = profile
+                    .SelectMany(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries))
+                    .ToArray();
+
+                Assert.That(projects, Is.Unique, $"Profile '{profile.Key}' schedules a project twice.");
+                if (profile.First().Tier is "mainline" or "long-running")
+                {
+                    Assert.That(
+                        projects,
+                        Is.EquivalentTo(mainline),
+                        $"Profile '{profile.Key}' does not cover the mainline project set.");
+                }
+            }
+        }
+
+        /// <summary>
+        /// Batches are packed up to the target from the duration table. Only a
+        /// project that is heavier than the target on its own may exceed it,
+        /// and then it has to run alone rather than drag others past it.
+        /// </summary>
+        [TestCase("pr")]
+        [TestCase("full")]
+        public async Task BatchesStayWithinTheTargetUnlessOneProjectExceedsItAsync(string scope)
+        {
+            MatrixResult matrix = await RunMatrixAsync(scope).ConfigureAwait(false);
+
+            Assert.That(matrix.BatchTargetMinutes, Is.Positive);
+            string[] overweight = matrix.Tests
+                .Where(entry => entry.PackedMinutes > matrix.BatchTargetMinutes &&
+                    entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length > 1)
+                .Select(entry => $"{entry.Id}: {entry.PackedMinutes}min")
+                .ToArray();
+
+            Assert.That(overweight, Is.Empty);
+            Assert.That(matrix.Tests.All(entry => entry.PackedMinutes > 0), Is.True);
+        }
+
+        /// <summary>
+        /// The point of packing by duration is to stop paying the per-batch
+        /// cold build for every second project. Guard against a regression to
+        /// one or two projects per job, which nearly doubles the pull-request
+        /// runner minutes without testing anything more.
+        /// </summary>
+        [Test]
+        public async Task PullRequestBatchesAmortizeTheirFixedCostAsync()
+        {
+            MatrixResult matrix = await RunMatrixAsync("pr").ConfigureAwait(false);
+
+            foreach (IGrouping<string, MatrixEntry> profile in matrix.Tests.GroupBy(entry => entry.Profile))
+            {
+                int projects = profile.Sum(entry => entry.Projects.Split(';', StringSplitOptions.RemoveEmptyEntries).Length);
+                Assert.That(
+                    profile.Count(),
+                    Is.LessThanOrEqualTo(projects / 3),
+                    $"Profile '{profile.Key}' spreads {projects} projects over {profile.Count()} jobs.");
+            }
+        }
+
+        /// <summary>
+        /// A weight for a project that no longer exists is harmless to the
+        /// matrix but means the table is not being maintained; every weight has
+        /// to name a test project that is on disk.
+        /// </summary>
+        [Test]
+        public async Task DurationTableNamesOnlyExistingProjectsAsync()
+        {
+            string root = FindRepositoryRoot();
+            string table = await File.ReadAllTextAsync(Path.Combine(root, ".github", "ci-test-durations.json"))
+                .ConfigureAwait(false);
+            using JsonDocument document = JsonDocument.Parse(table);
+
+            var options = new EnumerationOptions
+            {
+                RecurseSubdirectories = true,
+                IgnoreInaccessible = true
+            };
+            HashSet<string> onDisk = Directory.EnumerateFiles(root, "*.Tests.csproj", options)
+                .Select(Path.GetFileNameWithoutExtension)
+                .OfType<string>()
+                .ToHashSet(StringComparer.Ordinal);
+
+            Assert.That(document.RootElement.GetProperty("defaultMinutes").GetInt32(), Is.Positive);
+            string[] stale = document.RootElement.GetProperty("projects").EnumerateObject()
+                .Where(project => !onDisk.Contains(project.Name))
+                .Select(project => project.Name)
+                .ToArray();
+            Assert.That(stale, Is.Empty, "Remove these from .github/ci-test-durations.json.");
         }
 
         /// <summary>
@@ -358,7 +464,7 @@ namespace Opc.Ua.Tools.Tests
                 return new MatrixResult(
                     Deserialize<MatrixEntry>(lines, "tests="),
                     Deserialize<BuildEntry>(lines, "builds="),
-                    int.Parse(Value(lines, "batch_size="), CultureInfo.InvariantCulture));
+                    int.Parse(Value(lines, "batch_target_minutes="), CultureInfo.InvariantCulture));
             }
             finally
             {
@@ -451,7 +557,7 @@ namespace Opc.Ua.Tools.Tests
         private sealed record MatrixResult(
             IReadOnlyList<MatrixEntry> Tests,
             IReadOnlyList<BuildEntry> Builds,
-            int BatchSize);
+            int BatchTargetMinutes);
 
         /// <summary>
         /// One expanded test matrix entry. Deserialized by reflection, hence public.
@@ -466,7 +572,8 @@ namespace Opc.Ua.Tools.Tests
             bool Coverage,
             string Projects,
             int PerProjectTimeout,
-            int TimeoutMinutes);
+            int TimeoutMinutes,
+            int PackedMinutes);
 
         /// <summary>
         /// One expanded solution build matrix entry.

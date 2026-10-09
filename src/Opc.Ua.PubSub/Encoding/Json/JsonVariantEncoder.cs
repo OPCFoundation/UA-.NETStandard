@@ -52,6 +52,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
     internal static class JsonVariantEncoder
     {
         private const string SpliceFieldName = "v";
+        private const string CollapsedValueFieldName = "c";
 
         /// <summary>
         /// Translates a PubSub-level <see cref="JsonEncodingMode"/> to
@@ -75,7 +76,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         /// <summary>
         /// <see langword="true"/> when the mode wraps every Variant in
-        /// the Part 6 §5.4.1 <c>{ "Type", "Body" }</c> envelope.
+        /// the Part 6 §5.4.2.17 <c>{ "UaType", "Value" }</c> envelope.
         /// </summary>
         /// <param name="mode">Selected mode.</param>
         /// <returns>True for Verbose, false for Compact / RawData.</returns>
@@ -85,9 +86,50 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
+        /// <see langword="true"/> when a top-level VerboseEncoding field
+        /// described by <paramref name="builtInType"/> and
+        /// <paramref name="valueRank"/> has a concrete DataType, so its
+        /// Variant is collapsed to the bare value (Part 14 §7.2.5.4.2).
+        /// Abstract, structured and multi-dimensional fields keep the
+        /// Variant envelope because the bare value could not be decoded
+        /// from the FieldMetaData alone.
+        /// </summary>
+        /// <param name="builtInType">FieldMetaData BuiltInType.</param>
+        /// <param name="valueRank">FieldMetaData ValueRank.</param>
+        /// <returns>Whether the field is collapsed.</returns>
+        public static bool IsCollapsedField(BuiltInType builtInType, int valueRank)
+        {
+            if (valueRank is not (ValueRanks.Scalar or ValueRanks.OneDimension))
+            {
+                return false;
+            }
+            return builtInType is > BuiltInType.Null and < BuiltInType.ExtensionObject;
+        }
+
+        /// <summary>
+        /// <see langword="true"/> when the field has an Enumeration
+        /// DataType: its BuiltInType is Int32 but its DataType is not
+        /// Int32. A top-level VerboseEncoding Enumeration field is written
+        /// as the verbose Enumeration <c>&lt;name&gt;_&lt;value&gt;</c>
+        /// (Part 14 §7.2.5.4.2, Part 6 §5.4.4.2).
+        /// </summary>
+        /// <param name="metaData">FieldMetaData of the field.</param>
+        /// <returns>Whether the field is a scalar or one-dimensional
+        /// Enumeration.</returns>
+        public static bool IsEnumerationField(FieldMetaData? metaData)
+        {
+            return metaData is not null &&
+                metaData.BuiltInType == (byte)BuiltInType.Int32 &&
+                metaData.ValueRank is ValueRanks.Scalar or ValueRanks.OneDimension &&
+                !metaData.DataType.IsNull &&
+                metaData.DataType != DataTypeIds.Int32;
+        }
+
+        /// <summary>
         /// Encodes a single <see cref="Variant"/> as a named property
         /// of the destination writer. <see cref="JsonEncodingMode.Verbose"/>
-        /// emits the Part 6 §5.4.1 <c>{ "Type", "Body" }</c> envelope;
+        /// emits the Part 6 §5.4.2.17 <c>{ "UaType", "Value" }</c>
+        /// envelope unless <paramref name="collapsed"/> is set;
         /// <see cref="JsonEncodingMode.Compact"/> and
         /// <see cref="JsonEncodingMode.RawData"/> emit the bare value.
         /// </summary>
@@ -97,13 +139,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="value">Variant payload.</param>
         /// <param name="mode">Selected encoding mode.</param>
         /// <param name="context">Stack message context for encoders.</param>
+        /// <param name="collapsed">When <see langword="true"/> the
+        /// FieldMetaData supplies the concrete type of the value, so the
+        /// Variant envelope is omitted (Part 14 §7.2.5.4.2).</param>
         /// <exception cref="ArgumentNullException"></exception>
         public static void WriteVariantProperty(
             Utf8JsonWriter destination,
             string propertyName,
             Variant value,
             JsonEncodingMode mode,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            bool collapsed = false)
         {
             if (destination is null)
             {
@@ -126,7 +172,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             using JsonBufferWriter buffer = new(256);
             using (Ua.JsonEncoder encoder = new(buffer, context, options))
             {
-                if (WrapsInVariantEnvelope(mode))
+                if (WrapsInVariantEnvelope(mode) && !collapsed)
                 {
                     encoder.WriteVariant(SpliceFieldName, value);
                 }
@@ -135,8 +181,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     encoder.WriteVariantValue(SpliceFieldName, value);
                 }
             }
-            SplicePropertyValue(destination, propertyName, buffer.WrittenSpan,
-                remapVariantKeys: WrapsInVariantEnvelope(mode));
+            SplicePropertyValue(destination, propertyName, buffer.WrittenMemory);
         }
 
         /// <summary>
@@ -151,13 +196,18 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="value">DataValue payload.</param>
         /// <param name="mode">Selected encoding mode.</param>
         /// <param name="context">Stack message context for encoders.</param>
+        /// <param name="collapsedValue">When set, the FieldMetaData
+        /// supplies the concrete type of the value, so this bare value is
+        /// written as the <c>Value</c> without <c>UaType</c>
+        /// (Part 14 §7.2.5.4.3 Table 187).</param>
         /// <exception cref="ArgumentNullException"></exception>
         public static void WriteDataValueProperty(
             Utf8JsonWriter destination,
             string propertyName,
             DataValue value,
             JsonEncodingMode mode,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            Variant? collapsedValue = null)
         {
             if (destination is null)
             {
@@ -180,10 +230,40 @@ namespace Opc.Ua.PubSub.Encoding.Json
             using JsonBufferWriter buffer = new(384);
             using (Ua.JsonEncoder encoder = new(buffer, context, options))
             {
+                if (collapsedValue is { } raw)
+                {
+                    encoder.WriteVariantValue(CollapsedValueFieldName, raw);
+                }
                 encoder.WriteDataValue(SpliceFieldName, value);
             }
-            SplicePropertyValue(destination, propertyName, buffer.WrittenSpan,
-                remapVariantKeys: false);
+            if (collapsedValue is null)
+            {
+                SplicePropertyValue(destination, propertyName, buffer.WrittenMemory);
+                return;
+            }
+            using var document = JsonDocument.Parse(buffer.WrittenMemory);
+            JsonElement root = document.RootElement;
+            destination.WritePropertyName(propertyName);
+            destination.WriteStartObject();
+            if (root.TryGetProperty(CollapsedValueFieldName, out JsonElement rawValue))
+            {
+                destination.WritePropertyName("Value");
+                rawValue.WriteTo(destination);
+            }
+            if (root.TryGetProperty(SpliceFieldName, out JsonElement dataValue) &&
+                dataValue.ValueKind == JsonValueKind.Object)
+            {
+                foreach (JsonProperty member in dataValue.EnumerateObject())
+                {
+                    if (!member.NameEquals("UaType") &&
+                        !member.NameEquals("Value") &&
+                        !member.NameEquals("Dimensions"))
+                    {
+                        member.WriteTo(destination);
+                    }
+                }
+            }
+            destination.WriteEndObject();
         }
 
         /// <summary>
@@ -199,19 +279,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="destination">Destination writer.</param>
         /// <param name="propertyName">Output property name.</param>
         /// <param name="encoded">Encoded single-property object bytes.</param>
-        /// <param name="remapVariantKeys">
-        /// When true, the spliced JSON object is rewritten so the
-        /// Stack Verbose Variant keys (<c>UaType</c>/<c>Value</c>)
-        /// become the Part 14 §7.2.5 wire keys
-        /// (<c>Type</c>/<c>Body</c>).
-        /// </param>
         private static void SplicePropertyValue(
             Utf8JsonWriter destination,
             string propertyName,
-            ReadOnlySpan<byte> encoded,
-            bool remapVariantKeys)
+            ReadOnlyMemory<byte> encoded)
         {
-            using var document = JsonDocument.Parse(encoded.ToArray());
+            using var document = JsonDocument.Parse(encoded);
             JsonElement root = document.RootElement;
             if (root.ValueKind != JsonValueKind.Object)
             {
@@ -230,43 +303,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 destination.WriteNullValue();
                 return;
             }
-            if (remapVariantKeys &&
-                valueElement.ValueKind == JsonValueKind.Object)
-            {
-                WriteRemappedVariant(destination, valueElement);
-                return;
-            }
-            destination.WriteRawValue(valueElement.GetRawText(), skipInputValidation: true);
-        }
-
-        /// <summary>
-        /// Writes <paramref name="variant"/> to
-        /// <paramref name="destination"/> after rewriting the Stack
-        /// Verbose Variant key names so the wire matches Part 14
-        /// §7.2.5 (<c>Type</c>, <c>Body</c>, <c>Dimensions</c>).
-        /// </summary>
-        /// <param name="destination">Destination writer.</param>
-        /// <param name="variant">Source variant object.</param>
-        private static void WriteRemappedVariant(
-            Utf8JsonWriter destination,
-            JsonElement variant)
-        {
-            destination.WriteStartObject();
-            foreach (JsonProperty member in variant.EnumerateObject())
-            {
-                string mapped = member.Name switch
-                {
-                    "UaType" => "Type",
-                    "Value" => "Body",
-                    "Dimensions" => "Dimensions",
-                    _ => member.Name
-                };
-                destination.WritePropertyName(mapped);
-                destination.WriteRawValue(
-                    member.Value.GetRawText(),
-                    skipInputValidation: true);
-            }
-            destination.WriteEndObject();
+            valueElement.WriteTo(destination);
         }
     }
 }

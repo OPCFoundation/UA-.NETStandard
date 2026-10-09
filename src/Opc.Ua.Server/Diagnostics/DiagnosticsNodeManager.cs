@@ -1046,11 +1046,28 @@ namespace Opc.Ua.Server
                 SessionDiagnosticsObjectState sessionNode = tempSessionNode;
                 var browseName = QualifiedName.From(diagnostics.SessionName!);
 
+                // A session manager may request the SessionId, for example to keep the id
+                // of a session restored from another replica of a redundant server set.
+                // The children still get ids from the factory; an id that is already in
+                // use (or not in this manager's namespace) is replaced by a new one.
+                ServerSystemContext createContext = SystemContext;
+                NodeId requestedId = diagnostics.SessionId;
+                if (!requestedId.IsNull &&
+                    requestedId.NamespaceIndex == m_namespaceIndex &&
+                    !IsSessionIdInUse(requestedId))
+                {
+                    createContext = SystemContext.Copy();
+                    createContext.NodeIdFactory = new RequestedRootNodeIdFactory(
+                        SystemContext.NodeIdFactory,
+                        sessionNode,
+                        requestedId);
+                }
+
                 if (DiagnosticsEnabled)
                 {
                     // create a new instance and assign ids.
                     nodeId = await CreateNodeAsync(
-                        SystemContext,
+                        createContext,
                         default,
                         ReferenceTypeIds.HasComponent,
                         browseName,
@@ -1063,8 +1080,8 @@ namespace Opc.Ua.Server
                     // collection is disabled; assign the ids so that the node can be
                     // added when the collection is enabled.
                     sessionNode.ReferenceTypeId = ReferenceTypeIds.HasComponent;
-                    sessionNode.Create(SystemContext, default, browseName, default, true);
-                    SystemContext.AssignInstanceNodeId(sessionNode);
+                    sessionNode.Create(createContext, default, browseName, default, true);
+                    createContext.AssignInstanceNodeId(sessionNode);
                     nodeId = sessionNode.NodeId;
                 }
                 tempSessionNode = null; // ownership transferred to the session registration
@@ -1107,6 +1124,53 @@ namespace Opc.Ua.Server
             }
 
             return nodeId;
+        }
+
+        /// <summary>
+        /// Whether a session diagnostics node (or any other node of this manager) already
+        /// uses the NodeId. Called under the address space modification lock.
+        /// </summary>
+        private bool IsSessionIdInUse(NodeId nodeId)
+        {
+            if (PredefinedNodes.ContainsKey(nodeId))
+            {
+                return true;
+            }
+
+            lock (m_diagnosticsCollectionLock)
+            {
+                foreach (SessionDiagnosticsData session in m_sessions)
+                {
+                    if (session.Summary.NodeId == nodeId)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Assigns a requested NodeId to the root of an instance and delegates every other
+        /// node (its children) to the manager's factory.
+        /// </summary>
+        private sealed class RequestedRootNodeIdFactory : INodeIdFactory
+        {
+            public RequestedRootNodeIdFactory(INodeIdFactory inner, NodeState root, NodeId requestedId)
+            {
+                m_inner = inner;
+                m_root = root;
+                m_requestedId = requestedId;
+            }
+
+            public NodeId New(ISystemContext context, NodeState node)
+            {
+                return ReferenceEquals(node, m_root) ? m_requestedId : m_inner.New(context, node);
+            }
+
+            private readonly INodeIdFactory m_inner;
+            private readonly NodeState m_root;
+            private readonly NodeId m_requestedId;
         }
 
         /// <summary>
@@ -1760,11 +1824,6 @@ namespace Opc.Ua.Server
                     conformanceUnitsNode.ClearChangeMasks(SystemContext, false);
                 }
 
-                if (serverProfiles.Count == 0)
-                {
-                    return;
-                }
-
                 BaseVariableState? profileArrayNode = FindPredefinedNode<BaseVariableState>(
                     VariableIds.Server_ServerCapabilities_ServerProfileArray);
 
@@ -1773,19 +1832,26 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // Preserve profiles already declared (e.g. from configuration) and
-                // append the contributed ones that are not already present.
-                var merged = new List<string>();
-                if (profileArrayNode.Value.TryGetValue(out ArrayOf<string> existing))
+                // The profiles the server declares itself (from configuration)
+                // are taken from the first publish on and always kept. The
+                // contributed ones are replaced on every publish, so a profile
+                // no contributor reports any more disappears.
+                if (m_declaredServerProfiles == null)
                 {
-                    foreach (string profile in existing)
+                    m_declaredServerProfiles = [];
+                    if (profileArrayNode.Value.TryGetValue(out ArrayOf<string> existing))
                     {
-                        if (!string.IsNullOrEmpty(profile))
+                        foreach (string profile in existing)
                         {
-                            merged.Add(profile);
+                            if (!string.IsNullOrEmpty(profile) && !m_declaredServerProfiles.Contains(profile))
+                            {
+                                m_declaredServerProfiles.Add(profile);
+                            }
                         }
                     }
                 }
+
+                var merged = new List<string>(m_declaredServerProfiles);
                 foreach (string profile in serverProfiles)
                 {
                     if (!string.IsNullOrEmpty(profile) && !merged.Contains(profile))
@@ -2057,11 +2123,20 @@ namespace Opc.Ua.Server
             ref ArrayOf<RolePermissionType> value)
         {
             bool adminUser;
+            PermissionType nonAdminPermissions = PermissionType.None;
 
-            if ((node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary) ||
-                (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray))
+            if (node.NodeId == VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary)
             {
                 adminUser = HasApplicationSecureAdminAccess(context);
+            }
+            else if (node.NodeId == VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray)
+            {
+                // Part 5 6.3.5: a Session may see its own diagnostics. Every Session may browse
+                // the server wide array: each subscription node carries the permissions of its
+                // owning Session, so Browse returns only the subscriptions the caller may see.
+                // The array value holds all subscriptions and stays readable for administrators.
+                adminUser = HasApplicationSecureAdminAccess(context);
+                nonAdminPermissions = PermissionType.Browse;
             }
             else
             {
@@ -2095,7 +2170,7 @@ namespace Opc.Ua.Server
                     select new RolePermissionType
                     {
                         RoleId = roleId,
-                        Permissions = (uint)PermissionType.None
+                        Permissions = (uint)nonAdminPermissions
                     };
 
                 value = [.. rolePermissionTypes];
@@ -2428,7 +2503,9 @@ namespace Opc.Ua.Server
             ServerSystemContext context,
             ViewDescription view)
         {
-            // always accept all views so the root nodes appear in the view.
+            // always accept all views so the root nodes appear in the view, but
+            // still reject inconsistent timestamp/version parameters.
+            ViewDescriptionValidator.ValidateParameters(view);
         }
 
         /// <summary>
@@ -2745,6 +2822,7 @@ namespace Opc.Ua.Server
         private readonly ConcurrentDictionary<uint, ISampledDataChangeMonitoredItem> m_sampledItems;
         private readonly double m_minimumSamplingInterval;
         private HistoryServerCapabilitiesState? m_historyCapabilities;
+        private List<string>? m_declaredServerProfiles;
 
         /// <summary>
         /// Aggregates the per-node capabilities advertised by every

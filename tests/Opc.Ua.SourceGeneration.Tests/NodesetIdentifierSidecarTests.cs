@@ -98,7 +98,7 @@ namespace Opc.Ua.SourceGeneration
         [TestCase("ids.csv", "Thing,not-a-number,Object\r\n", "MODELGEN029")]
         public void ExplicitSidecarReportsValidationFailures(
             string identifierName,
-            string identifierContent,
+            string? identifierContent,
             string expectedDiagnosticId)
         {
             string modelPath = Path.Combine("Models", "Model.NodeSet2.xml");
@@ -119,6 +119,81 @@ namespace Opc.Ua.SourceGeneration
             Assert.That(
                 GetSidecarDiagnosticIds(diagnostics),
                 Does.Contain(expectedDiagnosticId),
+                string.Join(Environment.NewLine, diagnostics.Select(diagnostic => diagnostic.ToString())));
+        }
+
+        /// <summary>
+        /// OPC 30050 PackML lists method arguments ahead of their method, and
+        /// declares the method without a <c>ParentNodeId</c> - the parent is only
+        /// recoverable from the inverse HasComponent reference. The argument has
+        /// to be validated under the same qualified symbol the import pass emits.
+        /// </summary>
+        [Test]
+        public void ArgumentListedBeforeUnparentedMethodValidatesQualifiedSymbol()
+        {
+            const string modelUri = "urn:test:forward-method-argument";
+            string modelPath = Path.Combine("Models", "Model.NodeSet2.xml");
+            string identifierPath = Path.Combine("Models", "Model.ids.csv");
+            string nodeSet =
+                $$"""
+                <?xml version="1.0" encoding="utf-8"?>
+                <UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+                  <NamespaceUris>
+                    <Uri>{{modelUri}}</Uri>
+                  </NamespaceUris>
+                  <Models>
+                    <Model ModelUri="{{modelUri}}" Version="1.0.0"
+                      PublicationDate="2026-01-01T00:00:00Z" />
+                  </Models>
+                  <Aliases>
+                    <Alias Alias="Argument">i=296</Alias>
+                    <Alias Alias="HasComponent">i=47</Alias>
+                    <Alias Alias="HasProperty">i=46</Alias>
+                    <Alias Alias="HasModellingRule">i=37</Alias>
+                    <Alias Alias="HasSubtype">i=45</Alias>
+                    <Alias Alias="HasTypeDefinition">i=40</Alias>
+                  </Aliases>
+                  <UAObjectType NodeId="ns=1;i=1" BrowseName="1:ThingType">
+                    <DisplayName>ThingType</DisplayName>
+                    <References>
+                      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+                      <Reference ReferenceType="HasComponent">ns=1;i=3</Reference>
+                    </References>
+                  </UAObjectType>
+                  <UAVariable NodeId="ns=1;i=2" BrowseName="InputArguments" ParentNodeId="ns=1;i=3"
+                    DataType="Argument" ValueRank="1" ArrayDimensions="1">
+                    <DisplayName>InputArguments</DisplayName>
+                    <References>
+                      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+                      <Reference ReferenceType="HasTypeDefinition">i=68</Reference>
+                      <Reference ReferenceType="HasProperty" IsForward="false">ns=1;i=3</Reference>
+                    </References>
+                  </UAVariable>
+                  <UAMethod NodeId="ns=1;i=3" BrowseName="1:DoIt">
+                    <DisplayName>DoIt</DisplayName>
+                    <References>
+                      <Reference ReferenceType="HasProperty">ns=1;i=2</Reference>
+                      <Reference ReferenceType="HasModellingRule">i=80</Reference>
+                      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1</Reference>
+                    </References>
+                  </UAMethod>
+                </UANodeSet>
+                """;
+            ImmutableArray<Diagnostic> diagnostics = Run(
+                [
+                    EmbeddedText.Create(modelPath, nodeSet),
+                    EmbeddedText.Create(
+                        identifierPath,
+                        "SymbolicName,NodeId,NodeClass\r\n" +
+                        "ThingType,1,ObjectType\r\n" +
+                        "ThingType_DoIt_InputArguments,2,Variable\r\n" +
+                        "ThingType_DoIt,3,Method\r\n")
+                ],
+                new Dictionary<string, string> { [modelPath] = "Model.ids.csv" });
+
+            Assert.That(
+                GetSidecarDiagnosticIds(diagnostics),
+                Is.Empty,
                 string.Join(Environment.NewLine, diagnostics.Select(diagnostic => diagnostic.ToString())));
         }
 

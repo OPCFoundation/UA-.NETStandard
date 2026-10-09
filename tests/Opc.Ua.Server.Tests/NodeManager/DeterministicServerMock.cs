@@ -46,7 +46,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         /// </summary>
         public static Mock<IServerInternal> Create(
             out MonitoredItemQueueFactory queueFactory,
-            TimeProvider timeProvider = null)
+            TimeProvider? timeProvider = null)
         {
             var mockServer = new Mock<IServerInternal>();
             if (timeProvider != null)

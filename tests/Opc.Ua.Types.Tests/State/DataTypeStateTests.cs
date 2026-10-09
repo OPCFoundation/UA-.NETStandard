@@ -73,7 +73,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void ConstructStaticFactory()
         {
-            NodeState node = DataTypeState.Construct(null);
+            NodeState node = DataTypeState.Construct(null!);
             Assert.That(node, Is.InstanceOf<DataTypeState>());
         }
 
@@ -81,7 +81,7 @@ namespace Opc.Ua.Types.Tests.State
         public void DataTypeDefinitionPropertySetterTriggersChangeMask()
         {
             var dt = new DataTypeState();
-            dt.ClearChangeMasks(null, false);
+            dt.ClearChangeMasks(null!, false);
 
             var definition = new ExtensionObject(new StructureDefinition());
             dt.DataTypeDefinition = definition;
@@ -98,7 +98,7 @@ namespace Opc.Ua.Types.Tests.State
             {
                 DataTypeDefinition = definition
             };
-            dt.ClearChangeMasks(null, false);
+            dt.ClearChangeMasks(null!, false);
 
             dt.DataTypeDefinition = definition;
             Assert.That(dt.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
@@ -164,6 +164,51 @@ namespace Opc.Ua.Types.Tests.State
                 m_context, Attributes.DataTypeDefinition, default, new DataValue(new Variant(typeIdOnly)));
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
             Assert.That(dt.DataTypeDefinition, Is.EqualTo(definition));
+        }
+
+        [Test]
+        public void ReadDataTypeDefinitionReportsDefaultEncodingWithoutMutatingTheStoredValue()
+        {
+            var stored = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                Fields = [new StructureField { Name = "Name", DataType = DataTypeIds.String, ValueRank = -1 }]
+            };
+            var dt = new DataTypeState
+            {
+                NodeId = DataTypeIds.Argument,
+                SuperTypeId = DataTypeIds.Structure,
+                DataTypeDefinition = new ExtensionObject(stored)
+            };
+
+            var context = new SystemContext(NUnitTelemetryContext.Create())
+            {
+                NamespaceUris = m_context.NamespaceUris,
+                ServerUris = m_context.ServerUris,
+                EncodeableFactory = EncodeableFactory.Create()
+            };
+
+            DataValue value = new();
+            ServiceResult result = dt.ReadAttribute(
+                context, Attributes.DataTypeDefinition, default, default, ref value);
+
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True);
+            Assert.That(extension.TryGetValue(out StructureDefinition? read), Is.True);
+            Assert.That(read!.DefaultEncodingId, Is.EqualTo(
+                ExpandedNodeId.ToNodeId(ObjectIds.Argument_Encoding_DefaultBinary, context.NamespaceUris)));
+            Assert.That(stored.DefaultEncodingId.IsNull, Is.True,
+                "A read must not modify the definition shared by all readers.");
+
+            // Part 3 8.48: an abstract DataType has no DefaultEncodingId.
+            dt.IsAbstract = true;
+            value = new DataValue();
+            result = dt.ReadAttribute(
+                context, Attributes.DataTypeDefinition, default, default, ref value);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(value.WrappedValue.TryGetValue(out extension), Is.True);
+            Assert.That(extension.TryGetValue(out read!), Is.True);
+            Assert.That(read!.DefaultEncodingId.IsNull, Is.True);
         }
 
         [Test]

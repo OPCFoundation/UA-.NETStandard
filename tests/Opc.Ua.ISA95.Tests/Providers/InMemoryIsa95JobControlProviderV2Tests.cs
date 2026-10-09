@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
@@ -544,6 +545,110 @@ namespace Opc.Ua.ISA95.Tests.Providers
             Assert.That(changes[0].Order, Is.Not.Null);
             Assert.That(changes[0].Order!.JobOrder.Priority, Is.EqualTo((short)5));
             Assert.That(changes[0].Order!.State[0].StateNumber, Is.EqualTo(1u));
+        }
+
+        [Test]
+        public async Task ReceivingAResponseEmitsExactlyOneResponseChange()
+        {
+            using var provider = new InMemoryIsa95JobControlProvider();
+            await provider.ReceiveJobOrderAsync(
+                Isa95JobOrderOperationV2.Store,
+                Isa95TestData.V2Order("job1")).ConfigureAwait(false);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            IAsyncEnumerator<Isa95JobResponseChange> changes = provider
+                .SubscribeResponseChangesAsync(cts.Token)
+                .GetAsyncEnumerator(cts.Token);
+            try
+            {
+                Task<bool> pending = changes.MoveNextAsync().AsTask();
+
+                // A response does not change the order's state, which is why
+                // the status and catalog streams cannot report it.
+                await provider.ReceiveJobResponseAsync(
+                    Isa95TestData.V2Response("r1", "job1", 3, "Running")).ConfigureAwait(false);
+
+                Assert.That(await pending.ConfigureAwait(false), Is.True);
+                Assert.That(changes.Current.JobResponseId, Is.EqualTo("r1"));
+                Assert.That(changes.Current.JobOrderId, Is.EqualTo("job1"));
+                Assert.That(changes.Current.SequenceNumber, Is.EqualTo(1ul));
+
+                // A refused response is not reported.
+                await provider.ReceiveJobResponseAsync(
+                    Isa95TestData.V2Response("r1", "job1")).ConfigureAwait(false);
+                pending = changes.MoveNextAsync().AsTask();
+                await provider.ReceiveJobResponseAsync(
+                    Isa95TestData.V2Response("r2", "job1")).ConfigureAwait(false);
+                Assert.That(await pending.ConfigureAwait(false), Is.True);
+                Assert.That(changes.Current.JobResponseId, Is.EqualTo("r2"));
+                Assert.That(changes.Current.SequenceNumber, Is.EqualTo(2ul));
+            }
+            finally
+            {
+                await cts.CancelAsync().ConfigureAwait(false);
+                await changes.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task DroppingAnExpiredResponseEmitsARemovedResponseChange()
+        {
+            var time = new FakeTimeProvider();
+            using var provider = new InMemoryIsa95JobControlProvider(
+                new Isa95JobControlProviderOptions { ResponseRetention = TimeSpan.FromMinutes(1) },
+                time);
+            await provider.ReceiveJobOrderAsync(
+                Isa95JobOrderOperationV2.Store,
+                Isa95TestData.V2Order("job1")).ConfigureAwait(false);
+
+            using var cts = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            IAsyncEnumerator<Isa95JobResponseChange> changes = provider
+                .SubscribeResponseChangesAsync(cts.Token)
+                .GetAsyncEnumerator(cts.Token);
+            try
+            {
+                Task<bool> pending = changes.MoveNextAsync().AsTask();
+                await provider.ReceiveJobResponseAsync(
+                    Isa95TestData.V2Response("r1", "job1")).ConfigureAwait(false);
+                Assert.That(await pending.ConfigureAwait(false), Is.True);
+                Assert.That(changes.Current.Removed, Is.False);
+
+                // Reading the catalog after the retention drops the response;
+                // no new response arrives to refresh a projection otherwise.
+                time.Advance(TimeSpan.FromMinutes(2));
+                pending = changes.MoveNextAsync().AsTask();
+                ArrayOf<V2.ISA95JobResponseDataType> responses =
+                    await provider.GetJobResponsesV2Async().ConfigureAwait(false);
+
+                Assert.That(responses.Count, Is.Zero);
+                Assert.That(await pending.ConfigureAwait(false), Is.True);
+                Assert.That(changes.Current.Removed, Is.True);
+                Assert.That(changes.Current.JobResponseId, Is.EqualTo("r1"));
+                Assert.That(changes.Current.JobOrderId, Is.EqualTo("job1"));
+                Assert.That(changes.Current.SequenceNumber, Is.EqualTo(2ul));
+            }
+            finally
+            {
+                await cts.CancelAsync().ConfigureAwait(false);
+                await changes.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task DisposingTheProviderEndsTheResponseChangeStream()
+        {
+            var provider = new InMemoryIsa95JobControlProvider();
+            IAsyncEnumerator<Isa95JobResponseChange> changes = provider
+                .SubscribeResponseChangesAsync()
+                .GetAsyncEnumerator();
+            Task<bool> pending = changes.MoveNextAsync().AsTask();
+            provider.Dispose();
+            Assert.That(await pending.ConfigureAwait(false), Is.False);
+            await changes.DisposeAsync().ConfigureAwait(false);
+
+            Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                await provider.SubscribeResponseChangesAsync().GetAsyncEnumerator().MoveNextAsync()
+                    .ConfigureAwait(false));
         }
 
         [Test]

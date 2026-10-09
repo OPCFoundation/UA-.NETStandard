@@ -108,18 +108,26 @@ namespace Opc.Ua.Server.Hosting
             IServerInternal server,
             ApplicationConfiguration configuration)
         {
+            ISessionManager? manager = null;
             foreach (OpcUaServerSessionManagerRegistration registration in
                 m_services.GetServices<OpcUaServerSessionManagerRegistration>())
             {
-                return registration.CreateManager(m_services, server, configuration);
+                manager = registration.CreateManager(m_services, server, configuration);
+                break;
             }
 
-            if (m_services.GetService<ISessionManager>() is { } sessionManager)
+            manager ??= m_services.GetService<ISessionManager>() ??
+                base.CreateSessionManager(server, configuration);
+
+            // AddSessionlessInvocation(...) enables OPC 10000-4 §6.3 on
+            // whichever session manager is in use, unless it was configured
+            // already.
+            if (manager is SessionManager sessionManager &&
+                m_services.GetService<SessionlessInvocationOptions>() is { } sessionless)
             {
-                return sessionManager;
+                sessionManager.SessionlessInvocation ??= sessionless;
             }
-
-            return base.CreateSessionManager(server, configuration);
+            return manager;
         }
 
         /// <inheritdoc/>
@@ -287,6 +295,17 @@ namespace Opc.Ua.Server.Hosting
             options.ConfigurationFileProvider ??= configurationFileProvider;
             return options;
         }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// <see cref="ServerState.NoConfiguration"/> when the registered
+        /// <see cref="ServerConfigurationOptions.InApplicationSetup"/> is
+        /// <see langword="true"/> (OPC 10000-12 Annex G.2).
+        /// </remarks>
+        protected override ServerState StartupServerState =>
+            ResolveServerConfigurationOptions(m_services)?.InApplicationSetup == true
+                ? ServerState.NoConfiguration
+                : base.StartupServerState;
 
         private readonly IServiceProvider m_services;
     }

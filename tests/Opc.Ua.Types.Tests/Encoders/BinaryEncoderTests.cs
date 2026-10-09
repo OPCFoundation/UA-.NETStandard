@@ -71,7 +71,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteBoolean("TestField", true);
             encoder.WriteInt32("TestInt", 42);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -115,16 +115,16 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var stream = new MemoryStream();
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => BinaryEncoder.EncodeMessage(null, messageContext));
-            Assert.Throws<ArgumentNullException>(() => BinaryEncoder.EncodeMessage(mockMessage.Object, null));
-            Assert.Throws<ArgumentNullException>(() => BinaryEncoder.EncodeMessage(null, null));
-            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null, messageContext, true));
-            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(stream, null, true));
-            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null));
-            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder([], 0, 0, null));
-            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null, 0, 0, messageContext));
+            Assert.Throws<ArgumentNullException>(() => BinaryEncoder.EncodeMessage(null!, messageContext));
+            Assert.Throws<ArgumentNullException>(() => BinaryEncoder.EncodeMessage(mockMessage.Object, null!));
+            Assert.Throws<ArgumentNullException>(() => BinaryEncoder.EncodeMessage(null!, null!));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null!, messageContext, true));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(stream, null!, true));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null!));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder([], 0, 0, null!));
+            Assert.Throws<ArgumentNullException>(() => new BinaryEncoder(null!, 0, 0, messageContext));
             Assert.Throws<ArgumentNullException>(() => new BinaryEncoder([], 0, 0, messageContext)
-                .EncodeMessage<TestEncodeable>(null));
+                .EncodeMessage<TestEncodeable>(null!));
         }
 
         [Test]
@@ -277,7 +277,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.EncodeMessage(mockMessage.Object, binaryEncodingId);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Is.Not.Empty);
@@ -395,7 +395,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
@@ -415,7 +415,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const double value = double.NaN;
             // Act
             encoder.WriteDouble("field", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
@@ -435,7 +435,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const double value = double.PositiveInfinity;
             // Act
             encoder.WriteDouble("field", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
@@ -455,7 +455,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const double value = double.NegativeInfinity;
             // Act
             encoder.WriteDouble("field", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
@@ -487,7 +487,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.WriteDouble("field", value);
             }
 
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(sizeof(double) * values.Length));
@@ -510,7 +510,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
@@ -532,7 +532,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
@@ -554,7 +554,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDouble("field", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(sizeof(double)));
@@ -574,7 +574,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDiagnosticInfo("test", null);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -592,7 +592,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var diagnosticInfo = new DiagnosticInfo();
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -613,7 +613,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -639,7 +639,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -665,7 +665,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -686,7 +686,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo(null, diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -706,7 +706,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo(string.Empty, diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -726,7 +726,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("   ", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -746,7 +746,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -767,7 +767,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -788,7 +788,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -809,7 +809,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -830,7 +830,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -851,7 +851,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -873,7 +873,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -894,7 +894,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteDiagnosticInfo("test", diagnosticInfo);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -910,7 +910,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<ushort> emptyArray = [];
             // Act
             encoder.WriteUInt16Array("TestField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -939,7 +939,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<ExtensionObject> emptyArray = [];
             // Act
             encoder.WriteExtensionObjectArray("TestField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -955,7 +955,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nullArray = default(ArrayOf<XmlElement>);
             // Act
             encoder.WriteXmlElementArray("TestField", nullArray);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -971,7 +971,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<XmlElement> emptyArray = [];
             // Act
             encoder.WriteXmlElementArray("TestField", emptyArray);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -988,7 +988,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<XmlElement>([emptyXmlElement]);
             // Act
             encoder.WriteXmlElementArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8)); // 4 bytes for length + 4 bytes for -1 (empty marker)
@@ -1004,7 +1004,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var encoder = new BinaryEncoder(messageContext);
             // Act
-            string result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.EqualTo(Convert.ToBase64String([])));
@@ -1021,7 +1021,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteByte("ByteField", 255);
             encoder.WriteInt16("Int16Field", short.MaxValue);
             // Act
-            string result = encoder.CloseAndReturnText();
+            string result = encoder.CloseAndReturnText()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             byte[] decoded = Convert.FromBase64String(result);
@@ -1044,7 +1044,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(bufferedStream, messageContext, leaveOpen: true);
             encoder.WriteInt32("TestField", 42);
             // Act
-            string result = encoder.CloseAndReturnText();
+            string? result = encoder.CloseAndReturnText();
             // Assert
             Assert.That(result, Is.Null);
         }
@@ -1060,7 +1060,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const uint value = uint.MinValue;
             // Act
             encoder.WriteUInt32("testField", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -1081,7 +1081,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const uint value = uint.MaxValue;
             // Act
             encoder.WriteUInt32("testField", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -1101,7 +1101,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const uint value = 12345u;
             // Act
             encoder.WriteUInt32(null, value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -1121,7 +1121,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const uint value = 99999u;
             // Act
             encoder.WriteUInt32(string.Empty, value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -1141,7 +1141,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const uint value = 555u;
             // Act
             encoder.WriteUInt32("   ", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -1165,7 +1165,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteUInt32("field1", value1);
             encoder.WriteUInt32("field2", value2);
             encoder.WriteUInt32("field3", value3);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(12));
@@ -1197,7 +1197,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             string longFieldName = new('a', 10000);
             // Act
             encoder.WriteUInt32(longFieldName, value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -1218,7 +1218,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const string specialFieldName = "field\0name\t\r\n!@#$%^&*()";
             // Act
             encoder.WriteUInt32(specialFieldName, value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -1239,7 +1239,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             XmlElement emptyXmlElement = XmlElement.Empty;
             // Act
             encoder.WriteXmlElement("testField", emptyXmlElement);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -1258,7 +1258,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var xmlElement = XmlElement.From(xmlString);
             // Act
             encoder.WriteXmlElement("testField", xmlElement);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(4));
@@ -1282,7 +1282,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var xmlElement = XmlElement.From(xmlString);
             // Act
             encoder.WriteXmlElement(null, xmlElement);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var memStream = new MemoryStream(result);
@@ -1305,7 +1305,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var xmlElement = XmlElement.From(xmlString);
             // Act
             encoder.WriteXmlElement(string.Empty, xmlElement);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var memStream = new MemoryStream(result);
@@ -1328,7 +1328,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var xmlElement = XmlElement.From(xmlString);
             // Act
             encoder.WriteXmlElement("complexField", xmlElement);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var memStream = new MemoryStream(result);
@@ -1351,7 +1351,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var xmlElement = XmlElement.From(xmlString);
             // Act
             encoder.WriteXmlElement("specialField", xmlElement);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var memStream = new MemoryStream(result);
@@ -1550,7 +1550,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", sbyte.MinValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -1567,7 +1567,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", sbyte.MaxValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -1584,7 +1584,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", 0);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -1608,7 +1608,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("TestField", value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -1625,7 +1625,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte(null, 42);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -1642,7 +1642,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte(string.Empty, -42);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -1669,7 +1669,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.WriteSByte("TestField", value);
             }
 
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(3));
@@ -1688,7 +1688,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteSByte("   ", 10);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -1708,7 +1708,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] expectedBytes = testGuid.ToByteArray();
             // Act
             encoder.WriteGuid("TestField", testUuid);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(16), "WriteGuid should write exactly 16 bytes for a Uuid");
@@ -1727,7 +1727,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] expectedBytes = Guid.Empty.ToByteArray();
             // Act
             encoder.WriteGuid("TestField", emptyUuid);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(16), "WriteGuid should write exactly 16 bytes for an empty Uuid");
@@ -1750,7 +1750,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] expectedBytes = testGuid.ToByteArray();
             // Act
             encoder.WriteGuid("Field", testUuid);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(16));
@@ -1774,7 +1774,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder.WriteGuid("Field1", uuid1);
             encoder.WriteGuid("Field2", uuid2);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(32), "Should write 32 bytes total (16 bytes per Uuid)");
@@ -1799,7 +1799,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] expectedBytes = testGuid.ToByteArray();
             // Act
             encoder.WriteGuid(null, testUuid);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(16));
@@ -1860,7 +1860,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nullArray = default(ArrayOf<int>);
             // Act
             encoder.WriteInt32Array("testField", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -1879,7 +1879,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var emptyArray = ArrayOf.Empty<int>();
             // Act
             encoder.WriteInt32Array("testField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -1898,7 +1898,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var singleElementArray = ArrayOf.Wrapped(42);
             // Act
             encoder.WriteInt32Array("testField", singleElementArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -1919,7 +1919,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var multipleElementArray = ArrayOf.Wrapped(1, 2, 3, 4, 5);
             // Act
             encoder.WriteInt32Array("testField", multipleElementArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(24)); // 4 bytes for length + 5 * 4 bytes for values
@@ -1943,7 +1943,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var boundaryArray = ArrayOf.Wrapped(int.MinValue, 0, int.MaxValue);
             // Act
             encoder.WriteInt32Array("testField", boundaryArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
@@ -1965,7 +1965,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var negativeArray = ArrayOf.Wrapped(-100, -200, -300);
             // Act
             encoder.WriteInt32Array("testField", negativeArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
@@ -2000,7 +2000,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var zeroArray = ArrayOf.Wrapped(0, 0, 0);
             // Act
             encoder.WriteInt32Array("testField", zeroArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(16)); // 4 bytes for length + 3 * 4 bytes for values
@@ -2199,7 +2199,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const uint encodingMask = 0;
             // Act
             encoder.WriteEncodingMask(encodingMask);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -2220,7 +2220,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const uint encodingMask = uint.MaxValue;
             // Act
             encoder.WriteEncodingMask(encodingMask);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -2284,7 +2284,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject extensionObject = ExtensionObject.Null;
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -2310,7 +2310,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(typeId);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -2336,14 +2336,17 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(typeId, (ByteString)default);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var decoder = new BinaryDecoder(result, messageContext);
             NodeId decodedNodeId = decoder.ReadNodeId(null);
             byte encoding = decoder.ReadByte(null);
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(123, 0)));
-            Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
+            // Part 6 5.2.2.15: a null body has no valid Length, so no body is
+            // encoded (0x00) instead of a Binary body with Length -1.
+            Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.None));
+            Assert.That(decoder.Position, Is.EqualTo(result.Length));
         }
 
         [Test]
@@ -2368,7 +2371,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(typeId, new ByteString(bodyBytes));
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var decoder = new BinaryDecoder(result, messageContext);
@@ -2395,7 +2398,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(typeId, new ByteString(bodyBytes));
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var decoder = new BinaryDecoder(result, messageContext);
@@ -2421,7 +2424,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(typeId, xmlElement);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var decoder = new BinaryDecoder(result, messageContext);
@@ -2452,7 +2455,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(mockEncodeable.Object);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var decoder = new BinaryDecoder(result, messageContext);
@@ -2520,7 +2523,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(xmlEncodingId, mockEncodeable.Object);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var decoder = new BinaryDecoder(result, messageContext);
@@ -2595,7 +2598,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(typeId, new ByteString(bodyBytes));
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var decoder = new BinaryDecoder(result, messageContext);
@@ -2620,7 +2623,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(typeId, ByteString.From([0, 1, 2]));
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var decoder = new BinaryDecoder(result, messageContext);
@@ -2639,7 +2642,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(typeId, ByteString.From([1, 2]));
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var decoder = new BinaryDecoder(result, messageContext);
@@ -2660,7 +2663,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExtensionObject extensionObject = ExtensionObject.Null;
             // Act
             encoder.WriteExtensionObject(null, extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -2690,7 +2693,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var extensionObject = new ExtensionObject(mockEncodeable.Object);
             // Act
             encoder.WriteExtensionObject("test", extensionObject);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var decoder = new BinaryDecoder(result, messageContext);
@@ -2700,7 +2703,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(decodedNodeId, Is.EqualTo(new NodeId(2001, 0)));
             Assert.That(encoding, Is.EqualTo((byte)ExtensionObjectEncoding.Binary));
             Assert.That(length, Is.GreaterThan(0));
-            string name = decoder.ReadString(null);
+            string name = decoder.ReadString(null)!;
             int value = decoder.ReadInt32(null);
             bool flag = decoder.ReadBoolean(null);
             Assert.That(name, Is.EqualTo("TestName"));
@@ -2730,7 +2733,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<double> emptyArray = [];
             // Act
             encoder.WriteDoubleArray("TestField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -2940,7 +2943,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var encoder = new BinaryEncoder(messageContext);
             // Act
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -2957,7 +2960,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteInt32(null, 12345);
             encoder.WriteBoolean(null, true);
             // Act
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -2973,7 +2976,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             byte[] buffer = new byte[1024];
             using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, messageContext);
             // Act
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -2990,7 +2993,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteString(null, "test");
             encoder.WriteUInt64(null, 9876543210UL);
             // Act
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -3010,7 +3013,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 using var encoder = new BinaryEncoder(fileStream, messageContext, leaveOpen: true);
                 encoder.WriteInt32(null, 42);
                 // Act
-                byte[] result = encoder.CloseAndReturnBuffer();
+                byte[]? result = encoder.CloseAndReturnBuffer();
                 // Assert
                 Assert.That(result, Is.Null);
             }
@@ -3033,7 +3036,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var bufferedStream = new BufferedStream(memoryStream);
             using var encoder = new BinaryEncoder(bufferedStream, messageContext, leaveOpen: true);
             // Act
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[]? result = encoder.CloseAndReturnBuffer();
             // Assert
             Assert.That(result, Is.Null);
         }
@@ -3047,7 +3050,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32(null, 100);
             // Act
-            byte[] result1 = encoder.CloseAndReturnBuffer();
+            byte[] result1 = encoder.CloseAndReturnBuffer()!;
             // Assert - first call succeeds
             Assert.That(result1, Is.Not.Null);
             // Act & Assert - second call should not throw
@@ -3070,7 +3073,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }
 
             // Act
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -3088,7 +3091,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(buffer, offset, count, messageContext);
             encoder.WriteInt16(null, short.MaxValue);
             // Act
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.InstanceOf<byte[]>());
@@ -3104,7 +3107,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const int testValue = 0x12345678;
             encoder.WriteInt32(null, testValue);
             // Act
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -3120,8 +3123,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var encoder = new BinaryEncoder(messageContext);
             // Act
-            encoder.SaveStringTable(null);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            encoder.SaveStringTable(null!);
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -3139,7 +3142,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var stringTable = new StringTable();
             // Act
             encoder.SaveStringTable(stringTable);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -3157,7 +3160,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var stringTable = new StringTable(["FirstString"]);
             // Act
             encoder.SaveStringTable(stringTable);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4));
@@ -3175,7 +3178,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var stringTable = new StringTable(["FirstString", "SecondString"]);
             // Act
             encoder.SaveStringTable(stringTable);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.GreaterThan(4));
@@ -3207,7 +3210,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var stringTable = new StringTable(strings);
             // Act
             encoder.SaveStringTable(stringTable);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             using var stream = new MemoryStream(buffer);
@@ -3240,7 +3243,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var stringTable = new StringTable(strings);
             // Act
             encoder.SaveStringTable(stringTable);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             using var stream = new MemoryStream(buffer);
@@ -3273,7 +3276,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var stringTable = new StringTable(strings);
             // Act
             encoder.SaveStringTable(stringTable);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             using var stream = new MemoryStream(buffer);
@@ -3308,7 +3311,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var stringTable = new StringTable(strings);
             // Act
             encoder.SaveStringTable(stringTable);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             using var stream = new MemoryStream(buffer);
@@ -3332,7 +3335,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const ulong value = ulong.MinValue;
             // Act
             encoder.WriteUInt64("TestField", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8));
@@ -3349,7 +3352,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const ulong value = ulong.MaxValue;
             // Act
             encoder.WriteUInt64("TestField", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8));
@@ -3370,7 +3373,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteUInt64("Field1", value1);
             encoder.WriteUInt64("Field2", value2);
             encoder.WriteUInt64("Field3", value3);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(24)); // 3 * 8 bytes
@@ -3401,7 +3404,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteUInt64("TestField", value);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8));
@@ -3431,7 +3434,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ExpandedNodeId nullExpandedNodeId = ExpandedNodeId.Null;
             // Act
             encoder.WriteExpandedNodeId("TestField", nullExpandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(2)); // UInt16 is 2 bytes
@@ -3451,7 +3454,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -3473,7 +3476,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId, "http://test.namespace.uri");
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(2));
@@ -3493,7 +3496,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId, null, 1u);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(2));
@@ -3513,7 +3516,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId, "http://test.namespace", 2u);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(2));
@@ -3533,7 +3536,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId, null, 0u);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -3553,7 +3556,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId, null);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -3573,7 +3576,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId, string.Empty);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -3603,7 +3606,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -3631,7 +3634,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId, null, 0u);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -3651,7 +3654,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(23));
@@ -3672,7 +3675,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(19));
@@ -3693,7 +3696,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(23));
@@ -3713,7 +3716,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId, null, uint.MaxValue);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -3733,7 +3736,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -3751,7 +3754,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(2)); // TwoByte encoding: 1 byte encoding + 1 byte value
@@ -3771,7 +3774,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4)); // FourByte encoding: 1 byte encoding + 1 byte namespace + 2 bytes value
@@ -3790,7 +3793,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var expandedNodeId = new ExpandedNodeId(nodeId);
             // Act
             encoder.WriteExpandedNodeId("TestField", expandedNodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(7)); // SevenByte encoding: 1 byte encoding + 2 byte namespace + 4 bytes value
@@ -3806,7 +3809,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<short> nullArray = default;
             // Act
             encoder.WriteInt16Array("test", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4)); // -1 as int32
@@ -3822,7 +3825,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<short> emptyArray = [];
             // Act
             encoder.WriteInt16Array("test", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4)); // 0 as int32
@@ -3842,7 +3845,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }.ToArrayOf();
             // Act
             encoder.WriteInt16Array("test", values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(6)); // 4 bytes for length + 2 bytes for short
@@ -3867,7 +3870,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<short> values = expectedValues.ToArrayOf();
             // Act
             encoder.WriteInt16Array("test", values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(14)); // 4 bytes for length + 10 bytes for 5 shorts
@@ -3895,7 +3898,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }.ToArrayOf();
             // Act
             encoder.WriteInt16Array("test", values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
@@ -3939,7 +3942,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<short> values = expectedValues.ToArrayOf();
             // Act
             encoder.WriteInt16Array("test", values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(5));
@@ -3963,7 +3966,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }.ToArrayOf();
             // Act
             encoder.WriteInt16Array("myField", values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
@@ -3986,7 +3989,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<short> values = expectedValues.ToArrayOf();
             // Act
             encoder.WriteInt16Array("test", values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(100));
@@ -4017,7 +4020,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nodeId = new NodeId(100u, 1); // namespace index 1 in encoder space
             // Act
             encoder.WriteNodeId("TestField", nodeId);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -4270,7 +4273,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("testField", true);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -4287,7 +4290,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("testField", false);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -4307,7 +4310,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteBoolean("field2", false);
             encoder.WriteBoolean("field3", true);
             encoder.WriteBoolean("field4", false);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -4328,7 +4331,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteBoolean("field", value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -4345,7 +4348,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDateTime("test", DateTimeUtc.MaxValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -4363,7 +4366,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteDateTime("test", DateTime.MinValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -4382,7 +4385,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var timeBase = new DateTime(1601, 1, 1, 0, 0, 0, DateTimeKind.Utc);
             // Act
             encoder.WriteDateTime("test", timeBase);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -4401,7 +4404,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var beforeTimeBase = new DateTime(1600, 12, 31, 23, 59, 59, DateTimeKind.Utc);
             // Act
             encoder.WriteDateTime("test", beforeTimeBase);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -4422,7 +4425,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             long expectedTicks = testDate.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", testDate);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -4444,7 +4447,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             long expectedTicks = utcDate.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", localDate);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -4466,7 +4469,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             long expectedTicks = utcDate.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", unspecifiedDate);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -4487,7 +4490,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             long expectedTicks = utcDate.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", utcDate);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -4508,7 +4511,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             long expectedTicks = justAfterTimeBase.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", justAfterTimeBase);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -4534,7 +4537,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             long expectedTicks = testDate.Ticks - timeBase.Ticks;
             // Act
             encoder.WriteDateTime("test", testDate);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -4550,7 +4553,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(context);
             // Act
             encoder.WriteDataValue("test", default);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -4566,7 +4569,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dataValue = new DataValue();
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -4582,7 +4585,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dataValue = new DataValue(Variant.From(42));
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4598,7 +4601,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dataValue = DataValue.FromStatusCode(StatusCodes.Bad);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4617,7 +4620,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 DateTime.UtcNow);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4639,7 +4642,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 0);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4659,7 +4662,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 DateTime.UtcNow);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4680,7 +4683,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 DateTime.UtcNow);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4702,7 +4705,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 5678);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4723,7 +4726,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 DateTime.UtcNow);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4746,7 +4749,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 5678);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4771,7 +4774,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 DateTime.MinValue);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -4788,7 +4791,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dataValue = new DataValue(Variant.From(42), StatusCodes.Good);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4804,7 +4807,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var dataValue = new DataValue(Variant.Null);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -4826,7 +4829,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 ushort.MaxValue);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4849,7 +4852,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 1);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4865,12 +4868,12 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             IServiceMessageContext context = CreateContextWithNegativeMaxStringLength();
             using var encoder = new BinaryEncoder(context);
-            FieldInfo field = type.GetField(fieldName);
-            var statusCode = (StatusCode)field.GetValue(null);
+            FieldInfo field = type.GetField(fieldName)!;
+            var statusCode = (StatusCode)field!.GetValue(null)!;
             var dataValue = DataValue.FromStatusCode(statusCode);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4890,7 +4893,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 DateTime.MaxValue);
             // Act
             encoder.WriteDataValue("test", dataValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(1));
@@ -4907,7 +4910,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nullArray = default(ArrayOf<long>);
             // Act
             encoder.WriteInt64Array("TestField", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -4924,7 +4927,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<long> emptyArray = [];
             // Act
             encoder.WriteInt64Array("TestField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -4941,7 +4944,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var singleElementArray = ArrayOf.Create([12345L]);
             // Act
             encoder.WriteInt64Array("TestField", singleElementArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(12)); // 4 bytes for length + 8 bytes for one long
@@ -4959,7 +4962,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var multipleElementsArray = ArrayOf.Create([100L, 200L, 300L]);
             // Act
             encoder.WriteInt64Array("TestField", multipleElementsArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
@@ -4979,7 +4982,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var boundaryArray = ArrayOf.Create([long.MinValue, long.MaxValue, 0L, -1L, 1L]);
             // Act
             encoder.WriteInt64Array("TestField", boundaryArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(44)); // 4 bytes for length + 5 * 8 bytes for longs
@@ -5013,7 +5016,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Create([10L, 20L, 30L]);
             // Act
             encoder.WriteInt64Array("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
@@ -5033,7 +5036,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var negativeArray = ArrayOf.Create([-100L, -999999L, -1L]);
             // Act
             encoder.WriteInt64Array("TestField", negativeArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for longs
@@ -5052,7 +5055,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var zeroArray = ArrayOf.Create([0L]);
             // Act
             encoder.WriteInt64Array("TestField", zeroArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(12)); // 4 bytes for length + 8 bytes for one long
@@ -5069,7 +5072,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nullArray = default(ArrayOf<QualifiedName>);
             // Act
             encoder.WriteQualifiedNameArray("test", nullArray);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4)); // int32 = 4 bytes
@@ -5086,7 +5089,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<QualifiedName> emptyArray = [];
             // Act
             encoder.WriteQualifiedNameArray("test", emptyArray);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4)); // int32 = 4 bytes
@@ -5104,7 +5107,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(qualifiedName);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.GreaterThan(4)); // At least the length int32
@@ -5124,7 +5127,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(qn1, qn2, qn3);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.GreaterThan(4));
@@ -5159,7 +5162,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(qn1, qn2);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             int length = BitConverter.ToInt32(buffer, 0);
@@ -5178,7 +5181,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(qn1, qn2, qn3);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             int length = BitConverter.ToInt32(buffer, 0);
@@ -5197,7 +5200,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(qn1, qn2, qn3);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             int length = BitConverter.ToInt32(buffer, 0);
@@ -5215,7 +5218,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(qn);
             // Act
             encoder.WriteQualifiedNameArray("test", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             int length = BitConverter.ToInt32(buffer, 0);
@@ -5361,8 +5364,8 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Assert
             Assert.That(encoder.Position, Is.EqualTo(testValues.Length * 8), "Position should be 40 bytes (5 longs * 8 bytes)");
-            byte[] buffer = encoder.CloseAndReturnBuffer();
-            using var reader = new BinaryReader(new MemoryStream(buffer));
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
+            using var reader = new BinaryReader(new MemoryStream(buffer!));
             for (int i = 0; i < testValues.Length; i++)
             {
                 long readValue = reader.ReadInt64();
@@ -5382,9 +5385,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder.WriteInt64("Test", testValue);
             // Assert
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Little-endian byte order: least significant byte first
-            Assert.That(buffer[0], Is.EqualTo(0x08), "First byte should be 0x08");
+            Assert.That(buffer![0], Is.EqualTo(0x08), "First byte should be 0x08");
             Assert.That(buffer[1], Is.EqualTo(0x07), "Second byte should be 0x07");
             Assert.That(buffer[2], Is.EqualTo(0x06), "Third byte should be 0x06");
             Assert.That(buffer[3], Is.EqualTo(0x05), "Fourth byte should be 0x05");
@@ -5441,7 +5444,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nullArray = default(ArrayOf<sbyte>);
             // Act
             encoder.WriteSByteArray("test", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -5457,7 +5460,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var emptyArray = ArrayOf.Empty<sbyte>();
             // Act
             encoder.WriteSByteArray("test", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -5477,7 +5480,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }.ToArrayOf();
             // Act
             encoder.WriteSByteArray("test", singleElement);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(5)); // 4 bytes for length + 1 byte for value
@@ -5501,7 +5504,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<sbyte> arrayOf = values.ToArrayOf();
             // Act
             encoder.WriteSByteArray("test", arrayOf);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4 + values.Length)); // 4 bytes for length + 1 byte per element
@@ -5534,7 +5537,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<sbyte> boundaryArray = new sbyte[10].ToArrayOf();
             // Act
             encoder.WriteSByteArray("test", boundaryArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(14)); // 4 bytes for length + 10 bytes for values
@@ -5556,7 +5559,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             }.ToArrayOf();
             // Act
             encoder.WriteSByteArray(null, array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(7)); // 4 bytes for length + 3 bytes for values
@@ -5578,7 +5581,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<sbyte> arrayOf = largeArray.ToArrayOf();
             // Act
             encoder.WriteSByteArray("test", arrayOf);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1004)); // 4 bytes for length + 1000 bytes for values
@@ -5599,7 +5602,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<Uuid> nullArray = default;
             // Act
             encoder.WriteGuidArray("testField", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -5617,7 +5620,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<Uuid> emptyArray = [];
             // Act
             encoder.WriteGuidArray("testField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -5636,7 +5639,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var singleArray = ArrayOf.Wrapped(testGuid);
             // Act
             encoder.WriteGuidArray("testField", singleArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(20)); // 4 bytes for length + 16 bytes for GUID
@@ -5661,7 +5664,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var multiArray = ArrayOf.Wrapped(guid1, guid2, guid3);
             // Act
             encoder.WriteGuidArray("testField", multiArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(52)); // 4 bytes for length + 3 * 16 bytes for GUIDs
@@ -5708,7 +5711,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var emptyGuidArray = ArrayOf.Wrapped(emptyGuid, emptyGuid);
             // Act
             encoder.WriteGuidArray("testField", emptyGuidArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(36)); // 4 bytes for length + 2 * 16 bytes for GUIDs
@@ -5736,7 +5739,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var boundaryArray = ArrayOf.Wrapped(guid1, guid2, guid3);
             // Act
             encoder.WriteGuidArray("testField", boundaryArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(52)); // 4 bytes for length + 3 * 16 bytes for GUIDs
@@ -5754,13 +5757,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             var testArray = ArrayOf.Wrapped(testGuid);
             using var encoder1 = new BinaryEncoder(messageContext);
             encoder1.WriteGuidArray("field1", testArray);
-            byte[] result1 = encoder1.CloseAndReturnBuffer();
+            byte[] result1 = encoder1.CloseAndReturnBuffer()!;
             using var encoder2 = new BinaryEncoder(messageContext);
             encoder2.WriteGuidArray("field2", testArray);
-            byte[] result2 = encoder2.CloseAndReturnBuffer();
+            byte[] result2 = encoder2.CloseAndReturnBuffer()!;
             using var encoder3 = new BinaryEncoder(messageContext);
             encoder3.WriteGuidArray(null, testArray);
-            byte[] result3 = encoder3.CloseAndReturnBuffer();
+            byte[] result3 = encoder3.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result1, Is.EqualTo(result2));
             Assert.That(result1, Is.EqualTo(result3));
@@ -5782,7 +5785,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var largeArray = ArrayOf.Wrapped(guids);
             // Act
             encoder.WriteGuidArray("testField", largeArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1604)); // 4 bytes for length + 100 * 16 bytes for GUIDs
@@ -5798,7 +5801,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var encoder = new BinaryEncoder(messageContext);
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => encoder.WriteRawBytes(null, 0, 0));
+            Assert.Throws<ArgumentNullException>(() => encoder.WriteRawBytes(null!, 0, 0));
         }
 
         [Test]
@@ -5993,7 +5996,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const ushort value = ushort.MinValue;
             // Act
             encoder.WriteUInt16("TestField", value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(2));
@@ -6011,7 +6014,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const ushort value = ushort.MaxValue;
             // Act
             encoder.WriteUInt16("TestField", value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(2));
@@ -6034,7 +6037,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteUInt16("TestField", value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(2));
@@ -6051,7 +6054,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const ushort value = 12345;
             // Act
             encoder.WriteUInt16(null, value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(2));
@@ -6069,7 +6072,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const ushort value = 9876;
             // Act
             encoder.WriteUInt16(string.Empty, value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(2));
@@ -6088,7 +6091,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteUInt16("Field1", 1);
             encoder.WriteUInt16("Field2", 256);
             encoder.WriteUInt16("Field3", 65535);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(6));
@@ -6184,7 +6187,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<string> emptyArray = [];
             // Act
             encoder.WriteStringArray("TestField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -6408,7 +6411,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteEnumerated("fieldName", TestUInt32Enum.Max);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -6427,7 +6430,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const TestInt32Enum undefinedValue = (TestInt32Enum)999;
             // Act
             encoder.WriteEnumerated("fieldName", undefinedValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -6447,8 +6450,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder1.WriteEnumerated("fieldName", TestInt32Enum.One);
             encoder2.WriteEnumerated(null, TestInt32Enum.One);
-            byte[] result1 = encoder1.CloseAndReturnBuffer();
-            byte[] result2 = encoder2.CloseAndReturnBuffer();
+            byte[] result1 = encoder1.CloseAndReturnBuffer()!;
+            byte[] result2 = encoder2.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result1, Is.EqualTo(result2));
         }
@@ -6463,7 +6466,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<float> nullArray = default;
             // Act
             encoder.WriteFloatArray("TestField", nullArray);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4)); // Only -1 as int32
@@ -6480,7 +6483,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<float> emptyArray = [];
             // Act
             encoder.WriteFloatArray("TestField", emptyArray);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(4)); // Only 0 as int32
@@ -6497,7 +6500,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(1.5f);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8)); // 4 bytes for length + 4 bytes for float
@@ -6515,7 +6518,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(1.5f, -2.5f, 3.75f);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(16)); // 4 bytes for length + 12 bytes for 3 floats
@@ -6535,7 +6538,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(float.NaN);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8));
@@ -6552,7 +6555,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(float.PositiveInfinity);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8));
@@ -6569,7 +6572,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(float.NegativeInfinity);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8));
@@ -6586,7 +6589,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(float.MinValue);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8));
@@ -6603,7 +6606,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(float.MaxValue);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8));
@@ -6620,7 +6623,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(0.0f);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8));
@@ -6637,7 +6640,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(-0.0f);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(8));
@@ -6674,7 +6677,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(testData);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(404)); // 4 bytes for length + 400 bytes for 100 floats
@@ -6694,7 +6697,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(float.NaN, float.PositiveInfinity, float.NegativeInfinity, 0.0f, 1.5f, -2.5f);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(28)); // 4 bytes for length + 24 bytes for 6 floats
@@ -6716,7 +6719,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Wrapped(1.0f, 2.0f, 3.0f, 4.0f, 5.0f);
             // Act
             encoder.WriteFloatArray("TestField", array);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(buffer, Is.Not.Null);
             Assert.That(buffer, Has.Length.EqualTo(24)); // 4 bytes for length + 20 bytes for 5 floats
@@ -6732,7 +6735,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nullArray = default(ArrayOf<DataValue>);
             // Act
             encoder.WriteDataValueArray(null, nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -6748,7 +6751,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var emptyArray = new ArrayOf<DataValue>([]);
             // Act
             encoder.WriteDataValueArray(null, emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -6765,7 +6768,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<DataValue>([dataValue]);
             // Act
             encoder.WriteDataValueArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(4));
@@ -6784,7 +6787,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<DataValue>([dataValue1, dataValue2, dataValue3]);
             // Act
             encoder.WriteDataValueArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(4));
@@ -6816,7 +6819,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<DataValue>([default, new DataValue(Variant.From(42)), default]);
             // Act
             encoder.WriteDataValueArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(4));
@@ -6835,8 +6838,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder1.WriteDataValueArray("Field1", array);
             encoder2.WriteDataValueArray(null, array);
-            byte[] result1 = encoder1.CloseAndReturnBuffer();
-            byte[] result2 = encoder2.CloseAndReturnBuffer();
+            byte[] result1 = encoder1.CloseAndReturnBuffer()!;
+            byte[] result2 = encoder2.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result1, Is.Not.Null);
             Assert.That(result2, Is.Not.Null);
@@ -6861,7 +6864,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<DataValue>([dataValue1, dataValue2]);
             // Act
             encoder.WriteDataValueArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(4));
@@ -7069,7 +7072,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteInt16("TestField", value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThanOrEqualTo(2));
@@ -7091,7 +7094,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteInt16("Field1", value1);
             encoder.WriteInt16("Field2", value2);
             encoder.WriteInt16("Field3", value3);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThanOrEqualTo(6));
@@ -7304,10 +7307,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ServiceMessageContext messageContext = CreateContext(0);
             using var encoder = new BinaryEncoder(messageContext);
-            ArrayOf<bool> nullArray = default(bool[]);
+            ArrayOf<bool> nullArray = default(bool[])!;
             // Act
             encoder.WriteBooleanArray("test", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -7323,7 +7326,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<bool> emptyArray = Array.Empty<bool>();
             // Act
             encoder.WriteBooleanArray("test", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -7343,7 +7346,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteBooleanArray("test", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(5));
@@ -7366,7 +7369,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteBooleanArray("test", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -7391,7 +7394,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteBooleanArray("test", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(7));
@@ -7415,7 +7418,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteBooleanArray("test", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(7));
@@ -7453,7 +7456,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<bool> array = boolArray;
             // Act
             encoder.WriteBooleanArray("test", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(104));
@@ -7480,7 +7483,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             };
             // Act
             encoder.WriteBooleanArray("test", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(9));
@@ -7502,8 +7505,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Act
             encoder1.WriteBooleanArray("field1", array);
             encoder2.WriteBooleanArray("field2", array);
-            byte[] result1 = encoder1.CloseAndReturnBuffer();
-            byte[] result2 = encoder2.CloseAndReturnBuffer();
+            byte[] result1 = encoder1.CloseAndReturnBuffer()!;
+            byte[] result2 = encoder2.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result1, Is.EqualTo(result2));
         }
@@ -7517,7 +7520,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<DateTimeUtc> nullArray = default;
             // Act
             encoder.WriteDateTimeArray("TestField", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -7533,7 +7536,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<DateTimeUtc> emptyArray = [];
             // Act
             encoder.WriteDateTimeArray("TestField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -7550,7 +7553,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var singleElementArray = new ArrayOf<DateTimeUtc>([testDate]);
             // Act
             encoder.WriteDateTimeArray("TestField", singleElementArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(12)); // 4 bytes for length + 8 bytes for DateTime
@@ -7572,7 +7575,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var multiElementArray = new ArrayOf<DateTimeUtc>(dates);
             // Act
             encoder.WriteDateTimeArray("TestField", multiElementArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(28)); // 4 bytes for length + 3 * 8 bytes for DateTimes
@@ -7588,7 +7591,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<DateTimeUtc>([DateTime.MinValue]);
             // Act
             encoder.WriteDateTimeArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(12));
@@ -7604,7 +7607,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<DateTimeUtc>([DateTime.MaxValue]);
             // Act
             encoder.WriteDateTimeArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(12));
@@ -7647,7 +7650,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ];
             // Act
             encoder.WriteDateTimeArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(44)); // 4 bytes for length + 5 * 8 bytes for DateTimes
@@ -7664,7 +7667,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<DateTimeUtc>([testDate]);
             // Act
             encoder.WriteDateTimeArray(null, array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(12));
@@ -7680,7 +7683,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nullArray = default(ArrayOf<Variant>);
             // Act
             encoder.WriteVariantArray("TestField", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4)); // -1 as int32 = 4 bytes
@@ -7699,7 +7702,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<Variant> emptyArray = [];
             // Act
             encoder.WriteVariantArray("TestField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4)); // 0 as int32 = 4 bytes
@@ -7724,7 +7727,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<Variant>([variant]);
             // Act
             encoder.WriteVariantArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(4)); // More than just the length
@@ -7753,7 +7756,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ];
             // Act
             encoder.WriteVariantArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var stream = new MemoryStream(result);
@@ -7776,7 +7779,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<Variant> array = [Variant.From(123)];
             // Act
             encoder.WriteVariantArray(null, array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var stream = new MemoryStream(result);
@@ -7826,7 +7829,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ];
             // Act
             encoder.WriteVariantArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var stream = new MemoryStream(result);
@@ -7854,7 +7857,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ];
             // Act
             encoder.WriteVariantArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var stream = new MemoryStream(result);
@@ -7878,7 +7881,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ];
             // Act
             encoder.WriteVariantArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             using var stream = new MemoryStream(result);
@@ -8038,10 +8041,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder2 = new BinaryEncoder(messageContext);
             // Act
             encoder1.WriteInt32(null, 42);
-            byte[] output1 = encoder1.CloseAndReturnBuffer();
+            byte[] output1 = encoder1.CloseAndReturnBuffer()!;
             encoder2.WriteInt32(null, 42);
             encoder2.PopNamespace();
-            byte[] output2 = encoder2.CloseAndReturnBuffer();
+            byte[] output2 = encoder2.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(output1, Is.Not.Null);
             Assert.That(output2, Is.Not.Null);
@@ -8107,7 +8110,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName("TestName", 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -8129,7 +8132,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName("Name", namespaceIndex);
             // Act
             encoder.WriteQualifiedName("fieldName", qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(2));
@@ -8158,7 +8161,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName("TestName", 1);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             ushort writtenIndex = BitConverter.ToUInt16(result, 0);
@@ -8184,7 +8187,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName("TestName", 100);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             ushort writtenIndex = BitConverter.ToUInt16(result, 0);
@@ -8204,7 +8207,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName(null, 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -8223,7 +8226,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName(string.Empty, 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -8247,7 +8250,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName(name, 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -8270,7 +8273,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteQualifiedName(null, qn1);
             encoder.WriteQualifiedName(null, qn2);
             encoder.WriteQualifiedName(null, qn3);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -8289,7 +8292,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName("TestName", 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             ushort writtenIndex = BitConverter.ToUInt16(result, 0);
@@ -8310,7 +8313,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName(longName, 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.GreaterThan(10000));
@@ -8331,7 +8334,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName(name, 0);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Is.Not.Empty);
@@ -8356,7 +8359,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var qualifiedName = new QualifiedName("TestName", 2);
             // Act
             encoder.WriteQualifiedName(null, qualifiedName);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             ushort writtenIndex = BitConverter.ToUInt16(result, 0);
@@ -8373,7 +8376,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nullArray = default(ArrayOf<uint>);
             // Act
             encoder.WriteUInt32Array("test", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -8391,7 +8394,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var emptyArray = ArrayOf.Create<uint>([]);
             // Act
             encoder.WriteUInt32Array("test", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -8409,7 +8412,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var singleElementArray = ArrayOf.Create<uint>([42]);
             // Act
             encoder.WriteUInt32Array("test", singleElementArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8)); // 4 bytes for length + 4 bytes for value
@@ -8437,7 +8440,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Create(values);
             // Act
             encoder.WriteUInt32Array("test", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(24)); // 4 bytes for length + 5 * 4 bytes for values
@@ -8460,7 +8463,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Create([uint.MinValue]);
             // Act
             encoder.WriteUInt32Array("test", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -8480,7 +8483,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Create([uint.MaxValue]);
             // Act
             encoder.WriteUInt32Array("test", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -8510,7 +8513,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Create(values);
             // Act
             encoder.WriteUInt32Array("test", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(32)); // 4 bytes for length + 7 * 4 bytes for values
@@ -8533,7 +8536,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = ArrayOf.Create([123u]);
             // Act
             encoder.WriteUInt32Array(null, array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(8));
@@ -8551,7 +8554,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<ExpandedNodeId> nullArray = default;
             // Act
             encoder.WriteExpandedNodeIdArray("TestField", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4)); // -1 as int32 = 4 bytes
@@ -8568,7 +8571,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var emptyArray = ArrayOf.Empty<ExpandedNodeId>();
             // Act
             encoder.WriteExpandedNodeIdArray("TestField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4)); // 0 as int32 = 4 bytes
@@ -8603,7 +8606,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.DoesNotThrow(() =>
             {
                 encoder.PushNamespace("http://opcfoundation.org/UA/");
-                encoder.PushNamespace(null);
+                encoder.PushNamespace(null!);
                 encoder.PushNamespace(string.Empty);
                 encoder.PushNamespace("urn:another:namespace");
             });
@@ -8627,7 +8630,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteStatusCode("TestField", status);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -8650,7 +8653,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.WriteStatusCode("Field1", statusCode1);
             encoder.WriteStatusCode("Field2", statusCode2);
             encoder.WriteStatusCode(null, statusCode3);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(12), "Three StatusCodes should result in 12 bytes (3 * 4 bytes)");
@@ -8673,7 +8676,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteStatusCode("Test", statusCode);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -8695,7 +8698,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteStatusCode("Field", statusCode);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -8712,7 +8715,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<byte> emptyArray = [];
             // Act
             encoder.WriteByteArray("TestField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4)); // Only length is written (0 as int32)
@@ -8728,7 +8731,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var singleElementArray = new ArrayOf<byte>([42]);
             // Act
             encoder.WriteByteArray("TestField", singleElementArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(5)); // Length (4 bytes) + 1 byte value
@@ -8745,7 +8748,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var multipleElementArray = new ArrayOf<byte>([1, 2, 3, 4, 5]);
             // Act
             encoder.WriteByteArray("TestField", multipleElementArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(9)); // Length (4 bytes) + 5 byte values
@@ -8766,7 +8769,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var boundaryArray = new ArrayOf<byte>([byte.MinValue, byte.MaxValue, 128]);
             // Act
             encoder.WriteByteArray("TestField", boundaryArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(7)); // Length (4 bytes) + 3 byte values
@@ -8798,7 +8801,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var exactArray = new ArrayOf<byte>([1, 2, 3, 4, 5]);
             // Act
             encoder.WriteByteArray("TestField", exactArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(9)); // Length (4 bytes) + 5 byte values
@@ -8814,7 +8817,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<byte>([10, 20]);
             // Act
             encoder.WriteByteArray(null, array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(6)); // Length (4 bytes) + 2 byte values
@@ -8832,7 +8835,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<byte>([100]);
             // Act
             encoder.WriteByteArray(string.Empty, array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(5)); // Length (4 bytes) + 1 byte value
@@ -8855,7 +8858,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var arrayOf = new ArrayOf<byte>(largeArray);
             // Act
             encoder.WriteByteArray("TestField", arrayOf);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1004)); // Length (4 bytes) + 1000 byte values
@@ -8876,7 +8879,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<ByteString> nullArray = default;
             // Act
             encoder.WriteByteStringArray("TestField", nullArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -8894,7 +8897,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<ByteString> emptyArray = [];
             // Act
             encoder.WriteByteStringArray("TestField", emptyArray);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(4));
@@ -8919,7 +8922,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<ByteString>([byteString]);
             // Act
             encoder.WriteByteStringArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             int length = BitConverter.ToInt32(result, 0);
@@ -8943,7 +8946,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<ByteString>([byteString1, byteString2]);
             // Act
             encoder.WriteByteStringArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             int arrayLength = BitConverter.ToInt32(result, 0);
@@ -8972,7 +8975,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<ByteString>([emptyByteString]);
             // Act
             encoder.WriteByteStringArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             int arrayLength = BitConverter.ToInt32(result, 0);
@@ -8994,7 +8997,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<ByteString>([byteString1, emptyByteString, byteString2]);
             // Act
             encoder.WriteByteStringArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             int arrayLength = BitConverter.ToInt32(result, 0);
@@ -9030,7 +9033,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<ByteString>([byteString]);
             // Act
             encoder.WriteByteStringArray("TestField", array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             int arrayLength = BitConverter.ToInt32(result, 0);
@@ -9051,7 +9054,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var array = new ArrayOf<ByteString>([byteString]);
             // Act
             encoder.WriteByteStringArray(null, array);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             int arrayLength = BitConverter.ToInt32(result, 0);
@@ -9194,7 +9197,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteByte("TestField", value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -9214,7 +9217,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             encoder.WriteByte("TestField", value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -9232,7 +9235,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const byte testValue = 42;
             // Act
             encoder.WriteByte(null, testValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -9261,7 +9264,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 encoder.WriteByte("TestField", value);
             }
 
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(testValues.Length));
@@ -9282,7 +9285,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             const byte testValue = 100;
             // Act
             encoder.WriteByte(string.Empty, testValue);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result, Has.Length.EqualTo(1));
@@ -9681,14 +9684,14 @@ namespace Opc.Ua.Types.Tests.Encoders
                 .InnerDiagnosticInfo
                 .InnerDiagnosticInfo
                 .InnerDiagnosticInfo
-                .InnerDiagnosticInfo
-                .InnerDiagnosticInfo.AdditionalInfo, Is.EqualTo("Level6"));
+                .InnerDiagnosticInfo!
+                .InnerDiagnosticInfo!.AdditionalInfo, Is.EqualTo("Level6"));
             diagnosticInfo
                 .InnerDiagnosticInfo
                 .InnerDiagnosticInfo
                 .InnerDiagnosticInfo
                 .InnerDiagnosticInfo
-                .InnerDiagnosticInfo
+                .InnerDiagnosticInfo!
                 .InnerDiagnosticInfo = null; // Truncate to 5 levels
             encoder2.WriteDiagnosticInfo("testField", diagnosticInfo);
 
@@ -9764,7 +9767,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(stream, messageContext, true);
             ArrayOf<DiagnosticInfo> array = new DiagnosticInfo[]
             {
-                null,
+                null!,
                 new() {
                     AdditionalInfo = "Test"
                 }
@@ -9789,9 +9792,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var value = new TestEncodeable(42);
             // Act
             encoder.WriteEncodeable("Test", value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(42));
+            Assert.That(BitConverter.ToInt32(result!, 0), Is.EqualTo(42));
         }
 
         [Test]
@@ -9803,10 +9806,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             messageContext.Factory.Builder.AddEncodeableType(new TestEncodeableType()).Commit();
             using var encoder = new BinaryEncoder(messageContext);
             // Act
-            encoder.WriteEncodeable<TestEncodeable>("Test", null);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            encoder.WriteEncodeable<TestEncodeable>("Test", null!);
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
-            Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
+            Assert.That(BitConverter.ToInt32(result!, 0), Is.Zero);
         }
 
         [Test]
@@ -9818,7 +9821,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             // Act
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => encoder.WriteEncodeable<TestEncodeable>("Test", null, new ExpandedNodeId("unk", 0)));
+                () => encoder.WriteEncodeable<TestEncodeable>("Test", null!, new ExpandedNodeId("unk", 0)));
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
         }
@@ -9832,9 +9835,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var value = new TestEncodeable(42);
 
             encoder.WriteEncodeableAsExtensionObject("Test", value);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result!, messageContext);
             (NodeId, byte, int, int) actual = (
                 decoder.ReadNodeId(null),
                 decoder.ReadByte(null),
@@ -9857,9 +9860,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEncodeable> values = [new TestEncodeable(1), new TestEncodeable(2)];
 
             encoder.WriteEncodeableArrayAsExtensionObjects("Test", values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(result, messageContext);
+            using var decoder = new BinaryDecoder(result!, messageContext);
 
             Assert.That(decoder.ReadInt32(null), Is.EqualTo(2));
             Assert.That(decoder.ReadNodeId(null), Is.EqualTo(new NodeId(2, 0)));
@@ -9881,9 +9884,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEncodeable> values = default;
             // Act
             encoder.WriteEncodeableArray(null, values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(-1));
+            Assert.That(BitConverter.ToInt32(result!, 0), Is.EqualTo(-1));
         }
 
         [Test]
@@ -9895,9 +9898,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEncodeable> values = [];
             // Act
             encoder.WriteEncodeableArray(null, values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
-            Assert.That(BitConverter.ToInt32(result, 0), Is.Zero);
+            Assert.That(BitConverter.ToInt32(result!, 0), Is.Zero);
         }
 
         [Test]
@@ -9909,9 +9912,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEncodeable> values = [new TestEncodeable(42)];
             // Act
             encoder.WriteEncodeableArray(null, values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(1));
+            Assert.That(BitConverter.ToInt32(result!, 0), Is.EqualTo(1));
         }
 
         [Test]
@@ -9923,9 +9926,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEncodeable> values = [new TestEncodeable(42)];
             // Act
             encoder.WriteEncodeableArray(null, values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
-            Assert.That(BitConverter.ToInt32(result, 4), Is.EqualTo(42));
+            Assert.That(BitConverter.ToInt32(result!, 4), Is.EqualTo(42));
         }
 
         [Test]
@@ -9937,9 +9940,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             ArrayOf<TestEncodeable> values = [new TestEncodeable(1), new TestEncodeable(2)];
             // Act
             encoder.WriteEncodeableArray(null, values);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
-            Assert.That(BitConverter.ToInt32(result, 0), Is.EqualTo(2));
+            Assert.That(BitConverter.ToInt32(result!, 0), Is.EqualTo(2));
         }
 
         [Test]
@@ -9981,9 +9984,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             encoder.Position = 0;
             // Act
             encoder.WriteByte(null, 0x02);
-            byte[] result = encoder.CloseAndReturnBuffer();
+            byte[] result = encoder.CloseAndReturnBuffer()!;
             // Assert
-            Assert.That(result[0], Is.EqualTo(0x02));
+            Assert.That(result![0], Is.EqualTo(0x02));
         }
 
         [Test]
@@ -10455,7 +10458,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
                 encoder.WriteVariantValue(null, variant);
             }
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
 
         private static Variant RoundTripVariantValue(Variant variant, bool raw)

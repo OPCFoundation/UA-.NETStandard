@@ -83,6 +83,18 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         }
 
         [Test]
+        public void HttpsCertificateTypeStringRoundTrips()
+        {
+            // An XML configuration declares the TLS certificate of the
+            // opc.https endpoints with <CertificateTypeString>Https</...>.
+            var id = new CertificateIdentifier { CertificateTypeString = "Https" };
+            Assert.That(id.CertificateType, Is.EqualTo(ObjectTypeIds.HttpsCertificateType));
+
+            var fromType = new CertificateIdentifier { CertificateType = ObjectTypeIds.HttpsCertificateType };
+            Assert.That(fromType.CertificateTypeString, Is.EqualTo("Https"));
+        }
+
+        [Test]
         public void RawDataSetterToNullClearsRawData()
         {
             var id = new CertificateIdentifier { RawData = m_selfSignedCert.RawData };
@@ -377,7 +389,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         [Test]
         public void DetermineStoreTypeNullReturnsDirectory()
         {
-            string result = CertificateStoreIdentifier.DetermineStoreType(null);
+            string result = CertificateStoreIdentifier.DetermineStoreType(null!);
             Assert.That(result, Is.EqualTo(CertificateStoreType.Directory));
         }
 
@@ -424,7 +436,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public void CreateStoreNullTypeReturnsCertificateIdentifierCollectionStore()
         {
             using ICertificateStore store = CertificateStoreIdentifier
-                .CreateStore(null, NUnitTelemetryContext.Create());
+                .CreateStore(null!, NUnitTelemetryContext.Create());
             Assert.That(store, Is.Not.Null);
         }
 

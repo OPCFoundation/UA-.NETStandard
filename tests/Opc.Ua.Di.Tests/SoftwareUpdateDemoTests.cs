@@ -84,6 +84,15 @@ namespace Opc.Ua.Di.Tests
                 SoftwarePackage? staged = await packages.GetAsync("ualens-sample-demo").ConfigureAwait(false);
                 Assert.That(staged, Is.Not.Null);
                 Assert.That(staged!.Hash, Is.EqualTo(CoreUtils.ToHexString(hash.Span.ToArray())));
+                Assert.That(install.CurrentState!.Value.Text, Is.EqualTo("Error"));
+
+                MethodState resume = install.Resume!;
+                ServiceResult resumed = await resume.OnCallMethod2Async!(
+                    system, resume, install.NodeId, ArrayOf<Variant>.Empty, new List<Variant>(), CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(resumed.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(install.CurrentState!.Value.Text, Is.EqualTo("Idle"));
+                Assert.That(install.LastTransition!.Value.Text, Is.EqualTo("ErrorToIdle"));
 
                 ServiceResult installed = await method.OnCallMethod2Async!(
                     system, method, install.NodeId, input, new List<Variant>(), CancellationToken.None)

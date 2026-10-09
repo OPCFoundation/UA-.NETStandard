@@ -124,7 +124,10 @@ domain-specific companions and draft extensions.
 | Domain | Specification or status | Guide |
 | --- | --- | --- |
 | Device composition and software updates | OPC 10000-100 (Devices) | [Device Integration](DeviceIntegration.md) and [Software Update](SoftwareUpdate.md) |
-| Motion-device systems and controllers | OPC 40010-1 (Robotics), over OPC 10000-200 (Industrial Automation) | [Robotics](Robotics.md) |
+| Machines, job management, process values, energy and result transfer | OPC 40001-1/-2/-3/-4/-101 (Machinery), with OPC 34100 (Energy Consumption Management) and OPC 30081 (PA-DIM) | [Machinery](Machinery.md) |
+| Pumps, compressors and vacuum pumps | OPC 40223 (Pumps and Vacuum Pumps) | [Pumps](Pumps.md) |
+| Scales and scale systems | OPC 40200 (Weighing Technology), with OPC 30050 (PackML) | [Scales](Scales.md) |
+| Motion-device systems and controllers | OPC 40010-1 (Robotics), over OPC 10000-200 (Industrial Automation, its own `Opc.Ua.IA` package) | [Robotics](Robotics.md) |
 | Task-level robot commands | Robot Intent (draft) | [Robot Intent](Robotics.md#robot-intent) |
 | Manufacturing resources and job control | OPC 10030 (ISA-95 Common Model) and OPC 10031-4 (Job Control V1/V2) | [ISA-95](ISA95.md) |
 | Relative and geographic positioning | OPC 10000-210 (RSL) and OPC 10000-211 (GPOS) | [Positioning](Positioning.md) |
@@ -134,10 +137,8 @@ domain-specific companions and draft extensions.
 | Scene bindings and address-space materialization | OpenUSD Bindings and OpenUSD Scene (both draft) | [OpenUSD](OpenUsd.md) |
 | Web of Things connectivity and conversion | OPC 10100-1, with preview registry extensions | [WoT Connectivity](WoTConnectivity.md), [WoT / NodeSet Conversion](WoTNodeSetConversion.md), and [WoT Bindings](WotBindings.md) |
 
-The samples also generate **OPC 40223 (Pumps)** and **OPC 40001-1 (Machinery)**
-models in the [pump server](../samples/DI/PumpDeviceIntegrationServer/README.md),
-and the draft [Generators model](../samples/OpenUsd/GeneratorServer/Generators.md)
-in the generator server. These are sample-local models, not additional standalone SDK libraries.
+The draft [Generators model](../samples/OpenUsd/GeneratorServer/Generators.md) in the
+generator server is a sample-local model, not a standalone SDK library.
 
 Draft entries are identified by model name rather than an unverified specification
 number; their namespace URIs and NodeIds remain provisional. The guides describe
@@ -152,8 +153,10 @@ support application-specific authentication. Pluggable crypto providers let an
 application replace platform cryptography with another library, a remote service,
 or hardware such as a TPM, HSM, or PKCS#11 token. Providers can be selected by
 purpose and security policy, including support for hardware-held private keys.
-ECC SecureChannel and user-token policies require .NET 8-or-later stack assets;
-curve and cipher availability also depends on the platform.
+ECC SecureChannel and user-token policies, including the AEAD variants, are available
+on every target; on .NET Framework the ECDH agreement and the AES-GCM and
+ChaCha20-Poly1305 ciphers use BouncyCastle. Curve and cipher availability also depends
+on the platform.
 See [Certificate Manager](CertificateManager.md), [Identity Providers](IdentityProviders.md),
 [Crypto Providers](CryptoProvider.md), and [ECC Profiles](EccProfiles.md#known-limitations).
 

@@ -254,7 +254,7 @@ namespace Opc.Ua.Client.FileSystem
                 return m_inner.ReadAsync(buffer, offset, count, ct);
             }
 
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
             public override ValueTask<int> ReadAsync(
                 Memory<byte> buffer, CancellationToken cancellationToken = default)
             {
@@ -273,7 +273,7 @@ namespace Opc.Ua.Client.FileSystem
                 return m_inner.WriteAsync(buffer, offset, count, ct);
             }
 
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
             public override ValueTask WriteAsync(
                 ReadOnlyMemory<byte> buffer, CancellationToken cancellationToken = default)
             {

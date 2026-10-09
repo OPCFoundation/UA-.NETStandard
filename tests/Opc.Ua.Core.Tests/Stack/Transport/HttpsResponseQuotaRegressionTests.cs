@@ -302,7 +302,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             HttpClient http,
             bool json,
             int limit,
-            TimeProvider timeProvider = null)
+            TimeProvider? timeProvider = null)
         {
             var factory = new Mock<IOpcUaHttpClientFactory>();
             factory.Setup(value => value.CreateClient(It.IsAny<string>())).Returns(http);
@@ -471,7 +471,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             /// <summary>
             /// Records serialization and copies the body with the captured request cancellation token.
             /// </summary>
-            protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+            protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
             {
                 SerializeCalls++;
                 return m_body.CopyToAsync(stream, 81920, RequestToken);

@@ -62,7 +62,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         internal static object GetLegacyStorageValue(Variant value)
         {
-            return value.Value;
+            return value.Value!;
         }
 
         public sealed record VariantDescriptor(
@@ -550,7 +550,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant = new Variant(value);
 
             AssertTypeInfo(expectedTypeInfo, variant.TypeInfo);
-            AssertValueEquality(value, variant.Value);
+            AssertValueEquality(value, variant.Value!);
         }
 
         [TestCaseSource(nameof(ArrayConstructorCases))]
@@ -560,7 +560,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant = new Variant((Array)value);
 
             AssertTypeInfo(expectedTypeInfo, variant.TypeInfo);
-            AssertValueEquality(value, variant.Value);
+            AssertValueEquality(value, variant.Value!);
         }
 
         [Test]
@@ -648,7 +648,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant = new Variant(source, typeInfo);
 
             AssertTypeInfo(typeInfo, variant.TypeInfo);
-            Assert.That(source, Is.EquivalentTo((int[])variant.Value));
+            Assert.That(source, Is.EquivalentTo((int[])variant.Value!));
 #pragma warning restore CS0618 // Type or member is obsolete
         }
 
@@ -660,11 +660,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(values);
 #pragma warning restore CS0618 // Type or member is obsolete
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetValue), Array(descriptor.ValueType.MakeByRefType()));
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetValue), Array(descriptor.ValueType.MakeByRefType()))!;
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
 
             Assert.That(method, Is.Not.Null, $"TryGetValue overload for {descriptor.Name} should exist");
-            bool success = (bool)method.Invoke(variant, args);
+            bool success = (bool)method.Invoke(variant, args)!;
 
             Assert.That(success, Is.True);
             AssertValueEquality(values, args[0]);
@@ -678,12 +678,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(value);
 #pragma warning restore CS0618 // Type or member is obsolete
-            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
+            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType))!;
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
 
             Assert.That(method, Is.Not.Null, $"Get method {descriptor.GetMethodName} should exist");
-            object result = method.Invoke(variant, args);
-            AssertValueEquality(value, result);
+            object result = method.Invoke(variant, args)!;
+            AssertValueEquality(value, result!);
         }
 
         [Test]
@@ -694,12 +694,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 #pragma warning disable CS0618 // Type or member is obsolete
             var variant = new Variant(values);
 #pragma warning restore CS0618 // Type or member is obsolete
-            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
+            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType))!;
             object[] args = Array(CreateDefaultValue(descriptor.ValueType));
 
             Assert.That(method, Is.Not.Null, $"Get method {descriptor.GetMethodName} should exist");
-            object result = method.Invoke(variant, args);
-            AssertValueEquality(values, result);
+            object result = method.Invoke(variant, args)!;
+            AssertValueEquality(values, result!);
         }
 
         [Test]
@@ -708,11 +708,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             object defaultValue = descriptor.CreateValue();
             var variant = new Variant(true);
-            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
+            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType))!;
             object[] args = Array(CloneValue(defaultValue));
 
-            object result = method.Invoke(variant, args);
-            AssertValueEquality(defaultValue, result);
+            object result = method!.Invoke(variant, args)!;
+            AssertValueEquality(defaultValue, result!);
         }
 
         [Test]
@@ -721,11 +721,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             object defaultValue = descriptor.CreateValue();
             var variant = new Variant(true);
-            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType));
+            MethodInfo method = typeof(Variant).GetMethod(descriptor.GetMethodName, Array(descriptor.ValueType))!;
             object[] args = Array(CloneValue(defaultValue));
 
-            object result = method.Invoke(variant, args);
-            AssertValueEquality(defaultValue, result);
+            object result = method!.Invoke(variant, args)!;
+            AssertValueEquality(defaultValue, result!);
         }
 
         [Test]
@@ -755,10 +755,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 return
                     param.ParameterType == descriptor.ValueType.MakeByRefType() ||
                     param.ParameterType == descriptor.ValueType;
-            });
+            })!;
             Assert.That(method, Is.Not.Null, $"TryGetValue Method with {descriptor.ValueType} not found");
             object[] args = new object[1];
-            bool success = (bool)method.Invoke(variant, args);
+            bool success = (bool)method.Invoke(variant, args)!;
             Assert.That(success, Is.True);
             AssertValueEquality(value, args[0]);
         }
@@ -772,11 +772,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant = new Variant(values);
 #pragma warning restore CS0618 // Type or member is obsolete
             Type elementType = descriptor.ValueType.GetGenericArguments()[0] ?? descriptor.ValueType;
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetArray))
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetArray))!
                 .MakeGenericMethod(elementType);
             object[] args = Array(CreateDefaultValue(descriptor.ValueType), descriptor.TypeInfo.BuiltInType);
 
-            bool success = (bool)method.Invoke(variant, args);
+            bool success = (bool)method.Invoke(variant, args)!;
             Assert.That(success, Is.True);
             AssertValueEquality(values, args[0]);
         }
@@ -792,11 +792,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void GenericTryGetArray_FailsForWrongBuiltInType()
         {
             var variant = new Variant(Array(1, 2));
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetArray))
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetArray))!
                 .MakeGenericMethod(typeof(int));
-            object[] args = Array<object>(null, BuiltInType.String);
+            object[] args = Array<object>(null!, BuiltInType.String);
 
-            bool success = (bool)method.Invoke(variant, args);
+            bool success = (bool)method.Invoke(variant, args)!;
             Assert.That(success, Is.False);
         }
 
@@ -805,11 +805,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             MatrixOf<float> matrix = ArrayOf.Wrapped(1f, 2f, 3f, 4f).ToMatrix(2, 2);
             var variant = Variant.From(matrix);
-            object[] args = Array<object>(null, BuiltInType.Float);
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetMatrix))
+            object[] args = Array<object>(null!, BuiltInType.Float);
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetMatrix))!
                 .MakeGenericMethod(typeof(float));
 
-            bool success = (bool)method.Invoke(variant, args);
+            bool success = (bool)method.Invoke(variant, args)!;
             Assert.That(success, Is.True);
             Assert.That(args[0], Is.EqualTo(matrix));
         }
@@ -823,11 +823,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 { 2.0 }
             };
             var variant = new Variant(data);
-            object[] args = Array<object>(null, BuiltInType.Double);
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetMatrix))
+            object[] args = Array<object>(null!, BuiltInType.Double);
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.TryGetMatrix))!
                 .MakeGenericMethod(typeof(double));
 
-            bool success = (bool)method.Invoke(variant, args);
+            bool success = (bool)method.Invoke(variant, args)!;
             Assert.That(success, Is.True);
             Assert.That(args[0], Is.TypeOf<MatrixOf<double>>());
         }
@@ -922,7 +922,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant = new Variant(42);
 
 #pragma warning disable CS0618 // Type or member is obsolete
-            Assert.That(variant.Value.GetHashCode(), Is.EqualTo(variant.GetHashCode()));
+            Assert.That(variant.Value!.GetHashCode(), Is.EqualTo(variant.GetHashCode()));
 #pragma warning restore CS0618 // Type or member is obsolete
         }
 
@@ -967,7 +967,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             AssertTypeInfo(descriptor.TypeInfo, variant.TypeInfo);
 #pragma warning disable CS0618 // Type or member is obsolete
-            AssertValueEquality(value, variant.Value);
+            AssertValueEquality(value, variant.Value!);
 #pragma warning restore CS0618 // Type or member is obsolete
         }
 
@@ -979,7 +979,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             AssertTypeInfo(descriptor.TypeInfo, variant.TypeInfo);
 #pragma warning disable CS0618 // Type or member is obsolete
-            AssertValueEquality(value, variant.Value);
+            AssertValueEquality(value, variant.Value!);
 #pragma warning restore CS0618 // Type or member is obsolete
         }
 
@@ -1008,7 +1008,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant2 = new Variant(badNodeIdValue, TypeInfo.Scalars.StatusCode);
 
             Assert.That(variant2.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
-            var statusCode2 = (StatusCode)variant2.Value;
+            var statusCode2 = (StatusCode)variant2.Value!;
             Assert.That(statusCode2.Code, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
 
             // Test with custom status code value
@@ -1016,7 +1016,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant3 = new Variant(customValue, TypeInfo.Scalars.StatusCode);
 
             Assert.That(variant3.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
-            var statusCode3 = (StatusCode)variant3.Value;
+            var statusCode3 = (StatusCode)variant3.Value!;
 #pragma warning restore CS0618 // Type or member is obsolete
             Assert.That(statusCode3.Code, Is.EqualTo(customValue));
         }
@@ -1059,7 +1059,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant2 = new Variant(emptyArray);
 
             Assert.That(variant2.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
-            var emptyStatusCodes = (StatusCode[])variant2.Value;
+            var emptyStatusCodes = (StatusCode[])variant2.Value!;
             Assert.That(emptyStatusCodes, Is.Empty);
 
             // Test single element array
@@ -1067,7 +1067,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var variant3 = new Variant(singleElement);
 
             Assert.That(variant3.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.StatusCode));
-            var singleStatusCode = (StatusCode[])variant3.Value;
+            var singleStatusCode = (StatusCode[])variant3.Value!;
 #pragma warning restore CS0618 // Type or member is obsolete
             Assert.That(singleStatusCode, Has.Length.EqualTo(1));
             Assert.That(singleStatusCode[0], Is.EqualTo(StatusCodes.BadNodeIdInvalid));
@@ -1075,8 +1075,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         private static Variant InvokeVariantFrom(object value)
         {
-            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.From), [value.GetType()]);
-            return (Variant)method.Invoke(null, [value]);
+            MethodInfo method = typeof(Variant).GetMethod(nameof(Variant.From), [value.GetType()])!;
+            return (Variant)method!.Invoke(null, [value])!;
         }
 
         private static T[] Array<T>(params T[] items)
@@ -1101,10 +1101,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             if (type.IsValueType)
             {
-                return Activator.CreateInstance(type);
+                return Activator.CreateInstance(type)!;
             }
 
-            return null;
+            return null!;
         }
 
         private static void AssertTypeInfo(TypeInfo expected, TypeInfo actual)
@@ -1117,10 +1117,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             if (value is Array array)
             {
-                var clone = System.Array.CreateInstance(array.GetType().GetElementType(), array.Length);
+                var clone = System.Array.CreateInstance(array.GetType().GetElementType()!, array.Length);
                 for (int i = 0; i < array.Length; i++)
                 {
-                    clone.SetValue(CloneValue(array.GetValue(i)), i);
+                    clone.SetValue(CloneValue(array.GetValue(i)!), i);
                 }
 
                 return clone;
@@ -1128,7 +1128,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             if (value is XmlElement xmlElement)
             {
-                return XmlElement.From((System.Xml.XmlElement)xmlElement.AsXmlElement().CloneNode(true));
+                return XmlElement.From((System.Xml.XmlElement)xmlElement.AsXmlElement()!.CloneNode(true));
             }
 
             if (value is ICloneable cloneable)
@@ -1152,7 +1152,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(actualArray, Has.Length.EqualTo(expectedArray.Length), "Array lengths differ");
                 for (int i = 0; i < expectedArray.Length; i++)
                 {
-                    AssertValueEquality(expectedArray.GetValue(i), actualArray.GetValue(i));
+                    AssertValueEquality(expectedArray.GetValue(i)!, actualArray.GetValue(i)!);
                 }
 
                 return;
@@ -3439,7 +3439,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ValueIsDefaultOrNullForNullString()
         {
-            var v = new Variant((string)null);
+            var v = new Variant((string)null!);
             // Null string creates a null variant
             Assert.That(v.ValueIsDefaultOrNull, Is.True);
         }
@@ -3683,7 +3683,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForScalarBoolReturnsBoxedBool()
         {
             var v = new Variant(true);
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.True);
         }
 
@@ -3691,7 +3691,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForScalarInt32ReturnsBoxedInt()
         {
             var v = new Variant(42);
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.EqualTo(42));
         }
 
@@ -3699,7 +3699,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForNullVariantReturnsNull()
         {
             Variant v = default;
-            object boxed = v.AsBoxedObject();
+            object? boxed = v.AsBoxedObject();
             Assert.That(boxed, Is.Null);
         }
 
@@ -3708,7 +3708,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var nid = new NodeId(10, 1);
             var v = new Variant(nid);
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.EqualTo(nid));
         }
 
@@ -3717,7 +3717,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eni = ExpandedNodeId.Parse("nsu=T;s=A");
             var v = new Variant(eni);
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.EqualTo(eni));
         }
 
@@ -3726,7 +3726,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var lt = new LocalizedText("en", "t");
             var v = new Variant(lt);
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.EqualTo(lt));
         }
 
@@ -3735,7 +3735,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var qn = new QualifiedName("q", 1);
             var v = new Variant(qn);
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.EqualTo(qn));
         }
 
@@ -3744,7 +3744,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var eo = new ExtensionObject(new Argument());
             var v = new Variant(eo);
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.Not.Null);
         }
 
@@ -3767,7 +3767,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var dt = (DateTimeUtc)DateTime.SpecifyKind(new DateTime(2024, 1, 1), DateTimeKind.Utc);
             var v = new Variant(dt);
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.EqualTo(dt));
         }
 
@@ -3775,7 +3775,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForStatusCodeReturnsStatusCode()
         {
             var v = new Variant(new StatusCode(123u));
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.InstanceOf<StatusCode>());
         }
 
@@ -3783,7 +3783,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForEnumerationReturnsEnumValue()
         {
             var v = Variant.From(EnumValue.From(TestEnum.One, typeof(TestEnum)));
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.Not.Null);
         }
 
@@ -3791,7 +3791,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForByteEnumerationReturnsEnumValue()
         {
             var v = Variant.From(EnumValue.From(ByteEnum.One, typeof(ByteEnum)));
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.Not.Null);
         }
 
@@ -3799,7 +3799,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForShortEnumerationReturnsEnumValue()
         {
             var v = Variant.From(EnumValue.From(ShortEnum.One, typeof(ShortEnum)));
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.Not.Null);
         }
 
@@ -3807,7 +3807,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void AsBoxedObjectForLongEnumerationReturnsEnumValue()
         {
             var v = Variant.From(EnumValue.From(LongEnum.One, typeof(LongEnum)));
-            object boxed = v.AsBoxedObject();
+            object boxed = v.AsBoxedObject()!;
             Assert.That(boxed, Is.Not.Null);
         }
 
@@ -3816,7 +3816,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             ArrayOf<int> arr = [1, 2, 3];
             var v = new Variant(arr);
-            object boxed = v.AsBoxedObject(Variant.BoxingBehavior.Legacy);
+            object boxed = v.AsBoxedObject(Variant.BoxingBehavior.Legacy)!;
             Assert.That(boxed, Is.InstanceOf<int[]>());
         }
 
@@ -3865,7 +3865,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var sv = new SerializableVariant(new Variant(42));
 #pragma warning disable CA1508 // Avoid dead conditional code
-            Assert.That(sv, Is.Not.EqualTo((SerializableVariant)null));
+            Assert.That(sv, Is.Not.EqualTo((SerializableVariant)null!));
 #pragma warning restore CA1508 // Avoid dead conditional code
         }
 

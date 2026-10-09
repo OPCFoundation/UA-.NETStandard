@@ -92,6 +92,30 @@ namespace Opc.Ua.Gds.Server
             ByteString certificateRequest,
             CancellationToken ct = default);
 
+        /// <summary>
+        /// Verifies a signing request for an application and checks that
+        /// the public key of the CSR can be issued as a certificate of
+        /// <paramref name="certificateType"/>.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-12 §7.9.3: StartSigningRequest returns
+        /// Bad_InvalidArgument when the CSR does not fit the
+        /// CertificateTypeId and Bad_NotSupported when the key algorithm
+        /// or size is not supported.
+        /// </remarks>
+        /// <param name="application">The application the CSR is for.</param>
+        /// <param name="certificateType">The requested certificate type.</param>
+        /// <param name="certificateRequest">The DER encoded PKCS#10 request.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <exception cref="ServiceResultException">
+        /// The CSR is invalid or its key does not match the certificate type.
+        /// </exception>
+        Task VerifySigningRequestAsync(
+            ApplicationRecordDataType application,
+            NodeId certificateType,
+            ByteString certificateRequest,
+            CancellationToken ct = default);
+
         Task<Certificate> SigningRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,

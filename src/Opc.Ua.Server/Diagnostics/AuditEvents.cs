@@ -987,6 +987,49 @@ namespace Opc.Ua.Server
             StatusCode statusCode,
             ILogger logger)
         {
+            ReportAuditCancelEvent(server, sessionId, null, null, requestHandle, statusCode, logger);
+        }
+
+        /// <summary>
+        /// Report the AuditCancelEventState for a Cancel service call, carrying the
+        /// ClientAuditEntryId and ClientUserId of the Cancel request (OPC 10000-5 6.4.3).
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="context">The operation context of the Cancel request.</param>
+        /// <param name="requestHandle">The requestHandle parameter of the Cancel call.</param>
+        /// <param name="statusCode">The resulted status code of cancel request.</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportAuditCancelEvent(
+            this IAuditEventServer? server,
+            OperationContext context,
+            uint requestHandle,
+            StatusCode statusCode,
+            ILogger logger)
+        {
+            if (context == null)
+            {
+                throw new ArgumentNullException(nameof(context));
+            }
+
+            ReportAuditCancelEvent(
+                server,
+                context.SessionId,
+                context.AuditEntryId,
+                context.Session?.Identity?.DisplayName ?? context.UserIdentity?.DisplayName,
+                requestHandle,
+                statusCode,
+                logger);
+        }
+
+        private static void ReportAuditCancelEvent(
+            IAuditEventServer? server,
+            NodeId sessionId,
+            string? auditEntryId,
+            string? clientUserId,
+            uint requestHandle,
+            StatusCode statusCode,
+            ILogger logger)
+        {
             if (server?.Auditing != true)
             {
                 // current server does not support auditing
@@ -1009,6 +1052,14 @@ namespace Opc.Ua.Server
                     DateTime.UtcNow
                 ); // initializes Status, ActionTimeStamp, ServerId, ClientAuditEntryId, ClientUserId
 
+                if (auditEntryId != null)
+                {
+                    e.SetChildValue(systemContext, BrowseNames.ClientAuditEntryId, auditEntryId, false);
+                }
+                if (clientUserId != null)
+                {
+                    e.SetChildValue(systemContext, BrowseNames.ClientUserId, clientUserId, false);
+                }
                 e.SetChildValue(systemContext, BrowseNames.SourceName, "Session/Cancel", false);
                 e.SetChildValue(systemContext, BrowseNames.SourceNode, ObjectIds.Server, false);
                 e.SetChildValue(
@@ -1108,6 +1159,50 @@ namespace Opc.Ua.Server
             ILogger logger,
             Exception? exception = null)
         {
+            server.ReportAuditCreateSessionEvent(
+                auditEntryId,
+                session,
+                session?.SecureChannelId,
+                ByteString.From(session?.ClientCertificate?.RawData),
+                session?.ClientCertificate?.Thumbprint,
+                revisedSessionTimeout,
+                logger,
+                exception);
+        }
+
+        /// <summary>
+        /// Reports an audit create session event with the SecureChannel and client
+        /// certificate of the CreateSession request.
+        /// </summary>
+        /// <remarks>
+        /// Part 5 6.4.8: ClientCertificate is the clientCertificate parameter of the
+        /// CreateSession call and SecureChannelId identifies the SecureChannel in all
+        /// Session Service Set audit events. Both are known even when the request
+        /// fails before a Session exists, so they are passed independently of it.
+        /// </remarks>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="auditEntryId">The audit entry id.</param>
+        /// <param name="session">The session object that was created, or null.</param>
+        /// <param name="secureChannelId">The id of the SecureChannel of the request.</param>
+        /// <param name="clientCertificate">The clientCertificate parameter of the request.</param>
+        /// <param name="clientCertificateThumbprint">
+        /// The thumbprint of the client certificate, or null to derive it from
+        /// <paramref name="clientCertificate"/>.
+        /// </param>
+        /// <param name="revisedSessionTimeout">The revised session timeout</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="exception">The exception received during create session request</param>
+        public static void ReportAuditCreateSessionEvent(
+            this IAuditEventServer? server,
+            string auditEntryId,
+            ISession? session,
+            string? secureChannelId,
+            ByteString clientCertificate,
+            string? clientCertificateThumbprint,
+            double revisedSessionTimeout,
+            ILogger logger,
+            Exception? exception = null)
+        {
             if (server?.Auditing != true)
             {
                 // current server does not support auditing
@@ -1157,15 +1252,27 @@ namespace Opc.Ua.Server
                     false);
 
                 // set AuditCreateSessionEventState fields
+                if (secureChannelId != null)
+                {
+                    e.SetChildValue(
+                        systemContext,
+                        BrowseNames.SecureChannelId,
+                        secureChannelId,
+                        false);
+                }
+                if (clientCertificateThumbprint == null && !clientCertificate.IsEmpty)
+                {
+                    clientCertificateThumbprint = TryGetLeafThumbprint(clientCertificate);
+                }
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientCertificate,
-                    ByteString.From(session?.ClientCertificate?.RawData),
+                    clientCertificate,
                     false);
                 e.SetChildValue(
                     systemContext,
                     BrowseNames.ClientCertificateThumbprint,
-                    session?.ClientCertificate?.Thumbprint!,
+                    clientCertificateThumbprint!,
                     false);
                 e.SetChildValue(
                     systemContext,
@@ -1178,6 +1285,27 @@ namespace Opc.Ua.Server
             catch (Exception ex)
             {
                 logger.ErrorWhileReportingAuditCreateSessionEventEvent(ex, session?.Id);
+            }
+        }
+
+        /// <summary>
+        /// Returns the thumbprint of the leaf certificate of a certificate chain blob,
+        /// or null when the blob cannot be parsed.
+        /// </summary>
+        private static string? TryGetLeafThumbprint(ByteString certificateChain)
+        {
+            try
+            {
+                using CertificateCollection chain = Utils.ParseCertificateChainBlob(
+                    certificateChain,
+                    telemetry: null);
+                return chain.Count > 0 ? chain[0].Thumbprint : null;
+            }
+            catch (Exception)
+            {
+                // the request carried an unparseable certificate; the audit event
+                // still reports the raw clientCertificate parameter.
+                return null;
             }
         }
 
@@ -2286,6 +2414,44 @@ namespace Opc.Ua.Server
             StatusCode statusCode,
             ILogger logger)
         {
+            ReportTrustListUpdatedAuditEvent(
+                null,
+                node,
+                systemContext,
+                objectId,
+                sourceName,
+                methodId,
+                inputParameters,
+                statusCode,
+                logger);
+        }
+
+        /// <summary>
+        /// Reports an TrustListUpdatedAudit event through the server, so it
+        /// reaches Clients subscribed to the Server Object like every other
+        /// audit event. Falls back to the TrustList node when no server is
+        /// supplied.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="node">The trustlist node.</param>
+        /// <param name="systemContext">The current system context</param>
+        /// <param name="objectId">The object id where the truest list update methods was called</param>
+        /// <param name="sourceName">The source name string</param>
+        /// <param name="methodId">The id of the method that was called</param>
+        /// <param name="inputParameters">The input parameters of the called method</param>
+        /// <param name="statusCode">The status code resulted when the TrustList was updated </param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportTrustListUpdatedAuditEvent(
+            this IAuditEventServer? server,
+            TrustListState? node,
+            ISystemContext systemContext,
+            NodeId objectId,
+            string sourceName,
+            NodeId methodId,
+            ArrayOf<Variant> inputParameters,
+            StatusCode statusCode,
+            ILogger logger)
+        {
             try
             {
                 var e = new TrustListUpdatedAuditEventState(null);
@@ -2315,7 +2481,14 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
                 e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters, false);
 
-                node?.ReportEvent(systemContext, e);
+                if (server != null)
+                {
+                    server.ReportAuditEvent(systemContext, e);
+                }
+                else
+                {
+                    node?.ReportEvent(systemContext, e);
+                }
             }
             catch (Exception ex)
             {
@@ -2335,6 +2508,40 @@ namespace Opc.Ua.Server
         /// <param name="logger">A contextual logger to log to</param>
         public static void ReportTrustListUpdateRequestedAuditEvent(
             this TrustListState node,
+            ISystemContext systemContext,
+            NodeId objectId,
+            string sourceName,
+            NodeId methodId,
+            ArrayOf<Variant> inputParameters,
+            ILogger logger)
+        {
+            ReportTrustListUpdateRequestedAuditEvent(
+                null,
+                node,
+                systemContext,
+                objectId,
+                sourceName,
+                methodId,
+                inputParameters,
+                logger);
+        }
+
+        /// <summary>
+        /// Reports an TrustListUpdateRequestedAudit event through the server,
+        /// so it reaches Clients subscribed to the Server Object. Falls back to
+        /// the TrustList node when no server is supplied.
+        /// </summary>
+        /// <param name="server">The server which reports audit events.</param>
+        /// <param name="node">The trustlist node.</param>
+        /// <param name="systemContext">The current system context</param>
+        /// <param name="objectId">The object id where the truest list update methods was called</param>
+        /// <param name="sourceName">The source name string</param>
+        /// <param name="methodId">The id of the method that was called</param>
+        /// <param name="inputParameters">The input parameters of the called method</param>
+        /// <param name="logger">A contextual logger to log to</param>
+        public static void ReportTrustListUpdateRequestedAuditEvent(
+            this IAuditEventServer? server,
+            TrustListState? node,
             ISystemContext systemContext,
             NodeId objectId,
             string sourceName,
@@ -2364,7 +2571,14 @@ namespace Opc.Ua.Server
                 e.SetChildValue(systemContext, BrowseNames.MethodId, methodId, false);
                 e.SetChildValue(systemContext, BrowseNames.InputArguments, inputParameters, false);
 
-                node?.ReportEvent(systemContext, e);
+                if (server != null)
+                {
+                    server.ReportAuditEvent(systemContext, e);
+                }
+                else
+                {
+                    node?.ReportEvent(systemContext, e);
+                }
             }
             catch (Exception ex)
             {

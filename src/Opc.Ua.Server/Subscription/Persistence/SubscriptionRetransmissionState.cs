@@ -43,5 +43,15 @@ namespace Opc.Ua.Server
         /// Sent notifications that remain available for republish.
         /// </summary>
         public ArrayOf<NotificationMessage> SentMessages { get; set; } = [];
+
+        /// <summary>
+        /// The sequence number of the oldest message in <see cref="SentMessages"/> that is
+        /// queued for a Publish response but was not yet returned, or 0 when every message
+        /// was sent (or the mirror does not track it).
+        /// </summary>
+        /// <remarks>
+        /// Populated by stores that implement <see cref="ISubscriptionRetransmissionSendStateStore"/>.
+        /// </remarks>
+        public uint FirstUnsentSequenceNumber { get; set; }
     }
 }

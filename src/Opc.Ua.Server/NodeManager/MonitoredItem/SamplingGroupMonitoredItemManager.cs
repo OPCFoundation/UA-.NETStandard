@@ -156,7 +156,8 @@ namespace Opc.Ua.Server
             MonitoredItemIdFactory monitoredItemIdFactory,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
-            MonitoredItemFactory factory)
+            MonitoredItemFactory factory,
+            bool initialValueQueued)
         {
             _ = addNodeToComponentCache;
             _ = removeNodeFromComponentCache;
@@ -195,6 +196,13 @@ namespace Opc.Ua.Server
                 monitoredItem = factory(factoryContext);
                 CustomMonitoredItemValidation.Validate(factoryContext, monitoredItem);
 
+                // the node manager reads and queues the initial value after creating
+                // the item, so the group does not take another immediate sample.
+                if (initialValueQueued)
+                {
+                    m_samplingGroupManager.MarkInitialValueQueued(monitoredItem);
+                }
+
                 m_samplingGroupManager.StartMonitoring(
                     context.OperationContext!,
                     monitoredItem);
@@ -212,6 +220,21 @@ namespace Opc.Ua.Server
                 monitoredItem?.Dispose();
                 throw;
             }
+        }
+
+        /// <summary>
+        /// Returns the sampling interval a data item created or modified with the revised
+        /// sampling interval reports once its sampling group rounds it to a supported rate.
+        /// </summary>
+        internal double GetGroupSamplingInterval(double samplingInterval)
+        {
+            // the same minimum the create path applies.
+            if (samplingInterval.CompareTo(0.0) == 0)
+            {
+                samplingInterval = 1;
+            }
+
+            return m_samplingGroupManager.GetGroupSamplingInterval(samplingInterval);
         }
 
         /// <inheritdoc/>
@@ -325,11 +348,22 @@ namespace Opc.Ua.Server
 
             // update monitoring mode.
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
+            bool enabled = previousMode == MonitoringMode.Disabled &&
+                monitoringMode != MonitoringMode.Disabled;
+
+            // the value read below is the immediate update after enabling, so the
+            // sampling group does not take another one.
+            if (enabled)
+            {
+                m_samplingGroupManager.MarkInitialValueQueued(monitoredItem);
+            }
+
             m_samplingGroupManager.ModifyMonitoring(context.OperationContext!, monitoredItem);
 
-            // need to provide an immediate update after enabling.
-            if (previousMode == MonitoringMode.Disabled &&
-                monitoringMode != MonitoringMode.Disabled)
+            // need to provide an immediate update after enabling. For an item whose node
+            // was deleted SetMonitoringMode already queued Bad_NodeIdUnknown, and the stale
+            // node must not override it with a Good value.
+            if (enabled && monitoredItem is not IDetachableMonitoredItem { IsDeleted: true })
             {
                 var initialValue = new DataValue(
                     Variant.Null,

@@ -193,7 +193,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     new ManualImportFactory(
                         NodeClass.Object,
                         new ExpandedNodeId(1000u, kNamespaceUri),
-                        static () => new TypedObjectState(null))));
+                        static () => new TypedObjectState(null!))));
 
             harness.Builder.Import(ReadNodeSet(
                 """
@@ -229,7 +229,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     new ManualImportFactory(
                         NodeClass.Object,
                         new ExpandedNodeId(1000u, kNamespaceUri),
-                        static () => new TypedObjectState(null))));
+                        static () => new TypedObjectState(null!))));
 
             Assert.That(
                 harness.Builder.ImportedNodes[0],
@@ -266,7 +266,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public async Task ImportedChildReplacesAGeneratedPlaceholderAsync()
         {
             Harness harness = Harness.Create(CreateTypedValueProvider());
-            var parent = new GeneratedLikeObjectState(null)
+            var parent = new GeneratedLikeObjectState(null!)
             {
                 NodeId = new NodeId(500u, kNs),
                 BrowseName = new QualifiedName("Device", kNs),
@@ -324,7 +324,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void ReplacingAConfiguredPlaceholderIsRejected()
         {
             Harness harness = Harness.Create(CreateTypedValueProvider());
-            var parent = new GeneratedLikeObjectState(null)
+            var parent = new GeneratedLikeObjectState(null!)
             {
                 NodeId = new NodeId(500u, kNs),
                 BrowseName = new QualifiedName("Device", kNs),
@@ -418,7 +418,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             Harness harness = Harness.Create();
 
-            Assert.Throws<ArgumentNullException>(() => harness.Builder.Import(null));
+            Assert.Throws<ArgumentNullException>(() => harness.Builder.Import(null!));
         }
 
         [Test]
@@ -469,7 +469,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 new ManualImportFactory(
                     NodeClass.Variable,
                     new ExpandedNodeId(1001u, kNamespaceUri),
-                    static () => new TypedValueState(null)));
+                    static () => new TypedValueState(null!)));
         }
         private static UANodeSet ReadNodeSet(string nodes)
         {
@@ -482,7 +482,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 nodes + "\r\n" +
                 "</UANodeSet>";
             using var stream = new MemoryStream(Encoding.UTF8.GetBytes(xml));
-            return UANodeSet.Read(stream);
+            return UANodeSet.Read(stream)!;
         }
 
         /// <summary>
@@ -492,7 +492,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         /// </summary>
         private sealed class Harness
         {
-            public static Harness Create(INodeSetImportFactoryProvider provider = null)
+            public static Harness Create(INodeSetImportFactoryProvider? provider = null)
             {
                 var namespaceUris = new NamespaceTable();
                 var context = new SystemContext(NUnitTelemetryContext.Create())
@@ -521,10 +521,10 @@ namespace Opc.Ua.Server.Tests.Fluent
                     manager.Object,
                     kNs,
                     browseName => harness.Existing.Values
-                        .FirstOrDefault(node => node.BrowseName == browseName),
-                    nodeId => harness.Existing.TryGetValue(nodeId, out NodeState node)
+                        .FirstOrDefault(node => node.BrowseName == browseName)!,
+                    nodeId => (harness.Existing.TryGetValue(nodeId, out NodeState? node)
                         ? node
-                        : null,
+                        : null)!,
                     typeDefinitionId =>
                     [
                         .. harness.Existing.Values
@@ -534,9 +534,9 @@ namespace Opc.Ua.Server.Tests.Fluent
                 return harness;
             }
 
-            public ISystemContext Context { get; private init; }
+            public ISystemContext Context { get; private init; } = null!;
 
-            public NodeManagerBuilder Builder { get; private set; }
+            public NodeManagerBuilder Builder { get; private set; } = null!;
 
             public Dictionary<NodeId, NodeState> Existing { get; } = [];
 
@@ -565,6 +565,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                         Existing.Remove(node.NodeId);
                         return default;
                     },
+                    server: null,
                     CancellationToken.None);
             }
         }
@@ -644,7 +645,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             {
             }
 
-            public BaseVariableState MandatoryValue { get; private set; }
+            public BaseVariableState MandatoryValue { get; private set; } = null!;
 
             protected override void Initialize(ISystemContext context)
             {
@@ -672,7 +673,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 ISystemContext context,
                 QualifiedName browseName,
                 bool createOrReplace,
-                BaseInstanceState replacement,
+                BaseInstanceState? replacement,
                 bool assignInstanceNodeIds = true)
             {
                 if (browseName.Name == "MandatoryValue" &&
@@ -704,7 +705,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     browseName,
                     createOrReplace,
                     replacement,
-                    assignInstanceNodeIds);
+                    assignInstanceNodeIds)!;
             }
         }
     }

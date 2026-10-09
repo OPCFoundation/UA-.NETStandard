@@ -60,7 +60,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class RealHttpsListenerIntegrationTests
+    public sealed partial class RealHttpsListenerIntegrationTests
     {
         private static readonly MethodInfo s_decodeBodyMethod = typeof(WebApiBodyCodec)
             .GetMethods(BindingFlags.Public | BindingFlags.Static)
@@ -102,8 +102,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
             var factory = new HttpsTransportListenerFactory();
             factory.StartupContributors.Add(new WebApiHttpsStartupContributor(m_restServer));
-            m_listener = (HttpsTransportListener)factory.Create(m_telemetry);
-
             Certificate certificate = CreateServerCertificate();
             try
             {
@@ -114,10 +112,10 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 certificate.Dispose();
             }
 
-            int port = FindAvailableTcpPort();
-            await m_listener.OpenAsync(
-                new Uri($"https://localhost:{port}/"),
-                CreateListenerSettings(m_certificateRegistry, port),
+            InMemoryCertificateRegistry certificateRegistry = m_certificateRegistry;
+            (m_listener, int port) = await OpenListenerOnFreePortAsync(
+                () => (HttpsTransportListener)factory.Create(m_telemetry),
+                p => CreateListenerSettings(certificateRegistry, p),
                 m_callback).ConfigureAwait(false);
             await WaitForListenerReadyAsync(port).ConfigureAwait(false);
 
@@ -778,7 +776,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
         private static TransportListenerSettings CreateListenerSettings(
             ICertificateRegistry certificateRegistry,
-            int port)
+            int port,
+            bool mutualTls = false)
         {
             var endpoint = new EndpointDescription
             {
@@ -813,13 +812,98 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 CertificateValidator = new AcceptAllCertificateValidator(),
                 NamespaceUris = new NamespaceTable(),
                 Factory = ServiceMessageContext.Create(new TestTelemetryContext()).Factory,
-                HttpsMutualTls = false
+                HttpsMutualTls = mutualTls
             };
         }
 
+        /// <summary>
+        /// Creates a listener and opens it on a free port, retrying with a
+        /// fresh listener and port when the bind collides.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="FindAvailableTcpPort"/> only proves the port was free
+        /// at the instant it was probed - the probe socket is closed before
+        /// Kestrel binds - and the port comes from the OS ephemeral range, so
+        /// an outgoing connection or another process on the agent can take
+        /// it in between. Kestrel then fails with an
+        /// <see cref="System.IO.IOException"/> wrapping an
+        /// <c>AddressInUseException</c>, which seen on the macOS runners
+        /// failed the whole SetUp. A failed open leaves the listener unusable,
+        /// so each attempt builds a new one.
+        /// </remarks>
+        private static async Task<(HttpsTransportListener Listener, int Port)> OpenListenerOnFreePortAsync(
+            Func<HttpsTransportListener> createListener,
+            Func<int, TransportListenerSettings> createSettings,
+            ITransportListenerCallback callback)
+        {
+            const int kMaxAttempts = 5;
+            for (int attempt = 1; ; attempt++)
+            {
+                HttpsTransportListener listener = createListener();
+                int port = FindAvailableTcpPort();
+                try
+                {
+                    await listener.OpenAsync(
+                        new Uri($"https://localhost:{port}/"),
+                        createSettings(port),
+                        callback).ConfigureAwait(false);
+                    return (listener, port);
+                }
+                catch (Exception ex) when (attempt < kMaxAttempts && IsAddressInUse(ex))
+                {
+                    TestContext.Progress.WriteLine(
+                        $"HTTPS listener port {port} was taken before Kestrel bound it " +
+                        $"(attempt {attempt}/{kMaxAttempts}); retrying on a new port.");
+                    await listener.DisposeAsync().ConfigureAwait(false);
+                }
+                catch
+                {
+                    await listener.DisposeAsync().ConfigureAwait(false);
+                    throw;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether a listener open failed because its port is already bound.
+        /// </summary>
+        private static bool IsAddressInUse(Exception exception)
+        {
+            for (Exception? current = exception; current != null; current = current.InnerException)
+            {
+                if (current is SocketException socket &&
+                    socket.SocketErrorCode is SocketError.AddressAlreadyInUse or SocketError.AccessDenied)
+                {
+                    return true;
+                }
+
+                // Microsoft.AspNetCore.Connections.AddressInUseException.
+                if (current.GetType().Name == "AddressInUseException")
+                {
+                    return true;
+                }
+
+                if (current is AggregateException aggregate &&
+                    aggregate.InnerExceptions.Any(IsAddressInUse))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Probes a port the OS reports as free. Kestrel binds the
+        /// <c>localhost</c> listener on the IPv6 any address (dual mode), so
+        /// probe the same address family where it is available instead of
+        /// only the IPv4 loopback.
+        /// </summary>
         private static int FindAvailableTcpPort()
         {
-            using var listener = new TcpListener(IPAddress.Loopback, 0);
+            using TcpListener listener = Socket.OSSupportsIPv6
+                ? TcpListener.Create(0)
+                : new TcpListener(IPAddress.Loopback, 0);
             try
             {
                 listener.Start();

@@ -70,7 +70,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(harness.StoreWrites, Is.EqualTo(1));
             Assert.That(harness.Stored.Secret, Is.EqualTo(expected));
             Assert.That(encrypted, Is.EqualTo(original));
-            Assert.That(harness.Node.CredentialId.Value, Is.EqualTo("credential-1"));
+            Assert.That(harness.Node.CredentialId!.Value, Is.EqualTo("credential-1"));
         }
 
         [TestCase(32)]
@@ -165,7 +165,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                 .ConfigureAwait(false);
             Assert.That(result.ServiceResult.StatusCode, Is.EqualTo(expected));
             Assert.That(harness.StoreWrites, Is.Zero);
-            Assert.That(harness.Node.CredentialId.Value, Is.Null.Or.Empty);
+            Assert.That(harness.Node.CredentialId!.Value, Is.Null.Or.Empty);
         }
 
         /// <summary>
@@ -271,8 +271,8 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             byte[] signingKey = Nonce.CreateRandomNonceData(32);
             byte[] encryptionKey = aes.Key;
             byte[] iv = aes.IV;
-            byte[] keyData = null;
-            byte[] payload = null;
+            byte[]? keyData = null;
+            byte[]? payload = null;
             try
             {
                 using (var keys = new BinaryEncoder(harness.MessageContext))
@@ -280,10 +280,10 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     keys.WriteByteString(null, signingKey);
                     keys.WriteByteString(null, encryptionKey);
                     keys.WriteByteString(null, iv);
-                    keyData = keys.CloseAndReturnBuffer();
+                    keyData = keys.CloseAndReturnBuffer()!;
                 }
-                using RSA rsa = harness.Certificate.GetRSAPublicKey();
-                byte[] encryptedKeys = rsa.Encrypt(keyData, RSAEncryptionPadding.OaepSHA256);
+                using RSA rsa = harness.Certificate.GetRSAPublicKey()!;
+                byte[] encryptedKeys = rsa!.Encrypt(keyData!, RSAEncryptionPadding.OaepSHA256);
 
                 using (var plaintext = new BinaryEncoder(harness.MessageContext))
                 {
@@ -295,10 +295,10 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                         plaintext.WriteByte(null, (byte)padding);
                     }
                     plaintext.WriteUInt16(null, (ushort)padding);
-                    payload = plaintext.CloseAndReturnBuffer();
+                    payload = plaintext.CloseAndReturnBuffer()!;
                 }
                 using ICryptoTransform cipher = aes.CreateEncryptor();
-                byte[] encryptedPayload = cipher.TransformFinalBlock(payload, 0, payload.Length);
+                byte[] encryptedPayload = cipher.TransformFinalBlock(payload!, 0, payload!.Length);
 
                 using var encoder = new BinaryEncoder(harness.MessageContext);
                 encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
@@ -322,9 +322,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                 {
                     encoder.WriteByte(null, 0);
                 }
-                byte[] envelope = encoder.CloseAndReturnBuffer();
+                byte[] envelope = encoder.CloseAndReturnBuffer()!;
                 BinaryPrimitives.WriteUInt32LittleEndian(
-                    envelope.AsSpan(lengthPosition, 4), checked((uint)(envelope.Length - lengthPosition - 4)));
+                    envelope.AsSpan(lengthPosition, 4), checked((uint)(envelope!.Length - lengthPosition - 4)));
                 using var hmac = new HMACSHA256(signingKey);
                 byte[] signature = hmac.ComputeHash(envelope, 0, signaturePosition);
                 signature.CopyTo(envelope, signaturePosition);
@@ -354,7 +354,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             /// <summary>
             /// Creates a credential subject directly or through dependency injection with a shared RSA certificate.
             /// </summary>
-            public Harness(bool dependencyInjection = false, KeyCredentialPushOptions options = null)
+            public Harness(bool dependencyInjection = false, KeyCredentialPushOptions? options = null)
             {
                 ITelemetryContext telemetry = NUnitTelemetryContext.Create();
                 Certificate = DefaultCertificateFactory.Instance.CreateCertificate("CN=Credential Server").CreateForRSA();
@@ -422,12 +422,12 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             /// <summary>
             /// Gets the credential node created after the subject is bound.
             /// </summary>
-            public KeyCredentialConfigurationState Node { get; private set; }
+            public KeyCredentialConfigurationState Node { get; private set; } = null!;
 
             /// <summary>
             /// Gets the last credential passed to the backing store.
             /// </summary>
-            public Server.KeyCredential Stored { get; private set; }
+            public Server.KeyCredential Stored { get; private set; } = null!;
 
             /// <summary>
             /// Gets the number of credential updates accepted by the backing store.
@@ -444,7 +444,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     NodeId = KeyCredentialPushSubject.StandardConfigurationFolderNodeId
                 };
                 await m_subject.BindAsync(folder, Context).ConfigureAwait(false);
-                CreateCredentialMethodStateResult created = await folder.CreateCredential.OnCallAsync(
+                CreateCredentialMethodStateResult created = await folder.CreateCredential!.OnCallAsync!(
                     Context, folder.CreateCredential, folder.NodeId, "Service", "urn:service",
                     KeyCredentialBridgeOptions.DefaultProfileUri, [], CancellationToken.None).ConfigureAwait(false);
                 var children = new System.Collections.Generic.List<BaseInstanceState>();
@@ -458,7 +458,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             public async Task<KeyCredentialUpdateMethodStateResult> UpdateAsync(
                 byte[] secret, string thumbprint, string policy, CancellationToken ct = default)
             {
-                return await Node.UpdateCredential.OnCallAsync(
+                return await Node.UpdateCredential!.OnCallAsync!(
                     Context, Node.UpdateCredential, Node.NodeId, "credential-1",
                     new ByteString(secret), thumbprint, policy, ct).ConfigureAwait(false);
             }
@@ -477,7 +477,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             /// </summary>
             public async Task<GetEncryptingKeyMethodStateResult> GetKeyAsync(string policy)
             {
-                return await Node.GetEncryptingKey.OnCallAsync(
+                return await Node.GetEncryptingKey!.OnCallAsync!(
                     Context, Node.GetEncryptingKey, Node.NodeId, "credential-1", policy, CancellationToken.None)
                     .ConfigureAwait(false);
             }
@@ -499,7 +499,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             /// <summary>
             /// Retains the injectable credential services until the harness is disposed.
             /// </summary>
-            private readonly ServiceProvider m_services;
+            private readonly ServiceProvider m_services = null!;
         }
     }
 }

@@ -52,7 +52,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task EnhancedCertificateUserTokenOnNoneChannelVerifiesThroughCreateSessionAsync()
         {
-            SecurityPolicyInfo policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.RSA_DH_AesGcm);
+            SecurityPolicyInfo? policy = SecurityPolicies.Default.GetInfo(SecurityPolicies.RSA_DH_AesGcm);
             if (policy == null)
             {
                 Assert.Ignore("The RSA_DH_AesGcm security policy is not supported on this platform.");
@@ -119,13 +119,13 @@ namespace Opc.Ua.Server.Tests
                     RequestType.ActivateSession,
                     RequestLifetime.None);
 
-                (IUserIdentityTokenHandler token, UserTokenPolicy selected) =
+                (IUserIdentityTokenHandler? token, UserTokenPolicy? selected) =
                     await session.ValidateBeforeActivateAsync(
                         context, new SignatureData(), identity, userSignature, CancellationToken.None)
                         .ConfigureAwait(false);
 
                 Assert.That(token.TokenType, Is.EqualTo(UserTokenType.Certificate));
-                Assert.That(selected.PolicyId, Is.EqualTo("certificate"));
+                Assert.That(selected!.PolicyId, Is.EqualTo("certificate"));
             }
             finally
             {

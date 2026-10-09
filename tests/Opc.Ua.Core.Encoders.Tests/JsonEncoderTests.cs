@@ -95,250 +95,250 @@ namespace Opc.Ua.Core.Encoders.Tests
                 BuiltInType.Boolean,
                 true,
                 "true",
-                null
+                null!
             },
             {
                 BuiltInType.Boolean,
                 false,
-                null,
+                null!,
                 "false"
             },
             {
                 BuiltInType.Byte,
                 (byte)0,
-                null,
+                null!,
                 "0"
             },
             {
                 BuiltInType.Byte,
                 (byte)88,
                 "88",
-                null
+                null!
             },
             {
                 BuiltInType.Byte,
                 (byte)188,
                 "188",
-                null
+                null!
             },
             {
                 BuiltInType.Byte,
                 byte.MinValue,
-                null,
+                null!,
                 byte.MinValue.ToString(CultureInfo.InvariantCulture)
             },
             {
                 BuiltInType.Byte,
                 byte.MaxValue,
                 byte.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.SByte,
                 (sbyte)0,
-                null,
+                null!,
                 "0"
             },
             {
                 BuiltInType.SByte,
                 (sbyte)-77,
                 "-77",
-                null
+                null!
             },
             {
                 BuiltInType.SByte,
                 (sbyte)77,
                 "77",
-                null
+                null!
             },
             {
                 BuiltInType.SByte,
                 sbyte.MaxValue,
                 sbyte.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.SByte,
                 sbyte.MinValue,
                 sbyte.MinValue.ToString(CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.UInt16,
                 (ushort)0,
-                null,
+                null!,
                 "0"
             },
             {
                 BuiltInType.UInt16,
                 (ushort)12345,
                 "12345",
-                null
+                null!
             },
             {
                 BuiltInType.UInt16,
                 (ushort)44444,
                 "44444",
-                null
+                null!
             },
             {
                 BuiltInType.UInt16,
                 ushort.MinValue,
-                null,
+                null!,
                 ushort.MinValue.ToString(CultureInfo.InvariantCulture)
             },
             {
                 BuiltInType.UInt16,
                 ushort.MaxValue,
                 ushort.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Int16,
                 (short)0,
-                null,
+                null!,
                 "0"
             },
             {
                 BuiltInType.Int16,
                 (short)-12345,
                 "-12345",
-                null
+                null!
             },
             {
                 BuiltInType.Int16,
                 (short)12345,
                 "12345",
-                null
+                null!
             },
             {
                 BuiltInType.Int16,
                 short.MaxValue,
                 short.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Int16,
                 short.MinValue,
                 short.MinValue.ToString(CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.UInt32,
                 (uint)0,
-                null,
+                null!,
                 "0"
             },
             {
                 BuiltInType.UInt32,
                 (uint)1234567,
                 "1234567",
-                null
+                null!
             },
             {
                 BuiltInType.UInt32,
                 (uint)4444444,
                 "4444444",
-                null
+                null!
             },
             {
                 BuiltInType.UInt32,
                 uint.MinValue,
-                null,
+                null!,
                 uint.MinValue.ToString(CultureInfo.InvariantCulture)
             },
             {
                 BuiltInType.UInt32,
                 uint.MaxValue,
                 uint.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Int32,
                 0,
-                null,
+                null!,
                 "0"
             },
             {
                 BuiltInType.Int32,
                 -12345678,
                 "-12345678",
-                null
+                null!
             },
             {
                 BuiltInType.Int32,
                 12345678,
                 "12345678",
-                null
+                null!
             },
             {
                 BuiltInType.Int32,
                 int.MaxValue,
                 int.MaxValue.ToString(CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Int32,
                 int.MinValue,
                 int.MinValue.ToString(CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Int64,
                 (long)0,
-                null,
+                null!,
                 Quotes("0")
             },
             {
                 BuiltInType.Int64,
                 kInt64Value,
                 Quotes(kInt64Value.ToString(CultureInfo.InvariantCulture)),
-                null },
+                null! },
             {
                 BuiltInType.Int64,
                 (long)kUInt64Value,
                 Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)),
-                null
+                null!
             },
             {
                 BuiltInType.Int64,
                 long.MinValue,
                 Quotes(long.MinValue.ToString(CultureInfo.InvariantCulture)),
-                null
+                null!
             },
             {
                 BuiltInType.Int64,
                 long.MaxValue,
                 Quotes(long.MaxValue.ToString(CultureInfo.InvariantCulture)),
-                null
+                null!
             },
             {
                 BuiltInType.UInt64,
                 (ulong)0,
-                null,
+                null!,
                 Quotes("0")
             },
             {
                 BuiltInType.UInt64,
                 kUInt64Value,
                 Quotes(kUInt64Value.ToString(CultureInfo.InvariantCulture)),
-                null },
+                null! },
             {
                 BuiltInType.UInt64,
                 ulong.MinValue,
-                null,
+                null!,
                 Quotes(ulong.MinValue.ToString(CultureInfo.InvariantCulture))
             },
             {
                 BuiltInType.UInt64,
                 ulong.MaxValue,
                 Quotes(ulong.MaxValue.ToString(CultureInfo.InvariantCulture)),
-                null
+                null!
             },
             {
                 BuiltInType.Float,
                 (float)0,
-                null,
+                null!,
                 "0"
             },
             {
@@ -347,7 +347,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 Convert
                     .ToSingle("-12345678.1234", CultureInfo.InvariantCulture)
                     .ToString("R", CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Float,
@@ -355,42 +355,42 @@ namespace Opc.Ua.Core.Encoders.Tests
                 Convert
                     .ToSingle("12345678.1234", CultureInfo.InvariantCulture)
                     .ToString("R", CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Float,
                 float.MaxValue,
                 float.MaxValue.ToString("R", CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Float,
                 float.MinValue,
                 float.MinValue.ToString("R", CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Float,
                 float.NegativeInfinity,
                 Quotes("-Infinity"),
-                null
+                null!
             },
             {
                 BuiltInType.Float,
                 float.PositiveInfinity,
                 Quotes("Infinity"),
-                null
+                null!
             },
             {
                 BuiltInType.Float,
                 float.NaN,
                 Quotes("NaN"),
-                null
+                null!
             },
             {
                 BuiltInType.Double,
                 (double)0,
-                null,
+                null!,
                 "0"
             },
             {
@@ -399,7 +399,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 Convert
                     .ToDouble("-12345678.1234", CultureInfo.InvariantCulture)
                     .ToString("R", CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Double,
@@ -407,72 +407,72 @@ namespace Opc.Ua.Core.Encoders.Tests
                 Convert
                     .ToDouble("12345678.1234", CultureInfo.InvariantCulture)
                     .ToString("R", CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Double,
                 double.MaxValue,
                 double.MaxValue.ToString("R", CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Double,
                 double.MinValue,
                 double.MinValue.ToString("R", CultureInfo.InvariantCulture),
-                null
+                null!
             },
             {
                 BuiltInType.Double,
                 double.NegativeInfinity,
                 Quotes("-Infinity"),
-                null
+                null!
             },
             {
                 BuiltInType.Double,
                 double.PositiveInfinity,
                 Quotes("Infinity"),
-                null
+                null!
             },
             {
                 BuiltInType.Double,
                 double.NaN,
                 Quotes("NaN"),
-                null
+                null!
             },
             {
                 BuiltInType.DateTime,
                 DateTimeUtc.MinValue + 1,
                 Quotes("1601-01-01T00:00:00.001Z"),
-                null
+                null!
             },
             {
                 BuiltInType.DateTime,
                 DateTimeUtc.MinValue,
-                null,
+                null!,
                 Quotes("0001-01-01T00:00:00Z")
             },
             {
                 BuiltInType.DateTime,
                 DateTimeUtc.MaxValue,
                 Quotes("9999-12-31T23:59:59Z"),
-                null
+                null!
             },
             {
                 BuiltInType.Guid,
                 Uuid.Empty,
-                null,
+                null!,
                 "null" // Quotes("00000000-0000-0000-0000-000000000000")
             },
             {
                 BuiltInType.Guid,
                 s_nodeIdGuid,
                 Quotes($"{s_nodeIdGuid}"),
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
                 NodeId.Null,
-                null,
+                null!,
                 "null"
             },
             {
@@ -481,7 +481,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "i={kNodeIdInt}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -489,7 +489,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kApplicationUri};i={kNodeIdInt}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -497,7 +497,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer};i={kNodeIdInt}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -505,7 +505,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "ns=88;i={kNodeIdInt}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -513,7 +513,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -521,7 +521,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -529,7 +529,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -537,7 +537,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kApplicationUri};s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -545,7 +545,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer};s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -553,7 +553,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "ns=88;s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -561,7 +561,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "g={s_nodeIdGuid}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -569,7 +569,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kApplicationUri};g={s_nodeIdGuid}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -577,7 +577,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer};g={s_nodeIdGuid}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -585,7 +585,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "ns=88;g={s_nodeIdGuid}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -593,7 +593,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "b={s_byteString64}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -601,7 +601,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kApplicationUri};b={s_byteString64}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -609,7 +609,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer};b={s_byteString64}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.NodeId,
@@ -617,12 +617,12 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "ns=88;b={s_byteString64}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
                 ExpandedNodeId.Null,
-                null,
+                null!,
                 "null"
             },
             {
@@ -631,7 +631,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "i={kNodeIdInt}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -639,7 +639,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kApplicationUri};i={kNodeIdInt}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -647,7 +647,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer};i={kNodeIdInt}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -655,7 +655,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer2};i={kNodeIdInt}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -663,7 +663,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "ns=88;i={kNodeIdInt}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -671,7 +671,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -679,7 +679,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -687,7 +687,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -695,7 +695,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kApplicationUri};s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -703,7 +703,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer};s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -711,7 +711,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer2};s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -719,7 +719,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "ns=88;s={kNodeIdString}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -727,7 +727,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "g={s_nodeIdGuid}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -735,7 +735,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kApplicationUri};g={s_nodeIdGuid}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -743,7 +743,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer};g={s_nodeIdGuid}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -751,7 +751,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer2};g={s_nodeIdGuid}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -759,7 +759,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "ns=88;g={s_nodeIdGuid}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -767,7 +767,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "b={s_byteString64}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -775,7 +775,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kApplicationUri};b={s_byteString64}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -783,7 +783,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer};b={s_byteString64}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -791,7 +791,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer2};b={s_byteString64}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -799,7 +799,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "ns=88;b={s_byteString64}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.ExpandedNodeId,
@@ -807,12 +807,12 @@ namespace Opc.Ua.Core.Encoders.Tests
                 """
                 "svr=23;ns=33;s=StringIdentifier"
                 """, // compact
-                null // verbose - null == same as compact
+                null! // verbose - null == same as compact
             },
             {
                 BuiltInType.StatusCode,
                 StatusCodes.Good,
-                null,
+                null!,
                 "{}"
             },
             {
@@ -831,12 +831,12 @@ namespace Opc.Ua.Core.Encoders.Tests
                 BuiltInType.StatusCode,
                 new StatusCode(1234567),
                 /*lang=json,strict*/ """{"Code":1234567}""",
-                null
+                null!
             },
             {
                 BuiltInType.QualifiedName,
                 QualifiedName.Null,
-                null,
+                null!,
                 "null"
             },
             {
@@ -845,7 +845,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "{kQualifiedName}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.QualifiedName,
@@ -853,7 +853,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kApplicationUri};{kQualifiedName}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.QualifiedName,
@@ -861,122 +861,122 @@ namespace Opc.Ua.Core.Encoders.Tests
                 $"""
                 "nsu={kDemoServer};{kQualifiedName}"
                 """,
-                null
+                null!
             },
             {
                 BuiltInType.LocalizedText,
                 LocalizedText.Null,
-                null,
+                null!,
                 "null"
             },
             {
                 BuiltInType.LocalizedText,
                 new LocalizedText(kLocalizedText),
                 $$"""{"Text":"{{kLocalizedText}}"}""",
-                null
+                null!
             },
             {
                 BuiltInType.LocalizedText,
                 new LocalizedText(kLocale, kLocalizedText),
                 $$"""{"Text":"{{kLocalizedText}}","Locale":"{{kLocale}}"}""",
-                null
+                null!
             },
             {
                 BuiltInType.LocalizedText,
                 new LocalizedText(kLocale, string.Empty),
                 // Part 6 5.4.2.15: an empty or null Text is not encoded.
                 $$"""{"Locale":"{{kLocale}}"}""",
-                null
+                null!
             },
             {
                 BuiltInType.LocalizedText,
                 new LocalizedText(kLocale, (string)null!),
                 $$"""{"Locale":"{{kLocale}}"}""",
-                null
+                null!
             },
             {
                 BuiltInType.ExtensionObject,
                 ExtensionObject.Null,
-                null,
+                null!,
                 "null"
             },
             {
                 BuiltInType.ExtensionObject,
                 new ExtensionObject(kNodeIdInt),
                 /*lang=json,strict*/ """{"UaTypeId":"i=2345"}""",
-                null
+                null!
             },
             {
                 BuiltInType.ExtensionObject,
-                new ExtensionObject(null),
-                null,
+                new ExtensionObject(null!),
+                null!,
                 "null"
             },
             {
                 BuiltInType.Variant,
                 Variant.Null,
-                null,
+                null!,
                 "null"
             },
             {
                 BuiltInType.Variant,
                 new Variant((sbyte)123),
                 $$"""{"UaType":{{BuiltInType.SByte:d}}, "Value":123}""",
-                null
+                null!
             },
             {
                 BuiltInType.Variant,
                 new Variant((short)12345),
                 $$"""{"UaType":{{BuiltInType.Int16:d}}, "Value":12345}""",
-                null
+                null!
             },
             {
                 BuiltInType.Variant,
                 new Variant(1234567),
                 $$"""{"UaType":{{BuiltInType.Int32:d}}, "Value":1234567}""",
-                null
+                null!
             },
             {
                 BuiltInType.Variant,
                 new Variant((long)123456789),
                 $$"""{"UaType":{{BuiltInType.Int64:d}}, "Value":"123456789"}""",
-                null
+                null!
             },
             {
                 BuiltInType.Variant,
                 new Variant((byte)123),
                 $$"""{"UaType":{{BuiltInType.Byte:d}}, "Value":123}""",
-                null
+                null!
             },
             {
                 BuiltInType.Variant,
                 new Variant((ushort)12345),
                 $$"""{"UaType":{{BuiltInType.UInt16:d}}, "Value":12345}""",
-                null
+                null!
             },
             {
                 BuiltInType.Variant,
                 new Variant((uint)1234567),
                 $$"""{"UaType":{{BuiltInType.UInt32:d}}, "Value":1234567}""",
-                null
+                null!
             },
             {
                 BuiltInType.Variant,
                 new Variant((ulong)123456789),
                 $$"""{"UaType":{{BuiltInType.UInt64:d}}, "Value":"123456789"}""",
-                null
+                null!
             },
             {
                 BuiltInType.DataValue,
                 new DataValue(),
                 "{}",
-                null
+                null!
             },
             {
                 BuiltInType.DataValue,
                 DataValue.FromStatusCode(StatusCodes.Good),
                 "{}",
-                null
+                null!
             },
             {
                 BuiltInType.DataValue,
@@ -994,7 +994,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             {
                 BuiltInType.Enumeration,
                 Variant.From((TestEnumType)0),
-                null, // "0",
+                null!, // "0",
                 """
                 "0"
                 """
@@ -1078,7 +1078,7 @@ namespace Opc.Ua.Core.Encoders.Tests
                 s_testEncodeable,
                 /*lang=json,strict*/
                 """{"Foo":"bar_999"}""",
-                null
+                null!
             }
         }.ToArray();
 
@@ -1136,9 +1136,9 @@ namespace Opc.Ua.Core.Encoders.Tests
         [GlobalCleanup]
         public void GlobalCleanup()
         {
-            m_context = null;
+            m_context = null!;
             m_memoryStream.Dispose();
-            m_memoryStream = null;
+            m_memoryStream = null!;
         }
 
         /// <summary>
@@ -1180,7 +1180,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         {
             var context = Ua.ServiceMessageContext.Create(m_telemetry);
             using var memoryStream = new MemoryStream();
-            string expected = null;
+            string? expected = null;
 
             for (int ii = 0; ii < 4; ii++)
             {
@@ -1497,14 +1497,14 @@ namespace Opc.Ua.Core.Encoders.Tests
                     new XmlReaderSettings { DtdProcessing = DtdProcessing.Ignore });
                 xmlDoc.Load(r);
 
-                using var decoder = new XmlDecoder(xmlDoc.FirstChild as System.Xml.XmlElement, dynamicContext);
+                using var decoder = new XmlDecoder((xmlDoc.FirstChild as System.Xml.XmlElement)!, dynamicContext);
                 decoder.PushNamespace(Namespaces.OpcUaXsd);
                 extensionObjectFromXml = decoder.ReadExtensionObject("ExtensionObject");
                 decoder.PopNamespace();
             }
             Assert.That(
-                extensionObjectFromXml.TryGetValue(out IEncodeable resultEncodeable), Is.True);
-            Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
+                extensionObjectFromXml.TryGetValue(out IEncodeable? resultEncodeable), Is.True);
+            Assert.That(encodeable.IsEqual(resultEncodeable!), Is.True);
 
             // Encode to JSON
             string encodedJson;
@@ -1532,8 +1532,8 @@ namespace Opc.Ua.Core.Encoders.Tests
                 extensionObjectFromJson = decoder.ReadExtensionObject("Test");
             }
             Assert.That(
-                extensionObjectFromJson.TryGetValue(out resultEncodeable), Is.True);
-            Assert.That(encodeable.IsEqual(resultEncodeable), Is.True);
+                extensionObjectFromJson.TryGetValue(out resultEncodeable!), Is.True);
+            Assert.That(encodeable.IsEqual(resultEncodeable!), Is.True);
         }
 
         /// <summary>
@@ -1775,7 +1775,7 @@ namespace Opc.Ua.Core.Encoders.Tests
             string resultString = testDateTime.ToString(
                 "yyyy-MM-dd'T'HH:mm:ss.FFFFFFFK",
                 CultureInfo.InvariantCulture);
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
             Span<char> valueString = stackalloc char[DateTimeHelper.DateTimeRoundTripKindLength];
             DateTimeHelper.ConvertUniversalTimeToString(
                 (DateTime)testDateTime,

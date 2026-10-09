@@ -144,6 +144,8 @@ namespace Opc.Ua.Gds.Server
             m_globalDiscoveryServerConfiguration =
                 configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
+            AliasNameAggregationEnabled =
+                m_globalDiscoveryServerConfiguration.EnableAliasNameAggregation;
 
             // use suitable defaults if no configuration exists.
 
@@ -268,6 +270,8 @@ namespace Opc.Ua.Gds.Server
             // stages the node, finalises its NodeIds before handing it back,
             // and registers it once this pass returns.
             ConfigureAuthorizationService(EnsureDefaultAuthorizationService(builder));
+
+            InitializeAliasNameAggregation();
         }
 
         /// <summary>
@@ -285,9 +289,7 @@ namespace Opc.Ua.Gds.Server
             Method<QueryApplicationsMethodState>(directory, BrowseNames.QueryApplications)
                 .OnCall = OnQueryApplications;
             Method<RegisterApplicationMethodState>(directory, BrowseNames.RegisterApplication)
-                .OnCall = OnRegisterApplication;
-            Method<GetApplicationMethodState>(directory, BrowseNames.GetApplication)
-                .OnCall = OnGetApplication;
+                .OnCallAsync = OnRegisterApplicationAsync;
             Method<RevokeCertificateMethodState>(directory, BrowseNames.RevokeCertificate)
                 .OnCallAsync = OnRevokeCertificateAsync;
             Method<CheckRevocationStatusMethodState>(directory, BrowseNames.CheckRevocationStatus)
@@ -306,6 +308,9 @@ namespace Opc.Ua.Gds.Server
             SelfAdministered<FindApplicationsMethodState>(
                     directory, BrowseNames.FindApplications)
                 .OnCall = OnFindApplications;
+            SelfAdministered<GetApplicationMethodState>(
+                    directory, BrowseNames.GetApplication)
+                .OnCall = OnGetApplication;
             SelfAdministered<StartNewKeyPairRequestMethodState>(
                     directory, BrowseNames.StartNewKeyPairRequest)
                 .OnCall = OnStartNewKeyPairRequest;
@@ -522,6 +527,7 @@ namespace Opc.Ua.Gds.Server
                 // supplies the validation rules.
                 trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
             }
+            trustList.SetAuditEventServer(Server);
             certificateGroup.DefaultTrustList.Handle = trustList;
         }
 
@@ -1152,13 +1158,14 @@ namespace Opc.Ua.Gds.Server
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnRegisterApplication(
+        private async ValueTask<RegisterApplicationMethodStateResult> OnRegisterApplicationAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
             ApplicationRecordDataType application,
-            ref NodeId applicationId)
+            CancellationToken cancellationToken)
         {
+            NodeId applicationId;
             AuthorizationHelper.HasAuthorization(
                 context,
                 AuthorizationHelper.DiscoveryAdminOrAppAdmin);
@@ -1183,9 +1190,18 @@ namespace Opc.Ua.Gds.Server
                     method,
                     inputArguments,
                     m_logger);
+
+                // GDS AliasName Server facet (OPC 10000-17 Annex C.2): merge
+                // the AliasNames of the registering Server before returning.
+                await OnAliasNameSourceRegisteredAsync(applicationId, application, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
-            return ServiceResult.Good;
+            return new RegisterApplicationMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                ApplicationId = applicationId
+            };
         }
 
         private ServiceResult OnUpdateApplication(
@@ -1226,6 +1242,13 @@ namespace Opc.Ua.Gds.Server
                 method,
                 inputArguments,
                 m_logger);
+
+            // The record may have gained or lost the ALIAS capability or
+            // changed its DiscoveryUrls; read it again in the background.
+            if (AliasNameAggregator != null)
+            {
+                _ = RefreshAliasNameSourceInBackground(application.ApplicationId);
+            }
 
             return ServiceResult.Good;
         }
@@ -1279,6 +1302,11 @@ namespace Opc.Ua.Gds.Server
             }
 
             m_database.UnregisterApplication(applicationId);
+
+            // OPC 10000-17 Annex C.3. The record is gone, so the cleanup must
+            // not be cancelled with the request.
+            await OnAliasNameSourceUnregisteredAsync(applicationId, CancellationToken.None)
+                .ConfigureAwait(false);
 
             ArrayOf<Variant> inputArguments = [applicationId];
             Server.ReportApplicationRegistrationChangedAuditEvent(
@@ -1392,7 +1420,10 @@ namespace Opc.Ua.Gds.Server
             string applicationUri,
             ref ArrayOf<ApplicationRecordDataType> applications)
         {
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
+            // OPC 10000-12 §6.5.3: FindApplications "can be called by any
+            // Client", and §6.5.4 names no Role. It is also the only way a
+            // pull client (§7.6, Anonymous + ApplicationSelfAdmin) learns
+            // the ApplicationId of its own record, so no role check here.
             m_logger.OnFindApplications(applicationUri);
 
             // OPC 10000-12 §6.5.4: the result holds at most the one application
@@ -2166,8 +2197,13 @@ namespace Opc.Ua.Gds.Server
                     return result;
                 }
 
-                // verify the CSR integrity for the application
-                await certificateGroup.VerifySigningRequestAsync(application, certificateRequest, cancellationToken).ConfigureAwait(false);
+                // verify the CSR integrity for the application and, per
+                // OPC 10000-12 §7.9.3, that its key fits the requested type
+                await certificateGroup.VerifySigningRequestAsync(
+                    application,
+                    resolvedTypeId,
+                    certificateRequest,
+                    cancellationToken).ConfigureAwait(false);
 
                 // store request in the queue for approval
                 IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
@@ -2224,6 +2260,36 @@ namespace Opc.Ua.Gds.Server
                     m_logger,
                     auditException);
             }
+        }
+
+        /// <summary>
+        /// Builds the FinishRequest result for a certificate the group failed
+        /// to issue.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-12 §7.9.5 has no Bad_ConfigurationError: the status of a
+        /// <see cref="ServiceResultException"/> is kept (e.g.
+        /// Bad_InvalidArgument for a CSR the group cannot sign), any other
+        /// failure maps to Bad_RequestNotAllowed, and the text indicates the
+        /// exact reason. The exception stays attached to the result.
+        /// </remarks>
+        internal static ServiceResult CreateIssueFailureResult(
+            Exception exception,
+            string what,
+            NodeId applicationId,
+            ApplicationRecordDataType application)
+        {
+            return ServiceResult.Create(
+                exception,
+                StatusCodes.BadRequestNotAllowed,
+                "Error Generating {0}={1}\nApplicationId={2}\nApplicationUri={3}\nApplicationName={4}",
+                what,
+                exception.Message,
+                applicationId.ToString(),
+                application.ApplicationUri ?? string.Empty,
+                application.ApplicationNames.IsEmpty
+                    ? string.Empty
+                    : application.ApplicationNames[0].Text ?? string.Empty);
         }
 
         internal async ValueTask<FinishRequestMethodStateResult> OnFinishRequestAsync(
@@ -2345,13 +2411,12 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        result.ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadConfigurationError,
-                            "Error Generating Certificate={0}\nApplicationId={1}\nApplicationUri={2}\nApplicationName={3}",
-                            e.Message,
-                            applicationId.ToString(),
-                            application.ApplicationUri!,
-                            application.ApplicationNames[0].Text!);
+                        m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
+                        result.ServiceResult = CreateIssueFailureResult(
+                            e,
+                            "Certificate",
+                            applicationId,
+                            application);
                         return result;
                     }
                 }
@@ -2371,12 +2436,12 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        result.ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadConfigurationError,
-                            "Error Generating New Key Pair Certificate={0}\nApplicationId={1}\nApplicationUri={2}",
-                            e.Message,
-                            applicationId.ToString(),
-                            application.ApplicationUri!);
+                        m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
+                        result.ServiceResult = CreateIssueFailureResult(
+                            e,
+                            "New Key Pair Certificate",
+                            applicationId,
+                            application);
                         return result;
                     }
 
@@ -3154,6 +3219,8 @@ namespace Opc.Ua.Gds.Server
         {
             if (disposing)
             {
+                DisposeAliasNameAggregation();
+
                 // Every group this manager created is in the owning list, so
                 // a startup that failed before Configure could bind and index
                 // the groups still releases them.
@@ -3308,5 +3375,13 @@ namespace Opc.Ua.Gds.Server
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 20, Level = LogLevel.Information,
             Message = "OnKeyCredentialRevoke: {CredentialId}")]
         public static partial void OnKeyCredentialRevoke(this ILogger logger, string credentialId);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 21, Level = LogLevel.Warning,
+            Message = "FinishRequest {RequestId} for {ApplicationUri} failed to issue the certificate.")]
+        public static partial void FinishRequestIssueFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId requestId,
+            string? applicationUri);
     }
 }

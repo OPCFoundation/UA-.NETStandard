@@ -79,10 +79,10 @@ namespace Opc.Ua.Gds.Tests
             database.RegisterApplication(CreateServerApplication("urn:test:server-1", "ServerOne"));
             database.RegisterApplication(CreateServerApplication("urn:test:server-2", "ServerTwo"));
 
-            ServerOnNetwork[] allServers = database.QueryServers(0, 0, null, null, null, [], out _);
+            ServerOnNetwork[] allServers = database.QueryServers(0, 0, null!, null!, null!, [], out _);
             uint firstRecordId = allServers.Min(server => server.RecordId);
 
-            ServerOnNetwork[] pagedServers = database.QueryServers(firstRecordId, 0, null, null, null, [], out _);
+            ServerOnNetwork[] pagedServers = database.QueryServers(firstRecordId, 0, null!, null!, null!, [], out _);
 
             Assert.That(pagedServers, Has.Length.GreaterThan(0));
             Assert.That(pagedServers.All(server => server.RecordId > firstRecordId), Is.True);
@@ -111,7 +111,7 @@ namespace Opc.Ua.Gds.Tests
             clientAndServer.ServerCapabilities = ["DA", "RCP"];
             database.RegisterApplication(clientAndServer);
 
-            ServerOnNetwork[] allServers = database.QueryServers(0, 0, null, null, null, [], out _);
+            ServerOnNetwork[] allServers = database.QueryServers(0, 0, null!, null!, null!, [], out _);
             Assert.That(allServers, Has.Length.EqualTo(5));
             Assert.That(allServers.Select(server => server.RecordId), Is.Unique.And.Ordered);
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.Gds.Tests
             for (int ii = 0; ii < 10; ii++)
             {
                 ServerOnNetwork[] page = database.QueryServers(
-                    startingRecordId, maxRecordsToReturn, null, null, null, [], out _);
+                    startingRecordId, maxRecordsToReturn, null!, null!, null!, [], out _);
                 if (page.Length == 0)
                 {
                     break;
@@ -142,13 +142,13 @@ namespace Opc.Ua.Gds.Tests
             var database = new LinqApplicationsDatabase();
             ApplicationRecordDataType application = CreateServerApplication("urn:test:server-1", "ServerOne");
             NodeId applicationId = database.RegisterApplication(application);
-            uint recordId = database.QueryServers(0, 0, null, null, null, [], out _).Single().RecordId;
+            uint recordId = database.QueryServers(0, 0, null!, null!, null!, [], out _).Single().RecordId;
 
             application.ApplicationId = applicationId;
             application.DiscoveryUrls = ["opc.tcp://updated:4840"];
             database.UpdateApplication(application);
 
-            ServerOnNetwork updated = database.QueryServers(0, 0, null, null, null, [], out _).Single();
+            ServerOnNetwork updated = database.QueryServers(0, 0, null!, null!, null!, [], out _).Single();
             Assert.That(updated.DiscoveryUrl, Is.EqualTo("opc.tcp://updated:4840"));
             Assert.That(updated.RecordId, Is.GreaterThan(recordId));
         }
@@ -164,24 +164,24 @@ namespace Opc.Ua.Gds.Tests
                 multiUrl.DiscoveryUrls = ["opc.tcp://one:1", "opc.tcp://one:2"];
                 database.RegisterApplication(multiUrl);
                 database.RegisterApplication(CreateServerApplication("urn:test:server-2", "ServerTwo"));
-                uint[] recordIds = [.. database.QueryServers(0, 0, null, null, null, [], out _)
+                uint[] recordIds = [.. database.QueryServers(0, 0, null!, null!, null!, [], out _)
                     .Select(server => server.RecordId)];
                 Assert.That(recordIds, Is.Unique.And.Ordered);
 
                 // Reload: identifiers are persisted and new ones continue above them.
                 database = JsonApplicationsDatabase.Load(fileName);
                 Assert.That(
-                    database.QueryServers(0, 0, null, null, null, [], out _).Select(server => server.RecordId),
+                    database.QueryServers(0, 0, null!, null!, null!, [], out _).Select(server => server.RecordId),
                     Is.EqualTo(recordIds));
                 database.RegisterApplication(CreateServerApplication("urn:test:server-3", "ServerThree"));
                 Assert.That(
-                    database.QueryServers(recordIds[recordIds.Length - 1], 0, null, null, null, [], out _).Single().DiscoveryUrl,
+                    database.QueryServers(recordIds[recordIds.Length - 1], 0, null!, null!, null!, [], out _).Single().DiscoveryUrl,
                     Is.EqualTo("opc.tcp://localhost:4840/ServerThree"));
 
                 // A database saved before endpoints had an identifier.
                 var json = JsonNode.Parse(File.ReadAllText(fileName))!.AsObject();
                 json.Remove("LastServerEndpointId");
-                foreach (JsonNode endpoint in json["ServerEndpoints"]!.AsArray())
+                foreach (JsonNode? endpoint in json["ServerEndpoints"]!.AsArray())
                 {
                     endpoint!.AsObject().Remove("ID");
                 }
@@ -195,10 +195,10 @@ namespace Opc.Ua.Gds.Tests
                     migrated["ServerEndpoints"]!.AsArray().Select(endpoint => (uint)endpoint!["ID"]!),
                     Is.Unique.And.All.Not.Zero);
 
-                ServerOnNetwork[] legacy = database.QueryServers(0, 1, null, null, null, [], out _);
+                ServerOnNetwork[] legacy = database.QueryServers(0, 1, null!, null!, null!, [], out _);
                 Assert.That(legacy, Has.Length.EqualTo(1));
                 Assert.That(legacy[0].RecordId, Is.Not.Zero);
-                uint[] legacyIds = [.. database.QueryServers(0, 0, null, null, null, [], out _)
+                uint[] legacyIds = [.. database.QueryServers(0, 0, null!, null!, null!, [], out _)
                     .Select(server => server.RecordId)];
                 Assert.That(legacyIds, Has.Length.EqualTo(4));
                 Assert.That(legacyIds, Is.Unique.And.Ordered);
@@ -234,9 +234,9 @@ namespace Opc.Ua.Gds.Tests
             LinqApplicationsDatabase database = CreateConformanceTestDatabase();
 
             ServerOnNetwork[] servers = database.QueryServers(
-                0, 0, applicationName, applicationUri, null, [], out _);
+                0, 0, applicationName, applicationUri, null!, [], out _);
             ApplicationDescription[] applications = database.QueryApplications(
-                0, 0, applicationName, applicationUri, 0, null, [], out _, out _);
+                0, 0, applicationName, applicationUri, 0, null!, [], out _, out _);
 
             Assert.That(servers, Has.Length.EqualTo(expectedServers));
             Assert.That(applications, Has.Length.EqualTo(expectedApplications));
@@ -249,7 +249,7 @@ namespace Opc.Ua.Gds.Tests
             LinqApplicationsDatabase database = CreateConformanceTestDatabase();
 
             ApplicationDescription[] applications = database.QueryApplications(
-                startingRecordId, 0, null, null, 0, null, [], out _, out uint nextRecordId);
+                startingRecordId, 0, null!, null!, 0, null!, [], out _, out uint nextRecordId);
 
             Assert.That(applications, Is.Empty);
             Assert.That(nextRecordId, Is.Zero);
@@ -410,7 +410,7 @@ namespace Opc.Ua.Gds.Tests
             }
         }
 
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS // the netstandard2.1 library has no link/mode APIs
+#if NET8_0_OR_GREATER // .NET Framework has no link/mode APIs
         /// <summary>
         /// A database file that is a symbolic link keeps being a link: the
         /// save updates the link target.

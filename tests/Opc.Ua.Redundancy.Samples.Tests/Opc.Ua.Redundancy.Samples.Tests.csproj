@@ -5,8 +5,8 @@
       RedundantClient and RedundantPubSub sample applications and assert on
       their high-availability log output. The samples are .NET 8+ only and
       follow CustomTestTarget, so the tests do too: a net8.0 / net9.0 / net10.0
-      profile builds and runs them on that framework. On the legacy profiles
-      (net48, net472, netstandard2.0, netstandard2.1) the samples are empty
+      profile builds and runs them on that framework. On the net48 profile
+      the samples are empty
       RestrictForLegacyTfm shells, so RestrictForLegacyTfm makes this project
       an explicit not-applicable shell there as well.
 
@@ -20,7 +20,6 @@
     <_SamplesPlaceholder Condition="'$(TargetFramework)' == 'net48'">true</_SamplesPlaceholder>
     <EnableDefaultCompileItems Condition="'$(_SamplesPlaceholder)' == 'true'">false</EnableDefaultCompileItems>
     <RootNamespace>Opc.Ua.Redundancy.Samples.Tests</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <!--
       The placeholder assembly (legacy TFM matrix entries) has no source code;

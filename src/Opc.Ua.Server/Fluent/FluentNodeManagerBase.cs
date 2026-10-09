@@ -764,6 +764,7 @@ namespace Opc.Ua.Server.Fluent
                         node,
                         referencesToRemove,
                         ct),
+                    Server,
                     cancellationToken).ConfigureAwait(false);
 
                 if (referencesToRemove.Count > 0)

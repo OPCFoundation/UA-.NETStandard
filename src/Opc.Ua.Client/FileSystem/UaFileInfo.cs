@@ -257,7 +257,7 @@ namespace Opc.Ua.Client.FileSystem
                 {
                     while (true)
                     {
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
                         int read = await stream.ReadAsync(rented.AsMemory(), ct)
                             .ConfigureAwait(false);
 #else
@@ -312,7 +312,7 @@ namespace Opc.Ua.Client.FileSystem
             {
                 if (!bytes.IsEmpty)
                 {
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
                     await stream.WriteAsync(bytes, ct).ConfigureAwait(false);
 #else
                     byte[] buffer = bytes.ToArray();

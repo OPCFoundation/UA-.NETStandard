@@ -3,8 +3,6 @@
 //  Licensed under the MIT License (MIT). See License.txt in the repo root for license information.
 // ------------------------------------------------------------
 
-#nullable enable
-
 using System;
 using NUnit.Framework;
 using Opc.Ua.Tests;

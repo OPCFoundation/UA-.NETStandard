@@ -58,24 +58,27 @@ namespace Opc.Ua.Gds.Tests.Hosting
     [Parallelizable]
     public sealed class OpcUaGdsServerBuilderTests
     {
+        private static readonly UserTokenType[] s_anonymousAndUserName =
+            [UserTokenType.Anonymous, UserTokenType.UserName];
+
         [Test]
         public void AddGdsServerThrowsForNullArgs()
         {
             Assert.That(
                 () => OpcUaGdsServerBuilderExtensions.AddGdsServer(
-                    null, _ => { }),
+                    null!, _ => { }),
                 Throws.ArgumentNullException);
 
             var services = new ServiceCollection();
             IOpcUaBuilder builder = services.AddOpcUa();
             Assert.That(
-                () => builder.AddGdsServer((Action<GdsServerOptions>)null),
+                () => builder.AddGdsServer((Action<GdsServerOptions>)null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.AddGdsServer((IConfiguration)null),
+                () => builder.AddGdsServer((IConfiguration)null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.AddGdsServer((IConfigurationSection)null),
+                () => builder.AddGdsServer((IConfigurationSection)null!),
                 Throws.ArgumentNullException);
         }
 
@@ -96,7 +99,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(sp.GetService<IApplicationInstanceFactory>(), Is.Not.Null);
 
             ServiceDescriptor hostedDescriptor = services.FirstOrDefault(
-                s => s.ImplementationType == typeof(GdsServerHostedService));
+                s => s.ImplementationType == typeof(GdsServerHostedService))!;
             Assert.That(hostedDescriptor, Is.Not.Null);
             Assert.That(hostedDescriptor.ServiceType, Is.EqualTo(typeof(IHostedService)));
         }
@@ -231,7 +234,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         [Test]
         public void AddGdsServerWithConfigurationSectionBindsOptions()
         {
-            var configData = new Dictionary<string, string>
+            var configData = new Dictionary<string, string?>
             {
                 ["OpcUa:Gds:Server:ApplicationName"] = "BoundGds",
                 ["OpcUa:Gds:Server:ApplicationUri"] = "urn:test:bound:gds",
@@ -254,9 +257,140 @@ namespace Opc.Ua.Gds.Tests.Hosting
         }
 
         [Test]
+        public void AddGdsServerWithConfigurationSectionBindsUserTokenPolicies()
+        {
+            var configData = new Dictionary<string, string?>
+            {
+                ["OpcUa:Gds:Server:UserTokenPolicies:0:TokenType"] = "Anonymous",
+                ["OpcUa:Gds:Server:UserTokenPolicies:1:TokenType"] = "UserName"
+            };
+
+            IConfiguration configuration = new ConfigurationBuilder()
+                .AddInMemoryCollection(configData)
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddGdsServer(configuration);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            GdsServerOptions options = sp.GetRequiredService<IOptions<GdsServerOptions>>().Value;
+
+            Assert.That(
+                options.UserTokenPolicies.Select(policy => policy.TokenType).ToArray(),
+                Is.EqualTo(s_anonymousAndUserName));
+        }
+
+        [Test]
+        public void AddStartupTasksAreIdempotentPerTaskType()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddGdsServer(o => o.ApplicationName = "Gds")
+                .AddStartupTask<NoOpStartupTask>()
+                .AddStartupTask<NoOpStartupTask>()
+                .AddPreStartupTask<NoOpPreStartupTask>()
+                .AddPreStartupTask<NoOpPreStartupTask>();
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            GdsServerStartupTaskRegistration startup =
+                sp.GetServices<GdsServerStartupTaskRegistration>().Single();
+            GdsServerPreStartupTaskRegistration preStartup =
+                sp.GetServices<GdsServerPreStartupTaskRegistration>().Single();
+
+            Assert.That(startup.TaskType, Is.EqualTo(typeof(NoOpStartupTask)));
+            Assert.That(startup.Factory(sp), Is.SameAs(sp.GetRequiredService<NoOpStartupTask>()));
+            Assert.That(preStartup.Factory(sp), Is.SameAs(sp.GetRequiredService<NoOpPreStartupTask>()));
+            Assert.That(
+                () => ((IGdsServerBuilder)null!).AddStartupTask<NoOpStartupTask>(),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => ((IGdsServerBuilder)null!).AddPreStartupTask<NoOpPreStartupTask>(),
+                Throws.ArgumentNullException);
+        }
+
+        [Test]
+        public void AddDefaultIdentityAuthenticatorsBindsGdsOptionsFromConfiguration()
+        {
+            IConfiguration section = new ConfigurationBuilder()
+                .AddInMemoryCollection(new Dictionary<string, string?>
+                {
+                    ["EnableAnonymous"] = "false",
+                    ["EnableX509"] = "false",
+                    ["ExpectedAudience"] = "urn:audience",
+                    ["ClockSkewTolerance"] = "00:02:00",
+                    ["UserCertificateTrustList"] = "CustomUsers",
+                    ["EnableGdsApplicationSelfAdminProvider"] = "false"
+                })
+                .Build();
+
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddGdsServer(o => o.ApplicationName = "Gds")
+                .AddDefaultIdentityAuthenticators(section);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            GdsDefaultIdentityAuthenticatorOptions options =
+                GdsServerHostedService.GetDefaultAuthenticatorOptions(sp)!;
+
+            Assert.That(options, Is.Not.Null);
+            Assert.That(options.EnableAnonymous, Is.False);
+            Assert.That(options.EnableUserNamePassword, Is.True);
+            Assert.That(options.EnableX509, Is.False);
+            Assert.That(options.ExpectedAudience, Is.EqualTo("urn:audience"));
+            Assert.That(options.ClockSkewTolerance, Is.EqualTo(TimeSpan.FromMinutes(2)));
+            Assert.That(options.UserCertificateTrustList.Name, Is.EqualTo("CustomUsers"));
+            Assert.That(options.EnableGdsApplicationSelfAdminProvider, Is.False);
+        }
+
+        [Test]
+        public void GdsHostingRegistrationsRejectNullArguments()
+        {
+            Assert.That(
+                () => new GdsDefaultIdentityAuthenticatorsRegistration(null!),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new GdsServerStartupTaskRegistration(null!),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new GdsServerPreStartupTaskRegistration(null!, typeof(NoOpPreStartupTask)),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new GdsServerPreStartupTaskRegistration(_ => new NoOpPreStartupTask(), null!),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new DelegateGdsServerStartupTask(null!, (_, _, _) => default),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new DelegateGdsServerStartupTask(new ServiceCollection().BuildServiceProvider(), null!),
+                Throws.ArgumentNullException);
+            Assert.That(
+                () => new ServiceCollection().AddOpcUa().AddGdsServer(o => o.ApplicationName = "Gds")
+                    .AddStartupTask(null!),
+                Throws.ArgumentNullException);
+        }
+
+        public sealed class NoOpStartupTask : Opc.Ua.Server.Hosting.IServerStartupTask
+        {
+            public System.Threading.Tasks.ValueTask OnServerStartedAsync(
+                Opc.Ua.Server.IServerContext server,
+                System.Threading.CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+        }
+
+        public sealed class NoOpPreStartupTask : Opc.Ua.Server.Hosting.IServerPreStartupTask
+        {
+            public System.Threading.Tasks.ValueTask OnServerStartingAsync(
+                Opc.Ua.Server.IServerContext server,
+                System.Threading.CancellationToken cancellationToken = default)
+            {
+                return default;
+            }
+        }
+
+        [Test]
         public void AddGdsServerWithConfigurationSectionBindsCertificateGroups()
         {
-            var configData = new Dictionary<string, string>
+            var configData = new Dictionary<string, string?>
             {
                 ["OpcUa:Gds:Server:CertificateGroups:0:Id"] = "Default",
                 ["OpcUa:Gds:Server:CertificateGroups:0:CertificateTypes:0"] = "RsaSha256ApplicationCertificateType",

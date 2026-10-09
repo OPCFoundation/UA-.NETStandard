@@ -46,7 +46,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [SetUICulture("en-us")]
     [NonParallelizable]
     public
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
     partial
 #endif
     class HiResClockTests
@@ -244,12 +244,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Benchmark]
         public void EnvironmentTickCount64()
         {
-#if NET6_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET6_0_OR_GREATER
             _ = Environment.TickCount64;
 #endif
         }
 
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
         [LibraryImport("kernel32")]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
         private static partial ulong GetTickCount64();

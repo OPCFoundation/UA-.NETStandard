@@ -536,6 +536,10 @@ namespace Opc.Ua.Export
                 nodes.Add(importedNode);
             }
 
+            // A NodeSet Definition lists only the fields a DataType adds (Part 6 F.12);
+            // the DataTypeDefinition attribute starts with the inherited ones (Part 3 8.48).
+            CompleteDataTypeDefinitions(context, nodes);
+
             // Link parent-child relationships after all nodes are imported if requested
             if (linkParentChild)
             {
@@ -1575,19 +1579,42 @@ namespace Opc.Ua.Export
         /// Variant XML encoding expects, leaving an element that is already a
         /// <c>Value</c> alone.
         /// </summary>
-        private static System.Xml.XmlElement WrapAsVariant(System.Xml.XmlElement source)
+        /// <remarks>
+        /// The element is copied with XmlWriter.WriteNode over an XmlNodeReader,
+        /// which does not recurse, instead of ImportNode(deep) or OuterXml, which
+        /// recurse once per element level. The element depth of the value is then
+        /// bounded by the decoder.
+        /// </remarks>
+        private static XmlReader WrapAsVariant(System.Xml.XmlElement source)
         {
-            if (string.Equals(source.LocalName, "Value", StringComparison.Ordinal) &&
-                string.Equals(source.NamespaceURI, Namespaces.OpcUaXsd, StringComparison.Ordinal))
+            bool wrap =
+                !string.Equals(source.LocalName, "Value", StringComparison.Ordinal) ||
+                !string.Equals(source.NamespaceURI, Namespaces.OpcUaXsd, StringComparison.Ordinal);
+
+            var settings = new XmlWriterSettings
             {
-                return source;
+                OmitXmlDeclaration = true,
+                NewLineHandling = NewLineHandling.Entitize
+            };
+
+            using var text = new StringWriter(CultureInfo.InvariantCulture);
+            using (var writer = XmlWriter.Create(text, settings))
+            using (var reader = new XmlNodeReader(source))
+            {
+                if (wrap)
+                {
+                    writer.WriteStartElement("uax", "Value", Namespaces.OpcUaXsd);
+                }
+                writer.WriteNode(reader, true);
+                if (wrap)
+                {
+                    writer.WriteEndElement();
+                }
             }
-            var document = new System.Xml.XmlDocument { XmlResolver = null };
-            System.Xml.XmlElement wrapper = document.CreateElement(
-                "uax", "Value", Namespaces.OpcUaXsd);
-            document.AppendChild(wrapper);
-            wrapper.AppendChild(document.ImportNode(source, deep: true));
-            return wrapper;
+
+            return XmlReader.Create(
+                new StringReader(text.ToString()),
+                CoreUtils.DefaultXmlReaderSettings());
         }
 
         /// <summary>
@@ -1837,7 +1864,8 @@ namespace Opc.Ua.Export
                     value.IsAbstract = o.IsAbstract;
                     Ua.DataTypeDefinition? dataTypeDefinition = Import(
                         o.Definition!,
-                        context.NamespaceUris);
+                        context.NamespaceUris,
+                        FindSuperTypeId(o, context.NamespaceUris));
                     value.DataTypeDefinition = new ExtensionObject(dataTypeDefinition!);
                     value.Purpose = o.Purpose;
                     importedNode = value;
@@ -2379,7 +2407,8 @@ namespace Opc.Ua.Export
         /// </summary>
         private Ua.DataTypeDefinition? Import(
             DataTypeDefinition source,
-            NamespaceTable namespaceUris)
+            NamespaceTable namespaceUris,
+            NodeId superTypeId)
         {
             if (source == null)
             {
@@ -2388,10 +2417,50 @@ namespace Opc.Ua.Export
 
             Ua.DataTypeDefinition? definition = null;
 
+            // The supertype decides whether the definition describes an enumeration
+            // (or OptionSet) or a structure (Part 6 F.12/F.13). The Field Value is only
+            // a fallback when the direct supertype is not a well-known root type.
+            bool? isEnumerationBySuperType = null;
+            if (source.IsOptionSet || superTypeId == DataTypeIds.Enumeration)
+            {
+                isEnumerationBySuperType = true;
+            }
+            else if (superTypeId == DataTypeIds.Structure || superTypeId == s_unionDataTypeId)
+            {
+                isEnumerationBySuperType = false;
+            }
+
+            if (source.Field == null || source.Field.Length == 0)
+            {
+                // Part 6 F.12 omits the Field list when a DataType has no fields of its
+                // own; a Structure still requires a StructureDefinition (Part 3 5.8.3).
+                // When the direct supertype is not a root type the definition is created
+                // once the whole inheritance chain is known (CompleteDataTypeDefinitions).
+                if (isEnumerationBySuperType == false)
+                {
+                    definition = new StructureDefinition
+                    {
+                        BaseDataType = superTypeId,
+                        StructureType = source.IsUnion ? StructureType.Union : StructureType.Structure,
+                        Fields = []
+                    };
+                }
+                else if (isEnumerationBySuperType == true)
+                {
+                    definition = new EnumDefinition
+                    {
+                        IsOptionSet = source.IsOptionSet,
+                        Fields = []
+                    };
+                }
+
+                return definition;
+            }
+
             if (source.Field != null)
             {
                 // check if definition is for enumeration or structure.
-                bool isEnumeration = Array.Exists(
+                bool isEnumeration = isEnumerationBySuperType ?? Array.Exists(
                     source.Field,
                     fieldLookup => fieldLookup.Value != -1);
 
@@ -2440,15 +2509,17 @@ namespace Opc.Ua.Export
                                 DataType = ImportNodeId(field.DataType, namespaceUris, true),
                                 ValueRank = field.ValueRank
                             };
-                            if (!string.IsNullOrWhiteSpace(field.ArrayDimensions))
+                            // Part 3 8.51: ArrayDimensions is only meaningful for arrays;
+                            // a single dimension of 0 (unknown length) is omitted.
+                            if (output.ValueRank > 0 &&
+                                !string.IsNullOrWhiteSpace(field.ArrayDimensions))
                             {
-                                if (output.ValueRank > 1 || field.ArrayDimensions![0] > 0)
+                                ArrayOf<uint> arrayDimensions =
+                                    BaseVariableState.ArrayDimensionsFromXml(field.ArrayDimensions);
+                                if (!arrayDimensions.IsEmpty &&
+                                    (output.ValueRank > 1 || arrayDimensions[0] > 0))
                                 {
-                                    output.ArrayDimensions =
-                                    [
-                                        .. BaseVariableState.ArrayDimensionsFromXml(
-                                            field.ArrayDimensions)
-                                    ];
+                                    output.ArrayDimensions = arrayDimensions;
                                 }
                             }
 

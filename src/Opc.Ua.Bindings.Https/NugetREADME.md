@@ -92,6 +92,15 @@ services
                                       // AddWebApiMutualTlsAuth()
 ```
 
+`WebApiTransportOptions.ServiceSet` maps all 28 services or the 8
+sessionless ones. The binding can describe the routes it maps as an OpenAPI
+document, generated from the route table and the request and response types
+(`WebApiOpenApiGenerator` in `Opc.Ua.Core.Schema`). The document is off by
+default: set `OpenApiDocumentPath` (for example `/openapi.json`) to serve it
+with `GET`, behind the same authentication as the REST routes, and
+`OpenApiIncludeSchemas` to add the component schemas an OpenAPI client
+generator needs.
+
 The companion WSS sub-profile `opcua+openapi` (profile/2339) is
 provided by `WebApiWssTransportChannel` (client) and
 `HttpsTransportListener.AcceptWebSocketOpenApiAsync` (server).
@@ -104,12 +113,12 @@ generic instantiation at compile time. No
 
 ## Target frameworks
 
-`net472`, `net48`, `netstandard2.1`, `net8.0`, `net9.0`, `net10.0`.
+`net48`, `net8.0`, `net9.0`, `net10.0`.
 The opt-in Kestrel-hosted `opc.tcp://` listener
 (`AddKestrelOpcTcpTransport()`) and the REST binding
 (`AddWebApiTransport()`) are available on `net8.0`+ only — the
 ASP.NET Core `ConnectionContext` and Minimal-API surfaces they rely
-on are not available on the .NET Framework / netstandard targets,
+on are not available on the .NET Framework targets,
 where the default raw-socket `opc.tcp` listener remains the right
 choice and REST is unavailable.
 

@@ -190,7 +190,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Interpolative,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<AggregateCalculator>());
@@ -204,7 +204,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Average,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<AverageAggregateCalculator>());
@@ -218,7 +218,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_TimeAverage,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<AverageAggregateCalculator>());
@@ -232,7 +232,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_TimeAverage2,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<AverageAggregateCalculator>());
@@ -246,7 +246,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Total,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<AverageAggregateCalculator>());
@@ -260,7 +260,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Total2,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<AverageAggregateCalculator>());
@@ -274,7 +274,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Minimum,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());
@@ -288,7 +288,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Count,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<CountAggregateCalculator>());
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Start,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StartEndAggregateCalculator>());
@@ -316,7 +316,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_StandardDeviationPopulation,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StdDevAggregateCalculator>());
@@ -330,7 +330,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_DurationGood,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StatusAggregateCalculator>());
@@ -344,7 +344,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 new NodeId(999999),
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Null);
         }
@@ -357,7 +357,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_AnnotationCount,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<CountAggregateCalculator>());
@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_DurationInStateZero,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<CountAggregateCalculator>());
@@ -385,7 +385,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_NumberOfTransitions,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<CountAggregateCalculator>());
@@ -399,7 +399,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Delta,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StartEndAggregateCalculator>());
@@ -413,7 +413,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_DeltaBounds,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StartEndAggregateCalculator>());
@@ -427,7 +427,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_VariancePopulation,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StdDevAggregateCalculator>());
@@ -441,7 +441,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_VarianceSample,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StdDevAggregateCalculator>());
@@ -455,7 +455,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_StandardDeviationSample,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StdDevAggregateCalculator>());
@@ -469,7 +469,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_WorstQuality,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StatusAggregateCalculator>());
@@ -483,7 +483,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_WorstQuality2,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StatusAggregateCalculator>());
@@ -497,7 +497,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_PercentGood,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StatusAggregateCalculator>());
@@ -511,7 +511,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_PercentBad,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StatusAggregateCalculator>());
@@ -525,7 +525,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_DurationBad,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StatusAggregateCalculator>());
@@ -603,7 +603,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_EndBound,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StartEndAggregateCalculator>());
@@ -617,7 +617,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_StartBound,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StartEndAggregateCalculator>());
@@ -631,7 +631,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_DurationInStateNonZero,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<CountAggregateCalculator>());
@@ -645,7 +645,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Minimum2,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());
@@ -659,7 +659,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Maximum2,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());
@@ -673,7 +673,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Range2,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());
@@ -687,7 +687,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_MinimumActualTime2,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());
@@ -701,7 +701,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_MaximumActualTime2,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());
@@ -756,7 +756,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Average,
-                startTime, endTime, 10000, true, m_configuration, m_telemetry);
+                startTime, endTime, 10000, true, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<AverageAggregateCalculator>());
@@ -770,7 +770,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_End,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StartEndAggregateCalculator>());
@@ -784,7 +784,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_DurationGood,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<StatusAggregateCalculator>());
@@ -798,7 +798,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_MaximumActualTime,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());
@@ -812,7 +812,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_MinimumActualTime,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());
@@ -826,7 +826,7 @@ namespace Opc.Ua.Server.Tests
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
                 ObjectIds.AggregateFunction_Maximum,
-                startTime, endTime, 10000, false, m_configuration, m_telemetry);
+                startTime, endTime, 10000, false, m_configuration, m_telemetry)!;
 
             Assert.That(calculator, Is.Not.Null);
             Assert.That(calculator, Is.InstanceOf<MinMaxAggregateCalculator>());

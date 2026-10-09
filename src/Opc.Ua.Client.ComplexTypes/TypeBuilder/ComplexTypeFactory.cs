@@ -76,7 +76,8 @@ namespace Opc.Ua.Client.ComplexTypes
         public IReadOnlyList<IType> GetTypes()
         {
             return m_moduleFactory.GetTypes()
-                .Select(t => new GeneratedType(t))
+                .Select(t => (IType)new GeneratedType(t))
+                .Concat(m_moduleFactory.GetRuntimeTypes())
                 .ToList();
         }
 

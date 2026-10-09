@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Xml;
 using Opc.Ua.Export;
 using Opc.Ua.Schema.Types;
@@ -125,7 +126,7 @@ namespace Opc.Ua.Schema.Model
             XmlQualifiedName symbolicId,
             string sourceName,
             string referenceName,
-            out NodeDesign target);
+            [NotNullWhen(true)] out NodeDesign? target);
     }
 
     /// <summary>
@@ -148,7 +149,7 @@ namespace Opc.Ua.Schema.Model
                 symbolicId,
                 sourceName,
                 referenceName,
-                out T target))
+                out T? target))
             {
                 throw new InvalidOperationException(CoreUtils.Format(
                     "The {0} reference for node {1} is not the expected type: {2}.",
@@ -173,7 +174,7 @@ namespace Opc.Ua.Schema.Model
                 symbolicId,
                 sourceName,
                 referenceName,
-                out NodeDesign target))
+                out NodeDesign? target))
             {
                 throw new InvalidOperationException(CoreUtils.Format(
                     "The {0} reference for node {1} is not valid: {2}.",
@@ -193,13 +194,13 @@ namespace Opc.Ua.Schema.Model
             XmlQualifiedName symbolicId,
             string sourceName,
             string referenceName,
-            out T target) where T : NodeDesign
+            [NotNullWhen(true)] out T? target) where T : NodeDesign
         {
             if (!validator.TryFindNode(
                 symbolicId,
                 sourceName,
                 referenceName,
-                out NodeDesign node) ||
+                out NodeDesign? node) ||
                 node is not T design)
             {
                 target = default;

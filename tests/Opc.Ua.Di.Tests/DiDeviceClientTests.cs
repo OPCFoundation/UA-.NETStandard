@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -307,6 +308,130 @@ namespace Opc.Ua.Di.Tests
             Assert.That(groups[0].NodeId, Is.EqualTo(new NodeId("group-1", 2)));
             Assert.That(groups[0].DisplayName, Is.EqualTo("VendorGroup"));
             nodeCacheMock.VerifyAll();
+        }
+
+        [Test]
+        public async Task BrowseFunctionalGroupsAsyncFollowsTheContinuationPointAsync()
+        {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            var nodeCacheMock = new Mock<INodeCache>();
+            sessionMock.SetupGet(s => s.NodeCache).Returns(nodeCacheMock.Object);
+            nodeCacheMock
+                .Setup(c => c.IsTypeOfAsync(
+                    It.IsAny<ExpandedNodeId>(),
+                    Opc.Ua.Di.ObjectTypeIds.FunctionalGroupType,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            var continuationPoint = new ByteString(new byte[] { 7 });
+            SetupFunctionalGroupBrowse(sessionMock, new BrowseResult
+            {
+                StatusCode = StatusCodes.Good,
+                ContinuationPoint = continuationPoint,
+                References = [MakeFunctionalGroup("group-1")]
+            });
+            sessionMock
+                .Setup(s => s.BrowseNextAsync(
+                    It.IsAny<RequestHeader?>(),
+                    false,
+                    It.Is<ArrayOf<ByteString>>(points => points.Count == 1 && points[0] == continuationPoint),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseNextResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results =
+                    [
+                        new BrowseResult
+                        {
+                            StatusCode = StatusCodes.Good,
+                            References = [MakeFunctionalGroup("group-2")]
+                        }
+                    ]
+                });
+
+            var client = new DiDeviceClient(
+                sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
+            var groups = new System.Collections.Generic.List<FunctionalGroupEntry>();
+            await foreach (FunctionalGroupEntry group in client.BrowseFunctionalGroupsAsync())
+            {
+                groups.Add(group);
+            }
+
+            Assert.That(
+                groups.Select(group => group.NodeId),
+                Is.EqualTo(new[] { new NodeId("group-1", 2), new NodeId("group-2", 2) }));
+        }
+
+        [Test]
+        public async Task BrowseFunctionalGroupsAsyncIsEmptyForAnUnbrowsableDeviceAsync()
+        {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            SetupFunctionalGroupBrowse(sessionMock, new BrowseResult
+            {
+                StatusCode = StatusCodes.BadNodeIdUnknown
+            });
+
+            var client = new DiDeviceClient(
+                sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
+            var groups = new System.Collections.Generic.List<FunctionalGroupEntry>();
+            await foreach (FunctionalGroupEntry group in client.BrowseFunctionalGroupsAsync())
+            {
+                groups.Add(group);
+            }
+
+            Assert.That(groups, Is.Empty);
+        }
+
+        [Test]
+        public void BrowseFunctionalGroupsAsyncPropagatesAFailedBrowseCall()
+        {
+            Mock<ISession> sessionMock = CreateSessionMock();
+            sessionMock
+                .Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ViewDescription?>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .ThrowsAsync(new ServiceResultException(StatusCodes.BadSessionIdInvalid));
+
+            var client = new DiDeviceClient(
+                sessionMock.Object, new NodeId("dev-1", 2), NullTelemetry());
+
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
+            {
+                await foreach (FunctionalGroupEntry _ in client.BrowseFunctionalGroupsAsync())
+                {
+                }
+            })!;
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+        }
+
+        private static ReferenceDescription MakeFunctionalGroup(string id)
+        {
+            return new ReferenceDescription
+            {
+                NodeId = new ExpandedNodeId(new NodeId(id, 2)),
+                DisplayName = new LocalizedText(id),
+                TypeDefinition = new ExpandedNodeId("VendorFunctionalGroupType", 2),
+                NodeClass = NodeClass.Object
+            };
+        }
+
+        private static void SetupFunctionalGroupBrowse(
+            Mock<ISession> sessionMock,
+            BrowseResult result)
+        {
+            sessionMock
+                .Setup(s => s.BrowseAsync(
+                    It.IsAny<RequestHeader?>(),
+                    It.IsAny<ViewDescription?>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<ArrayOf<BrowseDescription>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new BrowseResponse
+                {
+                    Results = [result]
+                });
         }
 
         [Test]

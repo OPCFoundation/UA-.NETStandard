@@ -127,7 +127,7 @@ namespace Opc.Ua.SourceGeneration
 
             // Detach any pre-release tag after the first '-'; the identifiers
             // themselves may contain '-' (SemVer 2.0 section 9).
-            string prerelease = null;
+            string? prerelease = null;
             int tagAt = s.IndexOf('-', StringComparison.Ordinal);
             if (tagAt >= 0)
             {
@@ -147,7 +147,7 @@ namespace Opc.Ua.SourceGeneration
             // the length makes decomposition unambiguous.
             if (parts.Length == 1 && IsAllDigits(parts[0]))
             {
-                return TryParseCondensedForm(parts[0], prerelease, out value);
+                return TryParseCondensedForm(parts[0], prerelease!, out value);
             }
 
             int major = 0;
@@ -177,7 +177,7 @@ namespace Opc.Ua.SourceGeneration
                 minor,
                 patch,
                 hasValue: true,
-                prerelease: prerelease,
+                prerelease: prerelease!,
                 revision: revision);
             return true;
         }
@@ -442,7 +442,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is SemVer v && Equals(v);
         }
@@ -516,7 +516,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static bool TryParseSlice(string source, int start, int length, out int value)
         {
-#if NET || NETSTANDARD2_1_OR_GREATER
+#if NET
             return int.TryParse(source.AsSpan(start, length), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);
 #else
             return int.TryParse(source.Substring(start, length), NumberStyles.Integer, CultureInfo.InvariantCulture, out value);

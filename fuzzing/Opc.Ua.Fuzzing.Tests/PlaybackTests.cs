@@ -59,9 +59,9 @@ namespace Opc.Ua.Fuzzing.Tests
             var injected = new FormatException("Injected parser failure.");
             FuzzableCode.InjectedFailure = injected;
 
-            AggregateException failure = Assert.Throws<AggregateException>(() => Run(file, target));
+            AggregateException failure = Assert.Throws<AggregateException>(() => Run(file, target))!;
 
-            Assert.That(failure.InnerExceptions, Has.Count.EqualTo(1));
+            Assert.That(failure!.InnerExceptions, Has.Count.EqualTo(1));
             Assert.That(failure.InnerExceptions[0].Message, Is.EqualTo($"Target {target}, input {file}"));
             Assert.That(failure.InnerExceptions[0].InnerException, Is.SameAs(injected));
             Assert.That(FuzzableCode.Invocations.Select(call => call.Target), Is.EqualTo(new[] { target }));
@@ -110,9 +110,9 @@ namespace Opc.Ua.Fuzzing.Tests
             string[] files = [first, middle, last];
 
             AggregateException failure =
-                Assert.Throws<AggregateException>(() => Run(m_inputs.DirectoryPath, target, stackTrace));
+                Assert.Throws<AggregateException>(() => Run(m_inputs.DirectoryPath, target, stackTrace))!;
 
-            Assert.That(failure.InnerExceptions, Has.Count.EqualTo(3).And.All.TypeOf<InvalidOperationException>());
+            Assert.That(failure!.InnerExceptions, Has.Count.EqualTo(3).And.All.TypeOf<InvalidOperationException>());
             Assert.That(failure.InnerExceptions.Select(exception => exception.Message),
                 Is.EqualTo(files.Select(file => $"Target {target}, input {file}")));
             Assert.That(failure.InnerExceptions.Select(exception => exception.InnerException),
@@ -150,20 +150,21 @@ namespace Opc.Ua.Fuzzing.Tests
             [
                 nameof(FuzzableCode.SpanTarget),
                 nameof(FuzzableCode.ThrowingSpanTarget),
-                nameof(FuzzableCode.HangingSpanTarget)
+                nameof(FuzzableCode.HangingSpanTarget),
+                nameof(FuzzableCode.DeepRecursionSpanTarget)
             ];
 
             AggregateException failure =
-                Assert.Throws<AggregateException>(() => Run(m_inputs.DirectoryPath, selectedTarget));
+                Assert.Throws<AggregateException>(() => Run(m_inputs.DirectoryPath, selectedTarget))!;
 
-            Assert.That(failure.InnerExceptions.Select(exception => exception.Message), Is.EqualTo(new[]
+            Assert.That(failure!.InnerExceptions.Select(exception => exception.Message), Is.EqualTo(new[]
             {
                 $"Target {nameof(FuzzableCode.ThrowingSpanTarget)}, input {first}",
                 $"Target {nameof(FuzzableCode.ThrowingSpanTarget)}, input {last}"
             }));
             Assert.That(failure.InnerExceptions.Select(exception => exception.InnerException),
                 Is.All.SameAs(FuzzableCode.InjectedFailure));
-            Assert.That(FuzzableCode.Invocations, Has.Count.EqualTo(6));
+            Assert.That(FuzzableCode.Invocations, Has.Count.EqualTo(8));
             Assert.That(FuzzableCode.Invocations.Select(call => call.Target).Distinct(), Is.EquivalentTo(targets));
             foreach (string target in targets)
             {
@@ -171,7 +172,7 @@ namespace Opc.Ua.Fuzzing.Tests
                     Is.EqualTo(new[] { new byte[] { 0x61 }, new byte[] { 0x7a } }));
                 Assert.That(m_standardOutput, Does.Contain(target + ": " + first).And.Contain(target + ": " + last));
             }
-            Assert.That(OutputLines(m_standardOutput), Has.Length.EqualTo(6));
+            Assert.That(OutputLines(m_standardOutput), Has.Length.EqualTo(8));
             Assert.That(OutputLines(m_standardError),
                 Is.EqualTo(Enumerable.Repeat(FuzzableCode.InjectedFailure.Message, 2)));
         }
@@ -201,9 +202,9 @@ namespace Opc.Ua.Fuzzing.Tests
         {
             string file = await m_inputs.WriteAsync("input", [0x41]).ConfigureAwait(false);
 
-            ArgumentException failure = Assert.Throws<ArgumentException>(() => Run(file, target));
+            ArgumentException failure = Assert.Throws<ArgumentException>(() => Run(file, target))!;
 
-            Assert.That(failure.ParamName, Is.EqualTo("target"));
+            Assert.That(failure!.ParamName, Is.EqualTo("target"));
             Assert.That(failure.Message, Does.Contain("Unknown fuzz target: " + target));
             Assert.That(FuzzableCode.Invocations, Is.Empty);
             Assert.That(m_standardOutput, Is.Empty);
@@ -216,9 +217,9 @@ namespace Opc.Ua.Fuzzing.Tests
             string file = Path.Combine(m_inputs.DirectoryPath, "missing-input");
 
             InvalidOperationException failure =
-                Assert.Throws<InvalidOperationException>(() => Run(file, nameof(FuzzableCode.SpanTarget)));
+                Assert.Throws<InvalidOperationException>(() => Run(file, nameof(FuzzableCode.SpanTarget)))!;
 
-            Assert.That(failure.Message, Is.EqualTo("Replay input contains no files: " + file));
+            Assert.That(failure!.Message, Is.EqualTo("Replay input contains no files: " + file));
             Assert.That(FuzzableCode.Invocations, Is.Empty);
             Assert.That(m_standardOutput, Is.Empty);
             Assert.That(m_standardError, Is.Empty);
@@ -231,9 +232,9 @@ namespace Opc.Ua.Fuzzing.Tests
             string pattern = Path.Combine(m_inputs.DirectoryPath, "crash-*");
 
             InvalidOperationException failure =
-                Assert.Throws<InvalidOperationException>(() => Run(pattern, nameof(FuzzableCode.SpanTarget)));
+                Assert.Throws<InvalidOperationException>(() => Run(pattern, nameof(FuzzableCode.SpanTarget)))!;
 
-            Assert.That(failure.Message, Is.EqualTo("Replay input contains no files: " + pattern));
+            Assert.That(failure!.Message, Is.EqualTo("Replay input contains no files: " + pattern));
             Assert.That(FuzzableCode.Invocations, Is.Empty);
             Assert.That(m_standardOutput, Is.Empty);
             Assert.That(m_standardError, Is.Empty);
@@ -249,9 +250,9 @@ namespace Opc.Ua.Fuzzing.Tests
             }
 
             InvalidOperationException failure = Assert.Throws<InvalidOperationException>(
-                () => Run(m_inputs.DirectoryPath, nameof(FuzzableCode.SpanTarget)));
+                () => Run(m_inputs.DirectoryPath, nameof(FuzzableCode.SpanTarget)))!;
 
-            Assert.That(failure.Message, Is.EqualTo("Replay input contains no files: " + m_inputs.DirectoryPath));
+            Assert.That(failure!.Message, Is.EqualTo("Replay input contains no files: " + m_inputs.DirectoryPath));
             Assert.That(FuzzableCode.Invocations, Is.Empty);
             Assert.That(m_standardOutput, Is.Empty);
             Assert.That(m_standardError, Is.Empty);
@@ -273,9 +274,9 @@ namespace Opc.Ua.Fuzzing.Tests
         public void NullTelemetryIsRejectedBeforeReplay()
         {
             ArgumentNullException failure = Assert.Throws<ArgumentNullException>(
-                () => Playback.Run(m_inputs.DirectoryPath, false, null, nameof(FuzzableCode.SpanTarget)));
+                () => Playback.Run(m_inputs.DirectoryPath, false, null!, nameof(FuzzableCode.SpanTarget)))!;
 
-            Assert.That(failure.ParamName, Is.EqualTo("telemetry"));
+            Assert.That(failure!.ParamName, Is.EqualTo("telemetry"));
             Assert.That(FuzzableCode.Invocations, Is.Empty);
         }
 
@@ -284,7 +285,7 @@ namespace Opc.Ua.Fuzzing.Tests
             return output.Split([Environment.NewLine], StringSplitOptions.RemoveEmptyEntries);
         }
 
-        private void Run(string input, string target = null, bool stackTrace = false)
+        private void Run(string input, string? target = null, bool stackTrace = false)
         {
             TextWriter previousOutput = Console.Out;
             TextWriter previousError = Console.Error;
@@ -312,9 +313,9 @@ namespace Opc.Ua.Fuzzing.Tests
             }
         }
 
-        private TestInputDirectory m_inputs;
-        private ITelemetryContext m_telemetry;
-        private string m_standardOutput;
-        private string m_standardError;
+        private TestInputDirectory m_inputs = null!;
+        private ITelemetryContext m_telemetry = null!;
+        private string m_standardOutput = null!;
+        private string m_standardError = null!;
     }
 }

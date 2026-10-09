@@ -115,33 +115,22 @@ namespace Opc.Ua.Sessions.Tests
             }
         }
 
-        private static void SkipIfWssUnsupported()
-        {
-            if (!HttpsTransportListener.IsWssTransportSupported)
-            {
-                Assert.Ignore(
-                    "The WSS transport listener is unavailable in this build of " +
-                    "Opc.Ua.Bindings.Https (the netstandard2.1 Kestrel hosting cannot open a " +
-                    "WebSocket listener on a modern .NET runtime).");
-            }
-        }
-
         [Test]
         public void ServerExposesWssEndpointWithSecurityNone()
         {
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             // Diagnostic dump - helps when this test fails.
-            foreach (EndpointDescription ep in endpoints.ToArray())
+            foreach (EndpointDescription ep in endpoints.ToArray()!)
             {
                 TestContext.Out.WriteLine(
                     $"  endpoint: TransportProfileUri={ep.TransportProfileUri}, " +
                     $"SecurityMode={ep.SecurityMode}, Url={ep.EndpointUrl}");
             }
             EndpointDescription none = endpoints
-                .ToArray()
+                .ToArray()!
                 .FirstOrDefault(ep =>
                     string.Equals(ep.TransportProfileUri, Profiles.UaWssTransport, StringComparison.Ordinal) &&
-                    ep.SecurityMode == MessageSecurityMode.None);
+                    ep.SecurityMode == MessageSecurityMode.None)!;
             Assert.That(none, Is.Not.Null,
                 "Reference server did not advertise an unsecured WSS endpoint - JSON sub-protocol requires SM None.");
         }
@@ -149,9 +138,8 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task AnonymousSessionOverWssBinaryOpensWithoutMutualTlsAsync()
         {
-            SkipIfWssUnsupported();
             EndpointDescription wss = m_server.GetEndpoints()
-                .ToArray()
+                .ToArray()!
                 .First(ep =>
                     string.Equals(ep.TransportProfileUri, Profiles.UaWssTransport, StringComparison.Ordinal) &&
                     ep.SecurityMode == MessageSecurityMode.None);
@@ -164,7 +152,7 @@ namespace Opc.Ua.Sessions.Tests
             // endpoint URL) so the test actually exercises the intended
             // transport profile and security mode instead of whatever the
             // fixture's default discovery/selection would otherwise pick.
-            var endpoint = new ConfiguredEndpoint(null, wss);
+            var endpoint = new ConfiguredEndpoint(null!, wss);
             using ISession session = await m_clientFixture
                 .ConnectAsync(endpoint)
                 .ConfigureAwait(false);
@@ -181,13 +169,12 @@ namespace Opc.Ua.Sessions.Tests
         [Test]
         public async Task GetEndpointsOverWssJsonReturnsServerEndpointsAsync()
         {
-            SkipIfWssUnsupported();
             // Discovery does not yet advertise the JSON sub-protocol explicitly
             // (Part 3 reverted in 469d65b0). Synthesize the JSON-targeted
             // endpoint description from the existing SM-None WSS endpoint so
             // the test still exercises the wire path end-to-end.
             EndpointDescription wssNone = m_server.GetEndpoints()
-                .ToArray()
+                .ToArray()!
                 .First(ep =>
                     string.Equals(ep.TransportProfileUri, Profiles.UaWssTransport, StringComparison.Ordinal) &&
                     ep.SecurityMode == MessageSecurityMode.None);

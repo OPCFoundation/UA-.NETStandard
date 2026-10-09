@@ -135,7 +135,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                 TimestampsToReturn.Neither,
                 [
                     new ReadValueId { NodeId = credentialId, AttributeId = Attributes.NodeClass },
-                    new ReadValueId { NodeId = credential.ResourceUri.NodeId, AttributeId = Attributes.Value }
+                    new ReadValueId { NodeId = credential.ResourceUri!.NodeId, AttributeId = Attributes.Value }
                 ]).ConfigureAwait(false);
 
             Assert.That(values, Has.Count.EqualTo(2));
@@ -164,7 +164,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.That(browsed[0].References.ToList().Select(reference => reference.NodeId),
                 Does.Contain(new ExpandedNodeId(credential.ResourceUri.NodeId)));
             Assert.That(browsed[0].References.ToList().Select(reference => reference.NodeId),
-                Does.Contain(new ExpandedNodeId(credential.UpdateCredential.NodeId)));
+                Does.Contain(new ExpandedNodeId(credential.UpdateCredential!.NodeId)));
 
             (ArrayOf<CallMethodResult> updated, _) = await m_master.CallAsync(
                 context,
@@ -183,8 +183,8 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     }
                 ]).ConfigureAwait(false);
             Assert.That(updated[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-            Server.KeyCredential stored = await m_store.GetAsync("routed-credential", CancellationToken.None)
-                .ConfigureAwait(false);
+            Server.KeyCredential stored = (await m_store.GetAsync("routed-credential", CancellationToken.None)
+                .ConfigureAwait(false))!;
             Assert.That(stored, Is.Not.Null);
             Assert.That(stored.Secret, Is.EqualTo(new byte[] { 1, 3, 5, 7 }));
 
@@ -194,7 +194,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     new CallMethodRequest
                     {
                         ObjectId = credentialId,
-                        MethodId = credential.GetEncryptingKey.NodeId,
+                        MethodId = credential.GetEncryptingKey!.NodeId,
                         InputArguments = ["routed-credential", SecurityPolicies.None]
                     }
                 ]).ConfigureAwait(false);
@@ -206,7 +206,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     new CallMethodRequest
                     {
                         ObjectId = credentialId,
-                        MethodId = credential.DeleteCredential.NodeId,
+                        MethodId = credential.DeleteCredential!.NodeId,
                         InputArguments = []
                     }
                 ]).ConfigureAwait(false);
@@ -259,7 +259,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                 context, 0, TimestampsToReturn.Neither,
                 [
                     new ReadValueId { NodeId = credentialId, AttributeId = Attributes.BrowseName },
-                    new ReadValueId { NodeId = credential.CredentialId.NodeId, AttributeId = Attributes.Value }
+                    new ReadValueId { NodeId = credential.CredentialId!.NodeId, AttributeId = Attributes.Value }
                 ]).ConfigureAwait(false);
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(values[0].WrappedValue, Is.EqualTo(new Variant(
@@ -286,8 +286,8 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             (ArrayOf<DataValue> values, _) = await m_master.ReadAsync(
                 context, 0, TimestampsToReturn.Neither,
                 [
-                    new ReadValueId { NodeId = first.ResourceUri.NodeId, AttributeId = Attributes.Value },
-                    new ReadValueId { NodeId = second.ResourceUri.NodeId, AttributeId = Attributes.Value }
+                    new ReadValueId { NodeId = first.ResourceUri!.NodeId, AttributeId = Attributes.Value },
+                    new ReadValueId { NodeId = second.ResourceUri!.NodeId, AttributeId = Attributes.Value }
                 ]).ConfigureAwait(false);
 
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -297,9 +297,9 @@ namespace Opc.Ua.Server.Tests.KeyCredential
             Assert.Multiple(() =>
             {
                 Assert.That(first.ResourceUri.NodeId, Is.Not.EqualTo(second.ResourceUri.NodeId));
-                Assert.That(first.UpdateCredential.NodeId, Is.Not.EqualTo(second.UpdateCredential.NodeId));
-                Assert.That(first.GetEncryptingKey.NodeId, Is.Not.EqualTo(second.GetEncryptingKey.NodeId));
-                Assert.That(first.DeleteCredential.NodeId, Is.Not.EqualTo(second.DeleteCredential.NodeId));
+                Assert.That(first.UpdateCredential!.NodeId, Is.Not.EqualTo(second.UpdateCredential!.NodeId));
+                Assert.That(first.GetEncryptingKey!.NodeId, Is.Not.EqualTo(second.GetEncryptingKey!.NodeId));
+                Assert.That(first.DeleteCredential!.NodeId, Is.Not.EqualTo(second.DeleteCredential!.NodeId));
                 Assert.That(first.ResourceUri.NodeId.NamespaceIndex, Is.Not.Zero);
                 Assert.That(owner.NamespaceIndexes, Does.Contain(first.ResourceUri.NodeId.NamespaceIndex));
             });
@@ -313,7 +313,7 @@ namespace Opc.Ua.Server.Tests.KeyCredential
                     new CallMethodRequest
                     {
                         ObjectId = m_folder.NodeId,
-                        MethodId = m_folder.CreateCredential.NodeId,
+                        MethodId = m_folder.CreateCredential!.NodeId,
                         InputArguments =
                         [
                             name,

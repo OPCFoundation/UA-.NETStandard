@@ -56,6 +56,11 @@ namespace Opc.Ua.Server
             m_target = target ?? throw new ArgumentNullException(nameof(target));
         }
 
+        /// <summary>
+        /// The wrapped filter target.
+        /// </summary>
+        public IFilterTarget Target => m_target;
+
         /// <inheritdoc/>
         public bool IsTypeOf(IFilterContext context, NodeId typeDefinitionId)
         {

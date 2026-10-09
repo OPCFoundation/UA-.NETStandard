@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Net;
 using System.Reflection;
@@ -74,29 +72,41 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         }
 
         [Test]
-        public void AbuseTrackerBoundsKeysAndFailsClosedUntilExpiredEntriesAreCleaned()
+        public void AbuseTrackerBoundsKeysAndFailsOpenForUntrackedClientsWhenFull()
         {
             var time = new FakeTimeProvider();
             using var tracker = new ActiveClientTracker(m_telemetry, time);
+            var offender = IPAddress.Parse("198.51.100.7");
+            for (int i = 0; i < 4; i++)
+            {
+                tracker.AddClientAction(offender);
+            }
+            Assert.That(tracker.IsBlocked(offender), Is.True);
             for (int i = 0; i < ActiveClientTracker.MaximumTrackedClients; i++)
             {
+                time.Advance(TimeSpan.FromMilliseconds(1));
                 tracker.AddClientAction(new IPAddress([10, 0, (byte)(i >> 8), (byte)i]));
             }
+
+            // A full table must not lock out addresses it has never seen.
             var unknown = IPAddress.Parse("192.0.2.1");
-            Assert.That(tracker.IsBlocked(unknown), Is.True);
-            Assert.That(tracker.IsBlocked(IPAddress.Parse("10.0.0.1")), Is.False);
-            tracker.AddClientAction(unknown);
-            Assert.That(tracker.TrackedClientCount, Is.EqualTo(ActiveClientTracker.MaximumTrackedClients));
-            time.Advance(TimeSpan.FromMinutes(10));
-            Assert.That(tracker.TrackedClientCount, Is.EqualTo(ActiveClientTracker.MaximumTrackedClients));
-            time.Advance(TimeSpan.FromSeconds(15));
-            Assert.That(tracker.TrackedClientCount, Is.Zero);
             Assert.That(tracker.IsBlocked(unknown), Is.False);
+            Assert.That(tracker.IsBlocked(IPAddress.Parse("10.0.0.1")), Is.False);
+            Assert.That(tracker.TrackedClientCount, Is.EqualTo(ActiveClientTracker.MaximumTrackedClients));
+
+            // The blocked offender is retained; new offenders evict the oldest unblocked history.
+            Assert.That(tracker.IsBlocked(offender), Is.True);
             for (int i = 0; i < 4; i++)
             {
                 tracker.AddClientAction(unknown);
             }
             Assert.That(tracker.IsBlocked(unknown), Is.True);
+            Assert.That(tracker.IsBlocked(offender), Is.True);
+            Assert.That(tracker.TrackedClientCount, Is.EqualTo(ActiveClientTracker.MaximumTrackedClients));
+
+            time.Advance(TimeSpan.FromMinutes(10) + TimeSpan.FromSeconds(15));
+            Assert.That(tracker.TrackedClientCount, Is.Zero);
+            Assert.That(tracker.IsBlocked(unknown), Is.False);
         }
 
         [Test]

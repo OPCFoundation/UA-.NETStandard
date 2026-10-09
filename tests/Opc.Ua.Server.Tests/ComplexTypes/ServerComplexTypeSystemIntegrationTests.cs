@@ -30,6 +30,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client;
@@ -122,7 +123,7 @@ namespace Opc.Ua.Server.Tests
             {
                 await m_session.CloseAsync().ConfigureAwait(false);
                 m_session.Dispose();
-                m_session = null;
+                m_session = null!;
             }
 
             m_clientFixture?.Dispose();
@@ -170,7 +171,7 @@ namespace Opc.Ua.Server.Tests
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    server.Factory.TryGetEncodeableType(structureTypeId, out IEncodeableType structType),
+                    server.Factory.TryGetEncodeableType(structureTypeId, out IEncodeableType? structType),
                     Is.True,
                     "the runtime TestPoint structure should be registered in the server factory");
                 Assert.That(structType, Is.Not.Null);
@@ -181,7 +182,7 @@ namespace Opc.Ua.Server.Tests
                     "the TestPoint binary encoding id should resolve to the structure stand-in");
 
                 Assert.That(
-                    server.Factory.TryGetEnumeratedType(enumTypeId, out IEnumeratedType enumType),
+                    server.Factory.TryGetEnumeratedType(enumTypeId, out IEnumeratedType? enumType),
                     Is.True,
                     "the runtime TestColor enumeration should be registered in the server factory");
                 Assert.That(enumType, Is.Not.Null);
@@ -282,12 +283,83 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
+        /// A runtime structure subtype whose NodeSet Definition lists only its own
+        /// field is served with the inherited fields first (Part 3 8.48), so the
+        /// server stand-in and the client complex type agree on the full layout
+        /// and the value round-trips.
+        /// </summary>
+        [Test]
+        [Order(500)]
+        public async Task ClientReadsAndWritesRuntimeStructureSubtypeValue()
+        {
+            NodeId dataTypeId = ClientNodeId(ServerComplexTypesTestNodeManager.TestPoint3DDataType);
+            ReadResponse readResponse = await m_session.ReadAsync(
+                null,
+                0,
+                TimestampsToReturn.Neither,
+                [new ReadValueId { NodeId = dataTypeId, AttributeId = Attributes.DataTypeDefinition }],
+                default).ConfigureAwait(false);
+            DataValue definitionValue = readResponse.Results[0];
+            Assert.That(definitionValue.WrappedValue.TryGetValue(out ExtensionObject definitionBody), Is.True);
+            Assert.That(definitionBody.TryGetValue(out StructureDefinition? definition), Is.True);
+            Assert.That(
+                string.Join(",", definition!.Fields.ToArray()!.Select(field => field.Name)),
+                Is.EqualTo("X,Y,Name,Z"));
+            Assert.That(
+                definition.DefaultEncodingId,
+                Is.EqualTo(ClientNodeId(ServerComplexTypesTestNodeManager.TestPoint3DBinaryEncoding)));
+
+            NodeId nodeId = ClientNodeId(ServerComplexTypesTestNodeManager.Point3DValueVariable);
+            DataValue dataValue = await m_session.ReadValueAsync(nodeId).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(dataValue.StatusCode), Is.True);
+            IStructure point = ReadStructure(dataValue);
+            Assert.Multiple(() =>
+            {
+                Assert.That(point["X"].TryGetValue(out int x), Is.True);
+                Assert.That(x, Is.EqualTo(1));
+                Assert.That(point["Name"].TryGetValue(out string name), Is.True);
+                Assert.That(name, Is.EqualTo("corner"));
+                Assert.That(point["Z"].TryGetValue(out int z), Is.True);
+                Assert.That(z, Is.EqualTo(5));
+            });
+
+            point["Y"] = new Variant(20);
+            point["Z"] = new Variant(50);
+            WriteResponse response = await m_session
+                .WriteAsync(
+                    null,
+                    [
+                        new WriteValue
+                        {
+                            NodeId = nodeId,
+                            AttributeId = Attributes.Value,
+                            Value = new DataValue(dataValue.WrappedValue)
+                        }
+                    ],
+                    default)
+                .ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(response.Results[0]), Is.True);
+
+            IStructure updated = ReadStructure(
+                await m_session.ReadValueAsync(nodeId).ConfigureAwait(false));
+            Assert.Multiple(() =>
+            {
+                Assert.That(updated["Y"].TryGetValue(out int y), Is.True);
+                Assert.That(y, Is.EqualTo(20));
+                Assert.That(updated["Z"].TryGetValue(out int z), Is.True);
+                Assert.That(z, Is.EqualTo(50));
+                Assert.That(updated["Name"].TryGetValue(out string name), Is.True);
+                Assert.That(name, Is.EqualTo("corner"));
+            });
+        }
+
+        /// <summary>
         /// Extracts the decoded structured value from a read <see cref="DataValue"/>.
         /// </summary>
         private static IStructure ReadStructure(DataValue dataValue)
         {
             Assert.That(dataValue.WrappedValue.TryGetValue(out ExtensionObject extensionObject), Is.True);
-            Assert.That(extensionObject.TryGetValue(out IEncodeable encodeable), Is.True);
+            Assert.That(extensionObject.TryGetValue(out IEncodeable? encodeable), Is.True);
             var structure = encodeable as IStructure;
             Assert.That(structure, Is.Not.Null, "the decoded value should be a complex structure");
             return structure;

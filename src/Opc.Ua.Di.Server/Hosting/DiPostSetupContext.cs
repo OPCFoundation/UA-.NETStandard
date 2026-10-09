@@ -64,6 +64,11 @@ namespace Opc.Ua.Di.Server.Hosting
             return (T)svc;
         }
 
+        public T? GetService<T>() where T : class
+        {
+            return m_services.GetService(typeof(T)) as T;
+        }
+
         public ValueTask<IDeviceBuilder<DeviceState>> CreateDeviceAsync(
             QualifiedName browseName,
             NodeState? parent = null)

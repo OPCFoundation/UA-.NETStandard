@@ -163,20 +163,20 @@ namespace Opc.Ua.Core.Security.Tests
             NodeId expectedEventType,
             Func<Task> trigger)
         {
-            await AssertAuditEventFiresAsync(expectedEventType, trigger, null).ConfigureAwait(false);
+            await AssertAuditEventFiresAsync(expectedEventType, trigger, null!).ConfigureAwait(false);
         }
 
         /// <summary>
-        /// Regression for the CTT "Auditing Connections" unit: the CTT's main
-        /// session authenticates as <c>user1</c> (role AuthenticatedUser), so
-        /// audit events must reach an AuthenticatedUser subscription — not only
-        /// SecurityAdmin. Per Part 3 §8.55 delivery requires ReceiveEvents on the
-        /// event type (an ObjectType, universally accessible) and on the Server
-        /// source node (granted to AuthenticatedUser in CTT mode). This test
-        /// asserts the AuditCreateSession event is actually received by user1.
+        /// Part 3 §8.55 ReceiveEvents: an event is delivered only if the bit is
+        /// set on the EventType node and on the SourceNode. The ns0 NodeSet
+        /// grants ReceiveEvents on AuditEventType and its subtypes only to
+        /// SecurityAdmin, so a SecurityAdmin subscription over an encrypted
+        /// channel must receive the AuditCreateSession event. (The CTT "Auditing
+        /// Connections" unit therefore needs a user with the SecurityAdmin role,
+        /// e.g. sysadmin, for its auditing session.)
         /// </summary>
         [Test]
-        public async Task AuditEventDeliveredToAuthenticatedUserAsync()
+        public async Task AuditEventDeliveredToSecurityAdminAsync()
         {
             bool seen = await MonitorAuditEventAsync(
                 ObjectTypeIds.AuditCreateSessionEventType,
@@ -188,13 +188,59 @@ namespace Opc.Ua.Core.Security.Tests
                 },
                 () => OpenAuxSessionAsync(
                     SecurityPolicies.Basic256Sha256,
-                    new UserIdentity("user1", "password"u8))).ConfigureAwait(false);
+                    new UserIdentity("sysadmin", "demo"u8))).ConfigureAwait(false);
 
             Assert.That(
                 seen,
                 Is.True,
-                "An AuthenticatedUser (user1) subscription must receive audit events " +
-                "(CTT Auditing Connections connects as user1).");
+                "A SecurityAdmin (sysadmin) subscription must receive audit events.");
+        }
+
+        /// <summary>
+        /// Part 3 §8.55 ReceiveEvents on the EventType node: Anonymous and
+        /// AuthenticatedUser have no ReceiveEvents on AuditEventType (ns0 grants
+        /// Anonymous only Browse and Read), so their subscriptions on the Server
+        /// object must not receive audit events, while event types without
+        /// RolePermissions (RefreshStartEventType/RefreshEndEventType raised by
+        /// ConditionRefresh) are still delivered.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AuditEventNotDeliveredWithoutReceiveEventsPermissionAsync(bool authenticated)
+        {
+            IUserIdentity identity = (authenticated
+                ? new UserIdentity("user1", "password"u8)
+                : null)!;
+            List<NodeId> eventTypes = await ObserveEventsAsync(
+                async (session, subscriptionId) =>
+                {
+                    ISession s = await OpenAuxSessionAsync().ConfigureAwait(false);
+                    await s.CloseAsync(2000, true, CancellationToken.None).ConfigureAwait(false);
+                    s.Dispose();
+
+                    // ConditionRefresh is a Method of an ObjectType without RolePermissions,
+                    // so any session may call it; it raises RefreshStart/RefreshEnd events.
+                    await Opc.Ua.Client.SessionClientExtensions.CallAsync(
+                        session,
+                        ObjectTypeIds.ConditionType,
+                        MethodIds.ConditionType_ConditionRefresh,
+                        CancellationToken.None,
+                        new Variant(subscriptionId)).ConfigureAwait(false);
+                },
+                () => OpenAuxSessionAsync(SecurityPolicies.Basic256Sha256, identity!),
+                (_, eventType) => Task.FromResult(eventType == ObjectTypeIds.RefreshEndEventType))
+                .ConfigureAwait(false);
+
+            Assert.That(eventTypes, Does.Contain(ObjectTypeIds.RefreshEndEventType),
+                "Events whose type carries no RolePermissions must still be delivered.");
+            foreach (NodeId eventType in eventTypes)
+            {
+                Assert.That(
+                    await NodeIdMatchesTypeAsync(Session, eventType, ObjectTypeIds.AuditEventType)
+                        .ConfigureAwait(false),
+                    Is.False,
+                    $"Audit event {eventType} must not be delivered without ReceiveEvents.");
+            }
         }
 
         private async Task AssertAuditEventFiresAsync(
@@ -224,6 +270,30 @@ namespace Opc.Ua.Core.Security.Tests
             Func<Task> trigger,
             Func<Task<ISession>> monitorSessionFactory)
         {
+            bool seen = false;
+            await ObserveEventsAsync(
+                (_, _) => trigger(),
+                monitorSessionFactory,
+                async (session, eventType) => seen =
+                    await NodeIdMatchesTypeAsync(session, eventType, expectedEventType)
+                        .ConfigureAwait(false)).ConfigureAwait(false);
+            return seen;
+        }
+
+        /// <summary>
+        /// Pre-subscribes to events on Server.EventNotifier using the session
+        /// returned by <paramref name="monitorSessionFactory"/> (defaulting to a
+        /// SecurityAdmin session), runs <paramref name="trigger"/> with the monitoring
+        /// session and subscription id, then polls Publish for up to 5s until
+        /// <paramref name="stopWhen"/> returns true for a received EventType.
+        /// Returns the EventTypes of all received events.
+        /// </summary>
+        private async Task<List<NodeId>> ObserveEventsAsync(
+            Func<ISession, uint, Task> trigger,
+            Func<Task<ISession>> monitorSessionFactory,
+            Func<ISession, NodeId, Task<bool>> stopWhen)
+        {
+            var received = new List<NodeId>();
             ISession adminSession = await (monitorSessionFactory ?? ConnectAsSysAdminAsync)()
                 .ConfigureAwait(false);
             ISession session = adminSession ?? Session;
@@ -279,7 +349,7 @@ namespace Opc.Ua.Core.Security.Tests
                     }
 
                     // Trigger the operation that should fire an audit event.
-                    await trigger().ConfigureAwait(false);
+                    await trigger(session, subscriptionId).ConfigureAwait(false);
 
                     // Poll Publish for up to 5 seconds looking for the event type.
                     DateTime deadline = DateTime.UtcNow.AddSeconds(5);
@@ -303,7 +373,7 @@ namespace Opc.Ua.Core.Security.Tests
                         var candidateEventTypes = new List<NodeId>();
                         foreach (ExtensionObject notification in pubResp.NotificationMessage.NotificationData)
                         {
-                            if (notification.TryGetValue(out EventNotificationList eventList))
+                            if (notification.TryGetValue(out EventNotificationList? eventList))
                             {
                                 foreach (EventFieldList ef in eventList.Events)
                                 {
@@ -316,9 +386,10 @@ namespace Opc.Ua.Core.Security.Tests
                             }
                         }
 
+                        received.AddRange(candidateEventTypes);
                         foreach (NodeId eventType in candidateEventTypes)
                         {
-                            if (await NodeIdMatchesTypeAsync(session, eventType, expectedEventType).ConfigureAwait(false))
+                            if (await stopWhen(session, eventType).ConfigureAwait(false))
                             {
                                 seen = true;
                                 break;
@@ -326,7 +397,7 @@ namespace Opc.Ua.Core.Security.Tests
                         }
                     }
 
-                    return seen;
+                    return received;
                 }
                 finally
                 {

@@ -106,7 +106,7 @@ namespace Opc.Ua.SourceGeneration
         public void ScanReturnsEmptyWhenNullCompilation()
         {
             ImmutableArray<ModelDependencyReference> result =
-                ReferencedModelDependencyScanner.Scan(null);
+                ReferencedModelDependencyScanner.Scan(null!);
 
             Assert.That(result, Is.Empty);
         }
@@ -481,7 +481,7 @@ namespace Opc.Ua.SourceGeneration
                 "TransitiveReexport",
                 prefix: "DemoModel.Transitive",
                 version: "999.0",
-                payload: null);
+                payload: null!);
 
             (GeneratorRunResult normalResult, _, ImmutableArray<Diagnostic> normalDiagnostics) = RunFluentAccessorsOnly(
                 s_producerWithoutAccessors.Value,
@@ -602,7 +602,7 @@ namespace Opc.Ua.SourceGeneration
         public void FluentAccessorsOnlyRejectsMissingReferencedModel()
         {
             (GeneratorRunResult result, _, ImmutableArray<Diagnostic> diagnostics) =
-                RunFluentAccessorsOnly(producer: null, includeDiNodeSet: true);
+                RunFluentAccessorsOnly(producer: null!, includeDiNodeSet: true);
 
             Diagnostic[] modelDiagnostics =
                 [.. diagnostics.Where(d => d.Id == "MODELGEN014")];
@@ -667,10 +667,10 @@ namespace Opc.Ua.SourceGeneration
         private static (GeneratorRunResult Result, Compilation OutputCompilation,
             ImmutableArray<Diagnostic> Diagnostics) RunFluentAccessorsOnly(
                 CSharpCompilation producer,
-                string consumerPrefix = null,
+                string? consumerPrefix = null,
                 bool includeDiNodeSet = false,
-                IReadOnlyDictionary<string, string> optionOverrides = null,
-                IReadOnlyList<MetadataReference> additionalReferences = null,
+                IReadOnlyDictionary<string, string>? optionOverrides = null,
+                IReadOnlyList<MetadataReference>? additionalReferences = null,
                 bool fluentAccessorsOnly = true,
                 string assemblyName = "Consumer")
         {
@@ -859,7 +859,7 @@ namespace Opc.Ua.SourceGeneration
                     .WithLanguageVersion(LanguageVersion.CSharp11))
                 .AddAdditionalTexts(
                 [
-                    CreateRoboticsModelText("Opc.Ua.IA.NodeSet2.xml"),
+                    CreateModelText("Opc.Ua.IA", "Opc.Ua.IA.NodeSet2.xml"),
                     CreateRoboticsModelText("Opc.Ua.Robotics.NodeSet2.xml")
                 ])
                 .WithUpdatedAnalyzerConfigOptions(options);
@@ -927,11 +927,22 @@ namespace Opc.Ua.SourceGeneration
 
         private static StringAdditionalText CreateRoboticsModelText(string fileName)
         {
+            return CreateModelText("Opc.Ua.Robotics", fileName);
+        }
+
+        /// <summary>
+        /// Reads a NodeSet from the model folder of the project that owns it.
+        /// IA used to sit in Opc.Ua.Robotics; it moved to its own assembly when
+        /// OPC 40001-1 Machinery started needing it as well, so the project name
+        /// is a parameter rather than a constant.
+        /// </summary>
+        private static StringAdditionalText CreateModelText(string projectName, string fileName)
+        {
             string repositoryRoot = FindRepositoryRoot();
             string path = Path.Combine(
                 repositoryRoot,
                 "src",
-                "Opc.Ua.Robotics",
+                projectName,
                 "Model",
                 fileName);
             return new StringAdditionalText(fileName, File.ReadAllText(path));
@@ -1115,14 +1126,6 @@ namespace Opc.Ua.SourceGeneration
                 ?? throw new InvalidOperationException("Test assembly directory was not found.");
             var directory = new DirectoryInfo(assemblyDirectory);
             string targetFramework = directory.Name;
-#if NET_STANDARD_TESTS
-            // TFM skew: this test assembly is compiled as net8.0, but on the
-            // .NETStandard 2.1 test leg the stack (Opc.Ua.Server and its
-            // dependencies) is compiled as netstandard2.1. Resolve the stack
-            // references from the netstandard2.1 output rather than the test's
-            // own target framework folder, which does not exist on that leg.
-            targetFramework = "netstandard2.1";
-#endif
             string configuration = directory.Parent?.Name
                 ?? throw new InvalidOperationException("Test configuration directory was not found.");
             for (int i = 0; i < 5; i++)
@@ -1155,27 +1158,23 @@ namespace Opc.Ua.SourceGeneration
             }
 
             // The Opc.Ua.Server project may be built for a different target framework
-            // than the test assembly (e.g. netstandard2.1 while the tests run as net8.0).
-            // Probe the actual bin folder for whichever TFM subfolder exists instead of
-            // assuming the test's TFM. Prefer an exact match, then well-known fallbacks.
+            // than the test assembly. Probe the actual bin folder for whichever TFM
+            // subfolder exists instead of assuming the test's TFM. Prefer an exact match,
+            // then the most recently built output.
             var candidates = Directory
                 .EnumerateDirectories(serverBin)
                 .Select(path => new DirectoryInfo(path))
                 .ToList();
 
             DirectoryInfo match =
-                candidates.Find(d => string.Equals(
+                (candidates.Find(d => string.Equals(
                     d.Name, testTargetFramework, StringComparison.OrdinalIgnoreCase))
-                ?? candidates.Find(d => string.Equals(
-                    d.Name, "netstandard2.1", StringComparison.OrdinalIgnoreCase))
-                ?? candidates.Find(d => string.Equals(
-                    d.Name, "netstandard2.0", StringComparison.OrdinalIgnoreCase))
                 ?? candidates
                     .Select(d => new FileInfo(Path.Combine(d.FullName, "Opc.Ua.Server.dll")))
                     .Where(f => f.Exists)
                     .OrderByDescending(f => f.LastWriteTimeUtc)
                     .Select(f => f.Directory)
-                    .FirstOrDefault();
+                    .FirstOrDefault())!;
 
             if (match == null)
             {

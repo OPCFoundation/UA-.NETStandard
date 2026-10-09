@@ -1,0 +1,32 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).Scales.Client</AssemblyName>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.Scales.Client</PackageId>
+    <RootNamespace>Opc.Ua.Scales.Client</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Description>Client-side helpers for the OPC 40200 Weighing Technology (Scales) companion specification: discover scales and scale systems below the DI DeviceSet and the Machinery Machines folder, read the current and registered weight, identification and weighing ranges, zero, tare and register weights, manage and select products, drive the PackML state machine and the type-specific methods, observe scale events and alarms, and take a full scale snapshot in one pass.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.Scales.Tests" />
+  </ItemGroup>
+  <!-- Opc.Ua.Machinery.Client is deliberately not referenced, as in
+       Opc.Ua.Pumps.Client: it would pull ISA-95 Job Control, process values,
+       energy and result transfer into every weighing client. The DI topology
+       client is referenced because scale discovery starts at the DeviceSet. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Scales\Opc.Ua.Scales.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

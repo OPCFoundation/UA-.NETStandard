@@ -27,13 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Buffers;
 using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Net;
 using System.Net.Sockets;
 using System.Security.Cryptography;
@@ -176,6 +175,51 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             Assert.That(result.ToString(), Does.Contain("expired"));
         }
 
+        /// <summary>
+        /// OPC 10000-6 §7.1.2.5: the Reason "shall not be more than 4096 bytes", so a reason of exactly 4096
+        /// bytes is kept and a longer one is replaced by the status text.
+        /// </summary>
+        [TestCase(TcpMessageLimits.MaxErrorReasonLength, true)]
+        [TestCase(TcpMessageLimits.MaxErrorReasonLength + 1, false)]
+        public void ReadErrorMessageBodyKeepsReasonUpToTheLimit(int reasonLength, bool kept)
+        {
+            string reason = new('r', reasonLength);
+            byte[] body = BuildErrorBody((uint)StatusCodes.BadCertificateTimeInvalid, reason);
+            using var decoder = new BinaryDecoder(body, m_context);
+
+            ServiceResult result = TestClientChannel.CallReadErrorMessageBody(decoder);
+
+            Assert.That(result.ToString(), kept ? Does.Contain(reason) : Does.Not.Contain(reason));
+        }
+
+        /// <summary>
+        /// OPC 10000-6 §7.1.2.5: an over-long reason is truncated to at most 4096 UTF-8 bytes without splitting a
+        /// surrogate pair.
+        /// </summary>
+        [Test]
+        public void WriteErrorMessageBodyTruncatesReasonOnAScalarBoundary()
+        {
+            string reason = new string('a', 4093) + string.Concat(Enumerable.Repeat("\U0001F600", 10));
+            var error = new ServiceResult(StatusCodes.BadTcpInternalError, new LocalizedText(reason));
+            byte[] buffer = new byte[8192];
+            int size;
+            using (var stream = new MemoryStream(buffer, 0, buffer.Length))
+            using (var encoder = new BinaryEncoder(stream, m_context, false))
+            {
+                TestClientChannel.CallWriteErrorMessageBody(encoder, error);
+                size = encoder.Close();
+            }
+
+            int reasonLength = BitConverter.ToInt32(buffer, 4);
+            Assert.That(reasonLength, Is.EqualTo(4093));
+            Assert.That(size, Is.EqualTo(8 + reasonLength));
+            Assert.That(Encoding.UTF8.GetString(buffer, 8, reasonLength), Is.EqualTo(new string('a', 4093)));
+
+            Assert.That(
+                UaSCUaBinaryChannel.TruncateUtf8(new string('a', 4092) + "\U0001F600\U0001F600", 4096),
+                Is.EqualTo(new string('a', 4092) + "\U0001F600"));
+        }
+
         [Test]
         public void WriteThenReadErrorMessageBodyRoundTripsStatusCode()
         {
@@ -308,6 +352,65 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 "the parsed sender chain must be disposed when the receiver thumbprint is absent.");
         }
 
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.3: the SenderCertificate is null when the message is not signed, so a certificate on
+        /// an unsigned (SecurityPolicy None) OpenSecureChannel is discarded without being parsed.
+        /// </summary>
+        [Test]
+        public void ReadAsymmetricMessageHeaderDiscardsSenderCertificateOfUnsignedMessage()
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+
+            using Certificate sender = CreateSmallCertificate();
+            byte[] header = BuildAsymmetricHeader(
+                SecurityPolicies.None,
+                sender.RawData,
+                new byte[TcpMessageLimits.CertificateThumbprintSize]);
+
+            (_, CertificateCollection? senderChain, string securityPolicyUri) =
+                channel.CallReadAsymmetricMessageHeader(new ArraySegment<byte>(header), null);
+
+            Assert.That(securityPolicyUri, Is.EqualTo(SecurityPolicies.None));
+            Assert.That(senderChain, Is.Null);
+            Assert.That(channel.ParsedSenderChain, Is.Null);
+        }
+
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.3: the SecurityPolicyUriLength "shall not exceed 255 bytes".
+        /// </summary>
+        [TestCase(255, true)]
+        [TestCase(256, false)]
+        public void ReadAsymmetricMessageHeaderLimitsSecurityPolicyUriTo255Bytes(int length, bool parsed)
+        {
+            var factory = new RecordingByteTransportFactory();
+            using var channel = new TestClientChannel(
+                m_buffers,
+                factory,
+                m_quotas,
+                null,
+                BuildEndpoint(MessageSecurityMode.None, SecurityPolicies.None),
+                m_telemetry,
+                new FakeTimeProvider());
+            const string prefix = "http://opcfoundation.org/UA/SecurityPolicy#";
+            string securityPolicyUri = prefix + new string('x', length - prefix.Length);
+            byte[] header = BuildAsymmetricHeader(securityPolicyUri, [], []);
+
+            // 255 bytes are parsed and then fail the (missing) sender certificate check.
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => channel.CallReadAsymmetricMessageHeader(new ArraySegment<byte>(header), null))!;
+            Assert.That(
+                ex.StatusCode,
+                Is.EqualTo(parsed ? StatusCodes.BadCertificateInvalid : StatusCodes.BadSecurityChecksFailed));
+        }
+
         [Test]
         public void VerifyMessageTypeWithWrongTypeThrowsBadTcpMessageTypeInvalid()
         {
@@ -318,6 +421,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 () => TestClientChannel.CallVerifyMessageTypeAndSize(
                     decoder, TcpMessageType.Acknowledge, header.Length))!;
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
+            Assert.That(
+                ex.Message,
+                Does.Contain(Utils.Format("{0:X8} instead of {1:X8}", TcpMessageType.Acknowledge, TcpMessageType.Error)));
         }
 
         [Test]
@@ -537,8 +643,25 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         {
             ServiceResultException ex = await RunHandshakeToFaultAsync(
                 channel => channel.FeedIncomingMessageAsync(
-                    TcpMessageType.Open,
-                    new ArraySegment<byte>(BuildChunk(TcpMessageType.Open, _ => { }))))
+                    TcpMessageType.Open | TcpMessageType.Final,
+                    new ArraySegment<byte>(BuildChunk(TcpMessageType.Open | TcpMessageType.Final, _ => { }))))
+                .ConfigureAwait(false);
+
+            Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
+        }
+
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.2: OpenSecureChannel and CloseSecureChannel messages are always a single final chunk.
+        /// </summary>
+        [TestCase(TcpMessageType.Open | TcpMessageType.Intermediate)]
+        [TestCase(TcpMessageType.Open | TcpMessageType.Abort)]
+        [TestCase(TcpMessageType.Close | TcpMessageType.Intermediate)]
+        public async Task ConnectAsyncFaultsOnNonFinalOpenOrCloseChunkAsync(uint messageType)
+        {
+            ServiceResultException ex = await RunHandshakeToFaultAsync(
+                channel => channel.FeedIncomingMessageAsync(
+                    messageType,
+                    new ArraySegment<byte>(BuildChunk(messageType, _ => { }))))
                 .ConfigureAwait(false);
 
             Assert.That(ex.StatusCode, Is.EqualTo((uint)StatusCodes.BadTcpMessageTypeInvalid));
@@ -781,7 +904,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
 
         private byte[] BuildErrorBody(uint statusCode, string reason)
         {
-            byte[] buffer = new byte[512];
+            byte[] buffer = new byte[Encoding.UTF8.GetByteCount(reason) + 16];
             int size;
             using (var stream = new MemoryStream(buffer, 0, buffer.Length))
             using (var encoder = new BinaryEncoder(stream, m_context, false))

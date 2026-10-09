@@ -58,8 +58,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var manager = new BlockingNodeManager(NewServer());
             var cancellation = new CancellationTokenSource();
             Task first = WriteAsync(manager, CancellationToken.None);
-            Task queued = null;
-            Task disposal = null;
+            Task? queued = null;
+            Task? disposal = null;
             try
             {
                 await manager.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -111,7 +111,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 : new BlockingNodeManager(server);
             SemaphoreSlim gate = ReadGate(manager, field, diagnostics);
             await gate.WaitAsync().ConfigureAwait(false);
-            Task disposal = null;
+            Task? disposal = null;
             try
             {
                 disposal = DisposeAsync(manager);
@@ -149,7 +149,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Assert.That(disposal.IsCompleted, Is.False);
                 gate.Release();
-                ObjectDisposedException failure = null;
+                ObjectDisposedException? failure = null;
                 try
                 {
                     await queued.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new ApplicationConfiguration { ServerConfiguration = new() },
                 null, new IAsyncNodeManager[] { child });
             Task operation = WriteAsync(child, CancellationToken.None);
-            Task disposal = null;
+            Task? disposal = null;
             try
             {
                 await child.Entered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -311,7 +311,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 Entered.TrySetResult(true);
                 await Release.Task.WaitAsync(cancellationToken).ConfigureAwait(false);
-                return null;
+                return null!;
             }
         }
     }

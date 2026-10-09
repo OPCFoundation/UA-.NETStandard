@@ -72,6 +72,20 @@ namespace Opc.Ua.PubSub.MetaData
             m_logger = (ILogger?)logger ?? Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
         }
 
+        /// <summary>
+        /// Default for <see cref="MaxEntries"/>: one entry per possible
+        /// DataSetWriterId.
+        /// </summary>
+        public const int DefaultMaxEntries = ushort.MaxValue;
+
+        /// <summary>
+        /// Maximum number of distinct identities the registry holds.
+        /// <see cref="Register"/> refuses to add a new identity once the
+        /// limit is reached (replacing an existing identity is always
+        /// allowed). Zero or less disables the limit.
+        /// </summary>
+        public int MaxEntries { get; init; } = DefaultMaxEntries;
+
         /// <inheritdoc/>
         public event EventHandler<DataSetMetaDataChangedEventArgs>? MetaDataChanged;
 
@@ -170,6 +184,9 @@ namespace Opc.Ua.PubSub.MetaData
         }
 
         /// <inheritdoc/>
+        /// <exception cref="InvalidOperationException">The identity is new
+        /// and the registry already holds <see cref="MaxEntries"/>
+        /// entries.</exception>
         public void Register(in DataSetMetaDataKey key, DataSetMetaDataType metaData)
         {
             if (metaData is null)
@@ -181,7 +198,15 @@ namespace Opc.Ua.PubSub.MetaData
             DataSetMetaDataChangedEventArgs? evt;
             lock (m_lock)
             {
-                m_entries.TryGetValue(identity, out RegisteredEntry existing);
+                if (!m_entries.TryGetValue(identity, out RegisteredEntry existing) &&
+                    MaxEntries > 0 &&
+                    m_entries.Count >= MaxEntries)
+                {
+                    throw new InvalidOperationException(
+                        "The DataSetMetaData registry is full (MaxEntries " +
+                        MaxEntries.ToString(System.Globalization.CultureInfo.InvariantCulture) +
+                        ").");
+                }
                 m_entries[identity] = new RegisteredEntry(key, metaData);
                 evt = new DataSetMetaDataChangedEventArgs(key, existing.MetaData, metaData);
             }

@@ -166,10 +166,13 @@ public sealed class MyHttpWotAssetProvider : IWotAssetProvider
 
 A TD `events` entry (OPC 10100-1 §6.3.10) materializes as a
 non-abstract `BaseEventType` subtype whose event fields come from the
-event's `data` schema. The asset object becomes an event notifier and
-gains a `GeneratesEvent` reference to the materialized type, so a client
-subscribing to the asset — or to the Server object — receives every
-occurrence.
+event's `data` schema. The asset object becomes an event notifier
+(`EventNotifier = SubscribeToEvents`) and is registered as a root notifier,
+so a client subscribing to the asset — or to the Server object — receives
+every occurrence. The asset is a plain `BaseObjectType` instance, so it does
+not carry a `GeneratesEvent` reference to the materialized type: OPC 10000-3
+§7.15 allows only ObjectTypes, VariableTypes and Methods as the source of
+that reference.
 
 ```jsonc
 "events": {
@@ -744,7 +747,7 @@ Behaviours:
 
 ### 11.4 Binder integration seam
 
-`IWotBinderRegistry` is the runtime-neutral seam the coordinator uses during Prepare/Activate/Deactivate. `WotProtocolBinderRegistry` implements that seam and `IWotBindingChannelFactory`, compiling immutable plans from the registered binders and opening channels through independently registered executors. The base `Opc.Ua.WotCon.Bindings` package ships all eight planners and bundles HTTP, Modbus TCP, and OPC UA executors on `net8.0`, `net9.0`, and `net10.0`; MQTT remains in `Opc.Ua.WotCon.Bindings.Mqtt`. The base package retains the full `net472;net48;netstandard2.1;net8.0;net9.0;net10.0` matrix, where planner-only validation remains available even when concrete executor namespaces are not compiled.
+`IWotBinderRegistry` is the runtime-neutral seam the coordinator uses during Prepare/Activate/Deactivate. `WotProtocolBinderRegistry` implements that seam and `IWotBindingChannelFactory`, compiling immutable plans from the registered binders and opening channels through independently registered executors. The base `Opc.Ua.WotCon.Bindings` package ships all eight planners and bundles HTTP, Modbus TCP, and OPC UA executors on `net8.0`, `net9.0`, and `net10.0`; MQTT remains in `Opc.Ua.WotCon.Bindings.Mqtt`. The base package retains the full `net48;net8.0;net9.0;net10.0` matrix, where planner-only validation remains available even when concrete executor namespaces are not compiled.
 
 The generic projection runtime is implemented in `Opc.Ua.WotCon.Server.Materialization`. It resolves affordance-level OPC 10101 target mappings against freshly imported runtime NodeSets, wires async read/write handlers, opens one lazy channel per compiled form per generation, lets local monitored items sample the same read handler, supports reflection-free structured field mapping, and disposes channels with their owning generation. Updates use shadow reload, so existing monitored items keep the retired generation alive until they drain while new reads and monitored items use the replacement generation.
 
@@ -1187,13 +1190,19 @@ existing Nodes; they do not become event sources. Their `EventNotifier` is
 `None`, and materialization does not synthesize `GeneratesEvent` from a View or
 group to the event affordances it organizes. This matters to consumers because a
 subscription on a View or group is not enough to receive events. Event delivery
-still depends on the Object that actually carries `GeneratesEvent` and on an
-event-producing runtime path behind that Object.
+still depends on the Object that is the event notifier, on the type that
+declares the events it generates, and on an event-producing runtime path behind
+that Object.
 
 The aggregation sample declares both pumps, management Methods, and alarm
 EventTypes in its source NodeSet before generating the linked documents.
-Each pump carries `GeneratesEvent` references and is the notifier clients
-subscribe to. The generic runtime publishes selected upstream occurrences and
+Each pump is the notifier clients subscribe to (`EventNotifier="1"`). OPC
+10000-3 §7.15 lets only an ObjectType, a VariableType or a Method be the source
+of `GeneratesEvent`, so the pump Object does not carry it. Each pump is typed by
+its own subtype of the companion `PumpType` (`Pump_1Type`, `Pump_2Type`), which
+declares the alarm EventTypes through `GeneratesEvent`. The pump's Thing
+Description still lists the alarms as event affordances, because an instance
+raises the events its type declares. The generic runtime publishes selected upstream occurrences and
 routes the declared `uav:conditionAction` / `uav:actsOn` Methods back to their
 owning source. A local EventType is distinct from its mutable Condition instance
 and occurrence EventIds.

@@ -385,7 +385,7 @@ namespace Opc.Ua.Client.Tests.FileSystem
             NodeId recreated = harness.RegisterDirectory(harness.Root, new QualifiedName("dir"));
             NodeId file = harness.RegisterFile(recreated, new QualifiedName("b.txt"));
 
-            UaFileSystemInfo info = await client.GetInfoAsync("/dir/b.txt").ConfigureAwait(false);
+            UaFileSystemInfo info = (await client.GetInfoAsync("/dir/b.txt").ConfigureAwait(false))!;
             Assert.That(info, Is.Not.Null);
             Assert.That(info.NodeId, Is.EqualTo(file));
         }

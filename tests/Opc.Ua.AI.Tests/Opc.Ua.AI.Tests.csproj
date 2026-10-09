@@ -11,7 +11,6 @@
     <RootNamespace>Opc.Ua.AI.Tests</RootNamespace>
     <AssemblyName>Opc.Ua.AI.Tests</AssemblyName>
     <GenerateProgramFile>false</GenerateProgramFile>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <!-- Matches the sample under test; see samples/AI/README.md. -->
     <PublishAot>false</PublishAot>

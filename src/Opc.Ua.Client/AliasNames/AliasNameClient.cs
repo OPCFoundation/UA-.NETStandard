@@ -408,7 +408,8 @@ namespace Opc.Ua.Client.AliasNames
         /// <summary>
         /// Asynchronously enumerates the sub-categories of this category
         /// (Part 17 §6.3.1 <c>SubAliasNameCategories</c>) via a forward
-        /// browse on <see cref="ReferenceTypeIds.Organizes"/>.
+        /// browse on <see cref="ReferenceTypeIds.Organizes"/>. Children of
+        /// <c>AliasNameCategoryType</c> or of a subtype are returned.
         /// </summary>
         /// <exception cref="ServiceResultException">The browse operation
         /// returned an error status code.</exception>
@@ -452,7 +453,7 @@ namespace Opc.Ua.Client.AliasNames
             {
                 foreach (ReferenceDescription r in SnapshotReferences(br.References))
                 {
-                    if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
+                    if (!await IsAliasNameCategoryAsync(r.TypeDefinition, ct).ConfigureAwait(false))
                     {
                         continue;
                     }
@@ -479,7 +480,7 @@ namespace Opc.Ua.Client.AliasNames
 
                     foreach (ReferenceDescription r in SnapshotReferences(nextReferences))
                     {
-                        if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
+                        if (!await IsAliasNameCategoryAsync(r.TypeDefinition, ct).ConfigureAwait(false))
                         {
                             continue;
                         }
@@ -521,6 +522,30 @@ namespace Opc.Ua.Client.AliasNames
                 snapshot[i] = references[i];
             }
             return snapshot;
+        }
+
+        /// <summary>
+        /// Whether a browsed child is a sub-category: an instance of
+        /// <c>AliasNameCategoryType</c> or of one of its subtypes. Part 17
+        /// §6.3.1 declares <c>&lt;SubAliasNameCategories&gt;</c> as an
+        /// <c>OptionalPlaceholder</c> of that type and does not rule out
+        /// subtypes, so the type hierarchy is checked through the node cache.
+        /// </summary>
+        private async ValueTask<bool> IsAliasNameCategoryAsync(
+            ExpandedNodeId typeDefinition,
+            CancellationToken ct)
+        {
+            if (typeDefinition.IsNull)
+            {
+                return false;
+            }
+            if (typeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
+            {
+                return true;
+            }
+            return await Session.NodeCache
+                .IsTypeOfAsync(typeDefinition, ObjectTypeIds.AliasNameCategoryType, ct)
+                .ConfigureAwait(false);
         }
 
         private async Task<NodeId> ResolveChildAsync(

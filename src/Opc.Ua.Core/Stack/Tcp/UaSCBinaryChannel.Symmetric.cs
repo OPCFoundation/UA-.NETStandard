@@ -191,8 +191,19 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void ActivateToken(ChannelToken token)
         {
-            // compute the keys for the token.
-            ComputeKeys(token);
+            // compute the keys for the token, unless ReadSymmetricMessage already
+            // did so to verify the first chunk secured with it.
+            if (!ReferenceEquals(token, m_renewedTokenWithKeys))
+            {
+                ComputeKeys(token);
+            }
+            m_renewedTokenWithKeys = null;
+
+            // a pending renewal superseded by another token (reconnect) is dropped.
+            if (RenewedToken != null && !ReferenceEquals(RenewedToken, token))
+            {
+                RenewedToken.Dispose();
+            }
 
             PreviousToken?.Dispose();
             PreviousToken = CurrentToken;
@@ -217,8 +228,23 @@ namespace Opc.Ua.Bindings
         /// </summary>
         protected void SetRenewedToken(ChannelToken token)
         {
-            RenewedToken?.Dispose();
+            // compute the keys (and the secret a further renewal chains from) now,
+            // while the nonces of this renewal are installed: a second renewal
+            // before any message secured with this token replaces them.
+            ComputeKeys(token);
+
+            // a renewal still pending here was answered before the client sent this one
+            // on the same connection, so the client already secures its requests with it.
+            // Make it current (the token before it stays accepted as the previous one)
+            // instead of dropping it: OPC 10000-6 6.7.4 requires the server to accept it
+            // until it expires or a message secured with the newest token arrives.
+            if (RenewedToken != null)
+            {
+                ActivateToken(RenewedToken);
+            }
+
             RenewedToken = token;
+            m_renewedTokenWithKeys = token;
             if (m_logger.IsEnabled(LogLevel.Information))
             {
                 m_logger.UaSCChannelLog11(
@@ -227,6 +253,27 @@ namespace Opc.Ua.Bindings
                     token.CreatedAt,
                     token.CreatedAtTimestamp,
                     token.Lifetime);
+            }
+        }
+
+        /// <summary>
+        /// Activates the pending renewed token once the current token is close to expiry.
+        /// </summary>
+        /// <remarks>
+        /// A server keeps securing its messages with the current token until the client
+        /// uses the renewed one, but only until the current token expires (OPC 10000-4
+        /// 5.6.2.1). A client that sends nothing - one waiting on outstanding Publish
+        /// requests - would otherwise receive responses secured with an expired token.
+        /// </remarks>
+        protected void ActivateRenewedTokenIfDue()
+        {
+            ChannelToken? renewedToken = RenewedToken;
+            if (renewedToken != null &&
+                CurrentToken != null &&
+                CurrentToken.IsActivationRequired(TimeProvider))
+            {
+                ActivateToken(renewedToken);
+                m_logger.UaSCChannelLog12(Id, CurrentToken.TokenId);
             }
         }
 
@@ -364,7 +411,8 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             byte[] salt,
             bool isServer,
-            int length)
+            int length,
+            bool signingKeyOnly)
         {
             SecurityPolicyInfo tokenPolicy = token.SecurityPolicy!;
             byte[] keyData;
@@ -388,13 +436,21 @@ namespace Opc.Ua.Bindings
                     length);
             }
 
+            // a Sign only channel without AuthenticatedEncryption derives no
+            // encrypting key or IV; neither is used to sign.
             byte[] signingKey = new byte[m_signatureKeySize];
-            byte[] encryptingKey = new byte[m_encryptionKeySize];
-            byte[] iv = new byte[EncryptionBlockSize];
+            byte[] encryptingKey = [];
+            byte[] iv = [];
 
             Buffer.BlockCopy(keyData, 0, signingKey, 0, signingKey.Length);
-            Buffer.BlockCopy(keyData, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
-            Buffer.BlockCopy(keyData, m_signatureKeySize + m_encryptionKeySize, iv, 0, iv.Length);
+
+            if (!signingKeyOnly)
+            {
+                encryptingKey = new byte[m_encryptionKeySize];
+                iv = new byte[EncryptionBlockSize];
+                Buffer.BlockCopy(keyData, m_signatureKeySize, encryptingKey, 0, encryptingKey.Length);
+                Buffer.BlockCopy(keyData, m_signatureKeySize + m_encryptionKeySize, iv, 0, iv.Length);
+            }
 
             if (isServer)
             {
@@ -433,23 +489,40 @@ namespace Opc.Ua.Bindings
             {
                 case KeyDerivationAlgorithm.HKDFSha256:
                 case KeyDerivationAlgorithm.HKDFSha384:
-                    token.Secret = m_localNonce!.GenerateSecret(m_remoteNonce!, token.PreviousSecret);
+                    // OPC 10000-6 6.8.1 Step 2: a renewal chains the IKM of the current
+                    // keys into the new IKM only when SecureChannelEnhancements = TRUE.
+                    token.Secret = m_localNonce!.GenerateSecret(
+                        m_remoteNonce!,
+                        tokenPolicy.SecureChannelEnhancements ? token.PreviousSecret : null);
+
+                    // OPC 10000-6 6.8.1: when not using AuthenticatedEncryption with Sign
+                    // only, the EncryptionKeyLength and InitializationVectorLength are 0 in
+                    // the calculation of L, which is part of the salt.
+                    bool signingKeyOnly =
+                        SecurityMode == MessageSecurityMode.Sign &&
+                        !tokenPolicy.NoSymmetricEncryptionPadding;
+                    int clientKeyDataLength = signingKeyOnly
+                        ? tokenPolicy.DerivedSignatureKeyLength
+                        : tokenPolicy.ClientKeyDataLength;
+                    int serverKeyDataLength = signingKeyOnly
+                        ? tokenPolicy.DerivedSignatureKeyLength
+                        : tokenPolicy.ServerKeyDataLength;
 
                     byte[] clientSalt = Utils.Append(
-                        BitConverter.GetBytes((ushort)tokenPolicy.ClientKeyDataLength),
+                        BitConverter.GetBytes((ushort)clientKeyDataLength),
                         s_hkdfClientLabel,
                         clientSecret,
                         serverSecret);
 
-                    DeriveKeysWithHKDF(token, clientSalt, false, tokenPolicy.ClientKeyDataLength);
+                    DeriveKeysWithHKDF(token, clientSalt, false, clientKeyDataLength, signingKeyOnly);
 
                     byte[] serverSalt = Utils.Append(
-                        BitConverter.GetBytes((ushort)tokenPolicy.ServerKeyDataLength),
+                        BitConverter.GetBytes((ushort)serverKeyDataLength),
                         s_hkdfServerLabel,
                         serverSecret,
                         clientSecret);
 
-                    DeriveKeysWithHKDF(token, serverSalt, true, tokenPolicy.ServerKeyDataLength);
+                    DeriveKeysWithHKDF(token, serverSalt, true, serverKeyDataLength, signingKeyOnly);
                     break;
                 default:
                     HashAlgorithmName algorithmName = tokenPolicy.GetKeyDerivationHashAlgorithmName();
@@ -736,52 +809,69 @@ namespace Opc.Ua.Bindings
                     ChannelId);
             }
 
-            // check for a message secured with the new token.
-            if (RenewedToken != null && RenewedToken.TokenId == tokenId)
+            // check for a message secured with the new token. The token id in
+            // the header is not authenticated, so the new token only becomes
+            // current once the chunk has been verified with it (below).
+            ChannelToken? renewedToken = RenewedToken;
+            ChannelToken? tokenToActivate = null;
+            if (renewedToken != null && renewedToken.TokenId == tokenId)
             {
-                ActivateToken(RenewedToken);
+                tokenToActivate = renewedToken;
             }
 
             // check if activation of the new token should be forced.
-            else if (RenewedToken != null &&
-                CurrentToken != null &&
-                CurrentToken.IsActivationRequired(TimeProvider))
+            else
             {
-                ActivateToken(RenewedToken);
-                m_logger.UaSCChannelLog12(Id, CurrentToken.TokenId);
+                ActivateRenewedTokenIfDue();
             }
 
-            // check for valid token.
-            ChannelToken currentToken =
-                CurrentToken ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadSecureChannelClosed,
-                    "Channel{0}: Token missing to read symmetric messagee.", Id);
-
-            // find the token.
-            if (currentToken.TokenId != tokenId &&
-                (PreviousToken == null || PreviousToken.TokenId != tokenId))
+            if (tokenToActivate != null)
             {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadTcpSecureChannelUnknown,
-                    "Channel{0}: TokenId is not known. ChanneId={1}, TokenId={2}, CurrentTokenId={3}, PreviousTokenId={4}",
-                    Id,
-                    channelId,
-                    tokenId,
-                    currentToken.TokenId,
-                    PreviousToken != null ? (int)PreviousToken.TokenId : -1);
+                // the keys are needed to verify the chunk; computed once per token.
+                if (!ReferenceEquals(tokenToActivate, m_renewedTokenWithKeys))
+                {
+                    ComputeKeys(tokenToActivate);
+                    m_renewedTokenWithKeys = tokenToActivate;
+                }
+                token = tokenToActivate;
+            }
+            else
+            {
+                // check for valid token.
+                ChannelToken currentToken =
+                    CurrentToken ??
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecureChannelClosed,
+                        "Channel{0}: Token missing to read symmetric messagee.", Id);
+
+                // find the token.
+                if (currentToken.TokenId != tokenId &&
+                    (PreviousToken == null || PreviousToken.TokenId != tokenId))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadTcpSecureChannelUnknown,
+                        "Channel{0}: TokenId is not known. ChanneId={1}, TokenId={2}, CurrentTokenId={3}, PreviousTokenId={4}",
+                        Id,
+                        channelId,
+                        tokenId,
+                        currentToken.TokenId,
+                        PreviousToken != null ? (int)PreviousToken.TokenId : -1);
+                }
+
+                token = currentToken;
+
+                // check for a message secured with the token before it expired.
+                if (PreviousToken != null && PreviousToken.TokenId == tokenId)
+                {
+                    token = PreviousToken;
+                }
             }
 
-            token = currentToken;
-
-            // check for a message secured with the token before it expired.
-            if (PreviousToken != null && PreviousToken.TokenId == tokenId)
-            {
-                token = PreviousToken;
-            }
-
-            // check if token has expired.
-            if (token.IsExpired(TimeProvider))
+            // check if token has expired. A client accepts responses secured with an expired
+            // token for a grace period (OPC 10000-4 5.6.2.1): the server keeps securing its
+            // responses with the old token until it sees the new one, so a response sent just
+            // before expiry can arrive after it. Rejecting it shuts the channel down.
+            if (token.IsExpired(TimeProvider, isRequest ? 0 : TcpMessageLimits.TokenExpiryGracePeriod))
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTcpSecureChannelUnknown,
@@ -812,6 +902,12 @@ namespace Opc.Ua.Bindings
                     token,
                     dataToProcess,
                     isRequest);
+            }
+
+            // the chunk was secured with the new token: it becomes current.
+            if (tokenToActivate != null && ReferenceEquals(RenewedToken, tokenToActivate))
+            {
+                ActivateToken(tokenToActivate);
             }
 
             // extract request id and sequence number.
@@ -848,6 +944,12 @@ namespace Opc.Ua.Bindings
 
         private static readonly byte[] s_hkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");
         private static readonly byte[] s_hkdfServerLabel = Encoding.UTF8.GetBytes("opcua-server");
+
+        /// <summary>
+        /// The renewed token whose keys were computed to verify a chunk before it
+        /// was activated.
+        /// </summary>
+        private ChannelToken? m_renewedTokenWithKeys;
         private int m_signatureKeySize;
         private int m_encryptionKeySize;
         private ISymmetricCryptoProvider? m_symmetricProvider;

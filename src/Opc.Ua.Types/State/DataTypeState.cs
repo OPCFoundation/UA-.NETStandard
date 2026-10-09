@@ -247,11 +247,20 @@ namespace Opc.Ua
                     {
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                        if (dataTypeDefinition.TryGetValue(out StructureDefinition structureType) &&
+                        if (!IsAbstract &&
+                            dataTypeDefinition.TryGetValue(out StructureDefinition structureType) &&
                             structureType.DefaultEncodingId.IsNull)
                         {
-                            // one time set the id for binary encoding, currently the only supported encoding
-                            structureType.SetDefaultEncodingId(context, NodeId, default);
+                            // Part 3 8.48: a concrete Structure reports its Default Binary
+                            // encoding (null only for abstract types). The id is resolved
+                            // through the encodeable factory on a copy, so concurrent reads
+                            // never mutate the shared stored definition.
+                            var completed = (StructureDefinition)structureType.Clone();
+                            completed.SetDefaultEncodingId(context, NodeId, default);
+                            if (!completed.DefaultEncodingId.IsNull)
+                            {
+                                dataTypeDefinition = new ExtensionObject(completed);
+                            }
                         }
 #pragma warning restore CS8602, CS8600
                         value = dataTypeDefinition;

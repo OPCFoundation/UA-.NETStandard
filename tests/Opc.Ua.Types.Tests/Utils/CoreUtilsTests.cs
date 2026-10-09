@@ -137,9 +137,9 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase(null)]
         [TestCase("")]
         [TestCase("   ")]
-        public void EscapeUriNullOrEmptyOrWhitespaceReturnsEmpty(string uri)
+        public void EscapeUriNullOrEmptyOrWhitespaceReturnsEmpty(string? uri)
         {
-            string result = CoreUtils.EscapeUri(uri);
+            string result = CoreUtils.EscapeUri(uri!);
 
             Assert.That(result, Is.EqualTo(string.Empty));
         }
@@ -158,9 +158,9 @@ namespace Opc.Ua.Types.Tests.Utils
         [TestCase(null)]
         [TestCase("")]
         [TestCase("   ")]
-        public void UnescapeUriNullOrEmptyOrWhitespaceReturnsEmpty(string uri)
+        public void UnescapeUriNullOrEmptyOrWhitespaceReturnsEmpty(string? uri)
         {
-            string result = CoreUtils.UnescapeUri(uri);
+            string result = CoreUtils.UnescapeUri(uri!);
 
             Assert.That(result, Is.EqualTo(string.Empty));
         }
@@ -189,7 +189,7 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void ToHexStringNullReturnsEmpty()
         {
-            string result = CoreUtils.ToHexString(null);
+            string result = CoreUtils.ToHexString(null!);
 
             Assert.That(result, Is.EqualTo(string.Empty));
         }
@@ -225,9 +225,9 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         [TestCase(null)]
         [TestCase("")]
-        public void FromHexStringNullOrEmptyReturnsEmptyArray(string text)
+        public void FromHexStringNullOrEmptyReturnsEmptyArray(string? text)
         {
-            byte[] result = CoreUtils.FromHexString(text);
+            byte[] result = CoreUtils.FromHexString(text!);
 
             Assert.That(result, Is.Empty);
         }
@@ -287,9 +287,9 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CloneStringNullReturnsNull()
         {
-            const string original = null;
+            const string? original = null;
 
-            string cloned = CoreUtils.Clone(original);
+            string cloned = CoreUtils.Clone(original!);
 
             Assert.That(cloned, Is.Null);
         }
@@ -297,9 +297,9 @@ namespace Opc.Ua.Types.Tests.Utils
         [Test]
         public void CloneICloneableNullReturnsDefault()
         {
-            CloneableObject original = null;
+            CloneableObject? original = null;
 
-            CloneableObject cloned = CoreUtils.Clone(original);
+            CloneableObject? cloned = CoreUtils.Clone(original);
 
             Assert.That(cloned, Is.Null);
         }
@@ -309,7 +309,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             var original = new CloneableObject { Value = 99 };
 
-            CloneableObject cloned = CoreUtils.Clone(original);
+            CloneableObject cloned = CoreUtils.Clone(original)!;
 
             Assert.That(cloned, Is.Not.SameAs(original));
             Assert.That(cloned.Value, Is.EqualTo(99));
@@ -339,7 +339,7 @@ namespace Opc.Ua.Types.Tests.Utils
         public void IsEqualClassBothNullReturnsTrue()
         {
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(CoreUtils.IsEqual((string)null, (string)null), Is.True);
+            Assert.That(CoreUtils.IsEqual((string)null!, (string)null!), Is.True);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
@@ -347,8 +347,8 @@ namespace Opc.Ua.Types.Tests.Utils
         public void IsEqualClassOneNullReturnsFalse()
         {
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(CoreUtils.IsEqual("hello", (string)null), Is.False);
-            Assert.That(CoreUtils.IsEqual((string)null, "hello"), Is.False);
+            Assert.That(CoreUtils.IsEqual("hello", (string)null!), Is.False);
+            Assert.That(CoreUtils.IsEqual((string)null!, "hello"), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
@@ -377,7 +377,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             // ReferenceEquals(null, null) is true, so this returns true
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(CoreUtils.IsEqual((IEnumerable<int>)null, (IEnumerable<int>)null), Is.True);
+            Assert.That(CoreUtils.IsEqual((IEnumerable<int>)null!, (IEnumerable<int>)null!), Is.True);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
@@ -387,8 +387,8 @@ namespace Opc.Ua.Types.Tests.Utils
             IEnumerable<int> list = [1, 2, 3];
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(CoreUtils.IsEqual(list, (IEnumerable<int>)null), Is.False);
-            Assert.That(CoreUtils.IsEqual((IEnumerable<int>)null, list), Is.False);
+            Assert.That(CoreUtils.IsEqual(list, (IEnumerable<int>)null!), Is.False);
+            Assert.That(CoreUtils.IsEqual((IEnumerable<int>)null!, list), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
@@ -424,7 +424,7 @@ namespace Opc.Ua.Types.Tests.Utils
             // ReferenceEquals(null, null) is true, so this returns true
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(CoreUtils.IsEqual((int[])null, (int[])null), Is.True);
+            Assert.That(CoreUtils.IsEqual((int[])null!, (int[])null!), Is.True);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
@@ -435,10 +435,10 @@ namespace Opc.Ua.Types.Tests.Utils
             int[] array = [1, 2, 3];
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(CoreUtils.IsEqual(array, (int[])null), Is.False);
+            Assert.That(CoreUtils.IsEqual(array, (int[])null!), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(CoreUtils.IsEqual((int[])null, array), Is.False);
+            Assert.That(CoreUtils.IsEqual((int[])null!, array), Is.False);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
 
@@ -473,7 +473,7 @@ namespace Opc.Ua.Types.Tests.Utils
         {
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(CoreUtils.IsEqual((object)null, (object)null), Is.True);
+            Assert.That(CoreUtils.IsEqual((object)null!, (object)null!), Is.True);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
@@ -483,8 +483,8 @@ namespace Opc.Ua.Types.Tests.Utils
         {
             object obj = "hello";
 
-            Assert.That(CoreUtils.IsEqual(obj, null), Is.False);
-            Assert.That(CoreUtils.IsEqual(null, obj), Is.False);
+            Assert.That(CoreUtils.IsEqual(obj, null!), Is.False);
+            Assert.That(CoreUtils.IsEqual(null!, obj), Is.False);
         }
 
         [Test]
@@ -590,8 +590,8 @@ namespace Opc.Ua.Types.Tests.Utils
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
             Assert.That(
                 CoreUtils.IsEqual(
-                    (object)doc1.DocumentElement,
-                    (object)doc2.DocumentElement),
+                    (object)doc1.DocumentElement!,
+                    (object)doc2.DocumentElement!),
                 Is.True);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }

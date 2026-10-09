@@ -9,7 +9,6 @@
     <Description>OPC UA non-transparent redundant managed client sample.</Description>
     <Copyright>Copyright © 2004-2025 OPC Foundation, Inc</Copyright>
     <RootNamespace>RedundantClient</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <PublishAot>true</PublishAot>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
