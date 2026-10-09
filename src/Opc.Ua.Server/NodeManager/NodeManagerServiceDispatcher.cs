@@ -159,8 +159,10 @@ namespace Opc.Ua.Server
                 return (null, null);
             }
 
-            foreach (IAsyncNodeManager asyncNodeManager in nodeManagers!)
+            // index the list: an enumerator through the interface is allocated per node.
+            for (int ii = 0; ii < nodeManagers!.Count; ii++)
             {
+                IAsyncNodeManager asyncNodeManager = nodeManagers[ii];
                 handle = await asyncNodeManager.GetManagerHandleAsync(nodeId, cancellationToken)
                     .ConfigureAwait(false);
 
