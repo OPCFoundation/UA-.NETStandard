@@ -438,7 +438,10 @@ namespace Opc.Ua.Server
                 m_sessionActivationStates.Add(
                     session,
                     new SessionActivationState(
-                        channelContext.ClientChannelCertificate.ToByteString(),
+                        // empty rather than null for an unsecured channel, as before
+                        channelContext.ClientChannelCertificate.IsNull
+                            ? ByteString.Empty
+                            : channelContext.ClientChannelCertificate,
                         channelContext.EndpointDescription!.SecurityPolicyUri ??
                         SecurityPolicies.None,
                         channelContext.EndpointDescription.SecurityMode));
@@ -748,7 +751,7 @@ namespace Opc.Ua.Server
                         ((requiresClientCertificate &&
                             activationState.OriginalClientChannelCertificate.IsEmpty) ||
                             activationState.OriginalClientChannelCertificate !=
-                                channelContext.ClientChannelCertificate.ToByteString()))
+                                channelContext.ClientChannelCertificate))
                     {
                         throw new ServiceResultException(
                             StatusCodes.BadSecurityChecksFailed,
@@ -1286,21 +1289,23 @@ namespace Opc.Ua.Server
             SessionActivationState state;
             SessionBindingContext binding;
             ByteString originalClientChannelCertificate;
-            lock (m_bindingsLock)
+
+            // Runs at admission and again at dispatch of every request. The session index
+            // and the activation-state table are concurrent collections, so the candidate
+            // snapshot is taken without the bindings lock; the check under the lock below
+            // confirms that the binding is still the committed one before it is returned.
+            if (authenticationToken.IsNull ||
+                !m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
+                !m_sessionActivationStates.TryGetValue(currentSession, out SessionActivationState? currentState) ||
+                currentState.IsCommitting ||
+                currentState.BindingContext is not SessionBindingContext currentBinding)
             {
-                if (authenticationToken.IsNull ||
-                    !m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
-                    !m_sessionActivationStates.TryGetValue(currentSession, out SessionActivationState? currentState) ||
-                    currentState.IsCommitting ||
-                    currentState.BindingContext is not SessionBindingContext currentBinding)
-                {
-                    return false;
-                }
-                session = currentSession;
-                state = currentState;
-                binding = currentBinding;
-                originalClientChannelCertificate = state.OriginalClientChannelCertificate;
+                return false;
             }
+            session = currentSession;
+            state = currentState;
+            binding = currentBinding;
+            originalClientChannelCertificate = state.OriginalClientChannelCertificate;
 
             // Session diagnostics callbacks can query membership while holding a Session lock.
             // Probe Session state without the index lock, then check that the snapshot is still current.
@@ -1313,7 +1318,7 @@ namespace Opc.Ua.Server
                 binding.SecurityMode != endpoint.SecurityMode ||
                 !string.Equals(binding.SecurityPolicyUri, endpoint.SecurityPolicyUri, StringComparison.Ordinal) ||
                 (binding.SecurityPolicyUri != SecurityPolicies.None &&
-                    originalClientChannelCertificate != channelContext.ClientChannelCertificate.ToByteString()))
+                    originalClientChannelCertificate != channelContext.ClientChannelCertificate))
             {
                 return false;
             }
@@ -1322,8 +1327,8 @@ namespace Opc.Ua.Server
             {
                 if (state.IsCommitting ||
                     !ReferenceEquals(state.BindingContext, binding) ||
-                    !m_sessions.TryGetValue(authenticationToken, out ISession? currentSession) ||
-                    !ReferenceEquals(currentSession, session))
+                    !m_sessions.TryGetValue(authenticationToken, out ISession? committedSession) ||
+                    !ReferenceEquals(committedSession, session))
                 {
                     return false;
                 }
@@ -1969,8 +1974,7 @@ namespace Opc.Ua.Server
                     endpoint.EndpointUrl != null &&
                     Utils.IsUriHttpsScheme(endpoint.EndpointUrl));
             if (requiresClientCertificate &&
-                (secureChannelContext.ClientChannelCertificate == null ||
-                    secureChannelContext.ClientChannelCertificate.Length == 0))
+                secureChannelContext.ClientChannelCertificate.Length == 0)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadSecurityChecksFailed,

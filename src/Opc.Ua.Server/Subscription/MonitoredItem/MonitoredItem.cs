@@ -2341,7 +2341,6 @@ namespace Opc.Ua.Server
             }
 
             // select default data change filters.
-            const double deadband = 0.0;
             DeadbandType deadbandType = DeadbandType.None;
             DataChangeTrigger trigger = DataChangeTrigger.StatusValue;
 
@@ -2361,11 +2360,8 @@ namespace Opc.Ua.Server
             }
             else
             {
-                filter = new DataChangeFilter
-                {
-                    DeadbandType = (uint)deadbandType,
-                    DeadbandValue = deadband
-                };
+                // runs for every sampled value of an unfiltered item; AreEqual only reads it.
+                filter = s_defaultDataChangeFilter;
             }
 
             // get the current status.
@@ -2713,6 +2709,16 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// The filter applied when a monitored item has none: no deadband, StatusValue trigger.
+        /// Shared and never modified.
+        /// </summary>
+        private static readonly DataChangeFilter s_defaultDataChangeFilter = new()
+        {
+            DeadbandType = (uint)DeadbandType.None,
+            DeadbandValue = 0.0
+        };
         private readonly ILogger m_logger;
         private bool m_isDisposed;
         private bool m_isAttaching;
