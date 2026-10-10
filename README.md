@@ -48,6 +48,8 @@ across industrial control, manufacturing, energy, and IoT systems.
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
   LLMs / Copilot can drive an OPC UA client.
+- **Registry integration** — an experimental [xRegistry OPC UA / HTTP bridge](docs/XRegistry.md#opc-ua-http-bridge)
+  with write-through gateways, capability negotiation, and durable two-way reconciliation.
 
 For the full feature breakdown see
 **[OPC UA Profiles and Facets](docs/Profiles.md)** and the
