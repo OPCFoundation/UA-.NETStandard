@@ -100,8 +100,9 @@ Param(
 
 $ErrorActionPreference = 'Stop'
 
-# The verdict rule lives in its own file so it can be tested without building or
-# running anything - see tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs.
+# The verdict rule and the TRX parsing it consumes live in their own file so they
+# can be tested without building or running anything - see
+# tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs.
 . (Join-Path $PSScriptRoot 'get-test-verdict.ps1')
 
 $projectList = @($Projects -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -251,60 +252,6 @@ function Get-ProjectProperties([string] $project)
     return ($output.Substring($start, $end - $start + 1) | ConvertFrom-Json).Properties
 }
 
-<#
- .SYNOPSIS
-    Sums the counters of every TRX below a directory.
-#>
-function Measure-TestResults([string] $directory)
-{
-    $total = 0
-    $passed = 0
-    $failed = 0
-    $nonPassingCounters = @(
-        'failed',
-        'error',
-        'timeout',
-        'aborted',
-        'passedButRunAborted',
-        'inconclusive',
-        'notRunnable',
-        'disconnected',
-        'warning',
-        'completed',
-        'inProgress',
-        'pending')
-    $trxFiles = @(Get-ChildItem -LiteralPath $directory -Recurse -File -Filter *.trx -ErrorAction SilentlyContinue)
-    foreach ($trxFile in $trxFiles) {
-        # XmlDocument.Load rather than [xml](Get-Content): PubSub emits several
-        # megabytes of results and the array-of-lines cast fails on files that
-        # size.
-        $document = [System.Xml.XmlDocument]::new()
-        $document.XmlResolver = $null
-        $document.Load($trxFile.FullName)
-        foreach ($counters in $document.GetElementsByTagName('Counters')) {
-            $total += Get-CounterValue $counters 'total'
-            $passed += Get-CounterValue $counters 'passed'
-            foreach ($name in $nonPassingCounters) {
-                $failed += Get-CounterValue $counters $name
-            }
-        }
-    }
-    return [pscustomobject]@{ Files = $trxFiles.Count; Total = $total; Passed = $passed; Failed = $failed }
-}
-
-<#
- .SYNOPSIS
-    Reads a TRX counter attribute, treating an absent attribute as zero.
-#>
-function Get-CounterValue([System.Xml.XmlElement] $element, [string] $name)
-{
-    $raw = $element.GetAttribute($name)
-    if ([string]::IsNullOrEmpty($raw)) {
-        return 0
-    }
-    return [int]$raw
-}
-
 $records = @()
 foreach ($project in $projectList) {
     $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
@@ -440,6 +387,7 @@ foreach ($project in $projectList) {
             -Total $results.Total `
             -Passed $results.Passed `
             -Failed $results.Failed `
+            -FixtureFailures $results.FixtureFailures `
             -ExitCode $test.ExitCode `
             -TimedOut $test.TimedOut `
             -TimeoutMinutes $PerProjectTimeoutMinutes

@@ -78,6 +78,10 @@ namespace Opc.Ua.Server.Tests
         [TearDown]
         public void TearDown()
         {
+            // Tests that stage a CloseAndUpdate without ApplyChanges leave the
+            // staged certificate collections with the coordinator; discarding
+            // them disposes the collections.
+            m_coordinator.Reset();
             foreach (TrustList trustList in m_createdTrustLists)
             {
                 trustList.Dispose();

@@ -95,25 +95,19 @@ DataSet #1 received (3 fields): BoolToggle=False, Int32=1, DateTime=09/28/2026 1
 DataSet #2 received (3 fields): BoolToggle=True, Int32=2, DateTime=09/28/2026 12:18:51
 ```
 
-The `udp-uadp` profile signs and encrypts the UADP messages with demo keys
-that are built into the sample. A production deployment obtains its keys from
-a [Security Key Service](#security-key-service-sks). Two warnings are expected:
-
-- `DataSetReader Reader 1 faulted on MessageReceiveTimeout (>00:00:05)`
-  appears when no matching message arrives for five seconds, for example
-  before the publisher starts. The reader resumes when messages arrive.
-- `Dropping unsecured inbound frame ... requiring SignAndEncrypt` appears once.
-  The publisher announces its DataSet metadata without message security, and
-  the secured subscriber discards the announcement. It decodes the DataSets
-  with the metadata configured on its DataSetReader instead.
+The `udp-uadp` profile signs and encrypts the UADP messages, including the
+DataSet metadata announcement, with demo keys that are built into the sample.
+A production deployment obtains its keys from a
+[Security Key Service](#security-key-service-sks).
+`DataSetReader Reader 1 faulted on MessageReceiveTimeout (>00:00:05)` can
+appear when no matching message arrives for five seconds, for example before
+the publisher starts. The reader resumes when messages arrive.
 
 The sample's default endpoint, `opc.udp://239.0.0.1:4840`, is a multicast
-address. On one computer, the subscriber can miss multicast messages: the UDP
-transport disables multicast loopback by default
-(`UdpTransportOptions.MulticastLoopback`), and the publisher sends through the
-operating system's default multicast interface, which can differ from the
-interface that the subscriber joins. The unicast loopback address avoids both
-limitations. See [UDP / UADP](#udp--uadp) for the multicast options.
+address. On one computer, the subscriber can miss multicast messages because
+the UDP transport disables multicast loopback by default
+(`UdpTransportOptions.MulticastLoopback`). The unicast loopback address avoids
+this limitation. See [UDP / UADP](#udp--uadp) for the multicast options.
 
 A subscriber decodes a message only when it matches the publisher's settings:
 
@@ -289,7 +283,11 @@ The publisher-side `MetaDataPublisher` ([§6.2.2.5](https://reference.opcfoundat
 emits a retained `JsonMetaDataMessage` / `UadpDiscoveryResponseMessage`
 on the well-known `ua-metadata` topic at startup and after each
 configuration version bump; subscribers cache it before the first
-KeyFrame arrives.
+KeyFrame arrives. A connection configured for message security applies its
+SecurityMode to the UADP announcement, with the same keys as its
+DataSetMessages: `Sign` lets subscribers verify the announcement, and
+`SignAndEncrypt` also hides the DataSet layout from applications that do not
+hold the keys.
 
 A subscriber also registers the `DataSetMetaData` configured on each
 DataSetReader whose filter names an exact PublisherId, WriterGroupId, and
@@ -596,12 +594,15 @@ defaults favor containment over reach:
 | --- | --- | --- |
 | `Ttl` | `1` | Multicast and unicast time-to-live; keeps multicast on the local subnet. |
 | `MulticastLoopback` | `false` | Whether this host receives copies of its own multicast messages. |
-| `PreferredNetworkInterface` | `null` | NIC name or local IP address used to join multicast groups when the connection address does not name one; otherwise the first operational interface for the address family. |
+| `PreferredNetworkInterface` | `null` | NIC name or local IP address used for multicast when the connection address does not name one; otherwise the first operational interface for the address family, preferring a non-loopback interface. |
 
-A receiving connection joins its multicast group on that interface. A
-sending connection uses the operating system's default multicast interface.
-For a publisher and subscriber on one computer, use a unicast loopback address,
-as in [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber).
+A receiving connection joins its multicast group on that interface. A sending
+connection sends its multicast messages and discovery announcements through
+the same interface. On a computer with several network interfaces, name the
+interface that reaches the other PubSub applications, either in the
+connection address (`NetworkInterface`) or in `PreferredNetworkInterface`. For
+a publisher and subscriber on one computer, use a unicast loopback address, as
+in [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber).
 
 ### Ethernet / UADP (`opc.eth://`)
 
@@ -1233,6 +1234,12 @@ subscribers that need to find publishers and bind to metadata at runtime.
   duplicate probes are suppressed, and identical responses are throttled.
 - MQTT publishes retained discovery messages on the standard status, connection,
   application, endpoint, and metadata topics.
+- A UADP connection configured for message security applies its SecurityMode
+  to its discovery requests, responses, and announcements, with the keys of
+  its SecurityGroup: they are signed, and with `SignAndEncrypt` also
+  encrypted. A secured connection therefore discovers only applications that
+  hold the same keys. The MQTT last-will status message is the exception: the
+  broker publishes it later, so it is sent unsecured.
 
 ```csharp
 PubSubDiscoveryResult result = await application.RequestDiscoveryAsync(

@@ -29,9 +29,7 @@
 
 using System;
 using System.Diagnostics.CodeAnalysis;
-#if NET8_0_OR_GREATER
 using System.Runtime.CompilerServices;
-#endif
 
 namespace Opc.Ua
 {
@@ -46,39 +44,23 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static T Int32ToEnum<T>(int value) where T : struct, Enum
         {
-#if NET8_0_OR_GREATER
-            if (Unsafe.SizeOf<T>() <= sizeof(int))
+            // narrow (or sign extend) to the size of the enum first, then
+            // reinterpret a value of the same size: correct on any endianness.
+            switch (Unsafe.SizeOf<T>())
             {
-                int i32 = value;
-                return Unsafe.As<int, T>(ref i32);
+                case sizeof(byte):
+                    byte b = unchecked((byte)value);
+                    return Unsafe.As<byte, T>(ref b);
+                case sizeof(short):
+                    short s = unchecked((short)value);
+                    return Unsafe.As<short, T>(ref s);
+                case sizeof(int):
+                    int i32 = value;
+                    return Unsafe.As<int, T>(ref i32);
+                case sizeof(long):
+                    long i64 = value;
+                    return Unsafe.As<long, T>(ref i64);
             }
-            if (Unsafe.SizeOf<T>() == sizeof(long))
-            {
-                // sign extend like the unchecked casts below.
-                long i64 = value;
-                return Unsafe.As<long, T>(ref i64);
-            }
-#else
-            switch (typeof(T).GetEnumUnderlyingType())
-            {
-                case Type t when t == typeof(byte):
-                    return (T)(object)unchecked((byte)value);
-                case Type t when t == typeof(sbyte):
-                    return (T)(object)unchecked((sbyte)value);
-                case Type t when t == typeof(short):
-                    return (T)(object)unchecked((short)value);
-                case Type t when t == typeof(ushort):
-                    return (T)(object)unchecked((ushort)value);
-                case Type t when t == typeof(int):
-                    return (T)(object)unchecked(value);
-                case Type t when t == typeof(uint):
-                    return (T)(object)unchecked((uint)value);
-                case Type t when t == typeof(long):
-                    return (T)(object)unchecked((long)value);
-                case Type t when t == typeof(ulong):
-                    return (T)(object)unchecked((ulong)value);
-            }
-#endif
             return default;
         }
 
@@ -108,7 +90,6 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static int EnumToInt32<T>(T value) where T : struct, Enum
         {
-#if NET8_0_OR_GREATER
             // signed underlying types must be sign extended like the
             // unchecked casts in EnumToInt32(object, Type).
             switch (Unsafe.SizeOf<T>())
@@ -121,12 +102,12 @@ namespace Opc.Ua
                     return IsSigned<T>()
                         ? Unsafe.As<T, short>(ref value)
                         : Unsafe.As<T, ushort>(ref value);
+                case sizeof(long):
+                    // the low 32 bits, read as long to be correct on any endianness.
+                    return unchecked((int)Unsafe.As<T, long>(ref value));
                 default:
                     return Unsafe.As<T, int>(ref value);
             }
-#else
-            return EnumToInt32(value, typeof(T));
-#endif
         }
 
         /// <summary>
@@ -182,7 +163,6 @@ namespace Opc.Ua
         /// <typeparam name="T"></typeparam>
         public static long EnumToInt64<T>(T value) where T : struct, Enum
         {
-#if NET8_0_OR_GREATER
             switch (Unsafe.SizeOf<T>())
             {
                 case sizeof(byte):
@@ -200,31 +180,8 @@ namespace Opc.Ua
                 default:
                     return Unsafe.As<T, long>(ref value);
             }
-#else
-            switch (typeof(T).GetEnumUnderlyingType())
-            {
-                case Type t when t == typeof(byte):
-                    return unchecked((byte)(object)value);
-                case Type t when t == typeof(sbyte):
-                    return unchecked((sbyte)(object)value);
-                case Type t when t == typeof(short):
-                    return unchecked((short)(object)value);
-                case Type t when t == typeof(ushort):
-                    return unchecked((ushort)(object)value);
-                case Type t when t == typeof(int):
-                    return unchecked((int)(object)value);
-                case Type t when t == typeof(uint):
-                    return unchecked((uint)(object)value);
-                case Type t when t == typeof(long):
-                    return unchecked((long)(object)value);
-                case Type t when t == typeof(ulong):
-                    return unchecked((long)(ulong)(object)value);
-            }
-            return 0;
-#endif
         }
 
-#if NET8_0_OR_GREATER
         /// <summary>
         /// Whether the underlying type of the enum is signed.
         /// </summary>
@@ -234,7 +191,6 @@ namespace Opc.Ua
             return Type.GetTypeCode(typeof(T))
                 is TypeCode.SByte or TypeCode.Int16 or TypeCode.Int32 or TypeCode.Int64;
         }
-#endif
 
         /// <summary>
         /// Cast from enum array

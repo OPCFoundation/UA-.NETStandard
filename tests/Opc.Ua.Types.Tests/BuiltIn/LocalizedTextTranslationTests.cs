@@ -272,7 +272,7 @@ namespace Opc.Ua.Types.Tests
             var selected = new LocalizedText("de-DE", string.Empty, fallback);
 
             Assert.That(selected.Locale, Is.EqualTo("de-DE"));
-            Assert.That(selected.Text, Is.Empty);
+            Assert.That(selected.Text, Is.Null);
             Assert.That(selected.TranslationInfo, Is.EqualTo(fallback));
         }
 

@@ -1112,6 +1112,17 @@ namespace Opc.Ua.Server
                 : new CertificateStoreIdentifier(source.StorePath!, source.StoreType!);
         }
 
+        /// <summary>
+        /// Opens a group store through the application's scoped resolver when available.
+        /// </summary>
+        private ICertificateStore OpenGroupStore(CertificateStoreIdentifier identifier)
+        {
+            return (m_configuration.CertificateManager is ICertificateStoreResolver resolver
+                ? resolver.OpenCertificateStore(identifier.StorePath!, identifier.StoreType)
+                : identifier.OpenStore(Server.Telemetry)) ??
+                throw ServiceResultException.ConfigurationError("Failed to open certificate group store.");
+        }
+
         private ServerCertificateGroup VerifyGroupId(NodeId certificateGroupId)
         {
             if (certificateGroupId.IsNull)

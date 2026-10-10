@@ -666,8 +666,6 @@ namespace Opc.Ua.PubSub.Application
             var metaDataPublisher = new MetaDataPublisher(
                 this,
                 MetaDataRegistry,
-                m_encoderMap,
-                m_aggregatingDiagnostics,
                 m_telemetry,
                 m_timeProvider);
             try
