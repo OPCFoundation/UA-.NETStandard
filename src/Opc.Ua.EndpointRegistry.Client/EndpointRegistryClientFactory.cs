@@ -1,3 +1,9 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -6,21 +12,29 @@ using Opc.Ua.SchemaRegistry;
 
 namespace Opc.Ua.EndpointRegistry.Client
 {
-    /// <summary>Creates session-bound native clients without taking ownership of sessions.</summary>
+    /// <summary>
+    /// Creates session-bound native clients without taking ownership of sessions.
+    /// </summary>
     public sealed class EndpointRegistryClientFactory
     {
-        /// <summary>Creates the factory with the host's telemetry context.</summary>
+        /// <summary>
+        /// Creates the factory with the host's telemetry context.
+        /// </summary>
         public EndpointRegistryClientFactory(ITelemetryContext telemetry)
         {
             m_telemetry = telemetry ?? throw new ArgumentNullException(nameof(telemetry));
         }
 
-        /// <summary>Creates a client bound directly to the selected well-known nodes.</summary>
+        /// <summary>
+        /// Creates a client bound directly to the selected well-known nodes.
+        /// </summary>
         public EndpointRegistryClient Create(
             ISession session, bool media = false, ArrayOf<ISchemaFormatProvider> schemaFormats = default) =>
             new(session, m_telemetry, media, schemaFormats);
 
-        /// <summary>Discovers native access for the explicitly selected root.</summary>
+        /// <summary>
+        /// Discovers native access for the explicitly selected root.
+        /// </summary>
         public Task<EndpointRegistryClient> DiscoverAsync(
             ISession session, bool media = false, ArrayOf<ISchemaFormatProvider> schemaFormats = default,
             CancellationToken cancellationToken = default) =>

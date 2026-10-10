@@ -40,14 +40,10 @@ using Opc.Ua.Redaction;
 using Opc.Ua.Security.Certificates;
 using Microsoft.Extensions.Logging;
 
-#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
 using System.Runtime.InteropServices;
-#endif
 
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
 using System.Security.AccessControl;
 using System.Security.Principal;
-#endif
 
 namespace Opc.Ua
 {
@@ -761,12 +757,10 @@ namespace Opc.Ua
 
                                 X509KeyStorageFlags defaultStorageSet
                                     = X509KeyStorageFlags.DefaultKeySet;
-#if NETSTANDARD2_1_OR_GREATER || NET472_OR_GREATER || NET5_0_OR_GREATER
                                 if (!RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
                                 {
                                     defaultStorageSet |= X509KeyStorageFlags.EphemeralKeySet;
                                 }
-#endif
                                 // By default keys are not persisted
                                 defaultStorageSet |= X509KeyStorageFlags.Exportable;
 
@@ -1616,7 +1610,6 @@ namespace Opc.Ua
 
             try
             {
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     RestrictPrivateWindowsDirectory(directory);
@@ -1629,7 +1622,6 @@ namespace Opc.Ua
                         UnixFileMode.UserRead | UnixFileMode.UserWrite | UnixFileMode.UserExecute);
                 }
 #endif
-#endif
             }
             catch (UnauthorizedAccessException ex) when (existed && HasPrivateAccess(directory))
             {
@@ -1641,7 +1633,6 @@ namespace Opc.Ua
         {
             try
             {
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
                 if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
                 {
                     RestrictPrivateWindowsFile(file);
@@ -1651,7 +1642,6 @@ namespace Opc.Ua
                 {
                     File.SetUnixFileMode(file.FullName, UnixFileMode.UserRead | UnixFileMode.UserWrite);
                 }
-#endif
 #endif
             }
             catch (UnauthorizedAccessException ex) when (existed && HasPrivateAccess(file))
@@ -1673,18 +1663,18 @@ namespace Opc.Ua
                 return File.GetUnixFileMode(path.FullName) == required;
             }
 #endif
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Windows))
             {
                 return path is DirectoryInfo directory
                     ? HasPrivateWindowsAccess(directory.GetAccessControl(), isDirectory: true)
                     : HasPrivateWindowsAccess(((FileInfo)path).GetAccessControl(), isDirectory: false);
             }
-#endif
+            // .NET Framework cannot read Unix modes portably (the stat layout is platform
+            // specific), so it fails closed. chmod only fails for a caller that neither owns
+            // the path nor is root, and such a caller could not use a 0700 path anyway.
             return false;
         }
 
-#if NET8_0_OR_GREATER || NET472_OR_GREATER
 #pragma warning disable CA1416 // These helpers are reached only after a Windows platform check.
         private static void RestrictPrivateWindowsDirectory(DirectoryInfo directory)
         {
@@ -1763,7 +1753,6 @@ namespace Opc.Ua
             return (granted & ~denied & required) == required;
         }
 #pragma warning restore CA1416
-#endif
 
         /// <summary>
         /// Writes replacement PEM contents to a temporary file and atomically replaces the existing file.
@@ -1775,7 +1764,7 @@ namespace Opc.Ua
             {
                 using (var stream = new FileStream(temporaryFile, FileMode.CreateNew, FileAccess.Write, FileShare.None))
                 {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     await stream.WriteAsync(contents.AsMemory(), ct).ConfigureAwait(false);
 #else
                     await stream.WriteAsync(contents, 0, contents.Length, ct).ConfigureAwait(false);

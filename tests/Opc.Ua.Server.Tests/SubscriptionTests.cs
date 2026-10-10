@@ -113,7 +113,7 @@ namespace Opc.Ua.Server.Tests
         private Subscription CreateSubscription(
             double publishingInterval = 1000,
             uint maxNotificationsPerPublish = 0,
-            TimeProvider timeProvider = null)
+            TimeProvider? timeProvider = null)
         {
             return new Subscription(
                 m_serverMock.Object,
@@ -189,6 +189,7 @@ namespace Opc.Ua.Server.Tests
             using var cancellation = new CancellationTokenSource();
             using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
             var item = new Mock<IMonitoredItem>();
+            item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             item.SetupGet(value => value.Id).Returns(77);
             var created = new MonitoredItemCreateResult { MonitoredItemId = 77, RevisedSamplingInterval = 1000 };
             item.Setup(value => value.GetCreateResult(out created)).Returns(ServiceResult.Good);
@@ -279,25 +280,42 @@ namespace Opc.Ua.Server.Tests
             var queue = (SentMessageQueue)typeof(Subscription)
                 .GetField("m_messageQueue", BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(subscription)!;
             var item = new MonitoredItemNotification { ClientHandle = 77, Value = new DataValue(42) };
-            var message = new NotificationMessage
+            var message = new UnpooledNotificationMessage
             {
                 SequenceNumber = 9,
                 NotificationData = [new ExtensionObject(new DataChangeNotification { MonitoredItems = [item] })]
             };
             queue.Enqueue([message], [], out _, out _);
             IStoredSubscription snapshot = subscription.ToStorableSubscription();
+            Assert.That(snapshot.SentMessages[0], Is.Not.SameAs(message));
             queue.Clear();
+            Assert.That(message.ReuseCount, Is.EqualTo(1));
             Assert.That(message.IsEmpty, Is.True);
             var messageContext = ServiceMessageContext.Create(m_telemetry);
             using var encoder = new BinaryEncoder(messageContext);
             snapshot.SentMessages[0].Encode(encoder);
-            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer(), messageContext);
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, messageContext);
             var decoded = new NotificationMessage();
             decoded.Decode(decoder);
             Assert.That(decoded.SequenceNumber, Is.EqualTo(9u));
-            Assert.That(decoded.NotificationData[0].TryGetValue(out DataChangeNotification data), Is.True);
-            Assert.That(data.MonitoredItems[0].ClientHandle, Is.EqualTo(77u));
+            Assert.That(decoded.NotificationData[0].TryGetValue(out DataChangeNotification? data), Is.True);
+            Assert.That(data!.MonitoredItems[0].ClientHandle, Is.EqualTo(77u));
             Assert.That(data.MonitoredItems[0].Value.WrappedValue.GetInt32(), Is.EqualTo(42));
+        }
+
+        /// <summary>
+        /// Records recycling and resets like a pooled message, but stays out of the process-wide pool so a parallel
+        /// test cannot rent and repopulate it before the assertions read it.
+        /// </summary>
+        private sealed class UnpooledNotificationMessage : NotificationMessage
+        {
+            public int ReuseCount { get; private set; }
+
+            protected override void ReuseCore()
+            {
+                ReuseCount++;
+                ResetForReuse();
+            }
         }
 
         private ServerInternalData CreateServerInternalData()
@@ -320,10 +338,10 @@ namespace Opc.Ua.Server.Tests
                 .Returns(m_diagnosticsNodeManagerMock.Object);
             masterNodeManager
                 .SetupGet(manager => manager.ConfigurationNodeManager)
-                .Returns((IConfigurationNodeManager)null);
+                .Returns((IConfigurationNodeManager)null!);
             masterNodeManager
                 .SetupGet(manager => manager.CoreNodeManager)
-                .Returns((ICoreNodeManager)null);
+                .Returns((ICoreNodeManager)null!);
             server.SetNodeManager(masterNodeManager.Object);
             server.SetMonitoredItemQueueFactory(m_queueFactoryMock.Object);
             return server;
@@ -400,7 +418,7 @@ namespace Opc.Ua.Server.Tests
                     _) =>
                 {
                     errors[0] = ServiceResult.Good;
-                    filterResults[0] = null;
+                    filterResults[0] = null!;
                     monitoredItems[0] = monitoredItem;
                 })
                 .Returns(default(ValueTask));
@@ -626,7 +644,7 @@ namespace Opc.Ua.Server.Tests
                 priority: 0).ConfigureAwait(false);
             if (!manager.TryGetSubscription(
                     created.SubscriptionId,
-                    out ISubscription subscription))
+                    out ISubscription? subscription))
             {
                 manager.Dispose();
                 throw new InvalidOperationException("Created subscription was not registered.");
@@ -672,13 +690,13 @@ namespace Opc.Ua.Server.Tests
             FieldInfo itemsToCheckField = typeof(Subscription).GetField("m_itemsToCheck", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Field m_itemsToCheck not found");
 
-            var monitoredItems = (System.Collections.IDictionary)monitoredItemsField.GetValue(subscription);
-            var itemsToCheck = (LinkedList<IMonitoredItem>)itemsToCheckField.GetValue(subscription);
+            var monitoredItems = (System.Collections.IDictionary)monitoredItemsField.GetValue(subscription)!;
+            var itemsToCheck = (LinkedList<IMonitoredItem>)itemsToCheckField.GetValue(subscription)!;
 
             // Add to itemsToCheck first to get the node
-            LinkedListNode<IMonitoredItem> node = itemsToCheck.AddLast(item);
+            LinkedListNode<IMonitoredItem> node = itemsToCheck!.AddLast(item);
             // Add to dictionary
-            monitoredItems.Add(item.Id, node);
+            monitoredItems!.Add(item.Id, node);
         }
 
         private static void AddTriggerLink(Subscription subscription, uint triggeringId, ITriggeredMonitoredItem triggeredItem)
@@ -686,22 +704,22 @@ namespace Opc.Ua.Server.Tests
             // private readonly Dictionary<uint, List<ITriggeredMonitoredItem>> m_itemsToTrigger;
             FieldInfo itemsToTriggerField = typeof(Subscription).GetField("m_itemsToTrigger", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Field m_itemsToTrigger not found");
-            var itemsToTrigger = (System.Collections.IDictionary)itemsToTriggerField.GetValue(subscription);
+            var itemsToTrigger = (System.Collections.IDictionary)itemsToTriggerField.GetValue(subscription)!;
 
-            if (!itemsToTrigger.Contains(triggeringId))
+            if (!itemsToTrigger!.Contains(triggeringId))
             {
                 itemsToTrigger.Add(triggeringId, new List<ITriggeredMonitoredItem>());
             }
-            var list = (List<ITriggeredMonitoredItem>)itemsToTrigger[triggeringId];
-            list.Add(triggeredItem);
+            var list = (List<ITriggeredMonitoredItem>)itemsToTrigger[triggeringId]!;
+            list!.Add(triggeredItem);
         }
 
         private static int GetItemsToPublishCount(Subscription subscription)
         {
             FieldInfo itemsToPublishField = typeof(Subscription).GetField("m_itemsToPublish", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Field m_itemsToPublish not found");
-            var itemsToPublish = (LinkedList<IMonitoredItem>)itemsToPublishField.GetValue(subscription);
-            return itemsToPublish.Count;
+            var itemsToPublish = (LinkedList<IMonitoredItem>)itemsToPublishField.GetValue(subscription)!;
+            return itemsToPublish!.Count;
         }
 
         [Test]
@@ -740,6 +758,7 @@ namespace Opc.Ua.Server.Tests
 
             // Mock Monitored Item
             var itemMock = new Mock<IMonitoredItem>();
+            itemMock.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             itemMock.Setup(i => i.Id).Returns(1);
             itemMock.Setup(i => i.IsReadyToPublish).Returns(true);
 
@@ -760,6 +779,7 @@ namespace Opc.Ua.Server.Tests
 
             // Mock Monitored Item
             var itemMock = new Mock<IMonitoredItem>();
+            itemMock.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             itemMock.Setup(i => i.Id).Returns(1);
             itemMock.Setup(i => i.IsReadyToPublish).Returns(false);
 
@@ -785,6 +805,42 @@ namespace Opc.Ua.Server.Tests
             Assert.That(subscription.Diagnostics.CurrentKeepAliveCount, Is.EqualTo(1));
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublishTimerKeepsQueuedMessagesReadyUntilDrainedAsync(bool eventNotifications)
+        {
+            var clock = new FakeTimeProvider();
+            using Subscription subscription = CreateSubscription(
+                publishingInterval: 100,
+                maxNotificationsPerPublish: 1,
+                timeProvider: clock);
+            var limits = new List<uint>();
+            IMonitoredItem item = eventNotifications
+                ? CreateEventMonitoredItem(1, 3, limits).Object
+                : CreateDataChangeMonitoredItem(1, 3, limits).Object;
+            await RegisterMonitoredItemsAsync(subscription, item).ConfigureAwait(false);
+            using var context = new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
+
+            for (uint sequence = 1; sequence <= 3; sequence++)
+            {
+                clock.Advance(TimeSpan.FromMilliseconds(101));
+                Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.NotificationsAvailable),
+                    "Queued notification messages must not wait for keep-alive expiry.");
+                NotificationMessage message = subscription.Publish(context, out _, out bool moreNotifications)!;
+                Assert.Multiple(() =>
+                {
+                    Assert.That(message!.SequenceNumber, Is.EqualTo(sequence));
+                    Assert.That(message.NotificationData, Has.Count.EqualTo(1));
+                    Assert.That(moreNotifications, Is.EqualTo(sequence < 3));
+                    Assert.That(GetItemsToPublishCount(subscription), Is.Zero);
+                });
+            }
+
+            clock.Advance(TimeSpan.FromMilliseconds(101));
+            Assert.That(subscription.PublishTimerExpired(), Is.EqualTo(PublishingState.Idle),
+                "Messages retained only for retransmission must not count as queued notifications.");
+        }
+
         [Test]
         public void PublishTimerExpired_Triggering_CorrectlyTriggersAndPublishes()
         {
@@ -794,6 +850,7 @@ namespace Opc.Ua.Server.Tests
 
             // Item A: Triggering item. Ready to publish, Ready to trigger.
             var itemAMock = new Mock<IMonitoredItem>();
+            itemAMock.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             itemAMock.Setup(i => i.Id).Returns(1);
             itemAMock.Setup(i => i.IsReadyToPublish).Returns(true);
             itemAMock.SetupProperty(i => i.IsReadyToTrigger, true); // Use property behavior so it can be set to false by Subscription
@@ -801,6 +858,7 @@ namespace Opc.Ua.Server.Tests
             // Item B: Triggered item. Initially NOT ready to publish.
             // B must implement ITriggeredMonitoredItem as well.
             var itemBMock = new Mock<IMonitoredItem>();
+            itemBMock.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             itemBMock.As<ITriggeredMonitoredItem>();
             Mock<ITriggeredMonitoredItem> triggeredItemB = itemBMock.As<ITriggeredMonitoredItem>();
 
@@ -843,8 +901,8 @@ namespace Opc.Ua.Server.Tests
         {
             FieldInfo itemsToPublishField = typeof(Subscription).GetField("m_itemsToPublish", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Field m_itemsToPublish not found");
-            var itemsToPublish = (LinkedList<IMonitoredItem>)itemsToPublishField.GetValue(subscription);
-            itemsToPublish.AddLast(item);
+            var itemsToPublish = (LinkedList<IMonitoredItem>)itemsToPublishField.GetValue(subscription)!;
+            itemsToPublish!.AddLast(item);
         }
 
         [Test]
@@ -852,6 +910,7 @@ namespace Opc.Ua.Server.Tests
         {
             using var subscription = new Subscription(m_serverMock.Object, m_sessionMock.Object, 1, 100, 1000, 10, 1, 0, true, 2);
             var itemMock = new Mock<IDataChangeMonitoredItem2>();
+            itemMock.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
 
             var values = new List<MonitoredItemNotification>
             {
@@ -894,22 +953,28 @@ namespace Opc.Ua.Server.Tests
 
             // First publish
             var ctx1 = new OperationContext(m_sessionMock.Object, new DiagnosticsMasks());
-            NotificationMessage message = subscription.Publish(ctx1, out ArrayOf<uint> availableSequenceNumbers, out bool moreNotifications1);
-            messages.Add(message);
+            NotificationMessage message = subscription.Publish(ctx1, out ArrayOf<uint> availableSequenceNumbers, out bool moreNotifications1)!;
+            messages.Add(message!);
 
             // Should be more because we generated multiple notifications and limit the max per publish to 1 for tests.
             Assert.That(moreNotifications1, Is.True);
 
             // Second publish
-            NotificationMessage message2 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications2);
+            NotificationMessage message2 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications2)!;
 
             // third publish
-            NotificationMessage message3 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications3);
+            NotificationMessage message3 = subscription.Publish(ctx1, out availableSequenceNumbers, out bool moreNotifications3)!;
 
             Assert.That(message2, Is.Not.Null);
             Assert.That(message3, Is.Not.Null);
             Assert.That(moreNotifications2, Is.True);
             Assert.That(moreNotifications3, Is.False);
+
+            // The third message evicted the unacknowledged first one from the
+            // two-message retransmission queue.
+            Assert.That(availableSequenceNumbers.Count, Is.EqualTo(2));
+            Assert.That(subscription.Diagnostics.UnacknowledgedMessageCount, Is.EqualTo(2u));
+            Assert.That(subscription.Diagnostics.DiscardedMessageCount, Is.EqualTo(1u));
         }
 
         [Test]
@@ -944,18 +1009,18 @@ namespace Opc.Ua.Server.Tests
             NotificationMessage message = subscription.Publish(
                 context,
                 out _,
-                out bool moreNotifications);
+                out bool moreNotifications)!;
 
-            Assert.That(message.NotificationData, Has.Count.EqualTo(2));
+            Assert.That(message!.NotificationData, Has.Count.EqualTo(2));
             var eventNotification = (EventNotificationList)ExtensionObject.ToEncodeable(
-                message.NotificationData[0]);
+                message.NotificationData[0])!;
             var dataChangeNotification = (DataChangeNotification)ExtensionObject.ToEncodeable(
-                message.NotificationData[1]);
+                message.NotificationData[1])!;
             Assert.Multiple(() =>
             {
                 Assert.That(moreNotifications, Is.False);
-                Assert.That(eventNotification.Events, Has.Count.EqualTo(2));
-                Assert.That(dataChangeNotification.MonitoredItems, Has.Count.EqualTo(2));
+                Assert.That(eventNotification!.Events, Has.Count.EqualTo(2));
+                Assert.That(dataChangeNotification!.MonitoredItems, Has.Count.EqualTo(2));
                 Assert.That(dataChangeNotification.DiagnosticInfos, Has.Count.EqualTo(2));
                 Assert.That(
                     publishLimits,
@@ -998,14 +1063,14 @@ namespace Opc.Ua.Server.Tests
             bool moreNotifications;
             do
             {
-                NotificationMessage message = subscription.Publish(context, out _, out moreNotifications);
+                NotificationMessage message = subscription.Publish(context, out _, out moreNotifications)!;
                 Assert.That(message, Is.Not.Null);
                 Assert.That(message.NotificationData, Is.Not.Empty, "Ready values must not become a keepalive.");
                 Assert.That(message.SequenceNumber, Is.EqualTo(expectedSequenceNumber++));
                 int count = 0;
                 foreach (ExtensionObject notification in message.NotificationData)
                 {
-                    if (notification.TryGetValue(out DataChangeNotification data))
+                    if (notification.TryGetValue(out DataChangeNotification? data))
                     {
                         Assert.That(data.DiagnosticInfos, Has.Count.EqualTo(data.MonitoredItems.Count));
                         foreach (MonitoredItemNotification item in data.MonitoredItems)
@@ -1017,8 +1082,8 @@ namespace Opc.Ua.Server.Tests
                     }
                     else
                     {
-                        Assert.That(notification.TryGetValue(out EventNotificationList events), Is.True);
-                        foreach (EventFieldList item in events.Events)
+                        Assert.That(notification.TryGetValue(out EventNotificationList? events), Is.True);
+                        foreach (EventFieldList item in events!.Events)
                         {
                             Assert.That(item.EventFields[0].TryGetValue(out int value), Is.True);
                             received.Add((item.ClientHandle, value));
@@ -1167,36 +1232,36 @@ namespace Opc.Ua.Server.Tests
             NotificationMessage firstMessage = subscription.Publish(
                 context,
                 out _,
-                out bool moreAfterFirst);
+                out bool moreAfterFirst)!;
             NotificationMessage secondMessage = subscription.Publish(
                 context,
                 out _,
-                out bool moreAfterSecond);
+                out bool moreAfterSecond)!;
             NotificationMessage thirdMessage = subscription.Publish(
                 context,
                 out _,
-                out bool moreAfterThird);
+                out bool moreAfterThird)!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(firstMessage.NotificationData, Has.Count.EqualTo(1));
-                Assert.That(secondMessage.NotificationData, Has.Count.EqualTo(1));
-                Assert.That(thirdMessage.NotificationData, Has.Count.EqualTo(1));
+                Assert.That(firstMessage!.NotificationData, Has.Count.EqualTo(1));
+                Assert.That(secondMessage!.NotificationData, Has.Count.EqualTo(1));
+                Assert.That(thirdMessage!.NotificationData, Has.Count.EqualTo(1));
             });
             var firstEvents = (EventNotificationList)ExtensionObject.ToEncodeable(
-                firstMessage.NotificationData[0]);
+                firstMessage!.NotificationData[0])!;
             var secondEvents = (EventNotificationList)ExtensionObject.ToEncodeable(
-                secondMessage.NotificationData[0]);
+                secondMessage!.NotificationData[0])!;
             var dataChanges = (DataChangeNotification)ExtensionObject.ToEncodeable(
-                thirdMessage.NotificationData[0]);
+                thirdMessage!.NotificationData[0])!;
             Assert.Multiple(() =>
             {
                 Assert.That(moreAfterFirst, Is.True);
                 Assert.That(moreAfterSecond, Is.True);
                 Assert.That(moreAfterThird, Is.False);
-                Assert.That(firstEvents.Events, Has.Count.EqualTo(2));
-                Assert.That(secondEvents.Events, Has.Count.EqualTo(2));
-                Assert.That(dataChanges.MonitoredItems, Has.Count.EqualTo(2));
+                Assert.That(firstEvents!.Events, Has.Count.EqualTo(2));
+                Assert.That(secondEvents!.Events, Has.Count.EqualTo(2));
+                Assert.That(dataChanges!.MonitoredItems, Has.Count.EqualTo(2));
                 Assert.That(publishLimits, Is.EqualTo(new uint[] { 6, 6, 6 }));
             });
         }
@@ -1236,10 +1301,10 @@ namespace Opc.Ua.Server.Tests
                 priority: 0).ConfigureAwait(false);
 
             Assert.That(
-                manager.TryGetSubscription(response.SubscriptionId, out ISubscription subscription),
+                manager.TryGetSubscription(response.SubscriptionId, out ISubscription? subscription),
                 Is.True);
             Assert.That(
-                subscription.Diagnostics.MaxNotificationsPerPublish,
+                subscription!.Diagnostics.MaxNotificationsPerPublish,
                 Is.EqualTo((uint)expectedLimit));
         }
 
@@ -1350,7 +1415,7 @@ namespace Opc.Ua.Server.Tests
                 queue.TryClaimForTransfer(
                     subscription,
                     m_sessionMock.Object,
-                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                    out SessionPublishQueue.SubscriptionTransferClaim? claim),
                 Is.True);
             Assert.That(claim, Is.Not.Null);
 
@@ -1368,7 +1433,7 @@ namespace Opc.Ua.Server.Tests
                 queue.TryClaimForTransfer(
                     subscription,
                     m_sessionMock.Object,
-                    out SessionPublishQueue.SubscriptionTransferClaim retryClaim),
+                    out SessionPublishQueue.SubscriptionTransferClaim? retryClaim),
                 Is.True,
                 "The failed restore must not leave a stale claim that blocks future transfers.");
             Assert.That(retryClaim, Is.Not.Null);
@@ -1423,10 +1488,10 @@ namespace Opc.Ua.Server.Tests
                 revisedMaxKeepAliveCount: out _);
 
             Assert.That(
-                manager.TryGetSubscription(response.SubscriptionId, out ISubscription subscription),
+                manager.TryGetSubscription(response.SubscriptionId, out ISubscription? subscription),
                 Is.True);
             Assert.That(
-                subscription.Diagnostics.MaxNotificationsPerPublish,
+                subscription!.Diagnostics.MaxNotificationsPerPublish,
                 Is.EqualTo((uint)expectedLimit));
         }
 
@@ -1475,7 +1540,7 @@ namespace Opc.Ua.Server.Tests
                 publishingEnabled: true,
                 priority: 0).ConfigureAwait(false);
             Assert.That(
-                manager.TryGetSubscription(created.SubscriptionId, out ISubscription subscription),
+                manager.TryGetSubscription(created.SubscriptionId, out ISubscription? subscription),
                 Is.True);
 
             var transferEntered = new TaskCompletionSource<bool>(
@@ -1530,10 +1595,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(closeWaitedForTransfer, Is.True);
                 Assert.That(transferred.Results, Has.Count.EqualTo(1));
                 Assert.That(transferred.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(subscription.Session, Is.SameAs(destinationSession.Object));
+                Assert.That(subscription!.Session, Is.SameAs(destinationSession.Object));
                 Assert.That(abandonedSubscriptions, Is.Empty);
             });
-            Assert.DoesNotThrow(() => subscription.ResendData(destinationContext));
+            Assert.DoesNotThrow(() => subscription!.ResendData(destinationContext));
         }
 
         [Test]
@@ -1610,9 +1675,9 @@ namespace Opc.Ua.Server.Tests
                         () => subscription.Publish(
                             fixture.SourceContext,
                             out _,
-                            out _));
+                            out _))!;
                     Assert.That(
-                        error.StatusCode,
+                        error!.StatusCode,
                         Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
                 });
             }
@@ -1813,13 +1878,13 @@ namespace Opc.Ua.Server.Tests
             NotificationMessage message = readySubscription.Publish(
                 fixture.DestinationContext,
                 out _,
-                out _);
+                out _)!;
 
             Assert.Multiple(() =>
             {
                 Assert.That(readySubscription, Is.SameAs(subscription));
                 Assert.That(message, Is.Not.Null);
-                Assert.That(message.NotificationData, Is.Not.Empty);
+                Assert.That(message!.NotificationData, Is.Not.Empty);
                 Assert.That(monitoredItem.IsResendData, Is.False);
             });
         }
@@ -1918,15 +1983,15 @@ namespace Opc.Ua.Server.Tests
             NotificationMessage firstMessage = readySubscription.Publish(
                 fixture.DestinationContext,
                 out _,
-                out _);
+                out _)!;
             NotificationMessage secondMessage = readySubscription.Publish(
                 fixture.DestinationContext,
                 out _,
-                out _);
+                out _)!;
 
             Assert.Multiple(() =>
             {
-                Assert.That(firstMessage.NotificationData, Is.Not.Empty);
+                Assert.That(firstMessage!.NotificationData, Is.Not.Empty);
                 Assert.That(secondMessage?.NotificationData ?? [], Is.Empty);
                 Assert.That(monitoredItem.IsResendData, Is.False);
             });
@@ -2114,15 +2179,15 @@ namespace Opc.Ua.Server.Tests
             NotificationMessage message = subscription.Publish(
                 fixture.DestinationContext,
                 out _,
-                out _);
+                out _)!;
 
             Assert.That(message, Is.Not.Null);
             Assert.That(message.NotificationData, Has.Count.EqualTo(1));
             Assert.That(
-                message.NotificationData[0].TryGetValue(out DataChangeNotification dataChange),
+                message.NotificationData[0].TryGetValue(out DataChangeNotification? dataChange),
                 Is.True);
             var clientHandles = new List<uint>();
-            foreach (MonitoredItemNotification notification in dataChange.MonitoredItems)
+            foreach (MonitoredItemNotification notification in dataChange!.MonitoredItems)
             {
                 clientHandles.Add(notification.ClientHandle);
             }
@@ -2326,7 +2391,7 @@ namespace Opc.Ua.Server.Tests
                     Assert.That(
                         abandonedSubscriptions.TryGetValue(
                             subscription.Id,
-                            out ISubscriptionPublishPipeline restoredSubscription),
+                            out ISubscriptionPublishPipeline? restoredSubscription),
                         Is.True);
                     Assert.That(restoredSubscription, Is.SameAs(subscription));
                 }
@@ -2377,7 +2442,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 manager.TryGetSubscription(
                     destinationCreated.SubscriptionId,
-                    out ISubscription destinationSubscription),
+                    out ISubscription? destinationSubscription),
                 Is.True);
             Assert.That(destinationSubscription, Is.Not.Null);
             SessionPublishQueue destinationQueue = GetPublishQueue(
@@ -2438,7 +2503,7 @@ namespace Opc.Ua.Server.Tests
             bool claimed = queue.TryClaimForTransfer(
                 subscription,
                 staleSession.Object,
-                out SessionPublishQueue.SubscriptionTransferClaim claim);
+                out SessionPublishQueue.SubscriptionTransferClaim? claim);
 
             Assert.Multiple(() =>
             {
@@ -2454,7 +2519,7 @@ namespace Opc.Ua.Server.Tests
                 queue.TryClaimForTransfer(
                     subscription,
                     m_sessionMock.Object,
-                    out SessionPublishQueue.SubscriptionTransferClaim ownerClaim),
+                    out SessionPublishQueue.SubscriptionTransferClaim? ownerClaim),
                 Is.True,
                 "The refused claim must not block the real owner from starting a transfer.");
             queue.CompleteTransferClaim(ownerClaim!);
@@ -2474,7 +2539,7 @@ namespace Opc.Ua.Server.Tests
                 queue.TryClaimForTransfer(
                     subscription,
                     m_sessionMock.Object,
-                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                    out SessionPublishQueue.SubscriptionTransferClaim? claim),
                 Is.True);
 
             Assert.That(queue.RestoreTransferClaim(claim!), Is.True);
@@ -2536,7 +2601,7 @@ namespace Opc.Ua.Server.Tests
                 queue.TryClaimForTransfer(
                     subscription,
                     m_sessionMock.Object,
-                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                    out SessionPublishQueue.SubscriptionTransferClaim? claim),
                 Is.True);
 
             queue.PublishCompleted(subscription, moreNotifications: true);
@@ -2693,11 +2758,11 @@ namespace Opc.Ua.Server.Tests
             SessionDiagnosticsObjectState destinationNode =
                 diagnostics.FindPredefinedNode<SessionDiagnosticsObjectState>(destinationId);
             var sourceArray = (SubscriptionDiagnosticsArrayState)sourceNode.CreateChild(
-                diagnostics.SystemContext, QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray));
+                diagnostics.SystemContext, QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray))!;
             var destinationArray = (SubscriptionDiagnosticsArrayState)destinationNode.CreateChild(
-                diagnostics.SystemContext, QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray));
+                diagnostics.SystemContext, QualifiedName.From(BrowseNames.SubscriptionDiagnosticsArray))!;
             var references = new List<IReference>();
-            sourceArray.GetReferences(diagnostics.SystemContext, references, ReferenceTypeIds.HasComponent, false);
+            sourceArray!.GetReferences(diagnostics.SystemContext, references, ReferenceTypeIds.HasComponent, false);
             Assert.That(references, Has.Count.EqualTo(1));
             var diagnosticsId = ExpandedNodeId.ToNodeId(references[0].TargetId, m_serverMock.Object.NamespaceUris);
             SubscriptionDiagnosticsState diagnosticsNode =
@@ -2711,7 +2776,7 @@ namespace Opc.Ua.Server.Tests
 
             prepared.CommitOwnership();
             Assert.That(sourceArray.ReferenceExists(ReferenceTypeIds.HasComponent, false, diagnosticsId), Is.False);
-            Assert.That(destinationArray.ReferenceExists(ReferenceTypeIds.HasComponent, false, diagnosticsId), Is.True);
+            Assert.That(destinationArray!.ReferenceExists(ReferenceTypeIds.HasComponent, false, diagnosticsId), Is.True);
             Assert.That(ReadPermissions(m_sessionMock.Object), Is.Zero);
             Assert.That(ReadPermissions(destination.Object), Is.Not.Zero);
             ServiceResultException error = Assert.Throws<ServiceResultException>(prepared.CommitMonitoredItemEffects);
@@ -2760,7 +2825,7 @@ namespace Opc.Ua.Server.Tests
                 sourceQueue.TryClaimForTransfer(
                     subscription,
                     m_sessionMock.Object,
-                    out SessionPublishQueue.SubscriptionTransferClaim claim),
+                    out SessionPublishQueue.SubscriptionTransferClaim? claim),
                 Is.True);
             var diagnosticsContext = new OperationContext(
                 fixture.DestinationSession.Object,
@@ -2838,7 +2903,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(
                     abandonedSubscriptions.TryGetValue(
                         subscription.Id,
-                        out ISubscriptionPublishPipeline retainedSubscription),
+                        out ISubscriptionPublishPipeline? retainedSubscription),
                     Is.True,
                     "A refused reservation must leave the subscription abandoned, not lost.");
                 Assert.That(retainedSubscription, Is.SameAs(subscription));
@@ -3052,6 +3117,7 @@ namespace Opc.Ua.Server.Tests
             List<uint> publishLimits)
         {
             var item = new Mock<IEventMonitoredItem>();
+            item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             var pending = new Queue<EventFieldList>();
             for (int index = 0; index < notificationCount; index++)
             {
@@ -3091,6 +3157,7 @@ namespace Opc.Ua.Server.Tests
             List<uint> publishLimits)
         {
             var item = new Mock<IDataChangeMonitoredItem>();
+            item.SetupGet(i => i.MonitoringMode).Returns(MonitoringMode.Reporting);
             var pending = new Queue<MonitoredItemNotification>();
             for (int index = 0; index < notificationCount; index++)
             {

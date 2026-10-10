@@ -50,7 +50,7 @@ namespace Opc.Ua.Core.Tests.Security.Secrets
             var store = new InMemorySecretStore();
             var id = new SecretIdentifier("missing", InMemorySecretStore.DefaultStoreType);
 
-            ISecret secret = store.TryGet(id);
+            ISecret? secret = store.TryGet(id);
 
             Assert.That(secret, Is.Null);
         }
@@ -64,7 +64,7 @@ namespace Opc.Ua.Core.Tests.Security.Secrets
 
             await store.SetAsync(id, expected).ConfigureAwait(false);
 
-            using ISecret secret = store.TryGet(id);
+            using ISecret secret = store.TryGet(id)!;
             Assert.That(secret, Is.Not.Null);
             Assert.That(secret.Bytes.ToArray(), Is.EqualTo(expected));
         }
@@ -79,13 +79,13 @@ namespace Opc.Ua.Core.Tests.Security.Secrets
             // CA2012: deliberately storing then accessing .Result on a ValueTask after asserting
             // IsCompletedSuccessfully — that is the exact behaviour this test verifies.
 #pragma warning disable CA2012
-            ValueTask<ISecret> task = store.GetAsync(id);
+            ValueTask<ISecret?> task = store.GetAsync(id);
 
             Assert.That(task.IsCompletedSuccessfully, Is.True,
                 "InMemorySecretStore.GetAsync must complete sync on cache hit.");
-            using ISecret secret = task.Result;
+            using ISecret secret = task.Result!;
 #pragma warning restore CA2012
-            Assert.That(secret.Bytes[0], Is.EqualTo((byte)0xAB));
+            Assert.That(secret!.Bytes[0], Is.EqualTo((byte)0xAB));
         }
 
         [Test]
@@ -120,9 +120,9 @@ namespace Opc.Ua.Core.Tests.Security.Secrets
             await store.SetAsync(id, new byte[] { 0xAA }).ConfigureAwait(false);
             await store.SetAsync(id, new byte[] { 0xBB }).ConfigureAwait(false);
 
-            using ISecret secret = store.TryGet(id);
+            using ISecret secret = store.TryGet(id)!;
 
-            Assert.That(secret.Bytes[0], Is.EqualTo((byte)0xBB),
+            Assert.That(secret!.Bytes[0], Is.EqualTo((byte)0xBB),
                 "SetAsync on an existing entry must replace it.");
         }
 
@@ -137,8 +137,8 @@ namespace Opc.Ua.Core.Tests.Security.Secrets
             // Mutate the source after Set; the store must hold its own copy.
             source[0] = 0xFF;
 
-            using ISecret secret = store.TryGet(id);
-            Assert.That(secret.Bytes[0], Is.EqualTo((byte)0x01),
+            using ISecret secret = store.TryGet(id)!;
+            Assert.That(secret!.Bytes[0], Is.EqualTo((byte)0x01),
                 "InMemorySecretStore must copy the incoming bytes on Set.");
         }
 
@@ -147,7 +147,7 @@ namespace Opc.Ua.Core.Tests.Security.Secrets
         {
             var store = new InMemorySecretStore();
 
-            Assert.That(() => store.TryGet(null), Throws.ArgumentNullException);
+            Assert.That(() => store.TryGet(null!), Throws.ArgumentNullException);
         }
 
         [Test]
@@ -159,7 +159,7 @@ namespace Opc.Ua.Core.Tests.Security.Secrets
             byte[] bytes = [0x42];
             inMem.SetAsync(id, bytes).AsTask().Wait();
 
-            using ISecret secret = registry.TryGet(id);
+            using ISecret secret = registry.TryGet(id)!;
 
             Assert.That(secret, Is.Not.Null);
             Assert.That(secret.Bytes[0], Is.EqualTo((byte)0x42));
@@ -180,7 +180,7 @@ namespace Opc.Ua.Core.Tests.Security.Secrets
             var registry = new SecretRegistry();
             var id = new SecretIdentifier("k", "DoesNotExist");
 
-            ISecret secret = await registry.GetAsync(id).ConfigureAwait(false);
+            ISecret? secret = await registry.GetAsync(id).ConfigureAwait(false);
 
             Assert.That(secret, Is.Null);
         }
@@ -198,9 +198,9 @@ namespace Opc.Ua.Core.Tests.Security.Secrets
             registry.RegisterStore(first);
             registry.RegisterStore(second);
 
-            using ISecret secret = registry.TryGet(id);
+            using ISecret secret = registry.TryGet(id)!;
 
-            Assert.That(secret.Bytes[0], Is.EqualTo((byte)0xBB),
+            Assert.That(secret!.Bytes[0], Is.EqualTo((byte)0xBB),
                 "RegisterStore with same StoreType must replace the previous registration.");
         }
 

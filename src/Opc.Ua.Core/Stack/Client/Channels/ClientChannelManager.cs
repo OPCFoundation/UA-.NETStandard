@@ -426,20 +426,23 @@ namespace Opc.Ua
                 Server = ToChannelKey(token.ServerInitializationVector,
                     token.ServerEncryptingKey, token.ServerSigningKey)
             });
+        }
 
-            static ChannelKey? ToChannelKey(byte[]? iv, byte[]? key, byte[]? sk)
+        /// <summary>
+        /// Creates the diagnostic key record of one side of a token, or null for a token
+        /// without complete keys. Sign-only channels of policies that derive no encrypting
+        /// key and IV (OPC 10000-6 6.8.1) still have a signing key and get a record with an
+        /// empty key and IV.
+        /// </summary>
+        internal static ChannelKey? ToChannelKey(byte[]? iv, byte[]? key, byte[]? sk)
+        {
+            int ivLength = iv?.Length ?? 0;
+            int keyLength = key?.Length ?? 0;
+            if (sk == null || sk.Length == 0 || (ivLength == 0) != (keyLength == 0))
             {
-                if (iv == null ||
-                    key == null ||
-                    sk == null ||
-                    iv.Length == 0 ||
-                    key.Length == 0 ||
-                    sk.Length == 0)
-                {
-                    return null;
-                }
-                return new ChannelKey(iv, key, sk.Length);
+                return null;
             }
+            return new ChannelKey(iv ?? [], key ?? [], sk.Length);
         }
 
         /// <summary>
@@ -829,7 +832,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// A reconnect cycle that stopped because the reconnect policy ran out of
-        /// attempts, or because the caller's retry budget ran out of time, is a
+        /// attempts, its deadline expired, or a participant reported a fatal channel error, is a
         /// deliberate terminal outcome rather than a race. It leaves the entry
         /// <see cref="ChannelState.Faulted"/> with
         /// <see cref="StatusCodes.BadSecureChannelClosed"/> - indistinguishable from a
@@ -844,7 +847,7 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             return !ct.IsCancellationRequested &&
-                !entry.ReconnectStoppedByRetryPolicy &&
+                !entry.ReconnectStoppedIntentionally &&
                 sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
                 entry.IsClosing;
         }
@@ -853,6 +856,7 @@ namespace Opc.Ua
         /// Reattaches a lease to a usable entry after reconnect backoff, opening a replacement with current
         /// certificates.
         /// </summary>
+        /// <exception cref="ServiceResultException">A reverse channel requires a fresh waiting connection.</exception>
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(
             ManagedTransportChannelLease lease,
             CancellationToken ct)
@@ -863,6 +867,11 @@ namespace Opc.Ua
             if (!original.IsClosing)
             {
                 return original;
+            }
+            if (original.IsReverse)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecureChannelClosed, "A fresh reverse connection is required.");
             }
 
             TimeSpan delay = GetSwapDelay(lease.SwapCount);
@@ -947,7 +956,7 @@ namespace Opc.Ua
 
         private TimeSpan GetReconnectPolicyDelay(int attempt)
         {
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return ReconnectPolicy.GetDelay(attempt, budget: null);
 #else
             return ChannelReconnectPolicyBudget.GetDelay(

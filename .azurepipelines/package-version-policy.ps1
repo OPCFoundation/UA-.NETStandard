@@ -2,7 +2,7 @@ function Test-PreviewPackageId {
     param([Parameter(Mandatory)][string]$PackageId)
 
     $baseId = $PackageId -replace '\.Debug$', ''
-    return $baseId -match '^OPCFoundation\.NetStandard\.Opc\.Ua\.(XRegistry|WotCon|Vision|Robotics|Redundancy|Positioning|OpenUsd|ISA95|AI|Di)(\.|$)' -or
+    return $baseId -match '^OPCFoundation\.NetStandard\.Opc\.Ua\.(XRegistry|WotCon|Vision|Robotics|Redundancy|Positioning|OpenUsd|AI)(\.|$)' -or
         $baseId -in @(
             'OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics',
             'OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision',
@@ -44,6 +44,13 @@ function ConvertTo-PreviewPackageVersion {
 
     if ($Version -match '-preview(?:[.+-]|$)') {
         return $Version
+    }
+    if ($Version -cmatch '^[^-+]+-g[0-9a-f]+(\+.*)?$') {
+        # A commit id as the only prerelease identifier (a non-public build
+        # of a stable version.json). "-preview.g<commit>" would outrank every
+        # numbered preview under SemVer 2, so number it 0; version.targets
+        # applies the same rule.
+        return $Version -creplace '^([^-+]+)-(g[0-9a-f]+)', '$1-preview.0.$2'
     }
     if ($Version.Contains('-')) {
         return $Version.Replace('-', '-preview.')
@@ -243,6 +250,108 @@ function Get-NuGetPackageContentDigest {
     }
 }
 
+function Invoke-FeedRequest {
+    <#
+    .SYNOPSIS
+        Invoke-WebRequest that retries transient failures only and returns
+        the final response for the caller to judge by status code.
+
+    .DESCRIPTION
+        Invoke-WebRequest's own -MaximumRetryCount retries every status from
+        400 to 599, so each 404 - the normal "this id/version is not
+        published" answer the release gates ask for once per package - cost
+        three pointless retries and ~15 s. Across a full package set on two
+        feeds that turned a read-only check into an hour-long step.
+
+        Only a network failure, 408, 429 or 5xx is retried here. Every other
+        status is returned straight away; after the last retry the final
+        response is returned (or the network error rethrown), so callers keep
+        failing closed on anything they do not recognise.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Uri,
+        [hashtable]$Headers = @{},
+        [string]$OutFile,
+        [ValidateRange(0, 10)][int]$MaximumRetryCount = 3,
+        [ValidateRange(0, 60)][int]$RetryIntervalSec = 5
+    )
+
+    $parameters = @{
+        Uri = $Uri
+        Headers = $Headers
+        SkipHttpErrorCheck = $true
+    }
+    if ($OutFile) {
+        $parameters['OutFile'] = $OutFile
+        $parameters['PassThru'] = $true
+    }
+
+    for ($attempt = 0; ; $attempt++) {
+        try {
+            $response = Invoke-WebRequest @parameters
+        }
+        catch {
+            # -SkipHttpErrorCheck means only failures without an HTTP
+            # status (DNS, connection reset, timeout) reach this block.
+            if ($attempt -ge $MaximumRetryCount) {
+                throw
+            }
+            Start-Sleep -Seconds $RetryIntervalSec
+            continue
+        }
+
+        $status = [int]$response.StatusCode
+        $transient = $status -eq 408 -or $status -eq 429 -or $status -ge 500
+        if (-not $transient -or $attempt -ge $MaximumRetryCount) {
+            return $response
+        }
+        Start-Sleep -Seconds $RetryIntervalSec
+    }
+}
+
+function Get-PreviousReleaseTag {
+    <#
+    .SYNOPSIS
+        Returns the release tag GitHub should generate release notes from:
+        the greatest semantic version of the same major that is strictly
+        lower than $Tag, or $null when there is none.
+
+    .DESCRIPTION
+        Without a previous tag GitHub diffs against the latest release, which
+        can be a 1.5.378 maintenance release on another branch; the 2.0.0
+        notes generated that way exceeded the 125000-character body limit.
+        Choosing by version instead of publication time keeps a servicing
+        promotion (2.0.1 after 2.1.0) on its own line. Tags that are not
+        semantic versions, such as the four-component 1.5.378.x, are ignored.
+    #>
+    param(
+        [Parameter(Mandatory)][string]$Tag,
+        [AllowEmptyCollection()][string[]]$ReleaseTags = @()
+    )
+
+    $target = $null
+    if (-not [System.Management.Automation.SemanticVersion]::TryParse($Tag, [ref]$target)) {
+        throw "Release tag '$Tag' is not a semantic version."
+    }
+
+    $best = $null
+    $bestTag = $null
+    foreach ($candidateTag in $ReleaseTags) {
+        $candidate = $null
+        if (-not [System.Management.Automation.SemanticVersion]::TryParse($candidateTag, [ref]$candidate)) {
+            continue
+        }
+        if ($candidate.Major -ne $target.Major -or $candidate -ge $target) {
+            continue
+        }
+        if ($null -eq $best -or $candidate -gt $best) {
+            $best = $candidate
+            $bestTag = $candidateTag
+        }
+    }
+    return $bestTag
+}
+
 function Test-StablePackageVersion {
     <#
     .SYNOPSIS
@@ -255,6 +364,27 @@ function Test-StablePackageVersion {
     param([Parameter(Mandatory)][string]$Version)
 
     return $Version -match '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$'
+}
+
+function Test-PromotablePreviewPackageVersion {
+    <#
+    .SYNOPSIS
+        Returns $true when a package version is a public release-line
+        preview, exactly "major.minor.patch-preview.N", for example
+        "2.0.0-preview.6". This is the only preview shape release.yml may
+        promote to nuget.org.
+    .DESCRIPTION
+        A canonical release/M.m branch is a public release for
+        Nerdbank.GitVersioning, so its previews carry no commit id. Every
+        other shape is rejected: "-preview.N.gabc123" and "+gabc123" are
+        non-public builds (master, PR and feature branches), and anything
+        else ("-rc.1", "-preview", a four-component version) is not a
+        numbered preview this repository ever produces. The label is matched
+        case-sensitively (-cmatch): "-PREVIEW.6" is not the shape NBGV emits.
+    #>
+    param([Parameter(Mandatory)][string]$Version)
+
+    return $Version -cmatch '^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)-preview\.(0|[1-9]\d*)$'
 }
 
 function Test-CanonicalReleaseBranchRef {
@@ -304,13 +434,22 @@ function Test-CanonicalReleaseBranchForPackageVersion {
         comparison below can stay textual: "release/02.0" is not an alternate
         spelling of the 2.0 line, it is simply not a release line. See
         Test-CanonicalReleaseBranchRef for why case and leading zeroes matter.
+
+        -AllowPreview additionally accepts a public release-line preview
+        (Test-PromotablePreviewPackageVersion, e.g. "2.0.0-preview.6") under
+        the same major/minor rule. Only release.yml's explicit preview
+        promotion passes it; the stable gates in nuget-publish.yml and
+        release.yml never do.
     #>
     param(
         [Parameter(Mandatory)][string]$Ref,
-        [Parameter(Mandatory)][string]$Version
+        [Parameter(Mandatory)][string]$Version,
+        [switch]$AllowPreview
     )
 
-    if (-not (Test-StablePackageVersion -Version $Version)) {
+    $isStable = Test-StablePackageVersion -Version $Version
+    $isPreview = $AllowPreview -and (Test-PromotablePreviewPackageVersion -Version $Version)
+    if (-not ($isStable -or $isPreview)) {
         return $false
     }
 
@@ -321,7 +460,7 @@ function Test-CanonicalReleaseBranchForPackageVersion {
     }
 
     $versionMatch = [regex]::Match(
-        $Version, '^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?:0|[1-9]\d*)$')
+        $Version, '^(?<major>0|[1-9]\d*)\.(?<minor>0|[1-9]\d*)\.(?:0|[1-9]\d*)(?:-preview\.(?:0|[1-9]\d*))?$')
     return $versionMatch.Success -and
         $branchMatch.Groups['major'].Value -eq $versionMatch.Groups['major'].Value -and
         $branchMatch.Groups['minor'].Value -eq $versionMatch.Groups['minor'].Value

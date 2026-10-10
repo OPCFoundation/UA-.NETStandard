@@ -138,6 +138,30 @@ namespace Opc.Ua.Client
                 throw new ArgumentNullException(nameof(currentEndpoint));
             }
 
+            // Interface-typed callers bind here rather than to the concrete
+            // handler's instance method; route them to the full health checks.
+            if (redundancyHandler is DefaultServerRedundancyHandler defaultHandler)
+            {
+                return defaultHandler.ShouldFailover(redundancyInfo, currentEndpoint);
+            }
+
+            // Part 4 §6.6.2.4.3: do not fail over away from a server that is still Healthy.
+            if (redundancyInfo.Mode is RedundancySupport.None or RedundancySupport.Transparent)
+            {
+                return new ServerFailoverDecision(
+                    isFailoverWarranted: false,
+                    DateTime.MinValue,
+                    "Redundancy mode does not require client-side failover.");
+            }
+            if (redundancyInfo.ServiceLevelAccessible &&
+                ServiceLevels.IsHealthy(redundancyInfo.ServiceLevel))
+            {
+                return new ServerFailoverDecision(
+                    isFailoverWarranted: false,
+                    DateTime.MinValue,
+                    "Current server remains in the Healthy service level subrange.");
+            }
+
             return redundancyHandler.SelectFailoverTarget(redundancyInfo, currentEndpoint) != null
                 ? new ServerFailoverDecision(
                     isFailoverWarranted: true,

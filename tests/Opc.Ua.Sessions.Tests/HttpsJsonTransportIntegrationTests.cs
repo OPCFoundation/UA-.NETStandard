@@ -76,7 +76,7 @@ namespace Opc.Ua.Sessions.Tests
                 SecurityNone = true,
                 UriScheme = Utils.UriSchemeOpcHttps,
                 HttpsMutualTls = false,
-                MaxChannelCount = 8,
+                MaxChannelCount = 103,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security
             };
             m_server = await m_serverFixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
@@ -116,10 +116,10 @@ namespace Opc.Ua.Sessions.Tests
         {
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription none = endpoints
-                .ToArray()
+                .ToArray()!
                 .FirstOrDefault(ep =>
                     string.Equals(ep.TransportProfileUri, Profiles.HttpsBinaryTransport, StringComparison.Ordinal) &&
-                    ep.SecurityMode == MessageSecurityMode.None);
+                    ep.SecurityMode == MessageSecurityMode.None)!;
             Assert.That(none, Is.Not.Null,
                 "Reference server did not advertise an unsecured HTTPS endpoint - JSON sub-protocol requires SM None.");
         }
@@ -131,7 +131,7 @@ namespace Opc.Ua.Sessions.Tests
             // the JSON-targeted endpoint description from the existing
             // SM-None HTTPS endpoint so the wire path is fully exercised.
             EndpointDescription httpsNone = m_server.GetEndpoints()
-                .ToArray()
+                .ToArray()!
                 .First(ep =>
                     string.Equals(ep.TransportProfileUri, Profiles.HttpsBinaryTransport, StringComparison.Ordinal) &&
                     ep.SecurityMode == MessageSecurityMode.None);

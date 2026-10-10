@@ -56,6 +56,7 @@ namespace Opc.Ua
             if (acknowledged)
             {
                 UpdateStateAfterAcknowledge(context);
+                m_acknowledgeCount++;
             }
             else
             {
@@ -76,6 +77,7 @@ namespace Opc.Ua
             if (confirmed)
             {
                 UpdateStateAfterConfirm(context);
+                m_confirmCount++;
             }
             else
             {
@@ -151,15 +153,18 @@ namespace Opc.Ua
 
                 if (branch != null)
                 {
-                    branch.OnAcknowledgeCalled(context, method, objectId, eventId, comment);
+                    error = branch.OnAcknowledgeCalled(context, method, objectId, eventId, comment);
 
-                    if (SupportsConfirm())
+                    if (ServiceResult.IsGood(error))
                     {
-                        ReplaceBranchEvent(eventId, branch);
-                    }
-                    else
-                    {
-                        RemoveBranchEvent(eventId);
+                        if (SupportsConfirm())
+                        {
+                            RekeyBranch(branch);
+                        }
+                        else
+                        {
+                            RemoveBranch(branch);
+                        }
                     }
                 }
                 else
@@ -171,7 +176,10 @@ namespace Opc.Ua
                         SetConfirmedState(context, false);
                     }
                 }
+            }
 
+            if (ServiceResult.IsGood(error))
+            {
                 // If this is a branch, the comment goes to both the branch and the original event
                 if (CanSetComment(comment))
                 {
@@ -243,6 +251,25 @@ namespace Opc.Ua
             if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 return StatusCodes.BadConditionDisabled;
+            }
+
+            // Part 9 5.7.3: the EventId identifies a state the condition or one of its branches
+            // reported (possibly superseded by a later state change), and only a state that
+            // was not acknowledged yet can be acknowledged.
+            if (ResolveEventId(eventId) is not { Owner: AcknowledgeableConditionState target } reported)
+            {
+                return StatusCodes.BadEventIdUnknown;
+            }
+
+            if (target.AckedState?.Id?.Value == true || reported.AcknowledgedSince)
+            {
+                return StatusCodes.BadConditionBranchAlreadyAcked;
+            }
+
+            if (!reported.IsLive)
+            {
+                // the branch that reported the EventId no longer exists.
+                return StatusCodes.BadEventIdUnknown;
             }
 
             if (OnAcknowledge != null)
@@ -327,14 +354,21 @@ namespace Opc.Ua
 
                 if (branch != null)
                 {
-                    branch.OnConfirmCalled(context, method, objectId, eventId, comment);
-                    RemoveBranchEvent(eventId);
+                    error = branch.OnConfirmCalled(context, method, objectId, eventId, comment);
+
+                    if (ServiceResult.IsGood(error))
+                    {
+                        RemoveBranch(branch);
+                    }
                 }
                 else
                 {
                     SetConfirmedState(context, true);
                 }
+            }
 
+            if (ServiceResult.IsGood(error))
+            {
                 // If this is a branch, the comment goes to both the branch and the original event
                 if (CanSetComment(comment))
                 {
@@ -406,6 +440,25 @@ namespace Opc.Ua
             if (!EnabledState!.Id!.Value) // condition states always have EnabledState/Id after construction
             {
                 return StatusCodes.BadConditionDisabled;
+            }
+
+            // Part 9 5.7.4: the EventId identifies a state the condition or one of its branches
+            // reported (possibly superseded by a later state change), and only a state that
+            // was not confirmed yet can be confirmed.
+            if (ResolveEventId(eventId) is not { Owner: AcknowledgeableConditionState target } reported)
+            {
+                return StatusCodes.BadEventIdUnknown;
+            }
+
+            if (target.ConfirmedState?.Id?.Value == true || reported.ConfirmedSince)
+            {
+                return StatusCodes.BadConditionBranchAlreadyConfirmed;
+            }
+
+            if (!reported.IsLive)
+            {
+                // the branch that reported the EventId no longer exists.
+                return StatusCodes.BadEventIdUnknown;
             }
 
             if (OnConfirm != null)
@@ -524,19 +577,14 @@ namespace Opc.Ua
         /// </returns>
         private AcknowledgeableConditionState? GetAcknowledgeableBranch(ByteString eventId)
         {
-            AcknowledgeableConditionState? acknowledgeableBranch = null;
-            ConditionState? branch = GetBranch(eventId);
-
-            if (branch != null)
+            // the EventId may be a superseded EventId of the branch.
+            if ((GetBranch(eventId) ?? ResolveEventId(eventId)?.Owner) is AcknowledgeableConditionState branch &&
+                !ReferenceEquals(branch, this))
             {
-                object? acknowledgeable = branch as AcknowledgeableConditionState;
-                if (acknowledgeable != null)
-                {
-                    acknowledgeableBranch = (AcknowledgeableConditionState)acknowledgeable;
-                }
+                return branch;
             }
 
-            return acknowledgeableBranch;
+            return null;
         }
 
         /// <summary>

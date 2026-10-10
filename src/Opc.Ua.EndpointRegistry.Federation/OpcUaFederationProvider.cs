@@ -63,7 +63,7 @@ namespace Opc.Ua.EndpointRegistry.Federation
             string xid, CancellationToken cancellationToken = default)
         {
             CheckSession();
-            string role = xid.Contains("/versions/", StringComparison.Ordinal) ? "MetadataVersion" : "MetadataResource";
+            string role = xid.Split('/').Length == 7 ? "MetadataVersion" : "MetadataResource";
             string logical = FederationSourceKey.ValidateXid(xid, role);
             NodeId target = await OwnedTargetAsync(logical, cancellationToken).ConfigureAwait(false);
             return new RegistryEntityReferenceDataType

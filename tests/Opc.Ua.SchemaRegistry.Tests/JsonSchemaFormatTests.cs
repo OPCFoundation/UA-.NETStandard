@@ -86,6 +86,17 @@ namespace Opc.Ua.SchemaRegistry.Tests
         }
 
         [Test]
+        public void PresentNullExamplesCannotPassTheLosslessSerializationCheck()
+        {
+            var provider = new JsonSchemaFormatProvider();
+            var content = (JsonSchemaContentDataType)provider.Parse("""{"examples":[]}"""u8);
+            var root = (JsonSchemaObjectDataType)content.Root;
+            root.Examples = ArrayOf<RegistryValueDataType>.Null;
+            Assert.That(root.Examples.IsNull, Is.True);
+            Assert.That(() => provider.Serialize(content), Throws.ArgumentException);
+        }
+
+        [Test]
         public void EveryStandardKeywordFamilyHasANamedLosslessProjection()
         {
             const string source = """

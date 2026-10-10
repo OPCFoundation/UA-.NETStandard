@@ -28,9 +28,7 @@ permissions:
 # There is deliberately no switch that hands any of it back to another CI
 # system: a configuration that shrinks this matrix would reduce what a pull
 # request is actually tested against without changing any check name, and the
-# reduction would not be visible on the pull request. Azure Pipelines still runs
-# its own legs during the migration overlap (see docs/DeveloperGuide.md); that
-# duplicates coverage rather than replacing it.
+# reduction would not be visible on the pull request.
 #
 # The full workload - every remaining target framework, the Debug legs and the
 # tiers that lift the category filter - lives in .github/workflows/nightly.yml,
@@ -56,9 +54,16 @@ env:
   # pull requests from forks.
   ENABLE_CODECOV: 'true'
 
+# Pull requests and feature branches cancel a superseded run: only the newest
+# commit's result matters there. A push to a protected line (master, main,
+# master378, release/*) never cancels, and each commit gets its own group,
+# because a queued run in a shared group is replaced as well as a running one
+# being cancelled. Every protected commit therefore finishes its required
+# checks ('build-and-test summary', 'images summary'), which the Release
+# ruleset demands before a release/<major>.<minor> branch can be cut from it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || ((github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) && github.sha) || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || !(github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) }}
 
 jobs:
   discover:
@@ -67,7 +72,7 @@ jobs:
     outputs:
       tests: ${{ steps.matrix.outputs.tests }}
       builds: ${{ steps.matrix.outputs.builds }}
-      batch_size: ${{ steps.matrix.outputs.batch_size }}
+      batch_target_minutes: ${{ steps.matrix.outputs.batch_target_minutes }}
       aot_matrix: ${{ steps.list.outputs.aot_matrix }}
       relevant_changes: ${{ steps.list.outputs.relevant_changes }}
       include_macos: ${{ steps.list.outputs.include_macos }}
@@ -151,7 +156,7 @@ jobs:
             Write-Host 'Nothing to expand: the pull request changed no build-relevant file.'
             'tests=[]' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             'builds=[]' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-            'batch_size=0' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+            'batch_target_minutes=0' | Out-File -FilePath $env:GITHUB_OUTPUT -Append
             exit 0
         }
         ./.github/scripts/get-ci-matrix.ps1 -Scope pr -ExcludeMacOS:($env:INCLUDE_MACOS -ne 'true')
@@ -444,9 +449,9 @@ jobs:
 
   # Every solution in the repository, built for every target framework the
   # runner can host, in parallel with the unit tests. Windows carries the .NET
-  # Framework and netstandard2.0 targets because they need the .NET Framework
-  # reference assemblies; Linux carries the modern .NET and netstandard2.1
-  # targets. Each entry pins the solution to one TFM through CustomTestTarget,
+  # Framework target because it needs the .NET Framework reference assemblies;
+  # Linux carries the modern .NET targets. Each entry pins the solution to one
+  # TFM through CustomTestTarget,
   # so one broken TFM is reported as its own failed job rather than hidden
   # behind the first failure in a loop.
   build-solutions:

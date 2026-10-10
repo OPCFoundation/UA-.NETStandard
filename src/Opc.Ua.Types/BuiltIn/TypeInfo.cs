@@ -87,13 +87,13 @@ namespace Opc.Ua
         /// True if scalar type
         /// </summary>
         [JsonIgnore]
-        public bool IsScalar => ValueRank < 0;
+        public bool IsScalar => !IsUnknown && m_valueRank < 0;
 
         /// <summary>
         /// True if scalar type
         /// </summary>
         [JsonIgnore]
-        public bool IsArray => ValueRank is 0 or 1;
+        public bool IsArray => !IsUnknown && m_valueRank is 0 or 1;
 
         /// <summary>
         /// True if matrix type
@@ -111,7 +111,12 @@ namespace Opc.Ua
         /// The value rank.
         /// </summary>
         /// <value>The value rank of the type represented by this instance.</value>
-        public int ValueRank => m_valueRank;
+        /// <remarks>
+        /// An unknown type (e.g. the type of a null Variant) has no value rank
+        /// and reports <see cref="ValueRanks.Any"/> rather than the
+        /// OneOrMoreDimensions value of its zeroed storage.
+        /// </remarks>
+        public int ValueRank => IsUnknown ? ValueRanks.Any : m_valueRank;
 
         /// <summary>
         /// Indicates split scalar storage in Variant's private copy, never in its public TypeInfo.
@@ -1768,11 +1773,19 @@ namespace Opc.Ua
                     return Create(builtInType, count);
                 }
 
-                // check for encodeable object.
-                if (typeof(IEncodeable).GetTypeInfo().IsAssignableFrom(systemType.GetTypeInfo()) ||
+                // check for encodeable object (the element type, like the one
+                // dimensional case above - the array type is never encodeable).
+                Type? elementType = systemType.GetElementType();
+                if (typeof(IEncodeable).GetTypeInfo()
+                        .IsAssignableFrom(elementType?.GetTypeInfo()) ||
                     name == "IEncodeable")
                 {
                     return Create(BuiltInType.ExtensionObject, count);
+                }
+
+                if (elementType is { IsEnum: true })
+                {
+                    return Create(BuiltInType.Enumeration, count);
                 }
 
                 return Unknown;
@@ -2498,6 +2511,15 @@ namespace Opc.Ua
                 {
                     return xmlName;
                 }
+            }
+            // Instances that describe their own data type (e.g. the dynamic
+            // Encoders.Structure or OptionSet) carry the data type's xml name.
+            // The CLR type name would be the same for every such data type.
+            if (value is IEncodeableType selfDescribing &&
+                selfDescribing.XmlName != null &&
+                !selfDescribing.XmlName.IsEmpty)
+            {
+                return selfDescribing.XmlName;
             }
             return GetXmlName(value?.GetType());
         }

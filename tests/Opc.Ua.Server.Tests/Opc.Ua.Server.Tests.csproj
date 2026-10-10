@@ -11,9 +11,6 @@
          default; force it on so the test executable also carries it. -->
     <ModelSourceGeneratorEmitDependencyMetadata>true</ModelSourceGeneratorEmitDependencyMetadata>
   </PropertyGroup>
-  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
-    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Microsoft.VisualStudio.DiagnosticsHub.BenchmarkDotNetDiagnosers" />
@@ -70,6 +67,13 @@
       <ModelSourceGeneratorModelUri>urn:opcfoundation.org:2026-09:NodeSetImport</ModelSourceGeneratorModelUri>
       <ModelSourceGeneratorName>NodeSetImportModel</ModelSourceGeneratorName>
       <ModelSourceGeneratorPrefix>NodeSetImportModel</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+    <!-- ModelDesign behind the inline method tests: a method that declares its
+         arguments without a method type. -->
+    <AdditionalFiles Include="Fluent\Assets\InlineMethod.xml">
+      <ModelSourceGeneratorModelUri>urn:opcfoundation.org:2026-09:InlineMethod</ModelSourceGeneratorModelUri>
+      <ModelSourceGeneratorName>InlineMethodModel</ModelSourceGeneratorName>
+      <ModelSourceGeneratorPrefix>InlineMethodModel</ModelSourceGeneratorPrefix>
     </AdditionalFiles>
   </ItemGroup>
   <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />

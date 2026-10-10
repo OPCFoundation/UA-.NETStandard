@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -299,7 +300,7 @@ namespace Opc.Ua.Server.Tests
             Assert.Throws<ArgumentNullException>(() =>
                 ConfigurationNodeManager.SelectOccupiedCertificateSlots(
                     ArrayOf<CertificateIdentifier>.Empty,
-                    null));
+                    null!));
         }
 
         [Test]
@@ -353,6 +354,129 @@ namespace Opc.Ua.Server.Tests
                     .ConfigureAwait(false));
         }
 
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ValidateCertificateAgainstGroupTrustListAsyncAcceptsACaSignedCertificateWhenTheCaIsInstalledAsync(
+            bool caInTrustedStore)
+        {
+            // OPC 10000-12 §7.10.5: "The validation process requires that
+            // the TrustList associated with the CertificateGroup already
+            // contains the IssuerCertificates." A renewal signed by a CA
+            // installed in either list of the group's TrustList must be
+            // accepted without any caller-supplied issuer chain.
+            (CertificateStoreIdentifier trustedStore, CertificateStoreIdentifier issuerStore) = CreateEmptyStores();
+            using Certificate ca = CreateCa("CN=Installed CA ");
+            using Certificate issued = CreateIssued(ca);
+
+            CertificateStoreIdentifier installTo = caInTrustedStore ? trustedStore : issuerStore;
+            using (ICertificateStore store = installTo.OpenStore(s_telemetry))
+            {
+                await store.AddAsync(ca, ct: CancellationToken.None).ConfigureAwait(false);
+            }
+
+            Assert.DoesNotThrowAsync(async () =>
+                await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
+                        trustedStore,
+                        issuerStore,
+                        "TestGroup-" + Guid.NewGuid().ToString("N")[..8],
+                        issued,
+                        new SecurityConfiguration(),
+                        s_telemetry,
+                        CancellationToken.None)
+                    .ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// Push validation resolves scoped stores without accepting issuers from another group.
+        /// </summary>
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        public async Task GroupTrustValidationUsesScopedProviderAndStillRequiresIssuerAsync(
+            bool caInTrustedStore, bool installIssuer)
+        {
+            (CertificateStoreIdentifier trustedStore, CertificateStoreIdentifier issuerStore) = CreateEmptyStores();
+            const string storeType = "ScopedFlatDirectory";
+            trustedStore.StoreType = storeType;
+            issuerStore.StoreType = storeType;
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(instance => instance.StoreTypeName).Returns(storeType);
+            provider.Setup(instance => instance.SupportsStorePath(It.IsAny<string>())).Returns(true);
+            provider.Setup(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()))
+                .Returns((ITelemetryContext telemetry) => new DirectoryCertificateStore(true, telemetry));
+            using var manager = new CertificateManager(s_telemetry, [provider.Object]);
+            manager.MapFromSecurityConfiguration(new SecurityConfiguration
+            {
+                UseValidatedCertificates = true,
+                AutoAcceptUntrustedCertificates = false
+            });
+            var scope = new TrustListIdentifier("ScopedGroup");
+            manager.RegisterTrustList(scope, trustedStore.StorePath!, issuerStore.StorePath);
+            using Certificate ca = CreateCa("CN=Scoped CA ");
+            using Certificate issued = CreateIssued(ca);
+            var otherScope = new TrustListIdentifier("OtherGroup");
+            manager.RegisterTrustList(
+                otherScope, Path.Combine(m_basePath, "other-trusted"), Path.Combine(m_basePath, "other-issuer"));
+            TrustListIdentifier installScope = installIssuer ? scope : otherScope;
+            using (ICertificateStore store = (caInTrustedStore
+                ? manager.OpenTrustedStore(installScope)
+                : manager.OpenIssuerStore(installScope)) ??
+                throw new InvalidOperationException("The scoped test store must be configured."))
+            {
+                await store.AddAsync(ca, ct: CancellationToken.None).ConfigureAwait(false);
+            }
+
+            if (installIssuer)
+            {
+                await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
+                    trustedStore, issuerStore, scope.Name, issued, new SecurityConfiguration(),
+                    s_telemetry, CancellationToken.None, manager).ConfigureAwait(false);
+                provider.Verify(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()), Times.AtLeastOnce);
+            }
+            else
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
+                        trustedStore, issuerStore, scope.Name, issued, new SecurityConfiguration(),
+                        s_telemetry, CancellationToken.None, manager).ConfigureAwait(false));
+                Assert.That(ContainsStatusCode(error.Result, StatusCodes.BadCertificateChainIncomplete), Is.True);
+            }
+
+            CertificateValidationResult peerValidation = await manager.ValidateAsync(issued, scope)
+                .ConfigureAwait(false);
+            if (!installIssuer || !caInTrustedStore)
+            {
+                Assert.That(peerValidation.IsValid, Is.False, "Push acceptance must not grant peer trust.");
+            }
+        }
+
+        [Test]
+        public void ValidateCertificateAgainstGroupTrustListAsyncRejectsACaSignedCertificateWhoseCaIsNotInstalled()
+        {
+            // OPC 10000-4 Table 100: "Build Certificate Chain ... An error
+            // during the chain creation may not be suppressed." The issuer
+            // must already be in the group's TrustList (OPC 10000-12
+            // §7.10.5), so accepting every suppressible error must still
+            // reject a certificate whose issuer the server does not know.
+            (CertificateStoreIdentifier trustedStore, CertificateStoreIdentifier issuerStore) = CreateEmptyStores();
+            using Certificate ca = CreateCa("CN=Uninstalled CA ");
+            using Certificate issued = CreateIssued(ca);
+
+            ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
+                        trustedStore,
+                        issuerStore,
+                        "TestGroup-" + Guid.NewGuid().ToString("N")[..8],
+                        issued,
+                        new SecurityConfiguration(),
+                        s_telemetry,
+                        CancellationToken.None)
+                    .ConfigureAwait(false));
+            Assert.That(ContainsStatusCode(sre.Result, StatusCodes.BadCertificateChainIncomplete), Is.True,
+                sre.Result.ToLongString());
+        }
+
         [Test]
         public void ValidateCertificateAgainstGroupTrustListAsyncThrowsForNullTrustedStore()
         {
@@ -363,7 +487,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ConfigurationNodeManager.ValidateCertificateAgainstGroupTrustListAsync(
-                        null,
+                        null!,
                         null,
                         "TestGroup",
                         certificate,
@@ -510,6 +634,63 @@ namespace Opc.Ua.Server.Tests
                 ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
                     certificate.Thumbprint, endpoints, registry.Object, s_telemetry),
                 Is.False);
+        }
+
+        [Test]
+        public async Task NoneEndpointProtectsItsRsaTokenCertificateInsteadOfThePrimaryEccCertificateAsync()
+        {
+            using var registry = new CertificateManager(s_telemetry);
+            using Certificate ecc = CertificateBuilder.Create("CN=Primary ECC")
+                .SetECCurve(ECCurve.NamedCurves.nistP256).CreateForECDsa();
+            using Certificate rsa = CertificateBuilder.Create("CN=Token RSA").CreateForRSA();
+            await registry.UpdateApplicationCertificateAsync(ObjectTypeIds.EccNistP256ApplicationCertificateType, ecc)
+                .ConfigureAwait(false);
+            await registry.UpdateApplicationCertificateAsync(ObjectTypeIds.RsaSha256ApplicationCertificateType, rsa)
+                .ConfigureAwait(false);
+            ArrayOf<EndpointDescription> endpoints = [new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                UserIdentityTokens = [new UserTokenPolicy(UserTokenType.UserName)
+                {
+                    SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+                }]
+            }];
+
+            Assert.That(ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                rsa.Thumbprint, endpoints, registry, s_telemetry), Is.True);
+            Assert.That(ConfigurationNodeManager.IsCertificateReferencedByEndpoint(
+                ecc.Thumbprint, endpoints, registry, s_telemetry), Is.False);
+        }
+
+        private static Certificate CreateCa(string subjectPrefix)
+        {
+            return CertificateBuilder
+                .Create(subjectPrefix + Guid.NewGuid().ToString("N")[..8])
+                .SetCAConstraint(0)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+        }
+
+        private static Certificate CreateIssued(Certificate ca)
+        {
+            return CertificateBuilder
+                .Create("CN=Issued " + Guid.NewGuid().ToString("N")[..8])
+                .SetIssuer(ca)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+        }
+
+        private static bool ContainsStatusCode(ServiceResult result, StatusCode statusCode)
+        {
+            for (ServiceResult current = result; current != null; current = current.InnerResult!)
+            {
+                if (current.StatusCode == statusCode)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private (CertificateStoreIdentifier TrustedStore, CertificateStoreIdentifier IssuerStore) CreateEmptyStores()

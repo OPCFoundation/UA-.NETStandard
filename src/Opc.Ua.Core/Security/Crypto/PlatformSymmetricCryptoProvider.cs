@@ -29,6 +29,10 @@
 
 using System;
 using System.Security.Cryptography;
+#if NETFRAMEWORK
+using AesGcm = Opc.Ua.Security.Certificates.BouncyCastle.AesGcm;
+using ChaCha20Poly1305 = Opc.Ua.Security.Certificates.BouncyCastle.ChaCha20Poly1305;
+#endif
 
 namespace Opc.Ua
 {
@@ -63,11 +67,7 @@ namespace Opc.Ua
                 case SymmetricEncryptionAlgorithm.ChaCha20Poly1305:
                 case SymmetricEncryptionAlgorithm.Aes128Gcm:
                 case SymmetricEncryptionAlgorithm.Aes256Gcm:
-#if NET8_0_OR_GREATER
                     return true;
-#else
-                    return false;
-#endif
                 default:
                     return false;
             }
@@ -126,8 +126,7 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         /// <exception cref="NotSupportedException">
-        /// <paramref name="algorithm"/> is not an authenticated cipher, or the
-        /// target framework does not supply it.
+        /// <paramref name="algorithm"/> is not an authenticated cipher.
         /// </exception>
         public void EncryptAuthenticated(
             SymmetricEncryptionAlgorithm algorithm,
@@ -138,7 +137,6 @@ namespace Opc.Ua
             Span<byte> tag,
             ReadOnlySpan<byte> associatedData)
         {
-#if NET8_0_OR_GREATER
             switch (algorithm)
             {
                 case SymmetricEncryptionAlgorithm.Aes128Gcm:
@@ -157,14 +155,12 @@ namespace Opc.Ua
                 default:
                     break;
             }
-#endif
             throw NotAnAuthenticatedCipher(algorithm);
         }
 
         /// <inheritdoc/>
         /// <exception cref="NotSupportedException">
-        /// <paramref name="algorithm"/> is not an authenticated cipher, or the
-        /// target framework does not supply it.
+        /// <paramref name="algorithm"/> is not an authenticated cipher.
         /// </exception>
         public bool DecryptAuthenticated(
             SymmetricEncryptionAlgorithm algorithm,
@@ -175,7 +171,6 @@ namespace Opc.Ua
             Span<byte> plaintext,
             ReadOnlySpan<byte> associatedData)
         {
-#if NET8_0_OR_GREATER
             switch (algorithm)
             {
                 case SymmetricEncryptionAlgorithm.Aes128Gcm:
@@ -210,7 +205,6 @@ namespace Opc.Ua
                 default:
                     break;
             }
-#endif
             throw NotAnAuthenticatedCipher(algorithm);
         }
 
@@ -382,8 +376,10 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// The counter block is the twelve byte nonce followed by a big endian
-        /// thirty two bit block counter starting at zero, which is the layout
-        /// NIST SP 800-38A §6.5 defines and Part 14 §7.2.4.4.3.2 requires.
+        /// thirty two bit block counter starting at one, following RFC 3686.
+        /// For PubSub the caller passes KeyNonce[4] || MessageNonce[8] as the
+        /// nonce, which gives the layout Part 14 §7.2.4.4.3.2 (Table 157)
+        /// requires.
         /// </remarks>
         private static void TransformCtr(
             ReadOnlySpan<byte> key,
@@ -424,6 +420,8 @@ namespace Opc.Ua
             byte[] counter = new byte[kAesBlockSize];
             byte[] keyStream = new byte[kAesBlockSize];
             nonce.CopyTo(counter);
+            // The counter starts with 1 at the first block.
+            counter[kAesBlockSize - 1] = 1;
 
             try
             {

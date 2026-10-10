@@ -90,10 +90,40 @@ namespace Opc.Ua.Gds.Server.Onboarding
             ITicketStore capturedStore = store;
 
             register.OnCallMethod2Async = (ctx, m, objectId, inputs, outputs, ct) =>
-                HandleRegisterAsync(capturedStore, inputs, outputs, ct);
+                HasRegistrarAdminRole(ctx)
+                    ? HandleRegisterAsync(capturedStore, inputs, outputs, ct)
+                    : new ValueTask<ServiceResult>(RegistrarAdminRequired());
 
             unregister.OnCallMethod2Async = (ctx, m, objectId, inputs, outputs, ct) =>
-                HandleUnregisterAsync(capturedStore, inputs, outputs, ct);
+                HasRegistrarAdminRole(ctx)
+                    ? HandleUnregisterAsync(capturedStore, inputs, outputs, ct)
+                    : new ValueTask<ServiceResult>(RegistrarAdminRequired());
+        }
+
+        /// <summary>
+        /// OPC 10000-21 §9.2.11 / §9.2.12: RegisterTickets and UnregisterTickets
+        /// shall be called from a Session that has access to the RegistrarAdmin
+        /// Role. In-process calls that carry no user identity (no Session) are
+        /// not restricted.
+        /// </summary>
+        private static bool HasRegistrarAdminRole(ISystemContext context)
+        {
+            if (context is not ISessionSystemContext { UserIdentity: { } identity })
+            {
+                return true;
+            }
+
+            NodeId roleId = ExpandedNodeId.ToNodeId(
+                Opc.Ua.Onboarding.ObjectIds.WellKnownRole_RegistrarAdmin,
+                context.NamespaceUris);
+            return !roleId.IsNull && identity.GrantedRoleIds.Contains(roleId);
+        }
+
+        private static ServiceResult RegistrarAdminRequired()
+        {
+            return new ServiceResult(
+                StatusCodes.BadUserAccessDenied,
+                LocalizedText.From("The RegistrarAdmin Role is required to manage tickets."));
         }
 
         private static async ValueTask<ServiceResult> HandleRegisterAsync(

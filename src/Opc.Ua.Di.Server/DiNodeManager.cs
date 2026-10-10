@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Fluent;
@@ -86,6 +87,38 @@ namespace Opc.Ua.Di.Server
         private NodeManagerBuilder? m_builder;
         private readonly string m_instanceNamespaceUri;
         private readonly HashSet<SoftwareLoadingMode> m_softwareUpdateLoadingModes = [];
+
+        /// <summary>
+        /// The DI 1.05 server facets with the conformance units the OPC
+        /// Foundation profile database marks mandatory for them, those of
+        /// the included Software Update Base facet folded in.
+        /// </summary>
+        private static readonly ArrayOf<DiFacet> s_facets =
+        [
+            new(ServerProfileUris.DeviceIntegrationHost,
+                [ConformanceUnitNames.DeviceTopology, ConformanceUnitNames.Offline]),
+            new(ServerProfileUris.Locking, [ConformanceUnitNames.Locking]),
+            new(ServerProfileUris.SoftwareUpdateBase, [ConformanceUnitNames.SoftwareUpdate]),
+            new(ServerProfileUris.FileSystemLoading,
+                [
+                    ConformanceUnitNames.SoftwareUpdate,
+                    ConformanceUnitNames.SoftwareUpdateFileSystemLoading,
+                    ConformanceUnitNames.SoftwareUpdateInstallationForFileSystem
+                ]),
+            new(ServerProfileUris.DirectLoading,
+                [
+                    ConformanceUnitNames.SoftwareUpdate,
+                    ConformanceUnitNames.SoftwareUpdateDirectLoading,
+                    ConformanceUnitNames.SoftwareUpdateUpdateStatus
+                ]),
+            new(ServerProfileUris.CachedLoading,
+                [
+                    ConformanceUnitNames.SoftwareUpdate,
+                    ConformanceUnitNames.SoftwareUpdateCachedLoading,
+                    ConformanceUnitNames.SoftwareUpdateInstallationForCachedLoading,
+                    ConformanceUnitNames.SoftwareUpdateUpdateStatus
+                ])
+        ];
 
         /// <summary>
         /// Initialises a new <see cref="DiNodeManager"/> without DI-
@@ -247,10 +280,18 @@ namespace Opc.Ua.Di.Server
             (ushort)Server.NamespaceUris.GetIndex(m_instanceNamespaceUri);
 
         /// <inheritdoc/>
-        public ArrayOf<QualifiedName> ConformanceUnits => BuildConformanceUnits();
+        /// <remarks>
+        /// Virtual so a companion-specification subclass can append the units
+        /// its own model satisfies; an override is expected to include the
+        /// base result rather than replace it.
+        /// </remarks>
+        public virtual ArrayOf<QualifiedName> ConformanceUnits => BuildConformanceUnits();
 
         /// <inheritdoc/>
-        public ArrayOf<string> ServerProfiles => BuildServerProfiles();
+        /// <remarks>
+        /// Virtual for the same reason as <see cref="ConformanceUnits"/>.
+        /// </remarks>
+        public virtual ArrayOf<string> ServerProfiles => BuildServerProfiles();
 
         /// <summary>
         /// References an instance node from the Machinery <c>Machines</c> folder
@@ -297,8 +338,10 @@ namespace Opc.Ua.Di.Server
         /// <c>IDiPostSetupRunner</c>-based hosting hooks. The flow is:
         /// <list type="number">
         ///   <item><description>
-        ///     The framework's <c>base.CreateAddressSpaceAsync</c> loads
-        ///     predefined nodes and wires the type tree.
+        ///     <c>LoadPredefinedNodesAsync</c> loads predefined nodes and
+        ///     wires the type tree. The manager runs its own pipeline rather
+        ///     than the one in <c>FluentNodeManagerBase.CreateAddressSpaceAsync</c>,
+        ///     because the post-setup runner has to run before sealing.
         ///   </description></item>
         ///   <item><description>
         ///     The manager's fluent builder is created and attached, then
@@ -329,8 +372,8 @@ namespace Opc.Ua.Di.Server
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            await base.CreateAddressSpaceAsync(
-                externalReferences, cancellationToken).ConfigureAwait(false);
+            await LoadPredefinedNodesAsync(
+                SystemContext, externalReferences, cancellationToken).ConfigureAwait(false);
 
             NodeManagerBuilder builder = CreateFluentBuilder(InstanceNamespaceIndex);
 
@@ -357,8 +400,11 @@ namespace Opc.Ua.Di.Server
             // would lock them out of registering simulation loops of their
             // own. Configurators that build their own context seal it
             // themselves; this second seal is then a no-op for the shared
-            // registries and only closes this builder.
-            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
+            // registries and only closes this builder. Sealing through
+            // SealConfigurationAsync replays NotifyNodeAdded, so OnNodeAdded
+            // handlers wired in ConfigureAsync fire as they do for managers
+            // that use the FluentNodeManagerBase pipeline.
+            await SealConfigurationAsync(builder, cancellationToken).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -393,6 +439,11 @@ namespace Opc.Ua.Di.Server
         /// device parent when <paramref name="parent"/> is
         /// <see langword="null"/>) and registers it with the manager.
         /// </summary>
+        /// <remarks>
+        /// A creation that fails while the device is registered is undone:
+        /// the device is removed from its parent and from the address space,
+        /// so the name can be used again.
+        /// </remarks>
         /// <param name="browseName">Browse name of the new device.</param>
         /// <param name="parent">
         /// Optional explicit parent; when <see langword="null"/>, the
@@ -427,6 +478,11 @@ namespace Opc.Ua.Di.Server
         /// Creates a new device of type <typeparamref name="TDevice"/>
         /// under the resolved parent and registers it with the manager.
         /// </summary>
+        /// <remarks>
+        /// A creation that fails while the device is registered is undone:
+        /// the device is removed from its parent and from the address space,
+        /// so the name can be used again.
+        /// </remarks>
         /// <typeparam name="TDevice">Concrete device state class.</typeparam>
         /// <param name="browseName">Browse name of the new device.</param>
         /// <param name="typeDefinitionId">
@@ -533,10 +589,61 @@ namespace Opc.Ua.Di.Server
 
             effectiveParent.AddChild(device);
 
-            await AddPredefinedNodeAsync(SystemContext, device, cancellationToken)
-                .ConfigureAwait(false);
+            try
+            {
+                await AddPredefinedNodeAsync(SystemContext, device, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            catch
+            {
+                // Left in place, the half-registered device would keep its
+                // name taken: a retry fails with BadBrowseNameDuplicated.
+                await RemoveUnregisteredDeviceAsync(effectiveParent, device).ConfigureAwait(false);
+                throw;
+            }
 
             return new DeviceBuilder<TDevice>(this, device, GetOrCreateBuilder());
+        }
+
+        /// <summary>
+        /// Undoes a device creation that failed after the device was attached
+        /// to its parent: deletes what was registered of it (its nodes and the
+        /// references to it) and detaches it from the parent.
+        /// </summary>
+        /// <remarks>
+        /// A failure of the cleanup is logged rather than thrown, so the caller
+        /// sees the exception that failed the creation.
+        /// </remarks>
+        private async ValueTask RemoveUnregisteredDeviceAsync(NodeState parent, ComponentState device)
+        {
+            try
+            {
+                // Only the node this call registered is deleted; a node of the
+                // same NodeId that belongs to someone else is left alone.
+                if (ReferenceEquals(FindPredefinedNode(device.NodeId), device))
+                {
+                    await DeleteNodeAsync(SystemContext, device.NodeId, CancellationToken.None)
+                        .ConfigureAwait(false);
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.DeviceRollbackFailed(ex, device.BrowseName.Name);
+            }
+
+            try
+            {
+                // Deleting a registered device detaches it already; a device
+                // that failed before it was registered, or whose deletion
+                // failed, is still attached. The parent is caller supplied and
+                // RemoveChild is virtual, so a failing detach is caught like a
+                // failing delete.
+                parent.RemoveChild(device);
+            }
+            catch (Exception ex)
+            {
+                m_logger.DeviceRollbackFailed(ex, device.BrowseName.Name);
+            }
         }
 
         /// <summary>
@@ -846,8 +953,10 @@ namespace Opc.Ua.Di.Server
             var units = new List<QualifiedName>();
             if (HasDeviceSet())
             {
+                // "DI Offline" asks for offline and online representations of
+                // the devices and the methods that transfer data between them.
+                // This manager builds neither, so a DeviceSet does not meet it.
                 units.Add(new QualifiedName(ConformanceUnitNames.DeviceTopology));
-                units.Add(new QualifiedName(ConformanceUnitNames.Offline));
             }
             if (HasWiredLockingService())
             {
@@ -863,53 +972,47 @@ namespace Opc.Ua.Di.Server
                 units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdatePrepareForUpdate));
                 units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateResumeUpdate));
             }
-            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Package))
-            {
-                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateFileSystemLoading));
-                units.Add(new QualifiedName(
-                    ConformanceUnitNames.SoftwareUpdateInstallationForFileSystem));
-            }
+
+            // SoftwareLoadingMode.Package builds a PackageLoadingType rather
+            // than the FileSystemLoadingType "DI SU FileSystem Loading" asks
+            // for, and every Installation offers InstallSoftwarePackage, which
+            // "DI SU Installation for File System" rules out, as well as
+            // InstallFiles, which "DI SU Installation for Cached Loading"
+            // rules out. No SoftwareUpdate carries the UpdateStatus variable
+            // "DI SU UpdateStatus" asks for. None of these units is claimed.
             if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Direct))
             {
                 units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateDirectLoading));
-                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateUpdateStatus));
             }
             if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Cached))
             {
                 units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateCachedLoading));
-                units.Add(new QualifiedName(
-                    ConformanceUnitNames.SoftwareUpdateInstallationForCachedLoading));
-                units.Add(new QualifiedName(ConformanceUnitNames.SoftwareUpdateUpdateStatus));
             }
             return units.ToArrayOf();
         }
 
+        /// <summary>
+        /// Advertises each facet whose mandatory conformance units are all advertised.
+        /// </summary>
+        /// <remarks>
+        /// Reads the units through the virtual <see cref="ConformanceUnits"/>,
+        /// so a unit a subclass appends counts toward the DI facets as well.
+        /// </remarks>
         private ArrayOf<string> BuildServerProfiles()
         {
+            var units = new HashSet<QualifiedName>();
+            foreach (QualifiedName unit in ConformanceUnits)
+            {
+                units.Add(unit);
+            }
+
             var profiles = new List<string>();
-            if (HasDeviceSet())
+            foreach (DiFacet facet in s_facets)
             {
-                profiles.Add(ServerProfileUris.DeviceIntegrationHost);
-            }
-            if (HasWiredLockingService())
-            {
-                profiles.Add(ServerProfileUris.Locking);
-            }
-            if (m_softwareUpdateLoadingModes.Count > 0)
-            {
-                profiles.Add(ServerProfileUris.SoftwareUpdateBase);
-            }
-            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Package))
-            {
-                profiles.Add(ServerProfileUris.FileSystemLoading);
-            }
-            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Direct))
-            {
-                profiles.Add(ServerProfileUris.DirectLoading);
-            }
-            if (m_softwareUpdateLoadingModes.Contains(SoftwareLoadingMode.Cached))
-            {
-                profiles.Add(ServerProfileUris.CachedLoading);
+                if (facet.IsMetBy(units))
+                {
+                    profiles.Add(facet.Profile);
+                }
             }
             return profiles.ToArrayOf();
         }
@@ -951,5 +1054,38 @@ namespace Opc.Ua.Di.Server
             }
             return false;
         }
+
+        /// <summary>
+        /// A server facet and the conformance units it mandates.
+        /// </summary>
+        /// <param name="Profile">The facet URI.</param>
+        /// <param name="MandatoryUnits">The names of the mandatory units.</param>
+        private readonly record struct DiFacet(string Profile, ArrayOf<string> MandatoryUnits)
+        {
+            /// <summary>
+            /// Gets whether every mandatory unit is in <paramref name="units"/>.
+            /// </summary>
+            public bool IsMetBy(HashSet<QualifiedName> units)
+            {
+                foreach (string unit in MandatoryUnits)
+                {
+                    if (!units.Contains(new QualifiedName(unit)))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="DiNodeManager"/>.
+    /// </summary>
+    internal static partial class DiNodeManagerLog
+    {
+        [LoggerMessage(EventId = DiServerEventIds.DiNodeManager + 0, Level = LogLevel.Error,
+            Message = "Could not remove device '{Name}' after its creation failed.")]
+        public static partial void DeviceRollbackFailed(this ILogger logger, Exception ex, string? name);
     }
 }

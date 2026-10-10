@@ -79,7 +79,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             IGdsServerBuilder builder = null!;
 
             Assert.That(
-                () => OpcUaGdsServerBuilderExtensions.AddOpcTcpTransport(null),
+                () => OpcUaGdsServerBuilderExtensions.AddOpcTcpTransport(null!),
                 Throws.ArgumentNullException);
             Assert.That(() => builder.AddHttpsTransport(), Throws.ArgumentNullException);
             Assert.That(() => builder.AddHttpsTransport(_ => { }), Throws.ArgumentNullException);
@@ -93,10 +93,10 @@ namespace Opc.Ua.Gds.Tests.Hosting
             IGdsServerBuilder builder = CreateBuilder();
 
             Assert.That(
-                () => OpcUaGdsServerBuilderExtensions.AddReverseConnect(null, _ => { }),
+                () => OpcUaGdsServerBuilderExtensions.AddReverseConnect(null!, _ => { }),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.AddReverseConnect(null),
+                () => builder.AddReverseConnect(null!),
                 Throws.ArgumentNullException);
         }
 
@@ -183,7 +183,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             Assert.That(
                 () => builder.AddApplicationsDatabase(
-                    null),
+                    null!),
                 Throws.ArgumentNullException);
         }
 
@@ -210,11 +210,11 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             Assert.That(
                 () => OpcUaGdsServerBuilderExtensions.AddIdentityAugmenter(
-                    null, _ => new TestIdentityHandler()),
+                    null!, _ => new TestIdentityHandler()),
                 Throws.ArgumentNullException);
             Assert.That(
                 () => builder.AddIdentityAugmenter(
-                    null),
+                    null!),
                 Throws.ArgumentNullException);
         }
 
@@ -260,13 +260,13 @@ namespace Opc.Ua.Gds.Tests.Hosting
         public void GenericIdentityMethodsThrowForNullBuilder()
         {
             Assert.That(
-                () => OpcUaGdsServerBuilderExtensions.AddIdentityAuthenticator<TestIdentityHandler>(null),
+                () => OpcUaGdsServerBuilderExtensions.AddIdentityAuthenticator<TestIdentityHandler>(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaGdsServerBuilderExtensions.AddIdentityAugmenter<TestIdentityHandler>(null),
+                () => OpcUaGdsServerBuilderExtensions.AddIdentityAugmenter<TestIdentityHandler>(null!),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => OpcUaGdsServerBuilderExtensions.AddGdsApplicationSelfAdminProvider(null),
+                () => OpcUaGdsServerBuilderExtensions.AddGdsApplicationSelfAdminProvider(null!),
                 Throws.ArgumentNullException);
         }
 
@@ -309,11 +309,11 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             Assert.That(
                 () => OpcUaGdsServerBuilderExtensions.AddDefaultIdentityAuthenticators(
-                    null, _ => { }),
+                    null!, _ => { }),
                 Throws.ArgumentNullException);
             Assert.That(
                 () => builder.AddDefaultIdentityAuthenticators(
-                    (Action<GdsDefaultIdentityAuthenticatorOptions>)null),
+                    (Action<GdsDefaultIdentityAuthenticatorOptions>)null!),
                 Throws.ArgumentNullException);
         }
 
@@ -337,7 +337,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
         public void AddDefaultIdentityAuthenticatorsFromConfigurationRegistersAuthenticators()
         {
             IConfiguration configuration = new ConfigurationBuilder()
-                .AddInMemoryCollection(new Dictionary<string, string>
+                .AddInMemoryCollection(new Dictionary<string, string?>
                 {
                     ["EnableGdsApplicationSelfAdminProvider"] = "false"
                 })
@@ -356,10 +356,10 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Is.GreaterThan(before));
             Assert.That(
                 () => OpcUaGdsServerBuilderExtensions.AddDefaultIdentityAuthenticators(
-                    null, configuration),
+                    null!, configuration),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.AddDefaultIdentityAuthenticators((IConfiguration)null),
+                () => builder.AddDefaultIdentityAuthenticators((IConfiguration)null!),
                 Throws.ArgumentNullException);
         }
 
@@ -382,10 +382,10 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Has.Some.Matches<ServiceDescriptor>(d =>
                     d.ServiceType == typeof(Ua.Server.IRoleManager)));
             Assert.That(
-                () => OpcUaGdsServerBuilderExtensions.ConfigureRoles(null, configuration),
+                () => OpcUaGdsServerBuilderExtensions.ConfigureRoles(null!, configuration),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => builder.ConfigureRoles(null),
+                () => builder.ConfigureRoles(null!),
                 Throws.ArgumentNullException);
         }
 

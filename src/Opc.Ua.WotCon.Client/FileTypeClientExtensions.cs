@@ -292,7 +292,7 @@ namespace Opc.Ua.WotCon.Client
                 while (true)
                 {
                     ct.ThrowIfCancellationRequested();
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
                     int read = await source.ReadAsync(buffer.AsMemory(0, chunkSize), ct)
                         .ConfigureAwait(false);
 #else
@@ -334,7 +334,7 @@ namespace Opc.Ua.WotCon.Client
                 {
                     break;
                 }
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
                 await destination.WriteAsync(chunk, ct).ConfigureAwait(false);
 #else
                 byte[] copy = chunk.ToArray();

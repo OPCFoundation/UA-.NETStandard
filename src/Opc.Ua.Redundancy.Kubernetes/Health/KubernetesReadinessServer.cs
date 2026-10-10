@@ -59,31 +59,47 @@ namespace Opc.Ua.Redundancy.Kubernetes
                 ?? throw new ArgumentNullException(nameof(serviceLevelProvider));
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             m_logger = logger;
-            m_listener = new HttpListener();
-            m_listener.Prefixes.Add(ToPrefix(m_options.Host, m_options.Port, m_options.ReadinessPath));
-            m_listener.Prefixes.Add(ToPrefix(m_options.Host, m_options.Port, m_options.LivenessPath));
+            m_prefixes =
+            [
+                ToPrefix(m_options.Host, m_options.Port, m_options.ReadinessPath),
+                ToPrefix(m_options.Host, m_options.Port, m_options.LivenessPath)
+            ];
         }
 
         /// <summary>
         /// Starts the HTTP listener.
         /// </summary>
+        /// <remarks>
+        /// The listener is created here rather than in the constructor: the managed
+        /// <see cref="HttpListener"/> binds its port when a listener that has prefixes
+        /// is closed, so a server that was built but never started would otherwise
+        /// bind - and fail with "address already in use" - on disposal.
+        /// </remarks>
+        /// <exception cref="ObjectDisposedException">The server was disposed.</exception>
         public void Start()
         {
             lock (m_lock)
             {
-                if (m_started)
+                ObjectDisposedException.ThrowIf(m_disposed, this);
+                if (m_listener != null)
                 {
                     return;
                 }
-                m_started = true;
-                m_listener.Start();
-                m_loop = Task.Run(() => ListenAsync(m_cts.Token));
+                var listener = new HttpListener();
+                foreach (string prefix in m_prefixes)
+                {
+                    listener.Prefixes.Add(prefix);
+                }
+                listener.Start();
+                m_listener = listener;
+                m_loop = Task.Run(() => ListenAsync(listener, m_cts.Token));
             }
         }
 
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
+            HttpListener? listener;
             lock (m_lock)
             {
                 if (m_disposed)
@@ -91,10 +107,11 @@ namespace Opc.Ua.Redundancy.Kubernetes
                     return;
                 }
                 m_disposed = true;
+                listener = m_listener;
             }
 
             m_cts.Cancel();
-            m_listener.Close();
+            listener?.Close();
             if (m_loop != null)
             {
                 try
@@ -133,14 +150,14 @@ namespace Opc.Ua.Redundancy.Kubernetes
             return serviceLevel >= readyMinimumServiceLevel;
         }
 
-        private async Task ListenAsync(CancellationToken ct)
+        private async Task ListenAsync(HttpListener listener, CancellationToken ct)
         {
             while (!ct.IsCancellationRequested)
             {
                 HttpListenerContext context;
                 try
                 {
-                    context = await m_listener.GetContextAsync().ConfigureAwait(false);
+                    context = await listener.GetContextAsync().ConfigureAwait(false);
                 }
                 catch (ObjectDisposedException)
                 {
@@ -244,14 +261,14 @@ namespace Opc.Ua.Redundancy.Kubernetes
         private readonly IServiceLevelProvider m_serviceLevelProvider;
         private readonly KubernetesReadinessOptions m_options;
         private readonly ILogger? m_logger;
-        private readonly HttpListener m_listener;
+        private readonly string[] m_prefixes;
         private readonly Lock m_lock = new();
         private readonly CancellationTokenSource m_cts = new();
         private readonly SemaphoreSlim m_handlerSlots = new(kMaxConcurrentRequests, kMaxConcurrentRequests);
         private const int kMaxConcurrentRequests = 16;
         private static readonly TimeSpan kDrainTimeout = TimeSpan.FromSeconds(5);
+        private HttpListener? m_listener;
         private Task? m_loop;
-        private bool m_started;
         private bool m_disposed;
     }
 

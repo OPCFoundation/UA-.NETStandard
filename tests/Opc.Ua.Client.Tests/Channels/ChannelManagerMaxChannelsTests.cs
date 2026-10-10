@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 // CA2000: test code transfers disposable ownership to test methods and disposes in cleanup paths.
 #pragma warning disable CA2000
 
@@ -249,6 +247,12 @@ namespace Opc.Ua.Client.Tests.Channels
             public string Id { get; }
 
             public ConfiguredEndpoint Endpoint { get; }
+
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
 
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,

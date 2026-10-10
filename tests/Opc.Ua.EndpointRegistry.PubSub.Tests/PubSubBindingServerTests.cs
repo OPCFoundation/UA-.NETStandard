@@ -40,7 +40,7 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
             m_telemetry = NUnitTelemetryContext.Create();
             m_pki = Path.Combine(TestContext.CurrentContext.WorkDirectory, nameof(PubSubBindingServerTests),
                 Guid.NewGuid().ToString("N"));
-            m_fixture = new ServerFixture<BindingServer>(telemetry => new BindingServer(telemetry))
+            m_fixture = new ServerFixture<BindingServer>(telemetry => new BindingServer(telemetry, m_stateStore))
             {
                 AutoAccept = true,
                 SecurityNone = true
@@ -84,6 +84,7 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
                 await m_fixture.StopAsync().ConfigureAwait(false);
                 await application.DisposeAsync().ConfigureAwait(false);
             }
+            await m_stateStore.DisposeAsync().ConfigureAwait(false);
             if (m_pki is not null && Directory.Exists(m_pki))
             {
                 Directory.Delete(m_pki, true);
@@ -470,8 +471,22 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
 
         internal sealed class BindingServer : ReferenceServer
         {
-            public BindingServer(ITelemetryContext telemetry) : base(telemetry)
+            public BindingServer(ITelemetryContext telemetry, IRegistryStateStore storage) : base(telemetry)
             {
+                Storage.Setup(store => store.ReadAsync(It.IsAny<CancellationToken>()))
+                    .Returns((CancellationToken ct) => storage.ReadAsync(ct));
+                Storage.Setup(store => store.CommitAsync(It.IsAny<ulong>(), It.IsAny<ByteString>(),
+                    It.IsAny<CancellationToken>()))
+                    .Returns((ulong revision, ByteString document, CancellationToken ct) =>
+                    {
+                        if (RejectCommits)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadResourceUnavailable,
+                                "Injected storage failure.");
+                        }
+                        return storage.CommitAsync(revision, document, ct);
+                    });
+                Storage.Setup(store => store.DisposeAsync()).Returns(() => storage.DisposeAsync());
                 PubSubConfigurationDataType configuration = OracleVector.Find("5.0-JSON-publisher").Configuration();
                 Schemas = new KnownSchemas { Metadata = configuration.PublishedDataSets[0].DataSetMetaData };
                 Transport = new Mock<IPubSubTransport>();
@@ -494,7 +509,10 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
                     .AddDataSetSource("Temperature", new Mock<IPublishedDataSetSource>().Object)
                     .Build();
                 AddNodeManager(new CapturingFactory([Namespaces.EndpointRegistry], (server, config) =>
-                    Registry = new EndpointRegistryNodeManager(server, config)));
+                    Registry = new EndpointRegistryNodeManager(server, config, new EndpointRegistryServerOptions
+                    {
+                        Generic = new EndpointRegistryCatalogOptions { Store = Storage.Object }
+                    })));
                 AddNodeManager(new CapturingFactory([PubSubNodeManager.NamespaceUri], (server, config) =>
                     PubSub = new PubSubNodeManager(server, config, Application, null, new PubSubServerOptions(), telemetry)));
                 AddNodeManager(new CapturingFactory(["http://opcfoundation.org/UA/EndpointRegistry/PubSub"], (server, config) =>
@@ -502,6 +520,11 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
                     {
                         Schemas = Schemas,
                         TimeProvider = Clock,
+                        AuthorizeBinding = (_, _) =>
+                        {
+                            AuthorizationChecks++;
+                            return AuthorizeBindings;
+                        },
                         RemotePublishers =
                         [
                             new RemotePubSubPublisherBinding
@@ -534,6 +557,10 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
             public EndpointRegistryNodeManager Registry { get; private set; } = null!;
             public PubSubNodeManager PubSub { get; private set; } = null!;
             public EndpointRegistryPubSubNodeManager Integration { get; private set; } = null!;
+            public Mock<IRegistryStateStore> Storage { get; } = new();
+            public bool RejectCommits { get; set; }
+            public bool AuthorizeBindings { get; set; }
+            public int AuthorizationChecks { get; private set; }
         }
 
         internal sealed class KnownSchemas : IPubSubBindingSchemaProvider
@@ -589,6 +616,7 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
         }
 
         private ITelemetryContext? m_telemetry;
+        private readonly MemoryRegistryStateStore m_stateStore = new();
         private string? m_pki;
         private ServerFixture<BindingServer>? m_fixture;
         private ClientFixture? m_client;

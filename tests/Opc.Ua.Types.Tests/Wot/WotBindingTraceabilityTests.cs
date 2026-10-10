@@ -36,8 +36,6 @@ using System.Reflection;
 using System.Text.Json;
 using NUnit.Framework;
 
-#nullable enable
-
 namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>

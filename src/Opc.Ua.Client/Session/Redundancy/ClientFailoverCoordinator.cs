@@ -91,6 +91,36 @@ namespace Opc.Ua.Client
                 return [];
             }
 
+            // A transferred subscription needs a client-side owner on the backup
+            // session, otherwise its publish engine treats the incoming ids as
+            // unknown and deletes them (or never publishes and they expire).
+            // Subscriptions the backup has prepared for the takeover (not yet
+            // created, TransferId = the active client's subscription id, e.g.
+            // restored with ISession.Load) are transferred through the session so
+            // it binds them and resumes publishing.
+            var discovered = new HashSet<uint>();
+            foreach (uint id in subscriptionIds)
+            {
+                discovered.Add(id);
+            }
+            var templates = new SubscriptionCollection();
+            foreach (Subscription subscription in backupSession.Subscriptions)
+            {
+                if (!subscription.Created && discovered.Contains(subscription.TransferId))
+                {
+                    templates.Add(subscription);
+                }
+            }
+            if (templates.Count > 0)
+            {
+                return await TransferPreparedSubscriptionsAsync(
+                    backupSession,
+                    subscriptionIds,
+                    templates,
+                    options.SendInitialValues,
+                    ct).ConfigureAwait(false);
+            }
+
             TransferSubscriptionsResponse response = await backupSession.TransferSubscriptionsAsync(
                     null,
                     subscriptionIds,
@@ -100,6 +130,66 @@ namespace Opc.Ua.Client
             ClientBase.ValidateResponse(response.Results, subscriptionIds);
             ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, subscriptionIds);
             return response.Results;
+        }
+
+        private static async ValueTask<ArrayOf<TransferResult>> TransferPreparedSubscriptionsAsync(
+            ISession backupSession,
+            ArrayOf<uint> subscriptionIds,
+            SubscriptionCollection templates,
+            bool sendInitialValues,
+            CancellationToken ct)
+        {
+            var byId = new Dictionary<uint, Subscription>();
+            foreach (Subscription template in templates)
+            {
+                byId[template.TransferId] = template;
+            }
+
+            await backupSession.TransferSubscriptionsAsync(templates, sendInitialValues, ct)
+                .ConfigureAwait(false);
+
+            // Ids the backup has no prepared owner for are still moved with the raw
+            // service, as before; the caller sees them in the results.
+            var unowned = new List<uint>();
+            foreach (uint id in subscriptionIds)
+            {
+                if (!byId.ContainsKey(id))
+                {
+                    unowned.Add(id);
+                }
+            }
+            var unownedResults = new Dictionary<uint, TransferResult>();
+            if (unowned.Count > 0)
+            {
+                var unownedIds = new ArrayOf<uint>(unowned.ToArray());
+                TransferSubscriptionsResponse response = await backupSession.TransferSubscriptionsAsync(
+                        null,
+                        unownedIds,
+                        sendInitialValues,
+                        ct)
+                    .ConfigureAwait(false);
+                ClientBase.ValidateResponse(response.Results, unownedIds);
+                ClientBase.ValidateDiagnosticInfos(response.DiagnosticInfos, unownedIds);
+                for (int ii = 0; ii < unownedIds.Count; ii++)
+                {
+                    unownedResults[unownedIds[ii]] = response.Results[ii];
+                }
+            }
+
+            var results = new TransferResult[subscriptionIds.Count];
+            for (int ii = 0; ii < subscriptionIds.Count; ii++)
+            {
+                uint id = subscriptionIds[ii];
+                results[ii] = byId.TryGetValue(id, out Subscription? template)
+                    ? new TransferResult
+                    {
+                        StatusCode = template.Created
+                            ? StatusCodes.Good
+                            : StatusCodes.BadSubscriptionIdInvalid
+                    }
+                    : unownedResults[id];
+            }
+            return new ArrayOf<TransferResult>(results);
         }
 
         private static async ValueTask<NodeId> FindSessionIdByNameAsync(
@@ -120,15 +210,24 @@ namespace Opc.Ua.Client
                 return NodeId.Null;
             }
 
+            NodeId activeSessionId = NodeId.Null;
             foreach (SessionDiagnosticsDataType diagnostics in ReadSessionDiagnostics(value))
             {
-                if (string.Equals(diagnostics.SessionName, sessionName, StringComparison.Ordinal))
+                if (diagnostics.SessionId.IsNull ||
+                    diagnostics.SessionId == session.SessionId ||
+                    !string.Equals(diagnostics.SessionName, sessionName, StringComparison.Ordinal))
                 {
-                    return diagnostics.SessionId;
+                    continue;
                 }
+                if (!activeSessionId.IsNull && activeSessionId != diagnostics.SessionId)
+                {
+                    throw new InvalidOperationException(
+                        "Multiple active sessions have the requested name. Specify ActiveSessionId for takeover.");
+                }
+                activeSessionId = diagnostics.SessionId;
             }
 
-            return NodeId.Null;
+            return activeSessionId;
         }
 
         private static async ValueTask<ArrayOf<uint>> FindSubscriptionIdsAsync(

@@ -1,3 +1,9 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
 using System.IO;
 using System.Threading;
@@ -5,10 +11,14 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Registry.Samples
 {
-    /// <summary>Native registry client executable; credentials come from a named environment variable.</summary>
+    /// <summary>
+    /// Native registry client executable; credentials come from a named environment variable.
+    /// </summary>
     public static class RegistryClientProgram
     {
-        /// <summary>Runs one bounded workflow. Returns a nonzero exit code on service or typed domain failure.</summary>
+        /// <summary>
+        /// Runs one bounded workflow. Returns a nonzero exit code on service or typed domain failure.
+        /// </summary>
         public static async Task<int> Main(string[] args)
         {
             try

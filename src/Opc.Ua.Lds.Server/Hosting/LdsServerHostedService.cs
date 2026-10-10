@@ -37,8 +37,6 @@ using Microsoft.Extensions.Options;
 using Opc.Ua.Bindings;
 using Opc.Ua.Configuration;
 
-#nullable enable
-
 namespace Opc.Ua.Lds.Server.Hosting
 {
     /// <summary>
@@ -97,7 +95,7 @@ namespace Opc.Ua.Lds.Server.Hosting
                 : m_options.ApplicationName;
 
             string pkiRoot = string.IsNullOrEmpty(m_options.PkiRoot)
-                ? Path.Combine(Path.GetTempPath(), "OPC Foundation", appName, "pki")
+                ? DefaultPkiRoot.Get(appName, m_logger)
                 : m_options.PkiRoot;
 
             string subject = string.IsNullOrEmpty(m_options.SubjectName)

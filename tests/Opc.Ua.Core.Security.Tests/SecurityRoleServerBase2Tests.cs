@@ -59,7 +59,7 @@ namespace Opc.Ua.Core.Security.Tests
                 response.Results[0].References)
             {
                 if (rd.TypeDefinition.ToString().Contains("11616", StringComparison.Ordinal) ||
-                    rd.BrowseName.Name.Contains("Namespace", StringComparison.Ordinal))
+                    rd.BrowseName.Name!.Contains("Namespace", StringComparison.Ordinal))
                 {
                     foundNamespaceMetadata = true;
                     break;
@@ -117,7 +117,7 @@ namespace Opc.Ua.Core.Security.Tests
             Assert.That(response.Results.Count, Is.GreaterThan(0));
 
             foreach (ReferenceDescription rd in
-                response.Results[0].References.ToArray())
+                response.Results[0].References.ToArray()!)
             {
                 var nsNodeId = ExpandedNodeId.ToNodeId(
                     rd.NodeId, Session.NamespaceUris);
@@ -153,7 +153,7 @@ namespace Opc.Ua.Core.Security.Tests
             Assert.That(response.Results.Count, Is.GreaterThan(0));
 
             foreach (ReferenceDescription rd in
-                response.Results[0].References.ToArray())
+                response.Results[0].References.ToArray()!)
             {
                 var nsNodeId = ExpandedNodeId.ToNodeId(
                     rd.NodeId, Session.NamespaceUris);
@@ -189,7 +189,7 @@ namespace Opc.Ua.Core.Security.Tests
             Assert.That(response.Results.Count, Is.GreaterThan(0));
 
             foreach (ReferenceDescription rd in
-                response.Results[0].References.ToArray())
+                response.Results[0].References.ToArray()!)
             {
                 var nsNodeId = ExpandedNodeId.ToNodeId(
                     rd.NodeId, Session.NamespaceUris);
@@ -225,7 +225,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             bool found = false;
             foreach (ReferenceDescription rd in
-                response.Results[0].References.ToArray())
+                response.Results[0].References.ToArray()!)
             {
                 var childId = ExpandedNodeId.ToNodeId(
                     rd.NodeId, Session.NamespaceUris);
@@ -262,7 +262,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             bool found = false;
             foreach (ReferenceDescription rd in
-                response.Results[0].References.ToArray())
+                response.Results[0].References.ToArray()!)
             {
                 var childId = ExpandedNodeId.ToNodeId(
                     rd.NodeId, Session.NamespaceUris);
@@ -300,7 +300,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             bool found = false;
             foreach (ReferenceDescription rd in
-                response.Results[0].References.ToArray())
+                response.Results[0].References.ToArray()!)
             {
                 var childId = ExpandedNodeId.ToNodeId(
                     rd.NodeId, Session.NamespaceUris);
@@ -326,7 +326,7 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task<BrowseResponse> BrowseForwardAsync(
             NodeId nodeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             return await session.BrowseAsync(
@@ -349,7 +349,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<NodeId> FindChildAsync(
             NodeId parentId,
             string childName,
-            ISession session = null)
+            ISession? session = null)
         {
             BrowseResponse response =
                 await BrowseForwardAsync(parentId, session)
@@ -376,7 +376,7 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task<DataValue> ReadPropertyValueAsync(
             NodeId nodeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             ReadResponse response = await session.ReadAsync(
@@ -398,7 +398,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<DataValue> ReadAttributeAsync(
             NodeId nodeId,
             uint attributeId,
-            ISession session = null)
+            ISession? session = null)
         {
             session ??= Session;
             ReadResponse response = await session.ReadAsync(

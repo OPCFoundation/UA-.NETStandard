@@ -94,7 +94,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray()!;
 
             Assert.That(resolved, Has.Length.EqualTo(2));
             Assert.That(resolved[0].EndpointUrl, Is.EqualTo("opc.tcp://a:4840"));
@@ -111,7 +111,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:missing").ConfigureAwait(false)).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:missing").ConfigureAwait(false)).ToArray()!;
 
             Assert.That(resolved, Is.Empty);
         }
@@ -125,7 +125,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync(string.Empty).ConfigureAwait(false)).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync(string.Empty).ConfigureAwait(false)).ToArray()!;
 
             Assert.That(resolved, Is.Empty);
         }
@@ -140,7 +140,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray()!;
 
             Assert.That(resolved, Is.Empty, "an undecodable endpoint record must be dropped (fail-closed)");
         }

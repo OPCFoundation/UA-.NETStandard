@@ -48,7 +48,8 @@ An OPC UA service failure throws; a successful Call can still return a bad nativ
 Use generated records and `PresentFields` for writes, with the observed target epoch as
 `ExpectedEpoch`. `Canonicalize` sets canonical unused fields without guessing presence.
 Unknown fields and explicit null remain distinct from absence. Exact numbers do not
-round through `Double`.
+round through `Double`. A native array must have non-null Items; use
+`RegistryNullValueDataType` for explicit JSON null, not a null native array.
 
 `RegistrySnapshotClient` opens a Session-bound lease, traverses native Structures, arrays,
 Strings and ByteStrings, and closes asynchronously. It uses advertised encoding bounds,
@@ -62,6 +63,9 @@ and entity URI. A logical default also requires an explicit `ResourceUri`; neith
 identity nor logical URI is inferred by reversing an identifier. `BeginSchemaUpload`
 provides a bounded Session-owned FileType handle; Close validates and publishes staged bytes.
 Schema no-ops retain original bytes, including whitespace and numeric source forms.
+Closing an inherited FileType writer without a non-empty Write also retains its bytes
+and revisions, including when opened with EraseExisting. Read and Write modes cannot
+be combined.
 
 Typed schema reads, exact-Version FileType downloads, `GetSchema` and Opaque fingerprint
 lookup share the same store. Visibility is evaluated before legacy lookup ambiguity.

@@ -52,9 +52,9 @@ namespace Opc.Ua.Lds.Server
     public class LdsServer : DiscoveryServerBase
     {
         private readonly ITelemetryContext m_telemetry;
-        private ILogger m_log;
+        private ILogger? m_log;
         private readonly SemaphoreSlim m_lock;
-        private IMulticastDiscovery m_multicast;
+        private IMulticastDiscovery? m_multicast;
 
         /// <summary>
         /// Creates a new LDS server.
@@ -63,8 +63,8 @@ namespace Opc.Ua.Lds.Server
         /// <param name="timeProvider">Optional <see cref="TimeProvider"/> used by the
         /// registered-server store for prune scheduling and registration timestamps.
         /// Defaults to <see cref="TimeProvider.System"/> when <c>null</c>.</param>
-        public LdsServer(ITelemetryContext telemetry = null, TimeProvider timeProvider = null)
-            : this(telemetry, new RegisteredServerStore(timeProvider: timeProvider), ownsStore: true)
+        public LdsServer(ITelemetryContext? telemetry = null, TimeProvider? timeProvider = null)
+            : this(telemetry!, new RegisteredServerStore(timeProvider: timeProvider), ownsStore: true)
         {
         }
 
@@ -104,13 +104,13 @@ namespace Opc.Ua.Lds.Server
         /// Optional multicast discovery layer (LDS-ME). Null when multicast
         /// is disabled.
         /// </summary>
-        public IMulticastDiscovery Multicast => m_multicast;
+        public IMulticastDiscovery? Multicast => m_multicast;
 
         /// <summary>
         /// Optional hook tests use to plug in a multicast layer prior to
         /// <see cref="ServerBase.StartAsync(ApplicationConfiguration, CancellationToken)"/>.
         /// </summary>
-        public Func<LdsServer, IMulticastDiscovery> MulticastFactory { get; set; }
+        public Func<LdsServer, IMulticastDiscovery>? MulticastFactory { get; set; }
 
         private bool OwnsStore { get; }
 
@@ -213,9 +213,10 @@ namespace Opc.Ua.Lds.Server
                     : ServerCapabilities.ToList();
                 IList<string> baseUris = [.. BaseAddresses
                     .Select(b => b.Url?.ToString())
-                    .Where(u => !string.IsNullOrEmpty(u))];
+                    .OfType<string>()
+                    .Where(u => u.Length > 0)];
                 await m_multicast
-                    .StartAsync(configuration.ApplicationUri, baseUris, capabilities, cancellationToken)
+                    .StartAsync(configuration.ApplicationUri!, baseUris, capabilities, cancellationToken)
                     .ConfigureAwait(false);
             }
         }
@@ -243,8 +244,8 @@ namespace Opc.Ua.Lds.Server
         /// <inheritdoc />
         public override async ValueTask<FindServersResponse> FindServersAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
-            string endpointUrl,
+            RequestHeader? requestHeader,
+            string? endpointUrl,
             ArrayOf<string> localeIds,
             ArrayOf<string> serverUris,
             RequestLifetime requestLifetime)
@@ -258,7 +259,7 @@ namespace Opc.Ua.Lds.Server
             {
                 IList<BaseAddress> baseAddresses = BaseAddresses;
 
-                Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
+                Uri? parsedEndpointUrl = Utils.ParseUri(endpointUrl);
                 if (parsedEndpointUrl != null)
                 {
                     baseAddresses = FilterByEndpointUrl(parsedEndpointUrl, baseAddresses);
@@ -270,13 +271,13 @@ namespace Opc.Ua.Lds.Server
 
                 // include the LDS itself unless filtered out.
                 if (baseAddresses.Count > 0 &&
-                    (uriFilter.Count == 0 || uriFilter.Contains(ServerDescription.ApplicationUri)))
+                    (uriFilter.Count == 0 || uriFilter.Contains(ServerDescription!.ApplicationUri!)))
                 {
                     servers.Add(TranslateApplicationDescription(
-                        parsedEndpointUrl,
-                        ServerDescription,
+                        parsedEndpointUrl!,
+                        ServerDescription!,
                         baseAddresses,
-                        ServerDescription.ApplicationName));
+                        ServerDescription!.ApplicationName));
                 }
 
                 ICollection<string> requestedLocales = localeIds.IsNull
@@ -301,8 +302,8 @@ namespace Opc.Ua.Lds.Server
         /// <inheritdoc />
         public override async ValueTask<GetEndpointsResponse> GetEndpointsAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
-            string endpointUrl,
+            RequestHeader? requestHeader,
+            string? endpointUrl,
             ArrayOf<string> localeIds,
             ArrayOf<string> profileUris,
             RequestLifetime requestLifetime)
@@ -332,20 +333,20 @@ namespace Opc.Ua.Lds.Server
         /// <inheritdoc />
         public override async ValueTask<RegisterServerResponse> RegisterServerAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
-            RegisteredServer server,
+            RequestHeader? requestHeader,
+            RegisteredServer? server,
             RequestLifetime requestLifetime)
         {
             ValidateRequest(requestHeader);
 
-            ServiceResult validation = ValidateRegistration(secureChannelContext, server);
+            ServiceResult validation = ValidateRegistration(secureChannelContext, server!);
             if (ServiceResult.IsBad(validation))
             {
                 throw new ServiceResultException(validation);
             }
 
             _ = await RegistrationStore
-                .RegisterAsync(server, mdnsConfig: null, requestLifetime.CancellationToken)
+                .RegisterAsync(server!, mdnsConfig: null, requestLifetime.CancellationToken)
                 .ConfigureAwait(false);
 
             return new RegisterServerResponse
@@ -357,14 +358,14 @@ namespace Opc.Ua.Lds.Server
         /// <inheritdoc />
         public override async ValueTask<RegisterServer2Response> RegisterServer2Async(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
-            RegisteredServer server,
+            RequestHeader? requestHeader,
+            RegisteredServer? server,
             ArrayOf<ExtensionObject> discoveryConfiguration,
             RequestLifetime requestLifetime)
         {
             ValidateRequest(requestHeader);
 
-            ServiceResult validation = ValidateRegistration(secureChannelContext, server);
+            ServiceResult validation = ValidateRegistration(secureChannelContext, server!);
             if (ServiceResult.IsBad(validation))
             {
                 throw new ServiceResultException(validation);
@@ -378,7 +379,7 @@ namespace Opc.Ua.Lds.Server
             {
                 foreach (ExtensionObject ext in discoveryConfiguration)
                 {
-                    if (!ext.IsNull && ext.TryGetValue(out MdnsDiscoveryConfiguration mdns))
+                    if (!ext.IsNull && ext.TryGetValue(out MdnsDiscoveryConfiguration? mdns))
                     {
                         mdnsConfigs.Add(mdns);
                     }
@@ -390,7 +391,7 @@ namespace Opc.Ua.Lds.Server
             {
                 // no MdnsDiscoveryConfiguration provided — fall back to a plain registration.
                 _ = await RegistrationStore
-                    .RegisterAsync(server, mdnsConfig: null, requestLifetime.CancellationToken)
+                    .RegisterAsync(server!, mdnsConfig: null, requestLifetime.CancellationToken)
                     .ConfigureAwait(false);
             }
             else
@@ -398,7 +399,7 @@ namespace Opc.Ua.Lds.Server
                 foreach (MdnsDiscoveryConfiguration mdns in mdnsConfigs)
                 {
                     _ = await RegistrationStore
-                        .RegisterAsync(server, mdns, requestLifetime.CancellationToken)
+                        .RegisterAsync(server!, mdns, requestLifetime.CancellationToken)
                         .ConfigureAwait(false);
                 }
             }
@@ -413,7 +414,7 @@ namespace Opc.Ua.Lds.Server
         /// <inheritdoc />
         public override async ValueTask<FindServersOnNetworkResponse> FindServersOnNetworkAsync(
             SecureChannelContext secureChannelContext,
-            RequestHeader requestHeader,
+            RequestHeader? requestHeader,
             uint startingRecordId,
             uint maxRecordsToReturn,
             ArrayOf<string> serverCapabilityFilter,
@@ -492,8 +493,8 @@ namespace Opc.Ua.Lds.Server
                     new LocalizedText("ServerType is out of range."));
             }
 
-            byte[] certBytes = secureChannelContext.ClientChannelCertificate;
-            if (certBytes == null || certBytes.Length == 0)
+            ByteString certBytes = secureChannelContext?.ClientChannelCertificate ?? default;
+            if (certBytes.Length == 0)
             {
                 return new ServiceResult(
                     StatusCodes.BadSecurityChecksFailed,
@@ -502,7 +503,7 @@ namespace Opc.Ua.Lds.Server
 
             try
             {
-                using var cert = Certificate.FromRawData(certBytes);
+                using var cert = Certificate.FromRawData(certBytes.Memory);
                 IReadOnlyList<string> applicationUris = X509Utils.GetApplicationUrisFromCertificate(cert);
                 if (applicationUris.Count == 0)
                 {
@@ -532,10 +533,10 @@ namespace Opc.Ua.Lds.Server
         }
 
         private ArrayOf<EndpointDescription> BuildEndpointDescriptions(
-            string endpointUrl,
+            string? endpointUrl,
             IList<BaseAddress> baseAddresses)
         {
-            Uri parsedEndpointUrl = Utils.ParseUri(endpointUrl);
+            Uri? parsedEndpointUrl = Utils.ParseUri(endpointUrl);
             if (parsedEndpointUrl != null)
             {
                 baseAddresses = FilterByEndpointUrl(parsedEndpointUrl, baseAddresses);
@@ -547,13 +548,13 @@ namespace Opc.Ua.Lds.Server
             }
 
             ApplicationDescription application = TranslateApplicationDescription(
-                parsedEndpointUrl,
-                ServerDescription,
+                parsedEndpointUrl!,
+                ServerDescription!,
                 baseAddresses,
-                ServerDescription.ApplicationName);
+                ServerDescription!.ApplicationName);
 
             return TranslateEndpointDescriptions(
-                parsedEndpointUrl,
+                parsedEndpointUrl!,
                 baseAddresses,
                 Endpoints,
                 application);
@@ -568,7 +569,7 @@ namespace Opc.Ua.Lds.Server
             var hosts = new Dictionary<string, ServiceHost>();
 
             // Mirror StandardServer's defaults so the LDS opens a real listener.
-            if (configuration.ServerConfiguration.SecurityPolicies.IsEmpty)
+            if (configuration.ServerConfiguration!.SecurityPolicies.IsEmpty)
             {
                 configuration.ServerConfiguration.SecurityPolicies =
                     configuration.ServerConfiguration.SecurityPolicies.AddItem(new ServerSecurityPolicy());
@@ -622,7 +623,7 @@ namespace Opc.Ua.Lds.Server
                     configuration.ServerConfiguration.BaseAddresses,
                     serverDescription,
                     configuration.ServerConfiguration.SecurityPolicies,
-                    CertificateManager,
+                    CertificateManager!,
                     configuration.CertificateManager,
                     cancellationToken).ConfigureAwait(false);
                 endpointsList.AddRange(endpointsForHost);

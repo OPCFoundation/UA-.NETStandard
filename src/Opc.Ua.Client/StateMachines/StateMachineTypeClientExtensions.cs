@@ -208,8 +208,14 @@ namespace Opc.Ua.Client.StateMachines
                 }
             }
 
-            throw new OperationCanceledException(
-                "Target state not reached before cancellation or timeout.", ct);
+            if (effective.IsCancellationRequested)
+            {
+                throw new OperationCanceledException(
+                    "Target state not reached before cancellation or timeout.", ct);
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadInvalidState,
+                "The state observation ended before the target state was reached.");
         }
 
         /// <summary>

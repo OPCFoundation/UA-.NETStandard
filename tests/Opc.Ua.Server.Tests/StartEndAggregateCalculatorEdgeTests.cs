@@ -95,8 +95,8 @@ namespace Opc.Ua.Server.Tests
             NodeId aggregateId, List<DataValue> values, DateTimeUtc startTime, DateTimeUtc endTime, double interval)
         {
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                aggregateId, startTime, endTime, interval, false, m_configuration, m_telemetry);
-            return RunFirst(calculator, values);
+                aggregateId, startTime, endTime, interval, false, m_configuration, m_telemetry)!;
+            return RunFirst(calculator!, values);
         }
 
         [Test]
@@ -162,12 +162,14 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that a decreasing unsigned counter produces a bad interval
-        /// and that the calculator advances to a later valid interval.
+        /// Verifies that a decreasing unsigned counter produces a negative
+        /// delta in the next signed type (Part 13 5.4.3.27: the aggregate is
+        /// negative when the value decreases) and that later increasing
+        /// intervals keep the source type.
         /// </summary>
         [TestCase("Delta")]
         [TestCase("DeltaBounds")]
-        public void UnsignedDecreaseReturnsBadIntervalAndLaterTypedProgress(
+        public void UnsignedDecreaseReturnsNegativeSignedDeltaAndLaterTypedProgress(
             string aggregateName)
         {
             var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
@@ -192,11 +194,45 @@ namespace Opc.Ua.Server.Tests
                 1000);
 
             Assert.That(results, Has.Count.GreaterThanOrEqualTo(2));
-            Assert.That(results[0].StatusCode.CodeBits, Is.EqualTo(StatusCodes.BadTypeMismatch.CodeBits));
-            Assert.That(results[0].WrappedValue.IsNull, Is.True);
+            Assert.That(StatusCode.IsGood(results[0].StatusCode), Is.True);
+            Assert.That(results[0].WrappedValue.TryGetValue(out long firstValue), Is.True);
+            Assert.That(firstValue, Is.EqualTo(-5L));
             Assert.That(StatusCode.IsGood(results[1].StatusCode), Is.True);
             Assert.That(results[1].WrappedValue.TryGetValue(out uint laterValue), Is.True);
             Assert.That(laterValue, Is.EqualTo(10U));
+        }
+
+        /// <summary>
+        /// Verifies that a signed delta outside the source type's range is widened
+        /// to the next signed type instead of failing with Bad_TypeMismatch.
+        /// </summary>
+        [TestCase("Delta")]
+        [TestCase("DeltaBounds")]
+        public void SignedDeltaOverflowIsWidenedToTheNextSignedType(string aggregateName)
+        {
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(1000);
+            NodeId aggregateId = aggregateName == "Delta"
+                ? ObjectIds.AggregateFunction_Delta
+                : ObjectIds.AggregateFunction_DeltaBounds;
+            var values = new List<DataValue>
+            {
+                new(new Variant((short)-20000), StatusCodes.Good, startTime, startTime),
+                new(new Variant((short)20000), StatusCodes.Good, startTime.AddMilliseconds(900), startTime.AddMilliseconds(900)),
+                new(new Variant((short)20000), StatusCodes.Good, endTime, endTime)
+            };
+
+            List<DataValue> results = RunAllStandard(
+                aggregateId,
+                values,
+                startTime,
+                endTime,
+                1000);
+
+            Assert.That(results, Has.Count.GreaterThanOrEqualTo(1));
+            Assert.That(StatusCode.IsBad(results[0].StatusCode), Is.False);
+            Assert.That(results[0].WrappedValue.TryGetValue(out int delta), Is.True);
+            Assert.That(delta, Is.EqualTo(40000));
         }
 
         [Test]
@@ -261,8 +297,8 @@ namespace Opc.Ua.Server.Tests
             NodeId aggregateId, List<DataValue> values, DateTimeUtc startTime, DateTimeUtc endTime, double interval)
         {
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                aggregateId, startTime, endTime, interval, false, m_configuration, m_telemetry);
-            return RunAll(calculator, values);
+                aggregateId, startTime, endTime, interval, false, m_configuration, m_telemetry)!;
+            return RunAll(calculator!, values);
         }
 
         [Test]

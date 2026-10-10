@@ -68,7 +68,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 session = await ClientFixture.ConnectAsync(
-                    ServerUrl, signEp.SecurityPolicyUri,
+                    ServerUrl, signEp!.SecurityPolicyUri!,
                     userIdentity: new UserIdentity("sysadmin", "demo"u8))
                     .ConfigureAwait(false);
             }
@@ -109,7 +109,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 session = await ClientFixture.ConnectAsync(
-                    ServerUrl, encryptEp.SecurityPolicyUri,
+                    ServerUrl, encryptEp!.SecurityPolicyUri!,
                     userIdentity: new UserIdentity("sysadmin", "demo"u8))
                     .ConfigureAwait(false);
             }
@@ -451,7 +451,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 if (ep.SecurityMode != MessageSecurityMode.None)
                 {
-                    policies.Add(ep.SecurityPolicyUri);
+                    policies.Add(ep.SecurityPolicyUri!);
                 }
             }
 
@@ -911,7 +911,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 session = await ClientFixture.ConnectAsync(
-                    ServerUrl, signEp.SecurityPolicyUri,
+                    ServerUrl, signEp!.SecurityPolicyUri!,
                     userIdentity: new UserIdentity("sysadmin", "demo"u8))
                     .ConfigureAwait(false);
             }
@@ -952,7 +952,7 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 session = await ClientFixture.ConnectAsync(
-                    ServerUrl, encryptEp.SecurityPolicyUri,
+                    ServerUrl, encryptEp!.SecurityPolicyUri!,
                     userIdentity: new UserIdentity("sysadmin", "demo"u8))
                     .ConfigureAwait(false);
             }
@@ -979,7 +979,7 @@ namespace Opc.Ua.Core.Security.Tests
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens == default)
+                if (ep.UserIdentityTokens == default!)
                 {
                     continue;
                 }
@@ -1116,7 +1116,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -1143,7 +1143,7 @@ namespace Opc.Ua.Core.Security.Tests
                 }
             }
 
-            return null;
+            return null!;
         }
     }
 }

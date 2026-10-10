@@ -3,7 +3,6 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.VisualInspection.Tests</RootNamespace>
     <AssemblyName>Opc.Ua.VisualInspection.Tests</AssemblyName>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014;CA1859;NUnit2026;NUnit4002;NUnit2046;RCS1174</NoWarn>
   </PropertyGroup>

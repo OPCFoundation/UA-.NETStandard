@@ -184,9 +184,9 @@ namespace Opc.Ua.Server.Tests
             };
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                ObjectIds.AggregateFunction_Average, startTime, endTime, 10000, false, configuration, m_telemetry);
+                ObjectIds.AggregateFunction_Average, startTime, endTime, 10000, false, configuration, m_telemetry)!;
 
-            calculator.QueueRawValue(new DataValue(new Variant(1.0), StatusCodes.Good, startTime, startTime));
+            calculator!.QueueRawValue(new DataValue(new Variant(1.0), StatusCodes.Good, startTime, startTime));
             calculator.TryGetProcessedValue(false, out _);
 
             Assert.That(calculator.HasEndTimePassed(startTime.AddMilliseconds(5000)), Is.False);
@@ -208,17 +208,17 @@ namespace Opc.Ua.Server.Tests
             };
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                ObjectIds.AggregateFunction_Average, startTime, endTime, 12000, false, configuration, m_telemetry);
+                ObjectIds.AggregateFunction_Average, startTime, endTime, 12000, false, configuration, m_telemetry)!;
 
             for (int i = 0; i < 6; i++)
             {
                 DateTimeUtc ts = endTime.AddMilliseconds(500 + (i * 2000));
-                calculator.QueueRawValue(Good(10.0 + i, ts));
+                calculator!.QueueRawValue(Good(10.0 + i, ts));
             }
 
             DataValue result = default;
             bool any = false;
-            while (calculator.TryGetProcessedValue(true, out DataValue value))
+            while (calculator!.TryGetProcessedValue(true, out DataValue value))
             {
                 if (!any)
                 {
@@ -245,9 +245,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ServerTimestamp, Is.EqualTo(expectedTimestamp));
         }
 
+        /// <summary>
+        /// The calculation uses TreatUncertainAsBad = true, but TreatUncertainAsBad does not apply to
+        /// bounding values (Mantis 11462): the non-Bad raw value at the interval start is the
+        /// bound (Part 13 §3.1.8) and is returned with its own status.
+        /// </summary>
         [TestCase(false)]
         [TestCase(true)]
-        public void InterpolativeExactUncertainBoundaryPreservesUncertainRawValue(bool reverse)
+        public void InterpolativeExactUncertainBoundaryIsReturnedAsRawValue(bool reverse)
         {
             DataValue result = ComputeInterpolativeBoundary(
                 StatusCodes.UncertainLastUsableValue,
@@ -289,7 +294,7 @@ namespace Opc.Ua.Server.Tests
             };
 
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                ObjectIds.AggregateFunction_Interpolative, startTime, endTime, 5000, false, configuration, m_telemetry);
+                ObjectIds.AggregateFunction_Interpolative, startTime, endTime, 5000, false, configuration, m_telemetry)!;
 
             var values = new List<DataValue>
             {
@@ -298,11 +303,11 @@ namespace Opc.Ua.Server.Tests
             };
             foreach (DataValue value in values)
             {
-                calculator.QueueRawValue(value);
+                calculator!.QueueRawValue(value);
             }
 
             bool any = false;
-            while (calculator.TryGetProcessedValue(true, out DataValue _))
+            while (calculator!.TryGetProcessedValue(true, out DataValue _))
             {
                 any = true;
             }
@@ -333,7 +338,7 @@ namespace Opc.Ua.Server.Tests
                 5000,
                 false,
                 configuration,
-                m_telemetry);
+                m_telemetry)!;
 
             DataValue[] values =
             [
@@ -347,18 +352,18 @@ namespace Opc.Ua.Server.Tests
             {
                 for (int index = values.Length - 1; index >= 0; index--)
                 {
-                    Assert.That(calculator.QueueRawValue(values[index]), Is.True);
+                    Assert.That(calculator!.QueueRawValue(values[index]), Is.True);
                 }
             }
             else
             {
                 foreach (DataValue value in values)
                 {
-                    Assert.That(calculator.QueueRawValue(value), Is.True);
+                    Assert.That(calculator!.QueueRawValue(value), Is.True);
                 }
             }
 
-            Assert.That(calculator.TryGetProcessedValue(true, out DataValue result), Is.True);
+            Assert.That(calculator!.TryGetProcessedValue(true, out DataValue result), Is.True);
             Assert.That(calculator.TryGetProcessedValue(true, out _), Is.False);
             return result;
         }

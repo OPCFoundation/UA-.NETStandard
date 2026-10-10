@@ -58,8 +58,8 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.Dequeue(out _, out _), Is.False);
             Assert.That(queue.TryPeekLastValue(out _), Is.False);
             Assert.Throws<InvalidOperationException>(
-                () => queue.OverwriteLastValue(new DataValue(), null));
-            Assert.Throws<InvalidOperationException>(() => queue.Enqueue(new DataValue(), null));
+                () => queue.OverwriteLastValue(new DataValue(), null!));
+            Assert.Throws<InvalidOperationException>(() => queue.Enqueue(new DataValue(), null!));
 
             queue.ResetQueue(2, true);
 
@@ -79,7 +79,7 @@ namespace Opc.Ua.Server.Tests
 
             var dataValue2 = new DataValue(new Variant(false));
 
-            queue.Enqueue(dataValue2, null);
+            queue.Enqueue(dataValue2, null!);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
@@ -131,7 +131,7 @@ namespace Opc.Ua.Server.Tests
 
             var dataValue2 = new DataValue(new Variant(false));
 
-            queue.Enqueue(dataValue2, null);
+            queue.Enqueue(dataValue2, null!);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
@@ -144,11 +144,11 @@ namespace Opc.Ua.Server.Tests
 
             var dataValue3 = new DataValue(new Variant("Test"));
 
-            queue.Enqueue(dataValue3, null);
+            queue.Enqueue(dataValue3, null!);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
 
-            queue.Enqueue(dataValue3, null);
+            queue.Enqueue(dataValue3, null!);
             _ = queue.ItemsInQueue;
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(2));
@@ -200,7 +200,7 @@ namespace Opc.Ua.Server.Tests
 
             var dataValue2 = new DataValue(new Variant(false));
 
-            queue.Enqueue(dataValue2, null);
+            queue.Enqueue(dataValue2, null!);
 
             Assert.That(queue.ItemsInQueue, Is.EqualTo(1));
 
@@ -274,7 +274,7 @@ namespace Opc.Ua.Server.Tests
 
             for (int j = 0; j < 10_000; j++)
             {
-                queue.Enqueue(new DataValue(new Variant(false)), null);
+                queue.Enqueue(new DataValue(new Variant(false)), null!);
                 queue.Dequeue(out _, out _);
             }
         }
@@ -291,7 +291,7 @@ namespace Opc.Ua.Server.Tests
             {
                 for (int i = 0; i < 100; i++)
                 {
-                    queue.Enqueue(new DataValue(new Variant(false)), null);
+                    queue.Enqueue(new DataValue(new Variant(false)), null!);
                 }
                 for (int v = 0; v < 90; v++)
                 {
@@ -349,7 +349,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queue.ItemsInQueue, Is.Zero);
             Assert.That(queue.IsDurable, Is.False);
             Assert.That(queue.Dequeue(out _), Is.False);
-            Assert.That(queue.IsEventContainedInQueue(null), Is.False);
+            Assert.That(queue.IsEventContainedInQueue(null!), Is.False);
             //Assert.Throws<InvalidOperationException>(() => queue.Enqueue(new EventFieldList()));
 
             queue.SetQueueSize(2, false);
@@ -752,7 +752,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queueHandler.Overflow, Is.True);
 
             var events = new Queue<EventFieldList>();
-            queueHandler.Publish(null, events, 1);
+            queueHandler.Publish(null!, events, 1);
             Assert.That(events, Is.Not.Empty);
             Assert.That(events, Has.Count.EqualTo(1));
             Assert.That(events.Peek(), Is.Not.EqualTo(value));
@@ -785,21 +785,21 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queueHandler.Overflow, Is.False);
 
             var events = new Queue<EventFieldList>();
-            queueHandler.Publish(null, events, 1);
+            queueHandler.Publish(null!, events, 1);
             Assert.That(events, Is.Not.Empty);
             Assert.That(events, Has.Count.EqualTo(1));
             Assert.That(events.Peek(), Is.Not.EqualTo(value2));
             Assert.That(events.Peek(), Is.EqualTo(value));
 
             events = new Queue<EventFieldList>();
-            queueHandler.Publish(null, events, 1);
+            queueHandler.Publish(null!, events, 1);
             Assert.That(events, Is.Not.Empty);
             Assert.That(events, Has.Count.EqualTo(1));
             Assert.That(events.Peek(), Is.Not.EqualTo(value));
             Assert.That(events.Peek(), Is.EqualTo(value2));
 
             events = new Queue<EventFieldList>();
-            queueHandler.Publish(null, events, 1);
+            queueHandler.Publish(null!, events, 1);
             Assert.That(events, Is.Empty);
         }
 
@@ -823,14 +823,14 @@ namespace Opc.Ua.Server.Tests
             Assert.That(queueHandler.Overflow, Is.False);
 
             var events = new Queue<EventFieldList>();
-            queueHandler.Publish(null, events, 2);
+            queueHandler.Publish(null!, events, 2);
             Assert.That(events, Is.Not.Empty);
             Assert.That(events, Has.Count.EqualTo(2));
             Assert.That(events.Dequeue(), Is.EqualTo(value));
             Assert.That(events.Dequeue(), Is.EqualTo(value2));
 
             events = new Queue<EventFieldList>();
-            queueHandler.Publish(null, events, 1);
+            queueHandler.Publish(null!, events, 1);
             Assert.That(events, Is.Empty);
         }
 
@@ -952,7 +952,8 @@ namespace Opc.Ua.Server.Tests
             queueHandler.QueueValue(dataValue2, statuscode2);
 
             Assert.That(queueHandler.ItemsInQueue, Is.EqualTo(1));
-            Assert.That(called, Is.True);
+            // sampling coalescing is not a queue overflow (Part 5 12.15)
+            Assert.That(called, Is.False);
 
             bool success = queueHandler.PublishSingleValue(
                 out DataValue result,
@@ -1158,7 +1159,7 @@ namespace Opc.Ua.Server.Tests
 
             for (int i = 0; i < 5; i++)
             {
-                queueHandler.QueueValue(dataValue, null);
+                queueHandler.QueueValue(dataValue, null!);
             }
 
             var statuscode2 = new ServiceResult(StatusCodes.Good);
@@ -1235,11 +1236,11 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(result, Is.Not.Empty);
                 Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
-                MonitoredItemNotification publishResult = result.FirstOrDefault();
+                MonitoredItemNotification publishResult = result.FirstOrDefault()!;
                 Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
-                DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
+                DiagnosticInfo publishErrorResult = result2.FirstOrDefault()!;
                 Assert.That(
-                    publishErrorResult.InnerStatusCode,
+                    publishErrorResult!.InnerStatusCode,
                     Is.EqualTo(StatusCodes.Good));
             }
             else
@@ -1331,7 +1332,20 @@ namespace Opc.Ua.Server.Tests
                 {
                     Assert.That(restoredLifecycle.IsDeleted, Is.True);
                     Assert.That(restoredLifecycle.IsDetached, Is.True);
-                    Assert.That(restoredNotifications, Is.Empty);
+                    if (disabledBeforeStore)
+                    {
+                        // leaving DISABLED reports the deleted node once more, as it does for
+                        // a live item that is enabled again; it is not the consumed
+                        // notification from before the restart being republished.
+                        Assert.That(restoredNotifications, Has.Count.EqualTo(1));
+                        Assert.That(
+                            restoredNotifications.Peek().Value.StatusCode,
+                            Is.EqualTo(StatusCodes.BadNodeIdUnknown));
+                    }
+                    else
+                    {
+                        Assert.That(restoredNotifications, Is.Empty);
+                    }
                     Assert.That(more, Is.False);
                 });
             }
@@ -1369,7 +1383,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(result, Is.Not.Empty);
             Assert.That(monitoredItem.ItemsInQueue, Is.Zero);
-            EventFieldList publishResult = result.FirstOrDefault();
+            EventFieldList publishResult = result.FirstOrDefault()!;
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<AuditUrlMismatchEventState>());
         }
@@ -1409,11 +1423,11 @@ namespace Opc.Ua.Server.Tests
                 logger);
 
             Assert.That(result, Is.Not.Empty);
-            MonitoredItemNotification publishResult = result.FirstOrDefault();
+            MonitoredItemNotification publishResult = result.FirstOrDefault()!;
             Assert.That(publishResult?.Value, Is.EqualTo(dataValue));
-            DiagnosticInfo publishErrorResult = result2.FirstOrDefault();
+            DiagnosticInfo publishErrorResult = result2.FirstOrDefault()!;
             Assert.That(
-                publishErrorResult.InnerStatusCode,
+                publishErrorResult!.InnerStatusCode,
                 Is.EqualTo(StatusCodes.Good));
         }
 
@@ -1452,7 +1466,7 @@ namespace Opc.Ua.Server.Tests
             monitoredItem.Publish(new OperationContext(monitoredItem), result, 3);
 
             Assert.That(result, Is.Not.Empty);
-            EventFieldList publishResult = result.LastOrDefault();
+            EventFieldList publishResult = result.LastOrDefault()!;
             Assert.That(publishResult, Is.Not.Null);
             Assert.That(publishResult.Handle, Is.AssignableTo<EventQueueOverflowEventState>());
         }
@@ -1515,7 +1529,7 @@ namespace Opc.Ua.Server.Tests
 
             for (uint i = 0; i < 3000; i++)
             {
-                queue.Enqueue(new DataValue(new Variant(i)), null);
+                queue.Enqueue(new DataValue(new Variant(i)), null!);
             }
 
             // wait for persisting to take place
@@ -1557,7 +1571,7 @@ namespace Opc.Ua.Server.Tests
             return new MonitoredItem(
                 serverMock.Object,
                 nodeMangerMock.Object,
-                null,
+                null!,
                 1,
                 2,
                 new ReadValueId(),

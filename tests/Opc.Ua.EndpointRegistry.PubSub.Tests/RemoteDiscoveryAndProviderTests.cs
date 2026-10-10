@@ -111,6 +111,49 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
             Assert.That((await Binding.ObserveRemoteAsync(connection).ConfigureAwait(false)).Accepted, Is.False);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task FailedRemoteRemovalIsRetriedWithoutReplayResurrectionAsync(bool retainedClear)
+        {
+            await Binding.ObserveRemoteAsync(RemoteConnection("trusted")).ConfigureAwait(false);
+            RemotePubSubObservation metadata = RemoteMetadata();
+            metadata.ExpiresAt = Server.Clock.GetUtcNow().AddMinutes(1);
+            await Binding.ObserveRemoteAsync(metadata).ConfigureAwait(false);
+            Assert.That(RemotePaths(), Has.Count.EqualTo(1));
+            RemotePubSubObservation clear = RemoteConnection("trusted");
+            clear.Connection = null;
+            clear.RetainedCleared = true;
+            Server.RejectCommits = true;
+            try
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                {
+                    if (retainedClear)
+                    {
+                        await Binding.ObserveRemoteAsync(clear).ConfigureAwait(false);
+                    }
+                    else
+                    {
+                        await Binding.ExpireRemoteAsync(metadata.ExpiresAt.Value).ConfigureAwait(false);
+                    }
+                })!;
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadResourceUnavailable));
+                Assert.That(RemotePaths(), Has.Count.EqualTo(1));
+                Assert.That((await Binding.ObserveRemoteAsync(retainedClear ? clear : metadata).ConfigureAwait(false))
+                    .Accepted, Is.False);
+                Server.RejectCommits = false;
+                await Binding.ExpireRemoteAsync(Server.Clock.GetUtcNow()).ConfigureAwait(false);
+                Assert.That(RemotePaths(), Is.Empty);
+                Assert.That((await Binding.ObserveRemoteAsync(metadata).ConfigureAwait(false)).Accepted, Is.False);
+                Assert.That(RemotePaths(), Is.Empty);
+            }
+            finally
+            {
+                Server.RejectCommits = false;
+                await ClearRemoteAsync("trusted").ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task SharedProviderCapabilityPreservesValidationEpochsNoOpsAndProtectedOrdinaryPathsAsync()
         {

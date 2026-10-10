@@ -6,7 +6,22 @@ The `Opc.Ua.Core.Schema` library generates schemas for OPC UA data types at runt
 - **BSD** (OPC Binary, Part 6) for the binary encoding.
 - **JSON Schema** (Part 6 Annex C, draft 2020-12) for the JSON encoding, in both the **compact** (reversible, BrowseName-keyed) and **verbose** flavors.
 
-Schemas are built as strongly-typed object models in code — there are no embedded schema strings — so unused generation paths are trimmed away and the whole library is NativeAOT compatible. The XSD object model is the in-box `System.Xml.Schema.XmlSchema`, the BSD object model is the existing `Opc.Ua.Schema.Binary.TypeDictionary`, and the JSON object model is `System.Text.Json.Nodes.JsonObject`.
+Schemas are built as strongly-typed object models in code — there are no embedded schema strings — so unused generation paths are trimmed away and the whole library is NativeAOT compatible. The XSD object model is the in-box `System.Xml.Schema.XmlSchema`. BSD uses
+the existing `Opc.Ua.Schema.Binary.TypeDictionary`, and JSON uses
+`System.Text.Json.Nodes.JsonObject`.
+
+## Contents
+
+- [Concepts](#concepts)
+- [Registration](#registration)
+- [Registering data types](#registering-data-types)
+  - [Namespace identity](#namespace-identity)
+- [Generating a schema](#generating-a-schema)
+- [Working with the object model](#working-with-the-object-model)
+- [JSON encoding notes](#json-encoding-notes-part-6)
+- [PubSub schemas](#pubsub-schemas)
+- [OpenAPI document of the REST binding](#openapi-document-of-the-rest-binding)
+- [Trimming and NativeAOT](#trimming-and-nativeaot)
 
 ## Concepts
 
@@ -58,11 +73,12 @@ var registry = serviceProvider.GetRequiredService<DataTypeDefinitionRegistry>();
 registry.TryAddDataType(dataTypeNode, session.NamespaceUris);
 ```
 
-- **Source-generated types** — the generated model registration extension adds public
-  structure and enumeration activators to an `IEncodeableFactory`. Those activators
-  implement `IDataTypeDefinitionSource`; the generated data value itself does not need
-  to implement that interface. Use `EncodeableFactoryDefinitionSource` to resolve their
-  definitions without reflection or manual registration:
+- **Source-generated types** — the generated model registration extension adds
+  public structure and enumeration activators to an `IEncodeableFactory`.
+  These activators implement `IDataTypeDefinitionSource`; the generated data
+  value does not need to implement that interface. Use
+  `EncodeableFactoryDefinitionSource` to resolve their definitions without
+  reflection or manual registration:
 
 ```csharp
 IEncodeableFactory factory = EncodeableFactory.Create();
@@ -91,7 +107,9 @@ IDataTypeDefinitionResolver resolver = new CompositeDataTypeDefinitionResolver(
     [new EncodeableFactoryDefinitionSource(factory, namespaceUris), registry]);
 ```
 
-  An OPC UA server wires this up automatically when `AddComplexTypeSystem()` is enabled (see [ComplexTypes.md](ComplexTypes.md)): the primed encodeable factory becomes the schema resolver.
+  When `AddComplexTypeSystem()` is enabled, an OPC UA server wires this up
+  automatically (see [ComplexTypes.md](ComplexTypes.md)). The primed
+  encodeable factory becomes the schema resolver.
 
 Once registered, fields that reference other registered types are resolved automatically and included in the generated document.
 
@@ -181,6 +199,33 @@ The `Opc.Ua.PubSub.Schema` library generates JSON Schemas for the PubSub JSON me
 - `CreateMetaDataMessageSchema(metaData, verbose)` — the `ua-metadata` message.
 
 The provider reuses the core `ISchemaProvider` to resolve complex (structured/enum) field data types, embedding them into the document `$defs` section.
+
+## OpenAPI document of the REST binding
+
+`WebApiOpenApiGenerator` generates the OpenAPI 3.0 document of the REST binding
+(Part 6 G.3, see [REST binding](WebApi.md)) from `WebApiServiceRoutes` and the
+structure definitions of the request and response types. It is not an
+`IUaSchemaGenerator`: a document describes a set of routes rather than one data
+type.
+
+```csharp
+var generator = new WebApiOpenApiGenerator();
+JsonObject document = generator.Generate(
+    WebApiServiceSet.Sessionless,   // or AllServices
+    includeSchemas: true,           // false: a JSON object as every body
+    serverUrl: "/opcua/");          // null: no servers list
+```
+
+Without `includeSchemas` the document holds the paths and operations only
+(about 12 KB for all 28 services). With it, every request, response and the
+structures and enumerations they contain become component schemas (about 46 KB),
+which is what OpenAPI client generators need. The schemas describe the Compact
+JSON encoding with the property names and types the published OPC Foundation
+documents use; [OPC UA over OpenAPI](OpenApi.md) lists the differences and the
+tests that keep the document correct. Pass an `IDataTypeDefinitionResolver` to
+the constructor to resolve the types from another source than the generated
+types of the OPC UA namespace. The generator is registered by
+`AddWebApiTransport()`, which serves the document.
 
 ## Trimming and NativeAOT
 

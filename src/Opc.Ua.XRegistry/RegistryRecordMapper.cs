@@ -337,7 +337,7 @@ namespace Opc.Ua.XRegistry
                     _ => ProjectedField.FromStructure(ProjectStructure(value, dataType, depth, shape, operation))
                 };
             }
-            if (value is not RegistryArrayValueDataType array || !IsExact(value, 4))
+            if (value is not RegistryArrayValueDataType array || !IsExact(value, 4) || array.Items.IsNull)
             {
                 throw operation.Invalid("An array value is required.");
             }
@@ -968,6 +968,10 @@ namespace Opc.Ua.XRegistry
                         NegativeZero = number.NegativeZero
                     };
                 case RegistryArrayValueDataType array when IsExact(value, 4):
+                    if (array.Items.IsNull)
+                    {
+                        throw operation.Invalid("An Array requires non-null items.");
+                    }
                     var items = new RegistryValueDataType[array.Items.Count];
                     for (int index = 0; index < items.Length; index++)
                     {

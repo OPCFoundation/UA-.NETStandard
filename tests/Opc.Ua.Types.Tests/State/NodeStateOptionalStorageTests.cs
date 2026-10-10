@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.IO;
 using System.Linq;
@@ -271,7 +269,11 @@ namespace Opc.Ua.Types.Tests.State
             var node = new BaseObjectState(null);
             var value = new DataValue();
             ServiceResult result = node.ReadAttribute(context, attribute, default, default, ref value);
-            Assert.That(ServiceResult.IsGood(result), Is.True);
+            // An optional attribute without a value is not supported by the
+            // node (Part 4, Read: Bad_AttributeIdInvalid). Good with a null
+            // value is not a valid RolePermissions/AccessRestrictions value and
+            // makes 1.5 clients fail to fetch the node (see Opc.Ua.Interop.Tests).
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadAttributeIdInvalid));
             Assert.That(value.WrappedValue.IsNull, Is.True);
             Assert.That(s_securityField.GetValue(node), Is.Null);
 

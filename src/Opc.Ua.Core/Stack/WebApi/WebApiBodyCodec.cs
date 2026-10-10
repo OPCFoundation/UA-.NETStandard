@@ -42,8 +42,8 @@ namespace Opc.Ua.Bindings
     /// <remarks>
     /// <para>
     /// The shared <see cref="JsonEncoder.EncodeMessage{T}(T,ExpandedNodeId)"/>
-    /// / <see cref="JsonDecoder.DecodeMessage{T}()"/> pair always wraps the
-    /// payload in the <c>{UaTypeId, UaBody}</c> envelope used by the
+    /// / <see cref="JsonDecoder.DecodeMessage{T}()"/> pair always writes the
+    /// payload as an ExtensionObject with a leading <c>UaTypeId</c>, the envelope used by the
     /// HTTPS-JSON (Part 6 §7.4.5) and WSS <c>opcua+uajson</c> (§7.5.2)
     /// sub-profiles. The REST binding routes the service identity through
     /// the URL path instead, so the body is the bare
@@ -198,7 +198,7 @@ namespace Opc.Ua.Bindings
                 int total = 0;
                 while (total < exact.Length)
                 {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     int n = await body
                         .ReadAsync(exact.AsMemory(total, exact.Length - total), ct)
                         .ConfigureAwait(false);
@@ -237,7 +237,7 @@ namespace Opc.Ua.Bindings
                     int count = maxLength > 0
                         ? (int)Math.Min(rented.Length, (long)maxLength - buffer.Length + 1)
                         : rented.Length;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     int read = await body.ReadAsync(rented.AsMemory(0, count), ct).ConfigureAwait(false);
 #else
                     int read = await body.ReadAsync(rented, 0, count, ct).ConfigureAwait(false);
@@ -253,7 +253,7 @@ namespace Opc.Ua.Bindings
                             "Request body exceeds the configured MaxMessageSize ({0} bytes).",
                             maxLength);
                     }
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     await buffer.WriteAsync(rented.AsMemory(0, read), ct).ConfigureAwait(false);
 #else
                     await buffer.WriteAsync(rented, 0, read, ct).ConfigureAwait(false);
@@ -664,7 +664,7 @@ namespace Opc.Ua.Bindings
             }
 
             byte[] payload = EncodeBody(value, context, options);
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await destination.WriteAsync(payload.AsMemory(0, payload.Length), ct)
                 .ConfigureAwait(false);
 #else

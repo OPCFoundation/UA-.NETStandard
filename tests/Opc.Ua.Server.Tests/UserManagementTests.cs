@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -358,6 +356,18 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ServiceResult.IsGood(
                 um.AddUser("alice", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
             ServiceResult result = um.ChangePassword("alice", "wrong", "newpass");
+            Assert.That(result.StatusCode,
+                Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        [TestCase("")]
+        [TestCase(null)]
+        public void ChangePassword_EmptyOldPassword_ReturnsBadIdentityTokenInvalid(string? oldPassword)
+        {
+            using UserManagementImpl um = CreateManager();
+            Assert.That(ServiceResult.IsGood(
+                um.AddUser("alice", "secret", UserConfigurationMask.None, string.Empty)), Is.True);
+            ServiceResult result = um.ChangePassword("alice", oldPassword!, "newpass");
             Assert.That(result.StatusCode,
                 Is.EqualTo(StatusCodes.BadIdentityTokenInvalid));
         }

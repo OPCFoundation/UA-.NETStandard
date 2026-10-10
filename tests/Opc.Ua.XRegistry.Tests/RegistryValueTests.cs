@@ -86,6 +86,22 @@ namespace Opc.Ua.XRegistry.Tests
         }
 
         [Test]
+        public void NullNativeArrayIsRejectedInsteadOfBecomingEmptyJson()
+        {
+            var array = new RegistryArrayValueDataType { Kind = 4, Items = ArrayOf<RegistryValueDataType>.Null };
+            Assert.That(array.Items.IsNull, Is.True);
+            Assert.That(() => RegistryValues.Validate(array), Throws.ArgumentException);
+            Assert.That(() => RegistryValues.ToJson(array), Throws.ArgumentException);
+            Assert.That(() => RegistryValues.Identical(array, RegistryValues.Parse("[]"u8)), Throws.ArgumentException);
+            using var stream = new MemoryStream(ByteString.FromHexString("04000000FFFFFFFF").ToArray());
+            using var decoder = new BinaryDecoder(stream, ServiceMessageContext.Create(null), true);
+            var decoded = new RegistryArrayValueDataType();
+            decoded.Decode(decoder);
+            Assert.That(decoded.Items.IsNull, Is.True);
+            Assert.That(() => RegistryValues.Validate(decoded), Throws.ArgumentException);
+        }
+
+        [Test]
         public void NativeChangesDistinguishExplicitNullAndRemovalAndLeaveTheSourceUntouched()
         {
             RegistryValueDataType original = RegistryValues.Parse(

@@ -6,10 +6,16 @@
 > understands the OPC UA PubSub model
 > ([Part 14 §4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/4))
 > and focuses on **how to use the library**.
+>
+> New to PubSub? [OPC UA concepts](Concepts.md#clientserver-and-pubsub)
+> introduces publishers, subscribers, and datasets.
+> [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber)
+> exchanges messages on one computer with the reference sample.
 
 ## Table of contents
 
 - [At a glance](#at-a-glance)
+- [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber)
 - [Architecture](#architecture)
 - [Core abstractions](#core-abstractions)
 - [Fluent builder walkthrough](#fluent-builder-walkthrough)
@@ -18,15 +24,15 @@
 - [Encodings](#encodings)
 - [Transcoding](#transcoding)
 - [Discovery](#discovery)
-- [Security](#security)
+- [Security](#security-1)
 - [Security Key Service (SKS)](#security-key-service-sks)
+- [Actions (request/response)](#actions-requestresponse)
 - [Server-side address space](#server-side-address-space)
 - [Binding PubSub to an external OPC UA server (client-session adapters)](#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
 - [High availability and redundancy](#high-availability-and-redundancy)
 - [Diagnostics](#diagnostics)
 - [Native AOT](#native-aot)
 - [Spec coverage](#spec-coverage)
-- [Test coverage](#test-coverage)
 - [Cross-references](#cross-references)
 
 ## At a glance
@@ -38,7 +44,7 @@
   `Opc.Ua.PubSub`, `Opc.Ua.PubSub.Udp`, `Opc.Ua.PubSub.Mqtt`,
   `Opc.Ua.PubSub.Kafka`,
   `Opc.Ua.PubSub.Server`, `Opc.Ua.PubSub.Adapter`.
-- Multi-TFM: `netstandard2.1`, `net48`, `net472`, `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
+- Multi-TFM: `net48`, `net8.0` (LTS), `net9.0`, `net10.0` (LTS).
 - Native AOT clean — both reference samples publish with zero
   `IL2026` / `IL3050` warnings.
 - Transports: **UDP** (uni/multi/broadcast), **DTLS over UDP** (`opc.dtls://`, unicast UADP), **MQTT** (3.1.1 + 5.0), **Kafka** (`kafka://` / `kafkas://`), and **Ethernet** (`opc.eth://`, Layer 2 UADP with 802.1Q VLAN).
@@ -58,6 +64,66 @@
 - Runtime configuration mutation via
   `IPubSubApplication.AddConnectionAsync` / `AddWriterGroupAsync` / etc.
 - High-performance transcoders bridge subscriber-side NetworkMessages to publisher connections with UADP/JSON cross-encoding, transform pipelines, and managed UADP re-securing.
+
+## Run a first publisher and subscriber
+
+The [reference PubSub sample](../samples/PubSub/ConsoleReferencePubSubClient/README.md)
+contains a publisher and a subscriber in one executable. This exchange runs on
+one computer and needs no broker. From the repository root, build the sample
+once:
+
+```bash
+dotnet build samples/PubSub/ConsoleReferencePubSubClient
+```
+
+Start the subscriber in one terminal:
+
+```bash
+dotnet run --no-build --project samples/PubSub/ConsoleReferencePubSubClient -- subscriber --profile udp-uadp --endpoint opc.udp://127.0.0.1:4840
+```
+
+Start the publisher in a second terminal:
+
+```bash
+dotnet run --no-build --project samples/PubSub/ConsoleReferencePubSubClient -- publisher --profile udp-uadp --endpoint opc.udp://127.0.0.1:4840
+```
+
+The subscriber logs each DataSet it decodes, once per second:
+
+```text
+DataSet #1 received (3 fields): BoolToggle=False, Int32=1, DateTime=09/28/2026 12:18:50
+DataSet #2 received (3 fields): BoolToggle=True, Int32=2, DateTime=09/28/2026 12:18:51
+```
+
+The `udp-uadp` profile signs and encrypts the UADP messages, including the
+DataSet metadata announcement, with demo keys that are built into the sample.
+A production deployment obtains its keys from a
+[Security Key Service](#security-key-service-sks).
+`DataSetReader Reader 1 faulted on MessageReceiveTimeout (>00:00:05)` can
+appear when no matching message arrives for five seconds, for example before
+the publisher starts. The reader resumes when messages arrive.
+
+The sample's default endpoint, `opc.udp://239.0.0.1:4840`, is a multicast
+address. On one computer, the subscriber can miss multicast messages because
+the UDP transport disables multicast loopback by default
+(`UdpTransportOptions.MulticastLoopback`). The unicast loopback address avoids
+this limitation. See [UDP / UADP](#udp--uadp) for the multicast options.
+
+A subscriber decodes a message only when it matches the publisher's settings:
+
+| Setting | Publisher option | Subscriber option | Sample default |
+| --- | --- | --- | --- |
+| Transport, encoding, and security | `--profile` | `--profile` | `udp-uadp` |
+| Endpoint | `--endpoint` | `--endpoint` | `opc.udp://239.0.0.1:4840` |
+| PublisherId | `--publisher-id` | `--publisher-id-filter` | `1` |
+| WriterGroupId | `--writer-group-id` | `--writer-group-id-filter` | `100` |
+| DataSetWriterId | `--data-set-writer-id` | `--data-set-writer-id-filter` | `1` |
+
+The DataSet fields must also agree. The sample uses RawData field encoding,
+which carries no type information, so the subscriber decodes the fields with
+the `DataSetMetaData` of its DataSetReader: `BoolToggle`, `Int32`, and
+`DateTime`. A subscriber whose settings do not match ignores the messages and
+reports the `MessageReceiveTimeout` fault.
 
 ## Architecture
 
@@ -217,7 +283,21 @@ The publisher-side `MetaDataPublisher` ([§6.2.2.5](https://reference.opcfoundat
 emits a retained `JsonMetaDataMessage` / `UadpDiscoveryResponseMessage`
 on the well-known `ua-metadata` topic at startup and after each
 configuration version bump; subscribers cache it before the first
-KeyFrame arrives.
+KeyFrame arrives. A connection configured for message security applies its
+SecurityMode to the UADP announcement, with the same keys as its
+DataSetMessages: `Sign` lets subscribers verify the announcement, and
+`SignAndEncrypt` also hides the DataSet layout from applications that do not
+hold the keys.
+
+A subscriber also registers the `DataSetMetaData` configured on each
+DataSetReader whose filter names an exact PublisherId, WriterGroupId, and
+DataSetWriterId
+([§6.2.9.4](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/6.2.9.4)).
+It can therefore decode RawData fields without first receiving an
+announcement; a later announcement replaces the entry. A reader with a
+wildcard filter depends on announcements for RawData. A DataSetMessage that
+omits its ConfigurationVersion is decoded with the registered metadata; one
+that carries a different MajorVersion is rejected.
 
 Subscribers can also **actively** request discovery information with
 `IPubSubApplication.RequestDiscoveryAsync(...)` (Part 14 §7.2.4.6): it sends a
@@ -497,6 +577,23 @@ broadcast. The transport honours the
 | `MessageRepeatCount`       | How many times the publisher re-sends the same NetworkMessage.       |
 | `MessageRepeatDelay`       | Delay between repeats; receivers deduplicate using `SequenceNumber`. |
 
+`UdpTransportOptions`, configured with `AddUdpTransport(options => ...)` or the
+`OpcUa:PubSub:Udp` configuration section, sets the socket behavior. Its
+defaults favor containment over reach:
+
+| Option | Default | Meaning |
+| --- | --- | --- |
+| `Ttl` | `1` | Multicast and unicast time-to-live; keeps multicast on the local subnet. |
+| `MulticastLoopback` | `false` | Whether this host receives copies of its own multicast messages. |
+| `PreferredNetworkInterface` | `null` | NIC name or local IP address used for multicast when the connection address does not name one; otherwise the first operational interface for the address family, preferring a non-loopback interface. |
+
+A receiving connection joins its multicast group on that interface. A sending
+connection sends its multicast messages and discovery announcements through
+the same interface. On a computer with several network interfaces, name the
+interface that reaches the other PubSub applications, either in the
+connection address (`NetworkInterface`) or in `PreferredNetworkInterface`. For
+a publisher and subscriber on one computer, use a unicast loopback address, as
+in [Run a first publisher and subscriber](#run-a-first-publisher-and-subscriber).
 
 ### Ethernet / UADP (`opc.eth://`)
 
@@ -558,7 +655,6 @@ services.AddOpcUa().AddPubSub(pubsub => pubsub
 Notes: only UADP encoding is defined for the Ethernet mapping (no JSON over `opc.eth://`); frames exceeding `MaxFrameSize` (the link MTU) cannot be sent, so enable UADP chunking or raise the MTU; the native AF_PACKET / BPF backends are exercised by opt-in / manual tests only (they need privileges and real hardware), while CI uses the in-memory loopback backend.
 
 **Security.** The Ethernet mapping provides **no transport-level authentication, integrity, or confidentiality** (unlike `opc.dtls://`): raw Layer 2 frames are unauthenticated and unencrypted, and any node on the broadcast / VLAN domain can sniff, inject, replay, or spoof them. Always configure **message-level PubSub security** (`SecurityMode = SignAndEncrypt` with a SecurityGroup / SKS), exactly as for UDP — the transport applies the same inbound security gate. The transport logs a prominent **warning** when a connection is opened with `SecurityMode = None`. Run the process with the **least privilege** required for raw L2 access — on Linux grant the `CAP_NET_RAW` capability to the binary (`setcap cap_net_raw+ep`) rather than running as root; `Promiscuous` mode is off by default and broadens the receive exposure when enabled. The in-memory loopback backend delivers every frame to all peers on its bus (no destination filtering) and is a test / diagnostic double only — it must not be relied on as a security or isolation boundary. SharpPcap (+ PacketDotNet) are pinned native dependencies tracked under the repository's SDL native-code policy (see `Directory.Packages.props`).
-
 
 ### DTLS / UADP (`opc.dtls://`)
 
@@ -638,19 +734,24 @@ var subscriber = new PubSubConnectionDataType
 };
 ```
 
-DTLS uses .NET BCL cryptography only. Unsupported primitives are never
-substituted or downgraded: the profile is not registered and `Resolve(...)` /
-transport open throws a clear `NotSupportedException`.
+On .NET 8+ DTLS uses .NET BCL cryptography only. The .NET Framework build has
+no raw ECDH agreement and no `AesGcm` / `ChaCha20Poly1305` in its BCL, so there
+the ECDHE agreement and the AEAD record ciphers run in the managed
+BouncyCastle implementation that `Opc.Ua.Security.Certificates` carries for the
+ECC security policies (not a validated (FIPS) module); ephemeral keys, ECDSA,
+HMAC and the record-number mask stay on the platform. Unsupported primitives
+are never substituted or downgraded: the profile is not registered and
+`Resolve(...)` / transport open throws a clear `NotSupportedException`.
 
-| Profile family | net8/net9/net10 status | netstandard2.1 status | net48 status |
-| -------------- | ---------------------- | --------------------- | ------------ |
-| NIST P-256/P-384 + AES-128/256-GCM | Implemented when `AesGcm` and the named curve are available. | No AEAD profile registered. | None. |
-| NIST P-256/P-384 + ChaCha20-Poly1305 | Implemented when `ChaCha20Poly1305.IsSupported` and the named curve are available. | Not registered. | None. |
-| NIST P-256/P-384 integrity-only (`TLS_SHA256_SHA256` / `TLS_SHA384_SHA384`) | Implemented. | Compiles; profiles are not registered because raw ECDHE is unavailable below net8. | None. |
-| Brainpool P256r1/P384r1 + AES-GCM / ChaCha20 / integrity-only | Implemented only on platforms where the BCL can create the Brainpool curve OID. | Not registered. | None. |
-| Curve25519 / Curve448 mandatory profiles | Unsupported: .NET BCL has no portable X25519/X448 API; fail-closed. | Unsupported. | Unsupported. |
+| Profile family | net8/net9/net10 status | net48 status |
+| -------------- | ---------------------- | ------------ |
+| NIST P-256/P-384 + AES-128/256-GCM | Implemented when `AesGcm` and the named curve are available. | Implemented (BouncyCastle AES-GCM and ECDH). |
+| NIST P-256/P-384 + ChaCha20-Poly1305 | Implemented when `ChaCha20Poly1305.IsSupported` and the named curve are available. | Implemented (BouncyCastle ChaCha20-Poly1305 and ECDH). |
+| NIST P-256/P-384 integrity-only (`TLS_SHA256_SHA256` / `TLS_SHA384_SHA384`) | Implemented. | Implemented (BouncyCastle ECDH). |
+| Brainpool P256r1/P384r1 + AES-GCM / ChaCha20 / integrity-only | Implemented only on platforms where the BCL can create the Brainpool curve OID. | Same as net8+ (CNG supports the Brainpool curves). |
+| Curve25519 / Curve448 mandatory profiles | Unsupported: .NET BCL has no portable X25519/X448 API; fail-closed. | Unsupported. |
 
-Peer authentication reuses the injected stack `CertificateValidator` /
+Peer authentication reuses the injected stack certificate validator /
 certificate stores. Certificates must be ECC/ECDSA and match the selected profile
 hash strength. DTLS records enforce sequence-number protection and anti-replay
 per RFC 9147.
@@ -664,7 +765,7 @@ TFM matrix:
 
 | Target                          | MQTTnet major |
 | ------------------------------- | ------------- |
-| `netstandard2.1`, `net48`, `net472` | v4 |
+| `net48` | v4 |
 | `net8.0`, `net9.0`, `net10.0`   | v5 |
 
 Highlights:
@@ -1124,6 +1225,12 @@ subscribers that need to find publishers and bind to metadata at runtime.
   duplicate probes are suppressed, and identical responses are throttled.
 - MQTT publishes retained discovery messages on the standard status, connection,
   application, endpoint, and metadata topics.
+- A UADP connection configured for message security applies its SecurityMode
+  to its discovery requests, responses, and announcements, with the keys of
+  its SecurityGroup: they are signed, and with `SignAndEncrypt` also
+  encrypted. A secured connection therefore discovers only applications that
+  hold the same keys. The MQTT last-will status message is the exception: the
+  broker publishes it later, so it is sent unsecured.
 
 ```csharp
 PubSubDiscoveryResult result = await application.RequestDiscoveryAsync(
@@ -1913,7 +2020,7 @@ below maps Part 14 sections to the type / file that implements them.
 - [Migration sub-doc — `migrate/2.0.x/pubsub.md`](migrate/2.0.x/pubsub.md)
 - [External server adapter](#binding-pubsub-to-an-external-opc-ua-server-client-session-adapters)
 - [Dependency Injection](DependencyInjection.md)
-- [Native AOT Testing](NativeAoT.md)
+- [Native AOT](NativeAoT.md)
 - [Profiles and Facets](Profiles.md#pubsub-transports)
 - [Certificate Manager](CertificateManager.md)
 - [Sessions](Sessions.md) — Part 4 service set used by the SKS client.

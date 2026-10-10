@@ -1,0 +1,58 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <AssemblyName>$(AssemblyPrefix).AMB.Server</AssemblyName>
+    <DefineConstants>$(DefineConstants);OPCUA_INCLUDE_ASYNC</DefineConstants>
+    <TargetFrameworks>$(LibTargetFrameworks)</TargetFrameworks>
+    <PackageId>$(PackagePrefix).Opc.Ua.AMB.Server</PackageId>
+    <RootNamespace>Opc.Ua.AMB.Server</RootNamespace>
+    <NoWarn>$(NoWarn);CS1591</NoWarn>
+    <Description>Server hosting for the source-generated OPC 10000-110 Asset Management Basics (AMB) model: a sidecar node manager that loads the AMB model next to any Device Integration based manager, an asset registry that makes devices, machines, pumps and scales manageable assets, the identification inspection and configurable, persistent AssetId, asset discovery through the AMB alias categories, DeviceHealth and health alarms with condition classes and root causes, maintenance activities on the MaintenanceEventStateMachine, the DocumentationLinks AddIn with persistent AddLink and RemoveLink, version information, locations, classification and asset structure, the AMB conformance units and server facet, and fluent application configuration APIs.</Description>
+    <IsPackable>true</IsPackable>
+    <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>
+    <GenerateDocumentationFile>true</GenerateDocumentationFile>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)' == 'Debug'">
+    <PackageId>$(PackageId).Debug</PackageId>
+  </PropertyGroup>
+  <ItemGroup>
+    <InternalsVisibleTo Include="Opc.Ua.AMB.Tests" />
+  </ItemGroup>
+  <!-- AMB applies OPC 10000-100 building blocks to an asset (Table 59 makes the
+       DI namespace mandatory), so the server package references DI, and
+       Opc.Ua.Di.Server for the IDeviceBuilder conveniences. Machinery is
+       deliberately not referenced: a machine becomes an asset through the
+       INodeBuilder its handle exposes. -->
+  <ItemGroup>
+    <ProjectReference Include="..\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\Opc.Ua.AMB\Opc.Ua.AMB.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di\Opc.Ua.Di.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration\Opc.Ua.SourceGeneration.csproj">
+      <OutputItemType>Analyzer</OutputItemType>
+      <ReferenceOutputAssembly>false</ReferenceOutputAssembly>
+    </ProjectReference>
+  </ItemGroup>
+  <!-- The AMB NodeSet is linked, not copied: with
+       ModelSourceGeneratorFluentAccessorsOnly the generator emits only the
+       typed fluent accessors here and takes the model itself from Opc.Ua.AMB,
+       which publishes it with OmitFluentApi. That assembly has to stay among
+       the ProjectReferences above or this fails with MODELGEN014. -->
+  <ItemGroup>
+    <AdditionalFiles Include="..\Opc.Ua.AMB\Model\Opc.Ua.AMB.NodeSet2.xml">
+      <Link>Model\Opc.Ua.AMB.NodeSet2.xml</Link>
+      <ModelSourceGeneratorPrefix>Opc.Ua.AMB</ModelSourceGeneratorPrefix>
+    </AdditionalFiles>
+  </ItemGroup>
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration\OPCFoundation.Opc.Ua.SourceGeneration.props" />
+  <PropertyGroup>
+    <ModelSourceGeneratorVersion>v105</ModelSourceGeneratorVersion>
+    <ModelSourceGeneratorUseAllowSubtypes>true</ModelSourceGeneratorUseAllowSubtypes>
+    <ModelSourceGeneratorFluentAccessorsOnly>true</ModelSourceGeneratorFluentAccessorsOnly>
+  </PropertyGroup>
+  <ItemGroup>
+    <None Include="NugetREADME.md" Pack="true" PackagePath="\" />
+  </ItemGroup>
+</Project>

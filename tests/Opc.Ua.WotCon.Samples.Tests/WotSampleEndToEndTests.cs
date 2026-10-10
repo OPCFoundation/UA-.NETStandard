@@ -37,6 +37,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Client;
 using Opc.Ua.WotCon.Client;
@@ -464,7 +465,9 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task BadTargetMappingFailsRefreshAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+            // Uploading and refreshing the full sample document set takes close to four minutes
+            // on a Windows Debug runner, so use the same budget as the other full workflows.
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
@@ -487,10 +490,26 @@ namespace Opc.Ua.WotCon.Samples.Tests
         [Test]
         public async Task UnavailableUpstreamEndpointFailsMappedReadAsync()
         {
-            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(4));
+            // The budget covers the whole workflow, not only the failing read: uploading and
+            // refreshing the full sample document set takes close to four minutes on a Windows
+            // Debug runner, and on Windows every refused loopback connect costs about two seconds
+            // of SYN retries, so the mapped read adds a further half minute there.
+            using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(8));
             WotSampleEnvironment environment = await WotSampleEnvironment
                 .StartAsync(timeout.Token).ConfigureAwait(false);
             await using ConfiguredAsyncDisposable environmentLifetime = environment.ConfigureAwait(false);
+            // Test the mapped read failure, not the default five-minute upstream retry cycle.
+            OpcUaClientOptions upstreamOptions = environment.AggregationHost.Services
+                .GetRequiredService<OpcUaClientOptions>();
+            upstreamOptions.Session = upstreamOptions.Session with
+            {
+                ReconnectPolicy = upstreamOptions.Session.ReconnectPolicy with
+                {
+                    MaxRetries = 1,
+                    InitialDelay = TimeSpan.Zero,
+                    JitterFactor = 0
+                }
+            };
             string unavailableEndpoint =
                 $"opc.tcp://127.0.0.1:{TestPorts.GetFreePort()}/UnavailableSource";
 
@@ -502,10 +521,12 @@ namespace Opc.Ua.WotCon.Samples.Tests
                     timeout.Token)).ConfigureAwait(false);
 
             Assert.That(failure, Is.TypeOf<ServiceResultException>());
+            Assert.That(timeout.IsCancellationRequested, Is.False);
+            Assert.That(failure.Message, Does.Contain("Reading materialized Pump value"));
         }
 
         private static async Task AssertPumpHierarchyAsync(
-            ISession session,
+            ManagedSession session,
             string pumpName,
             CancellationToken cancellationToken)
         {
@@ -518,11 +539,37 @@ namespace Opc.Ua.WotCon.Samples.Tests
             var eventsNodeId = new NodeId(pumpName + ".Events", pumpNs);
             var processFluidNodeId = new NodeId(pumpName + ".Events.SupervisionProcessFluid", pumpNs);
             var pumpOperationNodeId = new NodeId(pumpName + ".Events.SupervisionPumpOperation", pumpNs);
+            // OPC 10000-3 §7.15: the pump Object is not the source of
+            // GeneratesEvent. It is typed by its own subtype of the companion
+            // PumpType, and that type declares the alarms the pump raises.
+            var pumpTypeNodeId = new NodeId(pumpName + ".Type", pumpNs);
             await AssertTypeDefinitionAsync(
                 session,
                 pumpNodeId,
-                new NodeId(1052u, pumpsNs),
+                pumpTypeNodeId,
                 cancellationToken).ConfigureAwait(false);
+            (_, _, ArrayOf<ReferenceDescription> pumpSupertypes) = await session.BrowseAsync(
+                null, null, pumpTypeNodeId,
+                0, BrowseDirection.Inverse, Ua.ReferenceTypeIds.HasSubtype, false,
+                (uint)NodeClass.ObjectType, cancellationToken).ConfigureAwait(false);
+            Assert.That(
+                pumpSupertypes.ToList().Select(reference =>
+                    ExpandedNodeId.ToNodeId(reference.NodeId, session.NamespaceUris)),
+                Is.EqualTo(new[] { new NodeId(1052u, pumpsNs) }),
+                $"{pumpTypeNodeId} must derive from PumpType.");
+            (_, _, ArrayOf<ReferenceDescription> instanceEvents) = await session.BrowseAsync(
+                null, null, pumpNodeId,
+                0, BrowseDirection.Forward, Ua.ReferenceTypeIds.GeneratesEvent, true,
+                0, cancellationToken).ConfigureAwait(false);
+            Assert.That(instanceEvents, Is.Empty, $"{pumpNodeId} must not be the source of GeneratesEvent.");
+            (_, _, ArrayOf<ReferenceDescription> typeEvents) = await session.BrowseAsync(
+                null, null, pumpTypeNodeId,
+                0, BrowseDirection.Forward, Ua.ReferenceTypeIds.GeneratesEvent, true,
+                0, cancellationToken).ConfigureAwait(false);
+            Assert.That(
+                typeEvents.ToList().Select(reference => reference.BrowseName.Name),
+                Is.EquivalentTo(s_pumpAlarmTypes),
+                $"{pumpTypeNodeId} must declare the alarms the pump raises.");
             await AssertTypeDefinitionAsync(
                 session,
                 identificationNodeId,
@@ -619,7 +666,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
         }
 
         private static async Task AssertTypeDefinitionAsync(
-            ISession session,
+            ManagedSession session,
             NodeId nodeId,
             NodeId expectedTypeDefinition,
             CancellationToken cancellationToken)
@@ -1113,7 +1160,7 @@ namespace Opc.Ua.WotCon.Samples.Tests
             throw new AssertionException("The workflow unexpectedly succeeded.");
         }
 
-        private static ushort ResolveNamespace(ISession session, string namespaceUri)
+        private static ushort ResolveNamespace(ManagedSession session, string namespaceUri)
         {
             int namespaceIndex = session.NamespaceUris.GetIndex(namespaceUri);
             Assert.That(namespaceIndex, Is.GreaterThan(0), $"Missing namespace {namespaceUri}.");
@@ -1141,6 +1188,8 @@ namespace Opc.Ua.WotCon.Samples.Tests
         private static readonly string[] s_pumpNames = ["Pump1", "Pump2"];
         private static readonly string[] s_identityProperties =
             ["Manufacturer", "SerialNumber", "ProductInstanceUri"];
+        private static readonly string[] s_pumpAlarmTypes =
+            ["CavitationAlarm", "MotorOverheatAlarm"];
         private static readonly string[] s_processMeasurements =
             ["DifferentialPressure", "FluidTemperature", "Level", "MassFlow"];
         private static readonly string[] s_conditionMeasurements =

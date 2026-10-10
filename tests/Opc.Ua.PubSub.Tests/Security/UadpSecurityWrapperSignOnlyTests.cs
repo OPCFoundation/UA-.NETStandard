@@ -71,7 +71,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 tokenId,
                 signingKeyLength: policy.SigningKeyLength == 0 ? 1 : policy.SigningKeyLength,
                 encryptingKeyLength: policy.EncryptingKeyLength == 0 ? 1 : policy.EncryptingKeyLength,
-                keyNonceLength: policy.NonceLength == 0 ? 1 : policy.NonceLength);
+                keyNonceLength: policy.NonceLength == 0 ? 1 : AesCtrNonceLayout.KeyNonceLength);
 
             var senderRing = new PubSubSecurityKeyRing("group");
             senderRing.SetCurrent(key);
@@ -191,6 +191,47 @@ namespace Opc.Ua.PubSub.Tests.Security
                     Is.EqualTo(s_innerPayload));
                 Assert.That(implicitWrap.Length, Is.EqualTo(explicitWrap.Length));
             });
+        }
+
+        [Test]
+        [TestSpec("7.2.4.4.2", Summary = "SecurityFooter is removed from the unwrapped payload")]
+        public async Task TryUnwrapStripsSecurityFooterFromPayloadAsync()
+        {
+            (_, UadpSecurityWrapper receiver) = CreatePair(PubSubAes128CtrPolicy.Instance);
+
+            // SecurityFlags = SecurityFooter enabled, TokenId 1, no nonce,
+            // SecurityFooterSize 2, payload 01 02 03, footer 09 09.
+            byte[] securityAndPayload =
+            [
+                0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x02, 0x00,
+                0x01, 0x02, 0x03,
+                0x09, 0x09
+            ];
+
+            UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
+                s_outerPrefix.AsMemory(), securityAndPayload).ConfigureAwait(false);
+
+            Assert.That(result.IsSuccess, Is.True, result.Reason);
+            Assert.That(result.InnerPayload!.Value.ToArray(), Is.EqualTo(new byte[] { 0x01, 0x02, 0x03 }));
+        }
+
+        [Test]
+        [TestSpec("7.2.4.4.2", Summary = "SecurityFooterSize larger than the body is rejected")]
+        public async Task TryUnwrapRejectsSecurityFooterSizeBeyondBodyAsync()
+        {
+            (_, UadpSecurityWrapper receiver) = CreatePair(PubSubAes128CtrPolicy.Instance);
+
+            byte[] securityAndPayload =
+            [
+                0x04, 0x01, 0x00, 0x00, 0x00, 0x00, 0x10, 0x00,
+                0x01, 0x02, 0x03
+            ];
+
+            UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
+                s_outerPrefix.AsMemory(), securityAndPayload).ConfigureAwait(false);
+
+            Assert.That(result.IsSuccess, Is.False);
+            Assert.That(result.Status.Code, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         private static int IndexOf(ReadOnlySpan<byte> haystack, ReadOnlySpan<byte> needle)

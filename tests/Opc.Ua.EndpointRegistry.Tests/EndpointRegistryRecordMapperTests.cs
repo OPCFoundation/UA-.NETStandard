@@ -460,6 +460,26 @@ namespace Opc.Ua.EndpointRegistry.Tests
         }
 
         [Test]
+        public void NullGenericArrayCannotBeNormalizedDuringRecordMapping()
+        {
+            var array = new RegistryArrayValueDataType { Kind = 4, Items = ArrayOf<RegistryValueDataType>.Null };
+            Assert.That(array.Items.IsNull, Is.True);
+            var record = (EndpointDataType)Mapper.Project(Json("""{"x-container":[]}"""), DataTypeIds.EndpointDataType);
+            record.AdditionalFields[0].Value = array;
+            Assert.That(() => Mapper.Restore(record), Throws.TypeOf<RegistryRecordMappingException>());
+            foreach (string name in new[] { "x-container", "usage" })
+            {
+                var source = new RegistryObjectValueDataType
+                {
+                    Kind = 5,
+                    Members = [new RegistryMemberDataType { Name = name, Value = array }]
+                };
+                Assert.That(() => Mapper.Project(source, DataTypeIds.EndpointDataType),
+                    Throws.TypeOf<RegistryRecordMappingException>());
+            }
+        }
+
+        [Test]
         public void ProjectionIsDetachedFromTheSourceDocument()
         {
             var document = (RegistryObjectValueDataType)Json(

@@ -514,7 +514,8 @@ namespace Opc.Ua.EndpointRegistry.PubSub
 
         private bool Authorized(PubSubAddressSpaceTarget target, RegistryObjectValueDataType endpoint)
         {
-            return PubSubBindingRules.Get(endpoint, "authorization") is null ||
+            return PubSubBindingRules.Get(endpoint, "protocoloptions") is not RegistryObjectValueDataType options ||
+                PubSubBindingRules.Get(options, "authorization") is null ||
                 m_options.AuthorizeBinding?.Invoke(target, endpoint) == true;
         }
 

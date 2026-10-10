@@ -122,7 +122,7 @@ namespace Opc.Ua.History.Tests
         /// Skips the test with Assert.Ignore if no live alarm instance
         /// can be located in the address space.
         /// </summary>
-        protected NodeId RequireAlarm(string typeName = null)
+        protected NodeId RequireAlarm(string? typeName = null)
         {
             NodeId alarmId = typeName != null
                 ? FindAlarmByTypeName(typeName)
@@ -140,7 +140,7 @@ namespace Opc.Ua.History.Tests
         /// Returns an alarm for a CTT parity test or marks the test
         /// inconclusive when the reference server does not expose one.
         /// </summary>
-        protected NodeId RequireCttAlarm(string typeName = null)
+        protected NodeId RequireCttAlarm(string? typeName = null)
         {
             NodeId alarmId = typeName != null
                 ? FindAlarmByTypeName(typeName)
@@ -606,7 +606,7 @@ namespace Opc.Ua.History.Tests
                     NodeId typeDef = ToNodeId(r.TypeDefinition);
                     if (!typeDef.IsNull)
                     {
-                        directCandidates.Add((r.BrowseName.Name, nodeId, typeDef));
+                        directCandidates.Add((r.BrowseName.Name!, nodeId, typeDef));
                     }
                 }
             }
@@ -642,9 +642,9 @@ namespace Opc.Ua.History.Tests
                     {
                         continue;
                     }
-                    if (!instances.ContainsKey(r.BrowseName.Name))
+                    if (!instances.ContainsKey(r.BrowseName.Name!))
                     {
-                        instances[r.BrowseName.Name] = nodeId;
+                        instances[r.BrowseName.Name!] = nodeId;
                     }
                 }
             }
@@ -758,6 +758,6 @@ namespace Opc.Ua.History.Tests
 
         private NodeId m_alarmsFolderId;
         private bool m_alarmsFolderDiscovered;
-        private Dictionary<string, NodeId> m_alarmInstances;
+        private Dictionary<string, NodeId> m_alarmInstances = null!;
     }
 }

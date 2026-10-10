@@ -50,8 +50,8 @@ namespace Opc.Ua.SourceGeneration
             string prefix,
             string version,
             string publicationDate,
-            string name = null,
-            string payload = null)
+            string? name = null,
+            string? payload = null)
         {
             AssemblyName = assemblyName ?? string.Empty;
             ModelUri = modelUri ?? string.Empty;
@@ -113,7 +113,7 @@ namespace Opc.Ua.SourceGeneration
         /// the same multi-kilobyte byte block when the same dependency
         /// flows through Roslyn's incremental cache multiple times.
         /// </remarks>
-        public ModelDependencyV1 GetDependency()
+        public ModelDependencyV1? GetDependency()
         {
             if (string.IsNullOrEmpty(Payload))
             {
@@ -141,12 +141,12 @@ namespace Opc.Ua.SourceGeneration
 
         private sealed class DecodedDependency
         {
-            public DecodedDependency(ModelDependencyV1 value)
+            public DecodedDependency(ModelDependencyV1? value)
             {
                 Value = value;
             }
 
-            public ModelDependencyV1 Value { get; }
+            public ModelDependencyV1? Value { get; }
         }
 
         private static readonly ConditionalWeakTable<string, DecodedDependency> s_decoded
@@ -166,7 +166,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <inheritdoc/>
-        public override bool Equals(object obj)
+        public override bool Equals(object? obj)
         {
             return obj is ModelDependencyReference other && Equals(other);
         }

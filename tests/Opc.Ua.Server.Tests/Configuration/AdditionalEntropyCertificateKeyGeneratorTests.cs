@@ -139,9 +139,9 @@ namespace Opc.Ua.Server.Tests
 
         private static byte[] RsaModulus(Certificate certificate)
         {
-            using RSA rsa = certificate.GetRSAPublicKey();
+            using RSA rsa = certificate.GetRSAPublicKey()!;
             Assert.That(rsa, Is.Not.Null);
-            return rsa.ExportParameters(false).Modulus;
+            return rsa.ExportParameters(false).Modulus!;
         }
 
         private static byte[] CreateNonce(byte seed = 0x5A)
@@ -167,11 +167,11 @@ namespace Opc.Ua.Server.Tests
             Assert.That(certificate.HasPrivateKey, Is.True);
 
             byte[] data = [10, 20, 30, 40];
-            using RSA privateKey = certificate.GetRSAPrivateKey();
-            byte[] signature = privateKey.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
-            using RSA publicKey = certificate.GetRSAPublicKey();
+            using RSA privateKey = certificate.GetRSAPrivateKey()!;
+            byte[] signature = privateKey!.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1);
+            using RSA publicKey = certificate.GetRSAPublicKey()!;
             Assert.That(
-                publicKey.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
+                publicKey!.VerifyData(data, signature, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1),
                 Is.True);
             Assert.That(RsaModulus(certificate), Has.Length.EqualTo(256), "expected a 2048-bit RSA key");
         }
@@ -249,9 +249,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(certificate.HasPrivateKey, Is.True);
 
             byte[] data = [11, 22, 33];
-            using ECDsa privateKey = certificate.GetECDsaPrivateKey();
+            using ECDsa privateKey = certificate.GetECDsaPrivateKey()!;
             byte[] signature = privateKey.SignData(data, HashAlgorithmName.SHA256);
-            using ECDsa publicKey = certificate.GetECDsaPublicKey();
+            using ECDsa publicKey = certificate.GetECDsaPublicKey()!;
             Assert.That(publicKey.VerifyData(data, signature, HashAlgorithmName.SHA256), Is.True);
         }
 
@@ -275,17 +275,17 @@ namespace Opc.Ua.Server.Tests
             using Certificate certificateB = CreateGenerator(serverEntropy).CreateApplicationCertificate(
                 CreateRequest(ObjectTypeIds.EccNistP256ApplicationCertificateType, nonceB));
 
-            using ECDsa publicA = certificateA.GetECDsaPublicKey();
-            using ECDsa publicB = certificateB.GetECDsaPublicKey();
-            byte[] qxA = publicA.ExportParameters(false).Q.X;
-            byte[] qxB = publicB.ExportParameters(false).Q.X;
+            using ECDsa publicA = certificateA.GetECDsaPublicKey()!;
+            using ECDsa publicB = certificateB.GetECDsaPublicKey()!;
+            byte[] qxA = publicA.ExportParameters(false).Q.X!;
+            byte[] qxB = publicB.ExportParameters(false).Q.X!;
             Assert.That(qxA, Is.Not.EqualTo(qxB), "the caller nonce must genuinely change the ECC private key");
         }
 #else
         [Test]
         public void EccRegenerateKeyThrowsBadNotSupportedWhenAdditionalEntropyCannotBeIncorporated()
         {
-            // On .NET Framework / netstandard2.1 the platform cannot import a
+            // On .NET Framework the platform cannot import a
             // private-only EC scalar, so the caller-supplied §7.10.10 nonce
             // cannot be genuinely incorporated into an ECC key. The generator
             // must fail explicitly with Bad_NotSupported rather than silently
@@ -304,7 +304,7 @@ namespace Opc.Ua.Server.Tests
         public void RsaRegenerateKeyRemainsNonceDerivedOnNetFramework()
         {
             // RSA key regeneration must genuinely incorporate the nonce on every
-            // target framework, including .NET Framework / netstandard2.1.
+            // target framework, including .NET Framework.
             byte[] serverEntropy = [7, 7, 7, 7];
             var nonceA = new byte[32];
             var nonceB = new byte[32];

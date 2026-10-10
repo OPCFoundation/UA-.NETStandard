@@ -292,6 +292,303 @@ namespace Opc.Ua.Client.Tests.AuditRegressions
                 "type queries wrongly for the whole cache lifetime");
         }
 
+        /// <summary>
+        /// L9-2: a server advertising MaxNodesPerBrowse = 0xFFFFFFFF (legal,
+        /// often meaning "unlimited") made the managed browse cast the limit
+        /// to a negative batch size and throw ArgumentOutOfRangeException.
+        /// </summary>
+        [Test]
+        public async Task ManagedBrowseHandlesMaxNodesPerBrowseAboveInt32Async()
+        {
+            using SessionMock session = SessionMock.Create();
+
+            session.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<BrowseRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new BrowseResponse
+                {
+                    Results = [GoodResult("targetA"), GoodResult("targetB")],
+                    DiagnosticInfos = []
+                }));
+
+            var browser = new Browser(session)
+            {
+                MaxNodesPerBrowse = uint.MaxValue,
+                MaxBrowseContinuationPoints = 0
+            };
+            ResultSet<ArrayOf<ReferenceDescription>> results = await browser
+                .BrowseAsync(new[] { new NodeId("A", 2), new NodeId("B", 2) }.ToArrayOf())
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServiceResult.IsGood(results.Errors[0]), Is.True);
+                Assert.That(ServiceResult.IsGood(results.Errors[1]), Is.True);
+                Assert.That(results.Results[1].Count, Is.EqualTo(1));
+            });
+        }
+
+        /// <summary>
+        /// L9-1: the managed browse followed a continuation point that never
+        /// yielded references forever. It now gives up after a bounded number
+        /// of empty rounds, reports the node and releases the point.
+        /// </summary>
+        [Test]
+        public async Task ManagedBrowseGivesUpOnEndlessEmptyPagesAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            List<BrowseNextRequest> browseNexts = SetupEmptyPages(session, int.MaxValue);
+
+            var browser = new Browser(session);
+            ResultSet<ArrayOf<ReferenceDescription>> results = await browser
+                .BrowseAsync(new[] { new NodeId("A", 2) }.ToArrayOf())
+                .AsTask()
+                .WaitAsync(System.TimeSpan.FromSeconds(30))
+                .ConfigureAwait(false);
+
+            Assert.That(
+                results.Errors[0].StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(
+                browseNexts.Exists(r => r.ReleaseContinuationPoints),
+                Is.True,
+                "the abandoned continuation point must be released");
+        }
+
+        /// <summary>
+        /// L9-1: empty pages with a continuation point are legal while the
+        /// server is still working, so the managed browse keeps following
+        /// them and returns the references that arrive later.
+        /// </summary>
+        [Test]
+        public async Task ManagedBrowseFollowsEmptyPagesOfASlowServerAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            SetupEmptyPages(session, 3);
+
+            var browser = new Browser(session);
+            ResultSet<ArrayOf<ReferenceDescription>> results = await browser
+                .BrowseAsync(new[] { new NodeId("A", 2) }.ToArrayOf())
+                .ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(results.Errors[0]), Is.True);
+            Assert.That(results.Results[0].Count, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// L9-5: BrowseAsync(NodeId) stopped at the first empty page and
+        /// returned a truncated reference list while the server still held
+        /// the continuation point.
+        /// </summary>
+        [Test]
+        public async Task SingleNodeBrowseFollowsEmptyPagesOfASlowServerAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            SetupEmptyPages(session, 3);
+
+            var browser = new Browser(session) { ContinueUntilDone = true };
+            ArrayOf<ReferenceDescription> references = await browser
+                .BrowseAsync(new NodeId("A", 2))
+                .ConfigureAwait(false);
+
+            Assert.That(references.Count, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// L9-5: a server that never makes progress fails the single node
+        /// browse and the continuation point is released.
+        /// </summary>
+        [Test]
+        public void SingleNodeBrowseGivesUpOnEndlessEmptyPagesAndReleases()
+        {
+            using SessionMock session = SessionMock.Create();
+            List<BrowseNextRequest> browseNexts = SetupEmptyPages(session, int.MaxValue);
+
+            var browser = new Browser(session) { ContinueUntilDone = true };
+            ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await browser.BrowseAsync(new NodeId("A", 2)).ConfigureAwait(false));
+
+            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(browseNexts.Exists(r => r.ReleaseContinuationPoints), Is.True);
+        }
+
+        /// <summary>
+        /// L9-4: the stream yielded BadNoData for an empty page with a
+        /// continuation point and dropped the rest of the node's references.
+        /// </summary>
+        [Test]
+        public async Task BrowseStreamFollowsEmptyPagesOfASlowServerAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            SetupEmptyPages(session, 3);
+
+            var browser = new Browser(session);
+            var results = new List<BrowseResult>();
+            await foreach (BrowseResult result in browser.BrowseStreamAsync(
+                null, null, [new BrowseDescription { NodeId = new NodeId("A", 2) }], default)
+                .ConfigureAwait(false))
+            {
+                results.Add(result);
+            }
+
+            Assert.That(results.TrueForAll(r => StatusCode.IsGood(r.StatusCode)), Is.True);
+            Assert.That(results[^1].References.Count, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// L9-4: a server that never makes progress ends the stream for that
+        /// node with BadNoData and the point is released.
+        /// </summary>
+        [Test]
+        public async Task BrowseStreamGivesUpOnEndlessEmptyPagesAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            List<BrowseNextRequest> browseNexts = SetupEmptyPages(session, int.MaxValue);
+
+            var browser = new Browser(session);
+            var results = new List<BrowseResult>();
+            await foreach (BrowseResult result in browser.BrowseStreamAsync(
+                null, null, [new BrowseDescription { NodeId = new NodeId("A", 2) }], default)
+                .ConfigureAwait(false))
+            {
+                results.Add(result);
+                Assert.That(results, Has.Count.LessThan(100), "the stream must terminate");
+            }
+
+            Assert.That(
+                results[^1].StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadNoData));
+            Assert.That(browseNexts.Exists(r => r.ReleaseContinuationPoints), Is.True);
+        }
+
+        /// <summary>
+        /// L9-3: a consumer stopping during the first page left every
+        /// continuation point of that page allocated on the server.
+        /// </summary>
+        [Test]
+        public async Task BrowseStreamReleasesAllPointsOfThePageOnEarlyExitAsync()
+        {
+            using SessionMock session = SessionMock.Create();
+            var cpA = new ByteString(new byte[] { 0x0A });
+            var cpB = new ByteString(new byte[] { 0x0B });
+
+            session.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<BrowseRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new BrowseResponse
+                {
+                    Results =
+                    [
+                        WithContinuationPoint(GoodResult("a"), cpA),
+                        WithContinuationPoint(GoodResult("b"), cpB)
+                    ],
+                    DiagnosticInfos = []
+                }));
+            var browseNexts = new List<BrowseNextRequest>();
+            session.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<BrowseNextRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((IServiceRequest request, CancellationToken _) =>
+                {
+                    var next = (BrowseNextRequest)request;
+                    lock (browseNexts)
+                    {
+                        browseNexts.Add(next);
+                    }
+                    var results = new List<BrowseResult>();
+                    for (int i = 0; i < next.ContinuationPoints.Count; i++)
+                    {
+                        results.Add(GoodResult("x"));
+                    }
+                    return new ValueTask<IServiceResponse>(new BrowseNextResponse
+                    {
+                        Results = results.ToArrayOf(),
+                        DiagnosticInfos = []
+                    });
+                });
+
+            var browser = new Browser(session);
+            await foreach (BrowseResult _ in browser.BrowseStreamAsync(
+                null,
+                null,
+                [
+                    new BrowseDescription { NodeId = new NodeId("A", 2) },
+                    new BrowseDescription { NodeId = new NodeId("B", 2) }
+                ],
+                default).ConfigureAwait(false))
+            {
+                break;
+            }
+
+            Assert.That(browseNexts, Has.Count.EqualTo(1));
+            Assert.That(browseNexts[0].ReleaseContinuationPoints, Is.True);
+            Assert.That(browseNexts[0].ContinuationPoints.Count, Is.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Browse answers with no references and a continuation point, and so
+        /// does every BrowseNext until <paramref name="emptyNextPages"/> pages
+        /// were returned; the next one carries a reference and no point.
+        /// </summary>
+        private static List<BrowseNextRequest> SetupEmptyPages(
+            SessionMock session,
+            int emptyNextPages)
+        {
+            var cp = new ByteString(new byte[] { 0x01, 0x02 });
+            session.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<BrowseRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<IServiceResponse>(new BrowseResponse
+                {
+                    Results = [WithContinuationPoint(BadResult(StatusCodes.Good), cp)],
+                    DiagnosticInfos = []
+                }));
+
+            var requests = new List<BrowseNextRequest>();
+            int served = 0;
+            session.Channel
+                .Setup(c => c.SendRequestAsync(
+                    It.IsAny<BrowseNextRequest>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns((IServiceRequest request, CancellationToken _) =>
+                {
+                    var next = (BrowseNextRequest)request;
+                    lock (requests)
+                    {
+                        requests.Add(next);
+                    }
+                    BrowseResult result;
+                    if (next.ReleaseContinuationPoints)
+                    {
+                        result = BadResult(StatusCodes.Good);
+                    }
+                    else if (Interlocked.Increment(ref served) <= emptyNextPages)
+                    {
+                        result = WithContinuationPoint(BadResult(StatusCodes.Good), cp);
+                    }
+                    else
+                    {
+                        result = GoodResult("late");
+                    }
+                    return new ValueTask<IServiceResponse>(new BrowseNextResponse
+                    {
+                        Results = [result],
+                        DiagnosticInfos = []
+                    });
+                });
+            return requests;
+        }
+
+        private static BrowseResult WithContinuationPoint(BrowseResult result, ByteString cp)
+        {
+            result.ContinuationPoint = cp;
+            return result;
+        }
+
         private static BrowseResult GoodResult(string targetName)
         {
             return new BrowseResult

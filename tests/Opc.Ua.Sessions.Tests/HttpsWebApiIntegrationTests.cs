@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
 
 using System;
 using System.Collections.Generic;
@@ -118,7 +118,7 @@ namespace Opc.Ua.Sessions.Tests
                 SecurityNone = true,
                 UriScheme = Utils.UriSchemeOpcHttps,
                 HttpsMutualTls = false,
-                MaxChannelCount = 8,
+                MaxChannelCount = 103,
                 TraceMasks = Utils.TraceMasks.Error | Utils.TraceMasks.Security,
                 TransportBindingRegistry = registry
             };
@@ -130,7 +130,7 @@ namespace Opc.Ua.Sessions.Tests
             // BadIdentityTokenInvalid (no matching policy). The
             // ManagedSession-over-WebApi tests below need this.
             await m_serverFixture.LoadConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
+            m_serverFixture.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
             m_serverFixture.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate);
@@ -187,10 +187,10 @@ namespace Opc.Ua.Sessions.Tests
         {
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription none = endpoints
-                .ToArray()
+                .ToArray()!
                 .FirstOrDefault(ep =>
                     string.Equals(ep.TransportProfileUri, Profiles.HttpsBinaryTransport, StringComparison.Ordinal) &&
-                    ep.SecurityMode == MessageSecurityMode.None);
+                    ep.SecurityMode == MessageSecurityMode.None)!;
             Assert.That(none, Is.Not.Null,
                 "Reference server did not advertise an unsecured HTTPS endpoint - REST requires SM None.");
         }
@@ -205,9 +205,9 @@ namespace Opc.Ua.Sessions.Tests
             // endpoint without hard-coding the URL.
             ArrayOf<EndpointDescription> endpoints = m_server.GetEndpoints();
             EndpointDescription openApi = endpoints
-                .ToArray()
+                .ToArray()!
                 .FirstOrDefault(ep =>
-                    Profiles.IsHttpsOpenApi(ep.TransportProfileUri));
+                    Profiles.IsHttpsOpenApi(ep.TransportProfileUri))!;
             Assert.That(openApi, Is.Not.Null,
                 "Reference server must advertise the HTTPS OpenAPI sub-profile (profile/2338) " +
                 "as a discovery-only twin alongside the SM=None HTTPS-binary endpoint.");
@@ -313,6 +313,79 @@ namespace Opc.Ua.Sessions.Tests
 
         [TestCase(WebApiEncoding.Compact)]
         [TestCase(WebApiEncoding.Verbose)]
+        public async Task SessionlessReadOverRestRunsWithAnAccessTokenAsync(WebApiEncoding encoding)
+        {
+            // OPC 10000-4 §6.3: the Access Token travels in
+            // RequestHeader.AuthenticationToken as a String NodeId
+            // ("AuthenticationToken": "s=<token>" on the wire); HTTPS
+            // keeps it confidential.
+            const string accessToken = "rest.session-less.access-token";
+            var sessionManager = (Server.SessionManager)m_server.CurrentInstance.SessionManager;
+            var authenticator = new SingleAccessTokenAuthenticator(accessToken);
+            m_server.CurrentInstance.IdentityRegistry.Register(authenticator);
+            sessionManager.SessionlessInvocation = new Server.SessionlessInvocationOptions();
+            try
+            {
+                using WebApiClient client = CreateClient(encoding);
+                ReadResponse response = await client.ReadAsync(new ReadRequest
+                {
+                    RequestHeader = new RequestHeader
+                    {
+                        Timestamp = DateTime.UtcNow,
+                        RequestHandle = 1,
+                        TimeoutHint = kMaxTimeout,
+                        AuthenticationToken = new NodeId(accessToken, 0)
+                    },
+                    TimestampsToReturn = TimestampsToReturn.Neither,
+                    NodesToRead = new ArrayOf<ReadValueId>(new ReadValueId[]
+                    {
+                        new() {
+                            NodeId = VariableIds.Server_ServerStatus_State,
+                            AttributeId = Attributes.Value
+                        }
+                    }.AsMemory())
+                }).ConfigureAwait(false);
+
+                Assert.That(
+                    (uint)response.ResponseHeader.ServiceResult,
+                    Is.EqualTo((uint)StatusCodes.Good));
+                Assert.That(response.Results, Has.Count.EqualTo(1));
+                Assert.That(StatusCode.IsGood(response.Results[0].StatusCode), Is.True,
+                    response.Results[0].StatusCode.ToString());
+                Assert.That(authenticator.Accepted, Is.GreaterThan(0),
+                    "the Access Token must be validated by the identity registry");
+
+                // Without a token the request carries no identity.
+                ReadResponse anonymous = await client.ReadAsync(new ReadRequest
+                {
+                    RequestHeader = new RequestHeader
+                    {
+                        Timestamp = DateTime.UtcNow,
+                        RequestHandle = 2,
+                        TimeoutHint = kMaxTimeout
+                    },
+                    NodesToRead = new ArrayOf<ReadValueId>(new ReadValueId[]
+                    {
+                        new() {
+                            NodeId = VariableIds.Server_ServerStatus_State,
+                            AttributeId = Attributes.Value
+                        }
+                    }.AsMemory())
+                }).ConfigureAwait(false);
+
+                Assert.That(
+                    (uint)anonymous.ResponseHeader.ServiceResult,
+                    Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            }
+            finally
+            {
+                sessionManager.SessionlessInvocation = null;
+                m_server.CurrentInstance.IdentityRegistry.Unregister(authenticator);
+            }
+        }
+
+        [TestCase(WebApiEncoding.Compact)]
+        [TestCase(WebApiEncoding.Verbose)]
         public async Task SessionCreateOverRestSucceeds(WebApiEncoding encoding)
         {
             // CreateSession exercises the full server-side dispatcher
@@ -344,8 +417,8 @@ namespace Opc.Ua.Sessions.Tests
                     ApplicationType = ApplicationType.Client,
                     ProductUri = "urn:opcfoundation.org:UA:RESTClient"
                 },
-                ServerUri = m_server.GetEndpoints().ToArray()[0].Server.ApplicationUri,
-                EndpointUrl = m_server.GetEndpoints().ToArray()[0].EndpointUrl,
+                ServerUri = m_server.GetEndpoints().ToArray()![0].Server.ApplicationUri,
+                EndpointUrl = m_server.GetEndpoints().ToArray()![0].EndpointUrl,
                 SessionName = "HttpsWebApiIntegration-" + encoding,
                 ClientNonce = ByteString.From(new byte[32]),
                 ClientCertificate = default,
@@ -606,6 +679,41 @@ namespace Opc.Ua.Sessions.Tests
             {
                 return ValueTask.CompletedTask;
             }
+        }
+
+        /// <summary>
+        /// Accepts one Access Token, as an identity provider would issue it.
+        /// </summary>
+        private sealed class SingleAccessTokenAuthenticator : Identity.IUserTokenAuthenticator
+        {
+            public SingleAccessTokenAuthenticator(string accessToken)
+            {
+                m_accessToken = accessToken;
+            }
+
+            public UserTokenType TokenType => UserTokenType.IssuedToken;
+
+            public string IssuedTokenProfileUri => Profiles.JwtUserToken;
+
+            public int Accepted => m_accepted;
+
+            public ValueTask<Identity.AuthenticationResult> AuthenticateAsync(
+                Identity.AuthenticationContext context,
+                CancellationToken ct = default)
+            {
+                if (context.TokenHandler is IssuedIdentityTokenHandler issued &&
+                    issued.DecryptedTokenData != null &&
+                    System.Text.Encoding.UTF8.GetString(issued.DecryptedTokenData) == m_accessToken)
+                {
+                    Interlocked.Increment(ref m_accepted);
+                    return new ValueTask<Identity.AuthenticationResult>(
+                        Identity.AuthenticationResult.Accept(new UserIdentity(issued)));
+                }
+                return new ValueTask<Identity.AuthenticationResult>(Identity.AuthenticationResult.NotHandled);
+            }
+
+            private readonly string m_accessToken;
+            private int m_accepted;
         }
 
         private WebApiClient CreateClient(WebApiEncoding encoding)

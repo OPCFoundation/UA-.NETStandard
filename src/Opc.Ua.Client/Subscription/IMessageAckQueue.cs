@@ -73,6 +73,17 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
+        /// Runs an automatic subscription update while the session is available.
+        /// Session recovery cancels an active pass and defers its retry until
+        /// explicit subscription restoration has completed.
+        /// </summary>
+        /// <param name="operation">The update pass to run.</param>
+        /// <param name="ct">Cancellation token for the update worker.</param>
+        ValueTask RunWithSessionAvailableAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct = default);
+
+        /// <summary>
         /// Drops every queued acknowledgement targeting the given
         /// <paramref name="subscriptionId"/>. Used by the
         /// recreate path after the old server-side subscription has

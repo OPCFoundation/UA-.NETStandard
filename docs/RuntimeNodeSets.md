@@ -1,12 +1,35 @@
 # Runtime NodeSets
 
-This guide explains how to load one or more NodeSet2 XML documents into the server's address space at startup without writing a source-generated or hand-coded NodeManager. You configure which files or streams to load; the server imports them in dependency order and registers the resulting nodes.
+This guide explains how to import one or more NodeSet2 XML documents into a
+server's address space at startup, without writing a source-generated or
+hand-coded NodeManager. Configure the files or streams to load. The server
+imports them in dependency order and registers the resulting nodes.
 
 Within each imported set, types are registered in inheritance order rather than
 XML record order. A derived type may precede its supertype in the document;
 an inheritance cycle is rejected before registration. Imported namespace-zero
 `InputArguments` and `OutputArguments` Properties populate their Method's typed
 signature, retaining the declared Property NodeIds, argument order, and values.
+
+## Contents
+
+- [When to use the runtime NodeSet path](#when-to-use-the-runtime-nodeset-path)
+- [Startup and live lifecycle semantics](#startup-and-live-lifecycle-semantics)
+  - [Shadow reload](#shadow-reload)
+  - [Immediate reload](#immediate-reload)
+- [Quick-start examples](#quick-start-examples)
+  - [Single file](#single-file)
+  - [Single file with a fluent callback](#single-file-with-a-fluent-callback)
+  - [Group of dependent NodeSets](#group-of-dependent-nodesets)
+  - [Custom stream source](#custom-stream-source)
+  - [Direct factory registration](#direct-factory-registration)
+- [Stream ownership contract](#stream-ownership-contract)
+- [Default namespace for unqualified browse paths](#default-namespace-for-unqualified-browse-paths)
+- [Dependency sorting](#dependency-sorting)
+  - [Referencing a Node another NodeManager owns](#referencing-a-node-another-nodemanager-owns)
+- [Complex types](#complex-types)
+- [Comparison with source-generated NodeManagers](#comparison-with-source-generated-nodemanagers)
+- [Related documentation](#related-documentation)
 
 ## When to use the runtime NodeSet path
 
@@ -90,7 +113,10 @@ The rules that apply to every NodeManager registered at runtime -- what happens 
 
 ### Shadow reload
 
-`ShadowReloadRuntimeNodeSetAsync` (backed by `INodeManagerLifecycle.ShadowReloadAsync`) replaces a live registration the same way `ReloadRuntimeNodeSetAsync` does, but without the active-monitored-item guard:
+`ShadowReloadRuntimeNodeSetAsync` permits replacing a generation that still owns
+active monitored items. Those items stay on the retired generation and continue
+to be served there until they are deleted or otherwise released; new requests use
+the replacement generation. Normal reload instead migrates compatible monitored items.
 
 ```csharp
 public async ValueTask ShadowReloadAsync(CancellationToken ct)
@@ -105,18 +131,19 @@ public async ValueTask ShadowReloadAsync(CancellationToken ct)
 }
 ```
 
-The replacement generation is prepared and published through the same transactional prepare/publish/commit/rollback path as `ReloadAsync`, so a failure during preparation, publication, or the routing switch leaves the current generation fully active and cleans up the replacement, exactly as a normal reload does. Once committed, every new service request is atomically routed to the replacement generation, including for namespaces the current and replacement generations share.
-
-The current generation is not torn down immediately. It is moved to the same retired-generation bookkeeping used for an ordinary reload, but its existing monitored items and any request or continuation point that already captured it keep being served by it, unaffected by the routing switch. The retired generation is disposed automatically, without deleting any client subscription, once its monitored items and in-flight state drain; a later lifecycle operation (or shutdown) opportunistically retries that cleanup until it succeeds. `ShadowReloadAsync` returns the replacement `NodeManagerRegistration` immediately and invalidates the current handle for further lifecycle mutations, the same as `ReloadAsync`.
-
-Use `ShadowReloadAsync` when a model update must take effect for new requests without waiting for existing subscriptions to unsubscribe first; use the fail-closed `ReloadAsync` when a stale generation must never remain reachable, even briefly, for already-open monitored items.
+The returned registration replaces the old handle for lifecycle operations.
+Choose shadow reload only when retaining the old model for existing subscriptions
+is intentional; its resources remain allocated until those subscriptions drain.
 
 ### Immediate reload
 
-`ImmediateReloadRuntimeNodeSetAsync` (backed by `INodeManagerLifecycle.ImmediateReloadAsync`) performs the same atomic replacement but does not retain the previous generation until monitored items drain. After requests that already captured the old routing generation finish, every affected data-change monitored item is made publishable with `BadNodeIdUnknown`, event monitored items stop producing events, continuation points are invalidated, and the old NodeManager is disposed. The subscription and monitored-item records remain available so clients can receive the status and delete or recreate the affected items.
+`ImmediateReloadRuntimeNodeSetAsync` does not migrate existing monitored items.
+Affected data-change items receive `BadNodeIdUnknown`, and clients may recreate
+items against the replacement model.
 
-Use immediate reload only when continuity through the previous generation is not required. Durable monitored items are not eligible for immediate retirement because their terminal state would have to survive restart; choose shadow reload for any generation that owns them.
-
+The [node-manager reload matrix](NodeManagers.md#reload-modes) is authoritative for
+all three modes, including request draining, continuation points, and generation
+cleanup. Runtime NodeSet reload methods use those same lifecycle operations.
 
 ## Quick-start examples
 

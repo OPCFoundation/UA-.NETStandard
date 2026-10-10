@@ -40,7 +40,6 @@ namespace Opc.Ua.MigrationAnalyzer.Tests
     {
         public const string Source =
 """
-#nullable enable
 using System;
 using System.Threading;
 using System.Threading.Tasks;

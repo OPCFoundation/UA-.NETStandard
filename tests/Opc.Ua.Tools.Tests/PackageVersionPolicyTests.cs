@@ -71,9 +71,9 @@ namespace Opc.Ua.Tools.Tests
                 ("OPCFoundation.NetStandard.Opc.Ua.Redundancy.Kubernetes", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Positioning.Client", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Server", true),
-                ("OPCFoundation.NetStandard.Opc.Ua.ISA95.Client", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.ISA95.Client", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.AI.Inference", true),
-                ("OPCFoundation.NetStandard.Opc.Ua.Di.Server", true),
+                ("OPCFoundation.NetStandard.Opc.Ua.Di.Server", false),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision", true),
                 ("OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector", true),
@@ -139,6 +139,9 @@ namespace Opc.Ua.Tools.Tests
         [TestCase("2.0.0-preview.1.gabc123def0", "2.0.0-preview.1.gabc123def0", Description = "Already preview with commit id: unchanged")]
         [TestCase("2.0.1-preview.3+build5", "2.0.1-preview.3+build5", Description = "Already preview with build metadata: unchanged")]
         [TestCase("2.0.0-rc.1", "2.0.0-preview.rc.1", Description = "Other prerelease label: preview-prefixed")]
+        [TestCase("2.0.0-ge78c648295", "2.0.0-preview.0.ge78c648295", Description = "Commit id only: numbered 0")]
+        [TestCase("2.0.0-gabc123def0+b5", "2.0.0-preview.0.gabc123def0+b5", Description = "Commit id and metadata: numbered 0")]
+        [TestCase("2.0.0-gamma.1", "2.0.0-preview.gamma.1", Description = "A label that merely starts with 'g' is not a commit id")]
         public async Task ConvertToPreviewPackageVersionIsIdempotentForExistingPrereleaseAsync(
             string input,
             string expected)
@@ -172,6 +175,117 @@ namespace Opc.Ua.Tools.Tests
         }
 
         [Test]
+        public async Task VersionTargetsAppliesTheSamePreviewVersionRulesAsConvertToPreviewPackageVersionAsync()
+        {
+            // ApplyPreviewPackageVersion in version.targets is what actually
+            // stamps package versions; ConvertTo-PreviewPackageVersion is an
+            // independent re-implementation the validators use. Evaluate the
+            // real target through MSBuild so the two cannot drift apart.
+            (string Input, string Expected)[] cases =
+            [
+                ("2.0.0", "2.0.0-preview.42"),
+                ("2.0.0+gabc123def0", "2.0.0-preview.42+gabc123def0"),
+                ("2.0.0-preview.6", "2.0.0-preview.6"),
+                ("2.0.1-preview.5.gfa06c66dbb", "2.0.1-preview.5.gfa06c66dbb"),
+                ("2.0.0-rc.1", "2.0.0-preview.rc.1"),
+                ("2.0.0-gamma.1", "2.0.0-preview.gamma.1"),
+                ("2.0.0-ge78c648295", "2.0.0-preview.0.ge78c648295"),
+                ("2.0.0-gabc123def0+b5", "2.0.0-preview.0.gabc123def0+b5"),
+            ];
+
+            string fixtureDirectory = Path.Combine(
+                TestContext.CurrentContext.WorkDirectory,
+                "package-version-policy-fixtures",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(fixtureDirectory);
+            string projectPath = Path.Combine(fixtureDirectory, "versions.proj");
+            string resultPath = Path.Combine(fixtureDirectory, "versions.txt");
+            string versionTargetsPath = Path.Combine(FindRepositoryRoot(), "version.targets");
+            string items = string.Concat(cases.Select(c => $"<Case Include=\"{c.Input}\" />"));
+
+            // A plain (non-SDK) project imports no Directory.Build.* files, so
+            // only version.targets contributes. NBGV_PublicRelease skips the
+            // GetBuildVersion dependency, as on a release branch build.
+            await File.WriteAllTextAsync(
+                projectPath,
+                $$"""
+                <Project DefaultTargets="Run">
+                  <PropertyGroup>
+                    <PackagePrefix>OPCFoundation.NetStandard</PackagePrefix>
+                    <PackageId>OPCFoundation.NetStandard.Opc.Ua.AI</PackageId>
+                    <IsPackable>true</IsPackable>
+                    <NBGV_PublicRelease>True</NBGV_PublicRelease>
+                    <PreviewPackageBuildNumber>42</PreviewPackageBuildNumber>
+                    <PackageVersion>$(InputVersion)</PackageVersion>
+                  </PropertyGroup>
+                  <ItemGroup>{{items}}</ItemGroup>
+                  <Import Project="{{versionTargetsPath}}" />
+                  <Target Name="Map" DependsOnTargets="ApplyPreviewPackageVersion" Returns="@(Mapped)">
+                    <ItemGroup>
+                      <Mapped Include="$(InputVersion)" Actual="$(PackageVersion)" />
+                    </ItemGroup>
+                  </Target>
+                  <Target Name="Run">
+                    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="Map" Properties="InputVersion=%(Case.Identity)">
+                      <Output TaskParameter="TargetOutputs" ItemName="Result" />
+                    </MSBuild>
+                    <WriteLinesToFile File="{{resultPath}}" Lines="@(Result->'%(Identity)=%(Actual)')" Overwrite="true" />
+                  </Target>
+                </Project>
+                """).ConfigureAwait(false);
+
+            try
+            {
+                using var process = new Process();
+                process.StartInfo.FileName = "dotnet";
+                process.StartInfo.RedirectStandardOutput = true;
+                process.StartInfo.RedirectStandardError = true;
+                process.StartInfo.ArgumentList.Add("msbuild");
+                process.StartInfo.ArgumentList.Add(projectPath);
+                process.StartInfo.ArgumentList.Add("-nologo");
+                process.StartInfo.ArgumentList.Add("-nodeReuse:false");
+
+                Assert.That(process.Start(), Is.True);
+                Task<string> standardOutput = process.StandardOutput.ReadToEndAsync();
+                Task<string> standardError = process.StandardError.ReadToEndAsync();
+                using var timeout = new CancellationTokenSource(TimeSpan.FromMinutes(2));
+                await process.WaitForExitAsync(timeout.Token).ConfigureAwait(false);
+                string output = await standardOutput.ConfigureAwait(false);
+                string error = await standardError.ConfigureAwait(false);
+                Assert.That(process.ExitCode, Is.Zero, $"dotnet msbuild failed:\n{output}\n{error}");
+
+                Dictionary<string, string> actual = (await File.ReadAllLinesAsync(resultPath).ConfigureAwait(false))
+                    .Select(line => line.Split('=', 2))
+                    .ToDictionary(parts => parts[0], parts => parts[1], StringComparer.Ordinal);
+
+                JsonElement policy = await RunPolicyScriptAsync(
+                    $$"""
+                    . '{{PolicyScriptPath}}'
+                    $inputs = @({{string.Join(",", cases.Select(c => $"'{c.Input}'"))}})
+                    $results = foreach ($input in $inputs) {
+                        ConvertTo-PreviewPackageVersion -Version $input -PreviewPackageBuildNumber '42'
+                    }
+                    $results | ConvertTo-Json -AsArray
+                    """).ConfigureAwait(false);
+
+                Assert.Multiple(() =>
+                {
+                    for (int i = 0; i < cases.Length; i++)
+                    {
+                        (string input, string expected) = cases[i];
+                        Assert.That(actual.TryGetValue(input, out string? mapped), Is.True, $"version.targets produced no result for '{input}'.");
+                        Assert.That(mapped, Is.EqualTo(expected), $"version.targets mapped '{input}' incorrectly.");
+                        Assert.That(policy[i].GetString(), Is.EqualTo(expected), $"ConvertTo-PreviewPackageVersion mapped '{input}' incorrectly.");
+                    }
+                });
+            }
+            finally
+            {
+                Directory.Delete(fixtureDirectory, recursive: true);
+            }
+        }
+
+        [Test]
         public async Task GetExpectedPackageVersionAppliesPolicyOnlyToPreviewFamiliesAsync()
         {
             JsonElement result = await RunPolicyScriptAsync(
@@ -180,7 +294,7 @@ namespace Opc.Ua.Tools.Tests
                 @{
                     preview = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.XRegistry' -BaseVersion '2.0.0')
                     core = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Core' -BaseVersion '2.0.0')
-                    previewDev = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Di' -BaseVersion '2.0.0-preview.9')
+                    previewDev = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Robotics' -BaseVersion '2.0.0-preview.9')
                     coreDev = (Get-ExpectedPackageVersion -PackageId 'OPCFoundation.NetStandard.Opc.Ua.Core' -BaseVersion '2.0.0-preview.9')
                 } | ConvertTo-Json
                 """).ConfigureAwait(false);
@@ -280,6 +394,140 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(result.GetProperty("actual").GetBoolean(), Is.EqualTo(expectedMatch));
         }
 
+        [TestCase("2.0.0-preview.6", true, Description = "Public release-line preview")]
+        [TestCase("2.0.1-preview.0", true, Description = "Zero preview number")]
+        [TestCase("2.1.0-preview.12", true, Description = "Multi-digit preview number")]
+        [TestCase("2.0.0", false, Description = "Stable is not a preview")]
+        [TestCase("2.0.0-preview.1.gabc123def0", false, Description = "Non-public build carries a commit id")]
+        [TestCase("2.0.0-preview.6+gabc123def0", false, Description = "Build metadata")]
+        [TestCase("2.0.0-PREVIEW.6", false, Description = "Upper-case label")]
+        [TestCase("2.0.0-Preview.6", false, Description = "Mixed-case label")]
+        [TestCase("2.0.0-preview", false, Description = "Unnumbered preview")]
+        [TestCase("2.0.0-preview.06", false, Description = "Leading zero in the preview number")]
+        [TestCase("2.0.0-rc.1", false, Description = "Other prerelease label")]
+        [TestCase("2.0.0.0-preview.1", false, Description = "Four-component version")]
+        [TestCase("2.0-preview.6", false, Description = "Two-component version")]
+        public async Task TestPromotablePreviewPackageVersionAsync(string version, bool expectedPreview)
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                @{ actual = (Test-PromotablePreviewPackageVersion -Version '{{version}}') } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.That(result.GetProperty("actual").GetBoolean(), Is.EqualTo(expectedPreview));
+        }
+
+        [TestCase("refs/heads/release/2.0", "2.0.0-preview.6", true)]
+        [TestCase("refs/heads/release/2.0", "2.0.1-preview.3", true)]
+        [TestCase("refs/heads/release/2.0", "2.0.0", true, Description = "Stable still accepted")]
+        [TestCase("refs/heads/release/2.0", "2.1.0-preview.1", false, Description = "Other minor line")]
+        [TestCase("refs/heads/release/2.0", "2.0.0-PREVIEW.6", false, Description = "Upper-case label")]
+        [TestCase("refs/heads/release/2.0", "2.0.0-preview.6.gabc123def0", false, Description = "Non-public build")]
+        [TestCase("refs/heads/release/2.0", "2.0.0-preview.6+gabc123def0", false, Description = "Build metadata")]
+        [TestCase("refs/heads/release/2.0.0", "2.0.0-preview.6", false, Description = "Retired three-component branch")]
+        [TestCase("refs/heads/master", "2.0.0-preview.6", false, Description = "master never promotes")]
+        [TestCase("refs/heads/Release/2.0", "2.0.0-preview.6", false, Description = "Case-sensitive like nbgv")]
+        public async Task TestCanonicalReleaseBranchForPreviewPackageVersionAsync(
+            string ruleRef,
+            string version,
+            bool expectedMatch)
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                @{
+                    allowed = (Test-CanonicalReleaseBranchForPackageVersion -Ref '{{ruleRef}}' -Version '{{version}}' -AllowPreview)
+                    stableOnly = (Test-CanonicalReleaseBranchForPackageVersion -Ref '{{ruleRef}}' -Version '{{version}}')
+                } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("allowed").GetBoolean(), Is.EqualTo(expectedMatch));
+                Assert.That(
+                    result.GetProperty("stableOnly").GetBoolean(),
+                    Is.EqualTo(expectedMatch && !version.Contains('-', StringComparison.Ordinal)),
+                    "Without -AllowPreview the stable gate must keep rejecting every preview.");
+            });
+        }
+
+        [Test]
+        public void ReleaseWorkflowPromotesAPreviewOnlyWhenDispatchedAsOne()
+        {
+            // nuget-publish.yml never pushes to nuget.org, so release.yml is
+            // the only path there for a preview too. It must default to the
+            // stable channel, accept a preview only when the dispatcher asked
+            // for one, and require the candidate's recorded channel to agree.
+            string workflow = File.ReadAllText(ReleaseWorkflowPath);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    workflow,
+                    Does.Match(@"channel:\s*\n(?:\s+.*\n)*?\s+default: stable\s*\n"),
+                    "The channel input must default to 'stable'.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("-AllowPreview:($channel -ceq 'preview')"),
+                    "Only a preview dispatch may relax the release-branch version gate.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("Test-PromotablePreviewPackageVersion -Version $expectedBaseVersion"),
+                    "A preview dispatch must require a public release-line preview version.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("$manifest.channel -cne $channel"),
+                    "The candidate's recorded channel must match the dispatched channel.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("$channel -ceq 'preview' -and $manifest.schemaVersion -ne 2"),
+                    "A preview must come from a manifest that records its channel.");
+            });
+        }
+
+        [Test]
+        public void ReleaseWorkflowTagsThePublishedCandidate()
+        {
+            string workflow = File.ReadAllText(ReleaseWorkflowPath);
+            int tagStep = workflow.IndexOf("- name: Tag published package candidate", StringComparison.Ordinal);
+            int lastPostCheck = workflow.LastIndexOf("-RequirePresent", StringComparison.Ordinal);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(tagStep, Is.GreaterThan(lastPostCheck), "Tagging must follow both feed post-checks.");
+                Assert.That(lastPostCheck, Is.GreaterThanOrEqualTo(0));
+                Assert.That(
+                    workflow,
+                    Does.Contain("$releaseObject.draft"),
+                    "A recovered draft release must not be accepted as published.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("$env:RELEASE_CHANNEL -ceq 'preview'"),
+                    "Preview promotions must produce a prerelease GitHub Release.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("contents: write"),
+                    "The promotion workflow needs permission to create the immutable release tag.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("- name: Tag published package candidate"),
+                    "Every published candidate must be tagged after both feeds have accepted its packages.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("repos/$env:GITHUB_REPOSITORY/git/refs"),
+                    "The package version must create a Git tag through the GitHub API.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("Existing tag '$tag' does not point to candidate commit"),
+                    "A retry must reject a tag that points away from the candidate.");
+                Assert.That(
+                    workflow,
+                    Does.Contain("gh @arguments"),
+                    "The package version must also get a corresponding GitHub Release.");
+            });
+        }
+
         [Test]
         public async Task GetPreviewPackageBuildNumberMatchesCommittedPropsFileAsync()
         {
@@ -331,9 +579,7 @@ namespace Opc.Ua.Tools.Tests
                 "Opc.Ua.Redundancy",
                 "Opc.Ua.Positioning",
                 "Opc.Ua.OpenUsd",
-                "Opc.Ua.ISA95",
                 "Opc.Ua.AI",
-                "Opc.Ua.Di",
                 "Opc.Ua.Mcp.Robotics",
                 "Opc.Ua.Mcp.Vision",
                 "Opc.Ua.OpenUsd.Connector",
@@ -512,8 +758,11 @@ namespace Opc.Ua.Tools.Tests
             // read the organization's packages" (403). Pin that contract:
             // silently treating a 403 as "nothing published" would let a
             // stale preview number reach an immutable feed.
+            // The policy script supplies Invoke-FeedRequest, which resolves
+            // the Invoke-WebRequest stub below at call time.
             JsonElement result = await RunPolicyScriptAsync(
                 $$"""
+                . '{{PolicyScriptPath}}'
                 $ast = [System.Management.Automation.Language.Parser]::ParseFile(
                     '{{OrderingScriptPath}}', [ref]$null, [ref]$null)
                 $fn = $ast.FindAll({
@@ -594,6 +843,149 @@ namespace Opc.Ua.Tools.Tests
                     "A 403 must fail the release rather than being read as 'nothing published'.");
                 Assert.That(result.GetProperty("forbiddenMentionsPermission").GetBoolean(), Is.True);
             });
+        }
+
+        [TestCase(200, 1, Description = "Success is returned at once")]
+        [TestCase(404, 1, Description = "Not published is the normal answer, never retried")]
+        [TestCase(403, 1, Description = "Permission failures are not transient")]
+        [TestCase(400, 1, Description = "Other client errors are not transient")]
+        [TestCase(408, 4, Description = "Request timeout is retried")]
+        [TestCase(429, 4, Description = "Throttling is retried")]
+        [TestCase(500, 4, Description = "Server error is retried")]
+        [TestCase(503, 4, Description = "Unavailable is retried")]
+        public async Task InvokeFeedRequestRetriesOnlyTransientStatusesAsync(int status, int expectedRequests)
+        {
+            // Invoke-WebRequest -MaximumRetryCount retries every 4xx, which
+            // made each absent package in the release gates cost ~15 s. The
+            // gates must still get the final response back to fail closed.
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                $script:requests = 0
+                function Invoke-WebRequest {
+                    param([string]$Uri, [hashtable]$Headers, [switch]$SkipHttpErrorCheck)
+                    $script:requests++
+                    return [pscustomobject]@{ StatusCode = {{status}} }
+                }
+
+                $response = Invoke-FeedRequest -Uri 'https://stub/pkg' -MaximumRetryCount 3 -RetryIntervalSec 0
+                @{ requests = $script:requests; status = [int]$response.StatusCode } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(expectedRequests));
+                Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(status));
+            });
+        }
+
+        [Test]
+        public async Task InvokeFeedRequestStopsRetryingOnceTheResponseIsNotTransientAsync()
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                $script:requests = 0
+                function Invoke-WebRequest {
+                    param([string]$Uri, [hashtable]$Headers, [switch]$SkipHttpErrorCheck)
+                    $script:requests++
+                    $status = if ($script:requests -lt 3) { 503 } else { 404 }
+                    return [pscustomobject]@{ StatusCode = $status }
+                }
+
+                $response = Invoke-FeedRequest -Uri 'https://stub/pkg' -MaximumRetryCount 3 -RetryIntervalSec 0
+                @{ requests = $script:requests; status = [int]$response.StatusCode } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
+                Assert.That(result.GetProperty("status").GetInt32(), Is.EqualTo(404));
+            });
+        }
+
+        [Test]
+        public async Task InvokeFeedRequestRethrowsNetworkFailureAfterTheLastRetryAsync()
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                $script:requests = 0
+                function Invoke-WebRequest {
+                    param([string]$Uri, [hashtable]$Headers, [switch]$SkipHttpErrorCheck)
+                    $script:requests++
+                    throw [System.Net.Http.HttpRequestException]::new('connection refused')
+                }
+
+                $threw = $false
+                $message = ''
+                try {
+                    [void](Invoke-FeedRequest -Uri 'https://stub/pkg' -MaximumRetryCount 2 -RetryIntervalSec 0)
+                }
+                catch {
+                    $threw = $true
+                    $message = $_.Exception.Message
+                }
+                @{ requests = $script:requests; threw = $threw; message = $message } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("requests").GetInt32(), Is.EqualTo(3));
+                Assert.That(result.GetProperty("threw").GetBoolean(), Is.True);
+                Assert.That(result.GetProperty("message").GetString(), Is.EqualTo("connection refused"));
+            });
+        }
+
+        [Test]
+        public async Task InvokeFeedRequestPassesOutFileThroughAsync()
+        {
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                function Invoke-WebRequest {
+                    param([string]$Uri, [hashtable]$Headers, [switch]$SkipHttpErrorCheck, [string]$OutFile, [switch]$PassThru)
+                    return [pscustomobject]@{ StatusCode = 200; OutFile = $OutFile; PassThru = [bool]$PassThru }
+                }
+
+                $response = Invoke-FeedRequest -Uri 'https://stub/pkg' -OutFile 'pkg.nupkg' -RetryIntervalSec 0
+                @{ outFile = $response.OutFile; passThru = $response.PassThru } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.GetProperty("outFile").GetString(), Is.EqualTo("pkg.nupkg"));
+                Assert.That(
+                    result.GetProperty("passThru").GetBoolean(),
+                    Is.True,
+                    "Without -PassThru, -OutFile returns no response and the caller cannot read the status.");
+            });
+        }
+
+        [TestCase("2.0.0", "2.0.0-preview.10", Description = "Stable follows its greatest preview, not preview.2")]
+        [TestCase("2.0.1", "2.0.0", Description = "Servicing ignores the newer 2.1.0 minor line")]
+        [TestCase("2.1.0", "2.0.1", Description = "New minor follows the greatest lower release")]
+        [TestCase("2.0.0-preview.10", "2.0.0-preview.2", Description = "Preview numbers compare numerically")]
+        [TestCase("2.0.0-preview.2", null, Description = "No lower 2.x release: 1.5.378 is ignored")]
+        public async Task GetPreviousReleaseTagPicksGreatestLowerSameMajorVersionAsync(
+            string tag,
+            string? expected)
+        {
+            // Published out of version order on purpose: selection must not
+            // depend on publication time, and the four-component 1.5.378
+            // maintenance tags must never become the baseline.
+            JsonElement result = await RunPolicyScriptAsync(
+                $$"""
+                . '{{PolicyScriptPath}}'
+                $tags = @('1.5.378.182', '2.1.0', '2.0.1', '2.0.0', '2.0.0-preview.10',
+                    '2.0.0-preview.2', '1.5.378.176', 'not-a-version')
+                @{ actual = (Get-PreviousReleaseTag -Tag '{{tag}}' -ReleaseTags $tags) } | ConvertTo-Json
+                """).ConfigureAwait(false);
+
+            JsonElement actual = result.GetProperty("actual");
+            Assert.That(
+                actual.ValueKind == JsonValueKind.Null ? null : actual.GetString(),
+                Is.EqualTo(expected));
         }
 
         [Test]
@@ -922,7 +1314,7 @@ namespace Opc.Ua.Tools.Tests
                 Assert.That(
                     script,
                     Does.Contain("[System.Environment]::OSVersion.Platform -eq [System.PlatformID]::Win32NT"),
-                    "Azure invokes this script through Windows PowerShell 5.1, which does not define $IsWindows.");
+                    "The script must stay runnable from Windows PowerShell 5.1, which does not define $IsWindows.");
                 Assert.That(script, Does.Not.Contain("$IsWindows"));
             });
         }

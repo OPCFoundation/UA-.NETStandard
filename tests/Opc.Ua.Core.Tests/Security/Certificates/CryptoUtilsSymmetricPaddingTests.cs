@@ -286,6 +286,46 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return buffer;
         }
 
+        /// <summary>
+        /// OPC 10000-6 §6.7.2.5.1: encrypted data is a whole number of cipher blocks, so a misaligned buffer
+        /// is rejected as a cryptographic failure instead of reaching the cipher.
+        /// </summary>
+        [TestCase(20)]
+        [TestCase(kBlockSize + 1)]
+        public void SymmetricDecryptRejectsDataThatIsNotAWholeNumberOfBlocks(int length)
+        {
+            byte[] buffer = new byte[kHeaderSize + length];
+
+            Assert.That(
+                () => CryptoUtils.SymmetricDecryptAndVerify(
+                    new ArraySegment<byte>(buffer, kHeaderSize, length),
+                    SecurityPolicyInfo.Basic256Sha256,
+                    CreateKey(32),
+                    CreateKey(kBlockSize),
+                    CreateKey(32)),
+                Throws.TypeOf<CryptographicException>());
+        }
+
+        /// <summary>
+        /// A signed chunk shorter than its signature is rejected as a cryptographic failure instead of
+        /// computing a negative signed length.
+        /// </summary>
+        [Test]
+        public void SymmetricVerifyRejectsDataShorterThanTheSignature()
+        {
+            byte[] buffer = new byte[kHeaderSize + kHashSize - 1];
+
+            Assert.That(
+                () => CryptoUtils.SymmetricDecryptAndVerify(
+                    new ArraySegment<byte>(buffer, kHeaderSize, kHashSize - 1),
+                    SecurityPolicyInfo.Basic256Sha256,
+                    CreateKey(32),
+                    CreateKey(kBlockSize),
+                    CreateKey(32),
+                    signOnly: true),
+                Throws.TypeOf<CryptographicException>());
+        }
+
         private static byte[] CreateKey(int length)
         {
             byte[] key = new byte[length];

@@ -237,6 +237,22 @@ namespace Opc.Ua.Server.UserDatabase
             return known && valid;
         }
 
+        /// <summary>
+        /// Looks up the committed configuration flags of one user without snapshotting the database.
+        /// </summary>
+        /// <returns><c>true</c> if the user exists.</returns>
+        internal bool TryGetUserConfiguration(string userName, out UserConfigurationMask userConfiguration)
+        {
+            if (!string.IsNullOrEmpty(userName) && m_users.TryGetValue(userName, out User? user))
+            {
+                userConfiguration = (UserConfigurationMask)user.UserConfiguration;
+                return true;
+            }
+
+            userConfiguration = default;
+            return false;
+        }
+
         /// <inheritdoc/>
         public ICollection<Role> GetUserRoles(string userName)
         {

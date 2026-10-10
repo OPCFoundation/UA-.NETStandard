@@ -29,8 +29,6 @@
 
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System;
 using System.Net;
 using System.Threading.Tasks;
@@ -74,13 +72,6 @@ namespace Opc.Ua.Redundancy.Server.Tests
         [Test]
         public void CreateReaderOptionsHonorsLimits()
         {
-            if (!ReplicatedGossipOptions.IsGossipStateDecodingSupported)
-            {
-                Assert.Ignore(
-                    "CRDT gossip state decoding is not binary-compatible on the " +
-                    "netstandard2.1 build (init-accessor modreq skew); see #4282.");
-            }
-
             var options = new ReplicatedAddressSpaceOptions
             {
                 MaxEntryCount = 5,

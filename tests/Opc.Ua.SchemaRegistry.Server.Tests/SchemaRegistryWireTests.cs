@@ -566,6 +566,116 @@ namespace Opc.Ua.SchemaRegistry.Server.Tests
         }
 
         [Test]
+        public async Task UnchangedInheritedSchemaWriterClosesWithoutPublishingAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
+                .ConfigureAwait(false);
+            NativeSchemaAccessTypeClient access = await AccessAsync(session).ConfigureAwait(false);
+            var descriptor = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "urn:example:clean-close",
+                SchemaName = "CleanClose",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "urn:example:clean-close:v1"
+            };
+            ByteString original = ByteString.From("{ \"type\": \"number\" }\n"u8.ToArray());
+            (NodeId upload, uint initialHandle) = await access.BeginSchemaUploadAsync(descriptor).ConfigureAwait(false);
+            var staged = new FileTypeClient(session, upload, m_telemetry!);
+            await staged.WriteAsync(initialHandle, original).ConfigureAwait(false);
+            await staged.CloseAsync(initialHandle).ConfigureAwait(false);
+            var reference = new SchemaReferenceDataType
+            {
+                Entity = new RegistryEntityReferenceDataType
+                {
+                    OriginUri = "urn:test:schema-wire",
+                    Xid = "/schemagroups/" + XRegistryIdentifier.FromSourceIdentity(descriptor.NamespaceUri!) +
+                        "/schemas/CleanClose.jsonschema/versions/1",
+                    Role = "ExactVersion"
+                },
+                EntityUri = descriptor.EntityUri,
+                SelectedObjectUri = descriptor.EntityUri,
+                Format = descriptor.Format
+            };
+            uint epoch = (await access.ReadSchemaAsync(reference).ConfigureAwait(false)).Document.Epoch;
+            ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.SchemaRegistry);
+            ushort xns = session.NamespaceUris.GetIndexOrAppend(XRegistry.Namespaces.xRegistry);
+            var native = new NativeRegistryAccessTypeClient(session,
+                await PathAsync(session, ExpandedNodeId.ToNodeId(ObjectIds.SchemaRegistry, session.NamespaceUris),
+                    new QualifiedName(XRegistry.BrowseNames.TypedAccess, xns)).ConfigureAwait(false), m_telemetry!);
+            var metadata = new RegistryReadRequestDataType
+            {
+                TargetXid = "/",
+                DocumentKind = "metadata",
+                View = 1,
+                MaxItems = 100
+            };
+            uint registryEpoch = (await native.ReadDocumentAsync(metadata).ConfigureAwait(false)).Epoch;
+            var file = new FileTypeClient(session,
+                new NodeId("SchemaRegistry" + reference.Entity.Xid, ns), m_telemetry!);
+            foreach (OpenFileMode mode in new[]
+            {
+                OpenFileMode.Write,
+                OpenFileMode.Write | OpenFileMode.EraseExisting,
+                OpenFileMode.Write | OpenFileMode.Append
+            })
+            {
+                uint writer = await file.OpenAsync((byte)mode).ConfigureAwait(false);
+                await file.WriteAsync(writer, ByteString.Empty).ConfigureAwait(false);
+                await file.CloseAsync(writer).ConfigureAwait(false);
+                TypedSchemaReadResultDataType unchanged = await access.ReadSchemaAsync(reference).ConfigureAwait(false);
+                Assert.That(unchanged.StatusCode, Is.EqualTo(StatusCodes.Good), Issue(unchanged));
+                Assert.That(unchanged.Document.Epoch, Is.EqualTo(epoch));
+                Assert.That((await native.ReadDocumentAsync(metadata).ConfigureAwait(false)).Epoch,
+                    Is.EqualTo(registryEpoch));
+                uint reader = await file.OpenAsync((byte)OpenFileMode.Read).ConfigureAwait(false);
+                Assert.That(await file.ReadAsync(reader, 4096).ConfigureAwait(false), Is.EqualTo(original));
+                await file.CloseAsync(reader).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task InheritedSchemaWriterRejectsCombinedReadAndWriteModesAsync()
+        {
+            using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")
+                .ConfigureAwait(false);
+            NativeSchemaAccessTypeClient access = await AccessAsync(session).ConfigureAwait(false);
+            var descriptor = new SchemaRegistrationDataType
+            {
+                NamespaceUri = "urn:example:file-mode",
+                SchemaName = "FileMode",
+                Format = "JsonSchema/2020-12",
+                VersionId = "1",
+                EntityUri = "urn:example:file-mode:v1"
+            };
+            TypedSchemaReadResultDataType registered = await access.RegisterSchemaAsync(
+                new TypedSchemaRegistrationRequestDataType
+                {
+                    Registration = descriptor,
+                    Content = new JsonSchemaFormatProvider().Parse("""{"type":"string"}"""u8)
+                }).ConfigureAwait(false);
+            Assert.That(registered.StatusCode, Is.EqualTo(StatusCodes.Good), Issue(registered));
+            ushort ns = session.NamespaceUris.GetIndexOrAppend(Namespaces.SchemaRegistry);
+            var file = new FileTypeClient(session,
+                new NodeId("SchemaRegistry" + registered.Document.Reference.Entity.Xid, ns), m_telemetry!);
+            foreach (OpenFileMode mode in new[]
+            {
+                OpenFileMode.Read | OpenFileMode.Write,
+                OpenFileMode.Read | OpenFileMode.Write | OpenFileMode.EraseExisting,
+                OpenFileMode.Read | OpenFileMode.Write | OpenFileMode.Append
+            })
+            {
+                ServiceResultException error = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await file.OpenAsync((byte)mode).ConfigureAwait(false))!;
+                Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            }
+            uint reader = await file.OpenAsync((byte)OpenFileMode.Read).ConfigureAwait(false);
+            Assert.That(await file.ReadAsync(reader, 4096).ConfigureAwait(false),
+                Is.EqualTo(ByteString.From("""{"type":"string"}"""u8.ToArray())));
+            await file.CloseAsync(reader).ConfigureAwait(false);
+        }
+
+        [Test]
         public async Task LogicalProvenancePresenceFollowsTheSelectedDefaultRatherThanVersionSortOrderAsync()
         {
             using ISession session = await ConnectAsync(SecurityPolicies.Basic256Sha256, "sysadmin", "demo")

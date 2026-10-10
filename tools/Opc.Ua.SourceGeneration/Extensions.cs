@@ -31,6 +31,8 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
+using System.Xml;
 using Microsoft.CodeAnalysis;
 using Microsoft.CodeAnalysis.Diagnostics;
 using Microsoft.CodeAnalysis.Text;
@@ -78,13 +80,96 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Design files end in xml but are not nodeset2.xml files.
+        /// Design and NodeSet2 files are xml files whose root element is a
+        /// <c>ModelDesign</c> or a <c>UANodeSet</c>. Any other xml
+        /// AdditionalFile (a configuration or linker descriptor meant for
+        /// another tool) is not a model input and must neither be generated
+        /// nor abort the generation of the real models.
         /// </summary>
-        /// <param name="text"></param>
-        /// <returns></returns>
-        public static bool IsDesignOrNodeset2File(this AdditionalText text)
+        /// <remarks>
+        /// A file that cannot be read or parsed is kept as a model input so
+        /// the model pipeline reports why instead of silently dropping a
+        /// broken design.
+        /// </remarks>
+        public static bool IsDesignOrNodeset2File(
+            this AdditionalText text,
+            CancellationToken cancellationToken = default)
         {
-            return text.HasFileExtension("xml");
+            if (!text.HasFileExtension("xml"))
+            {
+                return false;
+            }
+            SourceText sourceText = text.GetText(cancellationToken);
+            if (sourceText == null)
+            {
+                return true;
+            }
+            try
+            {
+                using var reader = XmlReader.Create(
+                    new SourceTextReader(sourceText),
+                    new XmlReaderSettings
+                    {
+                        DtdProcessing = DtdProcessing.Ignore,
+                        XmlResolver = null,
+                        IgnoreComments = true,
+                        IgnoreProcessingInstructions = true,
+                        IgnoreWhitespace = true
+                    });
+                if (reader.MoveToContent() != XmlNodeType.Element)
+                {
+                    return true;
+                }
+                return reader.LocalName switch
+                {
+                    "ModelDesign" => reader.NamespaceURI == ModelDesignNamespaceUri,
+                    "UANodeSet" => reader.NamespaceURI == NodeSetNamespaceUri,
+                    _ => false
+                };
+            }
+            catch (XmlException)
+            {
+                return true;
+            }
+        }
+
+        private const string ModelDesignNamespaceUri = "http://opcfoundation.org/UA/ModelDesign.xsd";
+        private const string NodeSetNamespaceUri = "http://opcfoundation.org/UA/2011/03/UANodeSet.xsd";
+
+        /// <summary>
+        /// Reads a <see cref="SourceText"/> without copying it into a string.
+        /// </summary>
+        private sealed class SourceTextReader : System.IO.TextReader
+        {
+            public SourceTextReader(SourceText text)
+            {
+                m_text = text;
+            }
+
+            public override int Peek()
+            {
+                return m_position < m_text.Length ? m_text[m_position] : -1;
+            }
+
+            public override int Read()
+            {
+                return m_position < m_text.Length ? m_text[m_position++] : -1;
+            }
+
+            public override int Read(char[] buffer, int index, int count)
+            {
+                int length = Math.Min(count, m_text.Length - m_position);
+                if (length <= 0)
+                {
+                    return 0;
+                }
+                m_text.CopyTo(m_position, buffer, index, length);
+                m_position += length;
+                return length;
+            }
+
+            private readonly SourceText m_text;
+            private int m_position;
         }
 
         /// <summary>
@@ -248,21 +333,23 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Get string option from options
+        /// Get a list option from options. The list compares by content so
+        /// the options records carrying it stay equatable across generator
+        /// runs and the incremental cache can hit.
         /// </summary>
-        public static List<string> GetStrings(
+        public static EquatableArray<string> GetStrings(
             this AnalyzerConfigOptions config,
             string propertyName,
             bool buildProperty = true)
         {
             return config.GetValue(propertyName, Split, buildProperty);
 
-            static List<string> Split(string s)
+            static EquatableArray<string> Split(string s)
             {
-                return s == null ? [] : [.. s
+                return s == null ? EquatableArray<string>.Empty : EquatableArray<string>.From(s
                     .Split(';', ',', '+')
                     .Select(e => e.Trim())
-                    .Where(s => !string.IsNullOrEmpty(s))];
+                    .Where(s => !string.IsNullOrEmpty(s)));
             }
         }
 

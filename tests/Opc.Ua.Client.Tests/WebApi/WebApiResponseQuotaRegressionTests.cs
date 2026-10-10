@@ -141,7 +141,10 @@ namespace Opc.Ua.Client.Tests.WebApi
                 Task completed = await Task.WhenAny(pending, Task.Delay(TimeSpan.FromSeconds(10)))
                     .ConfigureAwait(false);
                 Assert.That(completed, Is.SameAs(pending));
-                Assert.CatchAsync<OperationCanceledException>(() => pending);
+                // The elapsed request timeout is reported as BadRequestTimeout.
+                ServiceResultException? timeout = Assert.CatchAsync<ServiceResultException>(() => pending);
+                Assert.That(timeout!.StatusCode, Is.EqualTo(StatusCodes.BadRequestTimeout));
+                Assert.That(timeout.InnerException, Is.InstanceOf<OperationCanceledException>());
                 Assert.That(content.IsDisposed, Is.True);
                 Assert.That(content.SerializeCalls, Is.Zero);
                 if (sharedClient)
@@ -158,6 +161,9 @@ namespace Opc.Ua.Client.Tests.WebApi
                     await pending.ConfigureAwait(false);
                 }
                 catch (OperationCanceledException)
+                {
+                }
+                catch (ServiceResultException)
                 {
                 }
             }
@@ -255,7 +261,7 @@ namespace Opc.Ua.Client.Tests.WebApi
             /// <summary>
             /// Records a buffering attempt and copies the body using the captured request token.
             /// </summary>
-            protected override Task SerializeToStreamAsync(Stream stream, TransportContext context)
+            protected override Task SerializeToStreamAsync(Stream stream, TransportContext? context)
             {
                 SerializeCalls++;
                 return m_body.CopyToAsync(stream, 81920, RequestToken);

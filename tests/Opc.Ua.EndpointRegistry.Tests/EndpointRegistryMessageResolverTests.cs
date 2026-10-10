@@ -66,6 +66,33 @@ namespace Opc.Ua.EndpointRegistry.Tests
             Assert.That(BinaryRoundTrip(result).IsEqual(result), Is.True);
         }
 
+        [TestCase("")]
+        [TestCase("/versions/1")]
+        public async Task GroupNamedVersionsDoesNotChangeTheMessageRoleAsync(string suffix)
+        {
+            var provider = new Provider { GroupId = "versions" };
+            provider.Add("base", """{"messageid":"base","description":"inherited"}""");
+            provider.Add("derived",
+                """{"messageid":"derived","basemessageuri":"/messagegroups/versions/messages/base"}""");
+            var request = new MessageResolutionRequestDataType
+            {
+                Reference = "/messagegroups/versions/messages/derived" + suffix
+            };
+
+            NativeMessageResolutionResultDataType result = await ResolveAsync(provider, request).ConfigureAwait(false);
+
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good),
+                result.Issues.Count == 0 ? string.Empty : result.Issues[0].Detail);
+            Assert.That(result.Status, Is.EqualTo("complete"));
+            Assert.That(result.Definition.Description, Is.EqualTo("inherited"));
+            Assert.That(result.Sources.Count, Is.EqualTo(2));
+            Assert.That(result.Sources[0].Xid, Is.EqualTo(request.Reference));
+            Assert.That(result.Sources[0].Role,
+                Is.EqualTo(suffix.Length == 0 ? "MetadataResource" : "MetadataVersion"));
+            Assert.That(result.Sources[1].Xid, Is.EqualTo("/messagegroups/versions/messages/base"));
+            Assert.That(result.Sources[1].Role, Is.EqualTo("MetadataResource"));
+        }
+
         [Test]
         public async Task MissingInputAndUnsupportedSemanticsAreExplicitAsync()
         {
@@ -215,12 +242,13 @@ namespace Opc.Ua.EndpointRegistry.Tests
             return new RegistryEntityReferenceDataType { OriginUri = "urn:test:local" };
         }
 
-        private static RegistryEntityReferenceDataType Source(string id, string origin = "urn:test:local")
+        private static RegistryEntityReferenceDataType Source(
+            string id, string origin = "urn:test:local", string group = "g")
         {
             return new RegistryEntityReferenceDataType
             {
                 OriginUri = origin,
-                Xid = "/messagegroups/g/messages/" + id,
+                Xid = "/messagegroups/" + group + "/messages/" + id,
                 Role = "MetadataResource"
             };
         }
@@ -232,13 +260,15 @@ namespace Opc.Ua.EndpointRegistry.Tests
 
             public int ReadCalls { get; private set; }
 
+            public string GroupId { get; set; } = "g";
+
             public RegistryEntityReferenceDataType? SchemaOrigin { get; private set; }
 
             public void Add(string id, string json)
             {
                 Observations.Add(id, new EndpointRegistryMessageObservation
                 {
-                    Source = Source(id),
+                    Source = Source(id, group: GroupId),
                     Metadata = (RegistryObjectValueDataType)Json(json),
                     Epoch = 1,
                     VersionId = "1"
@@ -250,7 +280,7 @@ namespace Opc.Ua.EndpointRegistry.Tests
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 ReadCalls++;
-                string id = reference.Xid!.Substring("/messagegroups/g/messages/".Length).Split('/')[0];
+                string id = reference.Xid!.Split('/')[4];
                 if (!Observations.TryGetValue(id, out EndpointRegistryMessageObservation? observation))
                 {
                     return new ValueTask<EndpointRegistryMessageObservation?>((EndpointRegistryMessageObservation?)null);

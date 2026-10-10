@@ -16,6 +16,10 @@ using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Security.Certificates;
+#if NETFRAMEWORK
+using AesGcm = Opc.Ua.Security.Certificates.BouncyCastle.AesGcm;
+using ChaCha20Poly1305 = Opc.Ua.Security.Certificates.BouncyCastle.ChaCha20Poly1305;
+#endif
 #if CURVE25519
 using Org.BouncyCastle.Pkcs;
 using Org.BouncyCastle.X509;
@@ -28,8 +32,6 @@ using Org.BouncyCastle.Crypto.Generators;
 using Org.BouncyCastle.Crypto.Modes;
 using Org.BouncyCastle.Crypto.Digests;
 #endif
-
-#nullable enable
 
 namespace Opc.Ua
 {
@@ -909,17 +911,12 @@ namespace Opc.Ua
 
             if (algorithm is SymmetricEncryptionAlgorithm.Aes128Gcm or SymmetricEncryptionAlgorithm.Aes256Gcm)
             {
-#if NET8_0_OR_GREATER
                 return EncryptWithAesGcm(
                     data, algorithm, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber, provider);
-#else
-                throw new NotSupportedException("AES-GCM requires .NET 8 or greater.");
-#endif
             }
 
             if (algorithm == SymmetricEncryptionAlgorithm.ChaCha20Poly1305)
             {
-#if NET8_0_OR_GREATER
                 return EncryptWithChaCha20Poly1305(
                     data,
                     algorithm,
@@ -929,9 +926,6 @@ namespace Opc.Ua
                     tokenId,
                     lastSequenceNumber,
                     provider);
-#else
-                throw new NotSupportedException("ChaCha20Poly1305 requires .NET 8 or greater.");
-#endif
             }
 
             SymmetricSignatureAlgorithm signatureAlgorithm =
@@ -1045,7 +1039,6 @@ namespace Opc.Ua
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
         }
 
-#if NET8_0_OR_GREATER
         private static byte[] ApplyAeadMask(uint tokenId, uint lastSequenceNumber, byte[] iv)
         {
             byte[] copy = new byte[iv.Length];
@@ -1380,7 +1373,6 @@ namespace Opc.Ua
 
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count - kAesGcmTagLength);
         }
-#endif
 
 #if NET6_0_OR_GREATER
         /// <summary>
@@ -1590,17 +1582,12 @@ namespace Opc.Ua
 
             if (algorithm is SymmetricEncryptionAlgorithm.Aes128Gcm or SymmetricEncryptionAlgorithm.Aes256Gcm)
             {
-#if NET8_0_OR_GREATER
                 return DecryptWithAesGcm(
                     data, algorithm, encryptingKey, iv, signOnly, tokenId, lastSequenceNumber, provider);
-#else
-                throw new NotSupportedException("AES-GCM requires .NET 8 or greater.");
-#endif
             }
 
             if (algorithm == SymmetricEncryptionAlgorithm.ChaCha20Poly1305)
             {
-#if NET8_0_OR_GREATER
                 return DecryptWithChaCha20Poly1305(
                     data,
                     algorithm,
@@ -1610,9 +1597,6 @@ namespace Opc.Ua
                     tokenId,
                     lastSequenceNumber,
                     provider);
-#else
-                throw new NotSupportedException("ChaCha20Poly1305 requires .NET 8 or greater.");
-#endif
             }
 
             SymmetricSignatureAlgorithm signatureAlgorithm =
@@ -1627,6 +1611,17 @@ namespace Opc.Ua
 
             if (!signOnly)
             {
+                // OPC 10000-6 §6.7.2.5.1: the encrypted data is a whole number of
+                // cipher blocks (the IV is one block long). Only block (CBC) ciphers
+                // have that property; counter mode data may end mid block.
+                if ((algorithm is SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc) &&
+                    iv.Length > 0 &&
+                    data.Count % iv.Length != 0)
+                {
+                    throw new CryptographicException(
+                        "The encrypted data is not a multiple of the block size.");
+                }
+
                 if (cipher != null)
                 {
                     cipher.Decrypt(
@@ -1661,6 +1656,7 @@ namespace Opc.Ua
             if (signingKey != null && verifier != null)
             {
                 int hashLength = verifier.GetSignatureLength(signatureAlgorithm);
+                ThrowIfShorterThanSignature(data, hashLength);
                 int signedLength = data.Offset + data.Count - hashLength;
 
                 if (!verifier.Verify(
@@ -1691,6 +1687,7 @@ namespace Opc.Ua
                 {
                     HMAC signer = hmac ?? ownedHmac!;
                     int hashLength = signer.HashSize / 8;
+                    ThrowIfShorterThanSignature(data, hashLength);
                     int signedLength = data.Offset + data.Count - hashLength;
 
 #if NET6_0_OR_GREATER
@@ -1750,6 +1747,18 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Rejects a signed buffer too short to hold its signature.
+        /// </summary>
+        /// <exception cref="CryptographicException"></exception>
+        private static void ThrowIfShorterThanSignature(ArraySegment<byte> data, int hashLength)
+        {
+            if (data.Count < hashLength)
+            {
+                throw new CryptographicException("Invalid signature.");
+            }
+        }
+
+        /// <summary>
         /// Zeros a buffer so that sensitive key material does not linger in memory.
         /// </summary>
         /// <param name="buffer">
@@ -1757,7 +1766,7 @@ namespace Opc.Ua
         /// </param>
         public static void ZeroMemory(Span<byte> buffer)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             CryptographicOperations.ZeroMemory(buffer);
 #else
             buffer.Clear();
@@ -1779,7 +1788,7 @@ namespace Opc.Ua
         /// </returns>
         public static bool FixedTimeEquals(ReadOnlySpan<byte> left, ReadOnlySpan<byte> right)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             return CryptographicOperations.FixedTimeEquals(left, right);
 #else
             if (left.Length != right.Length)

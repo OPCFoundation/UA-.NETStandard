@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using NUnit.Framework;
 
@@ -193,6 +191,38 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             long result = EnumHelper.EnumToInt64(ShortTestEnum.One);
             Assert.That(result, Is.EqualTo(1L));
+        }
+
+        [Test]
+        public void GenericConversionsKeepTheSignOfSmallEnums()
+        {
+            // The net8+ fast paths read small enums unsigned (-1 -> 255) and
+            // must agree with the object based conversions on every TFM.
+            Assert.Multiple(() =>
+            {
+                Assert.That(EnumHelper.EnumToInt32(SByteTestEnum.Minus), Is.EqualTo(-1));
+                Assert.That(EnumHelper.EnumToInt32(ShortTestEnum.Minus), Is.EqualTo(-1));
+                Assert.That(EnumHelper.EnumToInt64(SByteTestEnum.Minus), Is.EqualTo(-1L));
+                Assert.That(EnumHelper.EnumToInt64(ShortTestEnum.Minus), Is.EqualTo(-1L));
+                Assert.That(EnumHelper.EnumToInt64(IntTestEnum.Minus), Is.EqualTo(-1L));
+                Assert.That(EnumHelper.EnumToInt64(ByteTestEnum.One), Is.EqualTo(1L));
+                Assert.That(EnumHelper.EnumToInt32(UShortTestEnum.One), Is.EqualTo(1));
+                Assert.That(
+                    EnumHelper.EnumToInt32(ShortTestEnum.Minus),
+                    Is.EqualTo(EnumHelper.EnumToInt32((object)ShortTestEnum.Minus, typeof(ShortTestEnum))));
+            });
+        }
+
+        [Test]
+        public void Int32ToEnumGenericConvertsLongEnum()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(EnumHelper.Int32ToEnum<LongTestEnum>(5), Is.EqualTo(LongTestEnum.Five));
+                Assert.That(EnumHelper.Int32ToEnum<LongTestEnum>(-1), Is.EqualTo(LongTestEnum.Minus));
+                Assert.That(EnumHelper.Int32ToEnum<ULongTestEnum>(1), Is.EqualTo(ULongTestEnum.One));
+                Assert.That(EnumHelper.Int32ToEnum<SByteTestEnum>(-1), Is.EqualTo(SByteTestEnum.Minus));
+            });
         }
 
         [Test]
@@ -397,14 +427,22 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         private enum SByteTestEnum : sbyte
         {
+            Minus = -1,
             Zero = 0,
             One = 1
         }
 
         private enum ShortTestEnum : short
         {
+            Minus = -1,
             Zero = 0,
             One = 1
+        }
+
+        private enum IntTestEnum
+        {
+            Minus = -1,
+            Zero = 0
         }
 
         private enum UShortTestEnum : ushort
@@ -421,8 +459,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
         private enum LongTestEnum : long
         {
+            Minus = -1,
             Zero = 0,
-            One = 1
+            One = 1,
+            Five = 5
         }
 
         private enum ULongTestEnum : ulong

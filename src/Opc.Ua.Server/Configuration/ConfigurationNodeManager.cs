@@ -286,30 +286,29 @@ namespace Opc.Ua.Server
                 m_certificateGroups.Add(defaultHttpsGroup);
             }
 
-            // For each certificate in ApplicationCertificates, add the certificate type to ServerConfiguration_CertificateGroups_DefaultApplicationGroup
-            // under the CertificateTypes field.
+            // Each certificate in ApplicationCertificates belongs to exactly one
+            // CertificateGroup (OPC 10000-12 §7.8.3): an HttpsCertificateType
+            // certificate to DefaultHttpsGroup, every other type to
+            // DefaultApplicationGroup, whose CertificateTypes are
+            // ApplicationCertificateType subtypes. Without a DefaultHttpsGroup
+            // (no Https stores configured) an HttpsCertificateType certificate
+            // stays manageable through DefaultApplicationGroup as before.
             foreach (CertificateIdentifier cert in configuration.SecurityConfiguration
                 .ApplicationCertificates)
             {
-                defaultApplicationGroup.CertificateTypes =
-                [
-                    .. defaultApplicationGroup.CertificateTypes,
-                    .. new NodeId[] { cert.CertificateType }
-                ];
-                defaultApplicationGroup.ApplicationCertificates =
-                    defaultApplicationGroup.ApplicationCertificates.AddItem(cert);
-
-                if (cert.CertificateType == ObjectTypeIds.HttpsCertificateType &&
-                    defaultHttpsGroup != null)
+                ServerCertificateGroup group =
+                    cert.CertificateType == ObjectTypeIds.HttpsCertificateType && defaultHttpsGroup != null
+                        ? defaultHttpsGroup
+                        : defaultApplicationGroup;
+                if (!group.CertificateTypes.Contains(cert.CertificateType))
                 {
-                    defaultHttpsGroup.CertificateTypes =
+                    group.CertificateTypes =
                     [
-                        .. defaultHttpsGroup.CertificateTypes,
+                        .. group.CertificateTypes,
                         .. new NodeId[] { cert.CertificateType }
                     ];
-                    defaultHttpsGroup.ApplicationCertificates =
-                        defaultHttpsGroup.ApplicationCertificates.AddItem(cert);
                 }
+                group.ApplicationCertificates = group.ApplicationCertificates.AddItem(cert);
             }
         }
 
@@ -710,8 +709,8 @@ namespace Opc.Ua.Server
             foreach (ServerCertificateGroup certGroup in m_certificateGroups)
             {
                 certGroup.Node!.CertificateTypes!.Value = certGroup.CertificateTypes;
-                certGroup.Node!.TrustList!.Handle = new TrustList(
-                    certGroup.Node.TrustList,
+                var trustList = new TrustList(
+                    certGroup.Node.TrustList!,
                     certGroup.TrustedStore,
                     certGroup.IssuerStore,
                     new TrustList.SecureAccess(HasApplicationSecureAdminAccess),
@@ -719,7 +718,19 @@ namespace Opc.Ua.Server
                     Server.Telemetry,
                     m_coordinator,
                     m_configuration.ServerConfiguration!.MaxTrustListSize,
-                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling);
+                    m_serverConfigurationOptions.MaxTrustListSizeSafetyCeiling,
+                    m_configuration.CertificateManager as ICertificateStoreResolver);
+                if (IsApplicationCertificateGroup(certGroup))
+                {
+                    // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to
+                    // an ApplicationCertificateType TrustList are validated
+                    // with the OPC 10000-4 process.
+                    trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
+                }
+                // §7.8.2: the TrustList audit events must reach Clients that
+                // subscribe to the Server Object.
+                trustList.SetAuditEventServer(Server);
+                certGroup.Node.TrustList!.Handle = trustList;
                 certGroup.Node.ClearChangeMasks(systemContext, true);
             }
 
@@ -1088,13 +1099,10 @@ namespace Opc.Ua.Server
         /// the type from the path alone (the single-argument constructor)
         /// would silently downgrade a configured custom store type to a
         /// directory store, making the push path write through a different
-        /// store implementation than the validator reads. The preserved type
-        /// resolves through <see cref="CertificateStoreIdentifier.OpenStore()"/>,
-        /// i.e. the built-in types plus any type registered via
-        /// <see cref="CertificateStoreType.RegisterCertificateStoreType"/>;
-        /// DI-registered <see cref="ICertificateStoreProvider"/>s are not
-        /// reachable through identifier-based store access (a pre-existing
-        /// limitation of the TrustList store plumbing).
+        /// store implementation than the validator reads. The TrustList uses
+        /// the configured manager's optional <see cref="ICertificateStoreResolver"/>
+        /// to resolve this metadata through instance-scoped providers. Without
+        /// that capability, identifier-based built-in store access is retained.
         /// </summary>
         private static CertificateStoreIdentifier CreateGroupStoreIdentifier(
             CertificateStoreIdentifier source)
@@ -1102,6 +1110,17 @@ namespace Opc.Ua.Server
             return string.IsNullOrEmpty(source.StoreType)
                 ? new CertificateStoreIdentifier(source.StorePath!)
                 : new CertificateStoreIdentifier(source.StorePath!, source.StoreType!);
+        }
+
+        /// <summary>
+        /// Opens a group store through the application's scoped resolver when available.
+        /// </summary>
+        private ICertificateStore OpenGroupStore(CertificateStoreIdentifier identifier)
+        {
+            return (m_configuration.CertificateManager is ICertificateStoreResolver resolver
+                ? resolver.OpenCertificateStore(identifier.StorePath!, identifier.StoreType)
+                : identifier.OpenStore(Server.Telemetry)) ??
+                throw ServiceResultException.ConfigurationError("Failed to open certificate group store.");
         }
 
         private ServerCertificateGroup VerifyGroupId(NodeId certificateGroupId)

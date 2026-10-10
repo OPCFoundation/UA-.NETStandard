@@ -127,6 +127,17 @@ namespace Opc.Ua.Bindings
         }
 
         /// <summary>
+        /// Whether the token has expired, allowing for the fraction of its lifetime
+        /// (<paramref name="gracePeriod"/>) during which messages secured with it are
+        /// still accepted.
+        /// </summary>
+        internal bool IsExpired(TimeProvider timeProvider, double gracePeriod)
+        {
+            return timeProvider.GetElapsedTime(CreatedAtTimestamp).TotalMilliseconds >
+                Lifetime + Math.Round(Lifetime * gracePeriod);
+        }
+
+        /// <summary>
         /// Whether activation is required according to the supplied
         /// <see cref="TimeProvider"/>.
         /// </summary>

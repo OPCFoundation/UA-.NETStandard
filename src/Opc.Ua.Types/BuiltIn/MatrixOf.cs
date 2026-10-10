@@ -35,6 +35,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Text;
 using System.Text.Json.Serialization;
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
@@ -52,6 +53,8 @@ namespace Opc.Ua
     public readonly struct MatrixOf<T> :
         IConvertableToArray,
         IConvertableToMatrix,
+        IMatrixOf,
+        IElementContainer,
         IEquatable<MatrixOf<T>>,
         IEquatable<Array>,
         IEquatable<ArrayOf<T>>,
@@ -81,9 +84,15 @@ namespace Opc.Ua
         /// <summary>
         /// Get dimensions of the matrix. For default or null matrices
         /// this returns an empty array which is otherwise an invalid
-        /// situation.
+        /// situation. A copy is returned so callers cannot change the
+        /// shape of the (immutable) matrix.
         /// </summary>
-        public int[] Dimensions => m_dimensions ?? [];
+        public int[] Dimensions => m_dimensions == null ? [] : [.. m_dimensions];
+
+        /// <summary>
+        /// The dimensions without copying. Must not be handed out.
+        /// </summary>
+        private int[] DimensionsNoCopy => m_dimensions ?? [];
 
         /// <summary>
         /// Return the content of the matrix as span
@@ -187,12 +196,23 @@ namespace Opc.Ua
                     "A matrix cannot have 0 dimensions. It must have at least 2 to be a matrix.",
                     nameof(dimensions));
             }
+            if (dimensions.Length > MatrixOf.MaxMatrixRank)
+            {
+                throw new ArgumentException(
+                    "A matrix cannot have more than 32 dimensions.",
+                    nameof(dimensions));
+            }
             int length;
             try
             {
+                // A zero dimension makes the matrix empty whatever the
+                // other dimensions are (e.g. an empty inline matrix,
+                // OPC 10000-6 5.2.5), so the product cannot overflow.
                 length = dimensions.Length == 1 ?
                     dimensions[0] :
-                    checked(dimensions.Aggregate((a, b) => checked(a * b)));
+                    Array.IndexOf(dimensions, 0) >= 0 ?
+                        0 :
+                        checked(dimensions.Aggregate((a, b) => checked(a * b)));
             }
             catch (OverflowException ex)
             {
@@ -268,14 +288,27 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public int GetHashCode(IEqualityComparer<T> comparer)
         {
+            if (IsEmpty)
+            {
+                // Equals treats every empty matrix as equal regardless of its
+                // dimensions (e.g. [0] vs [0, 0] after an inline matrix round
+                // trip), so all empty (and null) matrices must hash alike.
+                return 0;
+            }
             var hashCode = new HashCode();
             for (int i = 0; i < m_memory.Length; i++)
             {
                 hashCode.Add(m_memory.Span[i], comparer);
             }
-            foreach (int i in Dimensions)
+            // A one dimensional matrix is equal to the array with the same
+            // elements and must therefore hash like ArrayOf<T>.
+            int[] dimensions = DimensionsNoCopy;
+            if (dimensions.Length > 1)
             {
-                hashCode.Add(i);
+                foreach (int i in dimensions)
+                {
+                    hashCode.Add(i);
+                }
             }
             return hashCode.ToHashCode();
         }
@@ -287,7 +320,34 @@ namespace Opc.Ua
             {
                 return IsNull;
             }
-            var m = new MatrixOf<T>(other);
+            // Only zero based arrays whose elements can be T can be equal
+            // (object arrays of boxed T and enum arrays over T included).
+            // Equals must not throw for arrays of foreign element types.
+            Type? elementType = other.GetType().GetElementType();
+            if (elementType == null ||
+                !(typeof(T).IsAssignableFrom(elementType) ||
+                    elementType == typeof(object) ||
+                    (elementType.IsEnum && Enum.GetUnderlyingType(elementType) == typeof(T))))
+            {
+                return false;
+            }
+            for (int rank = 0; rank < other.Rank; rank++)
+            {
+                if (other.GetLowerBound(rank) != 0)
+                {
+                    return false;
+                }
+            }
+            MatrixOf<T> m;
+            try
+            {
+                m = new MatrixOf<T>(other);
+            }
+            catch (Exception ex) when (ex is InvalidCastException or ArgumentException)
+            {
+                // An element that is not a T (or a null for a value type).
+                return false;
+            }
             return Equals(in m, comparer);
         }
 
@@ -298,7 +358,7 @@ namespace Opc.Ua
             {
                 return IsNull && other.IsNull;
             }
-            return Equals(other.m_memory.Span, other.Dimensions, comparer);
+            return Equals(other.m_memory.Span, other.DimensionsNoCopy, comparer);
         }
 
         /// <inheritdoc/>
@@ -308,7 +368,7 @@ namespace Opc.Ua
             {
                 return IsNull && other.IsNull;
             }
-            int[] dimensions = Dimensions;
+            int[] dimensions = DimensionsNoCopy;
             if (dimensions.Length != 1 || dimensions[0] != other.Count)
             {
                 return false;
@@ -323,11 +383,14 @@ namespace Opc.Ua
             int[] dim,
             IEqualityComparer<T> comparer)
         {
+            // Every empty matrix is equal regardless of its dimensions and
+            // hashes alike (see GetHashCode); non-empty matrices must also
+            // agree on their shape.
             if (IsEmpty)
             {
                 return other.IsEmpty;
             }
-            if (!dim.SequenceEqual(Dimensions))
+            if (!dim.SequenceEqual(DimensionsNoCopy))
             {
                 return false;
             }
@@ -581,7 +644,7 @@ namespace Opc.Ua
             {
                 values[i] = transform(m_memory.Span[i]);
             }
-            return values.ToMatrixOf(Dimensions);
+            return values.ToMatrixOf(DimensionsNoCopy);
         }
 
         /// <summary>
@@ -596,7 +659,7 @@ namespace Opc.Ua
             {
                 return null;
             }
-            int[] dim = Dimensions;
+            int[] dim = DimensionsNoCopy;
             if (dim.Length <= 1)
             {
                 return m_memory.ToArray();
@@ -646,10 +709,56 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// The shape of a <see cref="MatrixOf{T}"/> independent of its element
+    /// type.
+    /// </summary>
+    internal interface IMatrixOf : INullable
+    {
+        /// <summary>
+        /// The dimensions of the matrix, empty for a null matrix.
+        /// </summary>
+        int[] Dimensions { get; }
+
+        /// <summary>
+        /// The number of elements of the flattened matrix.
+        /// </summary>
+        int Count { get; }
+    }
+
+    /// <summary>
     /// MatrixOf extensions
     /// </summary>
     public static class MatrixOf
     {
+        /// <summary>
+        /// The largest number of dimensions a matrix may have, the maximum
+        /// rank of a .NET array (Array.CreateInstance). OPC 10000-6 does
+        /// not bound the rank, but a matrix of a higher rank received from
+        /// the wire could never be materialized by a consumer.
+        /// </summary>
+        internal const int MaxMatrixRank = 32;
+
+        /// <summary>
+        /// Rejects a matrix read from the wire that has more than
+        /// <see cref="MaxMatrixRank"/> dimensions. Such a matrix is valid
+        /// per OPC 10000-6 (5.2.2.16, 5.2.5), so it is reported as an
+        /// implementation limit and not as a malformed message.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the rank
+        /// exceeds <see cref="MaxMatrixRank"/>.</exception>
+        internal static void ThrowIfRankNotSupported(int rank)
+        {
+            if (rank > MaxMatrixRank)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "A matrix with {0} dimensions exceeds the supported rank {1}.",
+                    rank,
+                    MaxMatrixRank);
+            }
+        }
+
         /// <summary>
         /// Empty array
         /// </summary>
@@ -672,12 +781,14 @@ namespace Opc.Ua
         /// Determines whether <paramref name="dimensions"/> describe a
         /// well-formed multi-dimensional array (matrix) that can be represented
         /// on the wire as required by OPC UA Part 6 5.2.2.16: there are at least
-        /// two dimensions, every dimension is greater than zero, and - when
+        /// two and at most <see cref="MaxMatrixRank"/> dimensions, every
+        /// dimension is greater than zero, and - when
         /// <paramref name="elementCount"/> is not negative - the product of all
         /// dimensions equals the number of elements in the flattened array.
         /// A matrix Variant that violates these rules is inconsistent: encoders
         /// must not emit it and decoders must reject it with a
-        /// <c>BadDecodingError</c>.
+        /// <c>BadDecodingError</c>. Decoders check the rank limit before
+        /// (<see cref="ThrowIfRankNotSupported(int)"/>).
         /// </summary>
         /// <param name="dimensions">
         /// The array dimensions to validate.
@@ -703,7 +814,7 @@ namespace Opc.Ua
             ReadOnlySpan<int> dimensions,
             int elementCount = -1)
         {
-            if (dimensions.Length < 2)
+            if (dimensions.Length is < 2 or > MaxMatrixRank)
             {
                 return false;
             }
@@ -721,6 +832,235 @@ namespace Opc.Ua
                 }
             }
             return elementCount < 0 || product == elementCount;
+        }
+
+        /// <summary>
+        /// The largest number of elements an inline matrix may describe, the
+        /// maximum length of a .NET array (Array.MaxLength). It bounds the
+        /// product of the non zero dimensions also of an empty inline matrix,
+        /// whose shape is materialized by consumers (Array.CreateInstance).
+        /// </summary>
+        internal const int MaxInlineMatrixLength = 0x7FFFFFC7;
+
+        /// <summary>
+        /// Validates the dimensions of an inline matrix, the representation
+        /// of a multi-dimensional structure field (OPC 10000-6 5.2.5, 5.3.4,
+        /// 5.4.5). There are at least two dimensions (Table 28). Unlike a
+        /// matrix Variant (<see cref="IsValidMatrix(int[], int)"/>) a
+        /// dimension may be &lt;= 0, in which case no values are encoded
+        /// (Table 28); decoders normalize such a dimension to 0 (see
+        /// <see cref="NormalizeInlineMatrixDimensions(int[])"/>). The product
+        /// of the non zero dimensions must not exceed
+        /// <see cref="MaxInlineMatrixLength"/>, also when the matrix is empty.
+        /// </summary>
+        internal static bool IsValidInlineMatrix(
+            ReadOnlySpan<int> dimensions,
+            int elementCount = -1)
+        {
+            return TryGetInlineMatrixElementCount(dimensions, out int count, out _) &&
+                (elementCount < 0 || elementCount == count);
+        }
+
+        /// <summary>
+        /// <see cref="IsValidInlineMatrix(ReadOnlySpan{int}, int)"/> that
+        /// also applies the configured <paramref name="maxArrayLength"/>
+        /// (0 = unlimited) to the product of the non zero dimensions, like the
+        /// binary decoder: the shape of an empty matrix such as [0, 70000]
+        /// is bounded too, not only its (zero) element count.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the shape
+        /// exceeds <paramref name="maxArrayLength"/> or the rank exceeds
+        /// <see cref="MaxMatrixRank"/>.</exception>
+        internal static bool IsValidInlineMatrix(
+            ReadOnlySpan<int> dimensions,
+            int elementCount,
+            int maxArrayLength)
+        {
+            ThrowIfRankNotSupported(dimensions.Length);
+            if (!TryGetInlineMatrixElementCount(dimensions, out int count, out int shapeLength))
+            {
+                return false;
+            }
+            if (maxArrayLength > 0 && shapeLength > maxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} < {1}",
+                    maxArrayLength,
+                    shapeLength);
+            }
+            return elementCount < 0 || elementCount == count;
+        }
+
+        /// <summary>
+        /// Computes the number of values that follow the dimensions of an
+        /// inline matrix (OPC 10000-6 5.2.5 Table 28): 0 if any dimension is
+        /// &lt;= 0, otherwise the product of the dimensions.
+        /// </summary>
+        /// <param name="dimensions">The dimensions.</param>
+        /// <param name="count">The number of encoded values.</param>
+        /// <param name="shapeLength">The product of the dimensions that are
+        /// greater than zero, which bounds every single dimension.</param>
+        /// <returns><c>false</c> if there are fewer than two or more than
+        /// <see cref="MaxMatrixRank"/> dimensions or the product of the non zero dimensions exceeds
+        /// <see cref="MaxInlineMatrixLength"/>.</returns>
+        internal static bool TryGetInlineMatrixElementCount(
+            ReadOnlySpan<int> dimensions,
+            out int count,
+            out int shapeLength)
+        {
+            count = 0;
+            shapeLength = 0;
+            if (dimensions.Length is < 2 or > MaxMatrixRank)
+            {
+                return false;
+            }
+            bool isEmpty = false;
+            long product = 1;
+            for (int ii = 0; ii < dimensions.Length; ii++)
+            {
+                if (dimensions[ii] <= 0)
+                {
+                    isEmpty = true;
+                    continue;
+                }
+                product *= dimensions[ii];
+                if (product > MaxInlineMatrixLength)
+                {
+                    return false;
+                }
+            }
+            shapeLength = (int)product;
+            count = isEmpty ? 0 : shapeLength;
+            return true;
+        }
+
+        /// <summary>
+        /// Whether a decoded inline matrix has the rank of the structure
+        /// field it is read for. A populated matrix must have the declared
+        /// rank; an empty matrix (no encoded values) is accepted with any
+        /// rank since it is written as 0 x 0 for every declared rank. A field
+        /// without a fixed matrix rank accepts any rank.
+        /// </summary>
+        /// <param name="dimensions">The decoded dimensions.</param>
+        /// <param name="count">The number of encoded values.</param>
+        /// <param name="typeInfo">The type info of the field.</param>
+        internal static bool HasInlineMatrixRank(
+            ReadOnlySpan<int> dimensions,
+            int count,
+            TypeInfo typeInfo)
+        {
+            return count == 0 ||
+                !typeInfo.IsMatrix ||
+                dimensions.Length == typeInfo.ValueRank;
+        }
+
+        /// <summary>
+        /// Normalizes the dimensions of a decoded inline matrix in place: a
+        /// dimension &lt; 0 means no values are encoded (OPC 10000-6 5.2.5
+        /// Table 28) exactly like a dimension of 0, and becomes 0.
+        /// </summary>
+        internal static int[] NormalizeInlineMatrixDimensions(int[] dimensions)
+        {
+            for (int ii = 0; ii < dimensions.Length; ii++)
+            {
+                if (dimensions[ii] < 0)
+                {
+                    dimensions[ii] = 0;
+                }
+            }
+            return dimensions;
+        }
+
+        /// <summary>
+        /// Maps the single dimension an empty encodeable matrix was persisted
+        /// with in XML or JSON by earlier versions (the dimensions of
+        /// <see cref="MatrixOf{T}.Empty"/>, <c>[0]</c>, written verbatim) to
+        /// the empty 0 x 0 inline matrix, so that such documents still load.
+        /// Any other shape is returned unchanged and validated as an inline
+        /// matrix (OPC 10000-6 5.2.5 Table 28). Only used by the text
+        /// decoders; the binary decoder stays strict.
+        /// </summary>
+        internal static int[] NormalizeLegacyEmptyInlineMatrixDimensions(
+            int[] dimensions,
+            int elementCount)
+        {
+            if (dimensions.Length == 1 && dimensions[0] <= 0 && elementCount == 0)
+            {
+                return [0, 0];
+            }
+            return dimensions;
+        }
+
+        /// <summary>
+        /// Returns the dimensions a <see cref="MatrixOf{T}"/> is written with
+        /// as the inline matrix of a structure field (OPC 10000-6 5.2.5
+        /// Table 28), which needs at least two dimensions. An empty matrix
+        /// with fewer dimensions (<see cref="MatrixOf{T}.Empty"/> has the
+        /// single dimension 0) is written as the empty 0 x 0 matrix. A non
+        /// empty matrix with fewer than two dimensions is an array, not a
+        /// matrix, and cannot be written as an inline matrix: writing it as an
+        /// array instead would desynchronize a peer that decodes the field by
+        /// its matrix ValueRank.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingError"/> for a non empty matrix
+        /// with fewer than two dimensions.</exception>
+        internal static int[] GetInlineMatrixDimensions(int[] dimensions, int elementCount)
+        {
+            if (dimensions.Length >= 2)
+            {
+                return dimensions;
+            }
+            if (elementCount == 0)
+            {
+                return [0, 0];
+            }
+            throw ServiceResultException.Create(
+                StatusCodes.BadEncodingError,
+                "A matrix with {0} dimension(s) and {1} element(s) cannot be encoded " +
+                "as an inline matrix which requires at least 2 dimensions.",
+                dimensions.Length,
+                elementCount);
+        }
+
+        /// <summary>
+        /// Returns the dimensions to write for an inline matrix (see
+        /// <see cref="GetInlineMatrixDimensions(int[], int)"/>) after checking
+        /// the shape the way a decoder does: the product of the non zero
+        /// dimensions - which bounds every dimension, also of an empty matrix
+        /// such as [100000, 100000, 0] - must fit an array and must not exceed
+        /// <paramref name="maxArrayLength"/> (0 = unlimited). Writing a shape
+        /// the peer rejects would fail the whole message on the receiver.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadEncodingError"/> for an invalid shape or
+        /// <see cref="StatusCodes.BadEncodingLimitsExceeded"/> when the shape
+        /// exceeds <paramref name="maxArrayLength"/>.</exception>
+        internal static int[] GetValidatedInlineMatrixDimensions(
+            int[] dimensions,
+            int elementCount,
+            int maxArrayLength)
+        {
+            int[] inline = GetInlineMatrixDimensions(dimensions, elementCount);
+            if (!TryGetInlineMatrixElementCount(inline, out int count, out int shapeLength) ||
+                count != elementCount)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Cannot encode an inline matrix with inconsistent Dimensions [{0}].",
+                    string.Join(",", inline));
+            }
+            if (maxArrayLength > 0 && shapeLength > maxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} < {1}",
+                    maxArrayLength,
+                    shapeLength);
+            }
+            return inline;
         }
 
         /// <summary>

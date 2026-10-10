@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Runtime.CompilerServices;
@@ -218,6 +216,47 @@ namespace Opc.Ua.Client.Tests.StateMachines
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadNotFound));
+        }
+
+        [Test]
+        public void WaitForStateAsyncReportsBadInvalidStateWhenObservationEndsWithoutCancellation()
+        {
+            var session = new Mock<ISessionClient>();
+            StateMachineTypeClient client = CreateClient(session);
+            session.Setup(value => value.TranslateBrowsePathsToNodeIdsAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<ArrayOf<BrowsePath>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new TranslateBrowsePathsToNodeIdsResponse
+                {
+                    Results =
+                    [
+                        new BrowsePathResult
+                        {
+                            Targets = [new BrowsePathTarget { TargetId = new ExpandedNodeId(new NodeId(8u, 2)) }]
+                        }
+                    ]
+                });
+            session.Setup(value => value.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(new ReadResponse
+                {
+                    Results = [new DataValue(LocalizedText.From("Idle"))]
+                });
+
+            // The stream completes (e.g. the subscription was disposed) without the
+            // target state; neither the token nor a timeout fired.
+            Assert.That(
+                async () => await client
+                    .WaitForStateAsync(new EmptyStreamingSubscription(), LocalizedText.From("Running"))
+                    .ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadInvalidState));
         }
 
         private static void SetupTranslateEmpty(Mock<ISessionClient> sessionMock)

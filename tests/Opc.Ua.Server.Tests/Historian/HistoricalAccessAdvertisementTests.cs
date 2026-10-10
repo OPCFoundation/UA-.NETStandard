@@ -132,8 +132,8 @@ namespace Opc.Ua.Server.Tests.Historian
             h.Manager.ReconcileHistoricalAccessAdvertisement();
 
             var nodesToRead = new List<HistoryReadValueId> { new() { NodeId = variable.NodeId } };
-            var results = new List<HistoryReadResult> { null };
-            var errors = new List<ServiceResult> { null };
+            var results = new List<HistoryReadResult> { null! };
+            var errors = new List<ServiceResult> { null! };
 
             await h.Manager.HistoryReadAsync(
                 h.OperationContext,
@@ -258,7 +258,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             var operationContext = new OperationContext(
                 new RequestHeader(),
-                null,
+                null!,
                 RequestType.HistoryRead,
                 RequestLifetime.None,
                 mockSession.Object);
@@ -355,7 +355,7 @@ namespace Opc.Ua.Server.Tests.Historian
 
             return new OperationContext(
                 new RequestHeader(),
-                null,
+                null!,
                 RequestType.Read,
                 RequestLifetime.None,
                 mockSession.Object);

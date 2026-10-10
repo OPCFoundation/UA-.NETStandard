@@ -238,11 +238,11 @@ namespace Opc.Ua.Types.Tests.State
             stream.Position = 0;
             var nodeSet = Export.UANodeSet.Read(stream);
 
-            Assert.That(nodeSet.Models, Is.Not.Null, "<Models> element must be present");
+            Assert.That(nodeSet!.Models, Is.Not.Null, "<Models> element must be present");
             Assert.That(nodeSet.Models, Is.Not.Empty, "<Models> must contain at least one <Model>");
 
             Export.ModelTableEntry customModel =
-                Array.Find(nodeSet.Models, m => m.ModelUri == ApplicationUri);
+                Array.Find(nodeSet.Models, m => m.ModelUri == ApplicationUri)!;
             Assert.That(customModel, Is.Not.Null, "Expected a <Model> for the custom namespace");
             Assert.That(customModel.Version, Is.Not.Null.And.Not.Empty);
             Assert.That(customModel.PublicationDateSpecified, Is.True);
@@ -283,8 +283,8 @@ namespace Opc.Ua.Types.Tests.State
 
             using var stream = new MemoryStream(
                 System.Text.Encoding.UTF8.GetBytes(nodeSetXml));
-            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream);
-            Assert.That(nodeSet.Items, Is.Not.Null.And.Not.Empty,
+            Export.UANodeSet nodeSet = Export.UANodeSet.Read(stream)!;
+            Assert.That(nodeSet!.Items, Is.Not.Null.And.Not.Empty,
                 "The fixture NodeSet must parse into at least one node.");
             var imported = new NodeStateCollection();
 
@@ -394,6 +394,53 @@ namespace Opc.Ua.Types.Tests.State
             restored.LoadFromXml(m_context, stream, false);
             Assert.That(restored, Has.Count.EqualTo(1));
             Assert.That(restored[0], Is.InstanceOf<ViewState>());
+        }
+
+        [Test]
+        public void LoadFromResourceFileClosesTheFile()
+        {
+            var collection = new NodeStateCollection
+            {
+                new ViewState
+                {
+                    NodeId = new NodeId(6040),
+                    SymbolicName = "FileView",
+                    BrowseName = new QualifiedName("FileView"),
+                    DisplayName = new LocalizedText("File View")
+                }
+            };
+            string path = Path.Combine(Path.GetTempPath(), $"NodeStates_{Guid.NewGuid():N}.xml");
+            try
+            {
+                using (var stream = new FileStream(path, FileMode.CreateNew))
+                {
+                    collection.SaveAsXml(m_context, stream, keepStreamOpen: true);
+                }
+
+                var restored = new NodeStateCollection();
+                restored.LoadFromResource(m_context, path, typeof(NodeStateCollectionTests).Assembly, false);
+                Assert.That(restored, Has.Count.EqualTo(1));
+
+                // the loader must not keep the file open.
+                using (new FileStream(path, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
+                {
+                }
+            }
+            finally
+            {
+                File.Delete(path);
+            }
+        }
+
+        [Test]
+        public void LoadFromResourceMissingFileThrowsDecodingError()
+        {
+            var restored = new NodeStateCollection();
+            string path = Path.Combine(Path.GetTempPath(), $"Missing_{Guid.NewGuid():N}.xml");
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(() =>
+                restored.LoadFromResource(m_context, path, typeof(NodeStateCollectionTests).Assembly, false));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]

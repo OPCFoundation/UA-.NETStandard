@@ -1,12 +1,12 @@
 # OPC UA Part 17 — Alias Names
 
-OPC UA Part 17 defines a small but valuable address-space pattern: a
-hierarchy of human-readable **alias names** that point at one or more
-nodes via a non-hierarchical reference type. Clients can search the
-hierarchy by wildcard pattern and resolve a name to its targets without
-needing to know the target NodeId in advance — useful for tag-naming
-schemes (PI / SCADA / DCS), pub/sub topic registries, MES integration,
-and any scenario where humans pick names but machines need ids.
+OPC UA Part 17 defines a hierarchy of human-readable **alias names**.
+Each alias uses a non-hierarchical reference to point to one or more
+nodes. Clients can search the hierarchy with wildcard patterns and
+resolve aliases without knowing target NodeIds in advance. This pattern
+suits tag-naming schemes (PI / SCADA / DCS), pub/sub topic registries,
+MES integration, and other scenarios where people choose names for
+machine-addressed nodes.
 
 This stack ships full Part 17 support in **`Opc.Ua.Server`** (server
 side) and **`Opc.Ua.Client`** (client side). The implementation covers:
@@ -28,12 +28,27 @@ side) and **`Opc.Ua.Client`** (client side). The implementation covers:
 | §9.4         | Well-known `Topics (i=23488)`            | ✔ wired; optional methods opt-in — see below |
 | Annex D      | PubSub replication (LastChange notifications) | ✔ transport-agnostic — see below |
 
+## Contents
+
+- [Server side](#server-side--opcuaserveraliasnames)
+  - [Quick start — serving standard categories](#quick-start--serving-standard-categories)
+  - [Quick start — application-defined categories](#quick-start--application-defined-categories)
+  - [Browsable alias nodes](#browsable-alias-nodes)
+  - [Custom backend](#custom-backend)
+- [Client side](#client-side--opcuaclientaliasnames)
+  - [`AliasNameResolver`](#aliasnameresolver--cached-aliasnodeid)
+- [Spec deviations / wrinkles](#spec-deviations--wrinkles)
+- [Annex D — PubSub LastChange notifications](#annex-d--pubsub-lastchange-notifications)
+  - [Server-side PubSub](#server-side--opcuaserveraliasnamespubsub)
+  - [Client-side PubSub](#client-side--opcuaclientaliasnamespubsub)
+- [See also](#see-also)
+
 ## Server side — `Opc.Ua.Server.AliasNames`
 
 Search patterns use the shared `LikePattern` parser and matcher, with case-sensitive whole-string
-matching. Backslashes escape literal characters inside and outside
-character sets; `[^...]` negates a set (`[!...]` remains accepted for
-compatibility). Wildcards match line breaks. Trailing escapes, malformed sets,
+matching. Backslashes escape literal characters both inside and outside
+character sets. `[^...]` negates a set; `[!...]` remains accepted for
+compatibility. Wildcards match line breaks. Trailing escapes, malformed sets,
 descending ranges, and unescaped `^` outside the start of a set return
 `BadInvalidArgument` from both FindAlias variants even with an empty
 store. All alias matches in one search share a 100 ms deadline; exceeding it
@@ -91,8 +106,8 @@ registries. The opt-in
 `IOpcUaServerBuilder` in `Microsoft.Extensions.DependencyInjection`.
 `AliasNameServerOptions` is in `Opc.Ua.Server.AliasNames`, and its
 `MaterializeAliasNodes` property defaults to `false`.
-`RefreshAliasNodesOnChange` separately defaults to `false`, preserving the
-startup browse snapshot even when materialization is enabled.
+`RefreshAliasNodesOnChange` separately defaults to `true`, keeping the
+browse view current whenever materialization is enabled.
 
 When enabled, the normal `ConfigurationNodeManager` materializes
 registered standard-category aliases and their declared optional
@@ -180,23 +195,25 @@ independent of the custom `AliasNameNodeManagerOptions` default of
 `AddServer<TServer>()` rejects these DI-only settings rather than
 silently ignoring them.
 
-`DiagnosticsNodeManager.MaterializeRegisteredAliasNameNodesAsync` does
-that for every registered store: one `AliasNameType` instance per alias
-— BrowseName carrying the alias name, `AliasFor` references to its
-targets, and the inverse `HasAlias` reference added on each local
-target — plus an `AliasNameCategoryType` instance for every store
-category the standard NodeSet does not already ship (nested categories
-included; a root category from the store is organized under the
-standard `Aliases` object so it stays browse-discoverable). Remote
-targets get their server URI registered in the server's `ServerUris`
-table and referenced with the matching `ServerIndex`. Server-defined
-BrowseNames that a descriptor left in namespace 0 — reserved for
-OPC-Foundation-defined names — are re-homed into the diagnostics
-namespace; Part 17 clients compare alias names ignoring the namespace,
-so this is transparent to them. The pass is idempotent, and only
-creates category nodes whose NodeId lies in the diagnostics namespace —
-a descriptor pointing anywhere else is skipped with a warning rather
-than claiming another manager's (or the standard NodeSet's) ids.
+`DiagnosticsNodeManager.MaterializeRegisteredAliasNameNodesAsync`
+materializes every registered store. For each alias, it creates an
+`AliasNameType` instance whose BrowseName is the alias name. It adds
+`AliasFor` references to the alias targets and inverse `HasAlias`
+references to local targets.
+
+The method also creates an `AliasNameCategoryType` instance for every store
+category absent from the standard NodeSet, including nested categories. It
+organizes a root category under the standard `Aliases` object so clients can
+browse to it. For each remote target, the manager registers its server URI in
+the server's `ServerUris` table and uses the matching `ServerIndex`.
+
+The manager moves server-defined BrowseNames in namespace 0, reserved for
+OPC Foundation names, to the diagnostics namespace. Part 17 clients compare
+alias names without considering the namespace, so this change is transparent.
+The pass is idempotent and creates category nodes only when their NodeId lies
+in the diagnostics namespace. If a descriptor points elsewhere, the manager
+skips that category with a warning rather than claiming IDs owned by another
+manager or the standard NodeSet.
 Custom diagnostics-node-manager implementations can still call the
 helper from an overridden `CreateAddressSpaceAsync`, after `base` has
 loaded the standard categories:
@@ -214,11 +231,11 @@ public override async ValueTask CreateAddressSpaceAsync(
 }
 ```
 
-The same pass also instantiates the **optional Part 17 members** —
-`FindAliasVerbose`, `AddAliasesToCategory`, `DeleteAliasesFromCategory`
-and `LastChange` — on every category whose descriptor declares them
-through `AliasNameCapabilities`, including the well-known ones the
-standard NodeSet ships without them:
+The same pass also creates the **optional Part 17 members**
+`FindAliasVerbose`, `AddAliasesToCategory`, `DeleteAliasesFromCategory`,
+and `LastChange` for each category whose descriptor declares them through
+`AliasNameCapabilities`. This includes well-known categories for which the
+standard NodeSet does not declare these members:
 
 ```csharp
 var tagVariables = new AliasNameCategoryDescriptor(
@@ -232,65 +249,66 @@ Mutation calls are gated on a `SecurityAdmin` caller over a
 
 Standard-category materialization is opt-in: servers that only need
 `FindAlias` to answer from their store do not create alias instance
-nodes. The created nodes are a snapshot taken at address-space creation
-— aliases added or removed later through
-`AddAliasesToCategory` / `DeleteAliasesFromCategory` change what
-`FindAlias` returns and advance `LastChange`, but do not add or remove
-`AliasNameType` nodes by default.
+nodes. Once materialized, both standard and application-defined alias
+nodes follow store changes by default. Aliases added or removed through
+`AddAliasesToCategory` / `DeleteAliasesFromCategory` update queries,
+advance `LastChange`, and schedule reconciliation of `AliasNameType`
+nodes and their target references.
 
-To keep an explicitly materialized browse view current, also set
-`RefreshAliasNodesOnChange = true` on `AliasNameServerOptions` or
-`AliasNameNodeManagerOptions`. This setting never overrides
-`MaterializeAliasNodes = false`:
+`RefreshAliasNodesOnChange` defaults to `true` on both `AliasNameServerOptions`
+and `AliasNameNodeManagerOptions`. Set it to `false` explicitly to retain a
+startup-only browse snapshot. It never overrides `MaterializeAliasNodes = false`:
 
 ```csharp
 builder.ConfigureAliasNames(options =>
 {
     options.MaterializeAliasNodes = true;
-    options.RefreshAliasNodesOnChange = true;
 });
 ```
 
-Each opted-in host owns one background worker and at most one pending
-refresh signal. Category and ancestor notifications coalesce into a pass
-over store roots. A completed query is applied only while its generation
-is current; query failures leave existing nodes and references intact and
-are logged. Reconciliation retains unchanged node instances, updates only
-changed associations, and applies inverse `HasAlias` references to their
-actual local targets. `LastChange` reads the current store version rather
-than a potentially delayed event value, including across counter rollover.
-Asynchronous host disposal cancels and drains the worker, with a fixed
-five-second drain limit and a warning if a provider does not stop.
+Each live-materialization host owns one background worker and at most one
+pending refresh signal. Category and ancestor notifications coalesce into a
+single pass over store roots.
 
-The browse view carries `AliasFor` associations only: an entry a store
-holds under an unrelated reference type is not a Part 17 §6.2 alias
-association, so it is served by `FindAlias` (with a matching filter)
-but not materialized. Entries stored under an `AliasFor` *subtype* are
-materialized, but always as the base `AliasFor` reference — the
-verbose record does not carry the concrete reference type.
+The worker applies a completed query only if its generation is current. If a
+query fails, it leaves existing nodes and references intact and logs the
+failure. The worker retains unchanged node instances, updates only
+changed associations, and applies inverse `HasAlias` references to their
+actual local targets. It reads `LastChange` from the current store version,
+not a possibly delayed event value, including across counter rollover.
+
+During asynchronous host disposal, the host cancels and drains the worker.
+Disposal waits up to five seconds and logs a warning if a provider does not
+stop.
+
+The browse view materializes only `AliasFor` associations. If a store holds an
+entry under an unrelated reference type, the entry is not a Part 17 §6.2 alias
+association. `FindAlias` can return it when the filter matches, but the
+materializer does not create an alias node for it. The materializer also
+creates entries stored under an `AliasFor` subtype, but uses the base
+`AliasFor` reference because the verbose record does not carry the concrete
+reference type.
 
 Two things the caller controls:
 
-* Give category descriptors a BrowseName in a namespace the server
-  owns. The store stamps that namespace onto every alias
-  `QualifiedName` it reports, and the materializer re-homes ns=0
-  BrowseNames out of the reserved OPC Foundation namespace — with a
-  server-owned descriptor namespace the query results and the
-  browsable nodes agree, so a returned alias name resolves via
-  `TranslateBrowsePathsToNodeIds`. The reference server uses the
-  diagnostics namespace for all its descriptors.
-* Part 17 §9 constrains `Topics` aliases to `PublishedDataSetType`
-  targets. Neither the store nor `AddAliasesToCategory` enforces
-  this — a server that exposes the mutation methods on `Topics` should
-  only grant them to operators who preserve the constraint.
+* Give each category descriptor a BrowseName in a namespace owned by the
+  server. The store assigns that namespace to every alias `QualifiedName` it
+  reports. The materializer also moves `ns=0` BrowseNames out of the reserved
+  OPC Foundation namespace. Using a server-owned namespace keeps query results
+  and browsable nodes aligned, so `TranslateBrowsePathsToNodeIds` resolves
+  returned alias names. The reference server uses the diagnostics namespace
+  for all its descriptors.
+* Part 17 §9 requires `Topics` aliases to target `PublishedDataSetType`. The
+  store and `AddAliasesToCategory` do not enforce this constraint. If a server
+  exposes mutation methods on `Topics`, grant access only to operators who
+  preserve it.
 
-`Quickstarts.ReferenceServer` uses this in
-`ReferenceServerConfigurationNodeManager`, which also creates the
-`PublishedDataSet` instances and seeds the `Topics` aliases that point
-at them — in the same place, so an alias can never target a dataset
-that was not created. The nested `Devices` sub-category under
-`TagVariables` is declared with the store seeding in
-`ReferenceServer.ConfigureAliasNameStore`.
+`Quickstarts.ReferenceServer` applies these rules in
+`ReferenceServerConfigurationNodeManager`. The manager creates
+`PublishedDataSet` instances and seeds the `Topics` aliases in the same
+component. An alias therefore cannot target a dataset that the manager did
+not create. `ReferenceServer.ConfigureAliasNameStore` seeds the nested
+`Devices` sub-category under `TagVariables`.
 
 ### Custom backend
 
@@ -345,7 +363,8 @@ IReadOnlyList<AliasNameDataType> result =
 * `AddAliasesToCategoryAsync(IEnumerable<AliasNameAddRequest>, ct)`
 * `DeleteAliasesFromCategoryAsync(IEnumerable<AliasNameDeleteRequest>, ct)`
 * `EnumerateSubCategoriesAsync(ct)` — `IAsyncEnumerable` of child
-  `AliasNameSubCategoryInfo`.
+  `AliasNameSubCategoryInfo`, including children whose type is a
+  subtype of `AliasNameCategoryType`.
 * `ReadLastChangeAsync(ct)` — returns the `VersionTime` (or `null` when
   the category does not expose `LastChange`).
 
@@ -399,11 +418,11 @@ public interface IAliasNameRefreshStrategy : IAsyncDisposable
 }
 ```
 
-Implementations watch for stale-cache triggers and invoke
-`onInvalidate` whenever they detect a change. `MonitoredItemAliasNameRefreshStrategyOptions`
-controls the underlying `Subscription`: it can be left owned (default
-— created + deleted by the strategy) or set via `SharedSubscription`
-to plug the monitored item into an externally managed subscription.
+Implementations watch for stale-cache triggers and invoke `onInvalidate`
+when they detect a change. `MonitoredItemAliasNameRefreshStrategyOptions`
+controls subscription ownership. By default, the strategy creates and
+deletes the underlying `Subscription`. Set `SharedSubscription` to use
+an externally managed subscription for the monitored item.
 
 Disposing the resolver (`await using` / `DisposeAsync`) tears down the
 strategy: timer for polling, `MonitoredItem` + `Subscription` for the
@@ -426,23 +445,23 @@ monitored-item variant. Disposal is idempotent and never throws.
   the OPC Foundation reserves for it (`Aliases.FindAliasVerbose` =
   `i=24054`, `TagVariables.LastChange` = `i=32854`, and so on).
 
-  Those identifiers are allocated in the standard identifier registry
-  (`StandardTypes.csv`) but are deliberately **not** declared in the
-  ModelDesign and **not** present in the published NodeSet — the
-  standard address space does not instantiate optional children. A
-  reserved id is a number set aside for the node *if* a server chooses
-  to expose it, not a node the server must have. Consequently the source
-  generator emits no parent-to-instance mapping and no `MethodIds`
-  constant for them, and `DiagnosticsNodeManager.ReservedChildIds`
-  supplies the nine method ids and the two missing `LastChange` ids
-  explicitly, each traceable to its registry row. The argument
-  properties do have generated `VariableIds` constants and are
-  referenced through those.
+  The standard identifier registry (`StandardTypes.csv`) allocates these
+  identifiers, but the ModelDesign does not declare the optional children
+  and the published NodeSet does not include them. The standard address
+  space therefore does not instantiate them.
 
-  Do not "fix" this by declaring the children in `StandardTypes.xml`:
-  that file is a verbatim copy of the OPC Foundation's ModelDesign and
-  is re-synced from upstream, so a local edit is lost on the next sync
-  and the NodeIds silently revert to factory-minted ones.
+  A reserved ID is available if a server chooses to expose a node; it does
+  not require the server to create that node. The source generator therefore
+  emits no parent-to-instance mapping or `MethodIds` constant for these
+  children. `DiagnosticsNodeManager.ReservedChildIds` supplies nine method
+  IDs and the two missing `LastChange` IDs explicitly, each traceable to its
+  registry row. The argument properties have generated `VariableIds`
+  constants, which the implementation uses to reference them.
+
+  Do not add these children to `StandardTypes.xml`. That file copies the
+  OPC Foundation ModelDesign verbatim and is synchronized from upstream.
+  A local edit would be lost on the next sync, and the NodeIds would revert
+  to factory-minted values.
 * **`AliasNameCapabilities.AddAliasesToCategory` /
   `DeleteAliasesFromCategory`** — on an `AliasNameNodeManager` this
   defaults to `SecurityAdmin`-only via
@@ -563,6 +582,10 @@ while letting PubSub drive the rest.
 
 * OPC UA Part 17 specification:
   https://reference.opcfoundation.org/v105/Core/docs/Part17/
+* [Asset Management Basics](AMB.md#discovery) — the
+  OPC 10000-110 categories `Assets`, `AssetsByProductInstanceUri` and
+  `AssetsByAssetId`, which the AMB node manager serves with a registry of its
+  own; `FindAlias` on `0:Aliases` does not search them.
 * [Dependency Injection](DependencyInjection.md#alias-name-stores-and-standard-browse-nodes)
   — hosted store registration and standard-category materialization.
 * `tools/Opc.Ua.SourceGeneration.Core/Design/StandardTypes.xml` —

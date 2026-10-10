@@ -232,7 +232,7 @@ namespace Opc.Ua.Client.Tests
             handler.Dispose();
 
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() =>
-                handler.BeginReconnect(null, 1000, (_, _) => { }));
+                handler.BeginReconnect(null!, 1000, (_, _) => { }));
 
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
         }

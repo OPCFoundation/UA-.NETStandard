@@ -58,7 +58,7 @@ namespace Opc.Ua.Core.Tests.Stack.Nodes
             var invalid = new ViewNode { NodeId = NodeId.Null };
             var view = new ViewNode { NodeId = new NodeId(5000) };
 
-            Assert.That(() => table.Add(null), Throws.ArgumentNullException);
+            Assert.That(() => table.Add(null!), Throws.ArgumentNullException);
             ServiceResultException invalidEx = Assert.Throws<ServiceResultException>(() => table.Add(invalid));
             Assert.That(invalidEx.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdInvalid));
 
@@ -146,10 +146,10 @@ namespace Opc.Ua.Core.Tests.Stack.Nodes
             ITypeTable typeTree = new TypeTable(namespaces);
 
             Assert.That(
-                () => _ = new FilterContext(null, typeTree, NUnitTelemetryContext.Create()),
+                () => _ = new FilterContext(null!, typeTree, NUnitTelemetryContext.Create()),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => _ = new FilterContext(namespaces, null, NUnitTelemetryContext.Create()),
+                () => _ = new FilterContext(namespaces, null!, NUnitTelemetryContext.Create()),
                 Throws.ArgumentNullException);
         }
 
@@ -226,13 +226,13 @@ namespace Opc.Ua.Core.Tests.Stack.Nodes
                 return new ValueTask<bool>(nodeId == ObjectIds.Server);
             }
 
-            public ValueTask<INode> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
+            public ValueTask<INode?> FindAsync(ExpandedNodeId nodeId, CancellationToken ct = default)
             {
                 CallCount++;
-                return new ValueTask<INode>((INode)null);
+                return new ValueTask<INode?>((INode?)null);
             }
 
-            public ValueTask<INode> FindAsync(
+            public ValueTask<INode?> FindAsync(
                 ExpandedNodeId sourceId,
                 NodeId referenceTypeId,
                 bool isInverse,
@@ -241,7 +241,7 @@ namespace Opc.Ua.Core.Tests.Stack.Nodes
                 CancellationToken ct = default)
             {
                 CallCount++;
-                return new ValueTask<INode>((INode)null);
+                return new ValueTask<INode?>((INode?)null);
             }
 
             public ValueTask<ArrayOf<INode>> FindAsync(

@@ -48,6 +48,7 @@ namespace Opc.Ua
     [CollectionBuilder(typeof(ArrayOf), nameof(ArrayOf.Create))]
     public readonly struct ArrayOf<T> :
         IConvertableToArray,
+        IElementContainer,
         IEquatable<ArrayOf<T>>,
         IEquatable<MatrixOf<T>>,
         IEquatable<IEnumerable<T>>,
@@ -116,7 +117,11 @@ namespace Opc.Ua
 
         /// <inheritdoc/>
         internal ArrayOf(T[] values)
-            : this(values.AsMemory())
+            // Construct the ReadOnlyMemory directly: AsMemory() returns a
+            // Memory<T> whose implicit conversion reinterprets it with
+            // Unsafe.As, which the optimizing .NET Framework JIT can miscompile
+            // when inlined (the array then reads back with a length of 0).
+            : this(values is null ? default : new ReadOnlyMemory<T>(values))
         {
         }
 
@@ -818,6 +823,19 @@ namespace Opc.Ua
     }
 
     /// <summary>
+    /// Tells whether an array or matrix value holds elements without
+    /// knowing its element type.
+    /// </summary>
+    internal interface IElementContainer
+    {
+        /// <summary>
+        /// Returns true if the value holds no elements, which is also the
+        /// case for a null value.
+        /// </summary>
+        bool IsEmpty { get; }
+    }
+
+    /// <summary>
     /// Collection builder for array of and accessor for dimensions
     /// </summary>
     public static class ArrayOf
@@ -924,15 +942,26 @@ namespace Opc.Ua
 #if NET8_0_OR_GREATER
             if (values.TryGetNonEnumeratedCount(out int count))
             {
-                if (count == 0)
-                {
-                    return [];
-                }
+                // Concurrent collections can change between Count and enumeration.
+                // Keep the count as a capacity hint, not the resulting length.
                 var copy = new T[count];
                 int index = 0;
                 foreach (T item in values)
                 {
+                    if (index == copy.Length)
+                    {
+                        int capacity = (int)Math.Min(Array.MaxLength, Math.Max(4L, 2L * copy.Length));
+                        if (capacity == index)
+                        {
+                            throw new InvalidOperationException("The sequence exceeds the maximum array length.");
+                        }
+                        Array.Resize(ref copy, capacity);
+                    }
                     copy[index++] = item;
+                }
+                if (index != copy.Length)
+                {
+                    Array.Resize(ref copy, index);
                 }
                 return new(copy);
             }

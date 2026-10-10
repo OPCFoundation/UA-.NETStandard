@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -62,7 +63,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext context = CreateContext();
             using var decoder = new JsonDecoder("{\"Second\":42}", context);
 
-            uint selector = decoder.ReadSwitchField(s_switches, out string fieldName);
+            uint selector = decoder.ReadSwitchField(s_switches, out string? fieldName);
 
             Assert.Multiple(() =>
             {
@@ -78,7 +79,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext context = CreateContext();
             using var decoder = new JsonDecoder("{\"SwitchField\":0}", context);
 
-            uint selector = decoder.ReadSwitchField(s_switches, out string fieldName);
+            uint selector = decoder.ReadSwitchField(s_switches, out string? fieldName);
 
             Assert.Multiple(() =>
             {
@@ -95,7 +96,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext context = CreateContext();
             using var decoder = new JsonDecoder("{\"SwitchField\":2,\"Second\":42}", context);
 
-            uint selector = decoder.ReadSwitchField(s_switches, out string fieldName);
+            uint selector = decoder.ReadSwitchField(s_switches, out string? fieldName);
 
             Assert.Multiple(() =>
             {
@@ -112,7 +113,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             ServiceMessageContext context = CreateContext();
             using var decoder = new JsonDecoder("{\"SwitchField\":2,\"Second\":42}", context);
 
-            uint selector = decoder.ReadSwitchField(null, out _);
+            uint selector = decoder.ReadSwitchField(null!, out _);
 
             Assert.That(selector, Is.EqualTo(2u));
         }
@@ -224,11 +225,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    Assert.Throws<ServiceResultException>(() => bytes.ReadByteArray("Value"))
+                    Assert.Throws<ServiceResultException>(() => bytes.ReadByteArray("Value"))!
                         .StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(
-                    Assert.Throws<ServiceResultException>(() => sbytes.ReadSByteArray("Value"))
+                    Assert.Throws<ServiceResultException>(() => sbytes.ReadSByteArray("Value"))!
                         .StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
             });
@@ -265,11 +266,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    Assert.Throws<ServiceResultException>(() => shorthand.ReadLocalizedText("Value"))
+                    Assert.Throws<ServiceResultException>(() => shorthand.ReadLocalizedText("Value"))!
                         .StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
                 Assert.That(
-                    Assert.Throws<ServiceResultException>(() => verbose.ReadLocalizedText("Value"))
+                    Assert.Throws<ServiceResultException>(() => verbose.ReadLocalizedText("Value"))!
                         .StatusCode,
                     Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
             });
@@ -414,16 +415,335 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Multiple(() =>
             {
                 Assert.That(
-                    factory.TryGetEncodeableType(absoluteId, out IEncodeableType byAbsolute),
+                    factory.TryGetEncodeableType(absoluteId, out IEncodeableType? byAbsolute),
                     Is.True);
-                Assert.That(byAbsolute.Type, Is.EqualTo(typeof(Sample)));
+                Assert.That(byAbsolute!.Type, Is.EqualTo(typeof(Sample)));
                 Assert.That(
                     factory.TryGetEncodeableType(
                         new ExpandedNodeId(99001),
-                        out IEncodeableType byRelative),
+                        out IEncodeableType? byRelative),
                     Is.True);
-                Assert.That(byRelative.Type, Is.EqualTo(typeof(Sample)));
+                Assert.That(byRelative!.Type, Is.EqualTo(typeof(Sample)));
             });
+        }
+
+        [Test]
+        [TestCase("[-1,2]")]
+        [TestCase("[3,1]")]
+        [TestCase("[]")]
+        [TestCase("[65536,65537]")]
+        public void EncodeableMatrixWithInvalidDimensionsIsADecodingError(string dimensions)
+        {
+            // MatrixOf throws ArgumentException for invalid wire dimensions; the
+            // JSON decoder let it escape instead of reporting BadDecodingError.
+            ServiceMessageContext context = CreateContext();
+            string json =
+                "{\"Samples\":{\"Dimensions\":" + dimensions +
+                ",\"Array\":[{\"Value\":1},{\"Value\":2}]}}";
+            using var decoder = new JsonDecoder(json, context);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEncodeableMatrix<Sample>("Samples"));
+            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+        }
+
+        [Test]
+        public void EncodeableMatrixWithValidDimensionsDecodes()
+        {
+            ServiceMessageContext context = CreateContext();
+            const string json =
+                "{\"Samples\":{\"Dimensions\":[1,2],\"Array\":[{\"Value\":1},{\"Value\":2}]}}";
+            using var decoder = new JsonDecoder(json, context);
+
+            MatrixOf<Sample> matrix = decoder.ReadEncodeableMatrix<Sample>("Samples");
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(matrix.Count, Is.EqualTo(2));
+                Assert.That(matrix.Span[1].Value, Is.EqualTo(2));
+            });
+        }
+
+        [Test]
+        public void JsonEncoderNeverEmitsDeeperJsonThanTheDecoderAccepts()
+        {
+            // The encoder allowed one more open object than the decoder's
+            // MaxDepth and did not check arrays at all, so it produced output
+            // that a peer with the same limits rejects.
+            for (int depth = 0; depth < 12; depth++)
+            {
+                ServiceMessageContext context = CreateContext();
+                context.MaxEncodingNestingLevels = 5;
+
+                var diagnosticInfo = new DiagnosticInfo { AdditionalInfo = "0" };
+                DiagnosticInfo current = diagnosticInfo;
+                for (int ii = 0; ii < depth; ii++)
+                {
+                    current.InnerDiagnosticInfo = new DiagnosticInfo();
+                    current = current.InnerDiagnosticInfo;
+                }
+                var variant = new Variant(
+                    new Variant[] { new Variant(new Variant[] { new Variant(depth) }) });
+
+                foreach (Action<JsonEncoder> write in new Action<JsonEncoder>[]
+                {
+                    e => e.WriteDiagnosticInfo("Value", diagnosticInfo),
+                    e => e.WriteVariant("Value", variant),
+                    e => e.WriteVariantArray("Value", Enumerable.Repeat(variant, depth).ToArrayOf())
+                })
+                {
+                    string json;
+                    using (var encoder = new JsonEncoder(context, JsonEncoderOptions.Verbose))
+                    {
+                        try
+                        {
+                            write(encoder);
+                        }
+                        catch (ServiceResultException sre)
+                        {
+                            Assert.That(
+                                sre.StatusCode,
+                                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+                            continue;
+                        }
+                        json = encoder.CloseAndReturnText();
+                    }
+
+                    Assert.DoesNotThrow(
+                        () =>
+                        {
+                            using var decoder = new JsonDecoder(json, context);
+                        },
+                        json);
+                }
+            }
+        }
+
+        [Test]
+        public void JsonEncoderWithUnsetNestingLimitUsesTheDecoderDefaultDepth()
+        {
+            // A limit of zero made the encoder fail on its own root object; the
+            // decoder treats zero as the System.Text.Json default depth (64).
+            ServiceMessageContext context = CreateContext();
+            context.MaxEncodingNestingLevels = 0;
+
+            string json;
+            using (var encoder = new JsonEncoder(context, JsonEncoderOptions.Verbose))
+            {
+                encoder.WriteInt32("Value", 42);
+                json = encoder.CloseAndReturnText();
+            }
+            using (var decoder = new JsonDecoder(json, context))
+            {
+                Assert.That(decoder.ReadInt32("Value"), Is.EqualTo(42));
+            }
+
+            var nested = new Variant(1);
+            for (int ii = 0; ii < 100; ii++)
+            {
+                nested = new Variant(new Variant[] { nested });
+            }
+            using var deepEncoder = new JsonEncoder(context, JsonEncoderOptions.Verbose);
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => deepEncoder.WriteVariant("Value", nested));
+            Assert.That(ex.StatusCode, Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void EmbeddedBinaryBodyWithTrailingBytesIsRejected()
+        {
+            // The binary UaBody was decoded without checking that it was fully
+            // consumed, so trailing garbage was silently accepted.
+            ServiceMessageContext context = CreateContext();
+            context.Factory.AddEncodeableType(typeof(Sample));
+
+            using (var decoder = new JsonDecoder(
+                "{\"Inner\":{\"UaTypeId\":\"i=99001\",\"UaEncoding\":1,\"UaBody\":\"KgAAAA==\"}}",
+                context))
+            {
+                Sample sample = decoder.ReadEncodeableAsExtensionObject<Sample>("Inner");
+                Assert.That(sample.Value, Is.EqualTo(42));
+            }
+
+            using (var decoder = new JsonDecoder(
+                "{\"Inner\":{\"UaTypeId\":\"i=99001\",\"UaEncoding\":1,\"UaBody\":\"KgAAAAE=\"}}",
+                context))
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => decoder.ReadEncodeableAsExtensionObject<Sample>("Inner"));
+                Assert.That(
+                    ex.StatusCode,
+                    Is.EqualTo((StatusCode)StatusCodes.BadDecodingError));
+            }
+        }
+
+        [Test]
+        public void EmbeddedBinaryBodyContinuesTheNestingBudget()
+        {
+            // The embedded body restarted the nesting level at 0.
+            ServiceMessageContext context = CreateContext();
+            context.Factory.AddEncodeableType(typeof(Wrapper));
+
+            // three ExtensionObject levels below the root body.
+            var body = new Wrapper
+            {
+                Child = new ExtensionObject(new Wrapper
+                {
+                    Child = new ExtensionObject(new Wrapper
+                    {
+                        Child = new ExtensionObject(new Wrapper())
+                    })
+                })
+            };
+            string base64;
+            using (var encoder = new BinaryEncoder(context))
+            {
+                encoder.WriteEncodeable(null, body);
+                base64 = Convert.ToBase64String(encoder.CloseAndReturnBuffer()!);
+            }
+
+            // The JSON part is two levels deep; the body adds four more.
+            context.MaxEncodingNestingLevels = 4;
+            using var decoder = new JsonDecoder(
+                "{\"Inner\":{\"UaTypeId\":\"i=99021\",\"UaEncoding\":1,\"UaBody\":\"" +
+                base64 + "\"}}",
+                context);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEncodeableAsExtensionObject<Wrapper>("Inner"));
+            Assert.That(
+                ex.StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReflectionBasedTypeEqualsIsReflexiveAndConsistent()
+        {
+            // Equals compared against (obj as IEncodeableType)?.Type, so an
+            // enumerated type was not even equal to itself.
+            IType enumType = ReflectionBasedType.From(typeof(NodeClass))!;
+            IType enumType2 = ReflectionBasedType.From(typeof(NodeClass))!;
+            IType encodeableType = ReflectionBasedType.From(typeof(Sample))!;
+            IType encodeableType2 = ReflectionBasedType.From(typeof(Sample))!;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(enumType, Is.EqualTo(enumType2));
+                Assert.That(enumType!.GetHashCode(), Is.EqualTo(enumType2!.GetHashCode()));
+                Assert.That(encodeableType, Is.EqualTo(encodeableType2));
+                Assert.That(
+                    encodeableType!.GetHashCode(),
+                    Is.EqualTo(encodeableType2!.GetHashCode()));
+                Assert.That(encodeableType, Is.Not.EqualTo(enumType));
+                var set = new HashSet<IType> { enumType };
+                Assert.That(set, Does.Contain(enumType2));
+            });
+        }
+
+        [Test]
+        [NonParallelizable]
+        public void DateTimeWithoutOffsetIsDecodedAsUtc()
+        {
+            // An offset-less value was converted with ToUniversalTime, which
+            // treats it as host-local time, so the result depended on the
+            // time zone of the decoding host (a non-UTC zone is forced here).
+            using BuiltIn.LocalTimeZoneScope scope = BuiltIn.LocalTimeZoneScope.Create();
+            ServiceMessageContext context = CreateContext();
+            using var decoder = new JsonDecoder(
+                "{\"Value\":\"2024-01-01T00:00:00\",\"Utc\":\"2024-01-01T00:00:00Z\"}",
+                context);
+
+            DateTimeUtc expected = new DateTime(2024, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoder.ReadDateTime("Value"), Is.EqualTo(expected));
+                Assert.That(decoder.ReadDateTime("Utc"), Is.EqualTo(expected));
+            });
+        }
+
+        [Test]
+        public void NonStrictExtensionObjectBodyThatThrowsKeepsTheElementStackBalanced()
+        {
+            // The legacy object form of UaBody pushed the body element without a
+            // try/finally, so a throwing Decode left it on the stack and every
+            // following field was read from the wrong JSON object.
+            ServiceMessageContext context = CreateContext();
+            context.Factory.AddEncodeableType(typeof(ThrowingSample));
+            const string json =
+                "{\"Inner\":{\"UaTypeId\":\"i=99011\",\"UaEncoding\":0,\"UaBody\":{\"Value\":1}}," +
+                "\"After\":5}";
+            using var decoder = new JsonDecoder(
+                json,
+                context,
+                new JsonDecoderOptions { ParseStrict = false });
+
+            Assert.Throws<ServiceResultException>(
+                () => decoder.ReadEncodeableAsExtensionObject<ThrowingSample>("Inner"));
+            Assert.That(decoder.ReadInt32("After"), Is.EqualTo(5));
+        }
+
+        /// <summary>
+        /// An encodeable with an ExtensionObject field used to nest bodies.
+        /// </summary>
+        public sealed class Wrapper : IEncodeable
+        {
+            public ExtensionObject Child { get; set; }
+
+            public ExpandedNodeId TypeId => new(99021, 0);
+            public ExpandedNodeId BinaryEncodingId => new(99022, 0);
+            public ExpandedNodeId XmlEncodingId => new(99023, 0);
+
+            public void Encode(IEncoder encoder)
+            {
+                encoder.WriteExtensionObject("Child", Child);
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                Child = decoder.ReadExtensionObject("Child");
+            }
+
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return ReferenceEquals(this, encodeable);
+            }
+
+            public object Clone()
+            {
+                return new Wrapper { Child = Child };
+            }
+        }
+
+        /// <summary>
+        /// An encodeable whose Decode always fails.
+        /// </summary>
+        public sealed class ThrowingSample : IEncodeable
+        {
+            public ExpandedNodeId TypeId => new(99011, 0);
+            public ExpandedNodeId BinaryEncodingId => new(99012, 0);
+            public ExpandedNodeId XmlEncodingId => new(99013, 0);
+
+            public void Encode(IEncoder encoder)
+            {
+            }
+
+            public void Decode(IDecoder decoder)
+            {
+                decoder.ReadInt32("Value");
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Decode failed.");
+            }
+
+            public bool IsEqual(IEncodeable? encodeable)
+            {
+                return ReferenceEquals(this, encodeable);
+            }
+
+            public object Clone()
+            {
+                return new ThrowingSample();
+            }
         }
 
         /// <summary>
@@ -447,7 +767,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32("Value");
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is Sample other && other.Value == Value;
             }

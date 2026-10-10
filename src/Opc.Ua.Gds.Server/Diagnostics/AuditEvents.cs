@@ -59,6 +59,35 @@ namespace Opc.Ua.Gds.Server.Diagnostics
         public static readonly ByteString RedactedPrivateKey = ByteString.Empty;
 
         /// <summary>
+        /// Returns a copy of the user identity token that is safe to place in
+        /// audit event <c>InputArguments</c>: the password of a
+        /// <see cref="UserNameIdentityToken"/> and the token data of an
+        /// <see cref="IssuedIdentityToken"/> are removed (OPC 10000-5 §6.4.10:
+        /// "For Username/Password tokens the password shall not be included").
+        /// </summary>
+        internal static Variant RedactUserIdentityToken(UserIdentityToken? identityToken)
+        {
+            if (CoreUtils.Clone(identityToken) is not UserIdentityToken clonedToken)
+            {
+                return Variant.Null;
+            }
+
+            switch (clonedToken)
+            {
+                case UserNameIdentityToken userNameToken:
+                    userNameToken.Password = ByteString.Empty;
+                    userNameToken.EncryptionAlgorithm = null;
+                    break;
+                case IssuedIdentityToken issuedIdentityToken:
+                    issuedIdentityToken.TokenData = ByteString.Empty;
+                    issuedIdentityToken.EncryptionAlgorithm = null;
+                    break;
+            }
+
+            return Variant.FromStructure(clonedToken);
+        }
+
+        /// <summary>
         /// Raise CertificateDeliveredAudit event
         /// </summary>
         /// <param name="server">The server which reports audit events.</param>

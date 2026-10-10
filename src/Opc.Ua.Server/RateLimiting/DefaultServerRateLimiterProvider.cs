@@ -28,14 +28,15 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
 using System.Threading.RateLimiting;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
     /// <summary>
     /// The default <see cref="IServerRateLimiterProvider"/>: builds deterministic
-    /// admission limiters from <see cref="ServerRateLimitOptions"/> using
-    /// <c>System.Threading.RateLimiting</c>.
+    /// admission limiters from <see cref="ServerRateLimitOptions"/>.
     /// </summary>
     /// <remarks>
     /// Connection admission uses a token bucket (burst + sustained rate). Session
@@ -43,7 +44,9 @@ namespace Opc.Ua.Server
     /// in-flight <c>CreateSession</c> / <c>ActivateSession</c> operations so the
     /// CPU-bound handshake work cannot saturate every core under a storm.
     /// </remarks>
-    public sealed class DefaultServerRateLimiterProvider : IServerRateLimiterProvider
+    public sealed class DefaultServerRateLimiterProvider :
+        IServerRateLimiterProvider,
+        IQueuedSessionEstablishmentLimiter
     {
         private readonly ConcurrencyLimiter? m_sessionLimiter;
         private int m_disposed;
@@ -52,9 +55,25 @@ namespace Opc.Ua.Server
         /// Initializes a new instance of the
         /// <see cref="DefaultServerRateLimiterProvider"/> class.
         /// </summary>
-        /// <param name="options">The rate-limit options. When <c>null</c>, defaults are used.</param>
+        /// <param name="options">The rate-limit configuration.</param>
         /// <exception cref="ArgumentNullException"><paramref name="options"/> is <c>null</c>.</exception>
         public DefaultServerRateLimiterProvider(ServerRateLimitOptions options)
+            : this(options, null)
+        {
+        }
+
+        /// <summary>
+        /// Builds rate limiters that share the server's default resource classification.
+        /// Protected profiles partition the existing connection rate and burst; other profiles
+        /// retain the plain global token bucket. Explicit custom rate providers are not wrapped.
+        /// </summary>
+        /// <param name="options">The existing rate-limit configuration.</param>
+        /// <param name="resourceIsolationProvider">The borrowed default resource-isolation provider, if any.</param>
+        /// <param name="timeProvider">The clock used by protected rate buckets.</param>
+        public DefaultServerRateLimiterProvider(
+            ServerRateLimitOptions options,
+            DefaultServerResourceIsolationProvider? resourceIsolationProvider,
+            TimeProvider? timeProvider = null)
         {
             if (options == null)
             {
@@ -67,13 +86,16 @@ namespace Opc.Ua.Server
 
             if (options.Enabled && options.ConnectionRateLimitEnabled)
             {
-                ConnectionRateLimiter = new TokenBucketConnectionRateLimiter(
-                    options.ConnectionsPerSecond > 0
-                        ? options.ConnectionsPerSecond
-                        : ServerRateLimitOptions.DefaultConnectionsPerSecond,
-                    options.ConnectionBurst > 0
-                        ? options.ConnectionBurst
-                        : ServerRateLimitOptions.DefaultConnectionBurst);
+                int rate = options.ConnectionsPerSecond > 0
+                    ? options.ConnectionsPerSecond
+                    : ServerRateLimitOptions.DefaultConnectionsPerSecond;
+                int burst = options.ConnectionBurst > 0
+                    ? options.ConnectionBurst
+                    : ServerRateLimitOptions.DefaultConnectionBurst;
+                ConnectionRateLimiter = resourceIsolationProvider?.Plan.Mode is
+                    ServerResourceIsolationMode.Balanced or ServerResourceIsolationMode.TrustedReservations
+                    ? new ResourceIsolationConnectionRateLimiter(rate, burst, resourceIsolationProvider, timeProvider)
+                    : new TokenBucketConnectionRateLimiter(rate, burst);
             }
 
             if (options.Enabled && options.SessionRateLimitEnabled)
@@ -116,12 +138,40 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            retryAfter = acquired.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan value)
-                ? value
-                : null;
+            retryAfter = GetRetryAfter(acquired);
             acquired.Dispose();
             lease = null;
             return false;
+        }
+
+        /// <inheritdoc/>
+        public async ValueTask<(bool Acquired, IDisposable? Lease, TimeSpan? RetryAfter)>
+            AcquireSessionEstablishmentAsync(CancellationToken cancellationToken = default)
+        {
+            if (m_sessionLimiter == null)
+            {
+                return (true, null, null);
+            }
+
+            // unlike AttemptAcquire, AcquireAsync waits in the SessionEstablishmentQueueLimit queue.
+            RateLimitLease acquired = await m_sessionLimiter
+                .AcquireAsync(1, cancellationToken)
+                .ConfigureAwait(false);
+            if (acquired.IsAcquired)
+            {
+                return (true, acquired, null);
+            }
+
+            TimeSpan? retryAfter = GetRetryAfter(acquired);
+            acquired.Dispose();
+            return (false, null, retryAfter);
+        }
+
+        private static TimeSpan? GetRetryAfter(RateLimitLease lease)
+        {
+            return lease.TryGetMetadata(MetadataName.RetryAfter, out TimeSpan value)
+                ? value
+                : null;
         }
 
         /// <inheritdoc/>

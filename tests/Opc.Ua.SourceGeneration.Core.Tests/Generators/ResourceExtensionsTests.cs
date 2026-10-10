@@ -73,7 +73,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Arrange
             const string fileName = "sample.txt";
             // Act
-            TextFileResource result = fileName.AsTextFileResource(null);
+            TextFileResource result = fileName.AsTextFileResource(null!);
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.FileName, Is.EqualTo(fileName));
@@ -333,9 +333,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void AsTextFileResource_NullFileName_ThrowsNullReferenceException()
         {
             // Arrange
-            const string fileName = null;
+            const string? fileName = null;
             // Act & Assert
-            Assert.Throws<NullReferenceException>(() => fileName.AsTextFileResource());
+            Assert.Throws<NullReferenceException>(() => fileName!.AsTextFileResource());
         }
 
         /// <summary>
@@ -383,7 +383,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // Arrange
             const string fileName = "TestFile.xml";
             // Act
-            var result = fileName.ToBinaryFileResource(null);
+            var result = fileName.ToBinaryFileResource(null!);
             // Assert
             Assert.That(result, Is.Not.Null);
             Assert.That(result.FileName, Is.EqualTo(fileName));
@@ -450,9 +450,9 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         public void ToBinaryFileResource_NullFileName_ThrowsNullReferenceException()
         {
             // Arrange
-            const string fileName = null;
+            const string? fileName = null;
             // Act & Assert
-            Assert.Throws<NullReferenceException>(() => fileName.ToBinaryFileResource());
+            Assert.Throws<NullReferenceException>(() => fileName!.ToBinaryFileResource());
         }
 
         /// <summary>

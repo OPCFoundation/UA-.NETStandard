@@ -68,6 +68,11 @@ namespace Opc.Ua
         /// at the park point instead of remaining blocked for the whole wait.
         /// <c>null</c> (the default) preserves the legacy inline behavior.
         /// </summary>
+        /// <remarks>
+        /// Endpoints supply the sink only for eligible requests. Handlers notify the existing sink rather
+        /// than replacing it, and follow the terminal waiting-point contract of <see cref="IRequestParkSink"/>.
+        /// The server's global decoupling switch may keep the worker attached even when a sink is present.
+        /// </remarks>
         public IRequestParkSink? ParkSink { get; set; }
 
         /// <summary>
@@ -90,9 +95,17 @@ namespace Opc.Ua
         /// <summary>
         /// Attempts to cancel the request and assigns the corresponding status code.
         /// </summary>
+        /// <remarks>
+        /// Concurrent callers (a client Cancel, a Session close and the request timeout) race to
+        /// cancel the same request. Only the first caller claims the cancellation, so its status
+        /// code is the one reported and a later caller can never overwrite it.
+        /// </remarks>
+        /// <returns><c>true</c> when this call cancelled the request.</returns>
         public bool TryCancel(StatusCode statusCode)
         {
-            if (m_disposed || m_cts.IsCancellationRequested)
+            if (m_disposed ||
+                m_cts.IsCancellationRequested ||
+                Interlocked.CompareExchange(ref m_cancelClaimed, 1, 0) != 0)
             {
                 return false;
             }
@@ -132,6 +145,7 @@ namespace Opc.Ua
 
         private readonly CancellationTokenSource m_cts;
         private StatusCode m_statusCode;
+        private int m_cancelClaimed;
         private bool m_disposed;
     }
 }

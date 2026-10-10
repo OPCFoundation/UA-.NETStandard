@@ -37,8 +37,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Fluent
 {
     /// <summary>
@@ -346,6 +344,32 @@ namespace Opc.Ua.Server.Tests.Fluent
                 released,
                 Is.EqualTo(1),
                 "a resource held by a live subscription must be released at shutdown");
+        }
+
+        [Test]
+        public async Task RawLastSubscriberReceivesUsableShutdownTokenAsync()
+        {
+            int acquired = 0;
+            int released = 0;
+            using MonitoredItemHarness harness = await MonitoredItemHarness.CreateAsync(builder =>
+                builder.Variable<int>("Value")
+                    .OnFirstSubscriber((_, _, _) =>
+                    {
+                        acquired++;
+                        return default;
+                    })
+                    .OnLastSubscriber((_, _, ct) =>
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        released++;
+                        return default;
+                    })).ConfigureAwait(false);
+            await harness.CreateAsync(CreateRequest()).ConfigureAwait(false);
+            Assert.That(acquired, Is.EqualTo(1));
+
+            await harness.Manager.ReleaseAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(released, Is.EqualTo(1));
         }
 
         /// <summary>

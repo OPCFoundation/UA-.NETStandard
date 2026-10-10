@@ -37,8 +37,8 @@ namespace Opc.Ua.Server.Historian
     /// history updates atomically (all-or-nothing). The default
     /// <see cref="IHistorianDataProvider"/> contract is per-value
     /// best-effort; providers that offer stronger guarantees implement
-    /// this interface so the dispatcher (or callers) can prefer the
-    /// atomic path when available.
+    /// this interface for callers that explicitly request atomic updates.
+    /// The HistoryUpdate service uses per-value methods regardless of this capability.
     /// </summary>
     /// <remarks>
     /// <para>

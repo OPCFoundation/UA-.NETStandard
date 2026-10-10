@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 
@@ -50,7 +51,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             var nsTable = new NamespaceTable();
             nsTable.Append(Ua.Namespaces.OpcUa);
-            context = new SystemContext(telemetry: null)
+            context = new SystemContext(telemetry: null!)
             {
                 NamespaceUris = nsTable
             };
@@ -86,8 +87,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 context,
                 nodeManager: FluentTestNodeManager.Create(ns),
                 defaultNamespaceIndex: ns,
-                rootResolver: q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                nodeIdResolver: id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                rootResolver: q => (roots.TryGetValue(q, out NodeState? n) ? n : null)!,
+                nodeIdResolver: id => (byId.TryGetValue(id, out NodeState? n) ? n : null)!,
                 typeIdResolver: _ => []);
         }
 
@@ -101,8 +102,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             INodeBuilder<MethodState> chain = methodBuilder.AddInputArguments(first, second);
 
             Assert.That(chain.Node, Is.SameAs(method));
-            AssertArgumentProperties(method.InputArguments);
-            Assert.That(method.InputArguments.Value.Count, Is.EqualTo(2));
+            AssertArgumentProperties(method.InputArguments!);
+            Assert.That(method.InputArguments!.Value.Count, Is.EqualTo(2));
             AssertArgumentsAreEqual(method.InputArguments.Value[0], first);
             AssertArgumentsAreEqual(method.InputArguments.Value[1], second);
         }
@@ -116,8 +117,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             MethodState chain = method.AddInputArguments(context, first, second);
 
             Assert.That(chain, Is.SameAs(method));
-            AssertArgumentProperties(method.InputArguments);
-            Assert.That(method.InputArguments.Value.Count, Is.EqualTo(2));
+            AssertArgumentProperties(method.InputArguments!);
+            Assert.That(method.InputArguments!.Value.Count, Is.EqualTo(2));
             AssertArgumentsAreEqual(method.InputArguments.Value[0], first);
             AssertArgumentsAreEqual(method.InputArguments.Value[1], second);
         }
@@ -134,8 +135,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .WithDescription("input value"));
 
             Assert.That(chain.Node, Is.SameAs(method));
-            AssertArgumentProperties(method.InputArguments);
-            Assert.That(method.InputArguments.Value.Count, Is.EqualTo(1));
+            AssertArgumentProperties(method.InputArguments!);
+            Assert.That(method.InputArguments!.Value.Count, Is.EqualTo(1));
             Assert.That(method.InputArguments.Value[0].Name, Is.EqualTo("Input"));
             Assert.That(method.InputArguments.Value[0].DataType, Is.EqualTo(DataTypeIds.UInt32));
             Assert.That(method.InputArguments.Value[0].ValueRank, Is.EqualTo(ValueRanks.Scalar));
@@ -151,8 +152,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 arg => arg.WithName("A").WithDataType(DataTypeIds.Int32),
                 arg => arg.WithName("B").WithDataType(DataTypeIds.String));
 
-            AssertArgumentProperties(method.InputArguments);
-            Assert.That(method.InputArguments.Value.Count, Is.EqualTo(2));
+            AssertArgumentProperties(method.InputArguments!);
+            Assert.That(method.InputArguments!.Value.Count, Is.EqualTo(2));
             Assert.That(method.InputArguments.Value[0].Name, Is.EqualTo("A"));
             Assert.That(method.InputArguments.Value[1].Name, Is.EqualTo("B"));
         }
@@ -166,8 +167,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .Add(arg => arg.WithName("A").WithDataType(DataTypeIds.Int32))
                 .Add(arg => arg.WithName("B").WithDataType(DataTypeIds.String)));
 
-            AssertArgumentProperties(method.InputArguments);
-            Assert.That(method.InputArguments.Value.Count, Is.EqualTo(2));
+            AssertArgumentProperties(method.InputArguments!);
+            Assert.That(method.InputArguments!.Value.Count, Is.EqualTo(2));
             Assert.That(method.InputArguments.Value[0].Name, Is.EqualTo("A"));
             Assert.That(method.InputArguments.Value[1].Name, Is.EqualTo("B"));
         }
@@ -182,8 +183,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             INodeBuilder<MethodState> chain = methodBuilder.AddOutputArguments(first, second);
 
             Assert.That(chain.Node, Is.SameAs(method));
-            AssertArgumentProperties(method.OutputArguments);
-            Assert.That(method.OutputArguments.Value.Count, Is.EqualTo(2));
+            AssertArgumentProperties(method.OutputArguments!);
+            Assert.That(method.OutputArguments!.Value.Count, Is.EqualTo(2));
             AssertArgumentsAreEqual(method.OutputArguments.Value[0], first);
             AssertArgumentsAreEqual(method.OutputArguments.Value[1], second);
         }
@@ -196,8 +197,8 @@ namespace Opc.Ua.Server.Tests.Fluent
             MethodState chain = method.AddOutputArguments(context, result);
 
             Assert.That(chain, Is.SameAs(method));
-            AssertArgumentProperties(method.OutputArguments);
-            Assert.That(method.OutputArguments.Value.Count, Is.EqualTo(1));
+            AssertArgumentProperties(method.OutputArguments!);
+            Assert.That(method.OutputArguments!.Value.Count, Is.EqualTo(1));
             AssertArgumentsAreEqual(method.OutputArguments.Value[0], result);
         }
 
@@ -213,8 +214,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .WithDescription("output value"));
 
             Assert.That(chain.Node, Is.SameAs(method));
-            AssertArgumentProperties(method.OutputArguments);
-            Assert.That(method.OutputArguments.Value.Count, Is.EqualTo(1));
+            AssertArgumentProperties(method.OutputArguments!);
+            Assert.That(method.OutputArguments!.Value.Count, Is.EqualTo(1));
             Assert.That(method.OutputArguments.Value[0].Name, Is.EqualTo("Output"));
             Assert.That(method.OutputArguments.Value[0].DataType, Is.EqualTo(DataTypeIds.Double));
             Assert.That(method.OutputArguments.Value[0].ValueRank, Is.EqualTo(ValueRanks.Scalar));
@@ -230,8 +231,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 arg => arg.WithName("Code").WithDataType(DataTypeIds.UInt32),
                 arg => arg.WithName("Message").WithDataType(DataTypeIds.String));
 
-            AssertArgumentProperties(method.OutputArguments);
-            Assert.That(method.OutputArguments.Value.Count, Is.EqualTo(2));
+            AssertArgumentProperties(method.OutputArguments!);
+            Assert.That(method.OutputArguments!.Value.Count, Is.EqualTo(2));
             Assert.That(method.OutputArguments.Value[0].Name, Is.EqualTo("Code"));
             Assert.That(method.OutputArguments.Value[1].Name, Is.EqualTo("Message"));
         }
@@ -245,10 +246,32 @@ namespace Opc.Ua.Server.Tests.Fluent
                 .Add(arg => arg.WithName("Code").WithDataType(DataTypeIds.UInt32))
                 .Add(arg => arg.WithName("Message").WithDataType(DataTypeIds.String)));
 
-            AssertArgumentProperties(method.OutputArguments);
-            Assert.That(method.OutputArguments.Value.Count, Is.EqualTo(2));
+            AssertArgumentProperties(method.OutputArguments!);
+            Assert.That(method.OutputArguments!.Value.Count, Is.EqualTo(2));
             Assert.That(method.OutputArguments.Value[0].Name, Is.EqualTo("Code"));
             Assert.That(method.OutputArguments.Value[1].Name, Is.EqualTo("Message"));
+        }
+
+        [Test]
+        public void AddArgumentsRegistersNewlyCreatedPropertiesWithNodeManager()
+        {
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            var registeringBuilder = new NodeManagerBuilder(
+                context,
+                nodeManager: nodeManager.Object,
+                defaultNamespaceIndex: ns,
+                rootResolver: _ => null!,
+                nodeIdResolver: id => (id == method.NodeId ? method : null)!,
+                typeIdResolver: _ => []);
+            INodeBuilder methodBuilder = registeringBuilder.Node(method.NodeId);
+
+            methodBuilder.AddInputArguments(new Argument("A", DataTypeIds.Int32, ValueRanks.Scalar, "a"));
+            methodBuilder.AddOutputArguments(new Argument("B", DataTypeIds.Int32, ValueRanks.Scalar, "b"));
+            // replacing existing argument lists must not register them again
+            methodBuilder.AddInputArguments(new Argument("C", DataTypeIds.Int32, ValueRanks.Scalar, "c"));
+
+            nodeManager.Verify(m => m.AddNode(method.InputArguments!), Times.Once);
+            nodeManager.Verify(m => m.AddNode(method.OutputArguments!), Times.Once);
         }
 
         private static void AssertArgumentsAreEqual(Argument actual, Argument expected)

@@ -180,7 +180,7 @@ namespace Opc.Ua.Client.Tests
         {
             MethodInfo method = typeof(SessionReconnectHandler).GetMethod(
                 "UpdateEndpointFromServerAsync",
-                BindingFlags.NonPublic | BindingFlags.Instance);
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
 
             Assert.That(method, Is.Not.Null);
             Assert.That(method.IsVirtual, Is.True);
@@ -196,7 +196,7 @@ namespace Opc.Ua.Client.Tests
         {
             MethodInfo method = typeof(SessionReconnectHandler).GetMethod(
                 "UpdateEndpointFromServerAsync",
-                BindingFlags.NonPublic | BindingFlags.Instance);
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
 
             Assert.That(method, Is.Not.Null);
             ParameterInfo[] parameters = method.GetParameters();
@@ -266,7 +266,7 @@ namespace Opc.Ua.Client.Tests
             using var handler = new SessionReconnectHandler(m_telemetry);
 
             SessionReconnectHandler.ReconnectState state = handler.BeginReconnect(
-                null,
+                null!,
                 1000,
                 (_, _) => { });
 
@@ -313,11 +313,129 @@ namespace Opc.Ua.Client.Tests
             Assert.That(handler.Session, Is.SameAs(mockNewSession.Object));
         }
 
+        /// <summary>
+        /// The fallback must never downgrade a secured endpoint, even if the
+        /// (unauthenticated) discovery reply advertises a weaker endpoint with a
+        /// high SecurityLevel.
+        /// </summary>
+        [Test]
+        public void SelectFallbackEndpoint_OnlyWeakerEndpoints_ReturnsNull()
+        {
+            var original = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            };
+            ArrayOf<EndpointDescription> discovered =
+            [
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None,
+                    SecurityLevel = 255
+                },
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.Sign,
+                    SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss,
+                    SecurityLevel = 255
+                },
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    SecurityPolicyUri = SecurityPolicies.Basic128Rsa15,
+                    SecurityLevel = 255
+                }
+            ];
+
+            EndpointDescription fallback = SessionReconnectHandler.SelectFallbackEndpoint(
+                original,
+                discovered,
+                m_telemetry.CreateLogger<SessionReconnectHandlerTests>())!;
+
+            Assert.That(fallback, Is.Null);
+        }
+
+        /// <summary>
+        /// The fallback picks the strongest endpoint by the locally computed
+        /// security level, ignoring the server advertised SecurityLevel.
+        /// </summary>
+        [Test]
+        public void SelectFallbackEndpoint_PicksStrongestByLocalSecurityLevel()
+        {
+            var original = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            };
+            var weakerAdvertisedHigh = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None,
+                SecurityLevel = 255
+            };
+            var aes128 = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Aes128_Sha256_RsaOaep,
+                SecurityLevel = 200
+            };
+            var aes256 = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                SecurityPolicyUri = SecurityPolicies.Aes256_Sha256_RsaPss,
+                SecurityLevel = 1
+            };
+
+            EndpointDescription fallback = SessionReconnectHandler.SelectFallbackEndpoint(
+                original,
+                [weakerAdvertisedHigh, aes128, aes256],
+                m_telemetry.CreateLogger<SessionReconnectHandlerTests>())!;
+
+            Assert.That(fallback, Is.SameAs(aes256));
+        }
+
+        /// <summary>
+        /// Even an unsecured original endpoint only falls back to a secured one.
+        /// </summary>
+        [Test]
+        public void SelectFallbackEndpoint_NoneOriginal_NeverSelectsNone()
+        {
+            var original = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            var none = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.None,
+                SecurityPolicyUri = SecurityPolicies.None
+            };
+            var signed = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.Sign,
+                SecurityPolicyUri = SecurityPolicies.Basic256Sha256
+            };
+
+            Assert.That(
+                SessionReconnectHandler.SelectFallbackEndpoint(
+                    original,
+                    [none],
+                    m_telemetry.CreateLogger<SessionReconnectHandlerTests>()),
+                Is.Null);
+            Assert.That(
+                SessionReconnectHandler.SelectFallbackEndpoint(
+                    original,
+                    [none, signed],
+                    m_telemetry.CreateLogger<SessionReconnectHandlerTests>()),
+                Is.SameAs(signed));
+        }
+
         private static ConfiguredEndpoint CreateConfiguredEndpoint(
             MessageSecurityMode securityMode,
             string securityPolicyUri)
         {
-            return new ConfiguredEndpoint(null, new EndpointDescription
+            return new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = securityMode,
@@ -342,7 +460,7 @@ namespace Opc.Ua.Client.Tests
                 .GetMethod("DoReconnectAsync", BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("DoReconnectAsync method not found");
 
-            return (Task<bool>)method.Invoke(handler, null);
+            return (Task<bool>)method.Invoke(handler, null)!;
         }
 
         private static void SetSessionHandlerField(
@@ -371,7 +489,7 @@ namespace Opc.Ua.Client.Tests
             FieldInfo field = typeof(SessionReconnectHandler)
                 .GetField(fieldName, BindingFlags.NonPublic | BindingFlags.Instance)
                 ?? throw new InvalidOperationException($"Field {fieldName} not found");
-            return (T)field.GetValue(handler);
+            return (T)field.GetValue(handler)!;
         }
 
         /// <summary>
@@ -393,9 +511,9 @@ namespace Opc.Ua.Client.Tests
 
             protected override Task UpdateEndpointFromServerAsync(
                 ConfiguredEndpoint endpoint,
-                ITransportWaitingConnection connection = null)
+                ITransportWaitingConnection? connection = null)
             {
-                return _updateDelegate(endpoint, connection);
+                return _updateDelegate(endpoint, connection!);
             }
         }
     }

@@ -9,11 +9,12 @@
          resolved version everywhere they appear in the dependency graph, even when
          no project declares a direct PackageReference. Used to remediate transitive
          NU1903 vulnerabilities (System.Net.Http 4.3.0, System.Text.RegularExpressions
-         4.3.0) pulled in by Microsoft.AspNetCore.* 2.3.x on net8.0/net9.0/netstandard2.1. -->
+         4.3.0) pulled in by Microsoft.AspNetCore.* 2.3.x on net8.0/net9.0. -->
     <CentralPackageTransitivePinningEnabled>true</CentralPackageTransitivePinningEnabled>
   </PropertyGroup>
   <ItemGroup>
     <PackageVersion Include="BenchmarkDotNet" Version="0.15.8" />
+    <PackageVersion Include="Microsoft.Diagnostics.Tracing.TraceEvent" Version="3.1.21" />
     <PackageVersion Include="BitFaster.Caching" Version="2.6.1" />
     <PackageVersion Include="BouncyCastle.Cryptography" Version="2.7.0" />
     <PackageVersion Include="Confluent.Kafka" Version="2.15.1" />
@@ -125,8 +126,9 @@
     <PackageVersion Include="System.Memory" Version="4.6.3" />
     <PackageVersion Include="System.Formats.Asn1" Version="10.0.12" />
     <PackageVersion Include="System.IO.Compression" Version="4.3.0" />
+    <PackageVersion Include="System.IO.FileSystem.AccessControl" Version="5.0.0" />
     <!-- Transitive vulnerability pins (consumed via Microsoft.AspNetCore.* 2.3.x on
-         net8.0/net9.0/netstandard2.1 - default transitives are 4.3.0 with NU1903):
+         net8.0/net9.0 - default transitives are 4.3.0 with NU1903):
          - System.Net.Http 4.3.4 fixes GHSA-7jgj-8wvc-jh57
          - System.Text.RegularExpressions 4.3.1 fixes GHSA-cmhx-cq75-c4mj -->
     <PackageVersion Include="System.Net.Http" Version="4.3.4" />
@@ -163,17 +165,14 @@
     <PackageVersion Include="Avalonia" Version="12.1.3" />
     <PackageVersion Include="Avalonia.Desktop" Version="12.1.3" />
   </ItemGroup>
-  <!-- MQTTnet 5.x dropped net48/net472/netstandard2.1 support. Per-TFM pinning is
+  <!-- MQTTnet 5.x dropped net48 support. Per-TFM pinning is
        required because CentralPackageTransitivePinningEnabled lets the central pin
        win over PubSub's VersionOverride for transitive consumers (e.g. samples
-       that ProjectReference Opc.Ua.PubSub). See src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj.
-       When the solution is pinned to netstandard2.1 (CustomTestTarget=netstandard2.1)
-       the libraries build as netstandard2.1 (MQTTnet v4) while their tests/apps build
-       as net8.0, so the net8.0 consumers must also use v4 to match the libraries. -->
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472' OR '$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'netstandard2.1' OR '$(CustomTestTarget)' == 'netstandard2.1'">
+       that ProjectReference Opc.Ua.PubSub). See src/Opc.Ua.PubSub/Opc.Ua.PubSub.csproj. -->
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <PackageVersion Include="MQTTnet" Version="4.3.7.1207" />
   </ItemGroup>
-  <ItemGroup Condition="('$(TargetFramework)' != 'net472' AND '$(TargetFramework)' != 'net48' AND '$(TargetFramework)' != 'netstandard2.1') AND '$(CustomTestTarget)' != 'netstandard2.1'">
+  <ItemGroup Condition="'$(TargetFramework)' != 'net48'">
     <PackageVersion Include="MQTTnet" Version="5.2.0.1603" />
     <PackageVersion Include="MQTTnet.Server" Version="5.2.0.1603" />
   </ItemGroup>
@@ -186,8 +185,7 @@
        single pin held down to the oldest supported band.
 
        The net10.0 group is the fallback so that a TFM this file does not enumerate
-       - a future net11.0, or the net10.0 shell that the legacy netstandard2.0/2.1
-       $(CustomTestTarget) builds fall back to - still resolves a version. -->
+       - a future net11.0 - still resolves a version. -->
   <ItemGroup Condition="'$(TargetFramework)' == 'net8.0'">
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.Certificate" Version="8.0.31" />
     <PackageVersion Include="Microsoft.AspNetCore.Authentication.JwtBearer" Version="8.0.31" />

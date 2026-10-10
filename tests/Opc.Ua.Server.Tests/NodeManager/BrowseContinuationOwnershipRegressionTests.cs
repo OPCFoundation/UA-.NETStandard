@@ -132,7 +132,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     current.Dispose();
                     references.Add(new ReferenceDescription { NodeId = harness.Metadata.NodeId, Unfiltered = true });
-                    return new ValueTask<ContinuationPoint>(replacement);
+                    return new ValueTask<ContinuationPoint?>(replacement);
                 });
 
             (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseNextAsync(
@@ -181,7 +181,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     CancellationToken _) =>
                 {
                     current.Dispose();
-                    return new ValueTask<ContinuationPoint>((ContinuationPoint)null);
+                    return new ValueTask<ContinuationPoint?>((ContinuationPoint?)null);
                 });
 
             (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseNextAsync(
@@ -338,10 +338,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     if (ReferenceEquals(current, second))
                     {
                         cancellation.Cancel();
-                        return new ValueTask<ContinuationPoint>(Task.FromCanceled<ContinuationPoint>(token));
+                        return new ValueTask<ContinuationPoint?>(Task.FromCanceled<ContinuationPoint?>(token));
                     }
                     references.Add(new ReferenceDescription { NodeId = harness.Metadata.NodeId });
-                    return new ValueTask<ContinuationPoint>(current);
+                    return new ValueTask<ContinuationPoint?>(current);
                 });
 
             Assert.CatchAsync<OperationCanceledException>(async () => await harness.Master.BrowseNextAsync(
@@ -368,7 +368,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     harness.Points.Clear();
                     references.Add(new ReferenceDescription { NodeId = harness.Metadata.NodeId });
-                    return new ValueTask<ContinuationPoint>(current);
+                    return new ValueTask<ContinuationPoint?>(current);
                 });
             (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseNextAsync(
                 harness.Context, false, [Token(point)]).ConfigureAwait(false);
@@ -376,6 +376,59 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
             Assert.That(harness.Points.RestoreBrowse(Token(point)), Is.Null);
             resource.Verify(value => value.Dispose(), Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that a session-less Browse whose node needs a continuation point returns the first page with
+        /// Bad_NoContinuationPoints instead of failing on the missing session (Part 4 §6.3.1, §7.38.2).
+        /// </summary>
+        [Test]
+        public async Task SessionLessBrowseReportsNoContinuationPointsAsync()
+        {
+            using var harness = new BrowseHarness();
+            harness.ReturnAnotherPage();
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.Browse, RequestLifetime.None, new UserIdentity());
+            var description = new BrowseDescription
+            {
+                NodeId = harness.Metadata.NodeId,
+                BrowseDirection = BrowseDirection.Forward,
+                ResultMask = (uint)BrowseResultMask.All
+            };
+
+            (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseAsync(
+                context, new ViewDescription(), 1, [description]).ConfigureAwait(false);
+
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+            Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+            Assert.That(results[0].References, Has.Count.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that a session-less BrowseNext reports every supplied continuation point as invalid instead of
+        /// faulting the service on the missing session.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SessionLessBrowseNextReportsInvalidContinuationPointAsync(bool release)
+        {
+            using var harness = new BrowseHarness();
+            var resource = new Mock<IDisposable>();
+            ContinuationPoint point = harness.AddPoint(resource);
+            using var context = new OperationContext(
+                new RequestHeader(), null, RequestType.BrowseNext, RequestLifetime.None, new UserIdentity());
+
+            (ArrayOf<BrowseResult> results, _) = await harness.Master.BrowseNextAsync(
+                context, release, [Token(point)]).ConfigureAwait(false);
+
+            Assert.That(results, Has.Count.EqualTo(1));
+            Assert.That(
+                results[0].StatusCode,
+                Is.EqualTo(release ? StatusCodes.Good : StatusCodes.BadContinuationPointInvalid));
+            Assert.That(results[0].ContinuationPoint.IsEmpty, Is.True);
+            // the session's own continuation point is untouched by the session-less request.
+            resource.Verify(value => value.Dispose(), Times.Never);
         }
 
         /// <summary>
@@ -426,7 +479,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 session.SetupGet(value => value.EffectiveIdentity).Returns(new UserIdentity());
                 session.SetupGet(value => value.ContinuationPoints).Returns(Points);
                 Context = new OperationContext(
-                    new RequestHeader(), null, RequestType.BrowseNext, RequestLifetime.None, session.Object);
+                    new RequestHeader(), null!, RequestType.BrowseNext, RequestLifetime.None, session.Object);
             }
 
             /// <summary>
@@ -493,7 +546,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         CancellationToken _) =>
                     {
                         references.Add(new ReferenceDescription { NodeId = Metadata.NodeId });
-                        return new ValueTask<ContinuationPoint>(current);
+                        return new ValueTask<ContinuationPoint?>(current);
                     });
             }
 

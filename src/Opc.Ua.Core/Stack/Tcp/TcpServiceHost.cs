@@ -129,7 +129,9 @@ namespace Opc.Ua.Bindings
 
                         ServerBase.SetServerCertificateInEndpointDescription(
                             description,
-                            serverCertificates);
+                            serverCertificates,
+                            checkRequireEncryption: true,
+                            serverBase.SecurityPolicyRegistry);
 
                         listenerEndpoints.Add(description);
                     }

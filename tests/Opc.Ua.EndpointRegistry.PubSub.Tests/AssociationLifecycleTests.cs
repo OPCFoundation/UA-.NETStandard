@@ -51,6 +51,43 @@ namespace Opc.Ua.EndpointRegistry.PubSub.Tests
         }
 
         [Test]
+        public async Task ProtocolAuthorizationAlternativesRequireExplicitBindingApprovalAsync()
+        {
+            string xid = "/endpoints/ordinary-authorization-" + Guid.NewGuid().ToString("N");
+            Assert.That((await Host.WriteAsync(new RegistryWriteRequestDataType
+            {
+                TargetXid = xid,
+                Definition = OrdinaryEndpoint(xid)
+            }).ConfigureAwait(false)).StatusCode, Is.EqualTo(StatusCodes.Good));
+            try
+            {
+                Assert.That((await BrowseAsync(GroupTarget().Node.NodeId, ReferenceTypeIds.PublishesTo)
+                    .ConfigureAwait(false)).Count, Is.EqualTo(2));
+                Assert.That((await Host.PatchAsync(xid, ByteString.From(
+                    """
+                    {"protocoloptions":{"authorization":[
+                        {"type":"Plain","authorityuri":"https://identity.example.test"}]}}
+                    """u8), 1).ConfigureAwait(false)).StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That((await BrowseAsync(GroupTarget().Node.NodeId, ReferenceTypeIds.PublishesTo)
+                    .ConfigureAwait(false)).Count, Is.EqualTo(1));
+                Assert.That(Server.AuthorizationChecks, Is.GreaterThan(0));
+                Server.AuthorizeBindings = true;
+                await Binding.RefreshAsync().ConfigureAwait(false);
+                Assert.That((await BrowseAsync(GroupTarget().Node.NodeId, ReferenceTypeIds.PublishesTo)
+                    .ConfigureAwait(false)).Count, Is.EqualTo(2));
+                Server.AuthorizeBindings = false;
+                await Binding.RefreshAsync().ConfigureAwait(false);
+                Assert.That((await BrowseAsync(GroupTarget().Node.NodeId, ReferenceTypeIds.PublishesTo)
+                    .ConfigureAwait(false)).Count, Is.EqualTo(1));
+            }
+            finally
+            {
+                Server.AuthorizeBindings = false;
+                await Host.DeleteAsync(xid, 0).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
         public async Task PeriodicExpiryRemovesRemoteEntriesWithoutAnyBrokerOrPollingClientAsync()
         {
             RemotePubSubObservation connection = RemoteConnection("trusted");

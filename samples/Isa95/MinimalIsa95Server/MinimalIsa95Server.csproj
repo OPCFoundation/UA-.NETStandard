@@ -5,7 +5,6 @@
     <AssemblyName>MinimalIsa95Server</AssemblyName>
     <PackageId>MinimalIsa95Server</PackageId>
     <RootNamespace>MinimalIsa95Server</RootNamespace>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <PublishAot Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</PublishAot>
   </PropertyGroup>

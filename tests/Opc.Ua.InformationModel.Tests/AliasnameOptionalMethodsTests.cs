@@ -84,7 +84,7 @@ namespace Opc.Ua.InformationModel.Tests
             foreach ((string name, uint id) in expected)
             {
                 ReferenceDescription method = children.FirstOrDefault(
-                    c => c.BrowseName.Name == name);
+                    c => c.BrowseName.Name == name)!;
                 Assert.That(method, Is.Not.Null,
                     $"{category} should expose the optional {name} method.");
                 Assert.That(
@@ -108,7 +108,7 @@ namespace Opc.Ua.InformationModel.Tests
                 Session, category, ReferenceTypeIds.HasProperty).ConfigureAwait(false);
 
             ReferenceDescription lastChange = children.FirstOrDefault(
-                c => c.BrowseName.Name == BrowseNames.LastChange);
+                c => c.BrowseName.Name == BrowseNames.LastChange)!;
             Assert.That(lastChange, Is.Not.Null,
                 $"{category} should expose the LastChange property.");
             Assert.That(

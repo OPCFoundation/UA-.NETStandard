@@ -504,7 +504,7 @@ namespace Opc.Ua.Wot
                 return true;
             }
             if (!int.TryParse(
-#if NETSTANDARD2_0 || NET472 || NET48
+#if NETSTANDARD2_0 || NET48
                     browseName.Substring(0, separator),
 #else
                     browseName.AsSpan(0, separator),
@@ -525,9 +525,10 @@ namespace Opc.Ua.Wot
             // The synthesis seeds the table with the model's own namespace
             // before it writes any member, so there is always a table to read;
             // an index the table does not reach names a namespace the document
-            // never declared.
-            string[] uris = nodeSet.NamespaceUris!;
-            if (index > uris.Length)
+            // never declared. The table read includes the URIs the synthesis
+            // appended but has not published to the NodeSet yet.
+            IReadOnlyList<string> uris = GetNamespaceTable(nodeSet);
+            if (index > uris.Count)
             {
                 return false;
             }

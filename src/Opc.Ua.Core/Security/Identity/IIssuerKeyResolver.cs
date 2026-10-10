@@ -153,7 +153,7 @@ namespace Opc.Ua.Identity
         /// </summary>
         /// <remarks>
         /// Uses <see cref="byte"/>[] parameters for compatibility with
-        /// the netstandard2.1 / net472 / net48 surface.
+        /// the net48 surface.
         /// </remarks>
         /// <exception cref="ObjectDisposedException"></exception>
         /// <exception cref="ArgumentNullException"><paramref name="signingInput"/> is <c>null</c>.</exception>

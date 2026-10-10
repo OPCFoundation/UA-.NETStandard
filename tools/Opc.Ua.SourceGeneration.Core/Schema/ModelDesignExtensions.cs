@@ -30,7 +30,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
+using System.IO;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Xml;
@@ -72,7 +74,7 @@ namespace Opc.Ua.Schema.Model
         }
 
         public MethodArgumentCodeNameScope(
-            Func<string, bool, IEnumerable<string>> getCollisionIdentifiers,
+            Func<string, bool, IEnumerable<string>>? getCollisionIdentifiers,
             params string[] reservedNames)
         {
             ReservedNames = reservedNames == null ? [] : [.. reservedNames];
@@ -88,7 +90,7 @@ namespace Opc.Ua.Schema.Model
             return m_getCollisionIdentifiers?.Invoke(identifier, output) ?? [identifier];
         }
 
-        private readonly Func<string, bool, IEnumerable<string>> m_getCollisionIdentifiers;
+        private readonly Func<string, bool, IEnumerable<string>>? m_getCollisionIdentifiers;
     }
 
     /// <summary>
@@ -101,7 +103,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         /// <param name="dataType"></param>
         /// <returns></returns>
-        public static BasicDataType DetermineBasicDataType(this DataTypeDesign dataType)
+        public static BasicDataType DetermineBasicDataType(this DataTypeDesign? dataType)
         {
             if (dataType == null)
             {
@@ -145,7 +147,7 @@ namespace Opc.Ua.Schema.Model
         /// Returns the class name to use when creating an instance of the type.
         /// </summary>
         public static string GetNodeStateClassName(
-            this InstanceDesign instance,
+            this InstanceDesign? instance,
             string targetNamespace,
             Namespace[] namespaces,
             bool asFactory = false,
@@ -177,6 +179,17 @@ namespace Opc.Ua.Schema.Model
 
                 if (MethodDesignArgumentResolver.HasMethodArguments(method))
                 {
+                    // Only method types have a typed class. A reference to a
+                    // method that declares its arguments inline uses the base
+                    // MethodState; declaration names keep the typed name.
+                    if (applyStandardFallback &&
+                        !MethodDesignArgumentResolver.HasTypedMethodState(method))
+                    {
+                        return CoreUtils.Format(
+                            "{0}global::Opc.Ua.MethodState",
+                            asFactory ? "new " : string.Empty);
+                    }
+
                     string typedClassName = CoreUtils.Format(
                         "{0}{1}MethodState",
                         asFactory ? "new " : string.Empty,
@@ -205,9 +218,34 @@ namespace Opc.Ua.Schema.Model
             if (instance is not VariableDesign variable)
 
             {
-                return GetNodeStateNameSimple(instance.TypeDefinitionNode);
+                // No state class is emitted for an excluded ObjectType: use
+                // the nearest emitted supertype's.
+                TypeDesign? typeDefinition = instance!.TypeDefinitionNode;
+                while (typeDefinition is ObjectTypeDesign { IsExcludedFromGeneration: true } &&
+                    typeDefinition.BaseTypeNode != null)
+                {
+                    typeDefinition = typeDefinition.BaseTypeNode;
+                }
+                return GetNodeStateNameSimple(typeDefinition!);
             }
             var variableType = instance.TypeDefinitionNode as VariableTypeDesign;
+
+            // A VariableType materialised from a referenced assembly's
+            // dependency payload used to arrive without its DataType
+            // restriction, leaving DataTypeNode null and crashing here with a
+            // bare NullReferenceException that named neither the variable nor
+            // the type. The payload now carries the restriction; this check
+            // keeps any remaining gap diagnosable instead of unreadable.
+            if (variableType?.DataTypeNode == null)
+            {
+                throw new InvalidDataException(
+                    $"The data type of variable type " +
+                    $"'{instance.TypeDefinition}' could not be resolved, so the " +
+                    $"node state class of '{instance.SymbolicId?.Name ?? instance.BrowseName}' " +
+                    "cannot be determined. The type is most likely supplied by a " +
+                    "referenced assembly whose dependency payload predates the " +
+                    "VariableType data type entry - rebuild that assembly.");
+            }
 
             // check if the variable type restricted the datatype to eliminate the
             // need for a template parameter.
@@ -217,7 +255,7 @@ namespace Opc.Ua.Schema.Model
             }
 
             // check if the variable instance did not restrict the datatype.
-            if (!variable.DataTypeNode.IsTemplateParameterRequired(variable.ValueRank))
+            if (!variable.DataTypeNode!.IsTemplateParameterRequired(variable.ValueRank))
             {
                 return GetNodeStateNameSimple(variableType);
             }
@@ -247,8 +285,8 @@ namespace Opc.Ua.Schema.Model
             }
 
             if (variable.ValueRank == ValueRank.OneOrMoreDimensions &&
-                variable.DataTypeNode.SupportsMatrixOf() &&
-                variable.DataTypeNode.BasicDataType
+                variable.DataTypeNode!.SupportsMatrixOf() &&
+                variable.DataTypeNode!.BasicDataType
                     is not BasicDataType.BaseDataType
                     and not BasicDataType.Number
                     and not BasicDataType.UInteger
@@ -307,10 +345,10 @@ namespace Opc.Ua.Schema.Model
         /// Get the variant builder to use to access or mutate a variant of type T
         /// </summary>
         public static string GetVariantBuilder(
-            this DataTypeDesign datatype,
+            this DataTypeDesign? datatype,
             string typeName)
         {
-            switch (datatype.BasicDataType)
+            switch (datatype!.BasicDataType)
             {
                 case BasicDataType.UserDefined:
                     if (datatype.IsEnumeration)
@@ -326,7 +364,7 @@ namespace Opc.Ua.Schema.Model
                     }
                     if (datatype.IsOptionSet)
                     {
-                        return GetVariantBuilder((DataTypeDesign)datatype.BaseTypeNode, typeName);
+                        return GetVariantBuilder((DataTypeDesign)datatype.BaseTypeNode!, typeName);
                     }
                     return CoreUtils.Format("global::Opc.Ua.EnumerationBuilder<{0}>", typeName);
                 default:
@@ -366,14 +404,14 @@ namespace Opc.Ua.Schema.Model
         public static string AsFullyQualifiedTypeSymbol(
             this XmlQualifiedName symbol,
             Namespace[] namespaces,
-            string alternativeName = null)
+            string? alternativeName = null)
         {
-            string name = alternativeName ?? symbol?.Name;
+            string? name = alternativeName ?? symbol?.Name;
             if (string.IsNullOrEmpty(name))
             {
                 throw new ArgumentException("Symbol name is empty");
             }
-            string ns = namespaces.GetNamespacePrefix(symbol?.Namespace);
+            string? ns = namespaces.GetNamespacePrefix((symbol?.Namespace)!);
             if (string.IsNullOrEmpty(ns))
             {
                 return name;
@@ -402,7 +440,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Returns a qualifier for the namespace to use in code.
         /// </summary>
-        public static string GetNamespacePrefix(this Namespace[] namespaces, string namespaceUri)
+        public static string? GetNamespacePrefix(this Namespace[] namespaces, string namespaceUri)
         {
             if (namespaces != null)
             {
@@ -423,7 +461,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
         /// <exception cref="ArgumentException"></exception>
-        public static string GetConstantSymbolForNamespace(
+        public static string? GetConstantSymbolForNamespace(
             this Namespace[] namespaces,
             string namespaceUri)
         {
@@ -431,7 +469,7 @@ namespace Opc.Ua.Schema.Model
             {
                 throw new ArgumentNullException(nameof(namespaces));
             }
-            Namespace ns = namespaces.GetNamespace(namespaceUri);
+            Namespace? ns = namespaces.GetNamespace(namespaceUri);
             if (ns == null)
             {
                 return null;
@@ -464,12 +502,14 @@ namespace Opc.Ua.Schema.Model
             string x = instance.GetMergedInstance().GetNodeStateClassName(targetNamespace, namespaces);
             string y = instance.OveriddenNode.GetNodeStateClassName(targetNamespace, namespaces);
 
-            if (y.StartsWith("BaseDataVariableState<", StringComparison.Ordinal) &&
-                x.StartsWith("BaseDataVariableState<", StringComparison.Ordinal))
-            {
-                return true;
-            }
-
+            // Only the exact same class counts. An override that refines the
+            // generic argument (BaseDataVariableState<double> overridden as
+            // BaseDataVariableState<int>) is a different class and has to be
+            // redeclared, or the subtype keeps exposing the base's value type.
+            // (A special case treating every BaseDataVariableState<...> pair as
+            // equal used to compare against the unqualified class name, which
+            // GetNodeStateClassName never returns - it had no effect and this
+            // is the behaviour the generated code has always had.)
             return x == y;
         }
 
@@ -504,7 +544,7 @@ namespace Opc.Ua.Schema.Model
             return false;
         }
 
-        public static string EnsureUniqueEnumName(this Parameter target)
+        public static string? EnsureUniqueEnumName(this Parameter target)
         {
             if (target?.Parent is DataTypeDesign dt && dt.HasFields && dt.Fields != null)
             {
@@ -543,15 +583,15 @@ namespace Opc.Ua.Schema.Model
         internal static string GetGeneratedCodeIdentifier(
             this Parameter field,
             bool upperCamelCase = false,
-            MethodArgumentCodeNameScope scope = null)
+            MethodArgumentCodeNameScope? scope = null)
         {
-            string name = field?.Name;
+            string? name = field?.Name;
             scope ??= s_defaultMethodArgumentCodeNameScope;
             if (field != null)
             {
                 lock (s_generatedCodeNamesLock)
                 {
-                    if (s_generatedCodeNames.TryGetValue(field, out GeneratedCodeNameState state) &&
+                    if (s_generatedCodeNames.TryGetValue(field, out GeneratedCodeNameState? state) &&
                         state.TryGetName(scope, out string generatedName) &&
                         !string.IsNullOrEmpty(generatedName))
                     {
@@ -559,7 +599,7 @@ namespace Opc.Ua.Schema.Model
                     }
                 }
             }
-            return name.ToCSharpIdentifier(upperCamelCase);
+            return name!.ToCSharpIdentifier(upperCamelCase);
         }
 
         /// <summary>
@@ -568,12 +608,12 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         internal static void AssignMethodArgumentCodeNames(
             this MethodDesign method,
-            MethodArgumentCodeNameScope scope = null,
+            MethodArgumentCodeNameScope? scope = null,
             params string[] additionalReservedNames)
         {
             AssignMethodArgumentCodeNames(
-                method?.InputArguments,
-                method?.OutputArguments,
+                (method?.InputArguments)!,
+                (method?.OutputArguments)!,
                 scope,
                 additionalReservedNames);
         }
@@ -584,7 +624,7 @@ namespace Opc.Ua.Schema.Model
         internal static void AssignMethodArgumentCodeNames(
             Parameter[] inputArguments,
             Parameter[] outputArguments,
-            MethodArgumentCodeNameScope scope = null,
+            MethodArgumentCodeNameScope? scope = null,
             params string[] additionalReservedNames)
         {
             scope ??= s_defaultMethodArgumentCodeNameScope;
@@ -724,7 +764,7 @@ namespace Opc.Ua.Schema.Model
                 if (argument != null &&
                     s_generatedCodeNames.TryGetValue(
                         argument,
-                        out GeneratedCodeNameState state))
+                        out GeneratedCodeNameState? state))
                 {
                     state.ClearName(scope);
                 }
@@ -750,7 +790,7 @@ namespace Opc.Ua.Schema.Model
                 MethodArgumentCodeNameScope scope,
                 out string name)
             {
-                return m_names.TryGetValue(scope, out name);
+                return m_names.TryGetValue(scope, out name!);
             }
 
             public void SetName(
@@ -914,7 +954,7 @@ namespace Opc.Ua.Schema.Model
         {
             return taken.Contains(candidate) ||
                 taken.Contains(ToBackingFieldName(candidate)) ||
-                (inherited.TryGetValue(candidate, out string inheritedFrom) &&
+                (inherited.TryGetValue(candidate, out string? inheritedFrom) &&
                     !string.Equals(inheritedFrom, authoredName, StringComparison.Ordinal));
         }
 
@@ -1032,6 +1072,7 @@ namespace Opc.Ua.Schema.Model
                 "EncodingMask",
                 "EncodingMaskFieldNames",
                 "Reuse",
+                "ResetForReuse",
                 "TypeId",
                 "BinaryEncodingId",
                 "XmlEncodingId",
@@ -1215,6 +1256,136 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// The bit an OptionSet field mask (the design Identifier) selects.
+        /// An OptionSet field names exactly one bit (OPC 10000-3 8.40, 8.52);
+        /// false for a zero mask (the "no bits set" value) or a mask of
+        /// several bits.
+        /// </summary>
+        public static bool TryGetOptionSetBit(decimal mask, out int bit)
+        {
+            bit = 0;
+            if (mask <= 0 || decimal.Truncate(mask) != mask)
+            {
+                return false;
+            }
+            while (decimal.Remainder(mask, 2) == 0)
+            {
+                mask /= 2;
+                bit++;
+            }
+            return mask == 1;
+        }
+
+        /// <summary>
+        /// The bit an OptionSet field names: its explicit
+        /// <see cref="Parameter.OptionSetBit"/> (any position, a subtype of
+        /// the OptionSet structure has no upper bit, OPC 10000-3 8.40) or
+        /// else the bit of its Identifier mask. False for the zero ("no bits
+        /// set") value and a mask of several bits.
+        /// </summary>
+        public static bool TryGetOptionSetBit(this Parameter field, out int bit)
+        {
+            if (field?.OptionSetBit is int explicitBit && explicitBit >= 0)
+            {
+                bit = explicitBit;
+                return true;
+            }
+            bit = 0;
+            return field != null && TryGetOptionSetBit(field.Identifier, out bit);
+        }
+
+        /// <summary>
+        /// The decimal mask of an OptionSet bit, or 0 when the bit is beyond
+        /// what a decimal represents exactly (bit 96 and above); such a bit
+        /// is carried by <see cref="Parameter.OptionSetBit"/>. Computed in
+        /// decimal since a signed shift turns bit 63 into a negative mask.
+        /// </summary>
+        public static decimal GetOptionSetMask(int bit)
+        {
+            if (bit is < 0 or >= kMaxDecimalMaskBits)
+            {
+                return 0;
+            }
+            decimal mask = 1m;
+            for (int ii = 0; ii < bit; ii++)
+            {
+                mask *= 2;
+            }
+            return mask;
+        }
+
+        /// <summary>
+        /// The hexadecimal BitMask of an OptionSet bit (at least 8 digits),
+        /// for any bit position.
+        /// </summary>
+        public static string GetOptionSetBitMask(int bit)
+        {
+            string mask = "1248"[bit % 4] + new string('0', bit / 4);
+            return mask.Length < 8 ? mask.PadLeft(8, '0') : mask;
+        }
+
+        /// <summary>
+        /// The bit a hexadecimal BitMask of any length selects; false when
+        /// the mask is not a single bit.
+        /// </summary>
+        public static bool TryGetOptionSetBitFromBitMask(string bitMask, out int bit)
+        {
+            bit = 0;
+            string? mask = bitMask?.Trim().TrimStart('0');
+            if (string.IsNullOrEmpty(mask))
+            {
+                return false;
+            }
+            int zeros = 0;
+            for (int ii = mask.Length - 1; ii > 0; ii--)
+            {
+                if (mask[ii] != '0')
+                {
+                    return false;
+                }
+                zeros++;
+            }
+            int lead = mask[0] switch
+            {
+                '1' => 0,
+                '2' => 1,
+                '4' => 2,
+                '8' => 3,
+                _ => -1
+            };
+            if (lead < 0)
+            {
+                return false;
+            }
+            bit = (zeros * 4) + lead;
+            return true;
+        }
+
+        /// <summary>
+        /// The bits a decimal OptionSet mask can represent exactly.
+        /// </summary>
+        private const int kMaxDecimalMaskBits = 96;
+
+        /// <summary>
+        /// The ArrayDimensions a StructureField publishes for the field. A
+        /// StructureField ValueRank is -1 or &gt;= 1, never 0 (OPC 10000-3
+        /// 8.51), and a multi-dimensional field has at least two dimensions
+        /// (OPC 10000-6 5.2.5): a <see cref="ValueRank.OneOrMoreDimensions"/>
+        /// field without ArrayDimensions is a two dimensional matrix of
+        /// unknown lengths. (The validator already normalizes design fields
+        /// that way; this also covers fields it did not see.)
+        /// </summary>
+        public static string GetStructureFieldArrayDimensions(this Parameter field)
+        {
+            if (field.ValueRank == ValueRank.OneOrMoreDimensions &&
+                string.IsNullOrWhiteSpace(field.ArrayDimensions))
+            {
+                return "0,0";
+            }
+            return field.ArrayDimensions;
+        }
+
+        /// <summary>
         /// Maps the MinimumSamplingInterval onto a constant.
         /// </summary>
         public static string GetMinimumSamplingIntervalAsCode(this VariableTypeDesign variableType)
@@ -1357,18 +1528,91 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
-        /// Whether a template parameter is required.
+        /// True if a field or a nested field of the structure (including the
+        /// fields inherited from its base types) is a multi-dimensional array,
+        /// i.e. encoded with the inline matrix representation. Such a
+        /// structure "is not compatible with the deprecated DataTypeDictionary
+        /// mechanism, and shall not be included in a DataTypeDictionary"
+        /// (OPC 10000-6 5.2.5): the dictionary has no way to describe values
+        /// whose count is the product of the dimensions. A field that allows
+        /// subtypes is an ExtensionObject in the dictionary and does not nest.
         /// </summary>
+        public static bool HasInlineMatrixField(this DataTypeDesign dataType)
+        {
+            return HasInlineMatrixField(dataType, []);
+
+            static bool HasInlineMatrixField(DataTypeDesign dataType, HashSet<DataTypeDesign> visited)
+            {
+                if (dataType == null || !visited.Add(dataType))
+                {
+                    return false;
+                }
+                for (DataTypeDesign? type = dataType;
+                    type != null;
+                    type = type.BaseTypeNode as DataTypeDesign)
+                {
+                    if (type.Fields == null || type.IsOptionSet || type.IsEnumeration)
+                    {
+                        continue;
+                    }
+                    foreach (Parameter field in type.Fields)
+                    {
+                        if (field == null)
+                        {
+                            continue;
+                        }
+                        if (field.ValueRank == ValueRank.OneOrMoreDimensions)
+                        {
+                            return true;
+                        }
+                        if (field.ValueRank is ValueRank.Scalar or ValueRank.Array &&
+                            !field.AllowSubTypes &&
+                            field.DataTypeNode is DataTypeDesign fieldType &&
+                            fieldType.BasicDataType == BasicDataType.UserDefined &&
+                            !fieldType.IsEnumeration &&
+                            HasInlineMatrixField(fieldType, visited))
+                        {
+                            return true;
+                        }
+                    }
+                }
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Emits the default value as a C# expression.
+        /// </summary>
+        /// <param name="dataType">The data type of the value.</param>
+        /// <param name="valueRank">The value rank.</param>
+        /// <param name="defaultValue">The authored value, decoded here when
+        /// <paramref name="decodedValue"/> is null.</param>
+        /// <param name="decodedValue">The already decoded value.</param>
+        /// <param name="valueAsVariant">Wrap the expression in a Variant.</param>
+        /// <param name="targetNamespace">The target namespace.</param>
+        /// <param name="namespaces">The design's namespaces.</param>
+        /// <param name="context">The context used to decode
+        /// <paramref name="defaultValue"/>.</param>
+        /// <param name="onUnknownElement">Fallback for values that have no
+        /// expression form.</param>
+        /// <param name="decodedValueNamespaceUris">The table the namespace
+        /// indexes in <paramref name="decodedValue"/> refer to (the NodeSet's);
+        /// null for a value authored in the design.</param>
+        /// <param name="namespaceTableVariable">A NamespaceTable expression in
+        /// scope where the code is emitted (e.g. <c>context.NamespaceUris</c>),
+        /// or null when there is none.</param>
         public static string GetValueAsCode(
             this DataTypeDesign dataType,
             ValueRank valueRank,
-            System.Xml.XmlElement defaultValue,
-            object decodedValue,
+            System.Xml.XmlElement? defaultValue,
+            object? decodedValue,
             bool valueAsVariant,
             string targetNamespace,
             Namespace[] namespaces,
             IServiceMessageContext context,
-            Func<string> onUnknownElement = null)
+            Func<string>? onUnknownElement = null,
+            NamespaceTable? decodedValueNamespaceUris = null,
+            string? namespaceTableVariable = null)
         {
             TypeInfo decodedValueType = default;
             string defaultString = valueAsVariant ?
@@ -1381,10 +1625,16 @@ namespace Opc.Ua.Schema.Model
                 //   <uax:Boolean>true</uax:Boolean>
                 // </opc:DefaultValue >
 
-                using var decoder = new XmlDecoder((XmlElement)defaultValue, context);
+                // hand-written designs may write empty strings as layout whitespace.
+                using var decoder = new XmlDecoder((XmlElement)defaultValue, context)
+                {
+                    TreatWhitespaceOnlyStringsAsEmpty = true
+                };
                 Variant variant = decoder.ReadVariantValue(null, default);
                 decodedValueType = variant.TypeInfo;
                 decodedValue = variant.AsBoxedObject(Variant.BoxingBehavior.Legacy);
+                // Authored in the design: its indexes are the design's own.
+                decodedValueNamespaceUris = null;
             }
 
             if (valueRank == ValueRank.Array)
@@ -1409,7 +1659,9 @@ namespace Opc.Ua.Schema.Model
                     valueAsVariant,
                     targetNamespace,
                     namespaces,
-                    onUnknownElement)
+                    onUnknownElement,
+                    decodedValueNamespaceUris,
+                    namespaceTableVariable)
                     ?? defaultString;
             }
 
@@ -1419,15 +1671,17 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Get default for a scalar type
         /// </summary>
-        internal static string GetScalarValueAsCode(
+        internal static string? GetScalarValueAsCode(
             this DataTypeDesign dataType,
-            System.Xml.XmlElement defaultValue,
-            object decodedValue,
+            System.Xml.XmlElement? defaultValue,
+            object? decodedValue,
             TypeInfo decodedValueType,
             bool valueAsVariant,
             string targetNamespace,
             Namespace[] namespaces,
-            Func<string> onUnknownElement = null)
+            Func<string>? onUnknownElement = null,
+            NamespaceTable? decodedValueNamespaceUris = null,
+            string? namespaceTableVariable = null)
         {
             // Note that we return a typed value since we initialize a object/variant
             switch (dataType.BasicDataType)
@@ -1507,7 +1761,7 @@ namespace Opc.Ua.Schema.Model
                     {
                         return MakeReturnType("float.NegativeInfinity");
                     }
-                    return MakeReturnType(CoreUtils.Format("(float){0}", floatValue));
+                    return MakeReturnType("(float)" + FormatFloatLiteral(floatValue));
                 case BasicDataType.Number:
                 case BasicDataType.Double:
                     if (decodedValue is not double doubleValue)
@@ -1526,7 +1780,7 @@ namespace Opc.Ua.Schema.Model
                     {
                         return MakeReturnType("double.NegativeInfinity");
                     }
-                    return MakeReturnType(CoreUtils.Format("(double){0}", doubleValue));
+                    return MakeReturnType("(double)" + FormatDoubleLiteral(doubleValue));
                 case BasicDataType.String:
                     if (decodedValue is not string stringValue)
                     {
@@ -1581,37 +1835,99 @@ namespace Opc.Ua.Schema.Model
                     {
                         return MakeReturnType("global::Opc.Ua.NodeId.Null");
                     }
-                    if (nodeId.NamespaceIndex == 0 ||
-                        nodeId.NamespaceIndex >= namespaces.Length)
+                    // The namespace index is one of the table the value was
+                    // decoded with, not of the server the code runs in: resolve
+                    // it to its URI and look that up at run time. Without a
+                    // namespace table in scope (a structure field initializer)
+                    // or for an index nothing declares, the literal id is all
+                    // that can be emitted.
+                    string? nodeIdNamespaceUri = nodeId.NamespaceIndex == 0
+                        ? null
+                        : ResolveDecodedNamespaceUri(
+                            nodeId.NamespaceIndex,
+                            decodedValueNamespaceUris,
+                            namespaces);
+                    if (nodeIdNamespaceUri == null || namespaceTableVariable == null)
                     {
                         return MakeReturnType(CoreUtils.Format(
-                            "global::Opc.Ua.NodeId.Parse(\"{0}\")",
-                            nodeId));
+                            "global::Opc.Ua.NodeId.Parse({0})",
+                            nodeId.ToString().AsStringLiteral()));
                     }
-                    var absoluteId = new ExpandedNodeId(
-                        nodeId,
-                        namespaces[nodeId.NamespaceIndex].Value);
                     return MakeReturnType(CoreUtils.Format(
-                        "ExpandedNodeId.Parse(\"{0}\", context.NamespaceUris)",
-                        absoluteId));
+                        "global::Opc.Ua.NodeId.Parse({0}).WithNamespaceIndex({1}.GetIndexOrAppend({2}))",
+                        nodeId.WithNamespaceIndex(0).ToString().AsStringLiteral(),
+                        namespaceTableVariable,
+                        nodeIdNamespaceUri.AsStringLiteral()));
                 case BasicDataType.ExpandedNodeId:
                     if (decodedValue is not ExpandedNodeId expandedNodeId ||
                         expandedNodeId.IsNull)
                     {
                         return MakeReturnType("global::Opc.Ua.ExpandedNodeId.Null");
                     }
+                    // An ExpandedNodeId can carry the namespace URI itself, so an
+                    // index-only value is emitted in its absolute "nsu=" form -
+                    // the index would otherwise be read against the server's
+                    // namespace table.
+                    if (string.IsNullOrEmpty(expandedNodeId.NamespaceUri) &&
+                        expandedNodeId.NamespaceIndex != 0)
+                    {
+                        string? expandedNamespaceUri = ResolveDecodedNamespaceUri(
+                            expandedNodeId.NamespaceIndex,
+                            decodedValueNamespaceUris,
+                            namespaces);
+                        if (expandedNamespaceUri != null)
+                        {
+                            expandedNodeId = new ExpandedNodeId(
+                                expandedNodeId.InnerNodeId,
+                                expandedNamespaceUri,
+                                expandedNodeId.ServerIndex);
+                        }
+                    }
+                    // A server index is one of the NodeSet's ServerUris table
+                    // (OPC 10000-6 F.2, F.14), not of the server the code runs
+                    // in, and the ExpandedNodeId text has no server URI form:
+                    // map the URI through the context's ServerUris at run time
+                    // (the literal index stays the fallback without a table).
+                    string? serverUri = expandedNodeId.ServerIndex == 0 ||
+                        decodedValueNamespaceUris is not DecodedValueNamespaceTable decodedTable
+                        ? null
+                        : decodedTable.ServerUris?.GetString(expandedNodeId.ServerIndex);
+                    string? serverTableVariable = GetServerTableVariable(namespaceTableVariable);
+                    if (serverUri != null && serverTableVariable != null)
+                    {
+                        return MakeReturnType(CoreUtils.Format(
+                            "global::Opc.Ua.ExpandedNodeId.Parse({0}).WithServerIndex({1}?.GetIndexOrAppend({2}) ?? {3}u)",
+                            expandedNodeId.WithServerIndex(0).ToString().AsStringLiteral(),
+                            serverTableVariable,
+                            serverUri.AsStringLiteral(),
+                            expandedNodeId.ServerIndex));
+                    }
                     return MakeReturnType(CoreUtils.Format(
-                        "global::Opc.Ua.ExpandedNodeId.Parse(\"{0}\")",
-                        expandedNodeId));
+                        "global::Opc.Ua.ExpandedNodeId.Parse({0})",
+                        expandedNodeId.ToString().AsStringLiteral()));
                 case BasicDataType.QualifiedName:
                     if (decodedValue is not QualifiedName qualifiedName ||
                         qualifiedName.IsNull)
                     {
                         return MakeReturnType("global::Opc.Ua.QualifiedName.Null");
                     }
+                    string? qualifiedNameNamespaceUri = qualifiedName.NamespaceIndex == 0
+                        ? null
+                        : ResolveDecodedNamespaceUri(
+                            qualifiedName.NamespaceIndex,
+                            decodedValueNamespaceUris,
+                            namespaces);
+                    if (qualifiedNameNamespaceUri == null || namespaceTableVariable == null)
+                    {
+                        return MakeReturnType(CoreUtils.Format(
+                            "global::Opc.Ua.QualifiedName.Parse({0})",
+                            qualifiedName.ToString().AsStringLiteral()));
+                    }
                     return MakeReturnType(CoreUtils.Format(
-                        "global::Opc.Ua.QualifiedName.Parse(\"{0}\")",
-                        qualifiedName));
+                        "new global::Opc.Ua.QualifiedName({0}, {1}.GetIndexOrAppend({2}))",
+                        qualifiedName.Name.AsStringLiteral(),
+                        namespaceTableVariable,
+                        qualifiedNameNamespaceUri.AsStringLiteral()));
                 case BasicDataType.LocalizedText:
                     if (decodedValue is not Ua.LocalizedText localizedText ||
                         localizedText.IsNullOrEmpty)
@@ -1628,9 +1944,11 @@ namespace Opc.Ua.Schema.Model
                     {
                         return MakeReturnType("default(global::Opc.Ua.StatusCode)");
                     }
+                    // The numeric code, not StatusCode.ToString(): that yields
+                    // "BadNodeIdUnknown [0x80340000]", which is no C# expression.
                     return MakeReturnType(CoreUtils.Format(
-                        "(global::Opc.Ua.StatusCode.StatusCode){0}",
-                        statusCode));
+                        "new global::Opc.Ua.StatusCode(0x{0:X8}u)",
+                        statusCode.Code));
                 case BasicDataType.Enumeration:
                     if (dataType.BaseTypeNode?.SymbolicId ==
                         new XmlQualifiedName("OptionSet", Namespaces.OpcUa))
@@ -1648,7 +1966,7 @@ namespace Opc.Ua.Schema.Model
                     {
                         if (decodedValue is int enumValue)
                         {
-                            return MakeReturnType(CoreUtils.Format("({0}){1}",
+                            return MakeReturnType(CoreUtils.Format("({0})({1})",
                                 dataType.SymbolicName.AsFullyQualifiedTypeSymbol(namespaces),
                                 enumValue));
                         }
@@ -1686,7 +2004,7 @@ namespace Opc.Ua.Schema.Model
                     return onUnknownElement?.Invoke();
             }
 
-            string MakeReturnType(string value, string prefix = null)
+            string MakeReturnType(string value, string? prefix = null)
             {
                 if (valueAsVariant)
                 {
@@ -1700,16 +2018,138 @@ namespace Opc.Ua.Schema.Model
         }
 
         /// <summary>
+        /// The run-time server URI table that sits next to a namespace table
+        /// expression: "context.NamespaceUris" pairs with "context.ServerUris".
+        /// Null when the expression is not a member access on a context.
+        /// </summary>
+        private static string? GetServerTableVariable(string? namespaceTableVariable)
+        {
+            const string suffix = ".NamespaceUris";
+            if (namespaceTableVariable == null ||
+                !namespaceTableVariable.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                return null;
+            }
+            return namespaceTableVariable[..(namespaceTableVariable.Length - suffix.Length)] +
+                ".ServerUris";
+        }
+
+        /// <summary>
+        /// Resolves a namespace index found inside a decoded default value to
+        /// its namespace URI. A value read from a NodeSet carries the table of
+        /// that NodeSet; a value authored in a ModelDesign numbers OPC UA 0 and
+        /// then the design's namespaces in declaration order. Returns null when
+        /// the index is not in the table.
+        /// </summary>
+        internal static string? ResolveDecodedNamespaceUri(
+            ushort namespaceIndex,
+            NamespaceTable? decodedValueNamespaceUris,
+            Namespace[] namespaces)
+        {
+            if (namespaceIndex == 0)
+            {
+                return Namespaces.OpcUa;
+            }
+            NamespaceTable table = decodedValueNamespaceUris ??
+                CreateDesignNamespaceTable(namespaces);
+            return table.GetString(namespaceIndex);
+        }
+
+        /// <summary>
+        /// The table the namespace indexes of a value authored in a ModelDesign
+        /// refer to: OPC UA 0 and then the design's namespaces in declaration
+        /// order.
+        /// </summary>
+        internal static NamespaceTable CreateDesignNamespaceTable(Namespace[] namespaces)
+        {
+            var table = new NamespaceTable();
+            foreach (Namespace ns in namespaces ?? [])
+            {
+                if (!string.IsNullOrEmpty(ns?.Value))
+                {
+                    table.GetIndexOrAppend(ns.Value);
+                }
+            }
+            return table;
+        }
+
+        /// <summary>
+        /// Formats a double as the digits of a C# literal that evaluates to
+        /// exactly the same value. The default "G" format depends on the
+        /// runtime the generator runs in: 15 significant digits on .NET
+        /// Framework (Visual Studio), the shortest round-trip form on .NET -
+        /// so the generated code differed between the two, lost precision on
+        /// .NET Framework and turned double.MaxValue into an out-of-range
+        /// literal (CS0594). The shortest of G15..G17 that parses back to the
+        /// value is the same on every runtime.
+        /// </summary>
+        internal static string FormatDoubleLiteral(double value)
+        {
+            if (value == 0)
+            {
+                // "(double)-0" would be integer zero cast to +0.
+                return BitConverter.DoubleToInt64Bits(value) < 0 ? "-0.0" : "0";
+            }
+            for (int precision = 15; precision < 17; precision++)
+            {
+                string text = value.ToString(
+                    "G" + precision.ToString(CultureInfo.InvariantCulture),
+                    CultureInfo.InvariantCulture);
+                if (double.TryParse(
+                        text,
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
+                        out double parsed) &&
+                    parsed.Equals(value))
+                {
+                    return text;
+                }
+            }
+            return value.ToString("G17", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
+        /// Formats a float as the digits of a literal that, cast to float,
+        /// evaluates to exactly the same value. The generated expression is
+        /// <c>(float)digits</c>, i.e. the digits are parsed as a double and then
+        /// converted, so the round trip is checked the same way.
+        /// See <see cref="FormatDoubleLiteral"/> for why "G" is not used.
+        /// </summary>
+        internal static string FormatFloatLiteral(float value)
+        {
+            if (value == 0)
+            {
+                return BitConverter.DoubleToInt64Bits(value) < 0 ? "-0.0" : "0";
+            }
+            for (int precision = 6; precision < 9; precision++)
+            {
+                string text = value.ToString(
+                    "G" + precision.ToString(CultureInfo.InvariantCulture),
+                    CultureInfo.InvariantCulture);
+                if (double.TryParse(
+                        text,
+                        NumberStyles.Float,
+                        CultureInfo.InvariantCulture,
+                        out double parsed) &&
+                    ((float)parsed).Equals(value))
+                {
+                    return text;
+                }
+            }
+            return value.ToString("G9", CultureInfo.InvariantCulture);
+        }
+
+        /// <summary>
         /// Get default for a array type
         /// </summary>
-        internal static string GetArrayValueAsCode(
+        internal static string? GetArrayValueAsCode(
             this DataTypeDesign dataType,
-            System.Xml.XmlElement defaultValue,
-            object decodedValue,
+            System.Xml.XmlElement? defaultValue,
+            object? decodedValue,
             bool valueAsVariant,
             string targetNamespace,
             Namespace[] namespaces,
-            Func<string> onUnknownElement = null)
+            Func<string>? onUnknownElement = null)
         {
             if ((decodedValue is not null &&
                 (decodedValue is not IList l || l.Count != 0) &&
@@ -1791,7 +2231,7 @@ namespace Opc.Ua.Schema.Model
                     return null;
             }
 
-            string MakeReturnType(string value, string prefix = null)
+            string MakeReturnType(string value, string? prefix = null)
             {
                 if (valueAsVariant)
                 {
@@ -1814,7 +2254,7 @@ namespace Opc.Ua.Schema.Model
             string targetNamespace,
             Namespace[] namespaces,
             string xmlStreamResource,
-            string contextVariable = null)
+            string? contextVariable = null)
         {
             contextVariable ??= "context";
             switch (dataType.BasicDataType)
@@ -1925,13 +2365,13 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         /// <exception cref="ArgumentException"></exception>
         public static string GetDotNetTypeName(
-            this DataTypeDesign datatype,
+            this DataTypeDesign? datatype,
             string targetNamespace,
             Namespace[] namespaces,
             NullableAnnotation nullable = NullableAnnotation.NonNullable,
             bool useBuiltInWrapperTypes = false)
         {
-            switch (datatype.BasicDataType)
+            switch (datatype!.BasicDataType)
             {
                 case BasicDataType.Boolean:
                     return "bool";
@@ -2001,7 +2441,7 @@ namespace Opc.Ua.Schema.Model
                     if (datatype.IsOptionSet)
                     {
                         return GetDotNetTypeName(
-                            (DataTypeDesign)datatype.BaseTypeNode,
+                            (DataTypeDesign)datatype.BaseTypeNode!,
                             targetNamespace,
                             namespaces,
                             nullable,  // Should it always be non nullable?
@@ -2155,11 +2595,11 @@ namespace Opc.Ua.Schema.Model
             {
                 return false;
             }
-            for (TypeDesign baseType = declaringType.BaseTypeNode;
+            for (TypeDesign? baseType = declaringType.BaseTypeNode;
                 baseType != null;
                 baseType = baseType.BaseTypeNode)
             {
-                InstanceDesign[] children = baseType.Children?.Items;
+                InstanceDesign[]? children = baseType.Children?.Items;
                 if (children == null)
                 {
                     continue;
@@ -2182,7 +2622,7 @@ namespace Opc.Ua.Schema.Model
         /// </summary>
         public static InstanceDesign GetMergedInstance(this InstanceDesign instance)
         {
-            for (NodeDesign parent = instance.Parent; parent != null; parent = parent.Parent)
+            for (NodeDesign? parent = instance.Parent; parent != null; parent = parent.Parent)
             {
                 if (parent.Parent == null && parent.Hierarchy != null)
                 {
@@ -2209,7 +2649,7 @@ namespace Opc.Ua.Schema.Model
                         }
                     }
                     if (parent.Hierarchy.Nodes.TryGetValue(relativePath,
-                        out HierarchyNode hierarchyNode) &&
+                        out HierarchyNode? hierarchyNode) &&
                         hierarchyNode.Instance is InstanceDesign instanceDesign)
                     {
                         return instanceDesign;
@@ -2257,11 +2697,11 @@ namespace Opc.Ua.Schema.Model
         /// Returns the data type to use for the value of a variable or the argument of a method.
         /// </summary>
         public static string GetBinaryDataType(
-            this DataTypeDesign dataType,
+            this DataTypeDesign? dataType,
             string targetNamespace,
             Namespace[] namespaces)
         {
-            switch (dataType.BasicDataType)
+            switch (dataType!.BasicDataType)
             {
                 case BasicDataType.Boolean:
                     return "opc:Boolean";
@@ -2327,7 +2767,7 @@ namespace Opc.Ua.Schema.Model
                         if (dataType.IsOptionSet)
                         {
                             return GetBinaryDataType(
-                                (DataTypeDesign)dataType.BaseTypeNode,
+                                (DataTypeDesign)dataType.BaseTypeNode!,
                                 targetNamespace,
                                 namespaces);
                         }
@@ -2335,7 +2775,7 @@ namespace Opc.Ua.Schema.Model
                         return CoreUtils.Format("opc:Int32");
                     }
 
-                    string prefix = "tns";
+                    string? prefix = "tns";
 
                     if (dataType.SymbolicName.Namespace != targetNamespace)
                     {
@@ -2358,14 +2798,14 @@ namespace Opc.Ua.Schema.Model
         /// Returns the data type to use for the value of a variable or the argument of a method.
         /// </summary>
         public static string GetXmlDataType(
-            this DataTypeDesign dataType,
+            this DataTypeDesign? dataType,
             ValueRank valueRank,
             string targetNamespace,
             Namespace[] namespaces)
         {
             if (valueRank != ValueRank.Scalar)
             {
-                switch (dataType.BasicDataType)
+                switch (dataType!.BasicDataType)
                 {
                     case BasicDataType.Boolean:
                         return "ua:ListOfBoolean";
@@ -2431,7 +2871,7 @@ namespace Opc.Ua.Schema.Model
                             if (dataType.IsOptionSet)
                             {
                                 return GetXmlDataType(
-                                    (DataTypeDesign)dataType.BaseTypeNode,
+                                    (DataTypeDesign)dataType.BaseTypeNode!,
                                     valueRank,
                                     targetNamespace,
                                     namespaces);
@@ -2440,7 +2880,7 @@ namespace Opc.Ua.Schema.Model
                             return CoreUtils.Format("ua:ListOfInt32");
                         }
 
-                        string prefix = "tns";
+                        string? prefix = "tns";
 
                         if (dataType.SymbolicName.Namespace != targetNamespace)
                         {
@@ -2451,7 +2891,7 @@ namespace Opc.Ua.Schema.Model
                                     if (dataType.IsOptionSet)
                                     {
                                         return GetXmlDataType(
-                                            (DataTypeDesign)dataType.BaseTypeNode,
+                                            (DataTypeDesign)dataType.BaseTypeNode!,
                                             valueRank,
                                             targetNamespace,
                                             namespaces);
@@ -2472,7 +2912,7 @@ namespace Opc.Ua.Schema.Model
                 }
             }
 
-            switch (dataType.BasicDataType)
+            switch (dataType!.BasicDataType)
             {
                 case BasicDataType.Boolean:
                     return "xs:boolean";
@@ -2538,7 +2978,7 @@ namespace Opc.Ua.Schema.Model
                         if (dataType.IsOptionSet)
                         {
                             return GetXmlDataType(
-                                (DataTypeDesign)dataType.BaseTypeNode,
+                                (DataTypeDesign)dataType.BaseTypeNode!,
                                 valueRank,
                                 targetNamespace,
                                 namespaces);
@@ -2547,7 +2987,7 @@ namespace Opc.Ua.Schema.Model
                         return CoreUtils.Format("xs:int");
                     }
 
-                    string prefix = null;
+                    string? prefix = null;
 
                     if (dataType.SymbolicName.Namespace != targetNamespace)
                     {
@@ -2558,7 +2998,7 @@ namespace Opc.Ua.Schema.Model
                                 if (dataType.IsOptionSet)
                                 {
                                     return GetXmlDataType(
-                                        (DataTypeDesign)dataType.BaseTypeNode,
+                                        (DataTypeDesign)dataType.BaseTypeNode!,
                                         valueRank,
                                         targetNamespace,
                                         namespaces);
@@ -2582,7 +3022,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Returns a constant for the namespace uri.
         /// </summary>
-        public static Namespace GetNamespace(this Namespace[] namespaces, string namespaceUri)
+        public static Namespace? GetNamespace(this Namespace[] namespaces, string namespaceUri)
         {
             if (namespaces != null)
             {
@@ -2601,9 +3041,9 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Returns a constant for the namespace uri.
         /// </summary>
-        public static string GetConstantForXmlNamespace(this Namespace[] namespaces, string namespaceUri)
+        public static string? GetConstantForXmlNamespace(this Namespace[] namespaces, string namespaceUri)
         {
-            Namespace ns = GetNamespace(namespaces, namespaceUri);
+            Namespace? ns = GetNamespace(namespaces, namespaceUri);
             if (ns != null)
             {
                 // The "...Xsd" companion constant only exists when the XML
@@ -2625,7 +3065,7 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Returns the XML prefix for the specified namespace.
         /// </summary>
-        public static string GetXmlNamespacePrefix(this Namespace[] namespaces, string namespaceUri)
+        public static string? GetXmlNamespacePrefix(this Namespace[] namespaces, string namespaceUri)
         {
             if (namespaceUri == null)
             {
@@ -2650,7 +3090,7 @@ namespace Opc.Ua.Schema.Model
             return null;
         }
 
-        public static bool IsMethodTypeDesign(this NodeDesign node)
+        public static bool IsMethodTypeDesign([NotNullWhen(true)] this NodeDesign? node)
         {
             if (node?.SymbolicId is null)
             {
@@ -2756,7 +3196,7 @@ namespace Opc.Ua.Schema.Model
         /// the ModelDesign <see cref="AccessLevel"/> enumeration cannot
         /// represent combinations such as <c>CurrentRead | HistoryRead</c>.
         /// </summary>
-        public static string GetAccessLevelAsCode(this VariableDesign variable)
+        public static string GetAccessLevelAsCode(this VariableDesign? variable)
         {
             uint? rawAccessLevel = variable?.RawAccessLevel;
             return rawAccessLevel != null
@@ -2845,7 +3285,7 @@ namespace Opc.Ua.Schema.Model
             }, noAutoGen: false);
         }
 
-        public static string GetLocalizedTextAsCode(this LocalizedText localizedText, bool noAutoGen = false)
+        public static string GetLocalizedTextAsCode(this LocalizedText? localizedText, bool noAutoGen = false)
         {
             if (localizedText?.Value != null && (!noAutoGen || !localizedText.IsAutogenerated))
             {
@@ -2860,9 +3300,17 @@ namespace Opc.Ua.Schema.Model
         /// <summary>
         /// Maps the array dimensions onto code that creates the array.
         /// </summary>
-        public static string GetArrayDimensionsAsCode(this ValueRank valueRank, string arrayDimensions)
+        public static string? GetArrayDimensionsAsCode(this ValueRank valueRank, string arrayDimensions)
         {
-            if (valueRank is < 0 and not ValueRank.OneOrMoreDimensions)
+            // Part 3 5.6.2: ArrayDimensions is null unless the ValueRank names an
+            // array of a specific dimension. ModelDesign's ValueRank is the XSD
+            // enum (Scalar = 0 ... Any = 5), not the numeric OPC UA rank, so a
+            // "< 0" test never fired and a scalar declared with
+            // ArrayDimensions="0" (as NodeSet exporters write it) got them.
+            if (valueRank is ValueRank.Scalar or
+                ValueRank.ScalarOrArray or
+                ValueRank.ScalarOrOneDimension or
+                ValueRank.Any)
             {
                 return null;
             }
@@ -2899,7 +3347,7 @@ namespace Opc.Ua.Schema.Model
                 })));
         }
 
-        public static string GetAccessRestrictionsAsCode(
+        public static string? GetAccessRestrictionsAsCode(
             this AccessRestrictions restrictions,
             bool restrictionsSpecified)
         {
@@ -2985,7 +3433,7 @@ namespace Opc.Ua.Schema.Model
 
             static void AddPermissionStrings(Permissions p, HashSet<string> parts)
             {
-                string part = p switch
+                string? part = p switch
                 {
                     Permissions.Browse =>
                         "global::Opc.Ua.PermissionType.Browse",
@@ -3035,7 +3483,7 @@ namespace Opc.Ua.Schema.Model
         /// identifier types defined by OPC 10000-3 5.2.2, or <c>null</c> when
         /// the node does not carry an explicit identifier.
         /// </summary>
-        public static object GetIdentifier(this NodeDesign node)
+        public static object? GetIdentifier(this NodeDesign? node)
         {
             if (node == null)
             {
@@ -3064,7 +3512,7 @@ namespace Opc.Ua.Schema.Model
         /// Assigns the identifier of the node, clearing the identifiers of all
         /// other identifier types. Passing <c>null</c> clears the identifier.
         /// </summary>
-        public static void SetIdentifier(this NodeDesign node, object identifier)
+        public static void SetIdentifier(this NodeDesign? node, object? identifier)
         {
             if (node == null)
             {
@@ -3122,7 +3570,7 @@ namespace Opc.Ua.Schema.Model
         /// Returns the C# literal for an identifier together with the C# type
         /// the literal has.
         /// </summary>
-        public static string GetIdentifierAsCode(object identifier, out string type)
+        public static string? GetIdentifierAsCode(object identifier, out string? type)
         {
             switch (identifier)
             {
@@ -3149,11 +3597,11 @@ namespace Opc.Ua.Schema.Model
         }
 
         public static string GetNodeIdAsCode(
-            this NodeDesign node,
+            this NodeDesign? node,
             Namespace[] namespaces,
             string namespaceTableVariable)
         {
-            string identifier;
+            string? identifier;
             if (node == null)
             {
                 return "global::Opc.Ua.NodeId.Null";
@@ -3168,7 +3616,7 @@ namespace Opc.Ua.Schema.Model
             }
             else if (node.HasNonConstantIdentifier())
             {
-                identifier = GetIdentifierAsCode(node.GetIdentifier(), out _);
+                identifier = GetIdentifierAsCode(node.GetIdentifier()!, out _);
             }
             else
             {
@@ -3198,7 +3646,7 @@ namespace Opc.Ua.Schema.Model
             this NodeDesign node,
             Namespace[] namespaces)
         {
-            string identifier;
+            string? identifier;
             if (node == null)
             {
                 return "global::Opc.Ua.ExpandedNodeId.Null";
@@ -3213,7 +3661,7 @@ namespace Opc.Ua.Schema.Model
             }
             else if (node.HasNonConstantIdentifier())
             {
-                identifier = GetIdentifierAsCode(node.GetIdentifier(), out _);
+                identifier = GetIdentifierAsCode(node.GetIdentifier()!, out _);
             }
             else
             {
@@ -3241,7 +3689,7 @@ namespace Opc.Ua.Schema.Model
         public static uint? FindNumericIdentifier(this NodeDesign node)
         {
             uint? numericId = node.NumericIdSpecified ? node.NumericId : null;
-            for (NodeDesign parent = node.Parent;
+            for (NodeDesign? parent = node.Parent;
                 !numericId.HasValue && parent != null;
                 parent = parent.Parent)
             {
@@ -3257,8 +3705,8 @@ namespace Opc.Ua.Schema.Model
                     browsePath = browsePath[(parentPath.Length + 1)..];
                 }
 
-                if (parent.Hierarchy.Nodes.TryGetValue(browsePath, out HierarchyNode instance) &&
-                    instance.Instance.NumericId != 0)
+                if (parent.Hierarchy.Nodes.TryGetValue(browsePath, out HierarchyNode? instance) &&
+                    instance.Instance!.NumericId != 0)
                 {
                     numericId = instance.Instance.NumericId;
                 }
@@ -3268,7 +3716,7 @@ namespace Opc.Ua.Schema.Model
 
         public static string GetNodeIdConstant(
             this IModelDesign design,
-            XmlQualifiedName symbolidId,
+            XmlQualifiedName? symbolidId,
             string type,
             string namespaceTableVariable)
         {
@@ -3296,32 +3744,36 @@ namespace Opc.Ua.Schema.Model
             {
                 node.DefaultValue = AsXmlElement(value, context);
                 node.DecodedValue = value;
+                node.DecodedValueNamespaceUris = null;
             }
             else
             {
                 node.DefaultValue = null;
                 node.DecodedValue = null;
+                node.DecodedValueNamespaceUris = null;
             }
         }
 
         public static void SetDefaultValue(
             this VariableDesign node,
-            object value,
+            object? value,
             IServiceMessageContext context)
         {
             if (value != null)
             {
                 node.DefaultValue = AsXmlElement(value, context);
                 node.DecodedValue = value;
+                node.DecodedValueNamespaceUris = null;
             }
             else
             {
                 node.DefaultValue = null;
                 node.DecodedValue = null;
+                node.DecodedValueNamespaceUris = null;
             }
         }
 
-        private static System.Xml.XmlElement AsXmlElement(
+        private static System.Xml.XmlElement? AsXmlElement(
             object value,
             IServiceMessageContext context)
         {
@@ -3331,7 +3783,7 @@ namespace Opc.Ua.Schema.Model
                 using var encoder = new XmlEncoder(context);
                 encoder.WriteVariantValue(null, variant);
                 var xmlDoc = new XmlDocument();
-                xmlDoc.LoadInnerXml(encoder.CloseAndReturnText());
+                xmlDoc.LoadInnerXml(encoder.CloseAndReturnText()!);
                 return xmlDoc.DocumentElement;
             }
             return null;
@@ -3351,7 +3803,7 @@ namespace Opc.Ua.Schema.Model
                 {
                     if (name == dataType.SymbolicName.Name)
                     {
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+#if NET8_0_OR_GREATER
                         basicDataType = Enum.Parse<BasicDataType>(
                             dataType.SymbolicName.Name);
 #else

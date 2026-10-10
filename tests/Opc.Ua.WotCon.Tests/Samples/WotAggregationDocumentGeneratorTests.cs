@@ -649,12 +649,18 @@ namespace Opc.Ua.WotCon.Tests.Samples
                 "SourceBStart", "SourceBStop", "SourceBReset",
                 "CavitationAlarm", "MotorOverheatAlarm",
                 "CavitationAcknowledge", "CavitationConfirm",
-                "MotorOverheatAcknowledge", "MotorOverheatConfirm"
+                "MotorOverheatAcknowledge", "MotorOverheatConfirm",
+                "Type"
             ];
             seed.Root!.Elements().Where(element => IsGeneratedNodeId((string?)element.Attribute("NodeId"))).Remove();
             XElement pump = seed.Root.Elements().Single(element =>
                 (string?)element.Attribute("NodeId") == "ns=1;s=Pump1");
             pump.SetAttributeValue("EventNotifier", null);
+
+            // The companion seed types the pump with PumpType itself; the
+            // generator derives the pump's own event-source type from it.
+            pump.Descendants().Single(element => element.Name.LocalName == "Reference" &&
+                (string?)element.Attribute("ReferenceType") == "HasTypeDefinition").Value = "ns=2;i=1052";
             pump.Descendants().Where(element =>
                 element.Name.LocalName == "Reference" && IsGeneratedNodeId(element.Value)).Remove();
             seed.Root.Descendants().Where(element => element.Name.LocalName == "Alias" &&

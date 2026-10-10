@@ -127,29 +127,51 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         /// <summary>
         /// Verifies explicit trusted roots and intermediate issuers validate a leaf without filesystem trust stores.
+        /// With no CRL anywhere the revocation status is unknown; that is accepted by default or when the entries
+        /// disable the check (SuppressRevocationStatusUnknown), and rejected under RejectUnknownRevocationStatus
+        /// (OPC 10000-4 6.1.3, Find Revocation List).
         /// </summary>
-        [TestCase("Peers", false)]
-        [TestCase("Peers", true)]
-        [TestCase("Users", false)]
-        [TestCase("Users", true)]
-        [TestCase("Https", false)]
-        [TestCase("Https", true)]
-        public async Task ExplicitIssuerChainIsHonoredWithoutStorePathAsync(string scope, bool strict)
+        [TestCase("Peers", false, false)]
+        [TestCase("Peers", true, false)]
+        [TestCase("Peers", true, true)]
+        [TestCase("Users", false, false)]
+        [TestCase("Users", true, false)]
+        [TestCase("Users", true, true)]
+        [TestCase("Https", false, false)]
+        [TestCase("Https", true, false)]
+        [TestCase("Https", true, true)]
+        public async Task ExplicitIssuerChainIsHonoredWithoutStorePathAsync(
+            string scope,
+            bool strict,
+            bool suppressUnknown)
         {
+            CertificateValidationOptions entryOptions = suppressUnknown
+                ? CertificateValidationOptions.SuppressRevocationStatusUnknown
+                : CertificateValidationOptions.Default;
             SecurityConfiguration configuration = CreateConfiguration();
             configuration.RejectUnknownRevocationStatus = strict;
             GetTrustedList(configuration, scope).TrustedCertificates =
-                [new CertificateIdentifier { RawData = m_root.RawData }];
+                [new CertificateIdentifier { RawData = m_root.RawData, ValidationOptions = entryOptions }];
             GetIssuerList(configuration, scope).TrustedCertificates =
-                [new CertificateIdentifier { RawData = m_intermediate.RawData }];
+                [new CertificateIdentifier { RawData = m_intermediate.RawData, ValidationOptions = entryOptions }];
             await using var manager = new CertificateManager(m_telemetry);
             manager.MapFromSecurityConfiguration(configuration);
 
             CertificateValidationResult result = await manager.ValidateAsync(m_leaf, GetScope(scope))
                 .ConfigureAwait(false);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(result.IsValid, Is.True);
+            if (strict && !suppressUnknown)
+            {
+                Assert.That(result.IsValid, Is.False);
+                Assert.That(result.StatusCode,
+                    Is.EqualTo(StatusCodes.BadCertificateRevocationUnknown)
+                        .Or.EqualTo(StatusCodes.BadCertificateIssuerRevocationUnknown));
+            }
+            else
+            {
+                Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(result.IsValid, Is.True);
+            }
         }
 
         /// <summary>
@@ -198,6 +220,67 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted),
                 "The explicit issuers must complete the chain without making its leaf trusted.");
             Assert.That(result.IsValid, Is.False);
+        }
+
+        /// <summary>
+        /// Verifies a peer presenting only its leaf is trusted when a CA of its chain is in the trusted store, with
+        /// the remaining CAs taken from the issuer store, and rejected when every CA is only in the issuer store:
+        /// the issuer list completes the chain but is no trust anchor (OPC 10000-4 6.1.3).
+        /// </summary>
+        [TestCase("Peers", true, true)]
+        [TestCase("Peers", true, false)]
+        [TestCase("Peers", false, true)]
+        [TestCase("Peers", false, false)]
+        [TestCase("Users", true, false)]
+        [TestCase("Users", false, true)]
+        [TestCase("Users", false, false)]
+        public async Task LeafOnlyChainFromStoresIsTrustedOnlyByTrustedCaAsync(
+            string scope,
+            bool rootTrusted,
+            bool intermediateTrusted)
+        {
+            string path = Path.Combine(Path.GetTempPath(), "opcua-leaf-only-" + Guid.NewGuid().ToString("N"));
+            try
+            {
+                SecurityConfiguration configuration = CreateConfiguration();
+                CertificateTrustList trustedList = GetTrustedList(configuration, scope);
+                trustedList.StoreType = CertificateStoreType.Directory;
+                trustedList.StorePath = Path.Combine(path, "trusted");
+                CertificateTrustList issuerList = GetIssuerList(configuration, scope);
+                issuerList.StoreType = CertificateStoreType.Directory;
+                issuerList.StorePath = Path.Combine(path, "issuer");
+                using (ICertificateStore trustedStore = trustedList.OpenStore(m_telemetry))
+                using (ICertificateStore issuerStore = issuerList.OpenStore(m_telemetry))
+                {
+                    await (rootTrusted ? trustedStore : issuerStore).AddAsync(m_root).ConfigureAwait(false);
+                    await (intermediateTrusted ? trustedStore : issuerStore).AddAsync(m_intermediate)
+                        .ConfigureAwait(false);
+                }
+                await using var manager = new CertificateManager(m_telemetry);
+                manager.MapFromSecurityConfiguration(configuration);
+
+                CertificateValidationResult result = await manager.ValidateAsync(m_leaf, GetScope(scope))
+                    .ConfigureAwait(false);
+
+                if (rootTrusted || intermediateTrusted)
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+                    Assert.That(result.IsValid, Is.True);
+                }
+                else
+                {
+                    Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted),
+                        "A chain whose CAs are only in the issuer store must not be trusted.");
+                    Assert.That(result.IsValid, Is.False);
+                }
+            }
+            finally
+            {
+                if (Directory.Exists(path))
+                {
+                    Directory.Delete(path, recursive: true);
+                }
+            }
         }
 
         /// <summary>
@@ -531,13 +614,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         private static CertificateTrustList GetTrustedList(SecurityConfiguration configuration, string scope)
         {
-            return scope switch
+            return (scope switch
             {
                 "Peers" => configuration.TrustedPeerCertificates,
                 "Users" => configuration.TrustedUserCertificates,
                 "Https" => configuration.TrustedHttpsCertificates,
                 _ => throw new ArgumentOutOfRangeException(nameof(scope))
-            };
+            })!;
         }
 
         /// <summary>
@@ -545,13 +628,13 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         /// </summary>
         private static CertificateTrustList GetIssuerList(SecurityConfiguration configuration, string scope)
         {
-            return scope switch
+            return (scope switch
             {
                 "Peers" => configuration.TrustedIssuerCertificates,
                 "Users" => configuration.UserIssuerCertificates,
                 "Https" => configuration.HttpsIssuerCertificates,
                 _ => throw new ArgumentOutOfRangeException(nameof(scope))
-            };
+            })!;
         }
 
         /// <summary>

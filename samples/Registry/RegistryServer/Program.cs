@@ -1,3 +1,9 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
 using System.IO;
 using System.Threading;
@@ -5,10 +11,14 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua.Registry.Samples
 {
-    /// <summary>Standalone durable registry executable.</summary>
+    /// <summary>
+    /// Standalone durable registry executable.
+    /// </summary>
     public static class RegistryServerProgram
     {
-        /// <summary>Runs until interrupted, or for a bounded --once/--self-test workflow.</summary>
+        /// <summary>
+        /// Runs until interrupted, or for a bounded --once/--self-test workflow.
+        /// </summary>
         public static async Task<int> Main(string[] args)
         {
             try

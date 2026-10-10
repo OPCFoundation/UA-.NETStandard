@@ -129,7 +129,7 @@ namespace Opc.Ua.Server
             {
                 Certificate? resolved = await CertificateIdentifierResolver.ResolveAsync(
                     existingCertIdentifier,
-                    registry: null,
+                    registry: m_configuration.CertificateManager,
                     needPrivateKey: false,
                     m_configuration.ApplicationUri,
                     Server.Telemetry,
@@ -275,7 +275,8 @@ namespace Opc.Ua.Server
         {
             bool removedCertificate = false;
             using (ICertificateStore? appStore = CertificateIdentifierResolver
-                .OpenStore(existingCertIdentifier, Server.Telemetry))
+                .OpenStore(existingCertIdentifier, Server.Telemetry,
+                    m_configuration.CertificateManager as ICertificateStoreResolver))
             {
                 if (appStore == null)
                 {
@@ -334,9 +335,9 @@ namespace Opc.Ua.Server
             List<string>? newlyAddedIssuerThumbprints = null;
             if (addIssuerChain is { Count: > 0 })
             {
-                using ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);
                 try
                 {
+                    using ICertificateStore issuerStore = OpenGroupStore(certificateGroup.IssuerStore);
                     foreach (Certificate issuer in addIssuerChain)
                     {
                         bool alreadyPresent;
@@ -389,10 +390,9 @@ namespace Opc.Ua.Server
             {
                 if (m_configuration.CertificateManager is ICertificateLifecycle lifecycle)
                 {
-                    using var certOnly = Certificate.FromRawData(addCertificateWithKey.RawData);
                     await lifecycle.UpdateApplicationCertificateAsync(
                         existingCertIdentifier.CertificateType,
-                        certOnly,
+                        addCertificateWithKey,
                         issuerChain: null,
                         ct).ConfigureAwait(false);
                 }
@@ -445,7 +445,8 @@ namespace Opc.Ua.Server
             try
             {
                 using ICertificateStore? appStore = CertificateIdentifierResolver
-                    .OpenStore(existingCertIdentifier, Server.Telemetry);
+                    .OpenStore(existingCertIdentifier, Server.Telemetry,
+                        m_configuration.CertificateManager as ICertificateStoreResolver);
                 if (appStore != null)
                 {
                     await appStore.DeleteAsync(
@@ -507,7 +508,7 @@ namespace Opc.Ua.Server
                 return;
             }
 
-            using ICertificateStore issuerStore = certificateGroup.IssuerStore.OpenStore(Server.Telemetry);
+            using ICertificateStore issuerStore = OpenGroupStore(certificateGroup.IssuerStore);
             // Indexed rather than foreach: ArrayOf<T>'s enumerator is a
             // ReadOnlySpan<T>.Enumerator (a ref struct), which cannot be
             // held across the await below.
@@ -676,14 +677,15 @@ namespace Opc.Ua.Server
             // active certificate registry rather than the EndpointDescription's
             // ServerCertificate blob captured at startup: after a successful
             // certificate rotation that blob may be stale, so the live registry
-            // (keyed by the endpoint's SecurityPolicyUri, exactly as the channel
-            // handshake resolves the presented certificate) is authoritative for
+            // (using the endpoint's security and user-token policies) is authoritative for
             // which certificate/type is presented at this moment. When no
             // registry is available (an external/mocked IServerInternal) the
             // endpoint's own blob is the only source and is used as a fallback.
             var registry = m_configuration.CertificateManager as ICertificateRegistry;
 
-            if (IsCertificateReferencedByEndpoint(deletedThumbprint!, endpoints, registry, Server.Telemetry))
+            if (IsCertificateReferencedByEndpoint(
+                deletedThumbprint!, endpoints, registry, Server.Telemetry,
+                (Server as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry))
             {
                 throw new ServiceResultException(
                     StatusCodes.BadInvalidState,

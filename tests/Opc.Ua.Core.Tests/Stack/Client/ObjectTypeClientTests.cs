@@ -49,10 +49,10 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             NodeId objectId = new(1000);
 
             Assert.That(
-                () => _ = new TestObjectTypeClient(null, objectId, NUnitTelemetryContext.Create()),
+                () => _ = new TestObjectTypeClient(null!, objectId, NUnitTelemetryContext.Create()),
                 Throws.ArgumentNullException);
             Assert.That(
-                () => _ = new TestObjectTypeClient(session.Object, objectId, null),
+                () => _ = new TestObjectTypeClient(session.Object, objectId, null!),
                 Throws.ArgumentNullException);
         }
 

@@ -52,13 +52,11 @@ namespace Opc.Ua
                 m_endpoint = endpoint;
                 SecureChannelContext = context;
                 Request = request;
+                m_parkSink = request is PublishRequest || endpoint.RequestParkingPolicy?.CanPark(request) == true
+                    ? new RequestParkSink()
+                    : null;
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
                 m_transportCancellationToken = default;
-
-                // Only requests that can park (currently Publish long-polls) carry a park
-                // sink; every other request uses the legacy inline path with no extra
-                // per-request allocation or work.
-                m_parkSink = request is PublishRequest ? new RequestParkSink() : null;
             }
 
             /// <inheritdoc/>
@@ -111,8 +109,7 @@ namespace Opc.Ua
                 try
                 {
                     Activity? activity = null;
-                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
-                        .GetActivitySource();
+                    ActivitySource activitySource = m_endpoint.RequestActivitySource;
                     if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available

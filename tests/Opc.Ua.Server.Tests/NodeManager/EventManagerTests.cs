@@ -48,6 +48,33 @@ namespace Opc.Ua.Server.Tests.NodeManager
     [Parallelizable(ParallelScope.All)]
     public class EventManagerTests
     {
+        [Test]
+        public void FailedEventItemConstructionDoesNotPoisonLaterEnumeration()
+        {
+            Mock<IServerInternal> server = DeterministicServerMock.Create(out MonitoredItemQueueFactory queues);
+            using (queues)
+            using (var manager = new EventManager(server.Object, 100, 100))
+            using (OperationContext context = NewContext())
+            {
+                var nodeManager = new Mock<IAsyncNodeManager>();
+                var ids = new MonitoredItemIdFactory();
+                MonitoredItemCreateRequest request = NewCreateRequest(1000, 5);
+                ServiceResultException failure = Assert.Throws<ServiceResultException>(() =>
+                    manager.CreateMonitoredItem(
+                        context, nodeManager.Object, null!, 1, ids, TimestampsToReturn.Both,
+                        1000, request, new EventFilter(), createDurable: true));
+                Assert.That(failure.StatusCode, Is.EqualTo(StatusCodes.BadInternalError));
+                Assert.That(manager.GetMonitoredItems(), Is.Empty);
+                Assert.That(manager.GetMonitoredItems().Where(item => item.MonitoringAllEvents), Is.Empty);
+
+                IEventMonitoredItem recovered = manager.CreateMonitoredItem(
+                    context, nodeManager.Object, null!, 1, ids, TimestampsToReturn.Both,
+                    1000, request, new EventFilter(), createDurable: false);
+                Assert.That(manager.GetMonitoredItems(), Has.Count.EqualTo(1));
+                Assert.That(manager.GetMonitoredItems()[0], Is.SameAs(recovered));
+            }
+        }
+
         private static OperationContext NewContext()
         {
             return new OperationContext(
@@ -219,6 +246,61 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(
                 ((MonitoredItem)item).QueueSize,
                 Is.EqualTo(EventManager.DefaultEventQueueSize));
+        }
+
+        /// <summary>
+        /// Part 4 7.21: a NaN sampling interval on create is revised to the publishing interval
+        /// instead of being echoed back.
+        /// </summary>
+        [Test]
+        public void CreateMonitoredItemRevisesNaNSamplingIntervalToPublishingInterval()
+        {
+            EventManager manager = CreateManager(100, 100, out _, out Mock<IAsyncNodeManager> nm);
+
+            IEventMonitoredItem item = manager.CreateMonitoredItem(
+                NewContext(), nm.Object, null!, 1, new MonitoredItemIdFactory(),
+                TimestampsToReturn.Both, 750.0, NewCreateRequest(double.NaN, 5),
+                new EventFilter(), false);
+
+            Assert.That(((MonitoredItem)item).SamplingInterval, Is.EqualTo(750.0));
+        }
+
+        /// <summary>
+        /// Part 4 7.21: any negative sampling interval on modify selects the publishing interval
+        /// of the subscription; the negative value is never returned as the revised interval.
+        /// </summary>
+        [TestCase(-1.0)]
+        [TestCase(-5.0)]
+        [TestCase(double.NaN)]
+        public void ModifyMonitoredItemRevisesNegativeSamplingIntervalToPublishingInterval(
+            double requestedSamplingInterval)
+        {
+            EventManager manager = CreateManager(100, 100, out _, out Mock<IAsyncNodeManager> nm);
+            IEventMonitoredItem item = manager.CreateMonitoredItem(
+                NewContext(), nm.Object, null!, 1, new MonitoredItemIdFactory(),
+                TimestampsToReturn.Both, 1000.0, NewCreateRequest(500.0, 5),
+                new EventFilter(), false);
+            var subscription = new Mock<ISubscription>();
+            subscription.SetupGet(s => s.PublishingInterval).Returns(250.0);
+            item.SubscriptionCallback = subscription.Object;
+
+            manager.ModifyMonitoredItem(
+                NewContext(),
+                item,
+                TimestampsToReturn.Both,
+                new MonitoredItemModifyRequest
+                {
+                    RequestedParameters = new MonitoringParameters
+                    {
+                        ClientHandle = 42,
+                        SamplingInterval = requestedSamplingInterval,
+                        QueueSize = 5,
+                        DiscardOldest = true
+                    }
+                },
+                new EventFilter());
+
+            Assert.That(((MonitoredItem)item).SamplingInterval, Is.EqualTo(250.0));
         }
 
         /// <summary>

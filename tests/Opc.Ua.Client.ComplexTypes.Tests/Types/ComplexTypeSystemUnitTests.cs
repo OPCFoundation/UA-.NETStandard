@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using System.Xml;
 using NUnit.Framework;
@@ -91,7 +92,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var typeSystem = new ComplexTypeSystem(new MockResolver(), telemetry);
 
             ArgumentNullException exception = Assert.Throws<ArgumentNullException>(
-                () => typeSystem.RegisterDataTypeDefinitions(null));
+                () => typeSystem.RegisterDataTypeDefinitions(null!));
             Assert.That(exception.ParamName, Is.EqualTo("registry"));
         }
 
@@ -190,9 +191,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var factory = new DefaultComplexTypeFactory();
             var typeSystem = new ComplexTypeSystem(mockResolver, factory, telemetry);
 
-            IType loaded = await typeSystem
+            IType loaded = (await typeSystem
                 .LoadTypeAsync(structureNode.NodeId, false, true)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             var expectedId = NodeId.ToExpandedNodeId(
                 structureNode.NodeId,
@@ -203,7 +204,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             Assert.Multiple(() =>
             {
-                Assert.That(loaded.XmlName, Is.EqualTo(expectedName));
+                Assert.That(loaded!.XmlName, Is.EqualTo(expectedName));
                 Assert.That(factory.GetTypes(), Has.Count.EqualTo(1));
                 Assert.That(factory.GetTypes()[0].XmlName, Is.EqualTo(expectedName));
                 Assert.That(typeSystem.GetDefinedTypes(), Has.Count.EqualTo(1));
@@ -330,6 +331,153 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Assert.That(definitions[outerNode.NodeId], Is.EqualTo(outerDefinition));
                 Assert.That(definitions[innerNode.NodeId], Is.EqualTo(innerDefinition));
             });
+        }
+
+        /// <summary>
+        /// A4-6: a structure definition with an empty field name is skipped as unsupported
+        /// without failing the other structures.
+        /// </summary>
+        [Test]
+        public async Task LoadAsyncSkipsStructureWithUnnamedFieldAsync()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            MockResolver mockResolver = CreateCarTypeResolver(
+                out DataTypeNode carNode,
+                out _);
+            ushort namespaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(
+                Namespaces.MockResolverUrl);
+            uint nodeId = 7200;
+
+            var unnamedDefinition = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields =
+                [
+                    new StructureField
+                    {
+                        Name = string.Empty,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ]
+            };
+            var unnamedNode = new DataTypeNode
+            {
+                NodeId = new NodeId(nodeId++, namespaceIndex),
+                NodeClass = NodeClass.DataType,
+                BrowseName = new QualifiedName("UnnamedFieldType", namespaceIndex),
+                DisplayName = LocalizedText.From("UnnamedFieldType"),
+                IsAbstract = false,
+                DataTypeDefinition = new ExtensionObject(unnamedDefinition)
+            };
+            AddEncodingNodes(mockResolver, unnamedNode, namespaceIndex, ref nodeId);
+            mockResolver.DataTypeNodes[unnamedNode.NodeId] = unnamedNode;
+
+            var factory = new DefaultComplexTypeFactory();
+            var typeSystem = new ComplexTypeSystem(mockResolver, factory, telemetry);
+            await typeSystem.LoadAsync().ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    typeSystem.GetDefinedDataTypeIds(),
+                    Is.EqualTo([NodeId.ToExpandedNodeId(carNode.NodeId, mockResolver.NamespaceUris)]));
+                Assert.That(
+                    typeSystem.GetDataTypeDefinitionsForDataType(unnamedNode.NodeId),
+                    Is.Empty);
+            });
+        }
+
+        /// <summary>
+        /// T1-6: the EncodingMask of a structure with optional fields has one bit
+        /// per optional field (OPC 10000-6 5.2.7), so a definition with more than
+        /// 32 optional fields is skipped as unsupported instead of being loaded
+        /// with fields that are silently never encoded.
+        /// </summary>
+        [TestCase(32, true)]
+        [TestCase(33, false)]
+        public async Task LoadAsyncSkipsStructureWithMoreThan32OptionalFieldsAsync(
+            int optionalFields,
+            bool loaded)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            MockResolver mockResolver = CreateCarTypeResolver(out _, out _);
+            ushort namespaceIndex = mockResolver.NamespaceUris.GetIndexOrAppend(
+                Namespaces.MockResolverUrl);
+            uint nodeId = 7300;
+
+            var definition = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.StructureWithOptionalFields,
+                Fields =
+                [
+                    .. Enumerable.Range(0, optionalFields).Select(i => new StructureField
+                    {
+                        Name = "Field" + i,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar,
+                        IsOptional = true
+                    })
+                ]
+            };
+            var node = new DataTypeNode
+            {
+                NodeId = new NodeId(nodeId++, namespaceIndex),
+                NodeClass = NodeClass.DataType,
+                BrowseName = new QualifiedName("ManyOptionalFieldsType", namespaceIndex),
+                DisplayName = LocalizedText.From("ManyOptionalFieldsType"),
+                IsAbstract = false,
+                DataTypeDefinition = new ExtensionObject(definition)
+            };
+            AddEncodingNodes(mockResolver, node, namespaceIndex, ref nodeId);
+            mockResolver.DataTypeNodes[node.NodeId] = node;
+
+            var typeSystem = new ComplexTypeSystem(
+                mockResolver,
+                new DefaultComplexTypeFactory(),
+                telemetry);
+            await typeSystem.LoadAsync().ConfigureAwait(false);
+
+            Assert.That(
+                typeSystem.GetDataTypeDefinitionsForDataType(node.NodeId),
+                loaded ? Is.Not.Empty : Is.Empty);
+        }
+
+        /// <summary>
+        /// T1-6: the Reflection.Emit builder rejects a structure with more than 32
+        /// optional fields (OPC 10000-6 5.2.7) when used directly.
+        /// </summary>
+        [Test]
+        public void EmitBuilderRejectsMoreThan32OptionalFields()
+        {
+            var builder = new ComplexTypeBuilder(
+                new AssemblyModule(),
+                Namespaces.MockResolverUrl,
+                2,
+                "OptionalFieldsLimit");
+            var definition = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.StructureWithOptionalFields,
+                Fields =
+                [
+                    .. Enumerable.Range(0, 33).Select(i => new StructureField
+                    {
+                        Name = "Field" + i,
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.Scalar,
+                        IsOptional = true
+                    })
+                ]
+            };
+
+            Assert.That(
+                () => builder.AddStructuredType(
+                    new QualifiedName("ManyOptionalFieldsType", 2),
+                    definition),
+                Throws.TypeOf<DataTypeNotSupportedException>());
         }
 
         /// <summary>

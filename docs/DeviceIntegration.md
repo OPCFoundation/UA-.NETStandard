@@ -24,6 +24,7 @@ plugs it together.
 - [Software update](#software-update)
 - [Client helpers](#client-helpers)
 - [What is supported (OPC 10000-100)](#what-is-supported-opc-10000-100)
+- [See also](#see-also)
 
 ## Library layout
 
@@ -141,13 +142,13 @@ fluent API for node managers.
 > `InstanceNamespaceIndex`, the server application's namespace derived
 > from `ApplicationConfiguration.ApplicationUri`, rather than in the
 > DI or companion-spec namespace of the parent. This follows the
-> companion-spec boilerplate rule (for example OPC 10000-100 §13.4 and
-> OPC 40223) that nodes not defined by a specification do not use the
-> standard namespace; the Local Server URI namespace is the namespace
-> for nodes defined by the local server. BrowseNames defined by DI or a
-> companion specification keep their specification namespace, while
-> application-defined instance names, functional groups, and properties
-> should use `InstanceNamespaceIndex`.
+> companion-spec modelling rules (for example OPC 10000-100 §13.4 and
+> OPC 40223): nodes not defined by a specification must not use the
+> standard namespace. The local server defines such nodes in its Local
+> Server URI namespace. BrowseNames defined by DI or another companion
+> specification keep that specification's namespace. Use
+> `InstanceNamespaceIndex` for application-defined instance names,
+> functional groups, and properties.
 
 ### Entry points
 
@@ -191,7 +192,7 @@ ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
     where TElement : TopologyElementState;
 ```
 
-`CreateDeviceAsync` performs four steps:
+`CreateDeviceAsync` performs five steps:
 
 1. Resolves the parent (default: Device Integration `DeviceSet`; subclasses override
    `ResolveDefaultDeviceParent()` — e.g. machinery managers can return
@@ -200,21 +201,22 @@ ITopologyElementBuilder<TElement> TopologyElementByBrowseName<TElement>(
    retain `HasComponent`.
 3. Fails fast if a child with the same browse name already exists
    (`StatusCodes.BadBrowseNameDuplicated`).
-4. Materialises the instance through the source-generated
-   `CreateInstanceOf<Type>` factory (e.g. `CreateInstanceOfDeviceType`)
-   so the device carries the type's **mandatory** children — for
-   `DeviceType` the eight nameplate variables (`Manufacturer`, `Model`,
+4. Materializes the instance through the source-generated
+   `CreateInstanceOf<Type>` factory, such as
+   `CreateInstanceOfDeviceType`. The factory adds the type's **mandatory**
+   children and `HasInterface` references. For `DeviceType`, the children
+   are eight nameplate variables: `Manufacturer`, `Model`,
    `HardwareRevision`, `SoftwareRevision`, `DeviceRevision`,
-   `DeviceManual`, `SerialNumber`, `RevisionCounter`) with correct
-   DI-namespace BrowseNames — plus the type's `HasInterface`
-   references. Because a browse name is supplied, the factory also
-   rebases the whole subtree onto per-instance NodeIds in the server's
-   application namespace (`DiNodeManager.InstanceNamespaceIndex`, the
-   Local Server URI namespace), so multiple instances of the
-   same type never collide on the TYPE NodeIds emitted by the generator
-   and never mint application nodes in DI or other companion-spec
-   namespaces. It then
-   sets BrowseName/SymbolicName/DisplayName and stamps the
+   `DeviceManual`, `SerialNumber`, and `RevisionCounter`. It assigns
+   each variable a DI-namespace BrowseName.
+
+   Because the factory receives a BrowseName, it also rebases the subtree
+   onto per-instance NodeIds in the server's application namespace
+   (`DiNodeManager.InstanceNamespaceIndex`, the Local Server URI
+   namespace). This prevents instances of the same type from colliding
+   on the generator's type NodeIds. It also keeps application nodes out
+   of DI and other companion-spec namespaces. Finally, the factory sets
+   `BrowseName`, `SymbolicName`, and `DisplayName`, and stamps
    `TypeDefinitionId`.
 5. Calls the real `AsyncCustomNodeManager.AddPredefinedNodeAsync` so
    the node create lifecycle, subscription wiring, type-tree registration,
@@ -291,11 +293,11 @@ their in-type `MethodDeclarationId`s. The model is intentionally **lean**
 (`IVendorNameplateType`/`ITagNameplateType`/`ISupportInfoType` members
 such as `AssetId`, `ProductCode`, `DeviceTypeImage`, `Documentation`,
 `ImageSet`, `ProtocolSupport`) to be instantiated, so they are omitted
-unless the application adds them. A strict external compliance checker
-may still flag those optional members or report placeholder warnings for
-application-added `HasComponent` children (e.g. a custom `Diagnostics`
-functional group or the `SoftwareUpdate` facet); these are permitted
-omissions/extensions rather than modelling errors.
+unless the application adds them. An external compliance checker may still flag omitted optional members.
+It may also report placeholder warnings for application-added
+`HasComponent` children, such as a custom `Diagnostics` functional group
+or the `SoftwareUpdate` facet. The specification permits these omissions
+and extensions; they are not modelling errors.
 
 #### Functional groups
 
@@ -452,8 +454,8 @@ device.WithSupportInfo(info =>
 
 ## Hosting integration
 
-`AddOpcUaDi()` and `ConfigureDevicesFor<TNodeManager>()` plug the
-Device Integration (DI) library into the unified `AddOpcUa()`
+Use `AddOpcUaDi()` and `ConfigureDevicesFor<TNodeManager>()` to add the
+Device Integration library to the unified `AddOpcUa()`
 `Microsoft.Extensions.DependencyInjection` hosting pattern.
 
 ### Server-side surface
@@ -559,10 +561,10 @@ The runner is injected into the manager via the factory. The base
 `CreateAddressSpaceAsync` for every concrete subclass:
 
 - The base `DiNodeManager.CreateAddressSpaceAsync` calls
-  `base.CreateAddressSpaceAsync` → `CreateFluentBuilder(...)` →
+  `LoadPredefinedNodesAsync` → `CreateFluentBuilder(...)` →
   `ConfigureAsync(builder, ct)` → `RegisterAuthoredNodesAsync` →
   `CompleteConfigureAsync` → `PostSetupRunner.RunAsync(this, ct)` →
-  `builder.SealAsync(ct)` in that order. Sealing comes last because the
+  `SealConfigurationAsync(builder, ct)` in that order. Sealing comes last because the
   fluent registries (simulations, event sources) are owned by the manager,
   not by a single builder, and sealing starts them — a post-setup
   configurator must still be able to register a simulation loop.
@@ -585,7 +587,7 @@ sequenceDiagram
     participant Run as IDiPostSetupRunner
 
     Host->>Base: CreateAddressSpaceAsync(externalReferences, ct)
-    Base->>Base: await base.CreateAddressSpaceAsync
+    Base->>Base: await LoadPredefinedNodesAsync
     Note over Base: predefined nodes loaded, type tree wired
     Base->>B: CreateFluentBuilder(InstanceNamespaceIndex)
     Note over B: attached to the manager's event-source<br/>and simulation registries
@@ -599,7 +601,7 @@ sequenceDiagram
     Base->>Run: await RunAsync(this, ct)
     Note over Run: configurators still register simulation<br/>loops and event sources here
 
-    Base->>B: await SealAsync(ct)
+    Base->>B: await SealConfigurationAsync(builder, ct)
     Note over B: drain staged root notifiers,<br/>then start the simulations
 ```
 
@@ -617,17 +619,28 @@ wired at startup. The server merges these contributions into
 `Server/ServerCapabilities/ConformanceUnits` alongside the base server
 profiles.
 
-The current gating is implementation-derived:
+The conformance units follow what is built:
 
-| Runtime condition | Server profile URI | Conformance units |
+| Runtime condition | Conformance units |
+| --- | --- |
+| DI `DeviceSet` exists | `DI DeviceTopology` |
+| A `LockingServicesState` has `InitLock`, `RenewLock`, or `ExitLock` wired | `DI Locking` |
+| The same lock service also wires `BreakLock` | `DI BreakLocking` |
+| Any software-update loading mode is recorded | `DI SU Software Update`, `DI SU PrepareForUpdate`, `DI SU Resume Update` |
+| `SoftwareLoadingMode.Direct` | `DI SU DirectLoading` |
+| `SoftwareLoadingMode.Cached` | `DI SU CachedLoading` |
+
+A facet is advertised only while every conformance unit the DI 1.05
+profile database marks mandatory for it is advertised:
+
+| Server profile URI | Mandatory conformance units | Advertised |
 | --- | --- | --- |
-| DI `DeviceSet` exists | `http://opcfoundation.org/UA-Profile/DI/Server/DeviceIntegrationHost` | `DI DeviceTopology`, `DI Offline` |
-| A `LockingServicesState` has `InitLock`, `RenewLock`, or `ExitLock` wired | `http://opcfoundation.org/UA-Profile/DI/Server/Locking` | `DI Locking` |
-| The same lock service also wires `BreakLock` | same `Locking` profile | `DI BreakLocking` |
-| Any software-update loading mode is recorded | `http://opcfoundation.org/UA-Profile/DI/Server/SoftwareUpdateBase` | `DI SU Software Update`, `DI SU PrepareForUpdate`, `DI SU Resume Update` |
-| `SoftwareLoadingMode.Package` | `http://opcfoundation.org/UA-Profile/DI/Server/FileSystemLoading` | `DI SU FileSystem Loading`, `DI SU Installation for File System` |
-| `SoftwareLoadingMode.Direct` | `http://opcfoundation.org/UA-Profile/DI/Server/DirectLoading` | `DI SU DirectLoading`, `DI SU UpdateStatus` |
-| `SoftwareLoadingMode.Cached` | `http://opcfoundation.org/UA-Profile/DI/Server/CachedLoading` | `DI SU CachedLoading`, `DI SU Installation for Cached Loading`, `DI SU UpdateStatus` |
+| `http://opcfoundation.org/UA-Profile/DI/Server/DeviceIntegrationHost` | `DI DeviceTopology`, `DI Offline` | No: offline and online device representations are not built |
+| `http://opcfoundation.org/UA-Profile/DI/Server/Locking` | `DI Locking` | When a lock service is wired |
+| `http://opcfoundation.org/UA-Profile/DI/Server/SoftwareUpdateBase` | `DI SU Software Update` | When a software update is attached |
+| `http://opcfoundation.org/UA-Profile/DI/Server/FileSystemLoading` | Software Update Base, `DI SU FileSystem Loading`, `DI SU Installation for File System` | No: `Package` builds a `PackageLoadingType`, not a `FileSystemLoadingType`, and the installation offers `InstallSoftwarePackage` |
+| `http://opcfoundation.org/UA-Profile/DI/Server/DirectLoading` | Software Update Base, `DI SU DirectLoading`, `DI SU UpdateStatus` | No: the `UpdateStatus` variable is not built |
+| `http://opcfoundation.org/UA-Profile/DI/Server/CachedLoading` | Software Update Base, `DI SU CachedLoading`, `DI SU Installation for Cached Loading`, `DI SU UpdateStatus` | No: the `UpdateStatus` variable is not built and the installation offers `InstallFiles` |
 
 ### Client-side surface
 
@@ -775,121 +788,54 @@ Then attach the session-close hook from inside a
 
 ## Software update
 
-The software-update facet exposes a package-storage layer plus a
-minimal client helper for OPC 10000-100 §10.3. The full state-machine
-wiring (PrepareForUpdate / Installation / PowerCycle / Confirmation)
-remains application-specific — the source generator emits typed
-`*StateMachineState` proxies that applications drive directly when
-needed.
+The software-update facet implements OPC 10000-100 workflows for loading,
+preparation, installation, power cycle, and confirmation. Attach it with
+`WithSoftwareUpdate`; application handlers supply device-specific behavior.
+The SDK supplies the state-machine wiring and file-transfer infrastructure.
 
 ### Server-side: package store
 
-The store is an application-facing abstraction over the binary
-artifacts that the Device Integration software-update facet exposes. Two
-implementations ship in `Opc.Ua.Di.Server.SoftwareUpdate`:
-
-| Type | Backing | Use case |
-|------|---------|----------|
-| `MemoryPackageStore` | `ConcurrentDictionary<string, byte[]>` | Unit tests; small fixtures. |
-| `FileSystemPackageStore` | `Opc.Ua.Server.FileSystem.IFileSystemProvider` | Production — reuses the same provider model used by the server's `FileSystem` mount. |
+`ISoftwarePackageStore` stores package metadata and payloads.
+`ISoftwareFolder` maintains each device's Current / Previous / Future versions.
+Both have memory and file-system implementations. See
+[Software Update storage abstractions](SoftwareUpdate.md#storage-abstractions)
+for their contracts and persistence choices.
 
 #### Surface
 
-```csharp
-public interface ISoftwarePackageStore
-{
-    IAsyncEnumerable<SoftwarePackage> ListAsync(CancellationToken ct = default);
-    ValueTask<SoftwarePackage?> GetAsync(string packageId, CancellationToken ct = default);
-    ValueTask<bool> ExistsAsync(string packageId, CancellationToken ct = default);
-    ValueTask<Stream> OpenReadAsync(string packageId, CancellationToken ct = default);
-    ValueTask<SoftwarePackage> AddAsync(SoftwarePackage metadata, Stream payload, CancellationToken ct = default);
-    ValueTask<bool> DeleteAsync(string packageId, CancellationToken ct = default);
-}
-```
-
-`SoftwarePackage` is a record carrying `Id`, `Version`, `Vendor`,
-`Description`, `SizeBytes`, `CreatedAt`, `Hash`. Both stores
-recompute `SizeBytes` and `CreatedAt` during `AddAsync` so callers
-can pass zeros / `default` in the input metadata.
+Use the [package-store contract](SoftwareUpdate.md#package-store-contract)
+for operations, metadata, and stream ownership. The Software Update guide also
+owns `WithSoftwareUpdate` options and handler hooks.
 
 #### `FileSystemPackageStore` layout
 
-Each package is stored as a directory containing two files:
-
-```
-{root}/
-    {package-id}/
-        payload.bin       ← the binary firmware/installer
-        metadata.json     ← the SoftwarePackage record as JSON
-```
-
-JSON serialization uses a source-generated `System.Text.Json`
-context (`SoftwarePackageJsonContext`) so the store is AOT-friendly.
-
-Package IDs must NOT contain `/` or `\` — the store validates and
-throws `ArgumentException` to prevent path traversal.
+Use the store through `ISoftwarePackageStore`, rather than modifying its backing
+files directly. See [file-system layout and provider composition](SoftwareUpdate.md#file-system-layout-and-provider-composition)
+for the file-system provider and persistence options.
 
 #### Composing with `IFileSystemProvider`
 
-```csharp
-IFileSystemProvider fs = new PhysicalFileSystemProvider(
-    rootDirectory: "/var/lib/myserver/packages",
-    mountName: "Packages",
-    isWritable: true);
-
-ISoftwarePackageStore store = new FileSystemPackageStore(
-    provider: fs,
-    rootPath: "/SoftwarePackages");
-```
-
-The same `IFileSystemProvider` instance can also be mounted into the
-server's address space via `FileSystemNodeManager` — both paths
-share the on-disk layout.
+Reuse the configured provider as described in
+[provider composition](SoftwareUpdate.md#file-system-layout-and-provider-composition).
 
 ### Hosting
 
-Register the store as a singleton and seed it from a
-`ConfigureDevicesFor` configurator:
-
-```csharp
-builder.Services.AddSingleton<ISoftwarePackageStore, MemoryPackageStore>();
-builder.Services
-    .AddOpcUa()
-    .AddServer(o => { ... })
-    .AddNodeManager<MyNodeManagerFactory>()
-    .ConfigureDevicesFor<MyNodeManager>(async ctx =>
-    {
-        ISoftwarePackageStore store = ctx.GetRequiredService<ISoftwarePackageStore>();
-        await store.AddAsync(
-            new SoftwarePackage(
-                Id: "firmware-1.0.0",
-                Version: "1.0.0",
-                Vendor: "Acme",
-                Description: "Initial firmware",
-                SizeBytes: 0,
-                CreatedAt: default,
-                Hash: string.Empty),
-            new FileStream("/path/to/firmware.bin", FileMode.Open));
-    });
-```
+Register the package store with the host and attach it to the device's
+software-update facet. See the [hosted-server walkthrough](SoftwareUpdate.md#hosted-server-walkthrough)
+and [package seeding example](SoftwareUpdate.md#seeding-a-package).
 
 ### Client-side software update
 
-`SoftwareUpdateClient` exposes a minimal read-only surface:
+`SoftwareUpdateClient` reads versions, uploads packages, and exposes typed
+state-machine operations. The usual workflow is upload, prepare, install, and
+confirm; supported steps depend on the device's advertised update capabilities.
+See [uploading a package](SoftwareUpdate.md#uploading-a-package) and
+[typed state-machine operations](SoftwareUpdate.md#typed-part-16-state-machine-surface)
+for runnable call sequences.
 
-```csharp
-public sealed class SoftwareUpdateClient
-{
-    public SoftwareUpdateClient(ISession session, NodeId softwareUpdateNodeId, ITelemetryContext telemetry);
-    public ValueTask<string> ReadSoftwareVersionAsync(CancellationToken ct = default);
-}
-```
-
-Method-level invocation (Loading, Installation, ...) is performed
-through the typed `*MethodStateClient` proxies emitted by the source
-generator for the Device Integration model. The client integration registers the
-factory `Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>`
-via `services.AddOpcUa().AddClient(...).AddOpcUaDi()`.
+The DI client integration registers
+`Func<NodeId, CancellationToken, ValueTask<SoftwareUpdateClient>>` through
+`services.AddOpcUa().AddClient(...).AddOpcUaDi()`.
 
 ## Client helpers
 
@@ -1024,7 +970,10 @@ References are to the OPC 10000-100 (DI v1.05) specification sections.
 
 - `TopologyElementType` (§5.2) — abstract base exposed through
   `ITopologyElementBuilder<TElement>`.
-- `IVendorNameplateType` (§5.10) — Manufacturer, Model, SerialNumber, HardwareRevision, SoftwareRevision, DeviceRevision, DeviceManual, DeviceClass, ProductInstanceUri, ProductCode. Populated by `IDeviceBuilder.WithIdentification(...)`.
+- `IVendorNameplateType` (§5.10) exposes `Manufacturer`, `Model`,
+  `SerialNumber`, `HardwareRevision`, `SoftwareRevision`, `DeviceRevision`,
+  `DeviceManual`, `DeviceClass`, `ProductInstanceUri`, and `ProductCode`.
+  Populate these properties with `IDeviceBuilder.WithIdentification(...)`.
 - `ITagNameplateType` (§5.11) — AssetId, ComponentName, DeviceRevision. Populated by the same builder.
 - `IDeviceHealthType` (§5.12) — DeviceHealth enum plus the four NAMUR alarm references.
 - `IAssetLocationIndicationType` (§5.13) — `StartLocationIndication` / `StopLocationIndication` methods.
@@ -1063,7 +1012,11 @@ Custom groups go through `WithFunctionalGroup(qualifiedName, action)`.
 
 ### Lock service (§10.5)
 
-- `LockingServicesType` and the four method types (`InitLockMethodType`, `RenewLockMethodType`, `ExitLockMethodType`, `BreakLockMethodType`) — wired through `ILockService` and `DefaultLockService` (session ownership, configurable timeout, automatic cleanup on session close).
+- `LockingServicesType` and four method types:
+  `InitLockMethodType`, `RenewLockMethodType`, `ExitLockMethodType`, and
+  `BreakLockMethodType`. `ILockService` and `DefaultLockService` wire these
+  methods and provide session ownership, configurable timeouts, and cleanup
+  when a session closes.
 
 ### Software update (§10.3)
 
@@ -1071,7 +1024,10 @@ Custom groups go through `WithFunctionalGroup(qualifiedName, action)`.
 - `SoftwareLoadingType`, `PackageLoadingType` (§10.3.4) — abstract bases.
 - `DirectLoadingType`, `CachedLoadingType`, `FileSystemLoadingType` (§10.3.4) — the three loading variants.
 - `SoftwareVersionType` (§10.3.6) — Manufacturer, ProductInstanceUri, SoftwareRevision, PatchIdentifiers, ReleaseDate, ChangeLog, Hash.
-- `PrepareForUpdateStateMachineType` (§10.3.7), `InstallationStateMachineType` (§10.3.8), `PowerCycleStateMachineType` (§10.3.9), `ConfirmationStateMachineType` (§10.3.10) — generated proxies driven by the application.
+- Generated proxies for `PrepareForUpdateStateMachineType` (§10.3.7),
+  `InstallationStateMachineType` (§10.3.8),
+  `PowerCycleStateMachineType` (§10.3.9), and
+  `ConfirmationStateMachineType` (§10.3.10), driven by the application.
 - Storage abstraction: `ISoftwarePackageStore` with `MemoryPackageStore` and `FileSystemPackageStore` implementations.
 
 ### Support info & lifetime indication
@@ -1085,12 +1041,28 @@ Custom groups go through `WithFunctionalGroup(qualifiedName, action)`.
 
 ### DataTypes & VariableTypes
 
-All Device Integration DataTypes (`DeviceHealthEnumeration`, `SoftwareClass`, `LocationIndicationType`, `SoftwareVersionFileType`, `UpdateBehavior`, `FetchResultDataType`, `TransferResultErrorDataType`, `TransferResultDataDataType`, `ParameterResultDataType`) ship as source-generated types in the `Opc.Ua.Di` model library.
+The `Opc.Ua.Di` model library includes these source-generated Device
+Integration DataTypes:
+
+- `DeviceHealthEnumeration`
+- `SoftwareClass`
+- `LocationIndicationType`
+- `SoftwareVersionFileType`
+- `UpdateBehavior`
+- `FetchResultDataType`
+- `TransferResultErrorDataType`
+- `TransferResultDataDataType`
+- `ParameterResultDataType`
 
 ### Not yet implemented
 
-- `SoftwareFolderType` (§10.3.5) — multi-version repository.
 - `TransferServicesType` (§10.4) — parameter set transfer.
+- Offline and online device representations (§6.3) — needed for the
+  `DI Offline` conformance unit and so for the DeviceIntegrationHost facet.
+- The `UpdateStatus` variable of `SoftwareUpdateType` (§8.4.1.8) and a
+  `FileSystemLoadingType` loading mode — needed for the Direct, Cached and
+  FileSystem Loading facets (see
+  [Runtime conformance advertisement](#runtime-conformance-advertisement)).
 
 ## See also
 

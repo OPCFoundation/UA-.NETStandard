@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Security;
 using System.Security.Cryptography.X509Certificates;
@@ -248,12 +250,30 @@ namespace Opc.Ua.Client.WebApi
                 ProfileUris = default
             };
 
+            // The HttpClient timeout is infinite because OperationTimeout
+            // governs each request, so bound this call by OperationTimeout
+            // too - otherwise a server that accepts TLS but never answers
+            // hangs OpenAsync forever.
+            int operationTimeout = OperationTimeout;
+            using CancellationTokenSource? timeoutCts = operationTimeout > 0
+                ? m_timeProvider.CreateCancellationTokenSource(
+                    TimeSpan.FromMilliseconds(operationTimeout))
+                : null;
+            using CancellationTokenSource? linkedCts = timeoutCts != null
+                ? CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token)
+                : null;
+
             GetEndpointsResponse response;
             try
             {
                 response = await m_client
-                    .GetEndpointsAsync(request, ct)
+                    .GetEndpointsAsync(request, linkedCts?.Token ?? ct)
                     .ConfigureAwait(false);
+            }
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
+            {
+                // The caller cancelled the open - do not report success.
+                throw;
             }
             catch
             {
@@ -375,6 +395,65 @@ namespace Opc.Ua.Client.WebApi
             ThrowIfDisposed();
             WebApiClient client = m_client ?? throw BadNotConnected();
 
+            // Apply the OperationTimeout like every other channel does and map
+            // HTTP transport failures onto ServiceResultExceptions (mirrors
+            // HttpsTransportChannel): the session keep-alive, the managed
+            // channel lease and the publish worker only recognise those.
+            int operationTimeout = OperationTimeout;
+            using CancellationTokenSource? timeoutCts = operationTimeout > 0
+                ? m_timeProvider.CreateCancellationTokenSource(
+                    TimeSpan.FromMilliseconds(operationTimeout))
+                : null;
+            using CancellationTokenSource? linkedCts = timeoutCts != null
+                ? CancellationTokenSource.CreateLinkedTokenSource(ct, timeoutCts.Token)
+                : null;
+            try
+            {
+                return await DispatchAsync(client, request, linkedCts?.Token ?? ct)
+                    .ConfigureAwait(false);
+            }
+            catch (HttpRequestException hre)
+            {
+                m_logger.WebApiRequestFailed(hre, nameof(WebApiTransportChannel));
+                throw ServiceResultException.Create(
+                    MapRequestFailure(hre),
+                    hre,
+                    "Error sending Web API request: {0}",
+                    hre.InnerException?.Message ?? hre.Message);
+            }
+            catch (OperationCanceledException oce) when (!ct.IsCancellationRequested)
+            {
+                // Either the OperationTimeout or the HttpClient/RequestTimeout
+                // fired - the caller did not cancel.
+                m_logger.WebApiRequestTimedOut(oce, nameof(WebApiTransportChannel), operationTimeout);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadRequestTimeout,
+                    "Web API request timed out (OperationTimeout {0} ms).",
+                    operationTimeout);
+            }
+            catch (IOException ioe)
+            {
+                m_logger.WebApiRequestFailed(ioe, nameof(WebApiTransportChannel));
+                throw ServiceResultException.Create(
+                    StatusCodes.BadNotConnected,
+                    ioe,
+                    "Error reading Web API response: {0}",
+                    ioe.Message);
+            }
+        }
+
+        private static StatusCode MapRequestFailure(HttpRequestException exception)
+        {
+            // Throttling (HTTP 429/503) never gets here: WebApiClient already
+            // turned it into BadServerTooBusy before EnsureSuccessStatusCode.
+            return HttpsTransportChannel.MapRequestFailure(exception);
+        }
+
+        private static async ValueTask<IServiceResponse> DispatchAsync(
+            WebApiClient client,
+            IServiceRequest request,
+            CancellationToken ct)
+        {
             // Dispatch on the runtime CLR type via a hard-coded
             // switch over the 28 spec routes. Each branch calls a
             // strongly-typed WebApiClient.<Service>Async method, so
@@ -487,7 +566,12 @@ namespace Opc.Ua.Client.WebApi
                 DisposeHandler = disposeHandler,
                 BearerToken = m_userOptions.BearerToken,
                 BasicCredentials = m_userOptions.BasicCredentials,
-                RequestTimeout = m_userOptions.RequestTimeout
+                // Without an explicit RequestTimeout the channel's own
+                // OperationTimeout governs each request; the HttpClient's
+                // 100 s default would otherwise cut long-poll Publish short.
+                RequestTimeout = m_userOptions.RequestTimeout ??
+                    (OperationTimeout > 0 ? Timeout.InfiniteTimeSpan : null),
+                AcceptCompressedResponses = m_userOptions.AcceptCompressedResponses
             };
         }
 
@@ -686,5 +770,20 @@ namespace Opc.Ua.Client.WebApi
         public static partial void ChannelTypeBypassingIOpcUaHttpClientFactoryOPCUACertificateValidator(
             this ILogger logger,
             string channelType);
+
+        [LoggerMessage(EventId = ClientEventIds.WebApiTransportChannel + 1, Level = LogLevel.Warning,
+            Message = "{ChannelType}: Web API request failed.")]
+        public static partial void WebApiRequestFailed(
+            this ILogger logger,
+            Exception exception,
+            string channelType);
+
+        [LoggerMessage(EventId = ClientEventIds.WebApiTransportChannel + 2, Level = LogLevel.Warning,
+            Message = "{ChannelType}: Web API request timed out (OperationTimeout {OperationTimeout} ms).")]
+        public static partial void WebApiRequestTimedOut(
+            this ILogger logger,
+            Exception exception,
+            string channelType,
+            int operationTimeout);
     }
 }

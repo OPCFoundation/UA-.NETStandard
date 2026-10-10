@@ -470,10 +470,32 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             CancellationToken ct)
         {
             bool modified = false;
+            var attemptedChanges = new HashSet<MonitoredItem.Change>();
+            var attemptedDeletes = new HashSet<MonitoredItem>();
             while (!ct.IsCancellationRequested &&
                 TryGetMonitoredItemChanges(
                     out List<MonitoredItem>? itemsToDelete, out List<MonitoredItem.Change>? itemsToModify, resetAll))
             {
+                if (modified &&
+                    itemsToDelete.TrueForAll(attemptedDeletes.Contains) &&
+                    itemsToModify.TrueForAll(attemptedChanges.Contains))
+                {
+                    // Everything still pending already failed once in this
+                    // call. Retrying it back-to-back would burn the per-item
+                    // retry budget within milliseconds (and spin forever on
+                    // a delete that keeps failing), so hand the leftovers back
+                    // and let the owner's backoff schedule the next attempt.
+                    if (itemsToDelete.Count != 0)
+                    {
+                        lock (m_monitoredItemsLock)
+                        {
+                            m_deletedItems.AddRange(itemsToDelete);
+                        }
+                    }
+                    break;
+                }
+                attemptedChanges.UnionWith(itemsToModify);
+                attemptedDeletes.UnionWith(itemsToDelete);
                 await ApplyMonitoredItemChangesAsync(itemsToDelete,
                     itemsToModify, ct).ConfigureAwait(false);
                 // While there are changes pending to be applied apply them
@@ -786,12 +808,34 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         internal async ValueTask<bool> TrySynchronizeHandlesAsync(
             CancellationToken ct)
         {
-            (bool success, IReadOnlyList<(uint serverHandle, uint clientHandle)>? serverHandleStateMap) = await GetMonitoredItemsAsync(
-                ct).ConfigureAwait(false);
+            MonitoredItemsHandles result = await GetMonitoredItemsAsync(ct).ConfigureAwait(false);
+            bool success = result.Success;
+            IReadOnlyList<(uint serverHandle, uint clientHandle)> serverHandleStateMap = result.Handles;
 
             ArrayOf<uint> itemsToDelete;
             lock (m_monitoredItemsLock)
             {
+                if (!success &&
+                    GetMonitoredItemsFallback.IsMethodUnavailable(result.Status) &&
+                    TryGetCachedHandles(out List<(uint serverHandle, uint clientHandle)> cachedHandles))
+                {
+                    //
+                    // GetMonitoredItems is an optional method of ServerType
+                    // (OPC 10000-5, 6.3.1 and 9.1) and several stacks do not
+                    // implement it, while the transfer itself succeeded. A
+                    // transfer keeps the item ids and client handles, which is
+                    // why a client is expected to store them (OPC 10000-4,
+                    // 6.8): the ids this client already knows are as good as
+                    // the answer of the method.
+                    //
+                    m_logger.SubscriptionUsingCachedHandlesAfterTransfer(
+                        m_context.Id,
+                        result.Status,
+                        cachedHandles.Count);
+                    serverHandleStateMap = cachedHandles;
+                    success = true;
+                }
+
                 if (!success)
                 {
                     // Reset all items
@@ -802,6 +846,34 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                     return false;
                 }
 
+                //
+                // Build the handle map before touching the item table. Client
+                // handles are not unique on the server (Part 4 §7.21): a create
+                // whose response was lost and that was then issued again leaves
+                // two server items with the same client handle. Keep one server
+                // item per client handle - preferring the one the local item is
+                // already bound to - and delete the extra ones.
+                //
+                var clientServerHandleMap = new Dictionary<uint, uint>();
+                var duplicateServerHandles = new List<uint>();
+                foreach ((uint serverHandle, uint clientHandle) in serverHandleStateMap)
+                {
+                    if (clientServerHandleMap.TryAdd(clientHandle, serverHandle))
+                    {
+                        continue;
+                    }
+                    if (m_monitoredItems.TryGetValue(clientHandle, out MonitoredItem? bound) &&
+                        bound.ServerId == serverHandle)
+                    {
+                        duplicateServerHandles.Add(clientServerHandleMap[clientHandle]);
+                        clientServerHandleMap[clientHandle] = serverHandle;
+                    }
+                    else
+                    {
+                        duplicateServerHandles.Add(serverHandle);
+                    }
+                }
+
                 IDictionary<uint, MonitoredItem> monitoredItems = m_monitoredItems.ToDictionary();
                 m_monitoredItems.Clear();
 
@@ -810,8 +882,6 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 // handles the case where the CreateMonitoredItems call succeeded on the
                 // server side, but the response was not provided back.
                 //
-                var clientServerHandleMap = serverHandleStateMap
-                    .ToDictionary(m => m.clientHandle, m => m.serverHandle);
                 foreach (KeyValuePair<uint, MonitoredItem> monitoredItem in monitoredItems.ToList())
                 {
                     //
@@ -832,8 +902,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 // This handles the case where we are recreating the subscription from a
                 // previously stored state.
                 //
-                var serverClientHandleMap = clientServerHandleMap
-                    .ToDictionary(m => m.Value, m => m.Key);
+                var serverClientHandleMap = new Dictionary<uint, uint>();
+                foreach (KeyValuePair<uint, uint> handles in clientServerHandleMap)
+                {
+                    // A server reporting the same server handle twice is
+                    // broken; keep the first mapping rather than throwing.
+                    serverClientHandleMap.TryAdd(handles.Value, handles.Key);
+                }
                 foreach (KeyValuePair<uint, MonitoredItem> monitoredItem in monitoredItems.ToList())
                 {
                     uint serverHandle = monitoredItem.Value.ServerId;
@@ -850,7 +925,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
 
                 m_deletedItems.Clear();
-                itemsToDelete = new ArrayOf<uint>(serverClientHandleMap.Keys.ToArray());
+                itemsToDelete = new ArrayOf<uint>(serverClientHandleMap.Keys
+                    .Concat(duplicateServerHandles)
+                    .Distinct()
+                    .ToArray());
 
                 // Remaining items do not exist anymore on the server and need to be recreated
                 foreach (MonitoredItem? missingOnServer in monitoredItems.Values)
@@ -910,7 +988,27 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
         }
 
         private record struct MonitoredItemsHandles(bool Success,
-            IReadOnlyList<(uint serverHandle, uint clientHandle)> Handles);
+            IReadOnlyList<(uint serverHandle, uint clientHandle)> Handles,
+            StatusCode Status);
+
+        /// <summary>
+        /// The server and client handles of the items this client already
+        /// knows to exist on the server. Fails when there are items but none
+        /// of them has a server id (e.g. a clone of a live subscription), as
+        /// they then cannot be mapped. Must be called under the item lock.
+        /// </summary>
+        private bool TryGetCachedHandles(out List<(uint serverHandle, uint clientHandle)> handles)
+        {
+            handles = [];
+            foreach (MonitoredItem monitoredItem in m_monitoredItems.Values)
+            {
+                if (monitoredItem.ServerId != 0)
+                {
+                    handles.Add((monitoredItem.ServerId, monitoredItem.ClientHandle));
+                }
+            }
+            return handles.Count > 0 || m_monitoredItems.Count == 0;
+        }
 
         /// <summary>
         /// Call the GetMonitoredItems method on the server.
@@ -956,14 +1054,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
                 return new MonitoredItemsHandles(
                     true,
-                    serverHandles.ToList().Zip(clientHandles.ToList()).ToList());
+                    serverHandles.ToList().Zip(clientHandles.ToList()).ToList(),
+                    StatusCodes.Good);
             }
             catch (ServiceResultException sre)
             {
                 m_logger.SubscriptionFailedCallGetMonitoredItemsServer(
                     sre,
                     m_context.Id);
-                return new MonitoredItemsHandles(false, []);
+                return new MonitoredItemsHandles(false, [], sre.StatusCode);
             }
         }
 
@@ -1840,6 +1939,17 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             }
         }
 
+        /// <summary>
+        /// Complete an operation that can no longer be applied with
+        /// <see cref="StatusCodes.BadOperationAbandoned"/>. The caller marks
+        /// it cancelled so a later apply pass skips it.
+        /// </summary>
+        /// <param name="op">The abandoned operation.</param>
+        internal static void AbandonTriggeringOperation(TriggeringOperation op)
+        {
+            FailOperation(op, op.TriggeringItem, StatusCodes.BadOperationAbandoned);
+        }
+
         private static void FailOperation(
             TriggeringOperation op, IMonitoredItem trig, StatusCode status)
         {
@@ -1969,5 +2079,14 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             Exception? exception,
             uint subscriptionId,
             string name);
+
+        [LoggerMessage(EventId = ClientEventIds.MonitoredItemManager + 6, Level = LogLevel.Warning,
+            Message = "{SubscriptionId}: GetMonitoredItems is not available after transfer ({StatusCode})," +
+                " using the {Count} monitored item ids known to the client.")]
+        public static partial void SubscriptionUsingCachedHandlesAfterTransfer(
+            this ILogger logger,
+            uint subscriptionId,
+            StatusCode statusCode,
+            int count);
     }
 }

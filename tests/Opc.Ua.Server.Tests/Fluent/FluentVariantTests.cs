@@ -31,8 +31,6 @@ using System;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Fluent
 {
     /// <summary>

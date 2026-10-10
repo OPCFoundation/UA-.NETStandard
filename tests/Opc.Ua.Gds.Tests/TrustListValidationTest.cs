@@ -80,12 +80,12 @@ namespace Opc.Ua.Gds.Tests
             finally
             {
                 m_pushClient?.Dispose();
-                m_pushClient = null;
+                m_pushClient = null!;
                 if (m_server != null)
                 {
                     await m_server.DisposeAsync().ConfigureAwait(false);
                 }
-                m_server = null;
+                m_server = null!;
             }
         }
 
@@ -269,7 +269,8 @@ namespace Opc.Ua.Gds.Tests
 
                 ServiceResultException ex = Assert.ThrowsAsync<ServiceResultException>(async () =>
                     await m_pushClient.PushClient.UpdateTrustListAsync(oversizedTrustList).ConfigureAwait(false));
-                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+                // The server rejects the Write (OPC 10000-12 §7.8.2: Bad_RequestTooLarge).
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadRequestTooLarge));
                 TestContext.Out.WriteLine("Successfully caught exception for writing oversized trust list to server.");
 
                 // 2. Test writing a valid trust list (under the server's limit)
@@ -324,7 +325,7 @@ namespace Opc.Ua.Gds.Tests
         private long GetEncodedSize(TrustListDataType trustList)
         {
             using var stream = new System.IO.MemoryStream();
-            using var encoder = new BinaryEncoder(stream, m_pushClient.PushClient.Session.MessageContext, false);
+            using var encoder = new BinaryEncoder(stream, m_pushClient.PushClient.Session!.MessageContext, false);
             encoder.WriteEncodeable(null, trustList);
             return stream.Length;
         }

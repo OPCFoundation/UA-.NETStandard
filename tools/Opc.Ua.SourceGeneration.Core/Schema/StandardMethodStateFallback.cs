@@ -66,10 +66,10 @@ namespace Opc.Ua.SourceGeneration
         /// </param>
         public static IDisposable Enter(ImmutableHashSet<string> availableStateTypeNames)
         {
-            FallbackContext previousContext = s_context.Value;
+            FallbackContext? previousContext = s_context.Value;
             s_context.Value = new FallbackContext(
                 availableStateTypeNames ?? ImmutableHashSet<string>.Empty);
-            return new Scope(previousContext);
+            return new Scope(previousContext!);
         }
 
         /// <summary>
@@ -85,11 +85,11 @@ namespace Opc.Ua.SourceGeneration
         /// </param>
         public static void RecordDeclaredMethodState(string typedClassName)
         {
-            FallbackContext context = s_context.Value;
+            FallbackContext? context = s_context.Value;
             if (context != null &&
-                TryGetStandardSimpleName(typedClassName, out string simpleName))
+                TryGetStandardSimpleName(typedClassName, out string? simpleName))
             {
-                context.DeclaredMethodStateNames.TryAdd(simpleName, 0);
+                context.DeclaredMethodStateNames.TryAdd(simpleName!, 0);
             }
         }
 
@@ -103,20 +103,20 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static bool ShouldFallBackToBase(string typedClassName)
         {
-            FallbackContext context = s_context.Value;
+            FallbackContext? context = s_context.Value;
             if (context == null)
             {
                 return false;
             }
-            if (!TryGetStandardSimpleName(typedClassName, out string simpleName))
+            if (!TryGetStandardSimpleName(typedClassName, out string? simpleName))
             {
                 return false;
             }
-            if (context.DeclaredMethodStateNames.ContainsKey(simpleName))
+            if (context.DeclaredMethodStateNames.ContainsKey(simpleName!))
             {
                 return false;
             }
-            if (context.AvailableStateTypeNames.Contains(simpleName))
+            if (context.AvailableStateTypeNames.Contains(simpleName!))
             {
                 return false;
             }
@@ -130,7 +130,7 @@ namespace Opc.Ua.SourceGeneration
         /// sub-namespace such as <c>global::Opc.Ua.Di.Name</c>). An optional
         /// leading <c>new </c> (factory form) is tolerated.
         /// </summary>
-        private static bool TryGetStandardSimpleName(string typedClassName, out string simpleName)
+        private static bool TryGetStandardSimpleName(string typedClassName, out string? simpleName)
         {
             simpleName = null;
             if (string.IsNullOrEmpty(typedClassName))

@@ -87,7 +87,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         /// </summary>
         private sealed class CustomFactory : FakeGeneratedFactory
         {
-            public INodeManager LastCreated { get; private set; }
+            public INodeManager LastCreated { get; private set; } = null!;
 
             public override ArrayOf<string> NamespacesUris => [kPrimaryUri, kInstanceUri];
 
@@ -106,7 +106,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             var factory = new CustomFactory();
 
-            string[] uris = factory.NamespacesUris.ToArray();
+            string[] uris = factory.NamespacesUris.ToArray()!;
 
             Assert.That(uris, Is.EqualTo([kPrimaryUri, kInstanceUri]));
         }
@@ -147,7 +147,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         public async Task GeneratedManagerWiringSequence_FiresOnNodeAddedAfterSealAsync()
         {
             const ushort kNs = 2;
-            var ctx = new SystemContext(telemetry: null);
+            var ctx = new SystemContext(telemetry: null!);
 
             var root = new BaseObjectState(parent: null)
             {
@@ -177,8 +177,8 @@ namespace Opc.Ua.Server.Tests.Fluent
                 ctx,
                 FluentTestNodeManager.Create(kNs),
                 kNs,
-                q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                q => (roots.TryGetValue(q, out NodeState? n) ? n : null)!,
+                id => (byId.TryGetValue(id, out NodeState? n) ? n : null)!,
                 _ => []);
 
             int nodeAddedCount = 0;

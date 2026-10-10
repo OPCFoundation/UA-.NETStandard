@@ -2,19 +2,36 @@
 
 ## Overview
 
-The Reverse Connect option consists of the following elements:
+The stack supports Reverse Connect through these components:
 
-* Updated C# Stack that supports the *ReverseHello* message for Client and Server;
-* Updated server library which supports:
-  * Server-initiated connections through *ReverseConnectServer*, used automatically by the regular dependency-injection server.
-  * Extended configuration parameters to set up the client location and timeouts.
-  * An API extension in the *ReverseConnectServer* to programmatically control client connections.
-* Updated client library which supports:
-  * Configure a client endpoint to accept *ReverseHello* messages using a *ReverseConnectManager*.
-  * A client API extension to allow applications to register for reverse connections either by callback or by waiting for the *ReverseHello* message for a specific server endpoint and application Uri combination. An optional filter for server Uris or endpoint Urls can be applied to allow multiple clients to use the same endpoint.
-* The C# [Console Reference Server](../samples/Reference/ConsoleReferenceServer) with reverse connect support in the configuration xml.
-* The C# Core [Console Reference Client](../samples/Reference/ConsoleReferenceClient) that can initiate a Reverse connection with command line options.
-* A modified C# [Aggregation Server](https://github.com/OPCFoundation/UA-.NETStandard-Samples/tree/master/Workshop/Aggregation) that supports incoming and outgoing reverse connections.
+- The C# stack implements the `ReverseHello` message for clients and servers.
+- The server library provides server-initiated connections through
+  `ReverseConnectServer`. The regular dependency-injection server uses this
+  support automatically. Configuration options control client locations
+  and timeouts, and the API lets applications manage client connections.
+- The client library provides `ReverseConnectManager` to accept
+  `ReverseHello` messages. Applications can register for connections by
+  callback or wait for a message matching a server endpoint and application
+  URI. Optional server-URI and endpoint-URL filters let multiple clients
+  share one listener.
+- The [Console Reference Server](../samples/Reference/ConsoleReferenceServer)
+  supports reverse connect through its configuration XML.
+- The [Console Reference Client](../samples/Reference/ConsoleReferenceClient)
+  can initiate a reverse connection through command-line options.
+- The [Aggregation Server](https://github.com/OPCFoundation/UA-.NETStandard-Samples/tree/master/Workshop/Aggregation)
+  supports incoming and outgoing reverse connections.
+
+## Contents
+
+- [Overview](#overview)
+- [Reverse Connect Handshake](#reverse-connect-handshake)
+- [Sharing a listener across multiple Servers](#sharing-a-listener-across-multiple-servers)
+- [Server-side dependency injection](#server-side-dependency-injection)
+- [Dependency-injection lifecycle](#dependency-injection-lifecycle)
+- [Configuration Extensions](#configuration-extensions)
+- [WSS reverse-connect](#wss-reverse-connect-opcwss)
+- [Kestrel-hosted opc.tcp reverse-connect](#kestrel-hosted-opctcp-reverse-connect-opt-in)
+- [Known limitations and issues](#known-limitations-and-issues)
 
 ## Reverse Connect Handshake
 
@@ -22,25 +39,71 @@ More details on the reverse connect handshake can be found in the OPC UA spec Pa
 
 The *ReverseHello* message allows Servers behind firewalls to initiate communication with Clients. This requires that the Server be pre-configured with the location of the Client. The Server adds a configuration option that can be used to initiate a *ReverseHello* with the Client running behind a firewall.
 
-Once the reverse connection is established, the Server will automatically re-establish the connection if it is closed. Most Servers keep sending *ReverseHello* messages, even if the Client is already connected. In this Server implementation the behavior is configurable to keep sending *ReverseHello* messages, to allow only a single connection or to stop sending messages once the maximum number of Server sessions is exceeded. Only for the single connection configuration the sending of messages is suspended for a configurable timeout if the connection is rejected (i.e. the Client returns *BadTcpMessageTypeInvalid* meaning the Client does not support reverse connections or it does not want a connection from this Server at this time).
+Once the reverse connection is established, the Server will automatically re-establish the connection if it is closed. Most servers continue sending `ReverseHello` messages after a client connects.
+This implementation offers three behaviors: continue sending messages, allow
+only one connection, or stop sending after the server reaches its maximum
+session count. In single-connection mode, a rejected connection suspends
+further messages for a configurable timeout. A client rejects an unsupported
+or unwanted connection with `BadTcpMessageTypeInvalid`.
 
-In order to validate and accept a reverse connection in a Client application a *ReverseConnectManager* is configured to call back to the registered applications or to hold incoming connections open for a programmable timeout. An application can register for incoming requests to accept or reject a reverse connection directly or an application can start a connection and wait for an incoming *ReverseHello* message. If the *ReverseConnectManager* holds already an open connection to the Server the connection can be established without waiting.
+To accept reverse connections, configure a client `ReverseConnectManager` to
+invoke registered callbacks or hold incoming connections open for a
+configurable timeout. An application can register a callback to accept or
+reject requests, or start a connection and wait for a matching
+`ReverseHello`. If the manager already holds an open connection to the
+server, the client can establish the session without waiting.
 
-The host port is implemented by a transport which implements the *ITransportListener* interface. The transport calls the *ReverseConnectionManager* class in the client library to provide the application interface. This implementation uses only a single port on a client to support multiple incoming *ReverseHello* server connections. The clients register at the *ReverseConnectionManager* for specific serversUris, endpointUrls or any incoming message for callbacks. When the Client receives a *ReverseHello* the application receives an *ITransportWaitingConnection* connection object which can be used to create a client session in a similar way as by connecting using the endpointUrl, just by using a different Connect API which supports the connection object as a parameter. The client then uses the open socket to send the *Hello* message back to the Server for the well known establishment of a secure communication session.
+The client transport implements `ITransportListener` and routes incoming
+connections through `ReverseConnectionManager`. One client port can accept
+`ReverseHello` messages from multiple servers. Register callbacks for a
+specific server URI, endpoint URL, or any incoming connection.
 
-The second option for a client application is to call the Connect API with a configured *ReverseConnectionManager* to wait for an incoming connection and to establish the connection before the timeout expires. This connection model is similar to the standard connect flow with a Server and might be a good model to add reverse connect support for existing applications, without changing the application logic.
+When a client receives `ReverseHello`, its callback receives an
+`ITransportWaitingConnection`. Pass this connection object to the session
+connect API to create a session, much like connecting with an endpoint URL.
+The client uses the open socket to send `Hello` back to the server and
+continue secure-channel establishment.
 
-If no client responds to the *ReverseHello* message or if it is even rejected, the channel is closed with a *BadTcpMessageTypeInvalid* error which the server should interpret as an indication that the Client is not configured to respond to *ReverseHello* messages of that Server.
+Alternatively, call the Connect API with a configured
+`ReverseConnectionManager`. The client waits for an incoming connection and
+establishes the session if it arrives before the timeout expires. Existing
+applications can adopt this pattern without changing their broader
+connection flow.
 
-If the Client accepts the connection, a secure connection requires that the Client calls *GetEndpoints* to fetch the Server Certificate. At this point the Client closes the channel, which means it needs to wait for the Server to automatically re-connect. When it does, it can use the security information previously cached to connect securely back to the Server. An optimized Server implementation could respond with an immediate *ReverseHello* message to avoid connection delays after a call to *GetEndpoints* .
+If no client responds to `ReverseHello`, or the client rejects it, the
+channel closes with `BadTcpMessageTypeInvalid`. The server should interpret
+this as an indication that the client is not configured to accept that
+server's reverse connections.
 
-The auto-reconnect behavior on the Server is essential to any real application, because Clients close the Socket when the SecureChannel is closed. According to the specification a Server needs to abort the auto-reconnect if it receives a *BadTcpMessageTypeInvalid* code, because that is the error it will receive from peers that have not been upgraded to support the *ReverseHello*. Because of this a Client can use the same error code to tell the Server to stop reconnecting, if a user has rejected the connection. However, in this implementation, only if the Server is configured for a single connection it applies an extended timeout before reconnecting to the Client to reduce the overall traffic. In other configurations the Server keeps sending the *ReverseHello* messages at the configured time interval.
+After accepting the connection, a client that needs a secure channel must
+call `GetEndpoints` to retrieve the server certificate. The client then
+closes that channel and waits for the server to reconnect. On reconnection,
+the client can use the cached security information to connect securely.
+An optimized server can send `ReverseHello` immediately after `GetEndpoints`
+to reduce this delay.
+
+Server auto-reconnect is essential because clients close the socket when
+the SecureChannel closes. The specification requires a server to stop
+reconnecting if it receives `BadTcpMessageTypeInvalid`. Older peers that do
+not support `ReverseHello` return this error. A client can also return it
+when a user rejects the connection.
+
+In this implementation, a server configured for a single connection waits
+for an extended, configurable timeout before sending another `ReverseHello`.
+In other modes, the server continues sending `ReverseHello` messages at the
+configured interval.
 
 ## Sharing a listener across multiple Servers
 
 A reverse-connect listener remains bound for the lifetime of its `ReverseConnectManager`. Seeing the listener port remain in the `LISTENING` state after a Session is established is expected. The listening socket accepts additional transport connections while each accepted socket is handed to the Session that claimed its `ReverseHello` message. Dispose the manager when the listener should be released.
 
 Use one shared `ReverseConnectManager` for all Servers that connect to the same Client URL. Register or wait for each Server separately by using its Server `EndpointUrl` and, preferably, its `ServerUri`. The fluent dependency-injection integration registers the manager as a singleton.
+
+A `ManagedSession` needs that manager for recovery as well as initial connection.
+A waiting `ITransportWaitingConnection` supplied directly to `CreateAsync` is
+single-use. Without a `ReverseConnectManager`, recovery fails through the configured
+reconnect policy instead of obtaining a fresh connection; it never silently
+switches to an outbound connection.
 
 ``` csharp
 await using var manager = new ReverseConnectManager(telemetry);

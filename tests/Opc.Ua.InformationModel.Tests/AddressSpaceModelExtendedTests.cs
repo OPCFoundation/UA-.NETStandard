@@ -197,7 +197,7 @@ Property("ConformanceUnit", "Address Space Base")]
             DataTypeIds.ServerStatusDataType,
             Attributes.DataTypeDefinition).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
-            if (!r.WrappedValue.TryGetStructure(out StructureDefinition _))
+            if (!r.WrappedValue.TryGetStructure<StructureDefinition>(out StructureDefinition? _))
             {
                 Assert.Fail("Not a StructureDefinition");
                 return;
@@ -211,12 +211,12 @@ Property("ConformanceUnit", "Address Space Base")]
             DataTypeIds.ServerStatusDataType,
             Attributes.DataTypeDefinition).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(r.StatusCode), Is.True);
-            if (!r.WrappedValue.TryGetStructure(out StructureDefinition def))
+            if (!r.WrappedValue.TryGetStructure<StructureDefinition>(out StructureDefinition? def))
             {
                 Assert.Fail("Could not decode.");
                 return;
             }
-            Assert.That(def.Fields.Count, Is.GreaterThan(0));
+            Assert.That(def!.Fields.Count, Is.GreaterThan(0));
             foreach (StructureField f in def.Fields)
             {
                 Assert.That(f.Name, Is.Not.Null.And.Not.Empty);
@@ -601,7 +601,7 @@ Property("ConformanceUnit", "Address Space Base")]
             NodeId mid = ToNodeId(
             new ExpandedNodeId("Methods_Add", Constants.ReferenceServerNamespaceUri));
             BrowseResult br = await BrFwd(mid, ReferenceTypeIds.HasProperty).ConfigureAwait(false);
-            ReferenceDescription ia = null;
+            ReferenceDescription? ia = null;
             foreach (ReferenceDescription r in br.References)
             {
                 if (r.BrowseName.Name == "InputArguments")
@@ -638,7 +638,7 @@ Property("ConformanceUnit", "Address Space Base")]
             NodeId mid = ToNodeId(
             new ExpandedNodeId("Methods_Add", Constants.ReferenceServerNamespaceUri));
             BrowseResult br = await BrFwd(mid, ReferenceTypeIds.HasProperty).ConfigureAwait(false);
-            ReferenceDescription oa = null;
+            ReferenceDescription? oa = null;
             foreach (ReferenceDescription r in br.References)
             {
                 if (r.BrowseName.Name == "OutputArguments")
@@ -651,7 +651,7 @@ Property("ConformanceUnit", "Address Space Base")]
             var oaId = ExpandedNodeId.ToNodeId(oa.NodeId, Session.NamespaceUris);
             DataValue val = await RdAttr(oaId, Attributes.Value).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(val.StatusCode), Is.True);
-            ExtensionObject[] args = val.GetValue<ExtensionObject[]>(default);
+            ExtensionObject[] args = val.GetValue<ExtensionObject[]>(default!);
             Assert.That(args, Is.Not.Null.And.Not.Empty);
         }
 

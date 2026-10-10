@@ -103,7 +103,7 @@ namespace Opc.Ua.SourceGeneration
             string selfVersion = m_context.ModelDesign.TargetVersion ?? target.Version;
             string selfPubDate = FormatDate(m_context.ModelDesign.TargetPublicationDate)
                 ?? target.PublicationDate;
-            string selfPayload = BuildSelfPayload(target);
+            string? selfPayload = BuildSelfPayload(target);
             entries.Add(new Entry(
                 target.Value, target.Prefix,
                 selfVersion, selfPubDate, target.Name,
@@ -159,7 +159,7 @@ namespace Opc.Ua.SourceGeneration
             return entries;
         }
 
-        private string BuildSelfPayload(Namespace target)
+        private string? BuildSelfPayload(Namespace target)
         {
             // OpcUa root is implicit to every consumer; do not emit a payload.
             if (target.Value == Types.Namespaces.OpcUa)
@@ -227,6 +227,22 @@ namespace Opc.Ua.SourceGeneration
                         : null,
                     IsAbstract = type.IsAbstract
                 };
+                if (type is VariableTypeDesign variableTypeDesign)
+                {
+                    // A consumer that types a variable with this VariableType
+                    // has to know the restriction to decide whether the
+                    // generated state class needs a template parameter. Without
+                    // it the consumer's DataTypeNode stays null and the node
+                    // state generator dereferences it (see
+                    // ModelDesignExtensions.GetNodeStateClassName).
+                    entry.DataTypeName = variableTypeDesign.DataType?.Name ?? string.Empty;
+                    entry.DataTypeNamespace =
+                        variableTypeDesign.DataType?.Namespace ?? string.Empty;
+                    entry.ValueRank = variableTypeDesign.ValueRankSpecified
+                        ? (int)variableTypeDesign.ValueRank
+                        : null;
+                }
+
                 if (type is DataTypeDesign dataType)
                 {
                     entry.IsEnumeration = dataType.IsEnumeration;
@@ -243,7 +259,17 @@ namespace Opc.Ua.SourceGeneration
                                 name: field.Name ?? string.Empty,
                                 dataTypeName: field.DataType?.Name ?? string.Empty,
                                 dataTypeNamespace: field.DataType?.Namespace ?? string.Empty,
-                                valueRank: (int)field.ValueRank));
+                                valueRank: (int)field.ValueRank)
+                            {
+                                // A subtype in a consumer model needs these to
+                                // continue the encoding mask and publish the
+                                // inherited fields' definition correctly.
+                                IsOptional = field.IsOptional,
+                                AllowSubTypes = field.AllowSubTypes,
+                                ArrayDimensions = string.IsNullOrEmpty(field.ArrayDimensions)
+                                    ? null
+                                    : field.ArrayDimensions
+                            });
                         }
                         entry.Fields = fields;
                     }
@@ -288,6 +314,39 @@ namespace Opc.Ua.SourceGeneration
                                 ModellingRule = modellingRule,
                                 InstanceKind = instanceKind
                             };
+                            // A child re-declared from a base type in another
+                            // namespace keeps that namespace on its browse
+                            // name. Carrying it only when it differs from the
+                            // declaring model keeps the payload unchanged for
+                            // the common case.
+                            string childBrowseNamespace =
+                                child.SymbolicName?.Namespace ?? string.Empty;
+                            if (childBrowseNamespace.Length > 0 &&
+                                !string.Equals(
+                                    childBrowseNamespace,
+                                    targetUri,
+                                    StringComparison.Ordinal))
+                            {
+                                entryChild.BrowseNameNamespace = childBrowseNamespace;
+                            }
+                            // Likewise only a reference type that departs from
+                            // the kind default needs carrying; the consumer
+                            // applies the default for everything else.
+                            if (child.ReferenceType != null &&
+                                !(string.Equals(
+                                        child.ReferenceType.Name,
+                                        ModelDependencyV1.GetDefaultReferenceTypeName(instanceKind),
+                                        StringComparison.Ordinal) &&
+                                    string.Equals(
+                                        child.ReferenceType.Namespace,
+                                        ModelDependencyV1.OpcUaNamespaceUri,
+                                        StringComparison.Ordinal)))
+                            {
+                                entryChild.ReferenceTypeName =
+                                    child.ReferenceType.Name ?? string.Empty;
+                                entryChild.ReferenceTypeNamespace =
+                                    child.ReferenceType.Namespace ?? string.Empty;
+                            }
                             if (child is VariableDesign variable)
                             {
                                 var effectiveVariable =
@@ -319,6 +378,8 @@ namespace Opc.Ua.SourceGeneration
                                     effectiveVariable.HistorizingSpecified;
                                 entryChild.DefaultValueXml =
                                     effectiveVariable.DefaultValue?.OuterXml;
+                                entryChild.DefaultValueNamespaceUris =
+                                    GetDefaultValueNamespaceUris(effectiveVariable);
                             }
                             else if (child is MethodDesign method)
                             {
@@ -348,7 +409,7 @@ namespace Opc.Ua.SourceGeneration
                                             methodStateIdentity.Namespace ?? string.Empty;
                                     }
 
-                                    MethodDesign declaration =
+                                    MethodDesign? declaration =
                                         effectiveMethod.MethodDeclarationNode ??
                                         (MethodDesignArgumentResolver.HasDeclaredArguments(
                                             effectiveMethod)
@@ -402,6 +463,24 @@ namespace Opc.Ua.SourceGeneration
             return payload;
         }
 
+        /// <summary>
+        /// The namespace table the indexes in the default value XML of the
+        /// variable refer to: the table recorded when the value was decoded
+        /// from a NodeSet or a dependency design, otherwise this design's own
+        /// namespaces - the table the producer resolves the value against.
+        /// </summary>
+        private string[]? GetDefaultValueNamespaceUris(VariableDesign variable)
+        {
+            if (variable.DefaultValue == null)
+            {
+                return null;
+            }
+            NamespaceTable table =
+                (variable.DecodedValue != null ? variable.DecodedValueNamespaceUris : null) ??
+                ModelDesignExtensions.CreateDesignNamespaceTable(m_context.ModelDesign.Namespaces);
+            return table.ToArray();
+        }
+
         private static List<DependencyMethodArg> DependencyMethodArgs(Parameter[] args)
         {
             if (args == null || args.Length == 0)
@@ -430,8 +509,8 @@ namespace Opc.Ua.SourceGeneration
             {
                 return false;
             }
-            context.Template.AddReplacement(Tokens.ModelUri, EscapeForString(entry.ModelUri));
-            context.Template.AddReplacement(Tokens.Prefix, EscapeForString(entry.Prefix));
+            context.Template.AddReplacement(Tokens.ModelUri, SourceGenerationUtils.Escape(entry.ModelUri));
+            context.Template.AddReplacement(Tokens.Prefix, SourceGenerationUtils.Escape(entry.Prefix));
             context.Template.AddReplacement(Tokens.ModelVersion, FormatNullableLiteral(entry.Version));
             context.Template.AddReplacement(
                 Tokens.ModelPublicationDate,
@@ -442,21 +521,14 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private static string EscapeForString(string value)
-        {
-            // Escape backslash and quote; everything else is safe for short URI / prefix strings.
-            return value.Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
-        }
-
-        private static string FormatNullableLiteral(string value)
+        private static string FormatNullableLiteral(string? value)
         {
             return string.IsNullOrEmpty(value)
                 ? "null"
-                : CoreUtils.Format("\"{0}\"", EscapeForString(value));
+                : CoreUtils.Format("\"{0}\"", SourceGenerationUtils.Escape(value));
         }
 
-        private static string FormatDate(DateTime? d)
+        private static string? FormatDate(DateTime? d)
         {
             return d?.ToUniversalTime().ToString("yyyy-MM-ddTHH:mm:ssZ", CultureInfo.InvariantCulture);
         }
@@ -467,7 +539,7 @@ namespace Opc.Ua.SourceGeneration
             string Version,
             string PublicationDate,
             string Name,
-            string Payload);
+            string? Payload);
 
         private readonly IGeneratorContext m_context;
         private readonly bool? m_fluentAccessorsEmitted;

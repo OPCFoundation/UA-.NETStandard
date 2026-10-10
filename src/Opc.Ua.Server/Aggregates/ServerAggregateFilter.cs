@@ -64,7 +64,72 @@ namespace Opc.Ua.Server
         internal IHistorianStructuredDataKeySelector? HistorianKeySelector { get; set; }
 
         /// <summary>
-        /// Advances the start time to the earliest processing interval retained by the queue.
+        /// The processing interval used when neither the request nor the server limits
+        /// provide a usable positive interval.
+        /// </summary>
+        internal const double DefaultProcessingInterval = 1000;
+
+        /// <summary>
+        /// Revises the processing interval (Part 4 §7.22.4): a non-finite or non-positive
+        /// request is replaced, and the result is at least twice the revised sampling interval,
+        /// at least the server minimum and at least the historian interval.
+        /// </summary>
+        internal void ReviseProcessingInterval(
+            double samplingInterval,
+            double minimumProcessingInterval,
+            double providerInterval = 0)
+        {
+            double requested = ProcessingInterval.IsFinite() && ProcessingInterval > 0
+                ? ProcessingInterval
+                : 0;
+            double minimumFromSampling = samplingInterval.IsFinite() && samplingInterval > 0
+                ? 2 * samplingInterval
+                : 0;
+            if (!minimumFromSampling.IsFinite())
+            {
+                minimumFromSampling = samplingInterval;
+            }
+
+            double revised = Math.Max(
+                requested,
+                Math.Max(
+                    minimumFromSampling,
+                    Math.Max(
+                        ToPositiveFinite(minimumProcessingInterval),
+                        ToPositiveFinite(providerInterval))));
+
+            // the calculator needs an interval of at least one tick to advance its slices.
+            if (revised * TimeSpan.TicksPerMillisecond < 1)
+            {
+                revised = DefaultProcessingInterval;
+            }
+
+            ProcessingInterval = revised;
+        }
+
+        /// <summary>
+        /// Returns the end of the processing interval that contains the timestamp of a processed value,
+        /// which Part 4 §7.22.4 requires as the ServerTimestamp of the interval.
+        /// </summary>
+        internal DateTimeUtc GetProcessingIntervalEnd(DateTimeUtc timestamp)
+        {
+            long intervalTicks = ToIntervalTicks(ProcessingInterval);
+            if (intervalTicks <= 0 || timestamp < StartTime)
+            {
+                return timestamp.AddMilliseconds(ProcessingInterval);
+            }
+
+            // the interval containing the timestamp on the startTime + processingInterval * n grid.
+            long intervals = ((timestamp.Value - StartTime.Value) / intervalTicks) + 1;
+            return intervals > (DateTimeUtc.MaxValue.Value - StartTime.Value) / intervalTicks
+                ? DateTimeUtc.MaxValue
+                : new DateTimeUtc(StartTime.Value + (intervals * intervalTicks));
+        }
+
+        /// <summary>
+        /// Advances the start time to the earliest processing interval retained by the queue,
+        /// keeping it on the boundary of the requested start time
+        /// (startTime + revisedProcessingInterval * n, Part 4 §7.22.4).
         /// </summary>
         internal void ReviseStartTime(DateTimeUtc currentTime, uint queueSize)
         {
@@ -73,10 +138,37 @@ namespace Opc.Ua.Server
                 retainedWindow <= (currentTime - DateTimeUtc.MinValue).TotalMilliseconds
                     ? currentTime.SubtractMilliseconds(retainedWindow)
                     : DateTimeUtc.MinValue;
-            if (earliestStartTime > StartTime)
+            if (earliestStartTime <= StartTime)
             {
-                StartTime = earliestStartTime;
+                return;
             }
+
+            long intervalTicks = ToIntervalTicks(ProcessingInterval);
+            if (StartTime == DateTimeUtc.MinValue || intervalTicks <= 0)
+            {
+                // no client boundary to keep.
+                StartTime = earliestStartTime;
+                return;
+            }
+
+            // advance by whole intervals only, so the retained window still begins at or before the earliest time.
+            long elapsed = earliestStartTime.Value - StartTime.Value;
+            StartTime = new DateTimeUtc(StartTime.Value + (elapsed / intervalTicks * intervalTicks));
+        }
+
+        /// <summary>
+        /// Converts a processing interval to whole ticks the way the calculator advances its slices,
+        /// or 0 when the interval is not usable.
+        /// </summary>
+        private static long ToIntervalTicks(double processingInterval)
+        {
+            double ticks = processingInterval * TimeSpan.TicksPerMillisecond;
+            return ticks.IsFinite() && ticks >= 1 && ticks < long.MaxValue ? (long)ticks : 0;
+        }
+
+        private static double ToPositiveFinite(double value)
+        {
+            return value.IsFinite() && value > 0 ? value : 0;
         }
     }
 }

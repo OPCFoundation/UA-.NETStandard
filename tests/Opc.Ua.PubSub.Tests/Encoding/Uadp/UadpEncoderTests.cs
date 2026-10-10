@@ -151,6 +151,50 @@ namespace Opc.Ua.PubSub.Tests.Encoding.Uadp
         }
 
         [Test]
+        public void SecurityBoundaryPlacesSizesInsideThePayload()
+        {
+            var msg = new UadpNetworkMessage
+            {
+                ContentMask =
+                    UadpNetworkMessageContentMask.PublisherId |
+                    UadpNetworkMessageContentMask.PayloadHeader,
+                PublisherId = PublisherId.FromByte(1),
+                DataSetMessages =
+                [
+                    new UadpDataSetMessage
+                    {
+                        DataSetWriterId = 11,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [ new DataSetField { Value = new Variant((uint)10) } ]
+                    },
+                    new UadpDataSetMessage
+                    {
+                        DataSetWriterId = 12,
+                        FieldEncoding = PubSubFieldEncoding.Variant,
+                        Fields = [ new DataSetField { Value = new Variant("twenty") } ]
+                    }
+                ]
+            };
+
+            ReadOnlyMemory<byte> encoded = UadpEncoder.EncodeWithSecurityBoundary(
+                msg, UadpTestUtilities.NewContext(), out int payloadOffset);
+
+            // Header: UADPFlags, ExtFlags1, PublisherId, Count, 2 writer ids.
+            // Table 154 puts the SecurityHeader here, and Table 161 makes
+            // Sizes the first field of the encrypted DataSet payload.
+            Assert.That(payloadOffset, Is.EqualTo(1 + 1 + 1 + 1 + 4));
+            ReadOnlySpan<byte> payload = encoded.Span[payloadOffset..];
+            int size0 = payload[0] | (payload[1] << 8);
+            int size1 = payload[2] | (payload[3] << 8);
+            Assert.That(4 + size0 + size1, Is.EqualTo(payload.Length));
+            Assert.That(
+                UadpDecoder.TryReadOuterPrefix(encoded, out int prefixLength, out bool securityEnabled, out _, out _),
+                Is.True);
+            Assert.That(securityEnabled, Is.True);
+            Assert.That(prefixLength, Is.EqualTo(payloadOffset));
+        }
+
+        [Test]
         public async Task ExtendedFlags1_DataSetClassId_Timestamp_PicoSeconds_RoundTrip()
         {
             var classId = new Uuid("AABBCCDD-1122-3344-5566-778899AABBCC");

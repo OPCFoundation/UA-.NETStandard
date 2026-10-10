@@ -112,10 +112,6 @@ namespace Opc.Ua.Server
             ByteString privateKey,
             CancellationToken ct)
         {
-            // §7.10.5: UpdateCertificate may transfer private-key material,
-            // so it requires an encrypted SecureChannel.
-            HasApplicationSecureAdminAccess(context, requireEncryptedChannel: true);
-
             // OPC 10000-12 §7.10.3: the private key is sensitive material;
             // it must not be persisted into the
             // CertificateUpdateRequested / CertificateUpdated audit events.
@@ -131,6 +127,27 @@ namespace Opc.Ua.Server
                 privateKeyFormat!,
                 AuditEvents.RedactedPrivateKey
             ];
+
+            // §7.10.26: the CertificateUpdateRequestedAuditEvent is raised
+            // whenever UpdateCertificate is called, so a call refused for an
+            // insufficient SecureChannel or Role is audited with Status=false.
+            // §7.10.5: UpdateCertificate may transfer private-key material,
+            // so it requires an encrypted SecureChannel.
+            try
+            {
+                HasApplicationSecureAdminAccess(context, requireEncryptedChannel: true);
+            }
+            catch (ServiceResultException accessDenied)
+            {
+                Server.ReportCertificateUpdateRequestedAuditEvent(
+                    context,
+                    objectId,
+                    method,
+                    inputArguments,
+                    m_logger,
+                    accessDenied);
+                throw;
+            }
 
             Server.ReportCertificateUpdateRequestedAuditEvent(
                 context,
@@ -182,6 +199,14 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(
                         StatusCodes.BadCertificateInvalid,
                         "Certificate data is invalid.");
+                }
+
+                // OPC 10000-6 §6.2.2: application certificates are X.509 v3.
+                if (!X509Utils.IsX509Version3(newCert))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateInvalid,
+                        "The new certificate is not an X.509 version 3 certificate.");
                 }
 
                 // validate certificate type of new certificate
@@ -256,11 +281,12 @@ namespace Opc.Ua.Server
                         await ValidateCertificateAgainstGroupTrustListAsync(
                             certificateGroup.TrustedStore,
                             certificateGroup.IssuerStore,
-                            certificateGroup.BrowseName,
+                            GetGroupValidationScope(certificateGroup).Name,
                             newCert,
                             m_configuration.SecurityConfiguration,
                             Server.Telemetry,
-                            ct).ConfigureAwait(false);
+                            ct,
+                            m_configuration.CertificateManager).ConfigureAwait(false);
                     }
                     catch (ServiceResultException)
                     {
@@ -350,8 +376,9 @@ namespace Opc.Ua.Server
                 }
 
                 previousCertificateWithKey = await CertificateIdentifierResolver
-                    .LoadPrivateKeyAsync(
+                    .LoadPrivateKeyWithStoreResolverAsync(
                         existingCertIdentifier,
+                        m_configuration.CertificateManager as ICertificateStoreResolver,
                         passwordProvider,
                         m_configuration.ApplicationUri,
                         Server.Telemetry,
@@ -578,6 +605,7 @@ namespace Opc.Ua.Server
             }
             catch (Exception e)
             {
+                m_logger.CertificateUpdateFailed(e, certificateGroupId, certificateTypeId, privateKeyFormat);
                 // report the failure of UpdateCertificate via an audit event
                 Server.ReportCertificateUpdatedAuditEvent(
                     context,
@@ -790,8 +818,9 @@ namespace Opc.Ua.Server
             Certificate? previousCertificateWithKey = string.IsNullOrEmpty(previousThumbprint)
                 ? null
                 : await CertificateIdentifierResolver
-                    .LoadPrivateKeyAsync(
+                    .LoadPrivateKeyWithStoreResolverAsync(
                         existingCertIdentifier,
+                        m_configuration.CertificateManager as ICertificateStoreResolver,
                         m_configuration.SecurityConfiguration.CertificatePasswordProvider,
                         m_configuration.ApplicationUri,
                         Server.Telemetry,
@@ -1014,8 +1043,9 @@ namespace Opc.Ua.Server
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
             Certificate? previousCertificateWithKey = await CertificateIdentifierResolver
-                .LoadPrivateKeyAsync(
+                .LoadPrivateKeyWithStoreResolverAsync(
                     existingCertIdentifier,
+                    m_configuration.CertificateManager as ICertificateStoreResolver,
                     passwordProvider,
                     m_configuration.ApplicationUri,
                     Server.Telemetry,
@@ -1185,7 +1215,7 @@ namespace Opc.Ua.Server
             {
                 using Certificate? existingCertificate = await CertificateIdentifierResolver.ResolveAsync(
                     existingCertIdentifier,
-                    registry: null,
+                    registry: m_configuration.CertificateManager,
                     needPrivateKey: false,
                     m_configuration.ApplicationUri,
                     Server.Telemetry,
@@ -1235,8 +1265,9 @@ namespace Opc.Ua.Server
                     .SecurityConfiguration
                     .CertificatePasswordProvider;
                 certWithPrivateKey = await CertificateIdentifierResolver
-                    .LoadPrivateKeyAsync(
+                    .LoadPrivateKeyWithStoreResolverAsync(
                         existingCertIdentifier,
+                        m_configuration.CertificateManager as ICertificateStoreResolver,
                         passwordProvider,
                         m_configuration.ApplicationUri,
                         Server.Telemetry,
@@ -1366,9 +1397,7 @@ namespace Opc.Ua.Server
                 return store;
             }
 
-            ICertificateStore created = m_rejectedStore!.OpenStore(Server.Telemetry) ??
-                throw ServiceResultException.ConfigurationError(
-                    "Failed to open rejected certificate store.");
+            ICertificateStore created = OpenGroupStore(m_rejectedStore!);
             ICertificateStore? current = Interlocked.CompareExchange(
                 ref m_rejectedStoreInstance,
                 created,
@@ -1408,7 +1437,7 @@ namespace Opc.Ua.Server
     }
 
     /// <summary>
-    /// Records pending signing-key recovery outcomes during certificate push operations.
+    /// Records certificate push failures and pending signing-key recovery outcomes.
     /// </summary>
     internal static partial class ConfigurationNodeManagerLog
     {
@@ -1425,5 +1454,13 @@ namespace Opc.Ua.Server
         [LoggerMessage(EventId = ServerEventIds.PendingCertificateKey + 1, Level = LogLevel.Debug,
             Message = "Pending signing key for {GroupId}/{TypeId} was superseded; the newer key was retained.")]
         public static partial void PendingSigningKeyWasSuperseded(this ILogger logger, NodeId groupId, NodeId typeId);
+
+        /// <summary>
+        /// Reports a certificate update failure without including private-key material.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.PendingCertificateKey + 2, Level = LogLevel.Error,
+            Message = "UpdateCertificate failed for group {GroupId}, type {TypeId}, key format {PrivateKeyFormat}.")]
+        public static partial void CertificateUpdateFailed(
+            this ILogger logger, Exception exception, NodeId groupId, NodeId typeId, string? privateKeyFormat);
     }
 }

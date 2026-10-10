@@ -66,10 +66,11 @@ namespace Opc.Ua.Server.TestFramework
             this SessionServerBase server,
             string sessionName,
             bool useSecurity = false,
-            UserIdentityToken identityToken = null,
+            UserIdentityToken? identityToken = null,
             double sessionTimeout = DefaultSessionTimeout,
             uint maxResponseMessageSize = DefaultMaxResponseMessageSize,
-            string clientApplicationUri = null)
+            string? clientApplicationUri = null,
+            ArrayOf<string> localeIds = default)
         {
             if (clientApplicationUri != null && clientApplicationUri.Length == 0)
             {
@@ -82,22 +83,22 @@ namespace Opc.Ua.Server.TestFramework
             ArrayOf<EndpointDescription> endpoints = server.GetEndpoints();
             EndpointDescription endpoint = useSecurity
                 ? endpoints.Find(e =>
-                    e.TransportProfileUri
+                    e.TransportProfileUri!
                         .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) &&
                     e.SecurityMode == MessageSecurityMode.Sign &&
                     e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256) ??
                     endpoints.Find(e =>
-                        e.TransportProfileUri
+                        e.TransportProfileUri!
                             .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal) &&
                         e.SecurityMode == MessageSecurityMode.Sign &&
                         e.SecurityPolicyUri == SecurityPolicies.Basic256Sha256)
                 : endpoints.Find(e =>
-                    e.TransportProfileUri
+                    e.TransportProfileUri!
                         .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
                     e.TransportProfileUri
                         .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal));
             endpoint ??= endpoints.Find(e =>
-                e.TransportProfileUri
+                e.TransportProfileUri!
                     .Equals(Profiles.UaTcpTransport, StringComparison.Ordinal) ||
                 e.TransportProfileUri
                     .Equals(Profiles.HttpsBinaryTransport, StringComparison.Ordinal)) ??
@@ -114,14 +115,14 @@ namespace Opc.Ua.Server.TestFramework
                 endpoint.SecurityPolicyUri = SecurityPolicies.None;
             }
 
-            Certificate clientCertificate = null;
+            Certificate? clientCertificate = null;
             try
             {
                 ByteString clientNonce = default;
                 ByteString clientCertificateData = default;
-                byte[] clientChannelCertificate = null;
-                byte[] serverChannelCertificate = null;
-                byte[] channelThumbprint = null;
+                byte[]? clientChannelCertificate = null;
+                byte[]? serverChannelCertificate = null;
+                byte[]? channelThumbprint = null;
                 if (useSecurity)
                 {
                     clientCertificate = CertificateBuilder
@@ -154,14 +155,14 @@ namespace Opc.Ua.Server.TestFramework
                     serverChannelCertificate,
                     channelThumbprint);
                 var requestHeader = new RequestHeader();
-                ApplicationDescription clientDescription = clientApplicationUri == null
+                ApplicationDescription clientDescription = (clientApplicationUri == null
                     ? null
                     : new ApplicationDescription
                     {
                         ApplicationUri = clientApplicationUri,
                         ApplicationName = new LocalizedText("ServerFixtureClient"),
                         ApplicationType = ApplicationType.Client
-                    };
+                    })!;
 
                 CreateSessionResponse createSessionResponse = await server.CreateSessionAsync(
                     secureChannelContext,
@@ -177,7 +178,7 @@ namespace Opc.Ua.Server.TestFramework
                     RequestLifetime.None).ConfigureAwait(false);
                 ValidateResponse(createSessionResponse.ResponseHeader);
 
-                SignatureData clientSignature = null;
+                SignatureData? clientSignature = null;
                 if (useSecurity)
                 {
                     SecurityPolicyInfo securityPolicy =
@@ -187,11 +188,11 @@ namespace Opc.Ua.Server.TestFramework
                             createSessionResponse.ServerCertificate,
                             server.MessageContext.Telemetry);
                     byte[] dataToSign = securityPolicy.GetClientSignatureData(
-                        secureChannelContext.ChannelThumbprint,
+                        secureChannelContext.ChannelThumbprint.ToArrayOrNull(),
                         createSessionResponse.ServerNonce.ToArray(),
                         serverCertificateChain[0].RawData,
-                        secureChannelContext.ServerChannelCertificate,
-                        secureChannelContext.ClientChannelCertificate,
+                        secureChannelContext.ServerChannelCertificate.ToArrayOrNull(),
+                        secureChannelContext.ClientChannelCertificate.ToArrayOrNull(),
                         clientNonce.ToArray());
                     clientSignature = SecurityPolicies.Default.CreateSignatureData(
                         securityPolicy,
@@ -205,7 +206,7 @@ namespace Opc.Ua.Server.TestFramework
                     requestHeader,
                     clientSignature,
                     [],
-                    [],
+                    localeIds.IsNull ? [] : localeIds,
                     identityToken != null ? new ExtensionObject(identityToken) : default,
                     null,
                     RequestLifetime.None).ConfigureAwait(false);
@@ -478,7 +479,7 @@ namespace Opc.Ua.Server.TestFramework
         /// <param name="exception">The exception the server start threw.</param>
         public static bool IsPortUnavailable(Exception exception)
         {
-            for (Exception current = exception; current != null; current = current.InnerException)
+            for (Exception current = exception; current != null; current = current.InnerException!)
             {
                 if (current is ServiceResultException sre &&
                     sre.StatusCode == StatusCodes.BadNoCommunication)

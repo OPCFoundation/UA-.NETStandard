@@ -224,7 +224,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AConditionTypeReachedThroughALocalTypeIsStillNamed()
         {
             UANodeSet nodeSet = CreateEventNodeSet("ns=1;i=1003");
-            var items = new List<UANode>(nodeSet.Items)
+            var items = new List<UANode>(nodeSet.Items!)
             {
                 new UAObjectType
                 {
@@ -430,7 +430,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
                 Is.Empty);
             Assert.That(
-                result.Value!.Items.OfType<UAVariable>().Select(v => v.BrowseName),
+                result.Value!.Items!.OfType<UAVariable>().Select(v => v.BrowseName),
                 Is.Empty);
         }
 
@@ -451,22 +451,22 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = Convert(
                 ConditionEvent("ua:LimitAlarmType", members, requiredList));
 
-            UAVariable field = result.Value!.Items.OfType<UAVariable>().Single();
+            UAVariable field = result.Value!.Items!.OfType<UAVariable>().Single();
             Assert.That(field.BrowseName, Is.EqualTo("1:Trace"));
             Assert.That(field.DataType, Is.EqualTo("i=6"));
             Assert.That(field.ValueRank, Is.EqualTo(2));
             Assert.That(field.ArrayDimensions, Is.EqualTo("3,4"));
-            Assert.That(field.Description[0].Value, Is.EqualTo("A trace."));
+            Assert.That(field.Description![0].Value, Is.EqualTo("A trace."));
             Assert.That(
-                field.References.Single(r =>
+                field.References!.Single(r =>
                     string.Equals(r.ReferenceType, "HasModellingRule", StringComparison.Ordinal))
                     .Value,
                 Is.EqualTo(modellingRule));
 
-            UAObjectType eventType = result.Value.Items.OfType<UAObjectType>()
+            UAObjectType eventType = result.Value.Items!.OfType<UAObjectType>()
                 .Single(t => t.BrowseName!.EndsWith("AlarmType", StringComparison.Ordinal));
             Assert.That(
-                eventType.References.Any(r =>
+                eventType.References!.Any(r =>
                     r.IsForward &&
                     string.Equals(r.ReferenceType, "HasProperty", StringComparison.Ordinal) &&
                     string.Equals(r.Value, field.NodeId, StringComparison.Ordinal)),
@@ -509,7 +509,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Any(d => d.Code == WotDiagnosticCode.EventFieldInvalid),
                 Is.True);
-            Assert.That(result.Value!.Items.OfType<UAVariable>().Count(), Is.EqualTo(1));
+            Assert.That(result.Value!.Items!.OfType<UAVariable>().Count(), Is.EqualTo(1));
         }
 
         /// <summary>
@@ -589,7 +589,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 ConditionEvent("ua:LimitAlarmType", "\"EventId\":{\"type\":\"string\"}") +
                 "," + ConditionAction(action));
 
-            UAMethod method = result.Value!.Items.OfType<UAMethod>().Single();
+            UAMethod method = result.Value!.Items!.OfType<UAMethod>().Single();
             Assert.That(method.MethodDeclarationId, Is.EqualTo(declaration));
             Assert.That(method.BrowseName, Is.EqualTo(action));
         }
@@ -606,19 +606,19 @@ namespace Opc.Ua.Types.Tests.Wot
                 ConditionEvent("ua:LimitAlarmType", "\"EventId\":{\"type\":\"string\"}") +
                 "," + ConditionAction("Acknowledge"));
 
-            UAMethod method = result.Value!.Items.OfType<UAMethod>().Single();
-            UAObjectType eventType = result.Value.Items.OfType<UAObjectType>()
+            UAMethod method = result.Value!.Items!.OfType<UAMethod>().Single();
+            UAObjectType eventType = result.Value.Items!.OfType<UAObjectType>()
                 .Single(t => t.BrowseName!.EndsWith("AlarmType", StringComparison.Ordinal));
 
             Assert.That(method.ParentNodeId, Is.EqualTo(eventType.NodeId));
             Assert.That(
-                eventType.References.Any(r =>
+                eventType.References!.Any(r =>
                     r.IsForward &&
                     string.Equals(r.ReferenceType, "HasComponent", StringComparison.Ordinal) &&
                     string.Equals(r.Value, method.NodeId, StringComparison.Ordinal)),
                 Is.True);
             Assert.That(
-                result.Value.Items.OfType<UAObject>().Single().References.Any(r =>
+                result.Value.Items!.OfType<UAObject>().Single().References!.Any(r =>
                     string.Equals(r.Value, method.NodeId, StringComparison.Ordinal)),
                 Is.False,
                 "The Object does not also own the Method.");
@@ -642,7 +642,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     d.Code == WotDiagnosticCode.ConditionActionNotDeclared),
                 Is.True);
             Assert.That(
-                result.Value!.Items.OfType<UAMethod>().Single().MethodDeclarationId,
+                result.Value!.Items!.OfType<UAMethod>().Single().MethodDeclarationId,
                 Is.Null);
         }
 
@@ -664,7 +664,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     d.Code == WotDiagnosticCode.ConditionActionNotDeclared),
                 Is.False);
             Assert.That(
-                result.Value!.Items.OfType<UAMethod>().Single().MethodDeclarationId,
+                result.Value!.Items!.OfType<UAMethod>().Single().MethodDeclarationId,
                 Is.Not.Null);
         }
 
@@ -690,8 +690,8 @@ namespace Opc.Ua.Types.Tests.Wot
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
                 Is.Empty);
 
-            UAMethod method = result.Value!.Items.OfType<UAMethod>().Single();
-            UAObjectType eventType = result.Value.Items.OfType<UAObjectType>()
+            UAMethod method = result.Value!.Items!.OfType<UAMethod>().Single();
+            UAObjectType eventType = result.Value.Items!.OfType<UAObjectType>()
                 .Single(t => t.BrowseName!.EndsWith("AlarmType", StringComparison.Ordinal));
 
             Assert.That(method.MethodDeclarationId, Is.Null);
@@ -711,7 +711,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 ConditionEvent("ua:LimitAlarmType", "\"EventId\":{\"type\":\"string\"}") +
                 "," + ConditionAction("Acknowledge"));
 
-            UAVariable arguments = result.Value!.Items.OfType<UAVariable>()
+            UAVariable arguments = result.Value!.Items!.OfType<UAVariable>()
                 .Single(v => string.Equals(
                     v.BrowseName, "InputArguments", StringComparison.Ordinal));
 
@@ -806,9 +806,9 @@ namespace Opc.Ua.Types.Tests.Wot
 
             // The Condition survives as a Condition, with its Method still held
             // by the type that declares it.
-            UAObjectType eventType = twice.Items.OfType<UAObjectType>()
-                .Single(t => t.BrowseName.EndsWith(EventKey, StringComparison.Ordinal));
-            UAMethod method = twice.Items.OfType<UAMethod>().Single();
+            UAObjectType eventType = twice.Items!.OfType<UAObjectType>()
+                .Single(t => t.BrowseName!.EndsWith(EventKey, StringComparison.Ordinal));
+            UAMethod method = twice.Items!.OfType<UAMethod>().Single();
             Assert.That(SupertypeOfEvent(twice), Is.EqualTo(LimitAlarmType));
             Assert.That(method.BrowseName, Is.EqualTo("Acknowledge"));
             Assert.That(method.MethodDeclarationId, Is.EqualTo("i=9111"));
@@ -845,10 +845,10 @@ namespace Opc.Ua.Types.Tests.Wot
             // Section 13.4's own shape survived: the Method is the standard
             // Acknowledge, it holds the arguments it takes, and it belongs to
             // the type that declares the Condition.
-            UAMethod method = result.Value.Items.OfType<UAMethod>().Single();
+            UAMethod method = result.Value!.Items!.OfType<UAMethod>().Single();
             Assert.That(method.MethodDeclarationId, Is.EqualTo("i=9111"));
             Assert.That(
-                ArgumentNames(result.Value.Items.OfType<UAVariable>().Single(v =>
+                ArgumentNames(result.Value.Items!.OfType<UAVariable>().Single(v =>
                     string.Equals(
                         v.BrowseName, "InputArguments", StringComparison.Ordinal))),
                 Is.EqualTo(s_conditionMethodArguments).AsCollection);
@@ -864,14 +864,14 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AConditionMethodWithoutAnEventIdInputIsNotPaired()
         {
             UANodeSet source = CreateConditionMethodNodeSet(ownedByEventType: true);
-            source.Items.OfType<UAMethod>().Single().MethodDeclarationId = null;
+            source.Items!.OfType<UAMethod>().Single().MethodDeclarationId = null;
 
             WotConversionResult<WotDocument> result =
                 WotNodeSetConverter.FromNodeSetResult(source);
 
-            using WotDocument document = result.Value;
+            using WotDocument document = result.Value!;
             Assert.That(
-                document.Actions["Acknowledge"]
+                document!.Actions["Acknowledge"]
                     .TryGetProperty("uav:conditionAction", out _),
                 Is.False);
             Assert.That(
@@ -899,9 +899,9 @@ namespace Opc.Ua.Types.Tests.Wot
         private static List<string> ArgumentNames(UAVariable arguments)
         {
             var names = new List<string>();
-            foreach (System.Xml.XmlNode item in arguments.Value.ChildNodes)
+            foreach (System.Xml.XmlNode item in arguments.Value!.ChildNodes)
             {
-                System.Xml.XmlNode name = item.SelectSingleNode(".//*[local-name()='Name']");
+                System.Xml.XmlNode name = item.SelectSingleNode(".//*[local-name()='Name']")!;
                 if (name != null)
                 {
                     names.Add(name.InnerText);
@@ -913,7 +913,7 @@ namespace Opc.Ua.Types.Tests.Wot
         private static string SupertypeOfEvent(UANodeSet nodeSet)
         {
             var generated = new HashSet<string>(StringComparer.Ordinal);
-            foreach (UANode node in nodeSet.Items)
+            foreach (UANode node in nodeSet.Items!)
             {
                 foreach (Reference reference in node.References ?? [])
                 {
@@ -921,12 +921,12 @@ namespace Opc.Ua.Types.Tests.Wot
                         string.Equals(
                             reference.ReferenceType, "GeneratesEvent", StringComparison.Ordinal))
                     {
-                        generated.Add(reference.Value);
+                        generated.Add(reference.Value!);
                     }
                 }
             }
-            UANode eventType = nodeSet.Items.Single(n => generated.Contains(n.NodeId));
-            return eventType.References.First(r =>
+            UANode eventType = nodeSet.Items.Single(n => generated.Contains(n.NodeId!));
+            return eventType.References!.First(r =>
                 string.Equals(r.ReferenceType, "HasSubtype", StringComparison.Ordinal) &&
                 !r.IsForward).Value!;
         }
@@ -973,7 +973,7 @@ namespace Opc.Ua.Types.Tests.Wot
         /// </summary>
         private static UANodeSet CreateEventNodeSet(
             string superType,
-            UAVariable declaredField = null)
+            UAVariable? declaredField = null)
         {
             var eventReferences = new List<Reference>
             {
@@ -1042,11 +1042,11 @@ namespace Opc.Ua.Types.Tests.Wot
         private static UANodeSet CreateSeverityEventNodeSet(string severity)
         {
             UANodeSet nodeSet = CreateEventNodeSet(BaseEventType);
-            var items = new List<UANode>(nodeSet.Items);
+            var items = new List<UANode>(nodeSet.Items!);
             var eventType = (UAObjectType)items[1];
             eventType.References =
             [
-                .. eventType.References,
+                .. eventType.References!,
                 new Reference
                 {
                     ReferenceType = "HasProperty", IsForward = true, Value = "ns=1;i=6002"
@@ -1086,11 +1086,11 @@ namespace Opc.Ua.Types.Tests.Wot
         private static UANodeSet CreateConditionMethodNodeSet(bool ownedByEventType)
         {
             UANodeSet nodeSet = CreateEventNodeSet(LimitAlarmType);
-            var items = new List<UANode>(nodeSet.Items);
+            var items = new List<UANode>(nodeSet.Items!);
             var owner = (UANode)(ownedByEventType ? items[1] : items[0]);
             owner.References =
             [
-                .. owner.References,
+                .. owner.References!,
                 new Reference
                 {
                     ReferenceType = "HasComponent", IsForward = true, Value = "ns=1;i=7001"
@@ -1119,10 +1119,10 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static void AddSecondConditionEvent(UANodeSet nodeSet)
         {
-            var items = new List<UANode>(nodeSet.Items);
+            var items = new List<UANode>(nodeSet.Items!);
             items[0].References =
             [
-                .. items[0].References,
+                .. items[0].References!,
                 new Reference
                 {
                     ReferenceType = "GeneratesEvent", IsForward = true, Value = "ns=1;i=1004"

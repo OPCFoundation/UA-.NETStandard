@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Diagnostics;
 using System.Threading;
@@ -320,6 +318,12 @@ namespace Opc.Ua.Sessions.Tests
             public ConfiguredEndpoint Endpoint { get; }
 
             public int NotificationCount => Volatile.Read(ref m_notificationCount);
+
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
 
             public async ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,

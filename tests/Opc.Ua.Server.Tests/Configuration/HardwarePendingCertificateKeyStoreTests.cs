@@ -65,7 +65,7 @@ namespace Opc.Ua.Server.Tests.Configuration
         {
             // The provider owns the cached tokens and the certificates they hold.
             m_provider?.Dispose();
-            m_provider = null;
+            m_provider = null!;
         }
 
         [Test]
@@ -80,7 +80,7 @@ namespace Opc.Ua.Server.Tests.Configuration
             bool saved = await store.SaveAsync(context, generated).ConfigureAwait(false);
             Assert.That(saved, Is.True, "A device held key needs no export to be durable.");
 
-            using Certificate recovered = await store.TryTakeAsync(context).ConfigureAwait(false);
+            using Certificate recovered = (await store.TryTakeAsync(context).ConfigureAwait(false))!;
 
             Assert.That(recovered, Is.Not.Null);
             Assert.Multiple(() =>
@@ -109,12 +109,12 @@ namespace Opc.Ua.Server.Tests.Configuration
 
             await store.SaveAsync(context, generated).ConfigureAwait(false);
 
-            using (Certificate first = await store.TryTakeAsync(context).ConfigureAwait(false))
+            using (Certificate first = (await store.TryTakeAsync(context).ConfigureAwait(false))!)
             {
                 Assert.That(first, Is.Not.Null);
             }
 
-            Certificate second = await store.TryTakeAsync(context).ConfigureAwait(false);
+            Certificate? second = await store.TryTakeAsync(context).ConfigureAwait(false);
             Assert.That(second, Is.Null, "The staged key must not be handed out twice.");
         }
 
@@ -138,9 +138,9 @@ namespace Opc.Ua.Server.Tests.Configuration
             Assert.That(saved, Is.True);
 
             // A different instance stands in for the process that comes back up.
-            using Certificate recovered = await new HardwarePendingCertificateKeyStore(m_provider)
+            using Certificate recovered = (await new HardwarePendingCertificateKeyStore(m_provider)
                 .TryTakeAsync(context)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(
                 recovered,
@@ -170,10 +170,10 @@ namespace Opc.Ua.Server.Tests.Configuration
                 await store.SaveAsync(context, generated).ConfigureAwait(false);
             }
 
-            using Certificate taken = await store.TryTakeAsync(context).ConfigureAwait(false);
+            using Certificate taken = (await store.TryTakeAsync(context).ConfigureAwait(false))!;
             Assert.That(taken, Is.Not.Null);
 
-            Certificate second = await store.TryTakeAsync(context).ConfigureAwait(false);
+            Certificate second = (await store.TryTakeAsync(context).ConfigureAwait(false))!;
             Assert.That(
                 second,
                 Is.Null,
@@ -192,7 +192,7 @@ namespace Opc.Ua.Server.Tests.Configuration
             await store.SaveAsync(context, generated).ConfigureAwait(false);
             await store.RemoveAsync(context).ConfigureAwait(false);
 
-            Certificate taken = await store.TryTakeAsync(context).ConfigureAwait(false);
+            Certificate? taken = await store.TryTakeAsync(context).ConfigureAwait(false);
             Assert.That(taken, Is.Null);
         }
 

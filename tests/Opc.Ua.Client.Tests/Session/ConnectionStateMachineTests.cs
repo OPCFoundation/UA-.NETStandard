@@ -61,7 +61,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         private ConnectionStateMachine CreateMachine(
-            IReconnectPolicy policy = null)
+            IReconnectPolicy? policy = null)
         {
             return new ConnectionStateMachine(
                 policy ??
@@ -87,7 +87,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             var tcs = new TaskCompletionSource<bool>(
                 TaskCreationOptions.RunContinuationsAsynchronously);
 
-            void Handler(object sender, ConnectionStateChangedEventArgs e)
+            void Handler(object? sender, ConnectionStateChangedEventArgs e)
             {
                 if (e.NewState == target)
                 {
@@ -139,7 +139,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             private ConnectionState? m_waitTarget;
 
             public void Handler(
-                object sender, ConnectionStateChangedEventArgs e)
+                object? sender, ConnectionStateChangedEventArgs e)
             {
                 lock (m_transitions)
                 {
@@ -238,6 +238,73 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 sm.State,
                 Is.EqualTo(ConnectionState.Disconnected));
             Assert.That(sm.IsConnected, Is.False);
+        }
+
+        [Test]
+        public async Task ExternalStateCallbackDoesNotHoldStateLockAsync()
+        {
+            await using ConnectionStateMachine machine = CreateMachine();
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            machine.Start();
+            machine.RequestConnect();
+            await machine.WaitForConnectedAsync(CancellationToken.None).ConfigureAwait(false);
+
+            using var closeEntered = new ManualResetEventSlim();
+            var callbackReleased = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task close = Task.CompletedTask;
+            machine.StateChanged += (_, change) =>
+            {
+                if (change.NewState != ConnectionState.Reconnecting)
+                {
+                    return;
+                }
+                close = Task.Run(() =>
+                {
+                    machine.RequestClose();
+                    closeEntered.Set();
+                });
+                callbackReleased.TrySetResult(closeEntered.Wait(TimeSpan.FromSeconds(2)));
+            };
+
+            machine.TriggerReconnect();
+
+            Assert.That(await callbackReleased.Task.ConfigureAwait(false), Is.True,
+                "An external state callback must not prevent another thread from requesting close.");
+            await close.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            await machine.WaitForClosedAsync(CancellationToken.None).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task ReentrantStateNotificationsKeepTransitionOrderAsync()
+        {
+            await using ConnectionStateMachine machine = CreateMachine();
+            machine.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+            var observed = new ConcurrentQueue<ConnectionState>();
+            var closed = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            machine.StateChanged += (_, change) =>
+            {
+                if (change.NewState == ConnectionState.Connected)
+                {
+                    machine.RequestClose();
+                }
+            };
+            machine.StateChanged += (_, change) =>
+            {
+                observed.Enqueue(change.NewState);
+                if (change.NewState == ConnectionState.Closed)
+                {
+                    closed.TrySetResult(true);
+                }
+            };
+            machine.Start();
+            machine.RequestConnect();
+            await closed.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(observed, Is.EqualTo(
+            [
+                ConnectionState.Connecting, ConnectionState.Connected,
+                ConnectionState.Closing, ConnectionState.Closed
+            ]));
         }
 
         [Test]
@@ -975,6 +1042,149 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     Times.AtLeastOnce,
                     "Policy should be reset after successful " +
                     "reconnect");
+            }
+        }
+
+        /// <summary>
+        /// Work spawned by a worker step (keep-alive, publish loops) must not
+        /// pass as the worker once the step is over (L2-1).
+        /// </summary>
+        [Test]
+        public async Task WorkSpawnedByWorkerStepLeavesWorkerFlowAsync()
+        {
+            ConnectionStateMachine sm = CreateMachine();
+            await using (sm.ConfigureAwait(false))
+            {
+                var gate = new TaskCompletionSource<bool>(
+                    TaskCreationOptions.RunContinuationsAsynchronously);
+                bool inWorkerDuringConnect = false;
+                Task<bool>? spawned = null;
+                sm.ConnectAsync = _ =>
+                {
+                    inWorkerDuringConnect = sm.IsWorkerFlow;
+                    spawned = Task.Run(async () =>
+                    {
+                        await gate.Task.ConfigureAwait(false);
+                        for (int ii = 0; ii < 250 && sm.IsWorkerFlow; ii++)
+                        {
+                            await Task.Delay(20).ConfigureAwait(false);
+                        }
+                        return sm.IsWorkerFlow;
+                    });
+                    return Task.FromResult(ServiceResult.Good);
+                };
+
+                sm.Start();
+                sm.RequestConnect();
+                await WaitForStateAsync(sm, ConnectionState.Connected)
+                    .ConfigureAwait(false);
+                gate.SetResult(true);
+
+                Assert.That(inWorkerDuringConnect, Is.True);
+                Assert.That(await spawned!.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.False,
+                    "Spawned background work must not be treated as the worker after the step ended.");
+            }
+        }
+
+        /// <summary>
+        /// A negative reconnect budget is rejected at construction instead of
+        /// crashing the worker on the first reconnect (L3-7).
+        /// </summary>
+        [Test]
+        public void NegativeMaxTotalReconnectTimeIsRejected()
+        {
+            Assert.That(
+                () => new ConnectionStateMachine(
+                    new ReconnectPolicy(),
+                    m_logger,
+                    TimeSpan.FromSeconds(-5)),
+                Throws.TypeOf<ArgumentOutOfRangeException>());
+        }
+
+        /// <summary>
+        /// A zero reconnect budget means unlimited and still reconnects (L3-7).
+        /// </summary>
+        [Test]
+        public async Task ZeroMaxTotalReconnectTimeStillReconnectsAsync()
+        {
+            var sm = new ConnectionStateMachine(
+                new ReconnectPolicy
+                {
+                    JitterFactor = 0.0,
+                    Strategy = BackoffStrategy.Constant,
+                    InitialDelay = TimeSpan.FromMilliseconds(10)
+                },
+                m_logger,
+                TimeSpan.Zero);
+            await using (sm.ConfigureAwait(false))
+            {
+                int reconnects = 0;
+                sm.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+                sm.ReconnectAsync = _ =>
+                {
+                    Interlocked.Increment(ref reconnects);
+                    return Task.FromResult(ServiceResult.Good);
+                };
+                StateTransitionRecorder recorder = AttachRecorder(sm);
+
+                sm.Start();
+                sm.RequestConnect();
+                await WaitForStateAsync(sm, ConnectionState.Connected)
+                    .ConfigureAwait(false);
+
+                sm.TriggerReconnect();
+                await WaitForStateAsync(sm, ConnectionState.Connected)
+                    .ConfigureAwait(false);
+
+                Assert.That(Volatile.Read(ref reconnects), Is.EqualTo(1));
+                Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.False);
+            }
+        }
+
+        /// <summary>
+        /// A close requested while the reconnect policy runs out must not be
+        /// overwritten by the transition to Failover (L3-4).
+        /// </summary>
+        [Test]
+        public async Task CloseRacingPolicyExhaustionIsNotLostAsync()
+        {
+            ConnectionStateMachine? sm = null;
+            var mockPolicy = new Mock<IReconnectPolicy>();
+            mockPolicy.Setup(p => p.GetNextDelay(
+                It.IsAny<int>(),
+                It.IsAny<CancellationToken>()))
+                .Returns(() =>
+                {
+                    // Close arrives right before the policy reports exhaustion.
+                    sm!.RequestClose();
+                    return (TimeSpan?)null;
+                });
+
+            sm = new ConnectionStateMachine(mockPolicy.Object, m_logger);
+            await using (sm.ConfigureAwait(false))
+            {
+                int closeCalls = 0;
+                sm.ConnectAsync = _ => Task.FromResult(ServiceResult.Good);
+                sm.CloseSessionAsync = _ =>
+                {
+                    Interlocked.Increment(ref closeCalls);
+                    return Task.CompletedTask;
+                };
+                StateTransitionRecorder recorder = AttachRecorder(sm);
+
+                sm.Start();
+                sm.RequestConnect();
+                await WaitForStateAsync(sm, ConnectionState.Connected)
+                    .ConfigureAwait(false);
+
+                sm.TriggerReconnect();
+
+                await sm.WaitForClosedAsync(CancellationToken.None).AsTask()
+                    .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+
+                Assert.That(recorder.HasVisited(ConnectionState.Failover), Is.False);
+                Assert.That(Volatile.Read(ref closeCalls), Is.EqualTo(1),
+                    "The clean close must run when the close raced the policy exhaustion.");
             }
         }
 

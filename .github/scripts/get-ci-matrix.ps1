@@ -10,30 +10,38 @@
 
     The workload is described once, here, as a table of profiles. A profile is a
     (runner OS, CustomTestTarget, test-host target framework, configuration,
-    category filter, tier) tuple. Projects are discovered from the file system -
-    the same '*.Tests.csproj' sweep .azurepipelines/get-matrix.ps1 performs - so
-    neither matrix has to be hand-maintained as projects are added or renamed.
+    category filter, tier) tuple. Projects are discovered from the file system
+    with a '*.Tests.csproj' sweep, so neither matrix has to be hand-maintained
+    as projects are added or renamed.
 
     CustomTestTarget, not '--framework', is the mechanism that pins the stack to
-    a single target framework (see targets.props). The standard profiles are not
-    runnable target frameworks: 'netstandard2.0' hosts its tests on net48 and
-    'netstandard2.1' hosts them on net8.0, so a profile carries both the
+    a single target framework (see targets.props). A profile carries both the
     CustomTestTarget it builds with and the framework its tests actually run on.
 
-    GitHub Actions refuses to start a workflow run whose matrices expand past 256
-    jobs, and that limit cannot be raised. The project fan-out is therefore
-    batched: each matrix entry carries several projects that the executor runs in
-    sequence, keeping per-project results. The batch size is the smallest one
-    that fits the budget, so it adapts as test projects are added instead of
-    silently truncating the matrix.
+    The project fan-out is batched: each matrix entry carries several projects
+    that the executor runs in sequence, keeping per-project results. Batches are
+    sized by measured duration rather than by project count. Every batch pays a
+    fixed cost of several minutes - checkout, SDK install, and the cold build of
+    the shared dependency graph - while a further project in the same batch only
+    adds its incremental build and its tests. Two projects per job spent almost
+    half of the pull-request matrix compiling the same assemblies over and over,
+    so projects are packed, in path order, into batches of about
+    BatchTargetMinutes each. Path order keeps related projects (PubSub.*,
+    Redundancy.*, WotCon.*) together, so their shared dependencies are built
+    once per batch.
+
+    GitHub Actions also refuses to start a workflow run whose matrices expand
+    past 256 jobs, and that limit cannot be raised. If the packed matrix does not
+    fit, the target is raised until it does, so the matrix adapts as test
+    projects are added instead of silently truncating.
 
  .PARAMETER Scope
     'pr' expands the workload that gates a pull request. 'full' expands the
     complete workload Azure Pipelines used to run on a schedule.
 
  .PARAMETER ExcludeMacOS
-    Drop the macOS test profile. The batch size is deliberately computed from the
-    full profile table regardless of this switch, so excluding macOS does not
+    Drop the macOS test profile. The batch target is deliberately computed from
+    the full profile table regardless of this switch, so excluding macOS does not
     reshuffle the batches of the remaining profiles.
 
  .PARAMETER OnlyProject
@@ -57,7 +65,22 @@
     GitHub enforces on hosted runners. A batch whose per-project budgets add up
     past this is an error rather than a clamp: clamping would let the executor
     outlive the job, which is the one case that produces no annotation and no
-    results.
+    results. The packer therefore never puts more projects in one batch than
+    this ceiling can budget for.
+
+ .PARAMETER BatchTargetMinutes
+    The measured duration, in minutes, a batch is packed up to, on top of its
+    fixed cost. Weights come from DurationsPath and are the slowest pull-request
+    profile's figures, so batches on the faster runners finish sooner. A project
+    heavier than the target gets a batch of its own. Raised in steps of five
+    when the packed matrix would not fit MaxEntries.
+
+ .PARAMETER DurationsPath
+    JSON table of per-project weights in minutes. Defaults to
+    .github/ci-test-durations.json. A project missing from it is weighted with
+    the table's defaultMinutes, so a new project is still scheduled; the table
+    only steers balance, never what runs. Regenerate it with
+    .github/scripts/update-test-durations.ps1.
 
  .PARAMETER RepositoryRoot
     Repository root. Defaults to the root two levels above this script.
@@ -76,6 +99,8 @@ Param(
     [int]    $MaxEntries = 256,
     [int]    $ReservedEntries = 40,
     [int]    $MaxJobTimeoutMinutes = 350,
+    [int]    $BatchTargetMinutes = 30,
+    [string] $DurationsPath = '',
     [string] $RepositoryRoot = '',
     [string] $ManifestPath = ''
 )
@@ -88,10 +113,14 @@ if ([string]::IsNullOrWhiteSpace($RepositoryRoot)) {
 else {
     $RepositoryRoot = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 }
+if ([string]::IsNullOrWhiteSpace($DurationsPath)) {
+    $DurationsPath = Join-Path $RepositoryRoot '.github' 'ci-test-durations.json'
+}
+if ($BatchTargetMinutes -lt 1) {
+    throw "BatchTargetMinutes must be positive, not $BatchTargetMinutes."
+}
 
-# Runner images. Deliberately the GitHub-hosted labels: the Azure image aliases
-# (windows-2022-g2, ubuntu-22.04-g2) name Managed DevOps Pool images and mean
-# nothing here.
+# Runner images: GitHub-hosted labels.
 $RunnerImages = @{
     windows = 'windows-latest'
     linux   = 'ubuntu-latest'
@@ -111,8 +140,7 @@ $LatestSdk = '10.0.401'
 # The category filter the fast legs use. Tiers that lift it declare so below.
 $DefaultFilter = 'TestCategory!=LongRunning&TestCategory!=Stress'
 
-# Projects that are not part of the mainline sweep, matching the exclusions in
-# .azurepipelines/test.yml:
+# Projects that are not part of the mainline sweep:
 #   Aot                   - published and run as native executables rather than
 #                           by 'dotnet test'; the workflows have their own jobs.
 #   Stress                - opt-in tier owned by .github/workflows/stress-test.yml.
@@ -200,10 +228,6 @@ $Profiles = @(
     @{ id = 'linux-net9.0'; os = 'linux'; customTestTarget = 'net9.0'; framework = 'net9.0'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'windows-net8.0'; os = 'windows'; customTestTarget = 'net8.0'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'linux-net8.0'; os = 'linux'; customTestTarget = 'net8.0'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'windows-net472'; os = 'windows'; customTestTarget = 'net472'; framework = 'net472'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'windows-netstandard2.0'; os = 'windows'; customTestTarget = 'netstandard2.0'; framework = 'net48'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'windows-netstandard2.1'; os = 'windows'; customTestTarget = 'netstandard2.1'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
-    @{ id = 'linux-netstandard2.1'; os = 'linux'; customTestTarget = 'netstandard2.1'; framework = 'net8.0'; configuration = 'Release'; scopes = @('full') }
     @{ id = 'linux-long-running'; os = 'linux'; customTestTarget = 'net10.0'; framework = 'net10.0'; configuration = 'Release'; scopes = @('full')
         tier = 'long-running'; filter = ''; hangTimeout = '30m'; coverage = $false
     }
@@ -216,7 +240,7 @@ $Profiles = @(
 )
 
 # Solution builds. 'solutions' is either '*' for every discovered .slnx or an
-# explicit list. Mirrors the Azure 'Build' stage: every solution across every
+# explicit list. Every solution across every
 # supported target framework in both configurations for the full scope, narrowed
 # for pull requests, plus the Linux leg that proves UA.slnx still compiles for
 # every Linux-capable target framework.
@@ -224,20 +248,67 @@ $BuildProfiles = @(
     @{ id = 'pr-windows'; os = 'windows'; scopes = @('pr'); solutions = '*'
         tfms = @('net48', 'net10.0'); configurations = @('Debug', 'Release')
     }
-    @{ id = 'pr-windows-legacy'; os = 'windows'; scopes = @('pr'); solutions = @('UA.slnx')
-        tfms = @('net472', 'netstandard2.0'); configurations = @('Release')
-    }
     @{ id = 'pr-linux'; os = 'linux'; scopes = @('pr'); solutions = @('UA.slnx')
-        tfms = @('netstandard2.1', 'net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
+        tfms = @('net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
     }
     @{ id = 'full-windows'; os = 'windows'; scopes = @('full'); solutions = '*'
-        tfms = @('net472', 'net48', 'netstandard2.0', 'netstandard2.1', 'net8.0', 'net9.0', 'net10.0')
+        tfms = @('net48', 'net8.0', 'net9.0', 'net10.0')
         configurations = @('Debug', 'Release')
     }
     @{ id = 'full-linux'; os = 'linux'; scopes = @('full'); solutions = @('UA.slnx')
-        tfms = @('netstandard2.1', 'net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
+        tfms = @('net8.0', 'net9.0', 'net10.0'); configurations = @('Release')
     }
 )
+
+# Every batch carries this much on top of its packed weight: checkout, SDK
+# install, restore, and the cold build of the dependency graph its first
+# project pulls in. Run 37520359929 measured 3.8-4.9 minutes for that first
+# build against 0.4-0.9 minutes for each further project in the same batch.
+$BatchFixedMinutes = 6
+
+# One combined ceiling per project, shared by that project's build and test
+# invocation in run-dotnet-tests.ps1. The job timeout budgets it exactly once
+# per project, so the executor must not spend it twice. Keep 45 minutes for
+# mainline too: on hosted Windows, the net48 Opc.Ua.Server.Tests build plus
+# its otherwise healthy test run normally takes about 25 minutes and has
+# exceeded 30 under runner variance.
+$PerProjectTimeoutMinutes = 45
+
+# 20 minutes of fixed cost plus one per-project ceiling for each project has to
+# stay below MaxJobTimeoutMinutes, which caps how many projects one batch takes.
+$MaxProjectsPerBatch = [System.Math]::Floor(($MaxJobTimeoutMinutes - 20) / $PerProjectTimeoutMinutes)
+if ($MaxProjectsPerBatch -lt 1) {
+    throw "MaxJobTimeoutMinutes=$MaxJobTimeoutMinutes cannot budget even one $PerProjectTimeoutMinutes-minute project."
+}
+
+if (-not (Test-Path -LiteralPath $DurationsPath -PathType Leaf)) {
+    throw "The per-project duration table '$DurationsPath' does not exist."
+}
+$durationTable = Get-Content -LiteralPath $DurationsPath -Raw | ConvertFrom-Json -AsHashtable
+$DefaultProjectMinutes = [int]$durationTable.defaultMinutes
+if ($DefaultProjectMinutes -lt 1) {
+    throw "'$DurationsPath' must declare a positive defaultMinutes."
+}
+$ProjectMinutes = @{}
+foreach ($entry in $durationTable.projects.GetEnumerator()) {
+    if ([int]$entry.Value -lt 1) {
+        throw "'$DurationsPath' gives '$($entry.Key)' a weight of $($entry.Value); every weight must be at least one minute."
+    }
+    $ProjectMinutes[$entry.Key] = [int]$entry.Value
+}
+
+<#
+ .SYNOPSIS
+    Returns the packing weight of a project, in minutes.
+#>
+function Get-ProjectMinutes([string] $project)
+{
+    $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
+    if ($ProjectMinutes.ContainsKey($stem)) {
+        return $ProjectMinutes[$stem]
+    }
+    return $DefaultProjectMinutes
+}
 
 $allTestProjects = Find-RepositoryFile '*.Tests.csproj'
 $mainlineProjects = @($allTestProjects | Where-Object { $MainlineExclusions -notcontains (Split-Path $_ -Leaf) })
@@ -314,24 +385,43 @@ function Expand-BuildMatrix([string] $scope)
 
 <#
  .SYNOPSIS
-    Splits an ordered project list into contiguous batches of at most $size.
+    Packs an ordered project list into contiguous batches whose weights add up
+    to at most $targetMinutes, never more than $MaxProjectsPerBatch projects.
+
+ .DESCRIPTION
+    Contiguous rather than best-fit: path order keeps projects that share
+    dependencies together, and the result only depends on the list and the
+    table, so a run is reproducible. A project heavier than the target is
+    placed in a batch of its own rather than split or dropped.
 #>
-function Split-IntoBatches([string[]] $projects, [int] $size)
+function Split-IntoBatches([string[]] $projects, [int] $targetMinutes)
 {
     $batches = @()
-    for ($index = 0; $index -lt $projects.Count; $index += $size) {
-        $take = [System.Math]::Min($size, $projects.Count - $index)
-        $batches += , @($projects[$index..($index + $take - 1)])
+    $current = @()
+    $currentMinutes = 0
+    foreach ($project in $projects) {
+        $minutes = Get-ProjectMinutes $project
+        if ($current.Count -gt 0 -and
+            ($currentMinutes + $minutes -gt $targetMinutes -or $current.Count -ge $MaxProjectsPerBatch)) {
+            $batches += , @($current)
+            $current = @()
+            $currentMinutes = 0
+        }
+        $current += $project
+        $currentMinutes += $minutes
+    }
+    if ($current.Count -gt 0) {
+        $batches += , @($current)
     }
     return $batches
 }
 
 <#
  .SYNOPSIS
-    Counts the test matrix entries a batch size produces for a scope, ignoring
-    which optional runners are enabled so the batch size is stable.
+    Counts the test matrix entries a batch target produces for a scope, ignoring
+    which optional runners are enabled so the target is stable.
 #>
-function Measure-TestEntries([string] $scope, [int] $size)
+function Measure-TestEntries([string] $scope, [int] $targetMinutes)
 {
     $total = 0
     foreach ($testProfile in $Profiles) {
@@ -342,7 +432,7 @@ function Measure-TestEntries([string] $scope, [int] $size)
         if ($testProfile.ContainsKey('tier')) {
             $tier = $testProfile.tier
         }
-        $total += [System.Math]::Ceiling($projectsByTier[$tier].Count / [double]$size)
+        $total += @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes).Count
     }
     return [int]$total
 }
@@ -351,7 +441,7 @@ function Measure-TestEntries([string] $scope, [int] $size)
  .SYNOPSIS
     Expands the test matrix and the per-tuple manifest for a scope.
 #>
-function Expand-TestMatrix([string] $scope, [int] $size, [bool] $includeMacOS)
+function Expand-TestMatrix([string] $scope, [int] $targetMinutes, [bool] $includeMacOS)
 {
     $entries = @()
     $manifest = @()
@@ -378,23 +468,17 @@ function Expand-TestMatrix([string] $scope, [int] $size, [bool] $includeMacOS)
         # coverlet.collector 10.x ships build assets for net8.0 and newer only, so
         # a .NET Framework test host cannot load the 'XPlat Code Coverage'
         # collector at all - VSTest only warns and writes no report. The
-        # netstandard2.0 profile is covered by the same rule because it hosts its
-        # tests on net48. The long-running and durable tiers opt out explicitly:
+        # long-running and durable tiers opt out explicitly:
         # they re-run projects the filtered legs already covered, so folding their
         # numbers into the merged report would double-count them.
         $coverage = -not $testProfile.framework.StartsWith('net4')
         if ($testProfile.ContainsKey('coverage')) {
             $coverage = [bool]$testProfile.coverage
         }
-        # One combined ceiling per project, shared by that project's build and
-        # test invocation in run-dotnet-tests.ps1. The job timeout below budgets
-        # it exactly once per project, so the executor must not spend it twice.
-        # Keep 45 minutes for mainline too: on hosted Windows, the net48
-        # Opc.Ua.Server.Tests build plus its otherwise healthy test run normally
-        # takes about 25 minutes and has exceeded 30 under runner variance.
-        $perProjectTimeout = 45
+        # See $PerProjectTimeoutMinutes for why this is one combined ceiling.
+        $perProjectTimeout = $PerProjectTimeoutMinutes
 
-        $batches = Split-IntoBatches $projectsByTier[$tier] $size
+        $batches = @(Split-IntoBatches $projectsByTier[$tier] $targetMinutes)
         for ($index = 0; $index -lt $batches.Count; $index++) {
             $batch = $batches[$index]
             $batchId = "$($testProfile.id)-$(($index + 1).ToString('00'))"
@@ -426,6 +510,9 @@ function Expand-TestMatrix([string] $scope, [int] $size, [bool] $includeMacOS)
                 projects          = $batch -join ';'
                 perProjectTimeout = $perProjectTimeout
                 timeoutMinutes    = $jobTimeout
+                # The batch's summed weight from the duration table: what the
+                # packer balanced, on top of the fixed per-batch cost.
+                packedMinutes     = [int]($batch | ForEach-Object { Get-ProjectMinutes $_ } | Measure-Object -Sum).Sum
                 dotnet            = (Get-SdkVersions $testProfile.framework) -join "`n"
             }
 
@@ -464,30 +551,38 @@ if ($budget -lt 1) {
     throw "The '$Scope' solution build matrix alone needs $($buildEntries.Count) of the $MaxEntries entries GitHub Actions allows per workflow run, leaving no room for tests."
 }
 
-$batchSize = 1
-while ((Measure-TestEntries $Scope $batchSize) -gt $budget) {
-    $batchSize++
-    if ($batchSize -gt $mainlineProjects.Count) {
-        throw "No batch size fits the '$Scope' test workload into $budget matrix entries."
+# Raising the target shrinks the matrix until it fits. Once every batch is
+# already at the per-batch project cap, raising it further changes nothing, so
+# that is reported rather than looped on.
+$heaviestProject = (@($ProjectMinutes.Values) + $DefaultProjectMinutes | Measure-Object -Maximum).Maximum
+$targetCeiling = $MaxProjectsPerBatch * $heaviestProject
+$targetMinutes = $BatchTargetMinutes
+while ((Measure-TestEntries $Scope $targetMinutes) -gt $budget) {
+    if ($targetMinutes -ge $targetCeiling) {
+        throw ("No batch target fits the '$Scope' test workload into $budget matrix entries; " +
+            "$MaxProjectsPerBatch projects per batch is the most MaxJobTimeoutMinutes allows.")
     }
+    $targetMinutes += 5
 }
 
-$expanded = Expand-TestMatrix $Scope $batchSize (-not $ExcludeMacOS)
+$expanded = Expand-TestMatrix $Scope $targetMinutes (-not $ExcludeMacOS)
 $testEntries = @($expanded.entries)
 $totalEntries = $testEntries.Count + $buildEntries.Count
+$largestBatch = ($testEntries | ForEach-Object { @($_.projects -split ';').Count } | Measure-Object -Maximum).Maximum
 
 Write-Host "Scope:             $Scope"
 Write-Host "Repository root:   $RepositoryRoot"
 Write-Host "Mainline projects: $($mainlineProjects.Count)"
 Write-Host "Solutions:         $($solutions -join ', ')"
-Write-Host "Batch size:        $batchSize"
+Write-Host "Batch target:      $targetMinutes min (+$BatchFixedMinutes fixed), at most $MaxProjectsPerBatch projects"
+Write-Host "Largest batch:     $largestBatch projects"
 Write-Host "Test entries:      $($testEntries.Count)"
 Write-Host "Build entries:     $($buildEntries.Count)"
 Write-Host "Reserved entries:  $ReservedEntries"
 Write-Host "Total matrix jobs: $totalEntries (limit $MaxEntries)"
 
 if ($totalEntries -gt $MaxEntries) {
-    throw "The '$Scope' workload expands to $totalEntries matrix jobs, past the $MaxEntries GitHub Actions allows per workflow run. Lower the budget so a larger batch size is chosen rather than dropping entries."
+    throw "The '$Scope' workload expands to $totalEntries matrix jobs, past the $MaxEntries GitHub Actions allows per workflow run. Raise BatchTargetMinutes so fewer, larger batches are chosen rather than dropping entries."
 }
 
 if (-not [string]::IsNullOrWhiteSpace($ManifestPath)) {
@@ -496,11 +591,11 @@ if (-not [string]::IsNullOrWhiteSpace($ManifestPath)) {
         $null = New-Item -ItemType Directory -Path $manifestDirectory -Force
     }
     $document = [ordered]@{
-        scope        = $Scope
-        batchSize    = $batchSize
-        includeMacOS = (-not $ExcludeMacOS)
-        builds       = $buildEntries
-        tests        = @($expanded.manifest)
+        scope              = $Scope
+        batchTargetMinutes = $targetMinutes
+        includeMacOS       = (-not $ExcludeMacOS)
+        builds             = $buildEntries
+        tests              = @($expanded.manifest)
     }
     $document | ConvertTo-Json -Depth 6 | Out-File -LiteralPath $ManifestPath -Encoding utf8
     Write-Host "Wrote the workload manifest to '$ManifestPath'."
@@ -512,7 +607,7 @@ $buildsJson = ConvertTo-Json -InputObject $buildEntries -Depth 5 -Compress
 if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_OUTPUT)) {
     "tests=$testsJson" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
     "builds=$buildsJson" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-    "batch_size=$batchSize" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+    "batch_target_minutes=$targetMinutes" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
     "test_entry_count=$($testEntries.Count)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
     "build_entry_count=$($buildEntries.Count)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 }

@@ -49,7 +49,7 @@ namespace Opc.Ua.Sessions.Tests
         public uint InputMaxNumberOfContinuationPoints { get; set; }
         public uint InputMaxNumberOfReferencesPerNode { get; set; }
         public int ExpectedNumberOfPasses { get; set; }
-        public List<int> ExpectedNumberOfBadNoCPSCs { get; set; }
+        public List<int> ExpectedNumberOfBadNoCPSCs { get; set; } = null!;
     }
 
     public class ManagedBrowseTestDataProvider : IFormattable
@@ -57,9 +57,9 @@ namespace Opc.Ua.Sessions.Tests
         public uint MaxNumberOfContinuationPoints { get; set; }
         public uint MaxNumberOfReferencesPerNode { get; set; }
         public int ExpectedNumberOfPasses { get; set; }
-        public List<int> ExpectedNumberOfBadNoCPSCs { get; set; }
+        public List<int> ExpectedNumberOfBadNoCPSCs { get; set; } = null!;
 
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             return $"{MaxNumberOfContinuationPoints}:{MaxNumberOfReferencesPerNode}";
         }
@@ -113,8 +113,8 @@ namespace Opc.Ua.Sessions.Tests
             };
         }
 
-        public ReferenceServerWithLimits ReferenceServerWithLimits { get; set; }
-        public ServerFixture<ReferenceServerWithLimits> ServerFixtureWithLimits { get; set; }
+        public ReferenceServerWithLimits ReferenceServerWithLimits { get; set; } = null!;
+        public ServerFixture<ReferenceServerWithLimits> ServerFixtureWithLimits { get; set; } = null!;
 
         public override async Task CreateReferenceServerFixtureAsync(
             bool enableTracing,
@@ -135,7 +135,7 @@ namespace Opc.Ua.Sessions.Tests
             };
 
             await ServerFixtureWithLimits.LoadConfigurationAsync(PkiRoot).ConfigureAwait(false);
-            ServerFixtureWithLimits.Config.TransportQuotas.MaxMessageSize
+            ServerFixtureWithLimits.Config.TransportQuotas!.MaxMessageSize
                 = TransportQuotaMaxMessageSize;
             ServerFixtureWithLimits.Config.TransportQuotas.MaxByteStringLength
                 = ServerFixtureWithLimits
@@ -143,7 +143,7 @@ namespace Opc.Ua.Sessions.Tests
                 .TransportQuotas
                 .MaxStringLength = TransportQuotaMaxStringLength;
 
-            ServerFixtureWithLimits.Config.ServerConfiguration.UserTokenPolicies +=
+            ServerFixtureWithLimits.Config.ServerConfiguration!.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.UserName);
             ServerFixtureWithLimits.Config.ServerConfiguration.UserTokenPolicies +=
                 new UserTokenPolicy(UserTokenType.Certificate);
@@ -195,7 +195,7 @@ namespace Opc.Ua.Sessions.Tests
             {
                 await Session.CloseAsync(5000, true).ConfigureAwait(false);
                 Session.Dispose();
-                Session = null;
+                Session = null!;
             }
 
             if (ServerFixtureWithLimits != null)
@@ -439,9 +439,9 @@ namespace Opc.Ua.Sessions.Tests
                     UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1)
                 ]
                     .DisplayName
-                    .Text;
+                    .Text!;
                 string suffix = GetSuffixesForMassFolders()[index];
-                Assert.That(randomNodeName.StartsWith(suffix, StringComparison.Ordinal), Is.True);
+                Assert.That(randomNodeName!.StartsWith(suffix, StringComparison.Ordinal), Is.True);
 
                 int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
@@ -576,9 +576,9 @@ namespace Opc.Ua.Sessions.Tests
                     UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1)
                 ]
                     .DisplayName
-                    .Text;
+                    .Text!;
                 string suffix = GetSuffixesForMassFolders()[index];
-                Assert.That(randomNodeName.StartsWith(suffix, StringComparison.Ordinal), Is.True);
+                Assert.That(randomNodeName!.StartsWith(suffix, StringComparison.Ordinal), Is.True);
 
                 int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 
@@ -733,9 +733,9 @@ namespace Opc.Ua.Sessions.Tests
                     UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1)
                 ]
                     .DisplayName
-                    .Text;
+                    .Text!;
                 string suffix = GetSuffixesForMassFolders()[index];
-                Assert.That(randomNodeName.StartsWith(suffix, StringComparison.Ordinal), Is.True);
+                Assert.That(randomNodeName!.StartsWith(suffix, StringComparison.Ordinal), Is.True);
 
                 int ii = UnsecureRandom.Shared.Next(0, referenceDescriptionCollection.Count - 1);
 

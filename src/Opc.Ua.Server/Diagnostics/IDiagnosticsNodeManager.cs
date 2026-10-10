@@ -60,8 +60,9 @@ namespace Opc.Ua.Server
         /// Publishes the supported conformance units to
         /// <c>Server/ServerCapabilities/ConformanceUnits</c> and merges the
         /// enabled server profiles into <c>Server/ServerCapabilities/ServerProfileArray</c>
-        /// (per OPC UA Part 7). Profiles already present (e.g. from configuration)
-        /// are preserved.
+        /// (per OPC UA Part 7). Profiles present before the first call (e.g. from
+        /// configuration) are preserved; the merged profiles of an earlier call
+        /// are replaced, so a profile left out is withdrawn.
         /// </summary>
         ValueTask PublishConformanceUnitsAsync(
             ArrayOf<QualifiedName> conformanceUnits,
@@ -80,6 +81,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Creates the diagnostics node for a session.
         /// </summary>
+        /// <remarks>
+        /// A non-null <see cref="SessionDiagnosticsDataType.SessionId"/> in
+        /// <paramref name="diagnostics"/> requests that id for the session (for example the
+        /// id of a session restored from another replica of a redundant server set). An
+        /// implementation may assign a different id, for example when the requested one is
+        /// already in use; the returned id is the one assigned.
+        /// </remarks>
         ValueTask<NodeId> CreateSessionDiagnosticsAsync(
             ServerSystemContext systemContext,
             SessionDiagnosticsDataType diagnostics,

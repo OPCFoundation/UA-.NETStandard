@@ -494,7 +494,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             public bool IsLeader => true;
 
-            public event Action<bool> LeadershipChanged
+            public event Action<bool>? LeadershipChanged
             {
                 add { }
                 remove { }
@@ -536,7 +536,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             public bool IsLeader => m_isLeader;
 
-            public event Action<bool> LeadershipChanged
+            public event Action<bool>? LeadershipChanged
             {
                 add { }
                 remove { }
@@ -612,7 +612,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
         {
             public bool IsLeader => true;
 
-            public event Action<bool> LeadershipChanged
+            public event Action<bool>? LeadershipChanged
             {
                 add { }
                 remove { }

@@ -35,6 +35,8 @@ Options supply stable reserved identifier prefixes, local surfacing policy, expl
 schema associations, credential-configuration authorization and remote Publisher
 bindings. Endpoints declaring authorization alternatives require `AuthorizeBinding`;
 catalog metadata is never interpreted as credentials.
+Alternatives are read from `protocoloptions.authorization`, and binding references
+are withheld unless the configured policy approves them.
 
 ## Native snapshots and lifecycle
 
@@ -75,6 +77,8 @@ A service-owned periodic sweep removes MQTT 5 expired observations;
 subscribes to or connects to a broker. Remote sources never acquire invented native
 identities or References; a genuinely hosted local component can still correspond
 to a surfaced Message Definition.
+If removal publication fails, the sweep retries reconciliation without discarding
+the retained tombstone or replay watermark.
 
 The adapter owns wire authentication and native decoding. Transport engines and
 complete protocol encoders are out of scope. Schema registration remains separate:

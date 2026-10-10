@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -200,13 +201,13 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                // calculate sampling interval.
-                double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
-
-                if (samplingInterval < 0)
-                {
-                    samplingInterval = publishingInterval;
-                }
+                // calculate sampling interval: a negative value or NaN selects the
+                // publishing interval of the subscription (Part 4 7.21).
+                double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                    itemToCreate.RequestedParameters.SamplingInterval,
+                    publishingInterval,
+                    MinimumSamplingIntervals.Continuous,
+                    0);
 
                 // limit the queue size.
                 uint revisedQueueSize = CalculateRevisedQueueSize(
@@ -220,31 +221,35 @@ namespace Opc.Ua.Server
                     monitoredItemId = monitoredItemIdFactory.GetNextId();
                 } while (!m_monitoredItems.TryAdd(monitoredItemId, null!));
 
-                // create the monitored item.
-                IEventMonitoredItem monitoredItem = new MonitoredItem(
-                    m_server,
-                    nodeManager,
-                    handle,
-                    subscriptionId,
-                    monitoredItemId,
-                    itemToCreate.ItemToMonitor,
-                    context.DiagnosticsMask,
-                    timestampsToReturn,
-                    itemToCreate.MonitoringMode,
-                    itemToCreate.RequestedParameters.ClientHandle,
-                    filter,
-                    filter,
-                    null,
-                    samplingInterval,
-                    revisedQueueSize,
-                    itemToCreate.RequestedParameters.DiscardOldest,
-                    MinimumSamplingIntervals.Continuous,
-                    createDurable);
-
-                // now save the monitored item.
-                Debug.Assert(m_monitoredItems[monitoredItemId] == null);
-                m_monitoredItems[monitoredItemId] = monitoredItem;
-                return monitoredItem;
+                try
+                {
+                    IEventMonitoredItem monitoredItem = new MonitoredItem(
+                        m_server,
+                        nodeManager,
+                        handle,
+                        subscriptionId,
+                        monitoredItemId,
+                        itemToCreate.ItemToMonitor,
+                        context.DiagnosticsMask,
+                        timestampsToReturn,
+                        itemToCreate.MonitoringMode,
+                        itemToCreate.RequestedParameters.ClientHandle,
+                        filter,
+                        filter,
+                        null,
+                        samplingInterval,
+                        revisedQueueSize,
+                        itemToCreate.RequestedParameters.DiscardOldest,
+                        MinimumSamplingIntervals.Continuous,
+                        createDurable);
+                    m_monitoredItems[monitoredItemId] = monitoredItem;
+                    return monitoredItem;
+                }
+                catch
+                {
+                    m_monitoredItems.Remove(monitoredItemId);
+                    throw;
+                }
             }
         }
 
@@ -329,6 +334,20 @@ namespace Opc.Ua.Server
                     monitoredItem.IsDurable,
                     itemToModify.RequestedParameters.QueueSize);
 
+                // a negative value or NaN selects the publishing interval of the
+                // subscription (Part 4 7.21), never the raw requested value.
+                double defaultSamplingInterval = monitoredItem.SamplingInterval;
+                if (monitoredItem.SubscriptionCallback is ISubscription subscription)
+                {
+                    defaultSamplingInterval = subscription.PublishingInterval;
+                }
+
+                double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                    itemToModify.RequestedParameters.SamplingInterval,
+                    defaultSamplingInterval,
+                    MinimumSamplingIntervals.Continuous,
+                    0);
+
                 // modify the attributes.
                 monitoredItem.ModifyAttributes(
                     context.DiagnosticsMask,
@@ -337,7 +356,7 @@ namespace Opc.Ua.Server
                     filter,
                     filter,
                     null!,
-                    itemToModify.RequestedParameters.SamplingInterval,
+                    samplingInterval,
                     revisedQueueSize,
                     itemToModify.RequestedParameters.DiscardOldest);
             }
@@ -361,7 +380,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return [.. m_monitoredItems.Values];
+                return [.. m_monitoredItems.Values.Where(item => item != null)];
             }
         }
 

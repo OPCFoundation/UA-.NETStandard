@@ -46,6 +46,9 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Subscriptions
 {
+    /// <summary>
+    /// Covers subscription management, Publish workers, and acknowledgement handling.
+    /// </summary>
     [TestFixture]
     [Category("Client")]
     [Category("SubscriptionManager")]
@@ -322,7 +325,7 @@ namespace Opc.Ua.Client.Subscriptions
                     AvailableSequenceNumbers = [],
                     NotificationMessage = new NotificationMessage
                     {
-                        SequenceNumber = h.RequestHandle
+                        SequenceNumber = h!.RequestHandle
                     },
                     Results = s.ConvertAll(_ => StatusCodes.Good),
                     SubscriptionId = 1,
@@ -345,6 +348,117 @@ namespace Opc.Ua.Client.Subscriptions
                 .Count(c => ReferenceEquals(c.Options, so1)), Is.EqualTo(1));
         }
 
+        /// <summary>
+        /// A revised publishing interval times keep-alive count beyond
+        /// <see cref="TimeSpan.MaxValue"/> must not fault the publish workers
+        /// (which the controller would respawn in a hot loop without ever
+        /// sending a Publish).
+        /// </summary>
+        [Test]
+        [CancelAfter(10_000)]
+        public async Task PublishWorkerSurvivesOverflowingKeepAliveProductAsync(
+            CancellationToken testCt)
+        {
+            ILoggerFactory loggerFactory = m_telemetry.LoggerFactory;
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> so1 = OptionsFactory.Create<SubscriptionOptions>();
+            var ms1 = new FakeManagedSubscription
+            {
+                Id = 1,
+                Created = true,
+                CurrentPublishingInterval = TimeSpan.FromHours(1),
+                CurrentKeepAliveCount = uint.MaxValue
+            };
+            var sut = new SubscriptionManager(session,
+                loggerFactory, DiagnosticsMasks.None);
+            session.CreateSubscriptionFactory = (_, _, _) => ms1;
+            sut.Add(m_mockNotificationDataHandler.Object, so1);
+            sut.MaxPublishWorkerCount = 1;
+
+            var published = new TaskCompletionSource<uint>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            session.OnPublishAsync = (h, s, ct) =>
+            {
+                published.TrySetResult(h!.TimeoutHint);
+                return new ValueTask<PublishResponse>(new PublishResponse
+                {
+                    AvailableSequenceNumbers = [],
+                    NotificationMessage = new NotificationMessage(),
+                    Results = s.ConvertAll(_ => StatusCodes.Good),
+                    SubscriptionId = 1,
+                    MoreNotifications = false,
+                    ResponseHeader = new ResponseHeader
+                    {
+                        ServiceResult = StatusCodes.Good,
+                        StringTable = []
+                    }
+                });
+            };
+
+            sut.Resume();
+            try
+            {
+                uint timeoutHint = await published.Task.WaitAsync(testCt).ConfigureAwait(false);
+                Assert.That(timeoutHint, Is.GreaterThan(0u));
+            }
+            finally
+            {
+                await sut.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// When a secondary partition of a multi-partition snapshot fails to
+        /// attach, the already registered primary must be rolled back: the
+        /// caller never receives the wrapper and could not dispose it.
+        /// </summary>
+        [Test]
+        public async Task RestoreGroupRollsBackPrimaryWhenSecondaryFailsAsync()
+        {
+            var session = new FakeSubscriptionManagerContext
+            {
+                OnTransferSubscriptionsAsync = (_, _, _, _) =>
+                    new ValueTask<TransferSubscriptionsResponse>(
+                        new TransferSubscriptionsResponse
+                        {
+                            ResponseHeader = new ResponseHeader
+                            {
+                                ServiceResult = StatusCodes.BadServiceUnsupported
+                            }
+                        })
+            };
+            var primary = new FakeManagedSubscription { Id = 7, Created = true };
+            int created = 0;
+            session.CreateSubscriptionFactory = (_, _, _) =>
+            {
+                if (++created == 1)
+                {
+                    return primary;
+                }
+                throw ServiceResultException.Create(StatusCodes.BadOutOfMemory,
+                    "Secondary partition could not be created.");
+            };
+            var sut = new SubscriptionManager(session,
+                m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                var options = new SubscriptionOptions();
+                SubscriptionStateSnapshot[] snapshots =
+                [
+                    SubscriptionStateSnapshot.AsOptions(options, 7, [], []),
+                    SubscriptionStateSnapshot.AsOptions(options, 8, [], [])
+                ];
+
+                Assert.ThrowsAsync<ServiceResultException>(async () =>
+                    await sut.RestoreGroupAsync(m_mockNotificationDataHandler.Object,
+                        snapshots, true, default).ConfigureAwait(false));
+
+                Assert.That(sut.Count, Is.Zero);
+                Assert.That(sut.Items, Is.Empty);
+                Assert.That(primary.DisposeAsyncCalls, Is.GreaterThan(0));
+            }
+        }
+
         [Test]
         public void TransferSubscriptionsOnRecreateSetAndGet()
         {
@@ -357,6 +471,106 @@ namespace Opc.Ua.Client.Subscriptions
         {
             m_subscriptionManager.ReturnDiagnostics = DiagnosticsMasks.All;
             Assert.That(m_subscriptionManager.ReturnDiagnostics, Is.EqualTo(DiagnosticsMasks.All));
+        }
+
+        /// <summary>
+        /// Temporary server-identifier loss retains workers without bypassing pool limits or actual removals.
+        /// Initial uncreated subscriptions do not start workers.
+        /// </summary>
+        [Test]
+        public async Task PublishWorkersSurviveUncreatedSubscriptionsAndStillHonorPoolLimitsAsync()
+        {
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> firstOptions = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> secondOptions = OptionsFactory.Create<SubscriptionOptions>();
+            var first = new FakeManagedSubscription { Id = 1 };
+            var second = new FakeManagedSubscription { Id = 2 };
+            session.CreateSubscriptionFactory = (_, options, _) => ReferenceEquals(options, firstOptions)
+                ? first
+                : second;
+            await using var manager = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 0,
+                MaxPublishWorkerCount = 4
+            };
+            manager.Add(m_mockNotificationDataHandler.Object, firstOptions);
+            manager.Add(m_mockNotificationDataHandler.Object, secondOptions);
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.PublishWorkerCount, Is.Zero);
+
+            first.Created = true;
+            second.Created = true;
+            manager.Update();
+            await WaitForPublishWorkerCountAsync(manager, 2).ConfigureAwait(false);
+
+            first.Created = false;
+            second.Created = false;
+            manager.MinPublishWorkerCount = 3;
+            await WaitForPublishWorkerCountAsync(manager, 3).ConfigureAwait(false);
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.Count, Is.EqualTo(2));
+
+            manager.MinPublishWorkerCount = 0;
+            manager.MaxPublishWorkerCount = 1;
+            await WaitForPublishWorkerCountAsync(manager, 1).ConfigureAwait(false);
+
+            first.Created = true;
+            second.Created = true;
+            manager.MaxPublishWorkerCount = 2;
+            manager.Update();
+            await WaitForPublishWorkerCountAsync(manager, 2).ConfigureAwait(false);
+            await manager.CompleteAsync(first, 1, CancellationToken.None).ConfigureAwait(false);
+            await WaitForPublishWorkerCountAsync(manager, 1).ConfigureAwait(false);
+            await manager.CompleteAsync(second, 2, CancellationToken.None).ConfigureAwait(false);
+            await WaitForPublishWorkerCountAsync(manager, 0).ConfigureAwait(false);
+            Assert.That(manager.Count, Is.Zero);
+        }
+
+        /// <summary>
+        /// A never-created subscription cannot retain the workers of a different, removed subscription.
+        /// </summary>
+        /// <param name="classic">Whether the established subscription belongs to the classic session API.</param>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PublishWorkersDoNotTreatPendingSubscriptionsAsRecoveredAsync(bool classic)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> establishedOptions = OptionsFactory.Create<SubscriptionOptions>();
+            OptionsMonitor<SubscriptionOptions> pendingOptions = OptionsFactory.Create<SubscriptionOptions>();
+            var established = new FakeManagedSubscription { Id = 1, Created = true };
+            var pending = new FakeManagedSubscription();
+            session.CreateSubscriptionFactory = (_, options, _) => ReferenceEquals(options, establishedOptions)
+                ? established
+                : pending;
+            await using var manager = new SubscriptionManager(session, m_telemetry.LoggerFactory, DiagnosticsMasks.None)
+            {
+                MinPublishWorkerCount = 0,
+                MaxPublishWorkerCount = 4
+            };
+            if (classic)
+            {
+                session.SessionOwnedSubscriptionIds.Add(1);
+                manager.Update();
+            }
+            else
+            {
+                manager.Add(m_mockNotificationDataHandler.Object, establishedOptions);
+            }
+            await WaitForPublishWorkerCountAsync(manager, 1).ConfigureAwait(false);
+            ISubscription remaining = manager.Add(m_mockNotificationDataHandler.Object, pendingOptions);
+            if (classic)
+            {
+                session.SessionOwnedSubscriptionIds.Clear();
+                manager.Update();
+            }
+            else
+            {
+                await manager.CompleteAsync(established, 1, CancellationToken.None).ConfigureAwait(false);
+            }
+
+            await WaitForPublishWorkerCountAsync(manager, 0).ConfigureAwait(false);
+            Assert.That(manager.CreatedCount, Is.Zero);
+            Assert.That(manager.Items, Is.EquivalentTo([remaining]));
         }
 
         [Test]
@@ -991,7 +1205,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     publishSeen.TrySetResult(true);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(7u, h.RequestHandle));
+                        CreatePublishResponse(7u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;
@@ -1043,7 +1257,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     Interlocked.Increment(ref publishCount);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(4242u, h.RequestHandle));
+                        CreatePublishResponse(4242u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;
@@ -1068,6 +1282,114 @@ namespace Opc.Ua.Client.Subscriptions
                     session.DeleteCalls;
                 Assert.That(deleteCalls[0].SubscriptionIds.ToList(),
                     Does.Contain(4242u));
+            }
+        }
+
+        /// <summary>
+        /// The creation can complete between the worker's id lookup and its
+        /// pending-creation check (the id is assigned before the in-progress
+        /// flag clears). The freshly created subscription must receive the
+        /// response instead of being deleted as an orphan.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerDoesNotDeleteSubscriptionCreatedDuringLookupAsync(
+            CancellationToken testCt)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> options =
+                OptionsFactory.Create<SubscriptionOptions>();
+            var creating = new FakeManagedSubscription { Id = 0u, Created = true };
+            int armed = 0;
+            creating.OnIsCreationInProgress = () =>
+            {
+                if (Volatile.Read(ref armed) != 0)
+                {
+                    // The creation completes right as the worker checks.
+                    creating.Id = 4242u;
+                }
+                return false;
+            };
+
+            var sut = new SubscriptionManager(session,
+                m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (_, _, _) => creating;
+                sut.Add(m_mockNotificationDataHandler.Object, options);
+
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    Volatile.Write(ref armed, 1);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(4242u, h!.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(() => creating.OnPublishReceivedCalls.Count > 0,
+                    testCt).ConfigureAwait(false);
+                Assert.That(session.DeleteCalls, Is.Empty);
+            }
+        }
+
+        /// <summary>
+        /// The creation is still pending when the worker first looks, and
+        /// completes (id assigned, in-progress flag cleared) before the
+        /// worker decides what to do with the unresolved response. The
+        /// orphan delete must be decided on the same pending snapshot the
+        /// lookup used, so the healthy subscription is never deleted.
+        /// </summary>
+        [Test]
+        [CancelAfter(30_000)]
+        public async Task PublishWorkerDoesNotDeleteSubscriptionCreatedAfterPendingCheckAsync(
+            CancellationToken testCt)
+        {
+            var session = new FakeSubscriptionManagerContext();
+            OptionsMonitor<SubscriptionOptions> options =
+                OptionsFactory.Create<SubscriptionOptions>();
+            var creating = new FakeManagedSubscription { Id = 0u, Created = true };
+            int armed = 0;
+            int pendingReads = 0;
+            creating.OnIsCreationInProgress = () =>
+            {
+                if (Volatile.Read(ref armed) == 0)
+                {
+                    return true;
+                }
+                if (Interlocked.Increment(ref pendingReads) == 1)
+                {
+                    // Still pending at the first check after the response.
+                    return true;
+                }
+                // The creation completes right after that first check.
+                creating.Id = 4242u;
+                return false;
+            };
+
+            var sut = new SubscriptionManager(session,
+                m_telemetry.LoggerFactory, DiagnosticsMasks.None);
+            await using (sut.ConfigureAwait(false))
+            {
+                session.CreateSubscriptionFactory = (_, _, _) => creating;
+                sut.Add(m_mockNotificationDataHandler.Object, options);
+
+                session.OnPublishAsync = (h, a, ct) =>
+                {
+                    Volatile.Write(ref armed, 1);
+                    return new ValueTask<PublishResponse>(
+                        CreatePublishResponse(4242u, h!.RequestHandle));
+                };
+
+                sut.MinPublishWorkerCount = 1;
+                sut.MaxPublishWorkerCount = 1;
+                sut.Resume();
+
+                await WaitUntilAsync(() => creating.OnPublishReceivedCalls.Count > 0,
+                    testCt).ConfigureAwait(false);
+                Assert.That(session.DeleteCalls, Is.Empty);
             }
         }
 
@@ -1105,7 +1427,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     Interlocked.Increment(ref publishCount);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(4242u, h.RequestHandle));
+                        CreatePublishResponse(4242u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;
@@ -1141,7 +1463,7 @@ namespace Opc.Ua.Client.Subscriptions
             {
                 publishSeen.TrySetResult(true);
                 return new ValueTask<PublishResponse>(
-                    CreatePublishResponse(4242u, header.RequestHandle));
+                    CreatePublishResponse(4242u, header!.RequestHandle));
             };
 
             var sut = new SubscriptionManager(
@@ -1196,7 +1518,7 @@ namespace Opc.Ua.Client.Subscriptions
             session.OnPublishAsync = async (header, acknowledgements, ct) =>
             {
                 await Task.Delay(5, ct).ConfigureAwait(false);
-                return CreatePublishResponse(4242u, header.RequestHandle);
+                return CreatePublishResponse(4242u, header!.RequestHandle);
             };
 
             var sut = new SubscriptionManager(session,
@@ -1276,7 +1598,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     Interlocked.Increment(ref publishCount);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(4242u, h.RequestHandle));
+                        CreatePublishResponse(4242u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;
@@ -1324,7 +1646,7 @@ namespace Opc.Ua.Client.Subscriptions
                 {
                     Interlocked.Increment(ref publishCount);
                     return new ValueTask<PublishResponse>(
-                        CreatePublishResponse(4242u, h.RequestHandle));
+                        CreatePublishResponse(4242u, h!.RequestHandle));
                 };
 
                 sut.MinPublishWorkerCount = 1;

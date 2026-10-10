@@ -88,7 +88,7 @@ namespace Opc.Ua.Core.Tests.Types.BuiltIn
             while (innerDiagnosticInfo != null)
             {
                 depth++;
-                innerDiagnosticInfo = innerDiagnosticInfo.InnerDiagnosticInfo;
+                innerDiagnosticInfo = innerDiagnosticInfo.InnerDiagnosticInfo!;
                 if (depth > DiagnosticInfo.MaxInnerDepth)
                 {
                     Assert.That(innerDiagnosticInfo, Is.Null);

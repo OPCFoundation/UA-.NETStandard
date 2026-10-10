@@ -67,12 +67,12 @@ namespace Opc.Ua.XRegistry.Server
             IServerInternal server,
             ApplicationConfiguration configuration,
             XRegistryServerOptions options,
-            string[] namespaceUris)
+            ArrayOf<string> namespaceUris)
             : base(
                 server,
                 configuration,
                 server.Telemetry.CreateLogger<XRegistryFastPathNodeManager>(),
-                namespaceUris)
+                [.. namespaceUris])
         {
             XRegistryServerOptions opts = options ?? new XRegistryServerOptions();
             m_namespaceUri = opts.RegistryNamespaceUri;

@@ -54,10 +54,10 @@ namespace Opc.Ua.Features.Tests
         /// </summary>
         private const byte FileModeRead = 1;
         private NodeId m_volumeId = NodeId.Null;
-        private string m_volumeName;
+        private string m_volumeName = null!;
         private NodeId m_directoryId = NodeId.Null;
         private NodeId m_fileId = NodeId.Null;
-        private string m_filePath;
+        private string m_filePath = null!;
 
         [OneTimeSetUp]
         public async Task InitializeFileSystemNodesAsync()
@@ -72,7 +72,7 @@ namespace Opc.Ua.Features.Tests
                 .ConfigureAwait(false);
             if (bn.WrappedValue.TryGetValue(out QualifiedName qn))
             {
-                m_volumeName = qn.Name;
+                m_volumeName = qn.Name!;
             }
 
             // Try to discover a directory and a small file under the volume.
@@ -284,7 +284,7 @@ namespace Opc.Ua.Features.Tests
         {
             if (!fileNodeId.TryGetValue(out string s))
             {
-                return null;
+                return null!;
             }
             // Strip the "2:" RootType prefix and any "?<component>" suffix.
             int q = s.IndexOf('?', StringComparison.Ordinal);
@@ -292,7 +292,7 @@ namespace Opc.Ua.Features.Tests
             int colon = head.IndexOf(':', StringComparison.Ordinal);
             if (colon < 0 || colon + 1 >= head.Length)
             {
-                return null;
+                return null!;
             }
             return head[(colon + 1)..];
         }
@@ -342,7 +342,7 @@ namespace Opc.Ua.Features.Tests
             Assert.That(StatusCode.IsGood(bn.StatusCode), Is.True);
             Assert.That(bn.WrappedValue.TryGetValue(out QualifiedName bnValue), Is.True);
 
-            string name = bnValue.Name;
+            string name = bnValue.Name!;
             Assert.That(string.IsNullOrEmpty(name), Is.False, "Volume BrowseName must not be empty.");
 
             // On Windows the volume name typically looks like "C:\".
@@ -414,7 +414,7 @@ namespace Opc.Ua.Features.Tests
             {
                 if (r.NodeClass == NodeClass.Method)
                 {
-                    methodNames.Add(r.BrowseName.Name);
+                    methodNames.Add(r.BrowseName.Name!);
                 }
             }
 

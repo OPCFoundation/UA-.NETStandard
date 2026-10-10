@@ -132,10 +132,9 @@ namespace Opc.Ua
 
             public void Dispose()
             {
-                if (m_context != null)
-                {
-                    s_current.Value = m_context;
-                }
+                // restore a missing previous context too, otherwise the
+                // scoped context outlives the scope.
+                s_current.Value = m_context!;
             }
         }
 

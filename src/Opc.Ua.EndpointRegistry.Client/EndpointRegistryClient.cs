@@ -1,3 +1,9 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -40,19 +46,29 @@ namespace Opc.Ua.EndpointRegistry.Client
             m_mapper = EndpointRegistryNativeCatalog.CreateMapper(session.MessageContext, schemaFormats);
         }
 
-        /// <summary>Gets whether the separately hosted Media root is selected.</summary>
+        /// <summary>
+        /// Gets whether the separately hosted Media root is selected.
+        /// </summary>
         public bool IsMedia { get; }
 
-        /// <summary>Gets the selected well-known root.</summary>
+        /// <summary>
+        /// Gets the selected well-known root.
+        /// </summary>
         public NodeId RegistryNodeId { get; }
 
-        /// <summary>Gets the native access object.</summary>
+        /// <summary>
+        /// Gets the native access object.
+        /// </summary>
         public NodeId TypedAccessNodeId { get; private set; }
 
-        /// <summary>Gets a generated proxy for native access, including explicit typed diagnostics.</summary>
+        /// <summary>
+        /// Gets a generated proxy for native access, including explicit typed diagnostics.
+        /// </summary>
         public NativeRegistryAccessTypeClient TypedAccess => new(m_session, TypedAccessNodeId, m_telemetry);
 
-        /// <summary>Verifies and discovers TypedAccess below the explicitly selected well-known root.</summary>
+        /// <summary>
+        /// Verifies and discovers TypedAccess below the explicitly selected well-known root.
+        /// </summary>
         public static async Task<EndpointRegistryClient> DiscoverAsync(
             ISession session, ITelemetryContext telemetry, bool media = false,
             ArrayOf<ISchemaFormatProvider> schemaFormats = default, CancellationToken cancellationToken = default)
@@ -64,25 +80,35 @@ namespace Opc.Ua.EndpointRegistry.Client
             return client;
         }
 
-        /// <summary>Canonicalizes an application-built native record; no provider is required without inline schemas.</summary>
+        /// <summary>
+        /// Canonicalizes an application-built native record; no provider is required without inline schemas.
+        /// </summary>
         public RegistryRecordDataType Canonicalize(RegistryRecordDataType record) => m_mapper.Canonicalize(record);
 
-        /// <summary>Reads a native document. Check StatusCode and Issues before consuming Document.</summary>
+        /// <summary>
+        /// Reads a native document. Check StatusCode and Issues before consuming Document.
+        /// </summary>
         public ValueTask<RegistryReadResultDataType> ReadDocumentAsync(
             RegistryReadRequestDataType request, CancellationToken cancellationToken = default) =>
             TypedAccess.ReadDocumentAsync(request, cancellationToken);
 
-        /// <summary>Writes a native document. Epoch conflicts and validation failures retain their typed diagnostics.</summary>
+        /// <summary>
+        /// Writes a native document. Epoch conflicts and validation failures retain their typed diagnostics.
+        /// </summary>
         public ValueTask<RegistryMutationResultDataType> WriteDocumentAsync(
             RegistryWriteRequestDataType request, CancellationToken cancellationToken = default) =>
             TypedAccess.WriteDocumentAsync(request, cancellationToken);
 
-        /// <summary>Applies typed changes with optimistic epoch checking.</summary>
+        /// <summary>
+        /// Applies typed changes with optimistic epoch checking.
+        /// </summary>
         public ValueTask<RegistryMutationResultDataType> ApplyChangesAsync(
             RegistryChangeRequestDataType request, CancellationToken cancellationToken = default) =>
             TypedAccess.ApplyChangesAsync(request, cancellationToken);
 
-        /// <summary>Resolves metadata and local base Messages without applying configuration to PubSub.</summary>
+        /// <summary>
+        /// Resolves metadata and local base Messages without applying configuration to PubSub.
+        /// </summary>
         public ValueTask<NativeMessageResolutionResultDataType> ResolveMessageAsync(
             MessageResolutionRequestDataType request, CancellationToken cancellationToken = default) =>
             new EndpointRegistryTypeClient(m_session, RegistryNodeId, m_telemetry)

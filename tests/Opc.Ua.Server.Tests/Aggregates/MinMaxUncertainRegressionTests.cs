@@ -41,18 +41,25 @@ namespace Opc.Ua.Server.Tests.Aggregates
     public sealed class MinMaxUncertainRegressionTests
     {
         /// <summary>
-        /// Verifies that an uncertain sample outside the good range lowers quality without replacing good extrema.
+        /// Verifies that an uncertain sample beyond the good values is the extremum, returned with
+        /// Uncertain_DataSubNormal, whatever TreatUncertainAsBad is: Minimum, Maximum, the ActualTime
+        /// variants and Range look at Uncertain values as if they are Good (Mantis 11426 ~0025852).
         /// </summary>
-        [TestCase(Objects.AggregateFunction_Minimum, 1.0, 5.0)]
-        [TestCase(Objects.AggregateFunction_Maximum, 9.0, 5.0)]
-        [TestCase(Objects.AggregateFunction_Range, 1.0, 0.0)]
-        [TestCase(Objects.AggregateFunction_Range, 9.0, 0.0)]
-        [TestCase(Objects.AggregateFunction_MinimumActualTime, 1.0, 5.0)]
-        [TestCase(Objects.AggregateFunction_MaximumActualTime, 9.0, 5.0)]
-        public void MinMaxPreservesGoodExtremaAndReportsUncertainInputs(
+        [TestCase(Objects.AggregateFunction_Minimum, 1.0, 1.0, 0, false)]
+        [TestCase(Objects.AggregateFunction_Maximum, 9.0, 9.0, 0, false)]
+        [TestCase(Objects.AggregateFunction_Range, 1.0, 4.0, 0, false)]
+        [TestCase(Objects.AggregateFunction_Range, 9.0, 4.0, 0, false)]
+        [TestCase(Objects.AggregateFunction_MinimumActualTime, 1.0, 1.0, 5_000, false)]
+        [TestCase(Objects.AggregateFunction_MaximumActualTime, 9.0, 9.0, 5_000, false)]
+        [TestCase(Objects.AggregateFunction_Minimum, 1.0, 1.0, 0, true)]
+        [TestCase(Objects.AggregateFunction_Range, 9.0, 4.0, 0, true)]
+        [TestCase(Objects.AggregateFunction_MaximumActualTime, 9.0, 9.0, 5_000, true)]
+        public void MinMaxReturnsUncertainExtremumAsUncertain(
             uint aggregateTypeId,
             double uncertainValue,
-            double expectedValue)
+            double expectedValue,
+            int timestampOffset,
+            bool treatUncertainAsBad)
         {
             DateTimeUtc start = new(2025, 1, 1, 0, 0, 0);
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
@@ -63,13 +70,13 @@ namespace Opc.Ua.Server.Tests.Aggregates
                 false,
                 new AggregateConfiguration
                 {
-                    TreatUncertainAsBad = false,
+                    TreatUncertainAsBad = treatUncertainAsBad,
                     PercentDataBad = 100,
                     PercentDataGood = 100
                 },
-                NUnitTelemetryContext.Create());
+                NUnitTelemetryContext.Create())!;
 
-            calculator.QueueRawValue(new DataValue(5.0, StatusCodes.Good, start, start));
+            calculator!.QueueRawValue(new DataValue(5.0, StatusCodes.Good, start, start));
             DateTimeUtc middle = start.AddMilliseconds(5_000);
             calculator.QueueRawValue(new DataValue(
                 uncertainValue, StatusCodes.Uncertain, middle, middle));
@@ -85,7 +92,7 @@ namespace Opc.Ua.Server.Tests.Aggregates
                     result.StatusCode,
                     Is.EqualTo(StatusCodes.UncertainDataSubNormal
                         .WithAggregateBits(AggregateBits.Calculated)));
-                Assert.That(result.SourceTimestamp, Is.EqualTo(start));
+                Assert.That(result.SourceTimestamp, Is.EqualTo(start.AddMilliseconds(timestampOffset)));
             });
         }
 
@@ -116,9 +123,9 @@ namespace Opc.Ua.Server.Tests.Aggregates
                     PercentDataBad = 100,
                     PercentDataGood = 100
                 },
-                NUnitTelemetryContext.Create());
+                NUnitTelemetryContext.Create())!;
 
-            calculator.QueueRawValue(new DataValue(5.0, StatusCodes.Good, start, start));
+            calculator!.QueueRawValue(new DataValue(5.0, StatusCodes.Good, start, start));
             DateTimeUtc maximum = start.AddMilliseconds(2_000);
             calculator.QueueRawValue(new DataValue(10.0, StatusCodes.Good, maximum, maximum));
             DateTimeUtc middle = start.AddMilliseconds(5_000);
@@ -137,17 +144,19 @@ namespace Opc.Ua.Server.Tests.Aggregates
         }
 
         /// <summary>
-        /// Verifies that an interval without good samples reports no data rather than a fabricated extremum.
+        /// Verifies that an interval with only an uncertain sample returns it as the extremum with
+        /// Uncertain_DataSubNormal (Range 0), whatever TreatUncertainAsBad is (Mantis 11426 ~0025852).
         /// </summary>
-        [TestCase(Objects.AggregateFunction_Minimum, false)]
-        [TestCase(Objects.AggregateFunction_Maximum, false)]
-        [TestCase(Objects.AggregateFunction_Range, false)]
-        [TestCase(Objects.AggregateFunction_MinimumActualTime, false)]
-        [TestCase(Objects.AggregateFunction_MaximumActualTime, false)]
-        [TestCase(Objects.AggregateFunction_Minimum, true)]
-        public void AllUncertainIntervalDoesNotInventAGoodExtremum(
+        [TestCase(Objects.AggregateFunction_Minimum, false, 5.0)]
+        [TestCase(Objects.AggregateFunction_Maximum, false, 5.0)]
+        [TestCase(Objects.AggregateFunction_Range, false, 0.0)]
+        [TestCase(Objects.AggregateFunction_MinimumActualTime, false, 5.0)]
+        [TestCase(Objects.AggregateFunction_MaximumActualTime, false, 5.0)]
+        [TestCase(Objects.AggregateFunction_Minimum, true, 5.0)]
+        public void AllUncertainIntervalReturnsUncertainExtremum(
             uint aggregateTypeId,
-            bool treatUncertainAsBad)
+            bool treatUncertainAsBad,
+            double expectedValue)
         {
             DateTimeUtc start = new(2025, 1, 1, 0, 0, 0);
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
@@ -162,17 +171,61 @@ namespace Opc.Ua.Server.Tests.Aggregates
                     PercentDataBad = 100,
                     PercentDataGood = 100
                 },
-                NUnitTelemetryContext.Create());
+                NUnitTelemetryContext.Create())!;
 
-            calculator.QueueRawValue(new DataValue(5.0, StatusCodes.Uncertain, start, start));
+            calculator!.QueueRawValue(new DataValue(5.0, StatusCodes.Uncertain, start, start));
             DateTimeUtc end = start.AddMilliseconds(10_000);
             calculator.QueueRawValue(new DataValue(7.0, StatusCodes.Good, end, end));
 
             Assert.That(calculator.TryGetProcessedValue(true, out DataValue result), Is.True);
             Assert.Multiple(() =>
             {
-                Assert.That(result.StatusCode.Code & 0xFFFF0000u, Is.EqualTo(StatusCodes.BadNoData.Code));
-                Assert.That(result.WrappedValue.IsNull, Is.True);
+                Assert.That(result.StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
+                Assert.That(result.WrappedValue.ConvertToDouble().GetDouble(), Is.EqualTo(expectedValue));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that an interval with only Bad samples returns Bad_NoData (Mantis 11426 ~0025852), and
+        /// that Bad samples next to a Good one make the result Uncertain_DataSubNormal.
+        /// </summary>
+        [TestCase(Objects.AggregateFunction_Minimum)]
+        [TestCase(Objects.AggregateFunction_Maximum)]
+        [TestCase(Objects.AggregateFunction_Range)]
+        [TestCase(Objects.AggregateFunction_MinimumActualTime)]
+        [TestCase(Objects.AggregateFunction_MaximumActualTime)]
+        public void BadSamplesMakeTheResultUncertainOrBadNoData(uint aggregateTypeId)
+        {
+            DateTimeUtc start = new(2025, 1, 1, 0, 0, 0);
+            DateTimeUtc middle = start.AddMilliseconds(5_000);
+            DateTimeUtc end = start.AddMilliseconds(10_000);
+            var configuration = new AggregateConfiguration
+            {
+                TreatUncertainAsBad = true,
+                PercentDataBad = 100,
+                PercentDataGood = 100
+            };
+
+            IAggregateCalculator allBad = Aggregators.CreateStandardCalculator(
+                new NodeId(aggregateTypeId), start, end, 10_000, false, configuration,
+                NUnitTelemetryContext.Create())!;
+            allBad.QueueRawValue(new DataValue(5.0, StatusCodes.BadDataUnavailable, start, start));
+            allBad.QueueRawValue(new DataValue(6.0, StatusCodes.BadDataUnavailable, middle, middle));
+            allBad.QueueRawValue(new DataValue(7.0, StatusCodes.Good, end, end));
+
+            IAggregateCalculator mixed = Aggregators.CreateStandardCalculator(
+                new NodeId(aggregateTypeId), start, end, 10_000, false, configuration,
+                NUnitTelemetryContext.Create())!;
+            mixed.QueueRawValue(new DataValue(5.0, StatusCodes.Good, start, start));
+            mixed.QueueRawValue(new DataValue(1.0, StatusCodes.BadDataUnavailable, middle, middle));
+            mixed.QueueRawValue(new DataValue(7.0, StatusCodes.Good, end, end));
+
+            Assert.That(allBad.TryGetProcessedValue(true, out DataValue allBadResult), Is.True);
+            Assert.That(mixed.TryGetProcessedValue(true, out DataValue mixedResult), Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(allBadResult.StatusCode.CodeBits, Is.EqualTo(StatusCodes.BadNoData));
+                Assert.That(mixedResult.StatusCode.CodeBits, Is.EqualTo(StatusCodes.UncertainDataSubNormal));
             });
         }
     }

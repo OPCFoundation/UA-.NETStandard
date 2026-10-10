@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -207,6 +205,39 @@ namespace Opc.Ua.Server.Tests
                     .EqualTo(StatusCodes.BadViewIdUnknown));
         }
 
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void BrowseAsyncNullViewIdWithVersionParametersThrowsViewParameterError(
+            bool setTimestamp,
+            bool setVersion)
+        {
+            using MasterNodeManager sut = CreateMasterNodeManager();
+            OperationContext ctx = CreateContext();
+
+            // OPC 10000-4 Table 178: a timestamp/version for the entire AddressSpace
+            // is not available, which is not the same as an unknown View.
+            var view = new ViewDescription
+            {
+                Timestamp = setTimestamp ? DateTimeUtc.Now : DateTimeUtc.MinValue,
+                ViewVersion = setVersion ? 3u : 0u
+            };
+            StatusCode expected = setTimestamp && setVersion
+                ? StatusCodes.BadViewParameterMismatch
+                : setTimestamp ? StatusCodes.BadViewTimestampInvalid : StatusCodes.BadViewVersionInvalid;
+
+            Assert.That(
+                async () => await sut.BrowseAsync(
+                    ctx,
+                    view,
+                    0u,
+                    new[] { new BrowseDescription { NodeId = ObjectIds.ObjectsFolder } }.ToArrayOf(),
+                    cancellationToken: CancellationToken.None).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(expected));
+        }
+
         [Test]
         public async Task BrowseAsync_EmptyBatch_ReturnsEmptyResultsAsync()
         {
@@ -284,6 +315,29 @@ namespace Opc.Ua.Server.Tests
             {
                 NodeId = ObjectIds.ObjectsFolder,
                 ReferenceTypeId = new NodeId(88888u),
+                BrowseDirection = BrowseDirection.Forward
+            };
+
+            (ArrayOf<BrowseResult> results, _) = await sut.BrowseAsync(
+                ctx,
+                new ViewDescription(),
+                0u,
+                new BrowseDescription[] { nodeToBrowse }.ToArrayOf(),
+                cancellationToken: CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadReferenceTypeIdInvalid));
+        }
+
+        [Test]
+        public async Task BrowseAsync_KnownNonReferenceType_ReturnsBadReferenceTypeIdInvalidAsync()
+        {
+            IMasterNodeManager sut = m_server.CurrentInstance.NodeManager;
+            OperationContext ctx = CreateContext();
+
+            var nodeToBrowse = new BrowseDescription
+            {
+                NodeId = ObjectIds.ObjectsFolder,
+                ReferenceTypeId = ObjectTypeIds.BaseObjectType,
                 BrowseDirection = BrowseDirection.Forward
             };
 

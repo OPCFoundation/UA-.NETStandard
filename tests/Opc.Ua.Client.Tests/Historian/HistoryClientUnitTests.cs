@@ -340,8 +340,8 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(values, Has.Count.EqualTo(2));
             Assert.That(capturedDetails, Is.Not.Null);
             ExtensionObject detailsObject = capturedDetails ?? throw new AssertionException("No ReadAtTimeDetails captured.");
-            Assert.That(detailsObject.TryGetValue(out ReadAtTimeDetails details), Is.True);
-            Assert.That(details.UseSimpleBounds, Is.True);
+            Assert.That(detailsObject.TryGetValue(out ReadAtTimeDetails? details), Is.True);
+            Assert.That(details!.UseSimpleBounds, Is.True);
             Assert.That(details.ReqTimes.Count, Is.EqualTo(2));
         }
 
@@ -445,8 +445,8 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(values, Is.Empty);
             Assert.That(capturedDetails, Is.Not.Null);
             ExtensionObject detailsObject = capturedDetails ?? throw new AssertionException("No ReadProcessedDetails captured.");
-            Assert.That(detailsObject.TryGetValue(out ReadProcessedDetails details), Is.True);
-            Assert.That(details.AggregateType.Count, Is.EqualTo(1));
+            Assert.That(detailsObject.TryGetValue(out ReadProcessedDetails? details), Is.True);
+            Assert.That(details!.AggregateType.Count, Is.EqualTo(1));
             Assert.That(details.AggregateType[0], Is.EqualTo(new NodeId("Aggregate", 2)));
             Assert.That(details.AggregateConfiguration.UseServerCapabilitiesDefaults, Is.True);
             Assert.That(details.ProcessingInterval, Is.EqualTo(2.5));
@@ -674,6 +674,49 @@ namespace Opc.Ua.Client.Tests.Historian
         }
 
         /// <summary>
+        /// Verifies that a null ServerProfileArray element is skipped instead of
+        /// throwing a NullReferenceException.
+        /// </summary>
+        [Test]
+        public async Task GetConformanceInfoAsyncSkipsNullProfileElementAsync()
+        {
+            var mockSession = new Mock<ISession>();
+            mockSession
+                .Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ReadResponse>(new ReadResponse
+                {
+                    ResponseHeader = new ResponseHeader(),
+                    Results =
+                    [
+                        new DataValue(Variant.From(
+                        [
+                            (string)null!,
+                            "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022"
+                        ])),
+                        new DataValue(Variant.From(
+                        [
+                            new QualifiedName("Attribute Read")
+                        ]))
+                    ],
+                    DiagnosticInfos = []
+                }));
+            var client = new HistoryClient(mockSession.Object);
+
+            HistoricalConformanceInfo info =
+                await client.GetConformanceInfoAsync().ConfigureAwait(false);
+
+            Assert.That(info.ServerProfiles, Has.Count.EqualTo(1));
+            Assert.That(
+                info.ServerProfiles[0],
+                Does.Contain("HistoricalRawData2022"));
+        }
+
+        /// <summary>
         /// Verifies that modified-history reads yield the returned data and request modified-history details.
         /// </summary>
         [Test]
@@ -736,8 +779,8 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(values[0].Info.UserName, Is.EqualTo("operator"));
             Assert.That(capturedDetails, Is.Not.Null);
             ExtensionObject detailsObject = capturedDetails ?? throw new AssertionException("No ReadModified details captured.");
-            Assert.That(detailsObject.TryGetValue(out ReadRawModifiedDetails details), Is.True);
-            Assert.That(details.IsReadModified, Is.True);
+            Assert.That(detailsObject.TryGetValue(out ReadRawModifiedDetails? details), Is.True);
+            Assert.That(details!.IsReadModified, Is.True);
             Assert.That(details.NumValuesPerNode, Is.EqualTo(10u));
         }
 
@@ -925,15 +968,15 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(deleteRaw, Is.EqualTo(StatusCodes.Good));
             Assert.That(deleteRawDetails, Is.Not.Null);
             ExtensionObject rawDetailsObject = deleteRawDetails ?? throw new AssertionException("No raw delete details.");
-            Assert.That(rawDetailsObject.TryGetValue(out DeleteRawModifiedDetails rawDetails), Is.True);
-            Assert.That(rawDetails.IsDeleteModified, Is.True);
+            Assert.That(rawDetailsObject.TryGetValue(out DeleteRawModifiedDetails? rawDetails), Is.True);
+            Assert.That(rawDetails!.IsDeleteModified, Is.True);
             Assert.That(deleteAtTime, Has.Count.EqualTo(2));
             Assert.That(deleteAtTime[0], Is.EqualTo(StatusCodes.Good));
             Assert.That(deleteAtTime[1], Is.EqualTo(StatusCodes.BadNoData));
             Assert.That(deleteAtTimeDetails, Is.Not.Null);
             ExtensionObject atTimeDetailsObject = deleteAtTimeDetails ?? throw new AssertionException("No at-time delete details.");
-            Assert.That(atTimeDetailsObject.TryGetValue(out DeleteAtTimeDetails atTimeDetails), Is.True);
-            Assert.That(atTimeDetails.ReqTimes.Count, Is.EqualTo(2));
+            Assert.That(atTimeDetailsObject.TryGetValue(out DeleteAtTimeDetails? atTimeDetails), Is.True);
+            Assert.That(atTimeDetails!.ReqTimes.Count, Is.EqualTo(2));
         }
 
         /// <summary>
@@ -1085,8 +1128,8 @@ namespace Opc.Ua.Client.Tests.Historian
             Assert.That(result, Is.EqualTo(StatusCodes.BadNoData));
             Assert.That(capturedDetails, Is.Not.Null);
             ExtensionObject detailsObject = capturedDetails ?? throw new AssertionException("No update details.");
-            Assert.That(detailsObject.TryGetValue(out UpdateStructureDataDetails details), Is.True);
-            Assert.That(details.NodeId, Is.EqualTo(new NodeId("Annotations", 2)));
+            Assert.That(detailsObject.TryGetValue(out UpdateStructureDataDetails? details), Is.True);
+            Assert.That(details!.NodeId, Is.EqualTo(new NodeId("Annotations", 2)));
             Assert.That(details.PerformInsertReplace, Is.EqualTo(PerformUpdateType.Replace));
             Assert.That(details.UpdateValues.Count, Is.EqualTo(1));
         }
@@ -1219,8 +1262,8 @@ namespace Opc.Ua.Client.Tests.Historian
                     It.IsAny<CancellationToken>()))
                 .Returns<RequestHeader, ArrayOf<ExtensionObject>, CancellationToken>((_, details, _) =>
                 {
-                    Assert.That(details[0].TryGetValue(out UpdateDataDetails update), Is.True);
-                    capturedUpdates.Add(update);
+                    Assert.That(details[0].TryGetValue(out UpdateDataDetails? update), Is.True);
+                    capturedUpdates.Add(update!);
                     return new ValueTask<HistoryUpdateResponse>(new HistoryUpdateResponse
                     {
                         Results = [new HistoryUpdateResult

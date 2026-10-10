@@ -166,7 +166,7 @@ namespace Opc.Ua.Core.Security.Tests
             foreach (ReferenceDescription rd in resp.Results[0].References)
 
             {
-                names.Add(rd.BrowseName.Name);
+                names.Add(rd.BrowseName.Name!);
             }
 
             Assert.That(names, Does.Contain("Anonymous"));

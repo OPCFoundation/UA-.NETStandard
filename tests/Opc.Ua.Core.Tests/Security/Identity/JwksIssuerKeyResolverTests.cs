@@ -359,9 +359,9 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 "\",\"use\":\"" +
                 use +
                 "\",\"key_ops\":[\"verify\"],\"alg\":\"RS256\",\"n\":\"" +
-                Base64UrlEncode(parameters.Modulus) +
+                Base64UrlEncode(parameters.Modulus!) +
                 "\",\"e\":\"" +
-                Base64UrlEncode(parameters.Exponent) +
+                Base64UrlEncode(parameters.Exponent!) +
                 "\"}";
         }
 
@@ -371,9 +371,9 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             return "{\"kty\":\"EC\",\"kid\":\"" +
                 kid +
                 "\",\"use\":\"sig\",\"key_ops\":[\"verify\"],\"alg\":\"ES256\",\"crv\":\"P-256\",\"x\":\"" +
-                Base64UrlEncode(parameters.Q.X) +
+                Base64UrlEncode(parameters.Q.X!) +
                 "\",\"y\":\"" +
-                Base64UrlEncode(parameters.Q.Y) +
+                Base64UrlEncode(parameters.Q.Y!) +
                 "\"}";
         }
 

@@ -53,7 +53,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             ArrayOf<ReferenceDescription> refs = await BrowseChildrenAsync(
                 Session, ServerNodeId).ConfigureAwait(false);
-            bool found = refs.ToArray().Any(r => r.BrowseName.Name == "ServerConfiguration");
+            bool found = refs.ToArray()!.Any(r => r.BrowseName.Name == "ServerConfiguration");
             Assert.That(found, Is.True,
                 "Server should have a ServerConfiguration component.");
         }
@@ -163,7 +163,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             ArrayOf<ReferenceDescription> refs = await BrowseChildrenAsync(
                 Session, ServerConfigurationNodeId).ConfigureAwait(false);
-            var names = refs.ToArray().Select(r => r.BrowseName.Name).ToList();
+            var names = refs.ToArray()!.Select(r => r.BrowseName.Name).ToList();
 
             Assert.That(names, Does.Not.Contain("UpdateCertificate"));
             Assert.That(names, Does.Not.Contain("CreateSigningRequest"));
@@ -178,7 +178,7 @@ namespace Opc.Ua.Core.Security.Tests
             var typeId = new NodeId(12581u);
             ArrayOf<ReferenceDescription> refs = await BrowseChildrenAsync(
                 Session, typeId).ConfigureAwait(false);
-            var names = refs.ToArray().Select(r => r.BrowseName.Name).ToList();
+            var names = refs.ToArray()!.Select(r => r.BrowseName.Name).ToList();
 
             // Some servers may define these methods only on the instance,
             // not on the type definition. Fall back to the instance if needed.
@@ -186,7 +186,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 refs = await BrowseChildrenAsync(
                     Session, ServerConfigurationNodeId).ConfigureAwait(false);
-                names = [.. refs.ToArray().Select(r => r.BrowseName.Name)];
+                names = [.. refs.ToArray()!.Select(r => r.BrowseName.Name)];
             }
 
             Assert.That(names, Does.Contain("UpdateCertificate"));
@@ -669,9 +669,9 @@ namespace Opc.Ua.Core.Security.Tests
                     session, ServerConfigurationNodeId, csrId,
                     new Variant(defaultGroup),
                     new Variant(rsaCertType),
-                    new Variant((string)null),
+                    new Variant((string)null!),
                     new Variant(false),
-                    new Variant((byte[])null)).ConfigureAwait(false);
+                    new Variant((byte[])null!)).ConfigureAwait(false);
 
                 if (result.StatusCode == StatusCodes.BadNotImplemented ||
                     result.StatusCode == StatusCodes.BadServiceUnsupported ||
@@ -706,7 +706,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             NodeId csrId = await FindChildAsync(
-                session, ServerConfigurationNodeId, "CreateSigningRequest")
+                session!, ServerConfigurationNodeId, "CreateSigningRequest")
                 .ConfigureAwait(false);
             if (csrId.IsNull)
             {
@@ -718,12 +718,12 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 CallMethodResult result = await CallMethodAsync(
-                    session, ServerConfigurationNodeId, csrId,
+                    session!, ServerConfigurationNodeId, csrId,
                     new Variant(invalidGroup),
                     new Variant(rsaCertType),
-                    new Variant((string)null),
+                    new Variant((string)null!),
                     new Variant(false),
-                    new Variant((byte[])null)).ConfigureAwait(false);
+                    new Variant((byte[])null!)).ConfigureAwait(false);
 
                 Assert.That(StatusCode.IsBad(result.StatusCode), Is.True,
                     "Expected Bad status for invalid group.");
@@ -787,14 +787,14 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             NodeId updateId = await FindChildAsync(
-                session, ServerConfigurationNodeId, "UpdateCertificate")
+                session!, ServerConfigurationNodeId, "UpdateCertificate")
                 .ConfigureAwait(false);
             if (updateId.IsNull)
             {
                 Assert.Fail("UpdateCertificate not found.");
             }
 
-            NodeId defaultGroup = await FindDefaultApplicationGroupAsync(session)
+            NodeId defaultGroup = await FindDefaultApplicationGroupAsync(session!)
                 .ConfigureAwait(false);
             if (defaultGroup.IsNull)
             {
@@ -805,13 +805,13 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 CallMethodResult result = await CallMethodAsync(
-                    session, ServerConfigurationNodeId, updateId,
+                    session!, ServerConfigurationNodeId, updateId,
                     new Variant(defaultGroup),
                     new Variant(rsaCertType),
                     new Variant(System.Array.Empty<byte>()),
                     Variant.From(System.Array.Empty<ByteString>()),
-                    new Variant((string)null),
-                    new Variant((byte[])null)).ConfigureAwait(false);
+                    new Variant((string)null!),
+                    new Variant((byte[])null!)).ConfigureAwait(false);
 
                 Assert.That(StatusCode.IsBad(result.StatusCode), Is.True,
                     "UpdateCertificate with empty cert should fail.");
@@ -832,14 +832,14 @@ namespace Opc.Ua.Core.Security.Tests
             }
 
             NodeId updateId = await FindChildAsync(
-                session, ServerConfigurationNodeId, "UpdateCertificate")
+                session!, ServerConfigurationNodeId, "UpdateCertificate")
                 .ConfigureAwait(false);
             if (updateId.IsNull)
             {
                 Assert.Fail("UpdateCertificate not found.");
             }
 
-            NodeId defaultGroup = await FindDefaultApplicationGroupAsync(session)
+            NodeId defaultGroup = await FindDefaultApplicationGroupAsync(session!)
                 .ConfigureAwait(false);
             if (defaultGroup.IsNull)
             {
@@ -851,13 +851,13 @@ namespace Opc.Ua.Core.Security.Tests
             try
             {
                 CallMethodResult result = await CallMethodAsync(
-                    session, ServerConfigurationNodeId, updateId,
+                    session!, ServerConfigurationNodeId, updateId,
                     new Variant(defaultGroup),
                     new Variant(rsaCertType),
                     new Variant(invalidCert),
                     Variant.From(System.Array.Empty<ByteString>()),
-                    new Variant((string)null),
-                    new Variant((byte[])null)).ConfigureAwait(false);
+                    new Variant((string)null!),
+                    new Variant((byte[])null!)).ConfigureAwait(false);
 
                 Assert.That(StatusCode.IsBad(result.StatusCode), Is.True,
                     "UpdateCertificate with invalid cert should fail.");
@@ -1019,11 +1019,11 @@ namespace Opc.Ua.Core.Security.Tests
                     default, CancellationToken.None).ConfigureAwait(false);
                 await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
 
-                string preferred = null;
+                string? preferred = null;
                 foreach (EndpointDescription ep in endpoints)
                 {
                     if (ep.SecurityMode != MessageSecurityMode.SignAndEncrypt ||
-                        ep.UserIdentityTokens == default)
+                        ep.UserIdentityTokens == default!)
                     {
                         continue;
                     }
@@ -1031,7 +1031,7 @@ namespace Opc.Ua.Core.Security.Tests
                     {
                         if (t.TokenType == UserTokenType.UserName)
                         {
-                            preferred = ep.SecurityPolicyUri;
+                            preferred = ep.SecurityPolicyUri!;
                             break;
                         }
                     }
@@ -1048,7 +1048,7 @@ namespace Opc.Ua.Core.Security.Tests
             }
             catch (ServiceResultException)
             {
-                return null;
+                return null!;
             }
         }
 
@@ -1087,8 +1087,8 @@ namespace Opc.Ua.Core.Security.Tests
                     CancellationToken.None).ConfigureAwait(false);
                 if (next.Results.Count > 0)
                 {
-                    var more = new List<ReferenceDescription>(refs.ToArray());
-                    more.AddRange(next.Results[0].References.ToArray());
+                    var more = new List<ReferenceDescription>(refs.ToArray()!);
+                    more.AddRange(next.Results[0].References.ToArray()!);
                     refs = more.ToArrayOf();
                     cp = next.Results[0].ContinuationPoint;
                 }

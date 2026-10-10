@@ -704,7 +704,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             // was dropped (op1 was cancelled). op2's TCS completed
             // with success. Use Status == RanToCompletion rather than
             // Task.IsCompletedSuccessfully which is .NET 5+ only and
-            // would break the net48/net472 builds.
+            // would break the net48 build.
             Assert.That(capturedAdd, Is.EquivalentTo([tgt2.ServerId]));
             Assert.That(tcs1.Task.IsCanceled, Is.True);
             Assert.That(tcs2.Task.Status, Is.EqualTo(TaskStatus.RanToCompletion));

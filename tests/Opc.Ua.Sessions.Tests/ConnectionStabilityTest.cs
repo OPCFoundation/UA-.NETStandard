@@ -109,7 +109,7 @@ namespace Opc.Ua.Sessions.Tests
                 await OneTimeSetUpAsync().ConfigureAwait(false);
 
                 // Configurable duration for CI testing
-                string envValue = Environment.GetEnvironmentVariable("TEST_DURATION_MINUTES");
+                string envValue = Environment.GetEnvironmentVariable("TEST_DURATION_MINUTES")!;
                 if (string.IsNullOrEmpty(envValue) ||
                     !int.TryParse(envValue, out int minutes) ||
                     minutes <= 0)
@@ -150,8 +150,8 @@ namespace Opc.Ua.Sessions.Tests
             var clientHandles = new ConcurrentDictionary<uint, NodeId>();
             var errors = new ConcurrentBag<string>();
 
-            ISession session = null;
-            Subscription subscription = null;
+            ISession? session = null;
+            Subscription? subscription = null;
 
             try
             {

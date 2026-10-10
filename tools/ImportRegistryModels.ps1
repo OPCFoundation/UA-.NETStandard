@@ -61,16 +61,26 @@ foreach ($model in $models) {
         }
     }
 }
-if (-not $Check) {
-    $provenance = [ordered]@{
-        repository = 'OPCF-Members/OPC30450-CloudInitiative'
-        commit = $commit.Trim()
-        uncommittedSource = ($dirty.Count -gt 0)
-        files = $records
+$provenance = [ordered]@{
+    repository = 'OPCF-Members/OPC30450-CloudInitiative'
+    commit = $commit.Trim()
+    uncommittedSource = ($dirty.Count -gt 0)
+    files = $records
+}
+$json = $provenance | ConvertTo-Json -Depth 6
+$provenancePath = Join-Path $PSScriptRoot 'registry-models.json'
+if ($Check) {
+    if (-not (Test-Path -LiteralPath $provenancePath -PathType Leaf)) {
+        throw 'Imported model provenance is missing: tools\registry-models.json'
     }
-    $json = $provenance | ConvertTo-Json -Depth 6
+    $recorded = Get-Content -LiteralPath $provenancePath -Raw | ConvertFrom-Json | ConvertTo-Json -Depth 6
+    if ($recorded -cne $json) {
+        throw 'Imported model provenance differs: tools\registry-models.json'
+    }
+}
+else {
     [IO.File]::WriteAllText(
-        (Join-Path $PSScriptRoot 'registry-models.json'),
+        $provenancePath,
         $json + "`n",
         [Text.UTF8Encoding]::new($false))
 }

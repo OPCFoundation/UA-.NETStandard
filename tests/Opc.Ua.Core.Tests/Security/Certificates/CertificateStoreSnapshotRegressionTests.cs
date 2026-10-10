@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.IO;
 using System.Linq;
@@ -48,6 +46,21 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [Category("CertificateStore")]
     public sealed class CertificateStoreSnapshotRegressionTests
     {
+        /// <summary>
+        /// Verifies the documented provider prefix and existing paths resolve to the same platform store.
+        /// </summary>
+        [TestCase(@"CurrentUser\My")]
+        [TestCase(@"X509Store:CurrentUser\My")]
+        [TestCase(@"x509store:currentuser\My")]
+        [TestCase(@"X509Store:LocalMachine\My")]
+        public void X509StoreAcceptsPrefixedAndLegacyPaths(string path)
+        {
+            using var store = new X509CertificateStore(NUnitTelemetryContext.Create());
+            store.Open(path, noPrivateKeys: true);
+            Assert.That(store.StorePath, Is.EqualTo(path));
+            Assert.That(store.NoPrivateKeys, Is.True);
+        }
+
         /// <summary>
         /// Verifies platform-store operations retain only returned certificates and release every other native handle.
         /// </summary>
@@ -83,7 +96,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 case "deleteMiss":
                 case "deleteHit":
                     Assert.That(await store.DeleteAsync(operation == "deleteHit" ? first.Thumbprint : new string('0', 40))
-                        .ConfigureAwait(false), Is.True);
+                        .ConfigureAwait(false), Is.EqualTo(operation == "deleteHit"));
                     break;
                 case "addDuplicate":
                     await store.AddAsync(first).ConfigureAwait(false);

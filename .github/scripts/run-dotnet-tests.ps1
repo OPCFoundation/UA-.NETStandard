@@ -23,8 +23,7 @@
     non-zero exit is tolerated when - and only when - the TRX records at least
     one test and no failure, error, timeout, abort or passedButRunAborted: that
     combination means the host died during process exit, after the last test and
-    every teardown had already run. This matches the Azure gate in
-    .azurepipelines/test.yml. It was originally assumed to be a macOS-only
+    every teardown had already run. It was originally assumed to be a macOS-only
     quirk, but Windows hosts do it too (observed on run 35714133848, job
     'test-windows-net48 (5/30)', where Opc.Ua.Client.Tests reported 256 passed
     and 0 failed and the host still exited 1). A host that dies mid-run is not
@@ -39,9 +38,7 @@
     (see targets.props).
 
  .PARAMETER Framework
-    The target framework the tests actually execute on. It differs from
-    CustomTestTarget for the standard profiles: netstandard2.0 hosts its tests on
-    net48 and netstandard2.1 hosts them on net8.0.
+    The target framework the tests actually execute on.
 
  .PARAMETER Configuration
     Debug or Release.
@@ -77,10 +74,10 @@
 
  .PARAMETER QuietOutput
     Write each project's build and test output to a log file under the results
-    directory instead of the console. Required by the private-fuzz-corpus job:
-    a failing fuzz test prints a base64 reproducer, and a public repository's
-    job log is world-readable, so that output has to stay inside the results
-    tree the job keeps private.
+    directory instead of the console. Use it for inputs that must not reach a
+    world-readable job log: a failing fuzz test prints a base64 reproducer, so
+    a replay of unpublished crash inputs has to keep its output in the results
+    tree.
 #>
 
 Param(
@@ -103,8 +100,9 @@ Param(
 
 $ErrorActionPreference = 'Stop'
 
-# The verdict rule lives in its own file so it can be tested without building or
-# running anything - see tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs.
+# The verdict rule and the TRX parsing it consumes live in their own file so they
+# can be tested without building or running anything - see
+# tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs.
 . (Join-Path $PSScriptRoot 'get-test-verdict.ps1')
 
 $projectList = @($Projects -split ';' | ForEach-Object { $_.Trim() } | Where-Object { $_ })
@@ -236,60 +234,6 @@ function Get-ProjectProperties([string] $project)
     return ($output.Substring($start, $end - $start + 1) | ConvertFrom-Json).Properties
 }
 
-<#
- .SYNOPSIS
-    Sums the counters of every TRX below a directory.
-#>
-function Measure-TestResults([string] $directory)
-{
-    $total = 0
-    $passed = 0
-    $failed = 0
-    $nonPassingCounters = @(
-        'failed',
-        'error',
-        'timeout',
-        'aborted',
-        'passedButRunAborted',
-        'inconclusive',
-        'notRunnable',
-        'disconnected',
-        'warning',
-        'completed',
-        'inProgress',
-        'pending')
-    $trxFiles = @(Get-ChildItem -LiteralPath $directory -Recurse -File -Filter *.trx -ErrorAction SilentlyContinue)
-    foreach ($trxFile in $trxFiles) {
-        # XmlDocument.Load rather than [xml](Get-Content): PubSub emits several
-        # megabytes of results and the array-of-lines cast fails on files that
-        # size.
-        $document = [System.Xml.XmlDocument]::new()
-        $document.XmlResolver = $null
-        $document.Load($trxFile.FullName)
-        foreach ($counters in $document.GetElementsByTagName('Counters')) {
-            $total += Get-CounterValue $counters 'total'
-            $passed += Get-CounterValue $counters 'passed'
-            foreach ($name in $nonPassingCounters) {
-                $failed += Get-CounterValue $counters $name
-            }
-        }
-    }
-    return [pscustomobject]@{ Files = $trxFiles.Count; Total = $total; Passed = $passed; Failed = $failed }
-}
-
-<#
- .SYNOPSIS
-    Reads a TRX counter attribute, treating an absent attribute as zero.
-#>
-function Get-CounterValue([System.Xml.XmlElement] $element, [string] $name)
-{
-    $raw = $element.GetAttribute($name)
-    if ([string]::IsNullOrEmpty($raw)) {
-        return 0
-    }
-    return [int]$raw
-}
-
 $records = @()
 foreach ($project in $projectList) {
     $stem = [System.IO.Path]::GetFileNameWithoutExtension($project)
@@ -305,6 +249,10 @@ foreach ($project in $projectList) {
         total         = 0
         passed        = 0
         failed        = 0
+        # Wall-clock seconds, read by update-test-durations.ps1 to refresh
+        # the weights get-ci-matrix.ps1 packs batches with.
+        buildSeconds  = 0
+        testSeconds   = 0
     }
 
     try {
@@ -364,6 +312,7 @@ foreach ($project in $projectList) {
         $projectBudget = [System.Diagnostics.Stopwatch]::StartNew()
 
         $build = Invoke-Dotnet $buildArguments $projectBudget $PerProjectTimeoutMinutes $logPath
+        $record.buildSeconds = [int]$projectBudget.Elapsed.TotalSeconds
         if ($build.TimedOut) {
             throw ("The build exhausted the $PerProjectTimeoutMinutes-minute per-project ceiling, " +
                 'which the build and the test share.')
@@ -404,6 +353,7 @@ foreach ($project in $projectList) {
         }
 
         $test = Invoke-Dotnet $testArguments $projectBudget $PerProjectTimeoutMinutes $logPath
+        $record.testSeconds = [int]$projectBudget.Elapsed.TotalSeconds - $record.buildSeconds
 
         $results = Measure-TestResults $projectResults
         $record.total = $results.Total
@@ -420,6 +370,7 @@ foreach ($project in $projectList) {
             -Total $results.Total `
             -Passed $results.Passed `
             -Failed $results.Failed `
+            -FixtureFailures $results.FixtureFailures `
             -ExitCode $test.ExitCode `
             -TimedOut $test.TimedOut `
             -TimeoutMinutes $PerProjectTimeoutMinutes
@@ -460,11 +411,11 @@ $summaryPath = Join-Path $resultsRoot 'batch-summary.json'
 $lines = @(
     "### $CustomTestTarget / $Framework / $Configuration",
     '',
-    '| Project | Outcome | Passed | Total | Detail |',
-    '| --- | --- | ---: | ---: | --- |')
+    '| Project | Outcome | Passed | Total | Build (s) | Test (s) | Detail |',
+    '| --- | --- | ---: | ---: | ---: | ---: | --- |')
 foreach ($record in $records) {
     $detail = $record.reason -replace '\r?\n', ' '
-    $lines += "| $([System.IO.Path]::GetFileNameWithoutExtension($record.project)) | $($record.outcome) | $($record.passed) | $($record.total) | $detail |"
+    $lines += "| $([System.IO.Path]::GetFileNameWithoutExtension($record.project)) | $($record.outcome) | $($record.passed) | $($record.total) | $($record.buildSeconds) | $($record.testSeconds) | $detail |"
 }
 $lines += ''
 if (-not [string]::IsNullOrWhiteSpace($env:GITHUB_STEP_SUMMARY)) {

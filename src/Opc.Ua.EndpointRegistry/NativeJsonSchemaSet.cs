@@ -347,7 +347,7 @@ namespace Opc.Ua.EndpointRegistry
 
         private static Regex RegexCache(string pattern)
         {
-            lock (s_regex)
+            lock (s_regexLock)
             {
                 if (!s_regex.TryGetValue(pattern, out Regex? regex))
                 {
@@ -403,6 +403,7 @@ namespace Opc.Ua.EndpointRegistry
         private readonly Dictionary<string, JsonElement> m_schemas = new(StringComparer.Ordinal);
         private readonly Dictionary<string, JsonElement> m_refs = new(StringComparer.Ordinal);
         private static readonly Dictionary<string, Regex> s_regex = new(StringComparer.Ordinal);
+        private static readonly System.Threading.Lock s_regexLock = new();
         private static readonly HashSet<string> s_keywords = new(StringComparer.Ordinal)
         {
             "$id", "$ref", "$schema", "additionalProperties", "allOf", "anyOf", "const", "default",

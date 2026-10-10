@@ -1,3 +1,9 @@
+/* ========================================================================
+ * Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+ * SPDX-License-Identifier: MIT
+ * http://opcfoundation.org/License/MIT/1.00/
+ * ======================================================================*/
+
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;

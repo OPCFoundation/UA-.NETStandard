@@ -400,6 +400,10 @@ namespace Opc.Ua.XRegistry
                     break;
                 case RegistryArrayValueDataType array when value.Kind == 4 &&
                     value.GetType() == typeof(RegistryArrayValueDataType):
+                    if (array.Items.IsNull)
+                    {
+                        throw new ArgumentException("A registry array requires non-null items.");
+                    }
                     writer?.WriteStartArray();
                     foreach (RegistryValueDataType child in array.Items)
                     {

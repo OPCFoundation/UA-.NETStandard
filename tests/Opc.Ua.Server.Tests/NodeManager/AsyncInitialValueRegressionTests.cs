@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 };
                 using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 using var context = new OperationContext(
-                    new RequestHeader(), null, RequestType.SetMonitoringMode, RequestLifetime.None, item.Session);
+                    new RequestHeader(), null!, RequestType.SetMonitoringMode, RequestLifetime.None, item.Session);
                 var errors = new ServiceResult[1];
                 await manager.SetMonitoringModeAsync(
                     context, MonitoringMode.Reporting, [item], [false], errors, cancellation.Token)
@@ -197,7 +197,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return CurrentValue(73);
             };
             Task<MonitoredItem> create = CreateItemAsync(manager, node);
-            Task disposal = null;
+            Task? disposal = null;
             try
             {
                 await started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -236,7 +236,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await release.Task.WaitAsync(ct).ConfigureAwait(false);
                 return CurrentValue(73);
             };
-            Task<(ServiceResult Error, MonitoredItem Item)> create = CreateItemResultAsync(manager, node);
+            Task<(ServiceResult Error, MonitoredItem? Item)> create = CreateItemResultAsync(manager, node);
             try
             {
                 await started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -254,7 +254,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                (ServiceResult error, MonitoredItem item) = await create.ConfigureAwait(false);
+                (ServiceResult error, MonitoredItem? item) = await create.ConfigureAwait(false);
                 using (item)
                 {
                     Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
@@ -280,7 +280,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
 
             Task<MonitoredItem> create = CreateItemAsync(manager, node);
-            Task<IReadOnlyList<IMonitoredItem>> snapshot = null;
+            Task<IReadOnlyList<IMonitoredItem>>? snapshot = null;
             try
             {
                 await started.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
@@ -382,14 +382,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             MonitoringMode mode = MonitoringMode.Reporting,
             CancellationToken cancellationToken = default)
         {
-            (ServiceResult error, MonitoredItem item) = await CreateItemResultAsync(
+            (ServiceResult error, MonitoredItem? item) = await CreateItemResultAsync(
                 manager, node, mode, cancellationToken).ConfigureAwait(false);
             Assert.That(error.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(item, Is.Not.Null);
             return item;
         }
 
-        private static async Task<(ServiceResult Error, MonitoredItem Item)> CreateItemResultAsync(
+        private static async Task<(ServiceResult Error, MonitoredItem? Item)> CreateItemResultAsync(
             TestableAsyncCustomNodeManager manager,
             NodeState node,
             MonitoringMode mode = MonitoringMode.Reporting,
@@ -407,11 +407,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     DiscardOldest = true
                 }
             };
-            var errors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var items = new List<IMonitoredItem> { null };
+            var errors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var items = new List<IMonitoredItem> { null! };
             using var context = new OperationContext(
-                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, CreateSession());
+                new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, CreateSession());
             await manager.CreateMonitoredItemsAsync(
                 context, 1, 1000, TimestampsToReturn.Both, [request], errors, filterErrors, items,
                 false, new MonitoredItemIdFactory(), cancellationToken).ConfigureAwait(false);

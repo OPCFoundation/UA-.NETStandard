@@ -79,6 +79,26 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             }
         }
 
+        [TestCase("")]
+        [TestCase("/versions/1")]
+        public async Task UaDiscoveryRecognizesVersionSuffixAfterAGroupNamedVersionsAsync(string suffix)
+        {
+            using ISession session = await ConnectAsync(m_second!).ConfigureAwait(false);
+            await WriteAsync(session, """{"messagegroupid":"versions","messages":{"m":{"messageid":"m"}}}""",
+                "versions").ConfigureAwait(false);
+            string xid = "/messagegroups/versions/messages/m" + suffix;
+
+            RegistryEntityReferenceDataType discovered = await Provider(session, "urn:test:second")
+                .DiscoverMessageAsync(xid).ConfigureAwait(false);
+
+            Assert.That(discovered.Xid, Is.EqualTo(xid));
+            Assert.That(discovered.Role, Is.EqualTo(suffix.Length == 0 ? "MetadataResource" : "MetadataVersion"));
+            Assert.That(discovered.HasNativeTarget, Is.True);
+            Assert.That(discovered.NativeTarget.IsNull, Is.False);
+            Assert.That(new FederationSourceKey(discovered).LogicalXid,
+                Is.EqualTo("/messagegroups/versions/messages/m"));
+        }
+
         [Test]
         public async Task TwoSecuredServersResolveRemoteBaseWithDistinctSourceKeys()
         {
@@ -286,13 +306,13 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             EndpointRegistryNativeCatalog.CreateMapper(session.MessageContext,
                 [new SchemaRegistry.Formats.JsonSchemaFormatProvider(), new SchemaRegistry.Formats.AvroSchemaFormatProvider()]);
 
-        private async Task WriteAsync(ISession session, string json)
+        private async Task WriteAsync(ISession session, string json, string groupId = "g")
         {
             var access = new NativeRegistryAccessTypeClient(session,
                 ExpandedNodeId.ToNodeId(EndpointRegistryWellKnown.EndpointRegistryTypedAccess, session.NamespaceUris), m_telemetry!);
             RegistryReadResultDataType existing = await access.ReadDocumentAsync(new RegistryReadRequestDataType
             {
-                TargetXid = "/messagegroups/g",
+                TargetXid = "/messagegroups/" + groupId,
                 DocumentKind = "metadata",
                 View = 0,
                 MaxItems = 100
@@ -306,7 +326,7 @@ namespace Opc.Ua.EndpointRegistry.Federation.Tests
             PreserveOwned(definition, previous);
             RegistryMutationResultDataType result = await access.WriteDocumentAsync(new RegistryWriteRequestDataType
             {
-                TargetXid = "/messagegroups/g",
+                TargetXid = "/messagegroups/" + groupId,
                 ExpectedEpoch = existing.Epoch,
                 Definition = SessionMapper(session).Project(definition, nameof(MessageGroupDataType))
             }).ConfigureAwait(false);

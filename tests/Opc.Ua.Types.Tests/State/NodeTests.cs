@@ -104,6 +104,32 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void CloneDoesNotShareReferenceTable()
+        {
+            var node = new Node
+            {
+                NodeId = new NodeId(7010),
+                NodeClass = NodeClass.Object,
+                BrowseName = new QualifiedName("OrigNode")
+            };
+            node.ReferenceTable.Add(ReferenceTypeIds.HasComponent, false, new NodeId(7011));
+
+            var clone = (Node)node.Clone();
+            clone.ReferenceTable.Add(ReferenceTypeIds.HasProperty, false, new NodeId(7012));
+            node.ReferenceTable.Add(ReferenceTypeIds.Organizes, false, new NodeId(7013));
+
+            Assert.That(clone.ReferenceTable, Is.Not.SameAs(node.ReferenceTable));
+            Assert.That(clone.ReferenceTable, Has.Count.EqualTo(2));
+            Assert.That(node.ReferenceTable, Has.Count.EqualTo(2));
+            Assert.That(clone.ReferenceTable.Exists(
+                ReferenceTypeIds.HasComponent, false, new NodeId(7011), false, null), Is.True);
+            Assert.That(node.ReferenceTable.Exists(
+                ReferenceTypeIds.HasProperty, false, new NodeId(7012), false, null), Is.False);
+            Assert.That(clone.ReferenceTable.Exists(
+                ReferenceTypeIds.Organizes, false, new NodeId(7013), false, null), Is.False);
+        }
+
+        [Test]
         public void IsEqualReturnsTrueForSameReference()
         {
             var node = new Node { NodeId = new NodeId(7002), NodeClass = NodeClass.Object };
@@ -262,7 +288,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CopyReturnsCorrectSubtypes()
         {
-            Assert.That(Node.Copy(null), Is.Null);
+            Assert.That(Node.Copy(null!), Is.Null);
 
             var varNode = new Node { NodeId = new NodeId(7030), NodeClass = NodeClass.Variable };
             Assert.That(Node.Copy(varNode), Is.InstanceOf<VariableNode>());
@@ -313,7 +339,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node { NodeId = new NodeId(8001) };
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.NodeId, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.NodeId, ref dataValue);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
             Assert.That(dataValue.StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -326,7 +352,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node { NodeClass = NodeClass.Variable };
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.NodeClass, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.NodeClass, ref dataValue);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
             Assert.That((NodeClass)(int)dataValue.WrappedValue, Is.EqualTo(NodeClass.Variable));
@@ -338,7 +364,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node { BrowseName = new QualifiedName("ReadTest") };
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.BrowseName, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.BrowseName, ref dataValue);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
             Assert.That((QualifiedName)dataValue.WrappedValue, Is.EqualTo(new QualifiedName("ReadTest")));
@@ -350,7 +376,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node { DisplayName = new LocalizedText("Display Read") };
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.DisplayName, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.DisplayName, ref dataValue);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
             Assert.That((LocalizedText)dataValue.WrappedValue, Is.EqualTo(new LocalizedText("Display Read")));
@@ -362,7 +388,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node { Description = new LocalizedText("Desc Read") };
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.Description, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.Description, ref dataValue);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
             Assert.That((LocalizedText)dataValue.WrappedValue, Is.EqualTo(new LocalizedText("Desc Read")));
@@ -374,7 +400,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node { WriteMask = 0xAB };
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.WriteMask, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.WriteMask, ref dataValue);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
             Assert.That((uint)dataValue.WrappedValue, Is.EqualTo(0xABu));
@@ -386,7 +412,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node { UserWriteMask = 0xCD };
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.UserWriteMask, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.UserWriteMask, ref dataValue);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
             Assert.That((uint)dataValue.WrappedValue, Is.EqualTo(0xCDu));
@@ -398,7 +424,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node { AccessRestrictions = 7 };
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.AccessRestrictions, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.AccessRestrictions, ref dataValue);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
             Assert.That((ushort)dataValue.WrappedValue, Is.EqualTo((ushort)7));
@@ -410,7 +436,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node();
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.RolePermissions, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.RolePermissions, ref dataValue);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
         }
@@ -421,7 +447,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node();
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.UserRolePermissions, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.UserRolePermissions, ref dataValue);
 
             Assert.That(result, Is.EqualTo(ServiceResult.Good));
         }
@@ -432,7 +458,7 @@ namespace Opc.Ua.Types.Tests.State
             var node = new Node();
             var dataValue = new DataValue();
 
-            ServiceResult result = node.Read(null, Attributes.Value, ref dataValue);
+            ServiceResult result = node.Read(null!, Attributes.Value, ref dataValue);
 
             Assert.That(StatusCode.IsBad(result.StatusCode), Is.True);
         }
@@ -503,11 +529,11 @@ namespace Opc.Ua.Types.Tests.State
             using (var encoder = new BinaryEncoder(messageContext))
             {
                 original.Encode(encoder);
-                encoded = encoder.CloseAndReturnBuffer();
+                encoded = encoder.CloseAndReturnBuffer()!;
             }
 
             var decoded = new Node();
-            using (var decoder = new BinaryDecoder(encoded, messageContext))
+            using (var decoder = new BinaryDecoder(encoded!, messageContext))
             {
                 decoded.Decode(decoder);
             }
@@ -571,7 +597,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CopyConstructorFromNullILocalNode()
         {
-            var node = new Node((ILocalNode)null);
+            var node = new Node((ILocalNode)null!);
 
             Assert.That(node.NodeId, Is.Default);
             Assert.That(node.NodeClass, Is.EqualTo(NodeClass.Unspecified));

@@ -63,7 +63,8 @@ namespace Opc.Ua.SchemaRegistry.Server
             {
                 target = FindSchemaFile(target.NodeId) ?? throw new ServiceResultException(StatusCodes.BadInvalidState);
             }
-            if (target is not null && ((mode & 0xF0) != 0 || (mode & (byte)OpenFileMode.Write) == 0 ||
+            if (target is not null && ((mode & 0xF0) != 0 ||
+                (mode & (byte)(OpenFileMode.Read | OpenFileMode.Write)) != (byte)OpenFileMode.Write ||
                 (mode & (byte)(OpenFileMode.EraseExisting | OpenFileMode.Append)) ==
                     (byte)(OpenFileMode.EraseExisting | OpenFileMode.Append)))
             {
@@ -171,6 +172,7 @@ namespace Opc.Ua.SchemaRegistry.Server
                         }
                         byte[] next = bytes.ToArray();
                         upload.Buffer.Write(next, 0, next.Length);
+                        upload.Dirty |= next.Length > 0;
                         m_uploadBytes += upload.Buffer.Length - old;
                         XRegistryProjectionEngine.SetValue(file.Size, (ulong)upload.Buffer.Length);
                         return ServiceResult.Good;
@@ -245,6 +247,10 @@ namespace Opc.Ua.SchemaRegistry.Server
                     }
                     try
                     {
+                        if (!upload.Temporary && !upload.Dirty)
+                        {
+                            return new CloseMethodStateResult { ServiceResult = ServiceResult.Good };
+                        }
                         TypedSchemaReadResultDataType committed = await m_store.RegisterRawAsync(upload.Registration, bytes, ct)
                             .ConfigureAwait(false);
                         return new CloseMethodStateResult
@@ -404,6 +410,8 @@ namespace Opc.Ua.SchemaRegistry.Server
             public uint Handle { get; } = temporary ? 1u : uint.MaxValue;
 
             public MemoryStream Buffer { get; } = new();
+
+            public bool Dirty { get; set; }
 
             public void Dispose() => Buffer.Dispose();
         }

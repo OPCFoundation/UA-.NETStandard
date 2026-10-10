@@ -60,6 +60,7 @@ namespace Opc.Ua
         /// Opens trust stores through the owning manager's provider resolution or the default resolver.
         /// </summary>
         private readonly Func<CertificateStoreIdentifier, ICertificateStore?> m_openStore;
+        private readonly Func<Certificate, X509Certificate2> m_copyNativeCertificate;
         private readonly ConcurrentDictionary<string, byte[]> m_validatedCertificates;
 
         /// <summary>
@@ -89,9 +90,19 @@ namespace Opc.Ua
         public CertificateValidationCore(
             ITelemetryContext telemetry,
             Func<CertificateStoreIdentifier, ICertificateStore?>? openStore = null)
+            : this(telemetry, openStore, static certificate => certificate.AsX509Certificate2())
+        {
+        }
+
+        internal CertificateValidationCore(
+            ITelemetryContext telemetry,
+            Func<CertificateStoreIdentifier, ICertificateStore?>? openStore,
+            Func<Certificate, X509Certificate2> copyNativeCertificate)
         {
             m_telemetry = telemetry;
             m_openStore = openStore ?? (store => store.OpenStore(telemetry));
+            m_copyNativeCertificate = copyNativeCertificate ??
+                throw new ArgumentNullException(nameof(copyNativeCertificate));
             m_logger = telemetry.CreateLogger<CertificateValidationCore>();
             m_validatedCertificates = [];
             m_stores = [];
@@ -612,7 +623,7 @@ namespace Opc.Ua
                             state.TrustedCertificates,
                             state.TrustedStore,
                             true,
-                            ct)
+                            ct: ct)
                         .ConfigureAwait(false);
                 }
                 else
@@ -622,7 +633,7 @@ namespace Opc.Ua
                             state.TrustedCertificates,
                             state.TrustedStore,
                             true,
-                            ct)
+                            ct: ct)
                         .ConfigureAwait(false);
                 }
 
@@ -635,7 +646,7 @@ namespace Opc.Ua
                                 state.IssuerCertificates,
                                 state.IssuerStore,
                                 true,
-                                ct)
+                                ct: ct)
                             .ConfigureAwait(false);
                     }
                     else
@@ -645,12 +656,15 @@ namespace Opc.Ua
                                 state.IssuerCertificates,
                                 state.IssuerStore,
                                 true,
-                                ct)
+                                ct: ct)
                             .ConfigureAwait(false);
                     }
 
                     if (issuer == null)
                     {
+                        // An issuer supplied only in the peer's chain has no store of
+                        // its own; its CRL is looked up in the trusted and issuer
+                        // stores (OPC 10000-4 6.1.3, Find Revocation List).
                         if (validationErrors != null)
                         {
                             (issuer, revocationStatus) = await GetIssuerNoExceptionAsync(
@@ -658,7 +672,7 @@ namespace Opc.Ua
                                     untrustedCollection,
                                     null,
                                     true,
-                                    ct)
+                                    ct: ct)
                                 .ConfigureAwait(false);
                         }
                         else
@@ -668,10 +682,15 @@ namespace Opc.Ua
                                 untrustedCollection,
                                 null,
                                 true,
-                                ct)
+                                ct: ct)
                                 .ConfigureAwait(false);
                         }
                     }
+
+                    // An issuer found in the issuer list only completes the
+                    // chain; it is not a trust anchor. The walk continues so a
+                    // CA further up that is on the trust list still makes the
+                    // chain trusted (OPC 10000-4 6.1.3, Certificate trusted).
                 }
                 else
                 {
@@ -874,6 +893,7 @@ namespace Opc.Ua
 
             // get the issuers (checks the revocation lists if using directory stores).
             var issuers = new List<CertificateIssuerReference>();
+            var extraStoreCerts = new List<X509Certificate2>();
             var validationErrors = new Dictionary<Certificate, ServiceResultException>();
 
             try
@@ -924,7 +944,6 @@ namespace Opc.Ua
                     UrlRetrievalTimeout = options?.UrlRetrievalTimeout ?? TimeSpan.FromMilliseconds(1)
                 };
 
-                var extraStoreCerts = new List<X509Certificate2>();
                 foreach (CertificateIssuerReference issuer in issuers)
                 {
                     if ((issuer.Options &
@@ -940,7 +959,7 @@ namespace Opc.Ua
 
                     // we did the revocation check in the GetIssuers call. No need here.
                     policy.RevocationMode = X509RevocationMode.NoCheck;
-                    extraStoreCerts.Add(issuer.Certificate.AsX509Certificate2());
+                    extraStoreCerts.Add(m_copyNativeCertificate(issuer.Certificate));
                     policy.ExtraStore.Add(extraStoreCerts[^1]);
                 }
 
@@ -949,7 +968,7 @@ namespace Opc.Ua
                 using (var chain = new X509Chain())
                 {
                     chain.ChainPolicy = policy;
-                    using X509Certificate2 certX509 = certificate.AsX509Certificate2();
+                    using X509Certificate2 certX509 = m_copyNativeCertificate(certificate);
                     chain.Build(certX509);
 
                     // check the chain results.
@@ -1066,11 +1085,6 @@ namespace Opc.Ua
                     }
                 }
 
-                foreach (X509Certificate2 extraCert in extraStoreCerts)
-                {
-                    extraCert.Dispose();
-                }
-
                 // check whether the chain is complete (if there is a chain)
                 bool issuedByCA = !X509Utils.IsSelfSigned(certificate);
                 if (issuers.Count > 0)
@@ -1087,10 +1101,37 @@ namespace Opc.Ua
                     chainIncomplete = true;
                 }
 
+                // A certificate or CA the trust list marks as "never trust"
+                // (TreatAsInvalid) is rejected even though it was found there.
+                // The administrator distrusted it, so OPC 10000-4 6.1.3 (Trust
+                // List Check) reports Bad_CertificateUntrusted. Unlike a
+                // certificate that is merely unknown, the rejection is final:
+                // neither the accept callback nor AutoAccept may override it.
+                bool treatAsInvalid = trustedCertificate != null &&
+                    (trustedCertificate.Options & CertificateValidationOptions.TreatAsInvalid) != 0;
+                foreach (CertificateIssuerReference issuer in issuers)
+                {
+                    treatAsInvalid |=
+                        (issuer.Options & CertificateValidationOptions.TreatAsInvalid) != 0;
+                }
+                if (treatAsInvalid)
+                {
+                    sresult = new ServiceResult(
+                        null,
+                        StatusCodes.BadCertificateUntrusted,
+                        LocalizedText.From("The trust list marks the certificate or an issuer as not trusted."),
+                        null,
+                        sresult);
+                }
+
                 // check if certificate issuer is trusted.
                 if (issuedByCA && !isIssuerTrusted && trustedCertificate == null)
                 {
-                    const string message = "Certificate Issuer is not trusted.";
+                    string message = issuers.Count > 0 && !chainIncomplete
+                        ? "Certificate Issuer is not trusted. The issuer chain was built, but none of its CAs " +
+                            "is a trusted certificate; issuer certificates only complete the chain. Add the CA " +
+                            "to the trusted certificates to trust the certificates it issues."
+                        : "Certificate Issuer is not trusted.";
                     sresult = new ServiceResult(
                         null,
                         StatusCodes.BadCertificateUntrusted,
@@ -1252,11 +1293,17 @@ namespace Opc.Ua
 
                 if (sresult != null)
                 {
-                    throw new ServiceResultException(sresult);
+                    throw treatAsInvalid
+                        ? new UnsuppressibleValidationException(sresult)
+                        : new ServiceResultException(sresult);
                 }
             }
             finally
             {
+                foreach (X509Certificate2 extraCert in extraStoreCerts)
+                {
+                    extraCert.Dispose();
+                }
                 trustedCertificate?.Certificate.Dispose();
                 foreach (CertificateIssuerReference issuer in issuers)
                 {
@@ -1278,7 +1325,7 @@ namespace Opc.Ua
             Func<Certificate, ServiceResult, bool>? acceptError)
         {
             // check for errors that may be suppressed.
-            if (ContainsUnsuppressibleSC(se.Result))
+            if (se is UnsuppressibleValidationException || ContainsUnsuppressibleSC(se.Result))
             {
                 m_logger.CertificateValidationLog8(Redact.Create(certificate), se.Result);
 
@@ -1361,6 +1408,33 @@ namespace Opc.Ua
                 m_validatedCertificates.TryAdd(certificate.Thumbprint, certificate.RawData);
             }
             return CertificateValidationResult.Success;
+        }
+
+        /// <summary>
+        /// A validation failure that must not be suppressed although its status
+        /// codes are otherwise suppressible, e.g. the Bad_CertificateUntrusted of a
+        /// certificate the trust list marks as never to be trusted.
+        /// </summary>
+        private sealed class UnsuppressibleValidationException : ServiceResultException
+        {
+            public UnsuppressibleValidationException()
+            {
+            }
+
+            public UnsuppressibleValidationException(string message)
+                : base(message)
+            {
+            }
+
+            public UnsuppressibleValidationException(string message, Exception innerException)
+                : base(message, innerException)
+            {
+            }
+
+            public UnsuppressibleValidationException(ServiceResult status)
+                : base(status)
+            {
+            }
         }
 
         /// <summary>
@@ -1460,9 +1534,13 @@ namespace Opc.Ua
                     {
                         if (Utils.IsEqual(trusted[ii].RawData, certificate.RawData))
                         {
-                            return new CertificateIssuerReference(
-                                trusted[ii].AddRef(),
-                                state.TrustedStore.ValidationOptions);
+                            CertificateValidationOptions options =
+                                state.TrustedStore.ValidationOptions |
+                                await GetTreatAsInvalidAsync(
+                                    state.TrustedCertificates,
+                                    certificate,
+                                    ct).ConfigureAwait(false);
+                            return new CertificateIssuerReference(trusted[ii].AddRef(), options);
                         }
                     }
                 }
@@ -1507,6 +1585,57 @@ namespace Opc.Ua
 
             // not a trusted.
             return null;
+        }
+
+        /// <summary>
+        /// Returns <see cref="CertificateValidationOptions.TreatAsInvalid"/> when an
+        /// entry of <paramref name="explicitList"/> naming <paramref name="certificate"/>
+        /// carries it. A certificate found in the store behind a trust list takes
+        /// the store's options, but the restrictive "never trust" flag set on an
+        /// individual entry for the same certificate must still apply.
+        /// </summary>
+        private async Task<CertificateValidationOptions> GetTreatAsInvalidAsync(
+            ArrayOf<CertificateIdentifier> explicitList,
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            for (int ii = 0; ii < explicitList.Count; ii++)
+            {
+                CertificateIdentifier entry = explicitList[ii];
+                if ((entry.ValidationOptions & CertificateValidationOptions.TreatAsInvalid) == 0)
+                {
+                    continue;
+                }
+
+                if (!string.IsNullOrEmpty(entry.Thumbprint))
+                {
+                    if (string.Equals(
+                        entry.Thumbprint,
+                        certificate.Thumbprint,
+                        StringComparison.OrdinalIgnoreCase))
+                    {
+                        return CertificateValidationOptions.TreatAsInvalid;
+                    }
+                    continue;
+                }
+
+                using Certificate? resolved = await CertificateIdentifierResolver
+                    .ResolveAsync(
+                        entry,
+                        registry: null,
+                        needPrivateKey: false,
+                        applicationUri: null,
+                        m_telemetry,
+                        ct)
+                    .ConfigureAwait(false);
+
+                if (resolved != null && Utils.IsEqual(resolved.RawData, certificate.RawData))
+                {
+                    return CertificateValidationOptions.TreatAsInvalid;
+                }
+            }
+
+            return CertificateValidationOptions.Default;
         }
 
         /// <summary>
@@ -1565,6 +1694,11 @@ namespace Opc.Ua
         /// <summary>
         /// Returns the certificate information for a trusted issuer certificate.
         /// </summary>
+        /// <param name="certificate">The certificate whose issuer is searched.</param>
+        /// <param name="explicitList">The certificates named on the list itself.</param>
+        /// <param name="certificateStore">The store behind the list, if any.</param>
+        /// <param name="checkRecovationStatus">Whether to check the revocation status.</param>
+        /// <param name="ct">The cancellation token.</param>
         private async Task<(CertificateIssuerReference?, ServiceResultException?)> GetIssuerNoExceptionAsync(
             Certificate certificate,
             ArrayOf<CertificateIdentifier> explicitList,
@@ -1626,6 +1760,11 @@ namespace Opc.Ua
                             CertificateValidationOptions options = certificateStore
                                 .ValidationOptions;
 
+                            // an entry on the list itself can still mark the
+                            // CA as never to be trusted.
+                            options |= await GetTreatAsInvalidAsync(explicitList, issuer, ct)
+                                .ConfigureAwait(false);
+
                             if (checkRecovationStatus)
                             {
                                 serviceResult = await CheckIssuerRevocationAsync(
@@ -1674,6 +1813,17 @@ namespace Opc.Ua
                                 serviceResult = await CheckIssuerRevocationAsync(
                                     store, issuer, certificate, options, ct).ConfigureAwait(false);
                             }
+                            else if (checkRecovationStatus)
+                            {
+                                // An issuer with no store behind its list still
+                                // needs its CRL checked (OPC 10000-4 6.1.3) against
+                                // the CRLs of the trusted and issuer stores. A
+                                // missing CRL follows RejectUnknownRevocationStatus
+                                // unless the entry itself disables the check
+                                // (SuppressRevocationStatusUnknown).
+                                serviceResult = await CheckIssuerRevocationInTrustStoresAsync(
+                                    issuer, certificate, options, ct).ConfigureAwait(false);
+                            }
                             return (
                                 new CertificateIssuerReference(
                                     issuer.AddRef(),
@@ -1700,6 +1850,73 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             StatusCode status = await store.IsRevokedAsync(issuer, certificate, ct).ConfigureAwait(false);
+            return ToRevocationError(status, certificate, options);
+        }
+
+        /// <summary>
+        /// Checks the revocation status of <paramref name="certificate"/> for an
+        /// issuer that was not found in a store, against the CRLs held by the
+        /// trusted and the issuer store. A revocation in either store wins; with
+        /// no valid CRL in either store the status is unknown. A store that
+        /// cannot hold CRLs gives no answer; only when no opened store can hold
+        /// CRLs is the check reported as not supported.
+        /// </summary>
+        private async Task<ServiceResultException?> CheckIssuerRevocationInTrustStoresAsync(
+            Certificate issuer,
+            Certificate certificate,
+            CertificateValidationOptions options,
+            CancellationToken ct)
+        {
+            TrustListState state = m_state;
+            StatusCode status = StatusCodes.BadCertificateRevocationUnknown;
+            bool anyStoreOpened = false;
+            bool anyStoreSupported = false;
+            foreach (CertificateStoreIdentifier? storeIdentifier in
+                new[] { state.TrustedStore, state.IssuerStore })
+            {
+                ICertificateStore? store = OpenCachedStore(storeIdentifier);
+                if (store == null)
+                {
+                    continue;
+                }
+
+                anyStoreOpened = true;
+                StatusCode storeStatus = await store.IsRevokedAsync(issuer, certificate, ct)
+                    .ConfigureAwait(false);
+                if (storeStatus == StatusCodes.BadNotSupported)
+                {
+                    // no information, must not override another store's answer.
+                    continue;
+                }
+
+                anyStoreSupported = true;
+                if (storeStatus == StatusCodes.BadCertificateRevoked)
+                {
+                    status = storeStatus;
+                    break;
+                }
+                if (StatusCode.IsGood(storeStatus))
+                {
+                    status = storeStatus;
+                }
+            }
+            if (anyStoreOpened && !anyStoreSupported)
+            {
+                status = StatusCodes.BadNotSupported;
+            }
+            return ToRevocationError(status, certificate, options);
+        }
+
+        /// <summary>
+        /// Maps a store revocation status to the validation error to report, if
+        /// any, applying the unknown-revocation policy and distinguishing issuer
+        /// failures from leaf-certificate failures.
+        /// </summary>
+        private ServiceResultException? ToRevocationError(
+            StatusCode status,
+            Certificate certificate,
+            CertificateValidationOptions options)
+        {
             if (!StatusCode.IsBad(status) || status == StatusCodes.BadNotSupported)
             {
                 return null;
@@ -1780,8 +1997,30 @@ namespace Opc.Ua
                         status.StatusInformation);
                 case X509ChainStatusFlags.NoError:
                 case X509ChainStatusFlags.OfflineRevocation:
-                case X509ChainStatusFlags.InvalidBasicConstraints:
                     break;
+                // A basic constraints violation (e.g. an exceeded pathLenConstraint,
+                // RFC 5280 6.1.4) is a chain building error that may not be
+                // suppressed (OPC 10000-4 6.1.3, OPC 10000-6 6.2.2).
+                case X509ChainStatusFlags.InvalidBasicConstraints:
+                    // OpenSSL reports a CA whose KeyUsage lacks keyCertSign as an
+                    // invalid CA; that is the suppressible issuer use error
+                    // (OPC 10000-4 6.1.3 Table 100), not a basic constraints violation.
+                    if ((isIssuer &&
+                            !CertificateValidationHelpers.HasRequiredIssuerKeyUsage(target.Certificate)) ||
+                        (issuer != null &&
+                            !CertificateValidationHelpers.HasRequiredIssuerKeyUsage(issuer.Certificate)))
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadCertificateIssuerUseNotAllowed,
+                            "Issuer certificate is not valid for the requested usage. {0}: {1}",
+                            status.Status,
+                            status.StatusInformation);
+                    }
+                    return ServiceResult.Create(
+                        StatusCodes.BadCertificateInvalid,
+                        "Certificate violates the basic constraints of its issuer. {0}: {1}",
+                        status.Status,
+                        status.StatusInformation);
                 case X509ChainStatusFlags.PartialChain:
                     goto case X509ChainStatusFlags.UntrustedRoot;
                 case X509ChainStatusFlags.UntrustedRoot:
@@ -2030,13 +2269,14 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The list of suppressible status codes.
+        /// The list of suppressible status codes. Bad_CertificateChainIncomplete
+        /// is not one of them: OPC 10000-4 Table 100 (Build Certificate Chain)
+        /// "An error during the chain creation may not be suppressed."
         /// </summary>
         private static readonly HashSet<StatusCode> s_suppressibleStatusCodes = new(
             [
                 StatusCodes.BadCertificateHostNameInvalid,
                 StatusCodes.BadCertificateIssuerRevocationUnknown,
-                StatusCodes.BadCertificateChainIncomplete,
                 StatusCodes.BadCertificateIssuerTimeInvalid,
                 StatusCodes.BadCertificateIssuerUseNotAllowed,
                 StatusCodes.BadCertificateRevocationUnknown,

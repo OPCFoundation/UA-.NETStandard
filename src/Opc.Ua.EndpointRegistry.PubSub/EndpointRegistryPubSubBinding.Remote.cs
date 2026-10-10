@@ -123,7 +123,7 @@ namespace Opc.Ua.EndpointRegistry.PubSub
                             changed = true;
                         }
                     }
-                    if (changed)
+                    if (changed || state.ReconciliationPending)
                     {
                         await SurfaceRemoteAsync(state, cancellationToken).ConfigureAwait(false);
                     }
@@ -170,6 +170,7 @@ namespace Opc.Ua.EndpointRegistry.PubSub
         private async ValueTask<ArrayOf<RegistryDiagnosticDataType>> SurfaceRemoteAsync(
             RemotePublisherState state, CancellationToken cancellationToken)
         {
+            state.ReconciliationPending = true;
             var desired = new HashSet<string>(StringComparer.Ordinal);
             var issues = new List<RegistryDiagnosticDataType>();
             string prefix = PubSubSurfaceBuilder.Identifier(m_options.RemoteIdentifierPrefix, state.Binding.Id) + "-";
@@ -273,6 +274,7 @@ namespace Opc.Ua.EndpointRegistry.PubSub
                         .ConfigureAwait(false));
                 }
             }
+            state.ReconciliationPending = false;
             return issues.ToArray();
         }
 
@@ -311,6 +313,8 @@ namespace Opc.Ua.EndpointRegistry.PubSub
             public Dictionary<string, RemoteTopicState> Topics { get; } = new(StringComparer.Ordinal);
 
             public HashSet<string> ProcessedIds { get; } = new(StringComparer.Ordinal);
+
+            public bool ReconciliationPending { get; set; }
         }
 
         private sealed class RemoteTopicState(

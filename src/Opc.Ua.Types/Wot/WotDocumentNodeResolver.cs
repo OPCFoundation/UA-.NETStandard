@@ -386,7 +386,7 @@ namespace Opc.Ua.Wot
             int separator = nodeId.IndexOf(';', StringComparison.Ordinal);
             if (separator < 0 ||
                 !int.TryParse(
-#if NETSTANDARD2_0 || NET472 || NET48
+#if NETSTANDARD2_0 || NET48
                     nodeId.Substring(3, separator - 3),
 #else
                     nodeId.AsSpan(3, separator - 3),
@@ -399,7 +399,11 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
-            portable = "nsu=" + namespaceUris[index - 1] + ";" + nodeId[(separator + 1)..];
+            // OPC 10000-6 5.1.12: the URI of an nsu= identifier is
+            // percent-encoded with ';' reserved, as every other producer of
+            // these keys writes it.
+            portable = "nsu=" + CoreUtils.EscapeUri(namespaceUris[index - 1]) + ";" +
+                nodeId[(separator + 1)..];
             return true;
         }
 

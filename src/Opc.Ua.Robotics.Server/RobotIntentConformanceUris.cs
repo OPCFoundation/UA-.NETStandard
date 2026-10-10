@@ -139,7 +139,7 @@ namespace Opc.Ua.Robotics.Server
             if (!string.IsNullOrEmpty(facetName) &&
                 facetName.StartsWith(facetNamePrefix, StringComparison.Ordinal))
             {
-#if NETSTANDARD || NETFRAMEWORK
+#if NETFRAMEWORK
                 facetUri = FacetBase + facetName.Substring(facetNamePrefix.Length);
 #else
                 facetUri = string.Concat(FacetBase, facetName.AsSpan(facetNamePrefix.Length));

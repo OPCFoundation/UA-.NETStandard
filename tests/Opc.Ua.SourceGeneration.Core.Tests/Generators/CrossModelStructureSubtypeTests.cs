@@ -122,7 +122,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
             Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"BaseStruct\""));
             Assert.That(bsd, Does.Contain("<opc:Field Name=\"Make\" TypeName=\"opc:CharArray\" />"));
@@ -166,7 +166,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
             // The design file's field set wins over the payload's: the
             // Details field exists only in the design file.
@@ -216,7 +216,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
             Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"DerivedStruct\""));
             // Fields inherited from the design-file grandparent, the payload
@@ -224,6 +224,329 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             Assert.That(bsd, Does.Contain("Name=\"Make\" TypeName=\"opc:CharArray\""));
             Assert.That(bsd, Does.Contain("Name=\"Middle\" TypeName=\"opc:Int32\""));
             Assert.That(bsd, Does.Contain("<opc:Field Name=\"Extra\" TypeName=\"opc:UInt32\" />"));
+        }
+
+        /// <summary>
+        /// A2-7: a consumer subtype of a payload-only structure with optional
+        /// fields has to continue the base's encoding mask (one mask on the
+        /// wire) and publish the inherited fields with their optional flag
+        /// and array dimensions. The payload used to drop IsOptional,
+        /// AllowSubTypes and ArrayDimensions, so the subtype wrote a second
+        /// mask and republished the fields as mandatory rank 2 matrices.
+        /// </summary>
+        [Test]
+        public void SubtypeOfPayloadStructureWithOptionalFieldsContinuesTheEncodingMask()
+        {
+            var payload = new ModelDependencyV1 { ModelUri = ModelAUri };
+            payload.Nodes.Add(new DependencyNode
+            {
+                SymbolicName = "OptBase",
+                SymbolicNamespace = ModelAUri,
+                ClassName = "OptBase",
+                Kind = DependencyNodeKind.DataType,
+                BaseTypeName = "Structure",
+                BaseTypeNamespace = Ua.Types.Namespaces.OpcUa,
+                NumericId = 10,
+                Fields =
+                [
+                    new DependencyDataField(
+                        "Id", "Int32", Ua.Types.Namespaces.OpcUa, (int)ValueRank.Scalar),
+                    new DependencyDataField(
+                        "Note", "String", Ua.Types.Namespaces.OpcUa, (int)ValueRank.Scalar)
+                    {
+                        IsOptional = true
+                    },
+                    new DependencyDataField(
+                        "Cube", "Double", Ua.Types.Namespaces.OpcUa, (int)ValueRank.OneOrMoreDimensions)
+                    {
+                        IsOptional = true,
+                        ArrayDimensions = "0,0,0"
+                    }
+                ]
+            });
+            // Through the wire format, as a referenced assembly carries it.
+            payload = ModelDependencyV1.FromBase64Payload(payload.ToBase64Payload());
+
+            string modelEPath = Path.Combine(m_rootPath, "B", "ModelE.xml");
+            File.WriteAllText(modelEPath, ModelEDesign);
+
+            Dictionary<string, string> generated = Generate(
+                targets: [modelEPath],
+                dependencies: [modelEPath],
+                referencedModels: CreateReferencedModels(
+                    ModelAUri, "Test.ModelA", "ModelA", payload!));
+
+            string dataTypes = generated.Keys
+                .Where(f => f.EndsWith("DataTypes.g.cs", System.StringComparison.Ordinal))
+                .Select(f => generated[f])
+                .Single();
+            Assert.That(dataTypes, Does.Contain("class OptDerived"));
+            Assert.That(dataTypes, Does.Not.Contain("WriteEncodingMask"),
+                "the base writes the one encoding mask");
+            Assert.That(dataTypes, Does.Not.Contain("ReadEncodingMask"),
+                "the base reads the one encoding mask");
+            Assert.That(dataTypes, Does.Contain("override uint EncodingMask"));
+
+            int definition = dataTypes.IndexOf(
+                "StructureDefinition CreateOptDerived(", System.StringComparison.Ordinal);
+            Assert.That(definition, Is.GreaterThanOrEqualTo(0));
+            string text = dataTypes[definition..];
+            text = text[..text.IndexOf("\n        }", System.StringComparison.Ordinal)];
+            Assert.That(text, Does.Contain("StructureType.StructureWithOptionalFields"));
+            Assert.That(FieldText(text, "Note"), Does.Contain("IsOptional = true"));
+            Assert.That(FieldText(text, "Id"), Does.Contain("IsOptional = false"));
+            string cube = FieldText(text, "Cube");
+            Assert.That(cube, Does.Contain("IsOptional = true"));
+            Assert.That(cube, Does.Contain("0, 0, 0").Or.Contain("0u, 0u, 0u"),
+                "the three dimensions survive: " + cube);
+        }
+
+        /// <summary>
+        /// A2-8: a dependency design file is linked, not validated, so its
+        /// single-dimension "matrix" field (OneOrMoreDimensions with one
+        /// array dimension) was not normalised to the array it is. A target
+        /// structure that contains or subtypes such a dependency structure
+        /// was then taken for one with an inline matrix and dropped from the
+        /// binary schema, although the dependency's own build encodes the
+        /// field as a length-prefixed array.
+        /// </summary>
+        [Test]
+        public void DependencySingleDimensionMatrixFieldIsNormalisedToAnArray()
+        {
+            string vectorPath = Path.Combine(m_rootPath, "A", "ModelV.xml");
+            string holderPath = Path.Combine(m_rootPath, "B", "ModelH.xml");
+            File.WriteAllText(vectorPath, ModelVDesign);
+            File.WriteAllText(holderPath, ModelHDesign);
+
+            Dictionary<string, string> generated = Generate(
+                targets: [holderPath],
+                dependencies: [holderPath, vectorPath]);
+
+            string bsd = generated.Keys
+                .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
+                .Select(f => generated[f])
+                .FirstOrDefault()!;
+            Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
+            Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"HolderStruct\""));
+            Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"SubVectorStruct\""));
+
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            using var virtualFileSystem = new VirtualFileSystem();
+            IFileSystem fileSystem = typeof(ModelDesignValidator).Assembly
+                .AsFileSystem("Opc.Ua.SourceGeneration.Design")
+                .WithFallback(virtualFileSystem);
+            IModelDesign model = fileSystem.OpenModelDesign(
+                new DesignFileCollection
+                {
+                    Targets = [holderPath],
+                    Dependencies = [vectorPath],
+                    Options = new DesignFileOptions()
+                },
+                exclusions: null!,
+                telemetry,
+                useAllowSubtypes: false);
+            var vector = model.Nodes
+                .OfType<DataTypeDesign>()
+                .Single(n => n.SymbolicName.Name == "SubVectorStruct")
+                .BaseTypeNode as DataTypeDesign;
+            Assert.That(vector, Is.Not.Null);
+            Assert.That(vector.Fields.Single(f => f.Name == "Values").ValueRank, Is.EqualTo(ValueRank.Array));
+            Assert.That(vector.HasInlineMatrixField(), Is.False);
+            var grid = model.Nodes
+                .OfType<DataTypeDesign>()
+                .Single(n => n.SymbolicName.Name == "SubGridStruct")
+                .BaseTypeNode as DataTypeDesign;
+            Assert.That(grid, Is.Not.Null);
+            // A matrix without dimensions is taken as rank 2 (ValueRank-0
+            // normalisation), as for the target's own types.
+            Assert.That(grid.Fields.Single(f => f.Name == "Grid").ArrayDimensions, Is.EqualTo("0,0"));
+            Assert.That(grid.HasInlineMatrixField(), Is.True, "Grid is a real matrix");
+            Assert.That(
+                model.Nodes.OfType<DataTypeDesign>().Single(n => n.SymbolicName.Name == "HolderStruct")
+                    .HasInlineMatrixField(),
+                Is.False);
+        }
+
+        /// <summary>
+        /// A2-5: a QualifiedName / NodeId default authored in a dependency
+        /// design numbers the namespaces of that design (index 1 = the
+        /// dependency). Children the target inherits from the dependency type
+        /// (subtype, child object, instance) used to resolve that index
+        /// against the target design's namespaces and name the target's URI.
+        /// </summary>
+        [Test]
+        public void DependencyDesignDefaultValuesKeepTheirNamespaces()
+        {
+            string depPath = Path.Combine(m_rootPath, "A", "Dep.xml");
+            string tgtPath = Path.Combine(m_rootPath, "B", "Tgt.xml");
+            File.WriteAllText(depPath, NamespacedDefaultsDependencyDesign);
+            File.WriteAllText(tgtPath, NamespacedDefaultsTargetDesign);
+
+            string[] values = WrappedValuesWithNamespaces(Generate(
+                targets: [tgtPath],
+                dependencies: [tgtPath, depPath]));
+
+            Assert.That(values, Is.Not.Empty);
+            Assert.That(values, Has.None.Contains("http://test.org/UA/Tgt/"));
+            Assert.That(values, Has.Some.EqualTo(
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "new global::Opc.Ua.QualifiedName(\"X\", " +
+                "context.NamespaceUris.GetIndexOrAppend(\"http://test.org/UA/Dep/\")));"));
+            Assert.That(values, Has.Some.EqualTo(
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "global::Opc.Ua.NodeId.Parse(\"i=77\").WithNamespaceIndex(" +
+                "context.NamespaceUris.GetIndexOrAppend(\"http://test.org/UA/Dep/\")));"));
+        }
+
+        /// <summary>
+        /// A2-5 (payload path): the same dependency, but consumed through the
+        /// ModelDependencyV1 payload its generated assembly carries. The
+        /// payload records the producer's namespace table for each default
+        /// value, so the consumer emits the producer's URI for ns=1. A payload
+        /// without the tables (older producer) keeps the previous resolution
+        /// against the consumer's namespaces.
+        /// </summary>
+        [Test]
+        public void PayloadDefaultValuesKeepTheProducerNamespaces()
+        {
+            const string depUri = "http://test.org/UA/Dep/";
+            string depPath = Path.Combine(m_rootPath, "A", "Dep.xml");
+            string tgtPath = Path.Combine(m_rootPath, "B", "Tgt.xml");
+            File.WriteAllText(depPath, NamespacedDefaultsDependencyDesign);
+            File.WriteAllText(tgtPath, NamespacedDefaultsTargetDesign);
+
+            // The payload the producer's generated assembly carries.
+            ModelDependencyV1 payload = ReadSelfPayload(
+                Generate(targets: [depPath], dependencies: [depPath]));
+            DependencyChild label = payload.Nodes
+                .Single(n => n.SymbolicName == "DepType")
+                .Children.Single(c => c.SymbolicName == "Label");
+            Assert.That(
+                label.DefaultValueNamespaceUris,
+                Is.EqualTo(new[] { Ua.Types.Namespaces.OpcUa, depUri }));
+
+            string[] values = WrappedValuesWithNamespaces(Generate(
+                targets: [tgtPath],
+                dependencies: [tgtPath],
+                referencedModels: CreateReferencedModels(depUri, "Test.Dep", "Dep", payload)));
+
+            Assert.That(values, Is.Not.Empty);
+            Assert.That(values, Has.None.Contains("http://test.org/UA/Tgt/"));
+            Assert.That(values, Has.Some.EqualTo(
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "new global::Opc.Ua.QualifiedName(\"X\", " +
+                "context.NamespaceUris.GetIndexOrAppend(\"http://test.org/UA/Dep/\")));"));
+            Assert.That(values, Has.Some.EqualTo(
+                "baseState.WrappedValue = global::Opc.Ua.Variant.From(" +
+                "global::Opc.Ua.NodeId.Parse(\"i=77\").WithNamespaceIndex(" +
+                "context.NamespaceUris.GetIndexOrAppend(\"http://test.org/UA/Dep/\")));"));
+
+            // An older payload without the tables still generates, resolving
+            // the indexes against the consumer's namespaces as before.
+            foreach (DependencyChild child in payload.Nodes.SelectMany(n => n.Children))
+            {
+                child.DefaultValueNamespaceUris = null;
+            }
+            string[] legacy = WrappedValuesWithNamespaces(Generate(
+                targets: [tgtPath],
+                dependencies: [tgtPath],
+                referencedModels: CreateReferencedModels(depUri, "Test.Dep", "Dep", payload)));
+            Assert.That(legacy, Is.Not.Empty);
+            Assert.That(legacy, Has.All.Contains("http://test.org/UA/Tgt/"));
+        }
+
+        private static string[] WrappedValuesWithNamespaces(Dictionary<string, string> generated)
+        {
+            // net48 has no string.Contains(string, StringComparison).
+#pragma warning disable CA2249
+            return [.. generated
+                .Where(f => f.Key.EndsWith(".cs", System.StringComparison.Ordinal))
+                .SelectMany(f => f.Value.Split('\n'))
+                .Select(l => l.Trim())
+                .Where(l => l.StartsWith("baseState.WrappedValue", System.StringComparison.Ordinal) &&
+                    ContainsOrdinal(l, "GetIndexOrAppend"))];
+#pragma warning restore CA2249
+        }
+
+        /// <summary>
+        /// Reads the self payload from the generated
+        /// [assembly: ModelDependency] attribute of a producer.
+        /// </summary>
+        private static ModelDependencyV1 ReadSelfPayload(Dictionary<string, string> generated)
+        {
+            // The self entry is the first one and the only one with a payload.
+            string output = generated
+                .Single(f => f.Key.EndsWith(".ModelDependencies.g.cs", System.StringComparison.Ordinal))
+                .Value;
+            int payloadEnd = output.IndexOf("\")]", System.StringComparison.Ordinal);
+            Assert.That(payloadEnd, Is.GreaterThanOrEqualTo(0));
+            int payloadStart = output.LastIndexOf('"', payloadEnd - 1);
+            ModelDependencyV1 payload = ModelDependencyV1.FromBase64Payload(
+                output[(payloadStart + 1)..payloadEnd])!;
+            Assert.That(payload, Is.Not.Null);
+            return payload;
+        }
+
+        private const string NamespacedDefaultsDependencyDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:uax="http://opcfoundation.org/UA/2008/02/Types.xsd"
+              xmlns="http://test.org/UA/Dep/"
+              TargetNamespace="http://test.org/UA/Dep/">
+              <opc:Namespaces>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+                <opc:Namespace Name="Dep" Prefix="Test.Dep">http://test.org/UA/Dep/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:ObjectType SymbolicName="DepType" BaseType="ua:BaseObjectType">
+                <opc:Children>
+                  <opc:Property SymbolicName="Label" DataType="ua:QualifiedName" ModellingRule="Mandatory">
+                    <opc:DefaultValue><uax:QualifiedName><uax:NamespaceIndex>1</uax:NamespaceIndex><uax:Name>X</uax:Name></uax:QualifiedName></opc:DefaultValue>
+                  </opc:Property>
+                  <opc:Property SymbolicName="Target" DataType="ua:NodeId" ModellingRule="Mandatory">
+                    <opc:DefaultValue><uax:NodeId><uax:Identifier>ns=1;i=77</uax:Identifier></uax:NodeId></opc:DefaultValue>
+                  </opc:Property>
+                </opc:Children>
+              </opc:ObjectType>
+            </opc:ModelDesign>
+            """;
+
+        private const string NamespacedDefaultsTargetDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:dep="http://test.org/UA/Dep/"
+              xmlns="http://test.org/UA/Tgt/"
+              TargetNamespace="http://test.org/UA/Tgt/">
+              <opc:Namespaces>
+                <opc:Namespace Name="Tgt" Prefix="Test.Tgt">http://test.org/UA/Tgt/</opc:Namespace>
+                <opc:Namespace Name="Dep" Prefix="Test.Dep">http://test.org/UA/Dep/</opc:Namespace>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:ObjectType SymbolicName="SubType" BaseType="dep:DepType">
+                <opc:Children>
+                  <opc:Property SymbolicName="Own" DataType="ua:Int32" ModellingRule="Mandatory" />
+                </opc:Children>
+              </opc:ObjectType>
+              <opc:ObjectType SymbolicName="HostType" BaseType="ua:BaseObjectType">
+                <opc:Children>
+                  <opc:Object SymbolicName="Inner" TypeDefinition="dep:DepType" ModellingRule="Mandatory" />
+                </opc:Children>
+              </opc:ObjectType>
+              <opc:Object SymbolicName="Instance1" TypeDefinition="dep:DepType" />
+            </opc:ModelDesign>
+            """;
+
+        private static string FieldText(string definition, string name)
+        {
+            int start = definition.IndexOf("Name = \"" + name + "\"", System.StringComparison.Ordinal);
+            Assert.That(start, Is.GreaterThanOrEqualTo(0), name);
+            int end = definition.IndexOf("new global::Opc.Ua.StructureField", start, System.StringComparison.Ordinal);
+            return end < 0 ? definition[start..] : definition[start..end];
         }
 
         /// <summary>
@@ -245,7 +568,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     Targets = [m_modelBPath],
                     Options = new DesignFileOptions()
                 },
-                exclusions: null,
+                exclusions: null!,
                 telemetry,
                 useAllowSubtypes: false,
                 referencedDependencies: new Dictionary<string, ModelDependencyV1>
@@ -255,7 +578,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
 
             DataTypeDesign derived = model.Nodes
                 .OfType<DataTypeDesign>()
-                .FirstOrDefault(n => n.SymbolicName.Name == "DerivedStruct");
+                .FirstOrDefault(n => n.SymbolicName.Name == "DerivedStruct")!;
             Assert.That(derived, Is.Not.Null);
 
             var baseStruct = derived.BaseTypeNode as DataTypeDesign;
@@ -294,13 +617,13 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     Dependencies = [m_modelAPath],
                     Options = new DesignFileOptions()
                 },
-                exclusions: null,
+                exclusions: null!,
                 telemetry,
                 useAllowSubtypes: false);
 
             DataTypeDesign derived = model.Nodes
                 .OfType<DataTypeDesign>()
-                .FirstOrDefault(n => n.SymbolicName.Name == "DerivedStruct");
+                .FirstOrDefault(n => n.SymbolicName.Name == "DerivedStruct")!;
             Assert.That(derived, Is.Not.Null);
 
             var baseStruct = derived.BaseTypeNode as DataTypeDesign;
@@ -317,8 +640,8 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // as well: it types a field of the inherited structure.
             DataTypeDesign status = baseStruct.Fields
                 .Single(f => f.Name == "Status")
-                .DataTypeNode;
-            Assert.That(status.BasicDataType, Is.EqualTo(BasicDataType.Enumeration));
+                .DataTypeNode!;
+            Assert.That(status!.BasicDataType, Is.EqualTo(BasicDataType.Enumeration));
             Assert.That(status.IsEnumeration, Is.True);
 
             // Without UseAllowSubtypes, a dependency structure field that
@@ -326,8 +649,17 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             // ValidateParameters for target fields.
             DataTypeDesign details = baseStruct.Fields
                 .Single(f => f.Name == "Details")
-                .DataTypeNode;
-            Assert.That(details.SymbolicName.Name, Is.EqualTo("Structure"));
+                .DataTypeNode!;
+            Assert.That(details!.SymbolicName.Name, Is.EqualTo("Structure"));
+        }
+
+        private static bool ContainsOrdinal(string text, string value)
+        {
+#if NETFRAMEWORK
+            return text.IndexOf(value, System.StringComparison.Ordinal) >= 0;
+#else
+            return text.Contains(value, System.StringComparison.Ordinal);
+#endif
         }
 
         private static void AssertGeneratedDerivedStruct(Dictionary<string, string> generated)
@@ -335,7 +667,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string bsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.bsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(bsd, Is.Not.Null, "No binary schema generated.");
             Assert.That(bsd, Does.Contain("<opc:StructuredType Name=\"DerivedStruct\""));
             // Inherited field from the dependency structure with its source type.
@@ -349,7 +681,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string xsd = generated.Keys
                 .Where(f => f.EndsWith(".Types.xsd", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(xsd, Is.Not.Null, "No xml schema generated.");
             // The xs:extension base must reference the dependency structure,
             // not degrade to the BasicDataType enum default (xs:boolean).
@@ -359,7 +691,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
             string dataTypes = generated.Keys
                 .Where(f => f.EndsWith("DataTypes.g.cs", System.StringComparison.Ordinal))
                 .Select(f => generated[f])
-                .FirstOrDefault();
+                .FirstOrDefault()!;
             Assert.That(dataTypes, Is.Not.Null, "No data type code generated.");
             Assert.That(dataTypes, Does.Contain("class DerivedStruct"));
             Assert.That(dataTypes, Does.Contain("BaseStruct"));
@@ -368,7 +700,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
         private static Dictionary<string, string> Generate(
             IReadOnlyList<string> targets,
             IReadOnlyList<string> dependencies,
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null)
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
             using var fileSystem = new VirtualFileSystem();
@@ -388,15 +720,15 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     OmitEventRecords = true
                 },
                 useAllowSubtypes: false,
-                identifierFiles: null,
-                referencedModels: referencedModels,
-                nodeManagerBindings: null,
-                reportBindingDiagnostic: null,
-                sharedUsedBindings: null,
+                identifierFiles: null!,
+                referencedModels: referencedModels!,
+                nodeManagerBindings: null!,
+                reportBindingDiagnostic: null!,
+                sharedUsedBindings: null!,
                 bindingModelCount: 0,
-                reportFluentAccessorsOnlyDiagnostic: null,
-                referencedModelProviders: null,
-                referencedAccessorProviders: null);
+                reportFluentAccessorsOnlyDiagnostic: null!,
+                referencedModelProviders: null!,
+                referencedAccessorProviders: null!);
             return fileSystem.CreatedFiles
                 .ToDictionary(c => c, c => Encoding.UTF8.GetString(fileSystem.Get(c)));
         }
@@ -418,7 +750,7 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
                     modelUri,
                     prefix,
                     "1.0.0",
-                    null,
+                    null!,
                     name,
                     payload.ToBase64Payload())
             };
@@ -520,6 +852,96 @@ namespace Opc.Ua.SourceGeneration.Generator.Tests
               <opc:DataType SymbolicName="DerivedStruct" BaseType="s0:BaseStruct">
                 <opc:Fields>
                   <opc:Field Name="Extra" DataType="ua:UInt32" />
+                </opc:Fields>
+              </opc:DataType>
+            </opc:ModelDesign>
+            """;
+
+        /// <summary>
+        /// Dependency of A2-8: VectorStruct has a single-dimension "matrix"
+        /// field (an array) and a matrix field without dimensions.
+        /// </summary>
+        private const string ModelVDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns="http://test.org/UA/ModelV/"
+              TargetNamespace="http://test.org/UA/ModelV/">
+              <opc:Namespaces>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+                <opc:Namespace Name="ModelV" Prefix="Test.ModelV">http://test.org/UA/ModelV/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:DataType SymbolicName="VectorStruct" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Values" DataType="ua:Double" ValueRank="OneOrMoreDimensions" ArrayDimensions="5" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="GridStruct" BaseType="VectorStruct">
+                <opc:Fields>
+                  <opc:Field Name="Grid" DataType="ua:Double" ValueRank="OneOrMoreDimensions" />
+                </opc:Fields>
+              </opc:DataType>
+            </opc:ModelDesign>
+            """;
+
+        /// <summary>
+        /// Target of A2-8: contains and subtypes ModelV's VectorStruct.
+        /// </summary>
+        private const string ModelHDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:s0="http://test.org/UA/ModelV/"
+              xmlns="http://test.org/UA/ModelH/"
+              TargetNamespace="http://test.org/UA/ModelH/">
+              <opc:Namespaces>
+                <opc:Namespace Name="ModelH" Prefix="Test.ModelH">http://test.org/UA/ModelH/</opc:Namespace>
+                <opc:Namespace Name="ModelV" Prefix="Test.ModelV">http://test.org/UA/ModelV/</opc:Namespace>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:DataType SymbolicName="HolderStruct" BaseType="ua:Structure">
+                <opc:Fields>
+                  <opc:Field Name="Vector" DataType="s0:VectorStruct" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="SubVectorStruct" BaseType="s0:VectorStruct">
+                <opc:Fields>
+                  <opc:Field Name="Extra" DataType="ua:UInt32" />
+                </opc:Fields>
+              </opc:DataType>
+              <opc:DataType SymbolicName="SubGridStruct" BaseType="s0:GridStruct">
+                <opc:Fields>
+                  <opc:Field Name="Extra" DataType="ua:UInt32" />
+                </opc:Fields>
+              </opc:DataType>
+            </opc:ModelDesign>
+            """;
+
+        /// <summary>
+        /// Subtypes the payload-only OptBase (ModelA) and adds an optional
+        /// field of its own.
+        /// </summary>
+        private const string ModelEDesign =
+            """
+            <?xml version="1.0" encoding="utf-8" ?>
+            <opc:ModelDesign
+              xmlns:opc="http://opcfoundation.org/UA/ModelDesign.xsd"
+              xmlns:ua="http://opcfoundation.org/UA/"
+              xmlns:s0="http://test.org/UA/ModelA/"
+              xmlns="http://test.org/UA/ModelE/"
+              TargetNamespace="http://test.org/UA/ModelE/">
+              <opc:Namespaces>
+                <opc:Namespace Name="ModelE" Prefix="Test.ModelE">http://test.org/UA/ModelE/</opc:Namespace>
+                <opc:Namespace Name="ModelA" Prefix="Test.ModelA">http://test.org/UA/ModelA/</opc:Namespace>
+                <opc:Namespace Name="OpcUa" Prefix="Opc.Ua" XmlNamespace="http://opcfoundation.org/UA/2008/02/Types.xsd">http://opcfoundation.org/UA/</opc:Namespace>
+              </opc:Namespaces>
+              <opc:DataType SymbolicName="OptDerived" BaseType="s0:OptBase">
+                <opc:Fields>
+                  <opc:Field Name="Extra" DataType="ua:UInt32" IsOptional="true" />
                 </opc:Fields>
               </opc:DataType>
             </opc:ModelDesign>

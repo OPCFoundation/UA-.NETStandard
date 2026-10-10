@@ -268,7 +268,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                     managerMock.Object,
                     channelMock,
                     expectedBudget,
-                    CancellationToken.None
+                    CancellationToken.None,
+                    // ITransportWaitingConnection? connection: null takes the
+                    // channel-manager path rather than a reverse connect.
+                    null
                 ]);
 
             Assert.That(invocation, Is.InstanceOf<ValueTask>());
@@ -333,6 +336,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
             public string Id { get; }
 
             public ConfiguredEndpoint Endpoint { get; }
+
+            /// <inheritdoc/>
+            public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+            {
+                return null;
+            }
 
             public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
                 IManagedTransportChannel channel,

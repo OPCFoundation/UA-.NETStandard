@@ -29,12 +29,15 @@
 
 #if NET10_0
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Xml.Linq;
 using NUnit.Framework;
 
 namespace Opc.Ua.Tools.Tests
@@ -123,20 +126,12 @@ namespace Opc.Ua.Tools.Tests
         /// VSTest has more non-passing counters than failed/error/timeout. A
         /// partial run can contain passing tests and still be inconclusive,
         /// disconnected, not runnable, or unfinished. The executor must sum the
-        /// same complete set as the Azure gate before asking for a verdict.
+        /// complete set before asking for a verdict.
         /// </summary>
         [Test]
-        public async Task ExecutorCountsEveryNonPassingTrxCounterAsync()
+        public async Task EveryNonPassingTrxCounterIsCountedAsync()
         {
-            string executor = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "run-dotnet-tests.ps1");
-            string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
-            int start = source.IndexOf("function Measure-TestResults", StringComparison.Ordinal);
-            int end = source.IndexOf("\nfunction Get-CounterValue", start, StringComparison.Ordinal);
-            Assert.That(start, Is.GreaterThanOrEqualTo(0));
-            Assert.That(end, Is.GreaterThan(start));
-            string measure = source[start..end];
-
-            string[] expected =
+            string[] nonPassing =
             [
                 "failed",
                 "error",
@@ -151,17 +146,126 @@ namespace Opc.Ua.Tools.Tests
                 "inProgress",
                 "pending"
             ];
+            var counters = new Dictionary<string, int> { ["total"] = 20, ["passed"] = 8 };
+            foreach (string counter in nonPassing)
+            {
+                counters[counter] = 1;
+            }
+
+            TrxResults results = await MeasureAsync(new TrxFile("run.trx", counters, [])).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
-                foreach (string counter in expected)
-                {
-                    Assert.That(
-                        measure,
-                        Does.Contain($"'{counter}'"),
-                        $"Measure-TestResults must reject the TRX '{counter}' counter.");
-                }
+                Assert.That(results.Files, Is.EqualTo(1));
+                Assert.That(results.Total, Is.EqualTo(20));
+                Assert.That(results.Passed, Is.EqualTo(8));
+                Assert.That(results.Failed, Is.EqualTo(nonPassing.Length));
+                Assert.That(results.FixtureFailures, Is.Empty);
             });
+        }
+
+        /// <summary>
+        /// A fixture whose setup or teardown fails - in this repository usually
+        /// the assembly-level certificate leak check in [OneTimeTearDown] - fails
+        /// after its tests passed. No TRX counter records it; the NUnit adapter
+        /// reports it as run messages instead, and the host exits non-zero.
+        /// Observed on master for Opc.Ua.Gds.Tests and Opc.Ua.Server.Tests on
+        /// every leg, accepted as an at-exit stall until this rule existed.
+        /// </summary>
+        [Test]
+        public async Task FixtureSetupAndTeardownFailuresAreReadFromTheRunMessagesAsync()
+        {
+            var counters = new Dictionary<string, int> { ["total"] = 10, ["passed"] = 10 };
+
+            TrxResults results = await MeasureAsync(
+                new TrxFile(
+                    "teardown.trx",
+                    counters,
+                    [
+                        ("Warning", "ClientTest FinishAsync\n\tTEST 13:48:23 validation suppressed"),
+                        ("Error", "TearDown failed for test fixture Opc.Ua.Gds.Tests.LeakDetectionSetup"),
+                        ("Error", "One or more child tests were ignored\nCertificate leak detected: 1 instance(s)")
+                    ]),
+                new TrxFile(
+                    "setup.trx",
+                    counters,
+                    [
+                        ("Error", "Setup failed for test fixture Opc.Ua.Server.Tests.ServerFixture"),
+                        ("Error", "OneTimeSetUp: System.InvalidOperationException : the server did not start")
+                    ])).ConfigureAwait(false);
+
+            string[] expected =
+            [
+                "TearDown failed for test fixture Opc.Ua.Gds.Tests.LeakDetectionSetup",
+                "Setup failed for test fixture Opc.Ua.Server.Tests.ServerFixture"
+            ];
+            Assert.Multiple(() =>
+            {
+                Assert.That(results.Files, Is.EqualTo(2));
+                Assert.That(results.Total, Is.EqualTo(20));
+                Assert.That(results.Failed, Is.Zero);
+                Assert.That(results.FixtureFailures, Is.EquivalentTo(expected));
+            });
+        }
+
+        /// <summary>
+        /// Other run messages are not fixture failures. A host that crashes at
+        /// exit leaves "Test host process crashed" behind, and test output that
+        /// merely mentions a teardown must not count either; otherwise the
+        /// at-exit tolerance would no longer apply to the case it exists for.
+        /// </summary>
+        [Test]
+        public async Task OtherRunMessagesAreNotFixtureFailuresAsync()
+        {
+            TrxResults results = await MeasureAsync(
+                new TrxFile(
+                    "crash.trx",
+                    new Dictionary<string, int> { ["total"] = 332, ["passed"] = 332 },
+                    [
+                        ("Error", "The active test run was aborted. Reason: Test host process crashed"),
+                        ("Warning", "PushTest Run\n\tTEST 14:08:56 TearDown failed for test fixture Other.Fixture")
+                    ])).ConfigureAwait(false);
+
+            Assert.That(results.FixtureFailures, Is.Empty);
+        }
+
+        /// <summary>
+        /// A failed fixture setup or teardown is rejected whatever the exit code
+        /// says, and the reason names the fixture so the job summary shows it.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        public async Task FixtureSetupOrTeardownFailureIsRejectedAsync(int exitCode)
+        {
+            Verdict verdict = await InvokeAsync(
+                trxFileCount: 1,
+                total: 1314,
+                passed: 1258,
+                failed: 0,
+                exitCode: exitCode,
+                timedOut: false,
+                fixtureFailures: ["TearDown failed for test fixture Opc.Ua.Gds.Tests.LeakDetectionSetup"])
+                .ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(verdict.Passed, Is.False);
+                Assert.That(verdict.Tolerated, Is.False);
+                Assert.That(verdict.Reason, Does.Contain("Opc.Ua.Gds.Tests.LeakDetectionSetup"));
+            });
+        }
+
+        /// <summary>
+        /// The executor has to hand the fixture failures it measured to the
+        /// verdict; a rule that never receives them protects nothing.
+        /// </summary>
+        [Test]
+        public async Task ExecutorPassesFixtureFailuresToTheVerdictAsync()
+        {
+            string executor = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "run-dotnet-tests.ps1");
+            string source = await File.ReadAllTextAsync(executor).ConfigureAwait(false);
+
+            Assert.That(source, Does.Contain("-FixtureFailures $results.FixtureFailures"));
         }
 
         /// <summary>
@@ -309,29 +413,105 @@ namespace Opc.Ua.Tools.Tests
             int failed,
             int exitCode,
             bool timedOut,
-            int timeoutMinutes = 30)
+            int timeoutMinutes = 30,
+            string[]? fixtureFailures = null)
         {
-            string root = FindRepositoryRoot();
-            string script = Path.Combine(root, ".github", "scripts", "get-test-verdict.ps1");
+            string script = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "get-test-verdict.ps1");
 
             // Dot-source the helper and emit the verdict as JSON, which is what
             // makes the rule testable without building or running any project.
             string command = string.Format(
                 CultureInfo.InvariantCulture,
-                ". '{0}'; Get-TestRunVerdict -TrxFileCount {1} -Total {2} -Passed {3} -Failed {4} -ExitCode {5} " +
-                "-TimedOut ${6} -TimeoutMinutes {7} | ConvertTo-Json -Compress",
-                script.Replace("'", "''", StringComparison.Ordinal),
+                ". {0}; Get-TestRunVerdict -TrxFileCount {1} -Total {2} -Passed {3} -Failed {4} -ExitCode {5} " +
+                "-TimedOut ${6} -TimeoutMinutes {7}{8} | ConvertTo-Json -Compress",
+                Quote(script),
                 trxFileCount,
                 total,
                 passed,
                 failed,
                 exitCode,
                 timedOut ? "true" : "false",
-                timeoutMinutes);
+                timeoutMinutes,
+                fixtureFailures == null
+                    ? string.Empty
+                    : " -FixtureFailures @(" + string.Join(",", fixtureFailures.Select(Quote)) + ")");
 
+            string output = await RunPowerShellAsync(command, "Get-TestRunVerdict").ConfigureAwait(false);
+            Verdict? verdict = JsonSerializer.Deserialize<Verdict>(output.Trim(), s_json);
+            Assert.That(verdict, Is.Not.Null, $"No verdict was emitted: {output}");
+            return verdict!;
+        }
+
+        /// <summary>
+        /// Writes each TRX into a fresh directory and measures it with
+        /// Measure-TestResults, the way the executor reads a project's results.
+        /// </summary>
+        private static async Task<TrxResults> MeasureAsync(
+            params TrxFile[] trxFiles)
+        {
+            string directory = Path.Combine(Path.GetTempPath(), "CiTestVerdictTests", Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(directory);
+            try
+            {
+                foreach (TrxFile trxFile in trxFiles)
+                {
+                    WriteTrx(Path.Combine(directory, trxFile.FileName), trxFile.Counters, trxFile.RunInfos);
+                }
+
+                string script = Path.Combine(FindRepositoryRoot(), ".github", "scripts", "get-test-verdict.ps1");
+                string command = string.Format(
+                    CultureInfo.InvariantCulture,
+                    ". {0}; Measure-TestResults {1} | ConvertTo-Json -Compress",
+                    Quote(script),
+                    Quote(directory));
+
+                string output = await RunPowerShellAsync(command, "Measure-TestResults").ConfigureAwait(false);
+                TrxResults? results = JsonSerializer.Deserialize<TrxResults>(output.Trim(), s_json);
+                Assert.That(results, Is.Not.Null, $"No results were emitted: {output}");
+                return results!;
+            }
+            finally
+            {
+                Directory.Delete(directory, true);
+            }
+        }
+
+        /// <summary>
+        /// Writes a TRX with the given counters and run messages, the two parts
+        /// of a VSTest result file that Measure-TestResults reads.
+        /// </summary>
+        private static void WriteTrx(
+            string path,
+            Dictionary<string, int> counters,
+            (string Outcome, string Text)[] runInfos)
+        {
+            XNamespace ns = "http://microsoft.com/schemas/VisualStudio/TeamTest/2010";
+            var document = new XDocument(
+                new XElement(
+                    ns + "TestRun",
+                    new XElement(
+                        ns + "ResultSummary",
+                        new XAttribute("outcome", "Completed"),
+                        new XElement(
+                            ns + "Counters",
+                            counters.Select(counter => new XAttribute(
+                                counter.Key,
+                                counter.Value.ToString(CultureInfo.InvariantCulture)))),
+                        new XElement(
+                            ns + "RunInfos",
+                            runInfos.Select(runInfo => new XElement(
+                                ns + "RunInfo",
+                                new XAttribute("computerName", "ci"),
+                                new XAttribute("outcome", runInfo.Outcome),
+                                new XElement(ns + "Text", runInfo.Text)))))));
+            document.Save(path);
+        }
+
+        private static async Task<string> RunPowerShellAsync(string command, string function)
+        {
             using var process = new Process();
             process.StartInfo.FileName = "pwsh";
-            process.StartInfo.WorkingDirectory = root;
+            process.StartInfo.WorkingDirectory = FindRepositoryRoot();
             process.StartInfo.RedirectStandardOutput = true;
             process.StartInfo.RedirectStandardError = true;
             PowerShellScriptOutput.ConfigureDeterministicOutput(process.StartInfo);
@@ -350,11 +530,16 @@ namespace Opc.Ua.Tools.Tests
             Assert.That(
                 process.ExitCode,
                 Is.Zero,
-                $"Get-TestRunVerdict failed: {PowerShellScriptOutput.Normalize(output + error)}");
+                $"{function} failed: {PowerShellScriptOutput.Normalize(output + error)}");
+            return output;
+        }
 
-            Verdict? verdict = JsonSerializer.Deserialize<Verdict>(output.Trim(), s_json);
-            Assert.That(verdict, Is.Not.Null, $"No verdict was emitted: {output}");
-            return verdict!;
+        /// <summary>
+        /// Quotes a value as a single-quoted PowerShell string literal.
+        /// </summary>
+        private static string Quote(string value)
+        {
+            return "'" + value.Replace("'", "''", StringComparison.Ordinal) + "'";
         }
 
         private static string FindRepositoryRoot()
@@ -376,6 +561,19 @@ namespace Opc.Ua.Tools.Tests
         /// The verdict emitted by Get-TestRunVerdict. Deserialized by reflection, hence public.
         /// </summary>
         public sealed record Verdict(bool Passed, bool Tolerated, string Reason);
+
+        /// <summary>
+        /// A TRX for Measure-TestResults: its counters and its run messages.
+        /// </summary>
+        private sealed record TrxFile(
+            string FileName,
+            Dictionary<string, int> Counters,
+            (string Outcome, string Text)[] RunInfos);
+
+        /// <summary>
+        /// The result of Measure-TestResults. Deserialized by reflection, hence public.
+        /// </summary>
+        public sealed record TrxResults(int Files, int Total, int Passed, int Failed, string[] FixtureFailures);
 
         private static readonly JsonSerializerOptions s_json = new()
         {

@@ -203,7 +203,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 StartNodeId = StartNodeId.IsNull ? NodeId.Null : StartNodeId,
                 TimestampsToReturn = (TimestampsToReturn)TimestampsToReturn,
                 AttributeId = AttributeId,
-                IndexRange = IndexRange,
+                // The wire form stores "not used" as an empty string; map it
+                // back to the MonitoredItemOptions default so re-applying the
+                // application's own options compares equal after a restore.
+                IndexRange = string.IsNullOrEmpty(IndexRange) ? null : IndexRange,
                 Encoding = Encoding.IsNull ? null : Encoding,
                 MonitoringMode = (MonitoringMode)MonitoringMode,
                 SamplingInterval = TimeSpan.FromMilliseconds(SamplingIntervalMs),

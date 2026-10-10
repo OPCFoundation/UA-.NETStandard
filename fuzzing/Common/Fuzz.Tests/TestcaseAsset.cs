@@ -37,9 +37,9 @@ namespace Opc.Ua.Fuzzing
     /// </summary>
     public sealed class TestcaseAsset : IAsset, IFormattable
     {
-        public string Path { get; private set; }
+        public string Path { get; private set; } = null!;
 
-        public byte[] Testcase { get; private set; }
+        public byte[] Testcase { get; private set; } = null!;
 
         public void Initialize(byte[] blob, string path)
         {
@@ -47,7 +47,7 @@ namespace Opc.Ua.Fuzzing
             Testcase = blob;
         }
 
-        public string ToString(string format, IFormatProvider formatProvider)
+        public string ToString(string? format, IFormatProvider? formatProvider)
         {
             string file = System.IO.Path.GetFileName(Path);
             return $"{file}";

@@ -52,7 +52,7 @@ namespace Opc.Ua.Fuzzing
 
             string rootName = Path.GetFileName(
                 testcasesRoot.TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar));
-            string parent = Path.GetDirectoryName(testcasesRoot);
+            string parent = Path.GetDirectoryName(testcasesRoot)!;
             var directories = new List<string>();
 
             if (Directory.Exists(testcasesRoot))
@@ -69,8 +69,8 @@ namespace Opc.Ua.Fuzzing
             [
                 .. directories
                     .Select(Path.GetFileName)
-                    .Where(name => name.StartsWith(rootName + ".", StringComparison.OrdinalIgnoreCase))
-                    .Select(name => name[rootName.Length..])
+                    .Where(name => name!.StartsWith(rootName + ".", StringComparison.OrdinalIgnoreCase))
+                    .Select(name => name![rootName.Length..])
                     .Distinct(StringComparer.OrdinalIgnoreCase)
                     .OrderBy(suffix => suffix, StringComparer.OrdinalIgnoreCase)
             ];

@@ -119,16 +119,16 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             bool structureResolved = registry.TryResolve(
                 new ExpandedNodeId(structureNode.NodeId),
-                out UaTypeDescription structureDescription);
+                out UaTypeDescription? structureDescription);
             bool enumResolved = registry.TryResolve(
                 new ExpandedNodeId(enumNode.NodeId),
-                out UaTypeDescription enumDescription);
+                out UaTypeDescription? enumDescription);
             var provider = new DefaultSchemaProvider(registry, [CreateJsonSchemaGenerator()]);
             bool schemaResolved = provider.TryGetSchema(
                 new ExpandedNodeId(structureNode.NodeId),
                 UaSchemaFormat.JsonCompact,
                 UaSchemaScope.Type,
-                out IUaSchema schema);
+                out IUaSchema? schema);
 
             Assert.Multiple(() =>
             {
@@ -147,6 +147,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 Assert.That(enumDescription!.TypeId.InnerNodeId, Is.EqualTo(enumNode.NodeId));
                 Assert.That(enumDescription.BrowseName, Is.EqualTo(enumNode.BrowseName));
                 Assert.That(enumDescription.Definition, Is.SameAs(enumDefinition));
+                Assert.That(enumDescription.IsStructureOptionSet, Is.False);
                 Assert.That(schemaResolved, Is.True);
                 Assert.That(schema, Is.Not.Null);
                 Assert.That(schema!.ToSchemaString(), Does.Contain("VehicleType"));

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Numerics;
 using Moq;
 using NUnit.Framework;
 
@@ -46,6 +47,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
     public class VariantAuditRegressionTests
     {
         private static readonly int[] s_oneTwoThree = [1, 2, 3];
+        private static readonly int[] s_twoByTwo = [2, 2];
+        private static readonly int[] s_five = [5];
+        private static readonly bool[] s_true = [true];
+        private static readonly int[] s_fiveSix = [5, 6];
+        private static readonly double[] s_fiveDouble = [5.0];
+        private static readonly string[] s_fiveSixStrings = ["5", "6"];
         private static readonly int[] s_sevenEight = [7, 8];
         private static readonly int[] s_oneTwoNine = [1, 2, 9];
 
@@ -212,8 +219,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 // A typed variant whose reference payload is absent still equals
                 // the null variant - that is what a null bodied ExtensionObject
                 // round trips to.
-                Assert.That(nullVariant, Is.EqualTo(new Variant((string)null)));
-                Assert.That(new Variant((string)null), Is.EqualTo(nullVariant));
+                Assert.That(nullVariant, Is.EqualTo(new Variant((string)null!)));
+                Assert.That(new Variant((string)null!), Is.EqualTo(nullVariant));
             });
         }
 
@@ -251,8 +258,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                     Has.Count.EqualTo(3));
 
                 // and the order agrees with Equals where Equals says equal.
-                Assert.That(nullVariant.CompareTo(new Variant((string)null)), Is.Zero);
-                Assert.That(new Variant((string)null).CompareTo(nullVariant), Is.Zero);
+                Assert.That(nullVariant.CompareTo(new Variant((string)null!)), Is.Zero);
+                Assert.That(new Variant((string)null!).CompareTo(nullVariant), Is.Zero);
                 Assert.That(nullVariant.CompareTo(nullVariant), Is.Zero);
             });
         }
@@ -376,9 +383,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             {
                 Assert.That(variant.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Boolean));
                 Assert.That(variant, Is.EqualTo(same));
+                // Every absent value equals Variant.Null, so for equality to
+                // stay transitive a null matrix of another type is equal too.
                 Assert.That(
                     variant,
-                    Is.Not.EqualTo(new Variant(default(MatrixOf<int>))));
+                    Is.EqualTo(new Variant(default(MatrixOf<int>))));
+                Assert.That(
+                    variant,
+                    Is.Not.EqualTo(Variant.From(((ArrayOf<bool>)[true]).ToMatrix(1, 1))));
             });
         }
 
@@ -443,8 +455,9 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             Assert.Multiple(() =>
             {
-                Assert.That((lhs & rhs).GetByte(), Is.Zero);
-                Assert.That((lhs | rhs).GetByte(), Is.EqualTo((byte)0xFF));
+                // The result takes the size of the larger operand.
+                Assert.That((lhs & rhs).GetInt32(), Is.Zero);
+                Assert.That((lhs | rhs).GetInt32(), Is.EqualTo(0x01FF));
 
                 // A non integer right hand operand is not usable at all.
                 Assert.That((lhs & new Variant("text")).IsNull, Is.True);
@@ -465,6 +478,36 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.That(
                     (new Variant((ushort)0xFF00) | new Variant((ushort)0x00FF)).GetUInt16(),
                     Is.EqualTo((ushort)0xFFFF));
+            });
+        }
+
+        [Test]
+        public void BitwiseOperatorsWidenToTheLargerOperandType()
+        {
+            // OPC 10000-4 7.7.3: the result matches the size of the largest
+            // operand, so bits of a wider right hand operand are not lost.
+            Variant or = new Variant((byte)0x01) | new Variant(0x100u);
+            Variant and = new Variant((short)-1) & new Variant(0x1_0000_000FL);
+            Assert.Multiple(() =>
+            {
+                Assert.That(or.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt32));
+                Assert.That(or.GetUInt32(), Is.EqualTo(0x101u));
+                Assert.That(and.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int64));
+                Assert.That(and.GetInt64(), Is.EqualTo(0x1_0000_000FL));
+            });
+        }
+
+        [Test]
+        public void CompareToOrdersStringsOrdinally()
+        {
+            // string.CompareTo(object) is culture aware: "a" sorts before "B"
+            // there, but after it ordinally.
+            Assert.Multiple(() =>
+            {
+                Assert.That(new Variant("a").CompareTo(new Variant("B")), Is.EqualTo(1));
+                Assert.That(new Variant("B").CompareTo(new Variant("a")), Is.EqualTo(-1));
+                Assert.That(new Variant("a­b").CompareTo(new Variant("ab")), Is.Not.Zero);
+                Assert.That(new Variant("ab").CompareTo(new Variant("ab")), Is.Zero);
             });
         }
 
@@ -490,6 +533,526 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Assert.Throws<ArgumentOutOfRangeException>(() => array.ReplaceItem(9, 3));
                 Assert.That(array.ReplaceItem(9, 2).ToArray(), Is.EqualTo(s_oneTwoNine));
             });
+        }
+
+        [Test]
+        public void LegacyMatrixHashIsConsistentWithEquals()
+        {
+            // T2-1: GetHashCode hashed the array references while Equals
+            // compares the contents.
+#pragma warning disable CS0618 // Type or member is obsolete
+            var a = new Matrix(new int[,] { { 1, 2 }, { 3, 4 } }, BuiltInType.Int32);
+            var b = new Matrix(new int[,] { { 1, 2 }, { 3, 4 } }, BuiltInType.Int32);
+#pragma warning restore CS0618 // Type or member is obsolete
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(a, b), Is.True);
+                Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+            });
+        }
+
+        [Test]
+        public void EmptyMatricesOfDifferentShapeAreEqualAndHashAlike()
+        {
+            // T2-2: [0,5] and [5,0] were equal but hashed differently. Every
+            // empty matrix is one value, so they must also hash alike.
+            var a = new MatrixOf<int>(new ReadOnlyMemory<int>(Array.Empty<int>()), [0, 5]);
+            var b = new MatrixOf<int>(new ReadOnlyMemory<int>(Array.Empty<int>()), [5, 0]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(a, b), Is.True);
+                Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+            });
+        }
+
+        [Test]
+        public void MatrixEqualsForeignArrayReturnsFalse()
+        {
+            // T2-3: Equals(object) threw for arrays of another element type,
+            // arrays with null entries and non zero based arrays.
+            MatrixOf<int> matrix = new int[,] { { 1 } };
+            var nonZeroBased = Array.CreateInstance(typeof(int), [1, 1], [1, 1]);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(matrix, (object)new string[,] { { "x" } }), Is.False);
+                Assert.That(IsEqual(matrix, (object)new int?[1, 1]), Is.False);
+                Assert.That(IsEqual(matrix, (object)nonZeroBased), Is.False);
+                Assert.That(IsEqual(matrix, (object)new int[,] { { 1 } }), Is.True);
+            });
+        }
+
+        [Test]
+        public void MatrixEqualsCastableArrayComparesElementWise()
+        {
+            // E-5: arrays of boxed T and of enums over T compared equal
+            // before T2-3 and must still do so, without throwing otherwise.
+            MatrixOf<int> matrix = new int[,] { { 1 } };
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(matrix, (object)new object[,] { { 1 } }), Is.True);
+                Assert.That(IsEqual(matrix, (object)new object[,] { { 2 } }), Is.False);
+                Assert.That(IsEqual(matrix, (object)new object[,] { { "x" } }), Is.False);
+                Assert.That(IsEqual(matrix, (object)new object[1, 1]), Is.False);
+                Assert.That(IsEqual(matrix, (object)new AuditTestEnum[,] { { AuditTestEnum.One } }), Is.True);
+                Assert.That(IsEqual(matrix, (object)new AuditTestEnum[,] { { AuditTestEnum.Two } }), Is.False);
+            });
+        }
+
+        [Test]
+        public void VariantWithTypedNullHashesLikeVariantNull()
+        {
+            // T2-4: typed null payloads equal Variant.Null and must hash to 0.
+            Variant[] typedNulls =
+            [
+                Variant.From(ArrayOf<int>.Null),
+                Variant.From(MatrixOf<int>.Null),
+                Variant.From(default(ByteString)),
+                Variant.From(QualifiedName.Null),
+                new Variant(LocalizedText.Null)
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (Variant typedNull in typedNulls)
+                {
+                    Assert.That(IsEqual(typedNull, Variant.Null), Is.True, typedNull.TypeInfo.ToString());
+                    Assert.That(
+                        typedNull.GetHashCode(),
+                        Is.EqualTo(Variant.Null.GetHashCode()),
+                        typedNull.TypeInfo.ToString());
+                }
+
+                // A null byte string also equals the empty one.
+                Variant empty = Variant.From(ByteString.Empty);
+                Variant nullBytes = Variant.From(default(ByteString));
+                Assert.That(IsEqual(empty, nullBytes), Is.True);
+                Assert.That(empty.GetHashCode(), Is.EqualTo(nullBytes.GetHashCode()));
+            });
+        }
+
+        [Test]
+        public void VariantWithTypedNullArrayEqualsAnIdenticalTypedNull()
+        {
+            // A typed null array equalled Variant.Null but not itself: the
+            // array accessors cannot read an absent payload. Equality must be
+            // reflexive and agree with the hash code (OPC 10000-6 5.1.11).
+            TypeInfo[] types =
+            [
+                TypeInfo.Arrays.Int32,
+                TypeInfo.Arrays.String,
+                TypeInfo.Arrays.Variant,
+                TypeInfo.Arrays.ExtensionObject,
+                TypeInfo.Create(BuiltInType.Double, ValueRanks.TwoDimensions)
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach (TypeInfo type in types)
+                {
+                    Variant a = Variant.CreateDefault(type);
+                    Variant b = Variant.CreateDefault(type);
+                    Assert.That(IsEqual(a, a), Is.True, type.ToString());
+                    Assert.That(IsEqual(a, b), Is.True, type.ToString());
+                    Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()), type.ToString());
+                    Assert.That(a.CompareTo(b), Is.Zero, type.ToString());
+                }
+
+                // the boxed null ArrayOf spelling equals the payload-less one
+                Variant nullInt32s = Variant.CreateDefault(TypeInfo.Arrays.Int32);
+                Assert.That(IsEqual(Variant.From(ArrayOf<int>.Null), nullInt32s), Is.True);
+
+                // a typed null still differs from a value
+                Assert.That(IsEqual(nullInt32s, Variant.From(s_oneTwoThree.ToArrayOf())), Is.False);
+
+                // Equality is transitive: typed nulls of unrelated types each
+                // equal Variant.Null, so they equal each other too.
+                Variant nullBooleans = Variant.CreateDefault(TypeInfo.Arrays.Boolean);
+                Variant nullStrings = Variant.CreateDefault(TypeInfo.Arrays.String);
+                Assert.That(IsEqual(nullBooleans, Variant.Null), Is.True);
+                Assert.That(IsEqual(nullStrings, Variant.Null), Is.True);
+                Assert.That(IsEqual(nullBooleans, nullStrings), Is.True);
+                Assert.That(nullBooleans.CompareTo(nullStrings), Is.Zero);
+                Assert.That(nullBooleans.CompareTo(Variant.Null), Is.Zero);
+
+                // a zero value is not absent and stays apart from Variant.Null
+                Assert.That(IsEqual(new Variant(0), Variant.Null), Is.False);
+                Assert.That(new Variant(0).CompareTo(Variant.Null), Is.Not.Zero);
+            });
+        }
+
+        [Test]
+        public void StructureWithNullArrayFieldsEqualsAnIdenticalStructure()
+        {
+            var definition = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields =
+                [
+                    new StructureField
+                    {
+                        Name = "A",
+                        DataType = DataTypeIds.Int32,
+                        ValueRank = ValueRanks.OneDimension
+                    },
+                    new StructureField
+                    {
+                        Name = "V",
+                        DataType = DataTypeIds.BaseDataType,
+                        ValueRank = ValueRanks.OneDimension
+                    }
+                ]
+            };
+            var types = new Dictionary<string, BuiltInType>
+            {
+                ["A"] = BuiltInType.Int32,
+                ["V"] = BuiltInType.Variant
+            };
+            var a = new global::Opc.Ua.Encoders.Structure(
+                new System.Xml.XmlQualifiedName("S", Namespaces.OpcUaXsd),
+                new ExpandedNodeId(1u), new ExpandedNodeId(2u), new ExpandedNodeId(3u),
+                definition,
+                types);
+            var b = (global::Opc.Ua.Encoders.Structure)a.Clone();
+
+            Assert.That(a.IsEqual(b), Is.True);
+        }
+
+        [Test]
+        public void LocalizedTextWithEmptyLocaleAndNullTextHashesLikeNull()
+        {
+            // A1-5: a boxed LocalizedText("", null) equals LocalizedText.Null
+            // (which hashes 0 as a typed null) and must hash the same.
+            var emptyLocale = new LocalizedText(string.Empty, text: null);
+            var a = new Variant(LocalizedText.Null);
+            var b = new Variant(emptyLocale);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(emptyLocale, Is.EqualTo(LocalizedText.Null));
+                Assert.That(emptyLocale.GetHashCode(), Is.EqualTo(LocalizedText.Null.GetHashCode()));
+                Assert.That(IsEqual(a, b), Is.True);
+                Assert.That(IsEqual(b, a), Is.True);
+                Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+            });
+        }
+
+        [Test]
+        public void XmlElementToXElementDoesNotProcessDtd()
+        {
+            // T2-5: XElement.Load(Stream) expanded DTD entities.
+            var xml = (XmlElement)"<!DOCTYPE a [<!ENTITY x \"expanded\">]><a>&x;</a>";
+            var plain = (XmlElement)"<a> <b>text</b> </a>";
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(xml.AsXElement(), Is.Null);
+                Assert.Throws<System.Xml.XmlException>(() => xml.ToXElement());
+                Assert.That(plain.ToXElement().Element("b")?.Value, Is.EqualTo("text"));
+            });
+        }
+
+        [Test]
+        public void XmlElementWithHarmlessDoctypeStaysValid()
+        {
+            // Prohibiting DTDs made any DOCTYPE invalidate the value; the DTD
+            // is now skipped instead (its entities still never expand).
+            var xml = (XmlElement)"<!DOCTYPE note><note>hi</note>";
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(xml.AsXElement()?.Value, Is.EqualTo("hi"));
+                Assert.That(xml.IsValid, Is.True);
+                Assert.That(xml, Is.EqualTo((XmlElement)"<note>hi</note>"));
+            });
+        }
+
+        [Test]
+        public void ByteStringCompareToEmptyArrayIsPositive()
+        {
+            // T2-6: a non empty byte string sorted before an empty array.
+            ByteString value = ByteString.From(1, 2, 3);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.CompareTo(Array.Empty<byte>()), Is.GreaterThan(0));
+                Assert.That(value.CompareTo((byte[])null!), Is.GreaterThan(0));
+                Assert.That(value.CompareTo(ByteString.Empty), Is.GreaterThan(0));
+                Assert.That(ByteString.Empty.CompareTo(Array.Empty<byte>()), Is.Zero);
+            });
+        }
+
+        [Test]
+        public void DecimalEqualityAndHashWithExtremeScales()
+        {
+            // T2-7: equality and hashing canonicalized with one division
+            // (or multiplication) per scale step.
+            var sevenAtMaxScale = new Opc.Ua.Decimal(
+                BigInteger.Pow(10, short.MaxValue) * 7,
+                short.MaxValue);
+            var seven = new Opc.Ua.Decimal(7, 0);
+            var oneAtMinScale = new Opc.Ua.Decimal(BigInteger.One, short.MinValue);
+            var oneExpanded = new Opc.Ua.Decimal(BigInteger.Pow(10, -short.MinValue), 0);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(sevenAtMaxScale, seven), Is.True);
+                Assert.That(sevenAtMaxScale.GetHashCode(), Is.EqualTo(seven.GetHashCode()));
+                Assert.That(IsEqual(oneAtMinScale, oneExpanded), Is.True);
+                Assert.That(oneAtMinScale.GetHashCode(), Is.EqualTo(oneExpanded.GetHashCode()));
+                Assert.That(IsEqual(oneAtMinScale, seven), Is.False);
+                Assert.That(IsEqual(new Opc.Ua.Decimal(15, 1), new Opc.Ua.Decimal(150, 2)), Is.True);
+                Assert.That(IsEqual(new Opc.Ua.Decimal(15, 1), new Opc.Ua.Decimal(151, 2)), Is.False);
+                Assert.That(IsEqual(new Opc.Ua.Decimal(-15, 1), new Opc.Ua.Decimal(150, 2)), Is.False);
+                Assert.That(new Opc.Ua.Decimal(5, -3).Canonicalize().UnscaledValue, Is.EqualTo(new BigInteger(5000)));
+                Assert.That(new Opc.Ua.Decimal(100_000_000_000, 5).Canonicalize().UnscaledValue, Is.EqualTo(new BigInteger(1_000_000)));
+                Assert.That(new Opc.Ua.Decimal(100_000_000_000, 5).Canonicalize().Scale, Is.Zero);
+                Assert.That(new Opc.Ua.Decimal(1_500, 3).Canonicalize().Scale, Is.EqualTo((short)1));
+            });
+        }
+
+        [Test]
+        public void DecimalEqualityMatchesCanonicalFormForManyValues()
+        {
+            // T2-7: the scale independent comparison must agree with the
+            // canonical form for ordinary values.
+            // CA5394: deterministic test vector - Random with fixed seed is intentional
+            var random = new Random(4242);
+            for (int ii = 0; ii < 500; ii++)
+            {
+#pragma warning disable CA5394
+                var left = new Opc.Ua.Decimal(
+                    new BigInteger(random.Next(-1000, 1000)) * BigInteger.Pow(10, random.Next(0, 6)),
+                    (short)random.Next(-4, 8));
+                var right = new Opc.Ua.Decimal(
+                    new BigInteger(random.Next(-1000, 1000)) * BigInteger.Pow(10, random.Next(0, 6)),
+                    (short)random.Next(-4, 8));
+#pragma warning restore CA5394
+                Opc.Ua.Decimal cl = left.Canonicalize();
+                Opc.Ua.Decimal cr = right.Canonicalize();
+                bool expected = cl.Scale == cr.Scale && cl.UnscaledValue == cr.UnscaledValue;
+
+                Assert.That(IsEqual(left, right), Is.EqualTo(expected), $"{left} == {right}");
+                Assert.That(IsEqual(left, cl), Is.True, $"{left} == {cl}");
+                Assert.That(left.GetHashCode(), Is.EqualTo(cl.GetHashCode()), $"{left} hash");
+            }
+        }
+
+        [Test]
+        public void SerializableMatrixOfRoundTripsNullMatrix()
+        {
+            // T2-8: a null matrix could not be deserialized.
+            Assert.Multiple(() =>
+            {
+                Assert.That(new SerializableMatrixOf<int>(MatrixOf<int>.Null).Value.IsNull, Is.True);
+                Assert.That(new SerializableMatrixOf<int>().Value.IsNull, Is.True);
+                MatrixOf<int> matrix = new int[,] { { 1, 2 }, { 3, 4 } };
+                Assert.That(new SerializableMatrixOf<int>(matrix).Value, Is.EqualTo(matrix));
+            });
+        }
+
+        [Test]
+        public void MatrixDimensionsCannotBeMutated()
+        {
+            // T2-9: Dimensions handed out the private array.
+            var matrix = new MatrixOf<int>(new int[4], [2, 2]);
+            matrix.Dimensions[0] = 4;
+            matrix.ToArrayOf(out int[] dimensions);
+            dimensions[1] = 7;
+
+            Assert.That(matrix.Dimensions, Is.EqualTo(s_twoByTwo));
+        }
+
+        [Test]
+        public void OneDimensionalMatrixVariantHashesLikeArrayVariant()
+        {
+            // T2-10: equal variants hashed differently.
+            ArrayOf<int> array = s_oneTwoThree.ToArrayOf();
+            var matrix = new MatrixOf<int>(s_oneTwoThree, [3]);
+            Variant a = Variant.From(array);
+            Variant b = Variant.From(matrix);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(IsEqual(a, b), Is.True);
+                Assert.That(IsEqual(b, a), Is.True);
+                Assert.That(a.GetHashCode(), Is.EqualTo(b.GetHashCode()));
+                Assert.That(matrix.GetHashCode(), Is.EqualTo(array.GetHashCode()));
+            });
+        }
+
+        [Test]
+        public void ConvertToKeepsOneElementAndEmptyArraysAsArrays()
+        {
+            // T2-11: Part 4 7.7.3 - arrays convert element-wise to arrays.
+            Variant single = Variant.From(s_five.ToArrayOf()).ConvertTo(BuiltInType.Double);
+            Variant empty = Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.Double);
+            Variant number = Variant.From(s_five.ToArrayOf()).ConvertTo(BuiltInType.Number);
+            Variant two = Variant.From(s_fiveSix.ToArrayOf()).ConvertTo(BuiltInType.String);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(single.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Double));
+                Assert.That(single.GetDoubleArray().ToArray(), Is.EqualTo(s_fiveDouble));
+                Assert.That(empty.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Double));
+                Assert.That(empty.IsNull, Is.False);
+                Assert.That(empty.GetDoubleArray().Count, Is.Zero);
+                Assert.That(number.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Double));
+                Assert.That(two.GetStringArray().ToArray(), Is.EqualTo(s_fiveSixStrings));
+                Assert.That(
+                    () => Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.DiagnosticInfo),
+                    Throws.TypeOf<InvalidCastException>());
+            });
+        }
+
+        [Test]
+        public void ConvertToEmptyArrayChecksLegalityLikeNonEmptyArray()
+        {
+            // A1-8: an empty array must not convert where a non-empty one
+            // cannot, nor get a different element type.
+            Variant toVariant = Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.Variant);
+            Variant oneToVariant = Variant.From(s_five.ToArrayOf()).ConvertTo(BuiltInType.Variant);
+            Variant enumToInt = Variant.From(ArrayOf<int>.Empty).ConvertTo(BuiltInType.Enumeration);
+            Variant stringToGuid = Variant.From(ArrayOf<string>.Empty).ConvertTo(BuiltInType.Guid);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    () => Variant.From(s_true.ToArrayOf()).ConvertTo(BuiltInType.Guid),
+                    Throws.TypeOf<InvalidCastException>());
+                Assert.That(
+                    () => Variant.From(ArrayOf<bool>.Empty).ConvertTo(BuiltInType.Guid),
+                    Throws.TypeOf<InvalidCastException>());
+                Assert.That(
+                    () => Variant.From(ArrayOf<Uuid>.Empty).ConvertTo(BuiltInType.DateTime),
+                    Throws.TypeOf<InvalidCastException>());
+                Assert.That(toVariant.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Int32));
+                Assert.That(oneToVariant.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Int32));
+                Assert.That(enumToInt.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Int32));
+                Assert.That(stringToGuid.TypeInfo, Is.EqualTo(TypeInfo.Arrays.Guid));
+            });
+        }
+
+        [Test]
+        public void ConstructRecognizesMultiDimensionalEncodeableAndEnumArrays()
+        {
+            // T2-12: the multi-dimensional branch tested the array type.
+            TypeInfo encodeables = TypeInfo.Construct(typeof(Argument[,]));
+            TypeInfo enums = TypeInfo.Construct(typeof(AuditTestEnum[,,]));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(encodeables.BuiltInType, Is.EqualTo(BuiltInType.ExtensionObject));
+                Assert.That(encodeables.ValueRank, Is.EqualTo(2));
+                Assert.That(TypeInfo.GetValueRank(typeof(Argument[,])), Is.EqualTo(2));
+                Assert.That(enums.BuiltInType, Is.EqualTo(BuiltInType.Enumeration));
+                Assert.That(enums.ValueRank, Is.EqualTo(3));
+            });
+        }
+
+        [Test]
+        public void UnknownTypeInfoIsNeitherScalarNorArray()
+        {
+            // T2-13: Unknown reported ValueRank 0 (OneOrMoreDimensions).
+            Assert.Multiple(() =>
+            {
+                Assert.That(TypeInfo.Unknown.IsArray, Is.False);
+                Assert.That(TypeInfo.Unknown.IsScalar, Is.False);
+                Assert.That(TypeInfo.Unknown.IsMatrix, Is.False);
+                Assert.That(TypeInfo.Unknown.ValueRank, Is.EqualTo(ValueRanks.Any));
+                Assert.That(Variant.Null.TypeInfo.IsArray, Is.False);
+                Assert.That(Variant.Null.TypeInfo.ValueRank, Is.EqualTo(ValueRanks.Any));
+                Assert.That(TypeInfo.Unknown, Is.Default);
+            });
+        }
+
+        [Test]
+        public void TryCastToReportsTypeMismatch()
+        {
+            // T2-14: every built-in branch reported success with default(T).
+            Assert.Multiple(() =>
+            {
+                Assert.That(Variant.From("abc").TryCastTo(out int _), Is.False);
+                Assert.That(Variant.From(5).TryCastTo(out ArrayOf<int> _), Is.False);
+                Assert.That(Variant.From(5).TryCastTo(out int[] _), Is.False);
+                Assert.That(Variant.From(5).TryCastTo(out MatrixOf<int> _), Is.False);
+                Assert.That(Variant.From(1.5).TryCastTo(out string _), Is.False);
+                Assert.That(Variant.From(5).TryCastTo(out Argument _), Is.False);
+                Assert.That(
+                    () => Variant.From(1.5).CastTo<string>(),
+                    Throws.TypeOf<ServiceResultException>());
+                Assert.That(new DataValue(Variant.From("abc")).GetValue(-1), Is.EqualTo(-1));
+
+                Assert.That(Variant.From(5).TryCastTo(out int five), Is.True);
+                Assert.That(five, Is.EqualTo(5));
+                Assert.That(Variant.From("abc").TryCastTo(out string abc), Is.True);
+                Assert.That(abc, Is.EqualTo("abc"));
+                Assert.That(Variant.From(s_oneTwoThree.ToArrayOf()).TryCastTo(out int[] ints), Is.True);
+                Assert.That(ints, Is.EqualTo(s_oneTwoThree));
+            });
+        }
+
+        [Test]
+        public void TryCastToAndFromSupportSystemDateTime()
+        {
+            // T2-15: System.DateTime had no branch.
+            var now = new DateTime(2026, 9, 24, 12, 30, 0, DateTimeKind.Utc);
+            var value = new DataValue(Variant.From((DateTimeUtc)now));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(value.GetValue(DateTime.MinValue), Is.EqualTo(now));
+                Assert.That(Variant.From((DateTimeUtc)now).TryCastTo(out DateTime[] _), Is.False);
+                Assert.That(VariantHelper.CastFrom(now).TypeInfo, Is.EqualTo(TypeInfo.Scalars.DateTime));
+                Assert.That(VariantHelper.CastFrom(now).GetDateTime(), Is.EqualTo((DateTimeUtc)now));
+                Assert.That(
+                    VariantHelper.CastFrom(new[] { now }).TypeInfo,
+                    Is.EqualTo(TypeInfo.Arrays.DateTime));
+                Assert.That(
+                    Variant.From(new[] { (DateTimeUtc)now }.ToArrayOf()).CastTo<DateTime[]>(),
+                    Is.EqualTo(new[] { now }));
+            });
+        }
+
+        [Test]
+        public void TryCastToConvertsEnumsOfAnyWidth()
+        {
+            // T2-16: an Int32 was reinterpreted as an 8 byte enum.
+            Assert.Multiple(() =>
+            {
+                Assert.That(Variant.From(5).TryCastTo(out AuditLongEnum longEnum), Is.True);
+                Assert.That(longEnum, Is.EqualTo(AuditLongEnum.Five));
+                Assert.That(Variant.From(5).TryCastTo(out AuditByteEnum byteEnum), Is.True);
+                Assert.That(byteEnum, Is.EqualTo(AuditByteEnum.Five));
+                Assert.That(Variant.From(2).TryCastTo(out AuditTestEnum intEnum), Is.True);
+                Assert.That(intEnum, Is.EqualTo(AuditTestEnum.Two));
+                Assert.That(Variant.From("x").TryCastTo(out AuditTestEnum _), Is.False);
+            });
+        }
+
+        private static bool IsEqual(object left, object right)
+        {
+            return left.Equals(right);
+        }
+
+        public enum AuditTestEnum
+        {
+            One = 1,
+            Two = 2
+        }
+
+        public enum AuditLongEnum : long
+        {
+            Five = 5
+        }
+
+        public enum AuditByteEnum : byte
+        {
+            Five = 5
         }
     }
 }

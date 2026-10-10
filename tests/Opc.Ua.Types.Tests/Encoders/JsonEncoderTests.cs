@@ -184,8 +184,10 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void WriteStatusCodeRawDataOmitsSymbol()
+        public void WriteStatusCodeRawDataWritesSymbol()
         {
+            // RawData omits only UaType/UaTypeId (Part 6 5.4.1); the Symbol is omitted
+            // in the CompactEncoding only (5.4.2.12).
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var buffer = new PooledBufferWriter();
@@ -200,48 +202,31 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.Multiple(() =>
             {
                 Assert.That(status.TryGetProperty(JsonProperties.Code, out _), Is.True);
-                Assert.That(status.TryGetProperty(JsonProperties.Symbol, out _), Is.False);
+                Assert.That(status.GetProperty(JsonProperties.Symbol).GetString(), Is.EqualTo("BadNotWritable"));
             });
         }
 
-        [Test]
-        public void WriteDataValueWithSourcePicosecondsWithoutTimestampThrowsBadEncodingError()
+        [TestCase((ushort)1, (ushort)0)]
+        [TestCase((ushort)0, (ushort)1)]
+        [TestCase((ushort)7, (ushort)9)]
+        public void WriteDataValueWithPicosecondsWithoutTimestampDropsPicoseconds(
+            ushort sourcePicoseconds,
+            ushort serverPicoseconds)
         {
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            using var buffer = new PooledBufferWriter();
-            using var writer = new JsonEncoder(buffer, messageContext);
+            // Picoseconds without their timestamp are ignored (Part 6 5.2.2.17), so JSON
+            // drops them like Binary instead of failing the message; a server timestamp
+            // filter produces such DataValues.
             var value = new DataValue(
                 Variant.From("value"),
                 StatusCodes.Good,
                 DateTimeUtc.MinValue,
                 DateTimeUtc.MinValue,
-                sourcePicoseconds: 1,
-                serverPicoseconds: 0);
+                sourcePicoseconds,
+                serverPicoseconds);
 
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => writer.WriteDataValue(JsonProperties.Value, value));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
-        }
-
-        [Test]
-        public void WriteDataValueWithServerPicosecondsWithoutTimestampThrowsBadEncodingError()
-        {
-            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
-            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            using var buffer = new PooledBufferWriter();
-            using var writer = new JsonEncoder(buffer, messageContext);
-            var value = new DataValue(
-                Variant.From("value"),
-                StatusCodes.Good,
-                DateTimeUtc.MinValue,
-                DateTimeUtc.MinValue,
-                sourcePicoseconds: 0,
-                serverPicoseconds: 1);
-
-            ServiceResultException ex = Assert.Throws<ServiceResultException>(
-                () => writer.WriteDataValue(JsonProperties.Value, value));
-            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingError));
+            Assert.That(
+                Encode(JsonEncoderOptions.Verbose, w => w.WriteDataValue(JsonProperties.Value, value)),
+                Is.EqualTo("""{"Value":{"UaType":12,"Value":"value"}}"""));
         }
 
         [Test]
@@ -477,6 +462,681 @@ namespace Opc.Ua.Types.Tests.Encoders
                 return;
             }
             Assert.Fail("Exception not thrown");
+        }
+
+        [TestCase(null, null)]
+        [TestCase("", null)]
+        [TestCase(null, "")]
+        [TestCase("", "")]
+        public void WriteLocalizedTextWithoutTextAndLocaleWritesNull(string? locale, string? text)
+        {
+            // Text and Locale are not encoded if null or empty (Part 6 5.4.2.15), so the
+            // value is the null LocalizedText: JSON null in Verbose, omitted in Compact.
+            var value = new LocalizedText(locale, text);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteLocalizedText(JsonProperties.Value, value)),
+                    Is.EqualTo("""{"Value":null}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Compact, w => w.WriteLocalizedText(JsonProperties.Value, value)),
+                    Is.EqualTo("{}"));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteLocalizedTextArray(JsonProperties.Value, [value])),
+                    Is.EqualTo("""{"Value":[null]}"""));
+            });
+        }
+
+        [Test]
+        public void WriteLocalizedTextOmitsEmptyText()
+        {
+            var value = new LocalizedText("en-US", string.Empty);
+
+            Assert.That(
+                Encode(JsonEncoderOptions.Verbose, w => w.WriteLocalizedText(JsonProperties.Value, value)),
+                Is.EqualTo("""{"Value":{"Locale":"en-US"}}"""));
+        }
+
+        [Test]
+        public void WriteVariantWithNullArrayKeepsArrayRank()
+        {
+            // Only a NULL of a nullable built-in type may omit Value (Part 6 5.4.2.17); a
+            // null array is written as an empty array, which is semantically the same.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            Variant value = Variant.CreateDefault(TypeInfo.Arrays.UInt16);
+
+            foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+            {
+                using var buffer = new PooledBufferWriter();
+                using (var writer = new JsonEncoder(buffer, messageContext, options))
+                {
+                    writer.WriteVariant(JsonProperties.Value, value);
+                }
+
+                using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                Variant decoded = decoder.ReadVariant(JsonProperties.Value);
+
+                Assert.That(decoded.TypeInfo, Is.EqualTo(TypeInfo.Arrays.UInt16), options.Name);
+            }
+        }
+
+        [Test]
+        public void WriteVariantWithNullMatrixWritesEmptyArray()
+        {
+            // A null matrix has no Dimensions a peer can accept, so it is written as the
+            // semantically equal empty array (Part 6 5.1.11) instead of failing to encode.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            Variant value = Variant.CreateDefault(
+                TypeInfo.Create(BuiltInType.UInt16, ValueRanks.TwoDimensions));
+
+            foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+            {
+                using var buffer = new PooledBufferWriter();
+                using (var writer = new JsonEncoder(buffer, messageContext, options))
+                {
+                    writer.WriteVariant(JsonProperties.Value, value);
+                }
+
+                using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                Variant decoded = decoder.ReadVariant(JsonProperties.Value);
+
+                Assert.Multiple(() =>
+                {
+                    Assert.That(
+                        System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
+                        Is.EqualTo("""{"Value":{"UaType":5,"Value":[]}}"""),
+                        options.Name);
+                    Assert.That(decoded.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.UInt16), options.Name);
+                    Assert.That(decoded.TypeInfo.IsScalar, Is.False, options.Name);
+                });
+            }
+        }
+
+        [Test]
+        public void WriteVariantWithNullOfNullableValueTypeRoundTrips()
+        {
+            // DateTime and Guid are nullable (Part 6 Table 1): MinValue and all zeros are
+            // their null, so Compact omits Value, and either form decodes to the same value.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            (Variant Value, string CompactJson)[] cases =
+            [
+                (new Variant(DateTimeUtc.MinValue), """{"Value":{"UaType":13}}"""),
+                (new Variant(Uuid.Empty), """{"Value":{"UaType":14}}""")
+            ];
+
+            foreach ((Variant value, string compactJson) in cases)
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, value)),
+                    Is.EqualTo(compactJson));
+
+                foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+                {
+                    using var buffer = new PooledBufferWriter();
+                    using (var writer = new JsonEncoder(buffer, messageContext, options))
+                    {
+                        writer.WriteVariant(JsonProperties.Value, value);
+                    }
+
+                    using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                    Assert.That(decoder.ReadVariant(JsonProperties.Value), Is.EqualTo(value), options.Name);
+                }
+            }
+        }
+
+        [Test]
+        public void WriteVariantWithDefaultDataValueWritesValue()
+        {
+            var value = new Variant(new DataValue());
+
+            Assert.That(
+                Encode(JsonEncoderOptions.Compact, w => w.WriteVariant(JsonProperties.Value, value)),
+                Is.EqualTo("""{"Value":{"UaType":23,"Value":{}}}"""));
+        }
+
+        [Test]
+        public void WriteVariantValueOmissionFollowsTable41()
+        {
+            // The Value is not encoded exactly when it is a NULL of a nullable built-in type
+            // (Part 6 5.4.2.17 Table 41), whatever the encoding; the default omission of the
+            // CompactEncoding applies to structure fields only (Part 6 5.4.2.1).
+            JsonEncoderOptions ignoreNullsOnly = JsonEncoderOptions.Verbose with
+            {
+                IgnoreNullValues = true
+            };
+            (Variant Value, string Json)[] cases =
+            [
+                (new Variant(NodeId.Null), """{"Value":{"UaType":17}}"""),
+                (new Variant((string)null!), """{"Value":{"UaType":12}}"""),
+                (new Variant((ushort)0), """{"Value":{"UaType":5,"Value":0}}"""),
+                (new Variant(false), """{"Value":{"UaType":1,"Value":false}}"""),
+                (new Variant(0.0), """{"Value":{"UaType":11,"Value":0}}"""),
+                (new Variant(StatusCodes.Good), """{"Value":{"UaType":19,"Value":{}}}""")
+            ];
+
+            Assert.Multiple(() =>
+            {
+                foreach ((Variant value, string json) in cases)
+                {
+                    foreach (JsonEncoderOptions options in new[]
+                    {
+                        JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact, ignoreNullsOnly
+                    })
+                    {
+                        Assert.That(
+                            Encode(options, w => w.WriteVariant(JsonProperties.Value, value)),
+                            Is.EqualTo(json),
+                            options.Name);
+                    }
+                }
+            });
+        }
+
+        [Test]
+        public void WriteDataValueValueOmissionFollowsTable41()
+        {
+            var nullValue = new DataValue(new Variant(NodeId.Null));
+            var defaultValue = new DataValue(new Variant(0));
+
+            Assert.Multiple(() =>
+            {
+                foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+                {
+                    Assert.That(
+                        Encode(options, w => w.WriteDataValue(JsonProperties.Value, nullValue)),
+                        Is.EqualTo("""{"Value":{"UaType":17}}"""),
+                        options.Name);
+                    Assert.That(
+                        Encode(options, w => w.WriteDataValue(JsonProperties.Value, defaultValue)),
+                        Is.EqualTo("""{"Value":{"UaType":6,"Value":0}}"""),
+                        options.Name);
+                }
+            });
+        }
+
+        [Test]
+        public void WriteExpandedNodeIdWithServerIndexAndNullIdentifierRoundTrips()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var expected = new ExpandedNodeId(NodeId.Null, null, 1);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteExpandedNodeId(JsonProperties.Value, expected);
+            }
+
+            using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ExpandedNodeId actual = decoder.ReadExpandedNodeId(JsonProperties.Value);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
+                    Is.EqualTo("""{"Value":"svr=1;i=0"}"""));
+                Assert.That(actual.ServerIndex, Is.EqualTo(1u));
+                Assert.That(actual.IsNull, Is.False);
+            });
+        }
+
+        [TestCase("nsu=x;y", "0:nsu=x;y")]
+        [TestCase("nsu=urn:a;b", "0:nsu=urn:a;b")]
+        [TestCase("nsuffix", "nsuffix")]
+        [TestCase("nsu=urn:a", "nsu=urn:a")]
+        [TestCase("Hello:World", "Hello:World")]
+        [TestCase("a1:b", "a1:b")]
+        [TestCase(":abc", ":abc")]
+        [TestCase("12:Tag", "0:12:Tag")]
+        [TestCase("0:Tag", "0:0:Tag")]
+        [TestCase("123", "123")]
+        public void WriteQualifiedNameInNamespaceZeroWithNsuPrefixRoundTrips(string name, string expected)
+        {
+            // Namespace 0 uses the <name> form (Part 6 5.1.12 Table 7). Only a name that
+            // looks like the index or namespace uri form needs the "0:" prefix to parse
+            // back into namespace 0 (5.4.2.14).
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var value = new QualifiedName(name, 0);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteQualifiedName(JsonProperties.Value, value);
+            }
+
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            Assert.Multiple(() =>
+            {
+                Assert.That(document.RootElement.GetProperty(JsonProperties.Value).GetString(), Is.EqualTo(expected));
+                Assert.That(decoder.ReadQualifiedName(JsonProperties.Value), Is.EqualTo(value));
+            });
+        }
+
+        [Test]
+        public void OpaqueBinaryBodyWritesTheDataTypeIdAndRoundTripsToBinary()
+        {
+            // UaTypeId is the DataType id also for a Binary body (Part 6 5.4.2.16
+            // Table 40), and decoding maps it back to the DataTypeEncoding id that
+            // UA Binary writes as the TypeId.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.Factory.Builder.AddEncodeableType(typeof(Argument)).Commit();
+            var argument = new Argument
+            {
+                Name = "In",
+                DataType = DataTypeIds.Int32,
+                ValueRank = ValueRanks.Scalar
+            };
+            byte[] body;
+            using (var encoder = new BinaryEncoder(messageContext))
+            {
+                argument.Encode(encoder);
+                body = encoder.CloseAndReturnBuffer()!;
+            }
+            var opaque = new ExtensionObject(
+                ObjectIds.Argument_Encoding_DefaultBinary,
+                ByteString.From(body));
+
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteExtensionObject(JsonProperties.Value, opaque);
+            }
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            JsonElement envelope = document.RootElement.GetProperty(JsonProperties.Value);
+
+            ExtensionObject decoded;
+            using (var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext))
+            {
+                decoded = decoder.ReadExtensionObject(JsonProperties.Value);
+            }
+
+            byte[] binary;
+            using (var encoder = new BinaryEncoder(messageContext))
+            {
+                encoder.WriteExtensionObject(null, decoded);
+                binary = encoder.CloseAndReturnBuffer()!;
+            }
+            ExtensionObject reDecoded;
+            using (var decoder = new BinaryDecoder(binary!, messageContext))
+            {
+                reDecoded = decoder.ReadExtensionObject(null);
+            }
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(envelope.GetProperty("UaTypeId").GetString(), Is.EqualTo("i=296"));
+                Assert.That(envelope.GetProperty("UaEncoding").GetInt32(), Is.EqualTo(1));
+                Assert.That(decoded.Encoding, Is.EqualTo(ExtensionObjectEncoding.Binary));
+                Assert.That(
+                    decoded.TypeId,
+                    Is.EqualTo((ExpandedNodeId)ObjectIds.Argument_Encoding_DefaultBinary));
+                Assert.That(reDecoded.TryGetValue(out Argument? result), Is.True);
+                Assert.That(result?.Name, Is.EqualTo("In"));
+            });
+        }
+
+        [Test]
+        public void OpaqueXmlBodyDataTypeIdDecodesToTheXmlEncodingId()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.Factory.Builder.AddEncodeableType(typeof(Argument)).Commit();
+            const string json =
+                "{\"Value\":{\"UaTypeId\":\"i=296\",\"UaEncoding\":2,\"UaBody\":" +
+                "\"<Argument xmlns=\\\"http://opcfoundation.org/UA/2008/02/Types.xsd\\\">" +
+                "<Name>In</Name></Argument>\"}}";
+            using var decoder = new JsonDecoder(json, messageContext);
+
+            ExtensionObject decoded = decoder.ReadExtensionObject(JsonProperties.Value);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(decoded.Encoding, Is.EqualTo(ExtensionObjectEncoding.Xml));
+                Assert.That(
+                    decoded.TypeId,
+                    Is.EqualTo((ExpandedNodeId)ObjectIds.Argument_Encoding_DefaultXml));
+            });
+        }
+
+        [Test]
+        public void OpaqueBinaryBodyOfAnUnknownTypeKeepsItsTypeId()
+        {
+            // Without the type the DataType id is unknown: the encoding id is
+            // written (documented deviation from Part 6 5.4.2.16 Table 40).
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var opaque = new ExtensionObject(new ExpandedNodeId(99001u), ByteString.From([1, 2]));
+
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteExtensionObject(JsonProperties.Value, opaque);
+            }
+            using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+            using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    document.RootElement.GetProperty(JsonProperties.Value).GetProperty("UaTypeId").GetString(),
+                    Is.EqualTo("i=99001"));
+                Assert.That(decoder.ReadExtensionObject(JsonProperties.Value), Is.EqualTo(opaque));
+            });
+        }
+
+        [TestCase(3, false)]
+        [TestCase(4, true)]
+        public void WriteExtensionObjectJsonBodyRespectsNestingLimit(int bodyDepth, bool exceeds)
+        {
+            // The root object (1) and the ExtensionObject (2) leave room for a body of depth
+            // 3, whose root object is the ExtensionObject itself.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxEncodingNestingLevels = 4;
+            var value = new ExtensionObject(new ExpandedNodeId(1), CreateNestedJsonObject(bodyDepth));
+            using var buffer = new PooledBufferWriter();
+            using var writer = new JsonEncoder(buffer, messageContext);
+
+            if (exceeds)
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => writer.WriteExtensionObject(JsonProperties.Value, value));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            }
+            else
+            {
+                Assert.DoesNotThrow(() => writer.WriteExtensionObject(JsonProperties.Value, value));
+            }
+        }
+
+        [Test]
+        public void WriteExtensionObjectJsonBodyDeeperThanDefaultParserDepthRoundTrips()
+        {
+            // A body the decoder accepts under the default limit (deeper than the 64 levels
+            // JsonDocument parses by default) can be encoded again.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxEncodingNestingLevels = 200;
+            string body = CreateNestedJsonObject(100);
+            var value = new ExtensionObject(new ExpandedNodeId(1), body);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteExtensionObject(JsonProperties.Value, value);
+            }
+
+            using JsonDocument document = JsonDocument.Parse(
+                buffer.WrittenMemory,
+                new JsonDocumentOptions { MaxDepth = 200 });
+            Assert.That(document.RootElement.GetProperty(JsonProperties.Value).GetProperty("a").ValueKind,
+                Is.EqualTo(JsonValueKind.Object));
+        }
+
+        [Test]
+        public void WriteBeyondUtf8JsonWriterDepthThrowsBadEncodingLimitsExceeded()
+        {
+            // A nesting limit above the 1000 levels Utf8JsonWriter supports is capped, so a
+            // ServiceResultException is thrown instead of an InvalidOperationException.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxEncodingNestingLevels = 1500;
+            var value = new ExtensionObject(new ExpandedNodeId(1), CreateNestedJsonObject(1100));
+            using var buffer = new PooledBufferWriter();
+            using var writer = new JsonEncoder(buffer, messageContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => writer.WriteExtensionObject(JsonProperties.Value, value));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void SetMappingTablesMapsIndexFormIdentifiers()
+        {
+            // Like the BinaryEncoder, indexes written in the index form refer to the tables
+            // set with SetMappingTables (Part 6 5.4.2.10, 5.4.2.11).
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.NamespaceUris.Append("urn:a");
+            messageContext.NamespaceUris.Append("urn:b");
+            if (messageContext.ServerUris.Count == 0)
+            {
+                messageContext.ServerUris.Append("urn:local");
+            }
+            messageContext.ServerUris.Append("urn:s1");
+            var namespaces = new NamespaceTable();
+            namespaces.Append("urn:b");
+            namespaces.Append("urn:a");
+            var servers = new StringTable();
+            servers.Append(messageContext.ServerUris.GetString(0)!);
+            servers.Append("urn:x");
+            servers.Append("urn:s1");
+            JsonEncoderOptions options = JsonEncoderOptions.Verbose with { ForceNamespaceUri = false };
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext, options))
+            {
+                writer.SetMappingTables(namespaces, servers);
+                writer.WriteNodeId("N", new NodeId(5u, 1));
+                writer.WriteQualifiedName("Q", new QualifiedName("x", 1));
+                writer.WriteExpandedNodeId("E", new ExpandedNodeId(new NodeId(7u, 2), null, 1));
+            }
+
+            Assert.That(
+                System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
+                Is.EqualTo("""{"N":"ns=2;i=5","Q":"2:x","E":"svr=2;ns=1;i=7"}"""));
+        }
+
+        [Test]
+        public void WriteEnumValueWritesSymbolAndNumberOrTheNumber()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", new EnumValue(-5, "Low"))),
+                    Is.EqualTo("""{"E":"Low_-5"}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", new EnumValue(12345))),
+                    Is.EqualTo("""{"E":"12345"}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", NodeClass.ReferenceType)),
+                    Is.EqualTo("""{"E":"ReferenceType_32"}"""));
+            });
+        }
+
+        [Test]
+        public void WriteEnumeratedWithoutLiteralWritesNumericString()
+        {
+            // Without a literal for the value only the numeric value is encoded as a JSON
+            // string (Part 6 5.4.4.2), not "99_99" or "Object, Variable_3".
+            const TimestampsToReturn undefined = (TimestampsToReturn)99;
+            const NodeClass combined = NodeClass.Object | NodeClass.Variable;
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", undefined)),
+                    Is.EqualTo("""{"E":"99"}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", combined)),
+                    Is.EqualTo("""{"E":"3"}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", NodeClass.Variable)),
+                    Is.EqualTo("""{"E":"Variable_2"}"""));
+                Assert.That(
+                    Encode(
+                        JsonEncoderOptions.Verbose,
+                        w => w.WriteEnumeratedArray("E", new[] { NodeClass.Object, combined }.ToArrayOf())),
+                    Is.EqualTo("""{"E":["Object_1","3"]}"""));
+            });
+        }
+
+        [Test]
+        public void WriteExtensionObjectWithUnmappedNamespaceWritesNsuTypeId()
+        {
+            // A TypeId whose namespace is not in the table keeps its identity in the nsu=
+            // form of a NodeId (Part 6 5.4.2.16, 5.4.2.10) instead of being dropped.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            var typeId = new ExpandedNodeId(5001u, "urn:unknown");
+            var value = new ExtensionObject(typeId, /*lang=json,strict*/ """{"A":1}""");
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext))
+            {
+                writer.WriteExtensionObject(JsonProperties.Value, value);
+            }
+
+            using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+            ExtensionObject decoded = decoder.ReadExtensionObject(JsonProperties.Value);
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray()),
+                    Is.EqualTo("""{"Value":{"UaTypeId":"nsu=urn:unknown;i=5001","A":1}}"""));
+                Assert.That(decoded.TypeId, Is.EqualTo(typeId));
+            });
+        }
+
+        [Test]
+        public void RawDataKeepsTypeArtifactsOfAbstractTypedValues()
+        {
+            // RawData omits UaType/UaTypeId, but not for values of the abstract
+            // BaseDataType (Variant) or Structure (ExtensionObject) (Part 6 5.4.1).
+            var variants = Variant.From(new[] { Variant.From(1), Variant.From("a") }.ToArrayOf());
+            var extensionObject = new ExtensionObject(new Argument { Name = "x" });
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.RawData, w => w.WriteVariantValue("V", variants)),
+                    Is.EqualTo("""{"V":[{"UaType":6,"Value":1},{"UaType":12,"Value":"a"}]}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.RawData, w => w.WriteDataValue("V", new DataValue(variants))),
+                    Is.EqualTo("""{"V":{"Value":[{"UaType":6,"Value":1},{"UaType":12,"Value":"a"}]}}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.RawData, w => w.WriteExtensionObject("V", extensionObject)),
+                    Does.StartWith("""{"V":{"UaTypeId":"i=296","Name":"x","""));
+                Assert.That(
+                    Encode(
+                        JsonEncoderOptions.RawData,
+                        w => w.WriteVariantValue("V", new Variant(extensionObject))),
+                    Does.StartWith("""{"V":{"UaTypeId":"i=296","Name":"x","""));
+            });
+        }
+
+        [Test]
+        public void EncodeMessageWritesBodyInlineAfterUaTypeId()
+        {
+            // Messages are ExtensionObjects (Part 6 5.4.9) and a JSON encoded body is
+            // written inline, without UaEncoding and UaBody (Part 6 5.4.2.16).
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.Factory.Builder
+                .AddEncodeableTypes(typeof(EncodeableFactory).Assembly)
+                .Commit();
+            var argument = new Argument { Name = "hello", ValueRank = -1 };
+
+            foreach (JsonEncoderOptions options in new[] { JsonEncoderOptions.Verbose, JsonEncoderOptions.Compact })
+            {
+                using var buffer = new PooledBufferWriter();
+                using (var encoder = new JsonEncoder(buffer, messageContext, options))
+                {
+                    encoder.EncodeMessage(argument, argument.TypeId);
+                }
+
+                using JsonDocument document = JsonDocument.Parse(buffer.WrittenMemory);
+                JsonProperty first = document.RootElement.EnumerateObject().First();
+                using var decoder = new JsonDecoder(buffer.WrittenMemory.ToReadOnlySequence(16), messageContext);
+                Argument decoded = decoder.DecodeMessage<Argument>();
+                Assert.Multiple(() =>
+                {
+                    Assert.That(first.Name, Is.EqualTo(JsonProperties.UaTypeId), options.Name);
+                    Assert.That(first.Value.GetString(), Is.EqualTo("i=296"), options.Name);
+                    Assert.That(document.RootElement.GetProperty("Name").GetString(), Is.EqualTo("hello"), options.Name);
+                    Assert.That(document.RootElement.TryGetProperty(JsonProperties.UaBody, out _), Is.False, options.Name);
+                    Assert.That(decoded.Name, Is.EqualTo("hello"), options.Name);
+                });
+            }
+        }
+
+        [TestCase(/*lang=json,strict*/ """{"UaTypeId":"i=296","UaBody":{"Name":"hello"}}""")]
+        [TestCase(/*lang=json,strict*/ """{"UaTypeId":"i=296","UaEncoding":1,"UaBody":"AAAA"}""")]
+        public void DecodeMessageRejectsBodyOutsideTheExtensionObject(string json)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => JsonDecoder.DecodeMessage<Argument>(System.Text.Encoding.UTF8.GetBytes(json), messageContext));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+        }
+
+        [TestCase(1)]
+        [TestCase(100_000)]
+        public void EncodeMessageThrowsWhenMaxMessageSizeExceeded(int length)
+        {
+            // Like the BinaryEncoder the JSON message must fit into MaxMessageSize; a
+            // large message is aborted while it is streamed, not after it was buffered.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxMessageSize = 64;
+            var argument = new Argument
+            {
+                Name = new string('a', length),
+                ArrayDimensions = Enumerable.Repeat(1u, length).ToArrayOf()
+            };
+            using var stream = new System.IO.MemoryStream();
+            using var encoder = new JsonEncoder(stream, messageContext);
+
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => encoder.EncodeMessage(argument, argument.TypeId));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+            Assert.That(stream.Length, Is.LessThan(64 * 1024));
+        }
+
+        [Test]
+        public void EncodeMessageWithinMaxMessageSizeSucceeds()
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            messageContext.MaxMessageSize = 64;
+            var argument = new Argument { Name = "a" };
+            using var buffer = new PooledBufferWriter();
+            using (var encoder = new JsonEncoder(buffer, messageContext, JsonEncoderOptions.Compact))
+            {
+                encoder.EncodeMessage(argument, argument.TypeId);
+            }
+
+            Assert.That(buffer.WrittenMemory.Length, Is.LessThanOrEqualTo(64));
+        }
+
+        /// <summary>
+        /// Creates {"a":{"a":...{}}} with the given number of nested objects.
+        /// </summary>
+        private static string CreateNestedJsonObject(int depth)
+        {
+            var builder = new System.Text.StringBuilder();
+            for (int i = 1; i < depth; i++)
+            {
+                builder.Append("{\"a\":");
+            }
+            builder.Append("{}");
+            builder.Append('}', depth - 1);
+            return builder.ToString();
+        }
+
+        private static string Encode(JsonEncoderOptions options, Action<JsonEncoder> write)
+        {
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            using var buffer = new PooledBufferWriter();
+            using (var writer = new JsonEncoder(buffer, messageContext, options))
+            {
+                write(writer);
+            }
+            return System.Text.Encoding.UTF8.GetString(buffer.WrittenMemory.ToArray());
         }
 
         public static Argument CreateType => new()

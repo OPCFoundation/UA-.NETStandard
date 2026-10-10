@@ -175,24 +175,15 @@ namespace Opc.Ua.Server
             MonitoringFilter filterToUse,
             Range range,
             double minimumSamplingInterval,
-            bool createDurable)
+            bool createDurable,
+            double? sourceSamplingInterval = null)
         {
             _ = itemToCreate.RequestedParameters.Filter.TryGetValue(
                 out MonitoringFilter? originalFilter);
 
             // use publishing interval as sampling interval.
-            double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
-
-            if (samplingInterval < 0)
-            {
-                samplingInterval = publishingInterval;
-            }
-
-            // limit the sampling interval.
-            if (minimumSamplingInterval > 0 && samplingInterval < minimumSamplingInterval)
-            {
-                samplingInterval = minimumSamplingInterval;
-            }
+            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                itemToCreate.RequestedParameters.SamplingInterval, publishingInterval, minimumSamplingInterval, 0);
 
             // calculate queue size.
             uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(
@@ -236,8 +227,12 @@ namespace Opc.Ua.Server
                 samplingInterval,
                 revisedQueueSize,
                 itemToCreate.RequestedParameters.DiscardOldest,
-                samplingInterval,
+                originalFilter is EventFilter ? 0 : sourceSamplingInterval ?? minimumSamplingInterval,
                 createDurable);
+
+            // the node manager reads and queues the initial value after creating the
+            // item, so the group does not take another immediate sample.
+            MarkInitialValueQueued(monitoredItem);
 
             // start sampling.
             StartMonitoring(context, monitoredItem);
@@ -280,26 +275,16 @@ namespace Opc.Ua.Server
             ISampledDataChangeMonitoredItem monitoredItem,
             MonitoredItemModifyRequest itemToModify,
             MonitoringFilter filterToUse,
-            Range range)
+            Range range,
+            double? revisedSamplingInterval = null)
         {
             _ = itemToModify.RequestedParameters.Filter.TryGetValue(
                 out MonitoringFilter? originalFilter);
 
             // use existing interval as sampling interval.
-            double samplingInterval = itemToModify.RequestedParameters.SamplingInterval;
-
-            if (samplingInterval < 0)
-            {
-                samplingInterval = monitoredItem.SamplingInterval;
-            }
-
-            // limit the sampling interval.
-            double minimumSamplingInterval = monitoredItem.MinimumSamplingInterval;
-
-            if (minimumSamplingInterval > 0 && samplingInterval < minimumSamplingInterval)
-            {
-                samplingInterval = minimumSamplingInterval;
-            }
+            double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                revisedSamplingInterval ?? itemToModify.RequestedParameters.SamplingInterval,
+                monitoredItem.SamplingInterval, monitoredItem.MinimumSamplingInterval, 0);
 
             // calculate queue size.
             uint revisedQueueSize = SubscriptionManager.CalculateRevisedQueueSize(
@@ -308,9 +293,11 @@ namespace Opc.Ua.Server
                 m_maxQueueSize,
                 m_maxDurableQueueSize);
 
+            // Part 4 7.21: 0 selects the default queue size of 1 for data items,
+            // the same as on create; it does not keep the previous size.
             if (revisedQueueSize == 0)
             {
-                revisedQueueSize = monitoredItem.QueueSize;
+                revisedQueueSize = 1;
             }
 
             if (originalFilter is EventFilter)
@@ -358,6 +345,8 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                bool initialValueQueued = m_initialValueQueued.Remove(monitoredItem);
+
                 // do nothing for disabled or exception based items.
                 if (monitoredItem.MonitoringMode == MonitoringMode.Disabled ||
                     monitoredItem.MinimumSamplingInterval == 0)
@@ -369,7 +358,8 @@ namespace Opc.Ua.Server
                 // find a suitable sampling group.
                 foreach (SamplingGroup samplingGroup in m_samplingGroups)
                 {
-                    if (samplingGroup.StartMonitoring(context, monitoredItem, savedOwnerIdentity))
+                    if (samplingGroup.StartMonitoring(
+                        context, monitoredItem, savedOwnerIdentity, initialValueQueued))
                     {
                         m_sampledItems.Add(monitoredItem, samplingGroup);
                         return;
@@ -389,7 +379,8 @@ namespace Opc.Ua.Server
                         savedOwnerIdentity,
                         m_timeProvider);
 
-                    tempSamplingGroup.StartMonitoring(context, monitoredItem, savedOwnerIdentity);
+                    tempSamplingGroup.StartMonitoring(
+                        context, monitoredItem, savedOwnerIdentity, initialValueQueued);
 
                     m_samplingGroups.Add(tempSamplingGroup);
                     m_sampledItems.Add(monitoredItem, tempSamplingGroup);
@@ -399,6 +390,28 @@ namespace Opc.Ua.Server
                 {
                     tempSamplingGroup?.Dispose();
                 }
+            }
+        }
+
+        /// <summary>
+        /// Returns the sampling interval a sampled item with the revised sampling interval
+        /// gets once it is assigned to a sampling group.
+        /// </summary>
+        internal double GetGroupSamplingInterval(double samplingInterval)
+        {
+            return SamplingGroup.AdjustSamplingInterval(m_samplingRates, samplingInterval);
+        }
+
+        /// <summary>
+        /// Records that the caller queues the initial value of the item itself, so the
+        /// next <see cref="StartMonitoring"/> of the item (directly or through
+        /// <see cref="ModifyMonitoring"/>) does not take an additional immediate sample.
+        /// </summary>
+        internal void MarkInitialValueQueued(ISampledDataChangeMonitoredItem monitoredItem)
+        {
+            lock (m_lock)
+            {
+                m_initialValueQueued.Add(monitoredItem);
             }
         }
 
@@ -446,8 +459,9 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                // check for sampling group.
+                m_initialValueQueued.Remove(monitoredItem);
 
+                // check for sampling group.
                 if (m_sampledItems.TryGetValue(monitoredItem, out SamplingGroup? samplingGroup))
                 {
                     samplingGroup?.StopMonitoring(monitoredItem);
@@ -465,6 +479,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                m_initialValueQueued.Clear();
                 var unusedGroups = new List<SamplingGroup>();
 
                 // apply changes to groups.
@@ -491,6 +506,7 @@ namespace Opc.Ua.Server
         private readonly IAsyncNodeManager m_nodeManager;
         private readonly List<SamplingGroup> m_samplingGroups;
         private readonly Dictionary<ISampledDataChangeMonitoredItem, SamplingGroup> m_sampledItems;
+        private readonly HashSet<ISampledDataChangeMonitoredItem> m_initialValueQueued = [];
         private readonly List<SamplingRateGroup> m_samplingRates;
         private readonly uint m_maxQueueSize;
         private readonly uint m_maxDurableQueueSize;

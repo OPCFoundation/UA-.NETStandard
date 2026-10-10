@@ -557,8 +557,8 @@ namespace Opc.Ua.EndpointRegistry
 
         private static string LogicalXid(string xid)
         {
-            int versions = xid.IndexOf("/versions/", StringComparison.Ordinal);
-            return versions < 0 ? xid : xid[..versions];
+            string[] parts = xid.Split('/');
+            return parts.Length == 7 ? "/" + string.Join("/", parts, 1, 4) : xid;
         }
 
         private static string RequireXid(RegistryEntityReferenceDataType target, string path)
@@ -574,7 +574,7 @@ namespace Opc.Ua.EndpointRegistry
         {
             string xid = RequireXid(target, "Reference");
             EndpointRegistryRules.ValidateMessageReference(xid, "Reference");
-            string role = xid.Contains("/versions/", StringComparison.Ordinal)
+            string role = xid.Split('/').Length == 7
                 ? "MetadataVersion" : "MetadataResource";
             if (target.Role != role)
             {
@@ -718,7 +718,7 @@ namespace Opc.Ua.EndpointRegistry
                 if (xid is not null)
                 {
                     result.Xid = xid;
-                    result.Role = xid.Contains("/versions/", StringComparison.Ordinal)
+                    result.Role = xid.Split('/').Length == 7
                         ? "MetadataVersion" : "MetadataResource";
                     result.HasNativeTarget = false;
                     result.NativeTarget = ExpandedNodeId.Null;

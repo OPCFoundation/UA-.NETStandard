@@ -41,6 +41,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
     [Parallelizable]
     public class FilterEvaluatorCoverageTests
     {
+        private static readonly int[] s_twoIntegers = [1, 2];
         private IFilterContext m_context;
         private CoverageFilterTarget m_target;
 
@@ -377,6 +378,410 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
             Assert.That(Filter(equals, bitwise).Evaluate(m_context, m_target), Is.True);
         }
 
+        /// <summary>
+        /// OPC 10000-4 7.7.3: an element with a NULL operand evaluates to NULL
+        /// (not to an ordered comparison with NULL sorted first).
+        /// </summary>
+        [TestCase(FilterOperator.Equals, true, true)]
+        [TestCase(FilterOperator.Equals, true, false)]
+        [TestCase(FilterOperator.GreaterThan, true, false)]
+        [TestCase(FilterOperator.GreaterThan, false, true)]
+        [TestCase(FilterOperator.GreaterThanOrEqual, true, false)]
+        [TestCase(FilterOperator.GreaterThanOrEqual, false, true)]
+        [TestCase(FilterOperator.LessThan, true, false)]
+        [TestCase(FilterOperator.LessThan, false, true)]
+        [TestCase(FilterOperator.LessThanOrEqual, true, false)]
+        [TestCase(FilterOperator.LessThanOrEqual, false, true)]
+        public void RelationalOperatorWithNullOperandIsNull(
+            FilterOperator op,
+            bool lhsNull,
+            bool rhsNull)
+        {
+            Variant lhs = lhsNull ? Variant.Null : Variant.From(100.0);
+            Variant rhs = rhsNull ? Variant.Null : Variant.From(100.0);
+            ContentFilterElement compare = Element(
+                op,
+                new LiteralOperand(lhs),
+                new LiteralOperand(rhs));
+
+            // the element result itself is NULL, so it neither passes nor
+            // turns into TRUE when negated.
+            Assert.That(BinaryFilter(op, lhs, rhs).Evaluate(m_context, m_target), Is.False);
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), compare)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+            Assert.That(
+                Filter(Element(FilterOperator.Not, new ElementOperand(1)), compare)
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
+        [Test]
+        public void LessThanMissingFieldDoesNotPassFilter()
+        {
+            // A field missing from the event resolves to NULL; NULL < 100 must
+            // not be TRUE.
+            Assert.That(
+                BinaryFilter(FilterOperator.LessThan, Variant.Null, Variant.From(100.0))
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
+        [TestCase(true, false, false)]
+        [TestCase(false, true, false)]
+        [TestCase(false, false, true)]
+        public void BetweenWithNullOperandIsNull(bool valueNull, bool minNull, bool maxNull)
+        {
+            ContentFilterElement between = Element(
+                FilterOperator.Between,
+                new LiteralOperand(valueNull ? Variant.Null : Variant.From(5)),
+                new LiteralOperand(minNull ? Variant.Null : Variant.From(1)),
+                new LiteralOperand(maxNull ? Variant.Null : Variant.From(10)));
+            Assert.That(Filter(between).Evaluate(m_context, m_target), Is.False);
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), between)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void InListWithNullValueIsNull()
+        {
+            ContentFilterElement inList = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.From(1)));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), inList)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void InListWithNullEntryAndNoMatchIsNull()
+        {
+            ContentFilterElement inList = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.From(1)),
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.From(2)));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), inList)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void InListWithNullEntryAndMatchYieldsTrue()
+        {
+            ContentFilterElement inList = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.From(1)),
+                new LiteralOperand(Variant.Null),
+                new LiteralOperand(Variant.From(1)));
+            Assert.That(Filter(inList).Evaluate(m_context, m_target), Is.True);
+        }
+
+        /// <summary>
+        /// A String-typed operand holding a null string (e.g. a decoded
+        /// string of length -1) is NULL and must not throw.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public void EqualsWithNullStringOperandIsNull(bool lhsNull, bool rhsNull)
+        {
+            ContentFilterElement equals = Element(
+                FilterOperator.Equals,
+                new LiteralOperand(lhsNull ? Variant.From((string)null!) : Variant.From("a")),
+                new LiteralOperand(rhsNull ? Variant.From((string)null!) : Variant.From("a")));
+            Assert.That(Filter(equals).Evaluate(m_context, m_target), Is.False);
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), equals)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void InListWithNullStringValueIsNull()
+        {
+            ContentFilterElement inList = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.From((string)null!)),
+                new LiteralOperand(Variant.From("a")));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), inList)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void InListWithNullStringEntryAndNoMatchIsNull()
+        {
+            ContentFilterElement inList = Element(
+                FilterOperator.InList,
+                new LiteralOperand(Variant.From("a")),
+                new LiteralOperand(Variant.From((string)null!)),
+                new LiteralOperand(Variant.From("b")));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), inList)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3 IsNull: a String-typed Variant holding a null
+        /// string is a null value, like it is for every other operator.
+        /// </summary>
+        [Test]
+        public void IsNullWithNullStringOperandYieldsTrue()
+        {
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new LiteralOperand(Variant.From((string)null!))))
+                    .Evaluate(m_context, m_target),
+                Is.True);
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new LiteralOperand(Variant.From(string.Empty))))
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3: a NULL Like operand makes the element NULL, so
+        /// it does not turn into TRUE when negated.
+        /// </summary>
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        public void LikeWithNullStringOperandIsNull(bool lhsNull, bool rhsNull)
+        {
+            ContentFilterElement like = Element(
+                FilterOperator.Like,
+                new LiteralOperand(lhsNull ? Variant.From((string)null!) : Variant.From("abc")),
+                new LiteralOperand(rhsNull ? Variant.From((string)null!) : Variant.From("a%")));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), like)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+            Assert.That(
+                Filter(Element(FilterOperator.Not, new ElementOperand(1)), like)
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3 Table 121 marks these conversions X, so Cast is
+        /// NULL even though the general-purpose Variant converters support them.
+        /// </summary>
+        [TestCase(BuiltInType.StatusCode, BuiltInType.String)]
+        [TestCase(BuiltInType.String, BuiltInType.StatusCode)]
+        [TestCase(BuiltInType.String, BuiltInType.XmlElement)]
+        [TestCase(BuiltInType.String, BuiltInType.ByteString)]
+        [TestCase(BuiltInType.XmlElement, BuiltInType.String)]
+        [TestCase(BuiltInType.ExtensionObject, BuiltInType.String)]
+        public void CastNotInTable121IsNull(BuiltInType sourceType, BuiltInType targetType)
+        {
+            Variant value = sourceType switch
+            {
+                BuiltInType.StatusCode => new Variant(new StatusCode(0x80000000u)),
+                BuiltInType.String => Variant.From("0A0B"),
+                BuiltInType.XmlElement => new Variant(XmlElement.From("<a>1</a>")),
+                _ => new Variant(new ExtensionObject(new Argument { Name = "x" }))
+            };
+            Assert.That(value.TypeInfo.BuiltInType, Is.EqualTo(sourceType));
+            ContentFilterElement cast = Element(
+                FilterOperator.Cast,
+                new LiteralOperand(value),
+                new LiteralOperand(Variant.From(new NodeId((uint)targetType))));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), cast)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3 Table 121: QualifiedName converts implicitly to
+        /// LocalizedText.
+        /// </summary>
+        [Test]
+        public void CastQualifiedNameToLocalizedTextUsesName()
+        {
+            ContentFilterElement equals = Element(
+                FilterOperator.Equals,
+                new ElementOperand(1),
+                new LiteralOperand(Variant.From(new LocalizedText("Name"))));
+            ContentFilterElement cast = Element(
+                FilterOperator.Cast,
+                new LiteralOperand(Variant.From(new QualifiedName("Name", 2))),
+                new LiteralOperand(Variant.From(DataTypeIds.LocalizedText)));
+            Assert.That(Filter(equals, cast).Evaluate(m_context, m_target), Is.True);
+        }
+
+        [Test]
+        public void CastWithNullStringOperandIsNull()
+        {
+            ContentFilterElement cast = Element(
+                FilterOperator.Cast,
+                new LiteralOperand(Variant.From((string)null!)),
+                new LiteralOperand(Variant.From(DataTypeIds.String)));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), cast)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void OrNullStringCompareWithTrueRightYieldsTrue()
+        {
+            ContentFilterElement equals = Element(
+                FilterOperator.Equals,
+                new LiteralOperand(Variant.From((string)null!)),
+                new LiteralOperand(Variant.From("a")));
+            Assert.That(
+                Filter(
+                    Element(
+                        FilterOperator.Or,
+                        new ElementOperand(1),
+                        new LiteralOperand(Variant.From(true))),
+                    equals)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3: the bitwise result matches the size of the largest
+        /// operand.
+        /// </summary>
+        [TestCase(FilterOperator.BitwiseOr, 0x101u)]
+        [TestCase(FilterOperator.BitwiseAnd, 0x0u)]
+        public void BitwiseResultHasSizeOfLargestOperand(FilterOperator op, uint expected)
+        {
+            ContentFilterElement equals = Element(
+                FilterOperator.Equals,
+                new ElementOperand(1),
+                new LiteralOperand(Variant.From(expected)));
+            ContentFilterElement bitwise = Element(
+                op,
+                new LiteralOperand(Variant.From((byte)0x01)),
+                new LiteralOperand(Variant.From(0x100u)));
+            Assert.That(Filter(equals, bitwise).Evaluate(m_context, m_target), Is.True);
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3 Table 121: Double, Float and StatusCode only have an
+        /// explicit conversion to an integer, so a bitwise element is NULL.
+        /// </summary>
+        [TestCase(FilterOperator.BitwiseAnd)]
+        [TestCase(FilterOperator.BitwiseOr)]
+        public void BitwiseWithNonIntegerOperandsIsNull(FilterOperator op)
+        {
+            Variant[] nonIntegers =
+            [
+                Variant.From(1.0),
+                Variant.From(1.0f),
+                new Variant(new StatusCode(1u)),
+                Variant.From(Uuid.Empty),
+                Variant.From("abc"),
+                Variant.From(s_twoIntegers),
+                Variant.Null
+            ];
+            foreach (Variant nonInteger in nonIntegers)
+            {
+                ContentFilterElement bitwise = Element(
+                    op,
+                    new LiteralOperand(nonInteger),
+                    new LiteralOperand(Variant.From(1)));
+                Assert.That(
+                    Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), bitwise)
+                        .Evaluate(m_context, m_target),
+                    Is.True,
+                    nonInteger.ToString());
+            }
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.7.3: Boolean and String operands have an implicit
+        /// conversion to integers (Table 121) and a one element array converts
+        /// implicitly to a scalar, so the bitwise operators accept them.
+        /// </summary>
+        [TestCase(FilterOperator.BitwiseAnd, true, 0x0F, 0x01)]
+        [TestCase(FilterOperator.BitwiseOr, true, 0xF0, 0xF1)]
+        [TestCase(FilterOperator.BitwiseAnd, "12", 0x0F, 0x0C)]
+        [TestCase(FilterOperator.BitwiseOr, "12", 0x03, 0x0F)]
+        public void BitwiseImplicitlyConvertsOperandsToIntegers(
+            FilterOperator op,
+            object lhs,
+            int rhs,
+            int expected)
+        {
+            Variant lhsValue = lhs is bool b ? Variant.From(b) : Variant.From((string)lhs);
+            Variant[] lhsForms = [lhsValue, lhs is bool b2
+                ? Variant.From(new[] { b2 })
+                : Variant.From(new[] { (string)lhs })];
+            Variant[] rhsForms = [Variant.From(rhs), Variant.From(new[] { rhs })];
+            foreach (Variant lhsForm in lhsForms)
+            {
+                foreach (Variant rhsForm in rhsForms)
+                {
+                    ContentFilterElement equals = Element(
+                        FilterOperator.Equals,
+                        new ElementOperand(1),
+                        new LiteralOperand(Variant.From(expected)));
+                    ContentFilterElement bitwise = Element(
+                        op,
+                        new LiteralOperand(lhsForm),
+                        new LiteralOperand(rhsForm));
+                    Assert.That(
+                        Filter(equals, bitwise).Evaluate(m_context, m_target),
+                        Is.True,
+                        $"{lhsForm} {op} {rhsForm}");
+                }
+            }
+        }
+
+        [Test]
+        public void BitwiseWithBooleanOperandsUsesByte()
+        {
+            ContentFilterElement equals = Element(
+                FilterOperator.Equals,
+                new ElementOperand(1),
+                new LiteralOperand(Variant.From((byte)1)));
+            ContentFilterElement bitwise = Element(
+                FilterOperator.BitwiseAnd,
+                new LiteralOperand(Variant.From(true)),
+                new LiteralOperand(Variant.From(true)));
+            Assert.That(Filter(equals, bitwise).Evaluate(m_context, m_target), Is.True);
+        }
+
+        [Test]
+        public void BitwiseWithUnparsableStringIsNull()
+        {
+            ContentFilterElement bitwise = Element(
+                FilterOperator.BitwiseOr,
+                new LiteralOperand(Variant.From("0x1G")),
+                new LiteralOperand(Variant.From((byte)1)));
+            Assert.That(
+                Filter(Element(FilterOperator.IsNull, new ElementOperand(1)), bitwise)
+                    .Evaluate(m_context, m_target),
+                Is.True);
+        }
+
+        [Test]
+        public void GreaterThanOrdersStringsOrdinally()
+        {
+            // 'a' (0x61) sorts after 'B' (0x42) ordinally; a culture aware
+            // comparison puts "a" first.
+            Assert.That(
+                BinaryFilter(FilterOperator.GreaterThan, Variant.From("a"), Variant.From("B"))
+                    .Evaluate(m_context, m_target),
+                Is.True);
+            Assert.That(
+                BinaryFilter(FilterOperator.LessThan, Variant.From("a"), Variant.From("B"))
+                    .Evaluate(m_context, m_target),
+                Is.False);
+        }
+
         [Test]
         public void OfTypeWithNonNodeIdOperandYieldsFalse()
         {
@@ -484,7 +889,7 @@ namespace Opc.Ua.Core.Tests.Types.ContentFilter
                 new LiteralOperand(Variant.From(false)),
                 new LiteralOperand(Variant.From(false))
             ];
-            operands[parameter] = new LiteralOperand(Variant.From((string)null));
+            operands[parameter] = new LiteralOperand(Variant.From((string)null!));
             Assert.That(Filter(Element(FilterOperator.RelatedTo, operands)).Evaluate(m_context, advanced), Is.False);
         }
 

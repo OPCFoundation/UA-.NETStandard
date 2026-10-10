@@ -77,6 +77,36 @@ namespace Opc.Ua.Bindings.WebApi
         /// </summary>
         public WebApiEncoding DefaultEncoding { get; set; }
             = WebApiMediaType.DefaultEncoding;
+
+        /// <summary>
+        /// The services the binding maps routes for and describes in its
+        /// OpenAPI document. Defaults to
+        /// <see cref="WebApiServiceSet.AllServices"/>;
+        /// <see cref="WebApiServiceSet.Sessionless"/> maps only the eight
+        /// services a client can call without a session and leaves
+        /// discovery and session management to the binary and
+        /// <c>opcua+uajson</c> endpoints.
+        /// </summary>
+        public WebApiServiceSet ServiceSet { get; set; }
+
+        /// <summary>
+        /// The route the OpenAPI document of <see cref="ServiceSet"/> is
+        /// served at with <c>GET</c>, for example <c>/openapi.json</c>.
+        /// Defaults to <c>null</c>: the document is not served. The route
+        /// is part of the REST routes and requires the same authentication
+        /// and authorization as they do.
+        /// </summary>
+        public string? OpenApiDocumentPath { get; set; }
+
+        /// <summary>
+        /// Whether the served OpenAPI document describes the request and
+        /// response messages as component schemas. Defaults to
+        /// <c>false</c>: every body is a JSON object, which keeps the
+        /// document small. Set it to <c>true</c> when the document is the
+        /// input of an OpenAPI client generator that emits typed models.
+        /// Only used when <see cref="OpenApiDocumentPath"/> is set.
+        /// </summary>
+        public bool OpenApiIncludeSchemas { get; set; }
     }
 }
 #endif

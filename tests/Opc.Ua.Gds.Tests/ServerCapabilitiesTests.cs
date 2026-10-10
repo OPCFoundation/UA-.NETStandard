@@ -61,7 +61,7 @@ namespace Opc.Ua.Gds.Tests
         public void FindReturnsCapabilityById()
         {
             var capabilities = new ServerCapabilities();
-            ServerCapabilityInfo result = capabilities.Find(ServerCapability.DA);
+            ServerCapabilityInfo result = capabilities.Find(ServerCapability.DA)!;
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Id, Is.EqualTo("DA"));
             Assert.That(result.Description, Is.Not.Null.And.Not.Empty);
@@ -79,7 +79,7 @@ namespace Opc.Ua.Gds.Tests
         public void FindReturnsNullForUnknownId()
         {
             var capabilities = new ServerCapabilities();
-            ServerCapabilityInfo result = capabilities.Find("UNKNOWN_XYZ");
+            ServerCapabilityInfo? result = capabilities.Find("UNKNOWN_XYZ");
             Assert.That(result, Is.Null);
         }
 
@@ -87,7 +87,7 @@ namespace Opc.Ua.Gds.Tests
         public void FindReturnsNullForNullId()
         {
             var capabilities = new ServerCapabilities();
-            ServerCapabilityInfo result = capabilities.Find(null);
+            ServerCapabilityInfo? result = capabilities.Find(null);
             Assert.That(result, Is.Null);
         }
 

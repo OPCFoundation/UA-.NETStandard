@@ -28,10 +28,12 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
+using ISession = Opc.Ua.Client.ISession;
 
 namespace Opc.Ua.InformationModel.Tests
 {
@@ -139,7 +141,7 @@ namespace Opc.Ua.InformationModel.Tests
             var childNames = new List<string>();
             foreach (ReferenceDescription r in response.Results[0].References)
             {
-                childNames.Add(r.BrowseName.Name);
+                childNames.Add(r.BrowseName.Name!);
             }
             Assert.That(childNames, Is.Not.Empty,
                 "ServerDiagnostics should have child nodes.");
@@ -162,6 +164,152 @@ namespace Opc.Ua.InformationModel.Tests
             DataValue result = await ReadNodeValueAsync(
                 VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary_ServerViewCount).ConfigureAwait(false);
             Assert.That(StatusCode.IsGood(result.StatusCode), Is.True);
+        }
+
+        [Test]
+        public async Task SubscriptionDiagnosticsArrayBrowseReturnsOnlyOwnSubscriptionsAsync()
+        {
+            ISession admin = await ConnectAsSysAdminAsync().ConfigureAwait(false);
+            if (admin == null)
+            {
+                Assert.Ignore("The server has no UserName endpoint for the administrator.");
+            }
+
+            ISession? other = null;
+            uint ownSubscriptionId = 0;
+            uint otherSubscriptionId = 0;
+            try
+            {
+                other = await OpenAuxSessionAsync().ConfigureAwait(false);
+                ownSubscriptionId = await CreateSubscriptionAsync(Session).ConfigureAwait(false);
+                otherSubscriptionId = await CreateSubscriptionAsync(other).ConfigureAwait(false);
+
+                // a SecurityMode None session browses the server wide array and gets its own
+                // subscription only (Part 5 6.3.5), as Subscription Durable 012.js expects.
+                List<NodeId> visible = await BrowseComponentsAsync(
+                    Session,
+                    VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray).ConfigureAwait(false);
+                List<SubscriptionDiagnosticsDataType> own = await ReadSubscriptionDiagnosticsAsync(
+                    Session,
+                    visible).ConfigureAwait(false);
+                Assert.That(own.Select(d => d.SessionId), Is.All.EqualTo(Session.SessionId));
+                Assert.That(own.Select(d => d.SubscriptionId), Does.Contain(ownSubscriptionId));
+                Assert.That(own.Select(d => d.SubscriptionId), Does.Not.Contain(otherSubscriptionId));
+
+                // the array value holds every session's subscriptions and stays admin only.
+                DataValue arrayValue = await ReadNodeValueAsync(
+                    VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray).ConfigureAwait(false);
+                Assert.That(arrayValue.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+                // the administrator sees the subscriptions of both sessions.
+                List<NodeId> all = await BrowseComponentsAsync(
+                    admin,
+                    VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray).ConfigureAwait(false);
+                List<SubscriptionDiagnosticsDataType> allDiagnostics =
+                    await ReadSubscriptionDiagnosticsAsync(admin, all).ConfigureAwait(false);
+                Assert.That(
+                    allDiagnostics.Select(d => d.SubscriptionId),
+                    Does.Contain(ownSubscriptionId).And.Contain(otherSubscriptionId));
+            }
+            finally
+            {
+                await DeleteSubscriptionAsync(Session, ownSubscriptionId).ConfigureAwait(false);
+                await DeleteSubscriptionAsync(other!, otherSubscriptionId).ConfigureAwait(false);
+                await CloseAsync(other!).ConfigureAwait(false);
+                await CloseAsync(admin).ConfigureAwait(false);
+            }
+        }
+
+        private static async Task<uint> CreateSubscriptionAsync(ISession session)
+        {
+            CreateSubscriptionResponse response = await session.CreateSubscriptionAsync(
+                null, 1000, 100, 10, 0, true, 0,
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(StatusCode.IsGood(response.ResponseHeader.ServiceResult), Is.True);
+            return response.SubscriptionId;
+        }
+
+        private static async Task DeleteSubscriptionAsync(ISession session, uint subscriptionId)
+        {
+            if (session == null || subscriptionId == 0)
+            {
+                return;
+            }
+            try
+            {
+                await session.DeleteSubscriptionsAsync(
+                    null,
+                    new uint[] { subscriptionId }.ToArrayOf(),
+                    CancellationToken.None).ConfigureAwait(false);
+            }
+            catch
+            {
+                // best effort
+            }
+        }
+
+        private static async Task<List<NodeId>> BrowseComponentsAsync(ISession session, NodeId nodeId)
+        {
+            BrowseResponse response = await session.BrowseAsync(
+                null, null, 0,
+                new BrowseDescription[]
+                {
+                    new() {
+                        NodeId = nodeId,
+                        BrowseDirection = BrowseDirection.Forward,
+                        ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                        IncludeSubtypes = true,
+                        NodeClassMask = (uint)NodeClass.Variable,
+                        ResultMask = (uint)BrowseResultMask.All
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            BrowseResult result = response.Results[0];
+            Assert.That(StatusCode.IsGood(result.StatusCode), Is.True, result.StatusCode.ToString());
+            Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
+            return [.. result.References.ToArray()!.Select(r => ExpandedNodeId.ToNodeId(r.NodeId, session.NamespaceUris))];
+        }
+
+        private static async Task<List<SubscriptionDiagnosticsDataType>> ReadSubscriptionDiagnosticsAsync(
+            ISession session,
+            List<NodeId> nodeIds)
+        {
+            var diagnostics = new List<SubscriptionDiagnosticsDataType>();
+            if (nodeIds.Count == 0)
+            {
+                return diagnostics;
+            }
+            ReadResponse response = await session.ReadAsync(
+                null, 0, TimestampsToReturn.Neither,
+                nodeIds.Select(n => new ReadValueId { NodeId = n, AttributeId = Attributes.Value }).ToArray().ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+            for (int ii = 0; ii < nodeIds.Count; ii++)
+            {
+                DataValue value = response.Results[ii];
+                Assert.That(StatusCode.IsGood(value.StatusCode), Is.True, $"{nodeIds[ii]}: {value.StatusCode}");
+                Assert.That(value.WrappedValue.TryGetValue(out ExtensionObject extension), Is.True, nodeIds[ii].ToString());
+                Assert.That(extension.TryGetValue(out SubscriptionDiagnosticsDataType? entry), Is.True, nodeIds[ii].ToString());
+                diagnostics.Add(entry!);
+            }
+            return diagnostics;
+        }
+
+        private static async Task CloseAsync(ISession session)
+        {
+            if (session == null)
+            {
+                return;
+            }
+            try
+            {
+                await session.CloseAsync(5000, true).ConfigureAwait(false);
+            }
+            catch
+            {
+                // best effort
+            }
+            session.Dispose();
         }
 
         private async Task<DataValue> ReadNodeValueAsync(NodeId nodeId)

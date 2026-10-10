@@ -1,0 +1,50 @@
+{
+  "ComplexTypes": {
+    "reason": "open62541 1.5.8 UA_Client_getRemoteDataTypes does not create the TestData ScalarStructureDataType (fields of the abstract Enumeration, Structure, Number, Integer and UInteger DataTypes)",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "ServerFeatureInteropTests.ConditionRefreshDeliversRefreshEventsAsync": {
+    "reason": "open62541 1.5.8 has no ConditionRefresh without the EXPERIMENTAL UA_ENABLE_SUBSCRIPTIONS_ALARMS_CONDITIONS build option, and even with it the method callback is only attached when the first condition is created (setConditionMethodCallbacks, src/server/ua_subscription_alarms_conditions.c:2369/2391); the ConditionType.ConditionRefresh (i=3875) node of namespace 0 has no callback, so the Call returns Bad_InternalError (src/server/ua_services_method.c:156) instead of RefreshStart/RefreshEnd events (OPC 10000-9 5.5.7) or Bad_NotImplemented",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "LegacyServerInteropTests.ResponseAboveClientLimitIsRejectedAsync": {
+    "reason": "the open62541 1.5.8 server closes the connection when a response exceeds the client's MaxMessageSize instead of answering with Bad_ResponseTooLarge (OPC 10000-6 6.7.2)",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "LegacyServerInteropTests.ValueAboveServerLimitIsRejectedAsync(\"Int32Array\")": {
+    "reason": "the open62541 1.5.8 server has no MaxArrayLength and accepts a 150000 element Int32 array",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "EccInteropTests.ClientToLegacyServerAsync(ECC_nistP256, Sign, Anonymous)": {
+    "reason": "open62541 1.5.8 derives the encryption key and IV also for MessageSecurityMode Sign and counts them in L of the HKDF salt (ua_securechannel_crypto.c generateLocalKeys/RemoteKeys); OPC 10000-6 6.8.1 sets EncryptionKeyLength and InitializationVectorLength to 0 for Sign only without AuthenticatedEncryption, as the .NET stacks do, so the first signed message fails with Bad_SecurityChecksFailed (with the OpenSSL backend the open62541 side reports Bad_InternalError, because UA_OpenSSL_HMAC_SHA256_Verify, plugins/crypto/openssl/securitypolicy_common.c:704, maps an HMAC mismatch to Bad_InternalError); the AEAD policies (ECC_nistP256_AesGcm/_ChaChaPoly) derive the keys for Sign as well and are not affected",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "EccInteropTests.LegacyClientToServerAsync(ECC_nistP256, Sign, Anonymous)": {
+    "reason": "open62541 1.5.8 derives the encryption key and IV also for MessageSecurityMode Sign and counts them in L of the HKDF salt (ua_securechannel_crypto.c generateLocalKeys/RemoteKeys); OPC 10000-6 6.8.1 sets EncryptionKeyLength and InitializationVectorLength to 0 for Sign only without AuthenticatedEncryption, as the .NET stacks do, so the first signed message fails with Bad_SecurityChecksFailed (with the OpenSSL backend the open62541 side reports Bad_InternalError, because UA_OpenSSL_HMAC_SHA256_Verify, plugins/crypto/openssl/securitypolicy_common.c:704, maps an HMAC mismatch to Bad_InternalError); the AEAD policies (ECC_nistP256_AesGcm/_ChaChaPoly) derive the keys for Sign as well and are not affected",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "EccInteropTests.ClientToLegacyServerAsync(ECC_nistP384, Sign, Anonymous)": {
+    "reason": "open62541 1.5.8 derives the encryption key and IV also for MessageSecurityMode Sign and counts them in L of the HKDF salt (ua_securechannel_crypto.c generateLocalKeys/RemoteKeys); OPC 10000-6 6.8.1 sets EncryptionKeyLength and InitializationVectorLength to 0 for Sign only without AuthenticatedEncryption, as the .NET stacks do, so the first signed message fails with Bad_SecurityChecksFailed (with the OpenSSL backend the open62541 side reports Bad_InternalError, because UA_OpenSSL_HMAC_SHA256_Verify, plugins/crypto/openssl/securitypolicy_common.c:704, maps an HMAC mismatch to Bad_InternalError); the AEAD policies (ECC_nistP256_AesGcm/_ChaChaPoly) derive the keys for Sign as well and are not affected",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "EccInteropTests.LegacyClientToServerAsync(ECC_nistP384, Sign, Anonymous)": {
+    "reason": "open62541 1.5.8 derives the encryption key and IV also for MessageSecurityMode Sign and counts them in L of the HKDF salt (ua_securechannel_crypto.c generateLocalKeys/RemoteKeys); OPC 10000-6 6.8.1 sets EncryptionKeyLength and InitializationVectorLength to 0 for Sign only without AuthenticatedEncryption, as the .NET stacks do, so the first signed message fails with Bad_SecurityChecksFailed (with the OpenSSL backend the open62541 side reports Bad_InternalError, because UA_OpenSSL_HMAC_SHA256_Verify, plugins/crypto/openssl/securitypolicy_common.c:704, maps an HMAC mismatch to Bad_InternalError); the AEAD policies (ECC_nistP256_AesGcm/_ChaChaPoly) derive the keys for Sign as well and are not affected",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "EccInteropTests.ClientToLegacyServerAsync(ECC_brainpoolP256r1, Sign, Anonymous)": {
+    "reason": "open62541 1.5.8 derives the encryption key and IV also for MessageSecurityMode Sign and counts them in L of the HKDF salt (ua_securechannel_crypto.c generateLocalKeys/RemoteKeys); OPC 10000-6 6.8.1 sets EncryptionKeyLength and InitializationVectorLength to 0 for Sign only without AuthenticatedEncryption, as the .NET stacks do, so the first signed message fails with Bad_SecurityChecksFailed (with the OpenSSL backend the open62541 side reports Bad_InternalError, because UA_OpenSSL_HMAC_SHA256_Verify, plugins/crypto/openssl/securitypolicy_common.c:704, maps an HMAC mismatch to Bad_InternalError); the AEAD policies (ECC_nistP256_AesGcm/_ChaChaPoly) derive the keys for Sign as well and are not affected",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "EccInteropTests.LegacyClientToServerAsync(ECC_brainpoolP256r1, Sign, Anonymous)": {
+    "reason": "open62541 1.5.8 derives the encryption key and IV also for MessageSecurityMode Sign and counts them in L of the HKDF salt (ua_securechannel_crypto.c generateLocalKeys/RemoteKeys); OPC 10000-6 6.8.1 sets EncryptionKeyLength and InitializationVectorLength to 0 for Sign only without AuthenticatedEncryption, as the .NET stacks do, so the first signed message fails with Bad_SecurityChecksFailed (with the OpenSSL backend the open62541 side reports Bad_InternalError, because UA_OpenSSL_HMAC_SHA256_Verify, plugins/crypto/openssl/securitypolicy_common.c:704, maps an HMAC mismatch to Bad_InternalError); the AEAD policies (ECC_nistP256_AesGcm/_ChaChaPoly) derive the keys for Sign as well and are not affected",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "EccInteropTests.ClientToLegacyServerAsync(ECC_brainpoolP384r1, Sign, Anonymous)": {
+    "reason": "open62541 1.5.8 derives the encryption key and IV also for MessageSecurityMode Sign and counts them in L of the HKDF salt (ua_securechannel_crypto.c generateLocalKeys/RemoteKeys); OPC 10000-6 6.8.1 sets EncryptionKeyLength and InitializationVectorLength to 0 for Sign only without AuthenticatedEncryption, as the .NET stacks do, so the first signed message fails with Bad_SecurityChecksFailed (with the OpenSSL backend the open62541 side reports Bad_InternalError, because UA_OpenSSL_HMAC_SHA256_Verify, plugins/crypto/openssl/securitypolicy_common.c:704, maps an HMAC mismatch to Bad_InternalError); the AEAD policies (ECC_nistP256_AesGcm/_ChaChaPoly) derive the keys for Sign as well and are not affected",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  },
+  "EccInteropTests.LegacyClientToServerAsync(ECC_brainpoolP384r1, Sign, Anonymous)": {
+    "reason": "open62541 1.5.8 derives the encryption key and IV also for MessageSecurityMode Sign and counts them in L of the HKDF salt (ua_securechannel_crypto.c generateLocalKeys/RemoteKeys); OPC 10000-6 6.8.1 sets EncryptionKeyLength and InitializationVectorLength to 0 for Sign only without AuthenticatedEncryption, as the .NET stacks do, so the first signed message fails with Bad_SecurityChecksFailed (with the OpenSSL backend the open62541 side reports Bad_InternalError, because UA_OpenSSL_HMAC_SHA256_Verify, plugins/crypto/openssl/securitypolicy_common.c:704, maps an HMAC mismatch to Bad_InternalError); the AEAD policies (ECC_nistP256_AesGcm/_ChaChaPoly) derive the keys for Sign as well and are not affected",
+    "issue": "upstream issue to be filed at https://github.com/open62541/open62541/issues"
+  }
+}

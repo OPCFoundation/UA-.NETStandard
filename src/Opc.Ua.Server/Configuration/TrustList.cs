@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
@@ -44,6 +45,11 @@ namespace Opc.Ua.Server
     public class TrustList : IDisposable
     {
         private const int kDefaultTrustListCapacity = 1 * 1024 * 1024;
+
+        /// <summary>
+        /// The default <c>ActivityTimeout</c> of OPC 10000-12 §7.8.2.1 in milliseconds.
+        /// </summary>
+        private const double kDefaultActivityTimeout = 60000;
 
         /// <summary>
         /// The default resource-protection safety ceiling (1&#160;MiB) used to
@@ -144,8 +150,29 @@ namespace Opc.Ua.Server
             IPushConfigurationTransactionCoordinator? coordinator,
             int maxTrustListSize,
             int maxTrustListSizeSafetyCeiling)
+            : this(node, trustedListStore, issuerListStore, readAccess, writeAccess, telemetry,
+                coordinator, maxTrustListSize, maxTrustListSizeSafetyCeiling, null)
+        {
+        }
+
+        /// <summary>
+        /// Initializes a trust list with an optional instance-scoped certificate store resolver.
+        /// Existing access checks, transaction coordination and store lifetime remain unchanged.
+        /// </summary>
+        public TrustList(
+            TrustListState node,
+            CertificateStoreIdentifier trustedListStore,
+            CertificateStoreIdentifier issuerListStore,
+            SecureAccess readAccess,
+            SecureAccess writeAccess,
+            ITelemetryContext telemetry,
+            IPushConfigurationTransactionCoordinator? coordinator,
+            int maxTrustListSize,
+            int maxTrustListSizeSafetyCeiling,
+            ICertificateStoreResolver? storeResolver)
         {
             m_telemetry = telemetry;
+            m_storeResolver = storeResolver;
             m_logger = telemetry.CreateLogger<TrustList>();
             m_node = node;
             m_trustedStore = trustedListStore;
@@ -229,6 +256,48 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Enables the OPC 10000-4 certificate validation that OPC 10000-12
+        /// requires for TrustLists of an <c>ApplicationCertificateType</c>
+        /// CertificateGroup: <c>AddCertificate</c> (§7.8.2.6) and
+        /// <c>CloseAndUpdate</c> (§7.8.2.5) then reject certificates that fail
+        /// a non-suppressible check (signature, key size, missing issuer, ...).
+        /// Without a call to this method only the encoding of the certificates
+        /// is checked. Issuers and CRLs are taken from the TrustList content
+        /// only (for CloseAndUpdate: the uploaded lists), never from the
+        /// stores of <paramref name="securityConfiguration"/>.
+        /// </summary>
+        /// <param name="securityConfiguration">
+        /// The security configuration whose validation rules (minimum key
+        /// size, SHA-1 rejection, ...) apply.
+        /// </param>
+        /// <exception cref="ArgumentNullException">
+        /// When <paramref name="securityConfiguration"/> is <see langword="null"/>.
+        /// </exception>
+        public void SetCertificateValidation(SecurityConfiguration securityConfiguration)
+        {
+            m_validationConfiguration = securityConfiguration ??
+                throw new ArgumentNullException(nameof(securityConfiguration));
+        }
+
+        /// <summary>
+        /// Reports the TrustListUpdateRequested and TrustListUpdated audit
+        /// events (OPC 10000-12 §7.8.2.10/§7.8.2.11) through
+        /// <paramref name="auditEventServer"/>, so Clients subscribed to the
+        /// Server Object receive them like every other audit event. Without a
+        /// call to this method the events are reported on the TrustList node
+        /// only, which is not an event notifier.
+        /// </summary>
+        /// <param name="auditEventServer">The server that reports audit events.</param>
+        /// <exception cref="ArgumentNullException">
+        /// When <paramref name="auditEventServer"/> is <see langword="null"/>.
+        /// </exception>
+        public void SetAuditEventServer(IAuditEventServer auditEventServer)
+        {
+            m_auditServer = auditEventServer ??
+                throw new ArgumentNullException(nameof(auditEventServer));
+        }
+
+        /// <summary>
         /// Disposes the trusted and issuer store instances this TrustList
         /// holds open across its operations. The owner of the TrustList
         /// (the node manager hosting the handler) calls this at shutdown;
@@ -248,6 +317,13 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                lock (m_lock)
+                {
+                    foreach (OpenHandle handle in m_handles.Values.ToList())
+                    {
+                        RemoveHandleNoLock(handle);
+                    }
+                }
                 Interlocked.Exchange(ref m_trustedStoreInstance, null)?.Dispose();
                 Interlocked.Exchange(ref m_issuerStoreInstance, null)?.Dispose();
             }
@@ -305,7 +381,9 @@ namespace Opc.Ua.Server
                 return store;
             }
 
-            ICertificateStore created = storeIdentifier.OpenStore(m_telemetry) ??
+            ICertificateStore created = (m_storeResolver == null
+                ? storeIdentifier.OpenStore(m_telemetry)
+                : m_storeResolver.OpenCertificateStore(storeIdentifier.StorePath!, storeIdentifier.StoreType)) ??
                 throw ServiceResultException.ConfigurationError(
                     "Failed to open certificate store.");
             ICertificateStore? current = Interlocked.CompareExchange(ref instance, created, null);
@@ -369,28 +447,281 @@ namespace Opc.Ua.Server
             CertificateStoreIdentifier trustedStore);
 
         /// <summary>
-        /// Closes this TrustList's open read/write handle if it is
-        /// currently owned by <paramref name="sessionId"/>. Called by
+        /// Closes every open read/write handle of this TrustList owned by
+        /// <paramref name="sessionId"/>. Called by
         /// <see cref="ConfigurationNodeManager.SessionClosingAsync"/> so an
         /// abandoned Session does not leave the TrustList permanently
         /// open for writing.
         /// </summary>
         internal void NotifySessionClosing(NodeId sessionId)
         {
+            bool closedWriter = false;
             lock (m_lock)
             {
-                if (m_sessionId.IsNull || !Utils.IsEqual(m_sessionId, sessionId))
+                foreach (OpenHandle handle in m_handles.Values
+                    .Where(handle => Utils.IsEqual(handle.SessionId, sessionId))
+                    .ToList())
+                {
+                    closedWriter |= RemoveHandleNoLock(handle);
+                }
+            }
+
+            if (closedWriter)
+            {
+                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            }
+        }
+
+        /// <summary>
+        /// Closes an open handle whose owning Session no longer exists (or
+        /// is closing) before another Session operates on the TrustList.
+        /// Only <see cref="ConfigurationNodeManager"/> releases handles when a
+        /// Session closes; every other host (e.g. the GDS certificate group
+        /// TrustLists) relies on this check so an abandoned write open does
+        /// not lock the TrustList until the server restarts. A context that
+        /// does not expose the server's session manager leaves the handle
+        /// untouched.
+        /// </summary>
+        private void ReleaseAbandonedHandle(ISystemContext context)
+        {
+            NodeId callerSessionId = GetSessionId(context);
+            List<NodeId> ownerSessionIds;
+            lock (m_lock)
+            {
+                ownerSessionIds = [];
+                foreach (OpenHandle handle in m_handles.Values)
+                {
+                    if (!handle.SessionId.IsNull &&
+                        !Utils.IsEqual(handle.SessionId, callerSessionId) &&
+                        !ownerSessionIds.Any(id => Utils.IsEqual(id, handle.SessionId)))
+                    {
+                        ownerSessionIds.Add(handle.SessionId);
+                    }
+                }
+            }
+
+            if (ownerSessionIds.Count == 0 ||
+                context is not ServerSystemContext serverContext)
+            {
+                return;
+            }
+
+            foreach (NodeId ownerSessionId in ownerSessionIds)
+            {
+                bool ownerAlive;
+                try
+                {
+                    ISessionManager? sessionManager = serverContext.Server.SessionManager;
+                    if (sessionManager == null)
+                    {
+                        return;
+                    }
+
+                    ownerAlive = sessionManager.GetSessions().Any(session =>
+                        session != null &&
+                        !session.IsClosing &&
+                        Utils.IsEqual(session.Id, ownerSessionId));
+                }
+                catch (Exception ex)
+                {
+                    // The session table is unavailable (e.g. server shutting
+                    // down): keep the handles rather than evicting a live owner.
+                    m_logger.TrustListOwnerSessionLookupFailed(ex, ownerSessionId);
+                    return;
+                }
+
+                if (!ownerAlive)
+                {
+                    // NotifySessionClosing only discards the handles still
+                    // owned by the (now gone) Session.
+                    m_logger.TrustListAbandonedHandleReleased(ownerSessionId);
+                    NotifySessionClosing(ownerSessionId);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Closes <paramref name="handle"/> and returns whether it was open
+        /// for writing. The caller holds <see cref="m_lock"/>.
+        /// </summary>
+        private bool RemoveHandleNoLock(OpenHandle handle)
+        {
+            if (!m_handles.Remove(handle.Id))
+            {
+                return false;
+            }
+
+            StopActivityTimerNoLock(handle);
+            handle.Stream.Dispose();
+            m_node.OpenCount!.Value = (ushort)Math.Min(m_handles.Count, ushort.MaxValue);
+            return handle.ForWrite;
+        }
+
+        /// <summary>
+        /// Closes the handle a completed CloseAndUpdate validated, unless it
+        /// was already closed while the update awaited.
+        /// </summary>
+        private void ReleaseHandle(uint fileHandle, MemoryStream strm)
+        {
+            bool closedWriter;
+            lock (m_lock)
+            {
+                if (!m_handles.TryGetValue(fileHandle, out OpenHandle? handle) ||
+                    !ReferenceEquals(handle.Stream, strm))
                 {
                     return;
                 }
 
-                m_sessionId = default;
-                m_strm?.Dispose();
-                m_strm = null;
-                m_node.OpenCount!.Value = 0;
+                closedWriter = RemoveHandleNoLock(handle);
             }
 
-            m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            if (closedWriter)
+            {
+                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            }
+        }
+
+        /// <summary>
+        /// The <c>ActivityTimeout</c> in milliseconds: the value of the
+        /// node's ActivityTimeout Property, or the 60 000 ms default of
+        /// OPC 10000-12 §7.8.2.1 when it is absent or not positive.
+        /// </summary>
+        internal double ActivityTimeout
+        {
+            get
+            {
+                double timeout = m_node.ActivityTimeout?.Value ?? 0;
+                return timeout > 0 ? timeout : kDefaultActivityTimeout;
+            }
+        }
+
+        /// <summary>
+        /// Closes the handle <paramref name="fileHandle"/> as if its
+        /// <c>ActivityTimeout</c> had elapsed. Exposed for tests; routed
+        /// through the same generation check the timer callback uses.
+        /// </summary>
+        internal void ExpireForInactivity(uint fileHandle)
+        {
+            long generation;
+            lock (m_lock)
+            {
+                if (!m_handles.TryGetValue(fileHandle, out OpenHandle? handle))
+                {
+                    return;
+                }
+                generation = handle.ActivityGeneration;
+            }
+
+            OnActivityTimerExpired(fileHandle, generation);
+        }
+
+        /// <summary>
+        /// Re-arms the <c>ActivityTimeout</c> timer of <paramref name="handle"/>
+        /// (OPC 10000-12 §7.8.2.1: the time since the last Method call on the
+        /// handle). The caller holds <see cref="m_lock"/>.
+        /// </summary>
+        private void RestartActivityTimerNoLock(OpenHandle handle, ISystemContext context)
+        {
+            StopActivityTimerNoLock(handle);
+
+            TimeProvider timeProvider = context is ServerSystemContext serverContext &&
+                serverContext.Server is ITimeProviderProvider provider
+                    ? provider.TimeProvider
+                    : TimeProvider.System;
+            long generation = handle.ActivityGeneration;
+            handle.ActivityTimer = timeProvider.CreateTimer(
+                static state =>
+                {
+                    var activityState = (ActivityTimerState)state!;
+                    activityState.Owner.OnActivityTimerExpired(
+                        activityState.FileHandle,
+                        activityState.Generation);
+                },
+                new ActivityTimerState(this, handle.Id, generation),
+                TimeSpan.FromMilliseconds(ActivityTimeout),
+                Timeout.InfiniteTimeSpan);
+        }
+
+        /// <summary>
+        /// Stops the <c>ActivityTimeout</c> timer of <paramref name="handle"/>
+        /// and supersedes a callback that is already queued. The caller holds
+        /// <see cref="m_lock"/>.
+        /// </summary>
+        private static void StopActivityTimerNoLock(OpenHandle handle)
+        {
+            handle.ActivityGeneration++;
+            handle.ActivityTimer?.Dispose();
+            handle.ActivityTimer = null;
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.8.2.1: when the <c>ActivityTimeout</c> elapses the
+        /// TrustList is closed by the Server and any changes are discarded.
+        /// Ignored when the handle was closed or used since the timer was armed.
+        /// </summary>
+        private void OnActivityTimerExpired(uint fileHandle, long generation)
+        {
+            bool closedWriter;
+            lock (m_lock)
+            {
+                if (!m_handles.TryGetValue(fileHandle, out OpenHandle? handle) ||
+                    handle.ActivityGeneration != generation)
+                {
+                    return;
+                }
+
+                closedWriter = RemoveHandleNoLock(handle);
+            }
+
+            if (closedWriter)
+            {
+                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            }
+
+            m_logger.TrustListHandleClosedAfterInactivity(fileHandle, ActivityTimeout);
+        }
+
+        /// <summary>
+        /// The result AddCertificate and RemoveCertificate return while the
+        /// TrustList is open (OPC 10000-12 §7.8.2.6/§7.8.2.7): Bad_NotWritable
+        /// while it is open for reading, Bad_InvalidState while a write is in
+        /// progress. A handle abandoned by a closed Session is released first.
+        /// </summary>
+        private ServiceResult GetOpenStateResult(ISystemContext context)
+        {
+            ReleaseAbandonedHandle(context);
+
+            lock (m_lock)
+            {
+                if (m_handles.Count == 0)
+                {
+                    return ServiceResult.Good;
+                }
+
+                return HasWriteHandleNoLock()
+                    ? ServiceResult.Create(
+                        StatusCodes.BadInvalidState,
+                        "The TrustList is open for writing.")
+                    : ServiceResult.Create(
+                        StatusCodes.BadNotWritable,
+                        "The TrustList is open for reading.");
+            }
+        }
+
+        /// <summary>
+        /// Whether a handle is open for writing. The caller holds
+        /// <see cref="m_lock"/>.
+        /// </summary>
+        private bool HasWriteHandleNoLock()
+        {
+            foreach (OpenHandle handle in m_handles.Values)
+            {
+                if (handle.ForWrite)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -520,12 +851,18 @@ namespace Opc.Ua.Server
             }
             else
             {
+                // OPC 10000-12 §7.8.2.2: only Read and Write|EraseExisting
+                // are allowed; every other mode returns Bad_NotSupported.
                 return new OpenMethodStateResult
                 {
-                    ServiceResult = StatusCodes.BadNotWritable,
+                    ServiceResult = StatusCodes.BadNotSupported,
                     FileHandle = 0
                 };
             }
+
+            // A handle left open by a Session that no longer exists must not
+            // lock this Session out (OPC 10000-20 §4.2.2 below).
+            ReleaseAbandonedHandle(context);
 
             uint fileHandle = 0;
             MemoryStream? strm = null;
@@ -585,28 +922,41 @@ namespace Opc.Ua.Server
                         Math.Min(m_effectiveMaxTrustListSize, kDefaultTrustListCapacity));
                 }
 
+                NodeId sessionId = GetSessionId(context);
                 lock (m_lock)
                 {
-                    if (!m_sessionId.IsNull)
+                    // OPC 10000-20 §4.2.2: Clients can open the file several
+                    // times for reading, but a file that is open for writing
+                    // cannot be opened again (Bad_NotReadable for a read,
+                    // Bad_NotWritable for a write), and a file that is open at
+                    // all cannot be opened for writing (Bad_NotWritable). This
+                    // also applies to the Session that holds the open handle;
+                    // no handle is ever evicted by a new open. Handles of
+                    // Sessions that no longer exist were released above.
+                    if (HasWriteHandleNoLock() || (isWriteMode && m_handles.Count > 0))
                     {
-                        // to avoid deadlocks, last open always wins
-                        m_sessionId = default;
-                        m_strm?.Dispose();
-                        m_strm = null;
-                        m_node.OpenCount!.Value = 0;
+                        strm.Dispose();
+                        return new OpenMethodStateResult
+                        {
+                            ServiceResult = isWriteMode
+                                ? StatusCodes.BadNotWritable
+                                : StatusCodes.BadNotReadable,
+                            FileHandle = 0
+                        };
                     }
 
-                    m_sessionId = (context as ISessionSystemContext)?.SessionId ?? default;
-                    fileHandle = ++m_fileHandle;
-                    m_totalBytesProcessed = 0; // Reset counter for new file operation
-                    m_strm = strm;
-                    m_node.OpenCount!.Value = 1;
+                    do
+                    {
+                        fileHandle = ++m_fileHandle;
+                    }
+                    while (fileHandle == 0 || m_handles.ContainsKey(fileHandle));
+
+                    var handle = new OpenHandle(fileHandle, sessionId, strm, isWriteMode);
+                    m_handles.Add(fileHandle, handle);
+                    RestartActivityTimerNoLock(handle, context);
+                    m_node.OpenCount!.Value = (ushort)Math.Min(m_handles.Count, ushort.MaxValue);
                 }
 
-                // Cleared unconditionally (idempotent) before being set so
-                // an evicted previous open never leaves a stale "open for
-                // writing" entry behind.
-                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
                 if (isWriteMode)
                 {
                     m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, true);
@@ -661,7 +1011,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle, out OpenHandle? handle);
                 if (ServiceResult.IsBad(handleResult))
                 {
                     return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
@@ -685,28 +1035,32 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                // Overflow-safe cumulative bound: m_totalBytesProcessed is a
-                // long, so promoting the int length keeps the addition in long
-                // range and cannot wrap. Enforced against the effective,
-                // actually-advertised limit.
-                if (m_totalBytesProcessed + length > m_effectiveMaxTrustListSize)
+                if (handle!.ForWrite)
                 {
                     return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
                     {
                         ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
-                            "Trust list size exceeds maximum allowed size of {0} bytes",
-                            m_effectiveMaxTrustListSize),
+                            StatusCodes.BadInvalidState,
+                            "The TrustList was not opened for reading."),
                         Data = default
                     });
                 }
 
+                // OPC 10000-20 §4.2.4: when the end of the file is reached all
+                // remaining data is returned, so the requested length is only
+                // an upper bound. Clamp it to the bytes left in the already
+                // encoded stream before allocating; the stream was produced by
+                // the server itself, so there is no size limit to enforce here.
+                MemoryStream strm = handle.Stream;
+                length = (int)Math.Min(length, strm.Length - strm.Position);
+
                 byte[] buffer = new byte[length];
-                int bytesRead = m_strm!.Read(buffer, 0, length);
+                int bytesRead = strm.Read(buffer, 0, length);
                 Debug.Assert(bytesRead >= 0);
                 data = ByteString.From(buffer)[..bytesRead];
 
-                m_totalBytesProcessed += bytesRead;
+                handle.TotalBytesProcessed += bytesRead;
+                RestartActivityTimerNoLock(handle, context);
             }
 
             return new ValueTask<ReadMethodStateResult>(new ReadMethodStateResult
@@ -748,7 +1102,7 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle, out OpenHandle? handle);
                 if (ServiceResult.IsBad(handleResult))
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
@@ -757,23 +1111,37 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                // Overflow-safe cumulative bound: m_totalBytesProcessed is a
-                // long, so promoting the int data.Length keeps the addition in
-                // long range and cannot wrap. Enforced against the effective,
-                // actually-advertised limit before the payload is buffered.
-                if (m_totalBytesProcessed + data.Length > m_effectiveMaxTrustListSize)
+                // OPC 10000-20 §4.2.5: Bad_InvalidState when the file was not
+                // opened for writing.
+                if (!handle!.ForWrite)
                 {
                     return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
                     {
                         ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadEncodingLimitsExceeded,
+                            StatusCodes.BadInvalidState,
+                            "The TrustList was not opened for writing.")
+                    });
+                }
+
+                // Overflow-safe cumulative bound: TotalBytesProcessed is a
+                // long, so promoting the int data.Length keeps the addition in
+                // long range and cannot wrap. Enforced against the effective,
+                // actually-advertised limit before the payload is buffered
+                // (OPC 10000-12 §7.8.2: Bad_RequestTooLarge).
+                if (handle.TotalBytesProcessed + data.Length > m_effectiveMaxTrustListSize)
+                {
+                    return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(
+                            StatusCodes.BadRequestTooLarge,
                             "Trust list size exceeds maximum allowed size of {0} bytes",
                             m_effectiveMaxTrustListSize)
                     });
                 }
 
-                m_strm!.Write(data.ToArray(), 0, data.Length);
-                m_totalBytesProcessed += data.Length;
+                handle.Stream.Write(data.ToArray(), 0, data.Length);
+                handle.TotalBytesProcessed += data.Length;
+                RestartActivityTimerNoLock(handle, context);
             }
 
             return new ValueTask<WriteMethodStateResult>(new WriteMethodStateResult
@@ -785,19 +1153,21 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks that the TrustList stream is open and the handle belongs to the requesting session.
         /// </summary>
-        private ServiceResult ValidateFileHandle(ISystemContext context, uint fileHandle)
+        private ServiceResult ValidateFileHandle(
+            ISystemContext context,
+            uint fileHandle,
+            out OpenHandle? handle)
         {
-            if (m_strm == null)
+            if (!m_handles.TryGetValue(fileHandle, out handle))
             {
                 return ServiceResult.Create(StatusCodes.BadInvalidArgument, "Invalid file handle");
             }
-            if (context is ISessionSystemContext session && !m_sessionId.Equals(session.SessionId))
+            if (context is ISessionSystemContext session && !handle.SessionId.Equals(session.SessionId))
             {
+                handle = null;
                 return ServiceResult.Create(StatusCodes.BadUserAccessDenied, "Session not authorized");
             }
-            return m_fileHandle == fileHandle
-                ? ServiceResult.Good
-                : ServiceResult.Create(StatusCodes.BadInvalidArgument, "Invalid file handle");
+            return ServiceResult.Good;
         }
 
         private ServiceResult Close(
@@ -827,9 +1197,10 @@ namespace Opc.Ua.Server
         {
             HasSecureReadAccess(context);
 
+            bool closedWriter;
             lock (m_lock)
             {
-                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle, out OpenHandle? handle);
                 if (ServiceResult.IsBad(handleResult))
                 {
                     return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
@@ -838,13 +1209,13 @@ namespace Opc.Ua.Server
                     });
                 }
 
-                m_sessionId = default;
-                m_strm?.Dispose();
-                m_strm = null;
-                m_node.OpenCount!.Value = 0;
+                closedWriter = RemoveHandleNoLock(handle!);
             }
 
-            m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            if (closedWriter)
+            {
+                m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+            }
 
             return new ValueTask<CloseMethodStateResult>(new CloseMethodStateResult
             {
@@ -880,7 +1251,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             ArrayOf<Variant> inputParameters = [fileHandle];
-            m_node.ReportTrustListUpdateRequestedAuditEvent(
+            m_auditServer.ReportTrustListUpdateRequestedAuditEvent(
+                m_node,
                 context,
                 objectId,
                 "Method/CloseAndUpdate",
@@ -899,7 +1271,8 @@ namespace Opc.Ua.Server
                 }
                 catch (ServiceResultException ex)
                 {
-                    m_node.ReportTrustListUpdatedAuditEvent(
+                    m_auditServer.ReportTrustListUpdatedAuditEvent(
+                        m_node,
                         context, objectId, "Method/CloseAndUpdate", method.NodeId, inputParameters,
                         ex.StatusCode, m_logger);
                     return new CloseAndUpdateMethodStateResult
@@ -913,7 +1286,7 @@ namespace Opc.Ua.Server
             MemoryStream? strm;
             lock (m_lock)
             {
-                ServiceResult handleResult = ValidateFileHandle(context, fileHandle);
+                ServiceResult handleResult = ValidateFileHandle(context, fileHandle, out OpenHandle? handle);
                 if (ServiceResult.IsBad(handleResult))
                 {
                     return new CloseAndUpdateMethodStateResult
@@ -923,7 +1296,23 @@ namespace Opc.Ua.Server
                     };
                 }
 
-                strm = m_strm;
+                // OPC 10000-12 §7.8.2.5: CloseAndUpdate can only be called
+                // if the TrustList was opened for writing.
+                if (!handle!.ForWrite)
+                {
+                    return new CloseAndUpdateMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(
+                            StatusCodes.BadInvalidState,
+                            "The TrustList was not opened for writing."),
+                        ApplyChangesRequired = false
+                    };
+                }
+
+                // The update now runs to completion; the ActivityTimeout must
+                // not close the handle while its content is being applied.
+                StopActivityTimerNoLock(handle);
+                strm = handle.Stream;
             }
 
             ServiceResult result = StatusCodes.Good;
@@ -977,6 +1366,35 @@ namespace Opc.Ua.Server
             catch
             {
                 result = StatusCodes.BadCertificateInvalid;
+            }
+
+            if (ServiceResult.IsGood(result) && m_validationConfiguration != null)
+            {
+                // OPC 10000-12 §7.8.2.5: every certificate of the new
+                // TrustList must pass the OPC 10000-4 validation process.
+                try
+                {
+                    result = await ValidateNewTrustListAsync(
+                        issuerCertificates,
+                        trustedCertificates,
+                        issuerCrls,
+                        trustedCrls,
+                        m_validationConfiguration,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException)
+                {
+                    issuerCertificates?.Dispose();
+                    trustedCertificates?.Dispose();
+                    ReleaseHandle(fileHandle, strm!);
+                    throw;
+                }
+                catch (Exception)
+                {
+                    // e.g. a malformed extension of an uploaded certificate;
+                    // the failure path below disposes and releases the handle.
+                    result = StatusCodes.BadCertificateInvalid;
+                }
             }
 
             if (!ServiceResult.IsGood(result) || m_coordinator == null)
@@ -1038,16 +1456,12 @@ namespace Opc.Ua.Server
 
                     lock (m_lock)
                     {
-                        m_sessionId = default;
-                        m_strm?.Dispose();
-                        m_strm = null;
                         if (ServiceResult.IsGood(result))
                         {
                             m_node.LastUpdateTime!.Value = DateTime.UtcNow;
                         }
-                        m_node.OpenCount!.Value = 0;
                     }
-                    m_coordinator?.SetTrustListWriteOpen(m_node.NodeId, false);
+                    ReleaseHandle(fileHandle, strm!);
                 }
 
                 // Even a partial or failed apply may have changed the stores;
@@ -1059,7 +1473,8 @@ namespace Opc.Ua.Server
                     crlChanged: updateAttempted && (masks &
                         (int)(TrustListMasks.IssuerCrls | TrustListMasks.TrustedCrls)) != 0);
 
-                m_node.ReportTrustListUpdatedAuditEvent(
+                m_auditServer.ReportTrustListUpdatedAuditEvent(
+                    m_node,
                     context,
                     objectId,
                     "Method/CloseAndUpdate",
@@ -1215,7 +1630,8 @@ namespace Opc.Ua.Server
                         previousUpdateTime = SetLastUpdateTime(DateTimeUtc.Now);
                         updateTimeChanged = true;
 
-                        m_node.ReportTrustListUpdatedAuditEvent(
+                        m_auditServer.ReportTrustListUpdatedAuditEvent(
+                            m_node,
                             context, objectId, "Method/CloseAndUpdate", method.NodeId, inputParameters,
                             StatusCodes.Good, m_logger);
                     },
@@ -1241,14 +1657,7 @@ namespace Opc.Ua.Server
                 originalIssuerCertificates?.Dispose();
                 originalTrustedCertificates?.Dispose();
 
-                lock (m_lock)
-                {
-                    m_sessionId = default;
-                    m_strm?.Dispose();
-                    m_strm = null;
-                    m_node.OpenCount!.Value = 0;
-                }
-                m_coordinator.SetTrustListWriteOpen(m_node.NodeId, false);
+                ReleaseHandle(fileHandle, strm!);
             }
 
             return new CloseAndUpdateMethodStateResult
@@ -1287,7 +1696,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             ArrayOf<Variant> inputParameters = [certificate, isTrustedCertificate];
-            m_node.ReportTrustListUpdateRequestedAuditEvent(
+            m_auditServer.ReportTrustListUpdateRequestedAuditEvent(
+                m_node,
                 context,
                 objectId,
                 "Method/AddCertificate",
@@ -1298,20 +1708,25 @@ namespace Opc.Ua.Server
 
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = StatusCodes.Good;
+            ServiceResult openState = GetOpenStateResult(context);
 
-            bool isSessionOpen;
-            lock (m_lock)
+            if (ServiceResult.IsBad(openState))
             {
-                isSessionOpen = !m_sessionId.IsNull;
-            }
-
-            if (isSessionOpen)
-            {
-                result = StatusCodes.BadInvalidState;
+                result = openState;
             }
             else if (certificate.IsEmpty)
             {
                 result = StatusCodes.BadInvalidArgument;
+            }
+            else if (!isTrustedCertificate)
+            {
+                // OPC 10000-12 §7.8.2.6: issuer certificates cannot be added
+                // with AddCertificate because no CRL can be supplied with them;
+                // IsTrustedCertificate FALSE returns Bad_CertificateInvalid.
+                result = ServiceResult.Create(
+                    StatusCodes.BadCertificateInvalid,
+                    "AddCertificate only accepts trusted certificates; " +
+                    "issuer certificates must be written with the TrustList file.");
             }
             else if (certificate.Length > m_effectiveMaxTrustListSize)
             {
@@ -1319,7 +1734,7 @@ namespace Opc.Ua.Server
                 // (direct Add path): a single certificate cannot exceed the
                 // effective TrustList size the server advertises and enforces.
                 result = ServiceResult.Create(
-                    StatusCodes.BadEncodingLimitsExceeded,
+                    StatusCodes.BadRequestTooLarge,
                     "Certificate size exceeds the maximum allowed TrustList size of {0} bytes",
                     m_effectiveMaxTrustListSize);
             }
@@ -1352,8 +1767,49 @@ namespace Opc.Ua.Server
                     result = StatusCodes.BadCertificateInvalid;
                 }
 
+                if (cert != null && m_validationConfiguration != null)
+                {
+                    // OPC 10000-12 §7.8.2.6: the Server shall verify the
+                    // Certificate using the OPC 10000-4 validation process,
+                    // including that the issuer is already in the TrustList.
+                    ServiceResult validation;
+                    try
+                    {
+                        validation = await ValidateAddedCertificateAsync(
+                            cert,
+                            m_validationConfiguration,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (Exception ex) when (ex is not OperationCanceledException)
+                    {
+                        validation = StatusCodes.BadCertificateInvalid;
+                    }
+                    catch
+                    {
+                        cert.Dispose();
+                        throw;
+                    }
+                    if (ServiceResult.IsBad(validation))
+                    {
+                        result = validation;
+                        cert.Dispose();
+                        cert = null;
+                    }
+                }
+
                 if (cert != null)
                 {
+                    // OPC 10000-12 §7.8.2.6: AddCertificate cannot supply a CRL.
+                    // With RejectUnknownRevocationStatus every certificate issued
+                    // by a CA added without a CRL is rejected, so tell the
+                    // administrator why such a CA does not take effect.
+                    if (m_validationConfiguration?.RejectUnknownRevocationStatus == true &&
+                        X509Utils.IsCertificateAuthority(cert) &&
+                        !await HasCrlForIssuerAsync(cert, cancellationToken).ConfigureAwait(false))
+                    {
+                        m_logger.TrustListCaAddedWithoutCrl(cert.Subject);
+                    }
+
                     if (m_coordinator == null)
                     {
                         // Legacy non-transactional behavior: apply immediately.
@@ -1363,7 +1819,7 @@ namespace Opc.Ua.Server
                                 ? m_trustedStore
                                 : m_issuerStore;
                             ICertificateStore store = GetStore(storeIdentifier);
-                            await store.AddAsync(cert, null, cancellationToken).ConfigureAwait(false);
+                            await AddIfMissingAsync(store, cert, cancellationToken).ConfigureAwait(false);
                         }
                         finally
                         {
@@ -1383,6 +1839,7 @@ namespace Opc.Ua.Server
                         Certificate stagedCert = cert;
                         string stagedThumbprint = cert.Thumbprint;
                         DateTimeUtc previousUpdateTime = default;
+                        bool addedByCommit = false;
                         m_coordinator.Stage(sessionId, new PushConfigurationOperation
                         {
                             AffectedTrustList = trustListId,
@@ -1392,11 +1849,19 @@ namespace Opc.Ua.Server
                                     ? m_trustedStore
                                     : m_issuerStore;
                                 ICertificateStore store = GetStore(storeIdentifier);
-                                await store.AddAsync(stagedCert, null, ct).ConfigureAwait(false);
+                                // Re-adding a certificate that is already in the
+                                // TrustList succeeds without changing it: the
+                                // commit must not fail the whole transaction
+                                // because the store refuses a second copy, and
+                                // the rollback must not delete the copy that was
+                                // there before.
+                                addedByCommit = await AddIfMissingAsync(store, stagedCert, ct)
+                                    .ConfigureAwait(false);
 
                                 previousUpdateTime = SetLastUpdateTime(DateTimeUtc.Now);
 
-                                m_node.ReportTrustListUpdatedAuditEvent(
+                                m_auditServer.ReportTrustListUpdatedAuditEvent(
+                                    m_node,
                                     context, objectId, "Method/AddCertificate", method.NodeId, inputParameters,
                                     StatusCodes.Good, m_logger);
                             },
@@ -1406,7 +1871,8 @@ namespace Opc.Ua.Server
                                     ? m_trustedStore
                                     : m_issuerStore;
                                 ICertificateStore store = GetStore(storeIdentifier);
-                                if (!await store.DeleteAsync(stagedThumbprint, ct).ConfigureAwait(false))
+                                if (addedByCommit &&
+                                    !await store.DeleteAsync(stagedThumbprint, ct).ConfigureAwait(false))
                                 {
                                     throw new ServiceResultException(StatusCodes.BadCertificateInvalid,
                                         "Failed to remove the staged certificate during rollback.");
@@ -1426,7 +1892,8 @@ namespace Opc.Ua.Server
                 // path, report their own "updated" audit event
                 // synchronously; the transactional success path reports
                 // it from the deferred commit instead.
-                m_node.ReportTrustListUpdatedAuditEvent(
+                m_auditServer.ReportTrustListUpdatedAuditEvent(
+                    m_node,
                     context,
                     objectId,
                     "Method/AddCertificate",
@@ -1471,7 +1938,8 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken)
         {
             ArrayOf<Variant> inputParameters = [thumbprint, isTrustedCertificate];
-            m_node.ReportTrustListUpdateRequestedAuditEvent(
+            m_auditServer.ReportTrustListUpdateRequestedAuditEvent(
+                m_node,
                 context,
                 objectId,
                 "Method/RemoveCertificate",
@@ -1482,16 +1950,11 @@ namespace Opc.Ua.Server
             HasSecureWriteAccess(context);
             NodeId sessionId = GetSessionId(context);
             ServiceResult result = StatusCodes.Good;
+            ServiceResult openState = GetOpenStateResult(context);
 
-            bool isSessionOpen;
-            lock (m_lock)
+            if (ServiceResult.IsBad(openState))
             {
-                isSessionOpen = !m_sessionId.IsNull;
-            }
-
-            if (isSessionOpen)
-            {
-                result = StatusCodes.BadInvalidState;
+                result = openState;
             }
             else if (string.IsNullOrEmpty(thumbprint))
             {
@@ -1529,6 +1992,15 @@ namespace Opc.Ua.Server
                         if (certCollection.Count == 0)
                         {
                             result = StatusCodes.BadInvalidArgument;
+                        }
+                        else if (await IsIssuerRequiredAsync(
+                                certCollection,
+                                thumbprint,
+                                isTrustedCertificate,
+                                cancellationToken)
+                            .ConfigureAwait(false))
+                        {
+                            result = StatusCodes.BadCertificateChainIncomplete;
                         }
                         else
                         {
@@ -1606,6 +2078,15 @@ namespace Opc.Ua.Server
                         {
                             result = StatusCodes.BadInvalidArgument;
                         }
+                        else if (await IsIssuerRequiredAsync(
+                                certCollection,
+                                thumbprint,
+                                isTrustedCertificate,
+                                cancellationToken)
+                            .ConfigureAwait(false))
+                        {
+                            result = StatusCodes.BadCertificateChainIncomplete;
+                        }
                         else
                         {
                             var crlsToDelete = new X509CRLCollection();
@@ -1654,7 +2135,8 @@ namespace Opc.Ua.Server
 
                                     previousUpdateTime = SetLastUpdateTime(DateTimeUtc.Now);
 
-                                    m_node.ReportTrustListUpdatedAuditEvent(
+                                    m_auditServer.ReportTrustListUpdatedAuditEvent(
+                                        m_node,
                                         context, objectId, "Method/RemoveCertificate", method.NodeId, inputParameters,
                                         StatusCodes.Good, m_logger);
                                 },
@@ -1690,7 +2172,8 @@ namespace Opc.Ua.Server
                 // path, report their own "updated" audit event
                 // synchronously; the transactional success path reports
                 // it from the deferred commit instead.
-                m_node.ReportTrustListUpdatedAuditEvent(
+                m_auditServer.ReportTrustListUpdatedAuditEvent(
+                    m_node,
                     context,
                     objectId,
                     "Method/RemoveCertificate",
@@ -1704,6 +2187,375 @@ namespace Opc.Ua.Server
             {
                 ServiceResult = result
             };
+        }
+
+        /// <summary>
+        /// Validates a certificate passed to AddCertificate against the
+        /// current TrustList (its certificates and CRLs). Suppressible errors
+        /// are ignored.
+        /// </summary>
+        private async Task<ServiceResult> ValidateAddedCertificateAsync(
+            Certificate certificate,
+            SecurityConfiguration securityConfiguration,
+            CancellationToken cancellationToken)
+        {
+            ICertificateStore trustedStore = GetStore(m_trustedStore);
+            ICertificateStore issuerStore = GetStore(m_issuerStore);
+            using CertificateCollection trusted = await trustedStore
+                .EnumerateAsync(cancellationToken).ConfigureAwait(false);
+            using CertificateCollection issuers = await issuerStore
+                .EnumerateAsync(cancellationToken).ConfigureAwait(false);
+            X509CRLCollection trustedCrls = await trustedStore
+                .EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
+            X509CRLCollection issuerCrls = await issuerStore
+                .EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
+            CertificateManager validator = CertificateManagerFactory.Create(
+                securityConfiguration,
+                m_telemetry);
+            await using (validator.ConfigureAwait(false))
+            {
+                return await ValidateCertificateAsync(
+                    validator,
+                    certificate,
+                    [.. trusted.Concat(issuers)],
+                    [.. trustedCrls.Concat(issuerCrls)],
+                    cancellationToken).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Validates every certificate of an uploaded TrustList against the
+        /// content of the new TrustList: the uploaded certificates and CRLs,
+        /// or the current store contents for lists that were not specified.
+        /// The stores being replaced are never consulted for a specified list.
+        /// Certificates in IssuerCertificates must be CA certificates.
+        /// </summary>
+        private async Task<ServiceResult> ValidateNewTrustListAsync(
+            CertificateCollection? issuerCertificates,
+            CertificateCollection? trustedCertificates,
+            X509CRLCollection? issuerCrls,
+            X509CRLCollection? trustedCrls,
+            SecurityConfiguration securityConfiguration,
+            CancellationToken cancellationToken)
+        {
+            if (issuerCertificates == null && trustedCertificates == null &&
+                issuerCrls == null && trustedCrls == null)
+            {
+                return ServiceResult.Good;
+            }
+
+            using CertificateCollection? currentIssuers = issuerCertificates == null
+                ? await GetStore(m_issuerStore).EnumerateAsync(cancellationToken).ConfigureAwait(false)
+                : null;
+            using CertificateCollection? currentTrusted = trustedCertificates == null
+                ? await GetStore(m_trustedStore).EnumerateAsync(cancellationToken).ConfigureAwait(false)
+                : null;
+            Certificate[] pool = [.. (issuerCertificates ?? currentIssuers!)
+                .Concat(trustedCertificates ?? currentTrusted!)];
+            X509CRLCollection newIssuerCrls = issuerCrls ??
+                await GetStore(m_issuerStore).EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
+            X509CRLCollection newTrustedCrls = trustedCrls ??
+                await GetStore(m_trustedStore).EnumerateCRLsAsync(cancellationToken).ConfigureAwait(false);
+            X509CRL[] crlPool = [.. newIssuerCrls.Concat(newTrustedCrls)];
+
+            // Every CRL of the resulting TrustList is checked against the
+            // resulting certificates: a kept CRL list must not retain the CRL
+            // of a CA that this update removes.
+            ServiceResult crlResult = ValidateCrlIssuers(pool, crlPool);
+            if (ServiceResult.IsBad(crlResult))
+            {
+                return crlResult;
+            }
+
+            foreach (Certificate issuer in issuerCertificates ?? [])
+            {
+                if (!X509Utils.IsCertificateAuthority(issuer))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadCertificateInvalid,
+                        "IssuerCertificates contains a certificate that is not a CA: {0}",
+                        issuer.Subject);
+                }
+            }
+
+            CertificateManager validator = CertificateManagerFactory.Create(
+                securityConfiguration,
+                m_telemetry);
+            await using (validator.ConfigureAwait(false))
+            {
+                foreach (Certificate certificate in (issuerCertificates ?? []).Concat(trustedCertificates ?? []))
+                {
+                    ServiceResult validation = await ValidateCertificateAsync(
+                        validator,
+                        certificate,
+                        pool,
+                        crlPool,
+                        cancellationToken).ConfigureAwait(false);
+                    if (ServiceResult.IsBad(validation))
+                    {
+                        return ServiceResult.Create(
+                            StatusCodes.BadCertificateInvalid,
+                            "Certificate {0} failed validation: {1}",
+                            certificate.Subject,
+                            validation.StatusCode);
+                    }
+                }
+            }
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Runs the OPC 10000-4 validation for <paramref name="certificate"/>
+        /// with <paramref name="issuers"/> as the only candidate issuers and
+        /// <paramref name="crls"/> as the only revocation lists. The
+        /// certificate is not required to be trusted and every suppressible
+        /// error except a missing issuer is ignored, as required by
+        /// OPC 10000-12 §7.8.2.
+        /// </summary>
+        private static async Task<ServiceResult> ValidateCertificateAsync(
+            CertificateManager validator,
+            Certificate certificate,
+            IReadOnlyList<Certificate> issuers,
+            IReadOnlyList<X509CRL> crls,
+            CancellationToken cancellationToken)
+        {
+            // OPC 10000-6 §6.2.2: only X.509 v3 certificates are allowed; a
+            // structural error is not suppressible (OPC 10000-4 Table 100).
+            if (!X509Utils.IsX509Version3(certificate))
+            {
+                return ServiceResult.Create(
+                    StatusCodes.BadCertificateInvalid,
+                    "Certificate {0} is not an X.509 version 3 certificate.",
+                    certificate.Subject);
+            }
+
+            using var validationChain = new CertificateCollection { certificate };
+            foreach (Certificate issuer in issuers)
+            {
+                if (!string.Equals(issuer.Thumbprint, certificate.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    validationChain.Add(issuer);
+                }
+            }
+
+            var options = new Security.Certificates.CertificateValidationOptions
+            {
+                // A certificate refused by a TrustList method is not a peer
+                // the server rejected: never record it (and the issuers of
+                // the chain) in the server's Rejected store.
+                RecordRejectedCertificates = false,
+                AllowCertificateDownload = false,
+                UrlRetrievalTimeout = TimeSpan.FromMilliseconds(1),
+                // OPC 10000-12 §7.8.2: a certificate issued by a CA that is not
+                // in the TrustList is a validation error. The validator never
+                // lets an incomplete chain be suppressed (OPC 10000-4 Table 100),
+                // so accepting every suppressible error still rejects it.
+                AcceptError = static (_, _) => true
+            };
+
+            try
+            {
+                // The TrustList content is the only trust material: validate
+                // against a trust list without stores so the issuers come from
+                // the supplied chain alone, never from the server's own (Peers)
+                // stores, which may be the very stores being replaced.
+                CertificateValidationResult validationResult = await validator.ValidateAsync(
+                    validationChain,
+                    trustList: s_contentOnlyTrustList,
+                    options: options,
+                    cancellationToken).ConfigureAwait(false);
+                validationResult.ThrowIfInvalid();
+            }
+            catch (ServiceResultException ex)
+            {
+                return ex.Result;
+            }
+
+            return CheckRevocation(certificate, issuers, crls);
+        }
+
+        /// <summary>
+        /// Reports <see cref="StatusCodes.BadCertificateRevoked"/> when a CRL
+        /// of the TrustList that is signed by an issuer of
+        /// <paramref name="certificate"/> revokes it.
+        /// </summary>
+        private static ServiceResult CheckRevocation(
+            Certificate certificate,
+            IReadOnlyList<Certificate> issuers,
+            IReadOnlyList<X509CRL> crls)
+        {
+            if (crls.Count == 0 || X509Utils.IsSelfSigned(certificate))
+            {
+                return ServiceResult.Good;
+            }
+
+            foreach (X509CRL crl in crls)
+            {
+                if (!X509Utils.CompareDistinguishedName(certificate.IssuerName, crl.IssuerName))
+                {
+                    continue;
+                }
+
+                bool signedByIssuer = issuers.Any(issuer =>
+                    X509Utils.CompareDistinguishedName(issuer.SubjectName, crl.IssuerName) &&
+                    IsIssuedBy(certificate, issuer) &&
+                    crl.VerifySignature(issuer, false));
+                if (signedByIssuer && crl.IsRevoked(certificate))
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadCertificateRevoked,
+                        "Certificate {0} is revoked by a CRL of the TrustList.",
+                        certificate.Subject);
+                }
+            }
+
+            return ServiceResult.Good;
+        }
+
+        /// <summary>
+        /// Determines whether one of the <paramref name="issuers"/> about to be
+        /// removed is still needed to validate another certificate of the
+        /// TrustList (OPC 10000-12 §7.8.2.7 Bad_CertificateChainIncomplete).
+        /// A certificate that another remaining CA with the same subject can
+        /// also validate does not block the removal. Applies to removals from
+        /// either list: a trusted CA can be the issuer of other certificates
+        /// too.
+        /// </summary>
+        private async Task<bool> IsIssuerRequiredAsync(
+            CertificateCollection issuers,
+            string removedThumbprint,
+            bool removeFromTrustedStore,
+            CancellationToken cancellationToken)
+        {
+            if (!issuers.Any(X509Utils.IsCertificateAuthority))
+            {
+                // Only a CA can be required to validate other certificates.
+                return false;
+            }
+
+            using CertificateCollection trusted = await GetStore(m_trustedStore)
+                .EnumerateAsync(cancellationToken).ConfigureAwait(false);
+            using CertificateCollection issuerStore = await GetStore(m_issuerStore)
+                .EnumerateAsync(cancellationToken).ConfigureAwait(false);
+            bool IsRemoved(Certificate cert)
+            {
+                return string.Equals(cert.Thumbprint, removedThumbprint, StringComparison.OrdinalIgnoreCase);
+            }
+
+            // Only the entry of the list being modified is removed; a copy of
+            // the same CA in the other list keeps validating its certificates.
+            Certificate[] remaining = [.. trusted
+                .Where(cert => !removeFromTrustedStore || !IsRemoved(cert))
+                .Concat(issuerStore.Where(cert => removeFromTrustedStore || !IsRemoved(cert)))];
+
+            foreach (Certificate cert in remaining)
+            {
+                if (X509Utils.IsSelfSigned(cert) ||
+                    !issuers.Any(issuer => IsIssuedBy(cert, issuer)))
+                {
+                    continue;
+                }
+
+                if (!remaining.Any(other =>
+                    !ReferenceEquals(other, cert) &&
+                    X509Utils.IsCertificateAuthority(other) &&
+                    IsIssuedBy(cert, other)))
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Whether the TrustList holds a CRL issued by <paramref name="ca"/>.
+        /// </summary>
+        private async Task<bool> HasCrlForIssuerAsync(Certificate ca, CancellationToken ct)
+        {
+            foreach (CertificateStoreIdentifier storeIdentifier in new[] { m_trustedStore, m_issuerStore })
+            {
+                X509CRLCollection crls = await GetStore(storeIdentifier)
+                    .EnumerateCRLsAsync(ct).ConfigureAwait(false);
+                if (crls.Any(crl => X509Utils.CompareDistinguishedName(crl.IssuerName, ca.SubjectName)))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Adds <paramref name="certificate"/> to <paramref name="store"/>
+        /// unless a certificate with the same thumbprint is already present.
+        /// Returns whether the store was changed.
+        /// </summary>
+        private static async Task<bool> AddIfMissingAsync(
+            ICertificateStore store,
+            Certificate certificate,
+            CancellationToken ct)
+        {
+            using (CertificateCollection existing = await store
+                .FindByThumbprintAsync(certificate.Thumbprint, ct).ConfigureAwait(false))
+            {
+                if (existing.Count > 0)
+                {
+                    return false;
+                }
+            }
+
+            await store.AddAsync(certificate, null, ct).ConfigureAwait(false);
+            return true;
+        }
+
+        /// <summary>
+        /// OPC 10000-12 §7.8.2.5: every CRL of the new TrustList must be
+        /// issued by a CA of the new TrustList and carry a valid signature of
+        /// that CA. A CRL of an unknown issuer, or one that only claims the
+        /// name of a known CA, is rejected when CloseAndUpdate is called
+        /// instead of failing the later ApplyChanges.
+        /// </summary>
+        private static ServiceResult ValidateCrlIssuers(
+            IReadOnlyList<Certificate> pool,
+            IReadOnlyList<X509CRL> crls)
+        {
+            foreach (X509CRL crl in crls)
+            {
+                bool verified = pool.Any(issuer =>
+                    X509Utils.IsCertificateAuthority(issuer) &&
+                    X509Utils.CompareDistinguishedName(issuer.SubjectName, crl.IssuerName) &&
+                    crl.VerifySignature(issuer, false));
+                if (!verified)
+                {
+                    return ServiceResult.Create(
+                        StatusCodes.BadCertificateInvalid,
+                        "The CRL of {0} is not signed by a CA certificate of the TrustList.",
+                        crl.Issuer);
+                }
+            }
+
+            return ServiceResult.Good;
+        }
+
+        private static bool IsIssuedBy(Certificate certificate, Certificate issuer)
+        {
+            if (!X509Utils.CompareDistinguishedName(certificate.IssuerName, issuer.SubjectName))
+            {
+                return false;
+            }
+
+            try
+            {
+                var signature = new X509Signature(certificate.RawData);
+                using System.Security.Cryptography.X509Certificates.X509Certificate2 x509 =
+                    issuer.AsX509Certificate2();
+                return signature.Verify(x509);
+            }
+            catch
+            {
+                return false;
+            }
         }
 
         /// <summary>
@@ -1857,24 +2709,84 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// A trust list that is never registered with the validating
+        /// certificate manager, so validation against it consults no store.
+        /// </summary>
+        private static readonly TrustListIdentifier s_contentOnlyTrustList = new("TrustListContent");
+
         private readonly Lock m_lock = new();
         private readonly SecureAccess m_readAccess;
         private readonly SecureAccess m_writeAccess;
-        private NodeId m_sessionId;
+        private readonly Dictionary<uint, OpenHandle> m_handles = [];
         private uint m_fileHandle;
         private readonly CertificateStoreIdentifier m_trustedStore;
         private readonly CertificateStoreIdentifier m_issuerStore;
         private ICertificateStore? m_trustedStoreInstance;
         private ICertificateStore? m_issuerStoreInstance;
         private readonly ITelemetryContext m_telemetry;
+        private readonly ICertificateStoreResolver? m_storeResolver;
         private readonly ILogger m_logger;
         private readonly TrustListState m_node;
         private readonly IPushConfigurationTransactionCoordinator? m_coordinator;
-        private MemoryStream? m_strm;
+        private SecurityConfiguration? m_validationConfiguration;
+        private IAuditEventServer? m_auditServer;
         private readonly int m_effectiveMaxTrustListSize;
         private ICertificateTrustListManager? m_changeNotifier;
         private TrustListIdentifier? m_changeNotifierScope;
-        private long m_totalBytesProcessed;
+
+        /// <summary>
+        /// An open TrustList file handle (OPC 10000-20 §4.2.2): several read
+        /// handles may be open at once, a write handle is exclusive.
+        /// </summary>
+        private sealed class OpenHandle
+        {
+            public OpenHandle(uint id, NodeId sessionId, MemoryStream stream, bool forWrite)
+            {
+                Id = id;
+                SessionId = sessionId;
+                Stream = stream;
+                ForWrite = forWrite;
+            }
+
+            public uint Id { get; }
+
+            public NodeId SessionId { get; }
+
+            public MemoryStream Stream { get; }
+
+            public bool ForWrite { get; }
+
+            public long TotalBytesProcessed { get; set; }
+
+            /// <summary>
+            /// The ActivityTimeout timer; re-armed by every Method call on
+            /// the handle.
+            /// </summary>
+            public ITimer? ActivityTimer { get; set; }
+
+            /// <summary>
+            /// Incremented whenever the timer is re-armed or stopped, so a
+            /// callback of a superseded timer is ignored.
+            /// </summary>
+            public long ActivityGeneration { get; set; }
+        }
+
+        private sealed class ActivityTimerState
+        {
+            public ActivityTimerState(TrustList owner, uint fileHandle, long generation)
+            {
+                Owner = owner;
+                FileHandle = fileHandle;
+                Generation = generation;
+            }
+
+            public TrustList Owner { get; }
+
+            public uint FileHandle { get; }
+
+            public long Generation { get; }
+        }
     }
 
     internal static partial class TrustListLog
@@ -1899,5 +2811,33 @@ namespace Opc.Ua.Server
             this ILogger logger,
             Exception ex,
             string scope);
+
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 3, Level = LogLevel.Debug,
+            Message = "Could not determine whether the Session {SessionId} owning the TrustList handle is alive.")]
+        public static partial void TrustListOwnerSessionLookupFailed(
+            this ILogger logger,
+            Exception ex,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 4, Level = LogLevel.Information,
+            Message = "Released the TrustList handle abandoned by the closed Session {SessionId}.")]
+        public static partial void TrustListAbandonedHandleReleased(
+            this ILogger logger,
+            NodeId sessionId);
+
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 5, Level = LogLevel.Information,
+            Message = "Closed the TrustList handle {FileHandle} after {ActivityTimeout} ms of inactivity.")]
+        public static partial void TrustListHandleClosedAfterInactivity(
+            this ILogger logger,
+            uint fileHandle,
+            double activityTimeout);
+
+        [LoggerMessage(EventId = ServerEventIds.TrustList + 6, Level = LogLevel.Warning,
+            Message = "AddCertificate added the CA certificate {Subject} without a CRL. " +
+                "RejectUnknownRevocationStatus is enabled, so certificates issued by this CA " +
+                "are rejected until a CRL of the CA is written with the TrustList file.")]
+        public static partial void TrustListCaAddedWithoutCrl(
+            this ILogger logger,
+            string subject);
     }
 }

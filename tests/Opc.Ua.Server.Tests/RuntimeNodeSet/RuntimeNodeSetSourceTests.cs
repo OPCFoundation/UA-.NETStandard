@@ -108,7 +108,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void FromFileRejectsNullFilePath()
         {
             Assert.That(
-                () => RuntimeNodeSetSource.FromFile(null),
+                () => RuntimeNodeSetSource.FromFile(null!),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("filePath"));
         }
 
@@ -120,7 +120,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void FromFileWithExplicitNsRejectsNullFilePath()
         {
             Assert.That(
-                () => RuntimeNodeSetSource.FromFile(null, [kTestNamespaceUri]),
+                () => RuntimeNodeSetSource.FromFile(null!, [kTestNamespaceUri]),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("filePath"));
         }
 
@@ -143,11 +143,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         [TestCase(null)]
         [TestCase("")]
         [TestCase("   ")]
-        public void FromStreamRejectsBlankName(string name)
+        public void FromStreamRejectsBlankName(string? name)
         {
             Assert.That(
                 () => RuntimeNodeSetSource.FromStream(
-                    name,
+                    name!,
                     _ => new ValueTask<Stream>(Stream.Null),
                     [kTestNamespaceUri]),
                 Throws.ArgumentException.With.Property("ParamName").EqualTo("name"));
@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(
                 () => RuntimeNodeSetSource.FromStream(
                     "source",
-                    null,
+                    null!,
                     [kTestNamespaceUri]),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("openStream"));
         }
@@ -278,7 +278,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void FileSourceRequiresModelsOrExplicitNamespaceUris()
         {
             string noModelsFile = Path.Combine(
-                Path.GetDirectoryName(m_testNodeSetFile),
+                Path.GetDirectoryName(m_testNodeSetFile)!,
                 Guid.NewGuid().ToString("N") + ".NoModels.NodeSet2.xml");
             File.WriteAllText(noModelsFile, kNoModelsNodeSetXml, Encoding.UTF8);
 
@@ -302,7 +302,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void FileSourceWithExplicitNsSucceedsForLegacyNodeSet()
         {
             string noModelsFile = Path.Combine(
-                Path.GetDirectoryName(m_testNodeSetFile),
+                Path.GetDirectoryName(m_testNodeSetFile)!,
                 Guid.NewGuid().ToString("N") + ".NoModelsExplicit.NodeSet2.xml");
             File.WriteAllText(noModelsFile, kNoModelsNodeSetXml, Encoding.UTF8);
 
@@ -422,7 +422,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void ScanModelUrisReturnsEmptyForFileWithoutModels()
         {
             string noModelsFile = Path.Combine(
-                Path.GetDirectoryName(m_testNodeSetFile),
+                Path.GetDirectoryName(m_testNodeSetFile)!,
                 Guid.NewGuid().ToString("N") + ".ScanNoModels.NodeSet2.xml");
             File.WriteAllText(noModelsFile, kNoModelsNodeSetXml, Encoding.UTF8);
 
@@ -439,6 +439,49 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         }
 
         /// <summary>
+        /// <see cref="RuntimeNodeSetSource.ScanModelUris"/> ignores elements named
+        /// <c>Model</c> that are not <c>UANodeSet/Models/Model</c> declarations, such
+        /// as a structure field inside a variable value.
+        /// </summary>
+        [Test]
+        public void ScanModelUrisIgnoresModelElementsOutsideModels()
+        {
+            const string xml =
+                "<?xml version=\"1.0\" encoding=\"utf-8\"?>\r\n" +
+                "<UANodeSet xmlns=\"http://opcfoundation.org/UA/2011/03/UANodeSet.xsd\">\r\n" +
+                "  <Models>\r\n" +
+                "    <Model ModelUri=\"" + kTestNamespaceUri + "\" />\r\n" +
+                "  </Models>\r\n" +
+                "  <UAVariable NodeId=\"ns=1;i=1\" BrowseName=\"1:Info\">\r\n" +
+                "    <Value>\r\n" +
+                "      <ExtensionObject xmlns=\"http://opcfoundation.org/UA/2008/02/Types.xsd\">\r\n" +
+                "        <Body><DeviceInfo><Model>X100</Model></DeviceInfo></Body>\r\n" +
+                "      </ExtensionObject>\r\n" +
+                "    </Value>\r\n" +
+                "  </UAVariable>\r\n" +
+                "  <UAObject NodeId=\"ns=1;i=2\" BrowseName=\"1:Other\">\r\n" +
+                "    <Model ModelUri=\"urn:bogus\" />\r\n" +
+                "  </UAObject>\r\n" +
+                "</UANodeSet>";
+            string file = Path.Combine(
+                Path.GetDirectoryName(m_testNodeSetFile)!,
+                Guid.NewGuid().ToString("N") + ".ScanForeignModel.NodeSet2.xml");
+            File.WriteAllText(file, xml, Encoding.UTF8);
+
+            try
+            {
+                ArrayOf<string> uris = RuntimeNodeSetSource.ScanModelUris(file);
+
+                Assert.That(uris.Count, Is.EqualTo(1));
+                Assert.That(uris[0], Is.EqualTo(kTestNamespaceUri));
+            }
+            finally
+            {
+                File.Delete(file);
+            }
+        }
+
+        /// <summary>
         /// <see cref="RuntimeNodeSetSource.ExtractModelUris"/> returns the
         /// <c>Models[].ModelUri</c> values when the <c>Models</c> array is present.
         /// </summary>
@@ -446,9 +489,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void ExtractModelUrisUsesModelsSection()
         {
             UANodeSet nodeSet = UANodeSet.Read(
-                new MemoryStream(Encoding.UTF8.GetBytes(kMinimalNodeSetXml)));
+                new MemoryStream(Encoding.UTF8.GetBytes(kMinimalNodeSetXml)))!;
 
-            ArrayOf<string> uris = RuntimeNodeSetSource.ExtractModelUris(nodeSet, default);
+            ArrayOf<string> uris = RuntimeNodeSetSource.ExtractModelUris(nodeSet!, default);
 
             Assert.That(uris.Count, Is.EqualTo(1));
             Assert.That(uris[0], Is.EqualTo(kTestNamespaceUri));
@@ -462,11 +505,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         public void ExtractModelUrisFallsBackToDeclaredWhenModelsAbsent()
         {
             UANodeSet nodeSet = UANodeSet.Read(
-                new MemoryStream(Encoding.UTF8.GetBytes(kNoModelsNodeSetXml)));
+                new MemoryStream(Encoding.UTF8.GetBytes(kNoModelsNodeSetXml)))!;
 
             ArrayOf<string> declared = [kTestNamespaceUri];
 
-            ArrayOf<string> uris = RuntimeNodeSetSource.ExtractModelUris(nodeSet, declared);
+            ArrayOf<string> uris = RuntimeNodeSetSource.ExtractModelUris(nodeSet!, declared);
 
             Assert.That(uris.Count, Is.EqualTo(1));
             Assert.That(uris[0], Is.EqualTo(kTestNamespaceUri));
