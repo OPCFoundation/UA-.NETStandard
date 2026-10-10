@@ -1,0 +1,12 @@
+--scenario read --nodes 1
+--scenario read --nodes 100
+--scenario write --nodes 100
+--scenario browse
+--scenario read --nodes 1 --security encrypt
+--scenario read --nodes 100 --security encrypt
+--scenario read --nodes 1 --client managed
+--scenario read --nodes 1 --sessions 200
+--scenario sub --subs 5 --nodes 100 --pub 100 --write-interval 50
+--scenario sub --subs 5 --nodes 100 --pub 100 --write-interval 50 --callback item
+--scenario sub --subs 5 --nodes 100 --pub 100 --write-interval 50 --client managed
+--scenario sub --subs 5 --nodes 100 --pub 100 --write-interval 50 --security encrypt
