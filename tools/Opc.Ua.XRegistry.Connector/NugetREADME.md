@@ -50,4 +50,4 @@ Invalid mapping and HTTP profiles fail during configuration, before hosting.
 
 This tool targets xRegistry 1.0-rc4 and experimental OPC UA bindings. Capability
 negotiation does not turn sequential native calls into an HTTP transaction.
-See `docs/XRegistryBridge.md` in the source repository before deploying.
+See `docs/XRegistry.md#opc-ua-http-bridge` in the source repository before deploying.

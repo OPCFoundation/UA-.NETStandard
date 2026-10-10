@@ -185,9 +185,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                 }
                 m_projectionPending = true;
                 Interlocked.Increment(ref m_projectionRevision);
-                using LocalAddressSpaceNotificationBatch notifications =
-                    ((ILocalAddressSpaceNotifications)((ILocalAddressSpaceSource)this).CreateLocalAddressSpace())
-                        .BeginNotificationBatch();
+                using LocalAddressSpaceNotificationBatch notifications = BeginAddressSpaceNotificationBatch();
                 try
                 {
                     XRegistryNativeSnapshot previous = m_strategy.Snapshot;
@@ -888,6 +886,19 @@ namespace Opc.Ua.XRegistry.Bridge.Native
                     "This address space is restricted to its configured projection identity scope.");
             }
             return caller;
+        }
+
+        private LocalAddressSpaceNotificationBatch BeginAddressSpaceNotificationBatch()
+        {
+            ILocalAddressSpace addressSpace = ((ILocalAddressSpaceSource)this).CreateLocalAddressSpace();
+            if (addressSpace is not ILocalAddressSpaceNotifications notifications)
+            {
+                throw new ServiceResultException(StatusCodes.BadNotSupported,
+                    "The local address space does not support notification staging required by " +
+                    "the native xRegistry projection.");
+            }
+
+            return notifications.BeginNotificationBatch();
         }
 
         private static bool Qualified(XRegistryEndpointDescription description)

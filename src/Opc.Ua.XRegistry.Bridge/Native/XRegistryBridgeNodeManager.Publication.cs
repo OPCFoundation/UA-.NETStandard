@@ -193,9 +193,7 @@ namespace Opc.Ua.XRegistry.Bridge.Native
             bool commitStarted = false;
             XRegistryPreparedEventBatch? events = null;
             XRegistryResponse response;
-            using LocalAddressSpaceNotificationBatch notifications =
-                ((ILocalAddressSpaceNotifications)((ILocalAddressSpaceSource)this).CreateLocalAddressSpace())
-                    .BeginNotificationBatch();
+            using LocalAddressSpaceNotificationBatch notifications = BeginAddressSpaceNotificationBatch();
             m_projectionPending = true;
             Interlocked.Increment(ref m_projectionRevision);
             try

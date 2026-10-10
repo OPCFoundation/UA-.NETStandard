@@ -76,7 +76,7 @@ An initialization marker distinguishes pristine storage from missing previously
 committed data; missing data or recovery artifacts never start an empty registry.
 
 The provider qualifies supported model features rather than silently coercing
-unsupported domain semantics. See the repository's `docs/XRegistryBridge.md` for
+unsupported domain semantics. See the repository's `docs/XRegistry.md#opc-ua-http-bridge` for
 the model profile, native/HTTP semantic differences and deployment limits.
 
 The opt-in provider supports conditional attributes, allow-listed includes,

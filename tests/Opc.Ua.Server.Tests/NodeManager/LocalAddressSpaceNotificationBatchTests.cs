@@ -96,6 +96,31 @@ namespace Opc.Ua.Server.Tests.NodeManager
             });
         }
 
+        [Test]
+        public async Task DiscardingNotificationsDoesNotRollBackAddressSpaceMutationsAsync()
+        {
+            NodeIdDictionary<NodeState> nodes = [];
+            PredefinedNodesAddressSpace space = new(new SystemContext(NUnitTelemetryContext.Create()), nodes,
+                (node, _) =>
+                {
+                    nodes[node.NodeId] = node;
+                    return default;
+                }, (_, _) => new ValueTask<bool>(false));
+            int added = 0;
+            space.NodeAdded += _ => added++;
+            var node = new BaseObjectState(null) { NodeId = new NodeId("node", 2) };
+
+            using (space.BeginNotificationBatch())
+            {
+                await space.AddOrUpdateNodeAsync(node);
+                Assert.That(space.TryGetNode(node.NodeId, out _), Is.True);
+                Assert.That(added, Is.Zero);
+            }
+
+            Assert.That(space.TryGetNode(node.NodeId, out _), Is.True);
+            Assert.That(added, Is.Zero);
+        }
+
         private static PredefinedNodesAddressSpace Create()
         {
             return new PredefinedNodesAddressSpace(new SystemContext(NUnitTelemetryContext.Create()), [],

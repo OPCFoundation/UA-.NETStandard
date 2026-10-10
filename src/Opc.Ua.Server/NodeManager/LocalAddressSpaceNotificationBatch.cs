@@ -36,22 +36,25 @@ using System.Threading;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Optional notification staging for a local address space. This delays
-    /// observer callbacks, not node mutation; the owner separately controls
-    /// visibility and restores its nodes when an authoritative commit is rejected.
+    /// Optional notification staging for a local address space. This remains
+    /// separate from <see cref="ILocalAddressSpace"/> so existing implementations
+    /// are not required to support it. It delays observer callbacks only: node
+    /// mutations remain visible and are not rolled back when a batch is discarded.
     /// </summary>
     public interface ILocalAddressSpaceNotifications
     {
         /// <summary>
         /// Begins one notification batch in the current execution context.
-        /// Dispose to discard it, or publish after the authoritative commit.
+        /// Dispose to discard callbacks, or publish them after the authoritative
+        /// commit. This does not stage, hide or roll back address-space mutations.
         /// </summary>
         LocalAddressSpaceNotificationBatch BeginNotificationBatch();
     }
 
     /// <summary>
-    /// Single-use local-address-space notifications staged before publication.
-    /// Notification errors happen after the owner's commit and cannot roll it back.
+    /// Single-use observer notifications staged before publication.
+    /// Discarding this batch drops callbacks only; it does not revert any
+    /// address-space mutations. Delivery errors happen after the owner's commit.
     /// </summary>
     public sealed class LocalAddressSpaceNotificationBatch : IDisposable
     {

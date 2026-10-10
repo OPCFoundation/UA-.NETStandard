@@ -48,5 +48,5 @@ stopping a runner, await `WaitForPendingOperationsAsync` before releasing its
 caller-owned transports; a timed-out operation retains its pass ownership.
 
 Use the thin `Opc.Ua.XRegistry.Connector` tool or compose the library through
-direct constructors and dependency injection. See `docs/XRegistryBridge.md` in
+direct constructors and dependency injection. See `docs/XRegistry.md#opc-ua-http-bridge` in
 the source repository for configuration, qualification and recovery requirements.
