@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <OutputType>Exe</OutputType>
+    <SelfContained Condition="'$(RegistryPublishAot)' == 'true'">true</SelfContained>
+    <IsPackable>false</IsPackable>
+    <AssemblyName>RegistryClient</AssemblyName>
+    <RootNamespace>Opc.Ua.Registry.Samples</RootNamespace>
+    <Nullable>enable</Nullable>
+    <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
+  </PropertyGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.EndpointRegistry.Client\Opc.Ua.EndpointRegistry.Client.csproj" />
+    <ProjectReference Include="..\..\..\src\Opc.Ua.SchemaRegistry.Client\Opc.Ua.SchemaRegistry.Client.csproj" />
+    <PackageReference Include="Microsoft.Extensions.Hosting" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" />
+    <Compile Include="..\..\..\src\Opc.Ua.EndpointRegistry\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />
+  </ItemGroup>
+</Project>

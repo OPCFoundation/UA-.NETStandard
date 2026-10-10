@@ -1,0 +1,20 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Opc.Ua.Aot.Tests</RootNamespace>
+    <PublishAot>true</PublishAot>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="TUnit" />
+    <Compile Include="..\Opc.Ua.Aot.Tests\RegistryFormatsAotTests.cs" Link="RegistryFormatsAotTests.cs" />
+    <Compile Include="..\..\src\Opc.Ua.SchemaRegistry\Properties\AssemblyInfo.cs" Link="Properties\AssemblyInfo.cs" />
+    <None Include="..\Opc.Ua.SchemaRegistry.Tests\Assets\*.ipc"
+          Link="RegistryFixtures\%(Filename)%(Extension)" CopyToOutputDirectory="PreserveNewest" />
+    <ProjectReference Include="..\..\src\Opc.Ua.SchemaRegistry.Server\Opc.Ua.SchemaRegistry.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.EndpointRegistry.Server\Opc.Ua.EndpointRegistry.Server.csproj" />
+  </ItemGroup>
+</Project>

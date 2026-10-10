@@ -170,6 +170,12 @@
     <Project Path="src/Opc.Ua.Vision.Server/Opc.Ua.Vision.Server.csproj" />
     <Project Path="src/Opc.Ua.Vision.OpenUsd/Opc.Ua.Vision.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.Gds/Opc.Ua.Gds.csproj" />
+    <Project Path="src/Opc.Ua.EndpointRegistry/Opc.Ua.EndpointRegistry.csproj" />
+    <Project Path="src/Opc.Ua.EndpointRegistry.Client/Opc.Ua.EndpointRegistry.Client.csproj" />
+    <Project Path="src/Opc.Ua.EndpointRegistry.PubSub/Opc.Ua.EndpointRegistry.PubSub.csproj" />
+    <Project Path="src/Opc.Ua.EndpointRegistry.Federation/Opc.Ua.EndpointRegistry.Federation.csproj" />
+    <Project Path="src\Opc.Ua.EndpointRegistry.Federation.Server\Opc.Ua.EndpointRegistry.Federation.Server.csproj" />
+    <Project Path="src/Opc.Ua.EndpointRegistry.Server/Opc.Ua.EndpointRegistry.Server.csproj" />
     <Project Path="src/Opc.Ua.Gds.Client/Opc.Ua.Gds.Client.csproj" />
     <Project Path="src/Opc.Ua.Gds.Server/Opc.Ua.Gds.Server.csproj" />
     <Project Path="src/Opc.Ua.ISA95.Client/Opc.Ua.ISA95.Client.csproj" />
@@ -208,9 +214,17 @@
     <Project Path="src/Opc.Ua.Core.Types/Opc.Ua.Core.Types.csproj" />
     <Project Path="src/Opc.Ua.Core.Diagnostics/Opc.Ua.Core.Diagnostics.csproj" />
     <Project Path="src/Opc.Ua.Core.Schema/Opc.Ua.Core.Schema.csproj" />
+    <Project Path="src/Opc.Ua.SchemaRegistry.Client/Opc.Ua.SchemaRegistry.Client.csproj" />
+    <Project Path="src/Opc.Ua.SchemaRegistry.Formats/Opc.Ua.SchemaRegistry.Formats.csproj" />
+    <Project Path="src/Opc.Ua.SchemaRegistry.Server/Opc.Ua.SchemaRegistry.Server.csproj" />
+    <Project Path="src/Opc.Ua.SchemaRegistry/Opc.Ua.SchemaRegistry.csproj" />
     <Project Path="src/Opc.Ua.Security.Certificates/Opc.Ua.Security.Certificates.csproj" />
     <Project Path="src/Opc.Ua.Security.Pkcs11/Opc.Ua.Security.Pkcs11.csproj" />
     <Project Path="src/Opc.Ua.Types/Opc.Ua.Types.csproj" />
+  </Folder>
+  <Folder Name="/samples/Registry/">
+    <Project Path="samples/Registry/RegistryClient/RegistryClient.csproj" />
+    <Project Path="samples/Registry/RegistryServer/RegistryServer.csproj" />
   </Folder>
   <Folder Name="/Solution Items/">
     <File Path=".dockerignore" />
@@ -329,8 +343,14 @@
     <Project Path="tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Security.Tests/Opc.Ua.Core.Security.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Di.Tests/Opc.Ua.Di.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.EndpointRegistry.Tests/Opc.Ua.EndpointRegistry.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.EndpointRegistry.PubSub.Tests/Opc.Ua.EndpointRegistry.PubSub.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.EndpointRegistry.Federation.Tests/Opc.Ua.EndpointRegistry.Federation.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.EndpointRegistry.Server.Tests/Opc.Ua.EndpointRegistry.Server.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Registry.Aot.Tests/Opc.Ua.Registry.Aot.Tests.csproj" />
     <Project Path="tests/Opc.Ua.OpenUsd.Tests/Opc.Ua.OpenUsd.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Tests/Opc.Ua.Robotics.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Registry.Samples.Tests/Opc.Ua.Registry.Samples.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Robotics.Intent.Tests/Opc.Ua.Robotics.Intent.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Vision.Tests/Opc.Ua.Vision.Tests.csproj" />
     <Project Path="tests/Opc.Ua.VisualInspection.Tests/Opc.Ua.VisualInspection.Tests.csproj" />
@@ -364,6 +384,8 @@
     <Project Path="tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj" />
     <Project Path="tests/Opc.Ua.AMB.Tests/Opc.Ua.AMB.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.SchemaRegistry.Tests/Opc.Ua.SchemaRegistry.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.SchemaRegistry.Server.Tests/Opc.Ua.SchemaRegistry.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Server.Tests/Opc.Ua.Server.Tests.csproj" />

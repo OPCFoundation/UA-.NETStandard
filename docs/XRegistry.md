@@ -44,6 +44,40 @@ Thing Model documents.
 `Opc.Ua.XRegistry` has no dependency on either SDK, so a codec or a shared contracts assembly can
 reference the identity abstraction without pulling in the client or the server.
 
+### Native registry implementation work
+
+The shared model now includes the additive xRegistry 0.10.0 native document and bounded-snapshot
+contracts. Schema Registry and the merged Endpoint/Message model are generated in separate
+`Opc.Ua.SchemaRegistry` and `Opc.Ua.EndpointRegistry` assemblies. Loading their declarations does
+not instantiate either registry, enable PubSub, or claim a conformance facet.
+
+`tools\registry-models.json` records the imported specification revision, model versions and
+content hashes. Refresh them with `tools\ImportRegistryModels.ps1 -SpecificationRoot <checkout>`;
+normal builds do not need that checkout. `-Check` compares without importing, and
+`-AllowUncommitted` is only for an explicitly marked local development import. Delivery must
+replace such an import with a committed specification revision.
+
+`RegistryValues.Parse` is a server-side JSON compatibility bridge to the generated native value
+family. Its number coefficient and exponent retain arbitrary admitted decimal precision.
+`RegistryValues.Identical` distinguishes integral form, scale and negative zero; it ignores
+object member order but preserves array order. It is not JSON Schema semantic equality or JCS.
+
+`IRegistryStateStore` provides compare-and-swap storage of a **complete serialized registry
+generation**, distinct from `IXRegistryResourceStore`'s individual document byte ranges.
+`MemoryRegistryStateStore` is an in-process adapter. `FileRegistryStateStore` stages a complete
+generation and publishes it with the existing local filesystem's atomic `Replace`. It holds an
+exclusive writer lease per directory, verifies revision/content integrity on restart, and drains
+active operations on asynchronous disposal. This file adapter is single-writer; a shared directory
+is not distributed registry coordination or a guarantee against arbitrary power/storage loss.
+The common interface does not prohibit a future distributed compare-and-swap adapter.
+
+Native mutation, paging, bounded snapshots, Endpoint facets and optional Schema Registry hosting
+are implemented and runtime-verified. `tools\registry-conformance.json` maps the implemented facets
+to evidence; it is not certification, and each deployment advertises only its enabled features.
+Automatic schema materialization, an inbound xRegistry HTTP server, clustered high availability
+and the Schema Server/Full facets remain out of scope. See [Native Endpoint, Message and Schema
+registries](EndpointRegistry.md) for the hosting, client and trust boundaries.
+
 ## Core concepts
 
 ### Structural identity and content lookup
@@ -217,6 +251,9 @@ Two rules make a store substitutable:
 
 The contract is exercised by `XRegistryResourceStoreContractTests`; deriving a fixture from it is the
 quickest way to validate a new implementation.
+
+Sharing this byte store does not coordinate registry metadata, epochs or multi-writer commits.
+Those require a complete-state transaction adapter with the appropriate deployment guarantees.
 
 `Opc.Ua.WotCon.Server` is a worked example: `WotBlobResourceStore` implements this interface over
 the `{root}/{digest}.bin` layout the WoT registry has always written, so a domain registry can adopt

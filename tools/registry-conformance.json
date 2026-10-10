@@ -1,0 +1,39 @@
+{
+  "status": "implemented-and-runtime-verified",
+  "specification": "OPCF-Members/OPC30450-CloudInitiative",
+  "certification": "Implementation evidence, not OPC Foundation certification.",
+  "deployment": "Features are opt-in. Advertise only the facets whose configured instances, authorization policies and provider bindings are active.",
+  "sharedPrerequisites": {
+    "XREG-Collections": ["XRegistryCollectionProjectionTests", "EndpointRegistryServerTests.CollectionQualifiedLifecycleEventsReachTheTcpSubscriberAsync"],
+    "XREG-MetadataResource": ["EndpointRegistryServerTests.NativeMessageGroupIsRegisteredReadBrowsedChangedAndDeletedAsync", "EndpointRegistryServerTests.SoleVersionAliasesRetainAuthoredAbsenceAndNeverSelectAnUnretainedVersionAsync"],
+    "XREG-NativeDocuments": ["EndpointRegistryNativeCoverage", "EndpointRegistryRecordMapperTests", "EndpointRegistryServerTests.ModelAndCapabilitiesAreCompleteNamedNativeDocumentsAsync", "SchemaRegistryWireTests.SelectedSchemaMetadataReturnsItsOwnEpochAndNamespaceSourceAsync"],
+    "XREG-NativeSnapshots": ["RegistrySnapshotTests", "SchemaRegistryWireTests.SchemaSnapshotPinsOversizedContentsAndBothRevisionSpacesAsync", "SchemaRegistryWireTests.SnapshotPartsRecheckVisibilityOfThePinnedVersionAsync"],
+    "XREG-NativeWrite": ["RegistryMetadataCommitTests", "RegistryNativeActivationTests.NoOpCannotReportSuccessWhileDurableProjectionIsPendingAsync", "EndpointRegistryServerTests.MutationsRequireAuthorizationAndSignAndEncryptAsync"],
+    "XREG-GroupFederation": ["GroupFederationHostingTests"]
+  },
+  "claims": [
+    { "facet": "EndpointRegistry/Messages", "status": "implemented", "tests": ["EndpointRegistryRuleFixtureTests", "EndpointRegistryRecordMapperTests", "EndpointRegistryServerTests.NativeMessageGroupIsRegisteredReadBrowsedChangedAndDeletedAsync"] },
+    { "facet": "EndpointRegistry/Endpoints", "status": "implemented", "tests": ["EndpointRegistryRuleFixtureTests", "EndpointRegistryServerTests.EndpointCatalogProjectsProtocolTypedOptionsAsync"] },
+    { "facet": "EndpointRegistry/Writable", "status": "implemented", "tests": ["RegistryMetadataCommitTests", "RegistryNativeActivationTests", "EndpointRegistryServerTests.MutationsRequireAuthorizationAndSignAndEncryptAsync", "EndpointRegistryServerTests.InheritedLabelMethodsShareTypedStateAndExactEpochChecksAsync"] },
+    { "facet": "EndpointRegistry/Federation", "status": "implemented", "tests": ["OpcUaFederationTests", "HttpFederationTests", "FederationTrustTests", "GroupFederationHostingTests.VerifiedGroupOwnsReadOnlyNativePropertiesAndPreservesCompleteSourceAsync", "GroupFederationHostingTests.RestoredPinsAreNotAuthenticationAndRequireMatchingFreshObservationAsync"] },
+    { "facet": "EndpointRegistry/Resolution", "status": "implemented", "tests": ["EndpointRegistryMessageResolverTests", "PythonOracleTests", "EndpointRegistryServerTests.ResolveMessageReturnsTypedOverlayAndVerifiedLocalOriginsAsync"] },
+    { "facet": "EndpointRegistry/PubSubBinding", "status": "implemented", "tests": ["OracleCorrespondenceTests.NativeCorrespondenceMatchesIndependentPythonOracle", "PubSubBindingServerTests.SecuredTcpExposesExactNativeReferencesAndCompleteSnapshotsWithoutOpeningTransportAsync", "PubSubBindingServerTests.PublicationChangesInvalidateBeforeRuntimeRetirementAndReactivateStableEntriesAsync", "PubSubBindingServerTests.ConcurrentPublicationChangesAndOrdinaryEditsUseOneCasStateWithoutLosingEitherAsync"] },
+    { "facet": "EndpointRegistry/Media", "status": "implemented", "tests": ["EndpointRegistryRuleFixtureTests", "EndpointRegistryServerTests.MediaRootIsIsolatedAndRejectsDirectMessageCreationAsync"] },
+    { "facet": "EndpointRegistry/JsonCompatibility", "status": "implemented", "tests": ["RegistryMetadataCommitTests", "EndpointRegistryServerTests.JsonCompatibilityPatchAndMetadataFileShareTheNativeStateAsync"] },
+    { "facet": "SchemaRegistry/Reader", "status": "implemented", "tests": ["SchemaRegistryWireTests.TypedSchemaWriteReadGetSchemaAndOpaqueLookupAgreeAsync", "SchemaRegistryWireTests.AmbiguousFingerprintsDoNotRevealHiddenVersionsAsync"] },
+    { "facet": "SchemaRegistry/NativeSnapshots", "status": "implemented", "tests": ["SchemaContentBinaryTests", "SchemaRegistryWireTests.SharedMetadataModelAndCapabilitiesStayNativeWithoutEndpointDependencyAsync", "SchemaRegistryWireTests.SelectedSchemaMetadataReturnsItsOwnEpochAndNamespaceSourceAsync", "SchemaRegistryWireTests.SchemaSnapshotPinsOversizedContentsAndBothRevisionSpacesAsync", "SchemaRegistryWireTests.SnapshotPartsRecheckVisibilityOfThePinnedVersionAsync"] },
+    { "facet": "SchemaRegistry/NativeWritable", "status": "implemented", "tests": ["SchemaRegistryWireTests.InheritedCreationWritesARealExactSchemaVersionThroughItsStableFileAsync", "SchemaRegistryWireTests.RawUploadIsSessionBoundAndPublishesOnlyOnValidatedCloseAsync", "SchemaRegistryStoreTests.DurableDraftsHaveNoFabricatedContentAndCloseAdvancesTheirRevisionAsync", "SchemaRegistryStoreTests.VersionLineageAndKnownProvenancePersistAndNativeCorrelationIsDetachedAsync", "SchemaRegistryStoreTests.CompatibilityClaimsRequireVerificationAndRejectBreakingVersionsAtomicallyAsync", "SchemaRegistryWireTests.LogicalProvenancePresenceFollowsTheSelectedDefaultRatherThanVersionSortOrderAsync"] },
+    { "facet": "SchemaRegistry/Server", "status": "out-of-scope", "reason": "Automatic schema materialization is not required by the selected scope." },
+    { "facet": "SchemaRegistry/Full", "status": "out-of-scope", "reason": "No inbound xRegistry HTTP server, automatic materialization, TTL mirroring or Schema PubSub profile." }
+  ],
+  "validation": {
+    "managedFrameworks": ["net10.0", "net48"],
+    "libraryFrameworks": ["net472", "net48", "netstandard2.1", "net8.0", "net9.0", "net10.0"],
+    "independentOracles": ["Python domain-rule corpus", "Python resolution/federation corpus", "Python PubSub correspondence corpus", "Independent Binary/Arrow/Avro vectors"],
+    "nativeExecutable": "RegistryServer --schema --self-test: actual encrypted TCP, durable stores, native client calls and bounded String traversal",
+    "apiBaseline": "23be306c65301f2a894048bb5811962cba9eb31e",
+    "modelAbiBaseline": "10a56cb151e8aeeb1387ef7810d44029451fee8c",
+    "coverage": "Merged distinct Cobertura source lines exceed 80 percent in all thirteen registry packages; generated-code exclusion follows repository tooling.",
+    "legacyWindowsPaths": "The retained WoT net48 suite uses a short repository alias to avoid the unchanged MAX_PATH-sensitive storage fixture. No tests are skipped or weakened."
+  }
+}
