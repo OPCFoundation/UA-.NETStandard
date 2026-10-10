@@ -32,6 +32,7 @@ Integration and OPC 30050 PackML.
 - [Known limitations](#known-limitations)
 - [Model provenance](#model-provenance)
 - [Where the specification and the NodeSet disagree](#where-the-specification-and-the-nodeset-disagree)
+- [MCP tools](#mcp-tools)
 - [See also](#see-also)
 
 ## Library layout
@@ -686,6 +687,39 @@ differ:
 - **No `GeneratesEvent` or `HasNotifier`.** The NodeSet has neither, so the
   notifier wiring described in
   [Where a scale lives](#where-a-scale-lives) is the server's own.
+
+## MCP tools
+
+`opcua-mcp --profile scales` exposes bounded discovery (`scales_list`), finite
+facet reads (`scales_read`), observations (`scales_observe`) and explicit
+weighing, product, recipe, PackML and scale-kind commands.
+
+Use the NodeId returned by discovery. `scales_read` with `CurrentWeight`
+returns `available=false` when the object has no weight item; an uninitialized
+published measurement remains available with `"NaN"` rather than being
+misrepresented as zero. Engineering units and quality accompany measurements.
+
+```json
+{
+  "nodeId": "ns=2;s=Scale1",
+  "facet": "CurrentWeight",
+  "sessionName": "plant"
+}
+```
+
+For products protected by DI locking, run `--profile scales,di`, read the
+`Products` facet, and use its actual `lockNodeId` with the DI lock tools.
+Commands never take or break a lock automatically. Standard no-argument
+scale commands, vehicle operations and recipe actions use finite enums;
+arbitrary vendor method names are not accepted.
+
+`scales_add_recipe_element` accepts `input.previousElements` as a standard
+JSON array of NodeId strings (1..500), not the CLR `ArrayOf` representation.
+Creating a recipe or an element does not start it.
+
+Embed `Opc.Ua.Mcp.Scales` with `AddOpcUaMcpScales()` and
+`WithOpcUaScalesTools(...)`. See [industrial companion MCP tools](McpServer.md#industrial-companion-tools)
+for shared profiles and error/observation contracts.
 
 ## See also
 

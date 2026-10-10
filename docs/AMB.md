@@ -34,6 +34,7 @@ them and reads them back into records.
 - [Known limitations](#known-limitations)
 - [Model provenance](#model-provenance)
 - [Generator gaps this model uncovered](#generator-gaps-this-model-uncovered)
+- [MCP tools](#mcp-tools)
 - [See also](#see-also)
 
 ## Library layout
@@ -603,6 +604,36 @@ gap; two known ones apply as well:
   override `StateTable`, `TransitionTable` and `TransitionMappings`. The server
   drives it with tables built from the generated
   `MaintenanceEventStateMachineTypeIds`.
+
+## MCP tools
+
+`opcua-mcp --profile amb` exposes the AMB client as twelve tools: local
+asset discovery, alias search/browse, category/version inspection, finite
+asset-facet reads, location browsing, bounded observations, asset-ID changes,
+acknowledgements and documentation-link add/write/remove operations.
+
+Start with `amb_discover_assets` or `amb_find_assets`, then pass the returned
+NodeId to `amb_read_asset`. Choose a finite `facet`, such as `Identification`,
+`HealthAlarms`, `Maintenance`, `Documentation` or `Snapshot`. Collection facets
+are paged; snapshots are live sequential reads, not atomic plant snapshots.
+The read tools never acknowledge conditions or change identifiers.
+
+```json
+{
+  "assetNodeId": "ns=2;s=Asset1",
+  "facet": "Identification",
+  "sessionName": "plant"
+}
+```
+
+`amb_acknowledge` requires the exact condition ID and base64 event ID returned
+by a read/observation. Remote alias and sub-asset identities are retained but
+not followed. There is no historical health or maintenance tool where the
+current typed client has no history implementation.
+
+Embed `Opc.Ua.Mcp.AMB` with `AddOpcUaMcpAmb()` and `WithOpcUaAmbTools(...)`.
+See [industrial companion MCP tools](McpServer.md#industrial-companion-tools) for profiles, session
+selection, result/error contracts and embedding.
 
 ## See also
 

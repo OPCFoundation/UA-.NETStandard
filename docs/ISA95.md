@@ -13,6 +13,7 @@ End-to-end developer guide for the `Opc.Ua.ISA95*` library trio: the OPC-10030 I
 - [Job Control (V1 and V2)](#job-control-v1-and-v2)
 - [GeoSpatialLocationType provider seam](#geospatiallocationtype-provider-seam)
 - [Client](#client)
+- [MCP tools](#mcp-tools)
 - [In-memory limitations and HA guidance](#in-memory-limitations-and-ha-guidance)
 - [Conformance matrix](#conformance-matrix)
 - [Model sources, identifier mappings, and normative repairs](#model-sources-identifier-mappings-and-normative-repairs)
@@ -227,6 +228,87 @@ await foreach (ISA95JobOrderStatusEventTypeRecord record in
 ```
 
 `AddIsa95Client` (on `IOpcUaBuilder` or `IOpcUaClientBuilder`) registers `ITelemetryContext` and the injectable `IIsa95ClientFactory`. `Create` wraps an existing session; when `Isa95ClientOptions.LazyConnect` is true (the default), `ConnectAsync` lazily acquires the `ManagedSession` registered by `AddClient` on first use and caches the resulting client.
+
+## MCP tools
+
+`OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` contributes 20 tools to the `isa95`
+profile. Register with `services.AddOpcUaMcpIsa95()` and
+`mcpBuilder.WithOpcUaIsa95Tools(McpToolProfile.Isa95)` after registering MCP Core.
+The profile supplies connection tools, and every ISA-95 tool has an optional
+`sessionName` resolved afresh for that call. Multiple sessions require an
+explicit selection; no endpoint or three-role wrapper is cached.
+
+| Tools | Purpose |
+|---|---|
+| `isa95_list_common_objects`, `isa95_read_common_object` | Common objects/classes and vendor subtypes; typed property values, quality and timestamps |
+| `isa95_discover_job_endpoints` | All actual V1/V2 order-receiver, response-provider and response-receiver roles |
+| `isa95_v1_receive_order` | V1's finite Store/StoreAndStart/Start/Update/Stop/Cancel/Clear command enum |
+| `isa95_v1_query_responses`, `isa95_v1_receive_response` | V1 response provider/receiver methods |
+| `isa95_v2_store`, `isa95_v2_store_and_start`, `isa95_v2_update` | Complete typed V2 order submissions |
+| `isa95_v2_start`, `isa95_v2_stop`, `isa95_v2_pause`, `isa95_v2_resume`, `isa95_v2_abort`, `isa95_v2_revoke_start`, `isa95_v2_cancel`, `isa95_v2_clear` | Independent explicit V2 controls |
+| `isa95_v2_query_responses`, `isa95_v2_receive_response` | V2 response provider/receiver methods |
+| `isa95_v2_observe_status` | At most 30 seconds/500 typed job-status events, with enumerator cleanup |
+
+Each command is marked non-read-only and destructive. It calls only its real
+role's generated proxy: an order receiver is never substituted for a missing
+response provider or receiver. Compose the `machinery,isa95` profiles to use
+Machinery's `machinery_get_job_endpoints` with these canonical controls.
+Machinery has no response-receiver role.
+
+`returnStatus` contains the complete UInt64 Annex B.2 bitmap, and
+`returnStatusText` is its exact decimal spelling for clients whose numbers cannot
+represent every UInt64. **Only `1` is success.** Zero, refusal bits, combinations
+containing failure bits and vendor high bits produce an MCP error even when
+the UA Call result is Good. UA service failures retain their separate status code.
+
+Order, response, resource and recursive parameter inputs are explicit DTOs, not
+opaque serialized structures. Arrays are ordinary JSON arrays, limited to 500
+items. For example, the arguments to `isa95_v2_store` can include:
+
+```json
+{
+  "receiverNodeId": "ns=2;s=OrderReceiver",
+  "sessionName": "plant",
+  "jobOrder": {
+    "jobOrderId": "job-1",
+    "priority": 0,
+    "parameters": [
+      { "id": "RunsPlanned", "value": { "dataType": "UInt32", "value": 0 } },
+      { "id": "Overproduction", "value": { "dataType": "Boolean", "value": false } },
+      {
+        "id": "Orders",
+        "value": { "dataType": "String", "isArray": true, "value": ["ERP-1", "ERP-2"] }
+      }
+    ]
+  },
+  "comment": { "texts": [{ "text": "Approved batch", "locale": "en" }] }
+}
+```
+
+V2 optional masks distinguish omitted fields from explicit zero, false and
+empty arrays. Parameters retain their type, recursive `children`, localized
+descriptions and engineering units. Resource `properties` use the same typed
+input shape, with `children` mapped to subproperties. Recursive parameter/property
+trees are bounded to eight child levels. Typed values use the strict stack JSON
+decoder; timestamps require UTC or an offset. UInt64 and Int64 payloads may use
+decimal strings. V1 accepts one unlocalized description and `unitOfMeasure`;
+V2 accepts localized descriptions and `engineeringUnits`. Incompatible
+version-specific metadata is rejected rather than silently dropped.
+
+V2 response queries require exactly one of `query.jobOrderId` or `query.states`.
+Each state includes a `stateNumber` and optional qualified `browsePath` segments
+followed through `HasSubStateMachine`; an empty path refers to the root state
+machine, so equal state numbers in different substate machines remain distinct.
+An explicit empty state-selector list requests the provider's unfiltered set.
+V2 receive-response inputs must explicitly include `states`.
+
+Common property reads follow the common model's vendor-named variable
+placeholders only after validating the object's type. Lists are live pages of at
+most 500 results, not durable snapshots. Status observations borrow the selected
+managed session's streaming subscription and decode concrete vendor subtypes
+using the generated V2 event contract.
+
+See [Companion MCP modules](McpServer.md#industrial-companion-tools) for shared deployment policies.
 
 ## In-memory limitations and HA guidance
 

@@ -131,7 +131,7 @@ namespace Opc.Ua.Mcp
                         // Capturing traffic is only useful next to the connection tools that
                         // generate it. Full already gets them from the core package, so adding
                         // them there would register the same tools twice.
-                        mcpServerBuilder.WithTools<ConnectionTools>();
+                        mcpServerBuilder.WithOpcUaConnectionTools();
                     }
 
                     break;
@@ -141,6 +141,13 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Robotics:
                 case McpToolProfile.Vision:
+                case McpToolProfile.Amb:
+                case McpToolProfile.Machinery:
+                case McpToolProfile.Scales:
+                case McpToolProfile.Pumps:
+                case McpToolProfile.Di:
+                case McpToolProfile.Isa95:
+                case McpToolProfile.Positioning:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(

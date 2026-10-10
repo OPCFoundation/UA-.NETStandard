@@ -23,6 +23,7 @@ plugs it together.
 - [Lock service](#lock-service)
 - [Software update](#software-update)
 - [Client helpers](#client-helpers)
+- [MCP tools](#mcp-tools)
 - [What is supported (OPC 10000-100)](#what-is-supported-opc-10000-100)
 - [See also](#see-also)
 
@@ -961,6 +962,132 @@ public sealed class MyMonitor(
     }
 }
 ```
+
+## MCP tools
+
+`OPCFoundation.NetStandard.Opc.Ua.Mcp.Di` exposes 24 `di_*` tools on
+.NET 8, 9 and 10. It references the shared MCP runtime and DI client
+library, not the DI server. An embedding host registers the shared
+session manager once, then adds the DI services and catalogue:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Mcp;
+
+builder.Services
+    .AddOpcUaMcpCore(options =>
+    {
+        options.TransferRoot = @"D:\opcua-transfers";
+        options.MaxTransferBytes = 64 * 1024 * 1024;
+    })
+    .AddOpcUaMcpDi();
+
+builder.Services.AddMcpServer()
+    .WithStdioServerTransport()
+    .WithOpcUaMcpFilters()
+    .WithOpcUaDiTools(McpToolProfile.Di);
+```
+
+The executable host selects these tools with `--profile di`. Both the
+single-profile overload and `McpToolProfileSet` composition include the
+shared connection tools without duplicating them. A host with the
+Scales package can compose `scales,di` and pass the product `lockNodeId`
+from Scales directly to the DI lock tools.
+
+Every tool accepts optional `sessionName`; omitting it requires exactly
+one active session. Tool constructors receive `OpcUaSessionManager`
+through dependency injection. Each invocation resolves its current
+session and creates new model clients, so replacing a named connection
+does not leave stale proxies attached to the previous session.
+
+### Catalogue
+
+| Tools | Behaviour |
+|-------|-----------|
+| `di_discover_devices` | Uses `DiDiscoveryClient` to discover devices and subtypes below Objects, with the client's bounded recursion depth. |
+| `di_browse_topology` | Uses `DiTopologyClient` for DeviceSet, NetworkSet, DeviceTopology, or direct children of an explicit parent. |
+| `di_read_device` | Reads identification, a functional-group page, and the actual optional Lock, TransferServices and SoftwareUpdate child NodeIds. |
+| `di_read_property`, `di_read_functional_group`, `di_read_lock` | Read finite nameplate properties, a group's UIElement and object children, or lock properties, preserving UA value types and quality. |
+| `di_write_property` | Explicitly writes only AssetId or ComponentName; an empty value explicitly clears the selected field. |
+| `di_acquire_lock`, `di_renew_lock`, `di_release_lock`, `di_break_lock` | Explicitly invoke InitLock, RenewLock, ExitLock and BreakLock, respectively. |
+| `di_transfer_to_device`, `di_transfer_from_device` | Start parameter transfers through `DiTransferClient`; the latter updates the offline parameter set and is also a mutation. |
+| `di_fetch_transfer_results` | Fetches one bounded chunk using the generated proxy, preserving the sequence continuation, parameter diagnostics and model errors. |
+| `di_read_software_update`, `di_observe_software_update` | Read current/pending/fallback package versions and state snapshots, or observe one state machine for a finite interval. |
+| `di_prepare_software_update`, `di_abort_prepare` | Explicitly prepare for update or abort preparation. |
+| `di_upload_software_package` | Streams a host-approved file through `SoftwareUpdateClient.UploadPackageAsync(Stream, ...)` and commits it. |
+| `di_install_software_package`, `di_install_files` | Explicitly install a package identified by metadata/hash, or already uploaded server-side files. |
+| `di_uninstall_software`, `di_resume_installation`, `di_confirm_software_update` | Explicitly uninstall, resume installation, or confirm the installed software. |
+
+Discovery and topology pages use `offset` and `maxResults` (1–500).
+These are live enumerations, not persistent snapshots. Missing optional
+facets are `supported: false`, with no fabricated NodeId or version.
+`di_read_device` uses the DI identification summary; use
+`di_read_property` when exact localization, UA types, quality or
+timestamps matter. A failed property read remains a tool error rather
+than being converted to an empty value.
+
+### Explicit writes, locks and transfer results
+
+Reads never acquire a lock or invoke a mutation. Write/command tools
+are annotated `ReadOnly = false, Destructive = true`; server-side
+authorization, access levels and required lock ownership still apply.
+Only the caller decides when to acquire, renew, release or break a
+lock. In particular, `di_release_lock` never falls back to BreakLock.
+Keep using the same named session for a lock's lifetime.
+
+Pass the **Lock child NodeId**, not its owning device, to lock tools.
+Their `returnStatus` is the original signed integer returned by the
+device. Zero is success; every nonzero value, including unknown vendor
+codes, produces `error: true` and an MCP tool error. A successful OPC UA
+Call response alone is not treated as successful lock acquisition.
+
+Transfer initiation returns `transferId`, not a completion claim.
+Call `di_fetch_transfer_results` with `sequenceNumber: 0`, then use
+`nextSequenceNumber` until `complete: true`. Each call requests at most
+500 parameter results and issues only one fetch; it does not run an
+unbounded poller or retain a server cursor. The generated chunk method
+is used because `DiTransferClient.StreamAsync` intentionally hides
+sequence numbers. Unknown payload types, oversized responses and
+unusable sequences fail explicitly. Transfer error payloads retain
+their raw `returnStatus` and encoded diagnostic information.
+
+### Software-update workflow and limits
+
+1. Use `di_read_device` to discover `softwareUpdateNodeId`, then inspect
+   `di_read_software_update`. Unsupported version objects or state
+   machines are reported explicitly.
+2. Acquire a lock only if the device's documented workflow requires
+   one. Invoke `di_prepare_software_update` explicitly if required.
+3. Invoke `di_upload_software_package` with a file under the host's
+   configured `TransferRoot`. The directory must already exist; the
+   default byte limit is 64 MiB. Without a configured root, uploads
+   are disabled. The shared `McpFileTransfers` policy owns path/link
+   validation, byte limits and stream cleanup.
+4. Invoke the applicable installation tool explicitly. Package input
+   uses `manufacturerUri`, `softwareRevision`, a JSON string array
+   `patchIdentifiers`, and `hashBase64`. File installation uses a
+   nonempty JSON string array `fileNodeIds` containing actual
+   server-side File object NodeIds, **not host file paths**. Both arrays
+   are bounded to 500 entries and expose concrete array schemas.
+5. Read the state or call `di_observe_software_update` for 1–30,000 ms
+   and at most 500 snapshots. Observation borrows the current managed
+   session's streaming subscription and releases only its enumerator.
+   `stoppedBy` distinguishes completion, duration limit and item limit;
+   caller cancellation is propagated. An absent state machine is an
+   error, not a successful empty observation.
+6. Invoke resume, uninstall or confirmation only when deliberately
+   requested and supported by the device's current state.
+
+Preparing, uploading, installing and confirming are not automatically
+chained. `methodCompleted: true` means the method call completed; it
+does not claim that the asynchronous device operation finished.
+Uploading commits bytes but does not invoke Installation. A server's
+**DirectLoading** profile can nevertheless apply software as part of
+commit, so uploading is always a destructive operation.
+
+PowerCycle state can be read or observed; there is no MCP reboot or
+power-cycle command. Snapshots preserve state/transition NodeIds,
+localized names, timestamps, status codes and nested state snapshots.
 
 ## What is supported (OPC 10000-100)
 

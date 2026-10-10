@@ -102,7 +102,8 @@ namespace Opc.Ua.Mcp
             {
                 case McpToolProfile.PubSub:
                 case McpToolProfile.Full:
-                    mcpServerBuilder.WithRequestFilters(filters => filters.AddCallToolFilter(PubSubPcapMcpFilters.SurfaceDiagnosticsErrors));
+                    mcpServerBuilder.WithRequestFilters(filters =>
+                        filters.AddCallToolFilter(PubSubPcapMcpFilters.SurfaceDiagnosticsErrors));
                     mcpServerBuilder.WithTools<PubSubCaptureTools>();
 
                     if (diagnosticsToolsEnabled)
@@ -117,6 +118,13 @@ namespace Opc.Ua.Mcp
                 case McpToolProfile.Diagnostics:
                 case McpToolProfile.Robotics:
                 case McpToolProfile.Vision:
+                case McpToolProfile.Amb:
+                case McpToolProfile.Machinery:
+                case McpToolProfile.Scales:
+                case McpToolProfile.Pumps:
+                case McpToolProfile.Di:
+                case McpToolProfile.Isa95:
+                case McpToolProfile.Positioning:
                     break;
                 default:
                     throw new ArgumentOutOfRangeException(
