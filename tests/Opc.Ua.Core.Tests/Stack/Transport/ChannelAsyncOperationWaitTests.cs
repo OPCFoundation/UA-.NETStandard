@@ -157,14 +157,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             int continuationThread = -1;
             using var completed = new ManualResetEventSlim();
 
-            Task waiter = Task.Run(async () =>
+            async Task WaitAndRecordContinuationAsync()
             {
                 await operation.WaitForCompletionAsync(CancellationToken.None).ConfigureAwait(false);
                 continuationThread = Environment.CurrentManagedThreadId;
-            });
+            }
 
-            // let the waiter register before completing on a dedicated thread.
-            await Task.Delay(50).ConfigureAwait(false);
+            // Returning from the direct call guarantees that the pending continuation is registered.
+            Task waiter = WaitAndRecordContinuationAsync();
+            Assert.That(waiter.IsCompleted, Is.False);
             var thread = new Thread(() =>
             {
                 completingThread = Environment.CurrentManagedThreadId;
@@ -174,9 +175,15 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             });
             thread.Start();
 
-            await waiter.ConfigureAwait(false);
-            completed.Set();
-            thread.Join();
+            try
+            {
+                await waiter.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            finally
+            {
+                completed.Set();
+                Assert.That(thread.Join(TimeSpan.FromSeconds(5)), Is.True);
+            }
 
             Assert.That(continuationThread, Is.Not.EqualTo(completingThread));
         }

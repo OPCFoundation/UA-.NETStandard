@@ -902,26 +902,18 @@ namespace Opc.Ua
             uint lastSequenceNumber,
             ISymmetricCryptoProvider? provider)
         {
-            Aes? aes = null;
-            try
-            {
-                return SymmetricEncryptAndSign(
-                    data,
-                    securityPolicy,
-                    encryptingKey,
-                    iv,
-                    signingKey,
-                    hmac,
-                    signOnly,
-                    tokenId,
-                    lastSequenceNumber,
-                    provider,
-                    ref aes);
-            }
-            finally
-            {
-                aes?.Dispose();
-            }
+            return SymmetricEncryptAndSign(
+                data,
+                securityPolicy,
+                encryptingKey,
+                iv,
+                signingKey,
+                hmac,
+                signOnly,
+                tokenId,
+                lastSequenceNumber,
+                provider,
+                null);
         }
 
         /// <summary>
@@ -929,10 +921,9 @@ namespace Opc.Ua
         /// for the CBC policies.
         /// </summary>
         /// <remarks>
-        /// <c>aesCache</c> is the AES instance for <paramref name="encryptingKey"/> kept by the
-        /// caller (one per channel token and direction), or <see langword="null"/>
-        /// to have one created and stored there. Creating an instance imports the
-        /// key, which costs more than encrypting a small message.
+        /// <c>aesCache</c> retains an AES instance for <paramref name="encryptingKey"/>
+        /// (one per channel token and direction), or is <see langword="null"/> to use a fresh instance.
+        /// Creating an instance imports the key, which costs more than encrypting a small message.
         /// </remarks>
         /// <exception cref="NotSupportedException"></exception>
         /// <exception cref="CryptographicException"></exception>
@@ -947,7 +938,7 @@ namespace Opc.Ua
             uint tokenId,
             uint lastSequenceNumber,
             ISymmetricCryptoProvider? provider,
-            ref Aes? aesCache)
+            AesCache? aesCache)
         {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
@@ -1070,7 +1061,7 @@ namespace Opc.Ua
                         dataArray,
                         data.Offset,
                         data.Count,
-                        ref aesCache);
+                        aesCache);
                 }
             }
 
@@ -1611,26 +1602,18 @@ namespace Opc.Ua
            HMAC? hmac,
            ISymmetricCryptoProvider? provider)
         {
-            Aes? aes = null;
-            try
-            {
-                return SymmetricDecryptAndVerify(
-                    data,
-                    securityPolicy,
-                    encryptingKey,
-                    iv,
-                    signingKey,
-                    signOnly,
-                    tokenId,
-                    lastSequenceNumber,
-                    hmac,
-                    provider,
-                    ref aes);
-            }
-            finally
-            {
-                aes?.Dispose();
-            }
+            return SymmetricDecryptAndVerify(
+                data,
+                securityPolicy,
+                encryptingKey,
+                iv,
+                signingKey,
+                signOnly,
+                tokenId,
+                lastSequenceNumber,
+                hmac,
+                provider,
+                null);
         }
 
         /// <summary>
@@ -1638,9 +1621,8 @@ namespace Opc.Ua
         /// AES instance for the CBC policies.
         /// </summary>
         /// <remarks>
-        /// <c>aesCache</c> is the AES instance for <paramref name="encryptingKey"/> kept by the
-        /// caller (one per channel token and direction), or <see langword="null"/>
-        /// to have one created and stored there.
+        /// <c>aesCache</c> retains an AES instance for <paramref name="encryptingKey"/>
+        /// (one per channel token and direction), or is <see langword="null"/> to use a fresh instance.
         /// </remarks>
         /// <exception cref="CryptographicException"></exception>
         /// <exception cref="NotSupportedException"></exception>
@@ -1658,7 +1640,7 @@ namespace Opc.Ua
            uint lastSequenceNumber,
            HMAC? hmac,
            ISymmetricCryptoProvider? provider,
-           ref Aes? aesCache)
+           AesCache? aesCache)
         {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
@@ -1727,7 +1709,7 @@ namespace Opc.Ua
                         dataArray,
                         data.Offset,
                         data.Count,
-                        ref aesCache);
+                        aesCache);
                 }
             }
 
@@ -1843,9 +1825,9 @@ namespace Opc.Ua
             byte[] buffer,
             int offset,
             int count,
-            ref Aes? aesCache)
+            AesCache? aesCache)
         {
-            Aes aes = Interlocked.Exchange(ref aesCache, null) ?? CreateCbcAes(key);
+            Aes aes = aesCache?.Take() ?? CreateCbcAes(key);
             try
             {
 #if NET6_0_OR_GREATER
@@ -1870,8 +1852,14 @@ namespace Opc.Ua
             }
             finally
             {
-                // An instance another caller returned meanwhile is surplus.
-                Interlocked.Exchange(ref aesCache, aes)?.Dispose();
+                if (aesCache == null)
+                {
+                    aes.Dispose();
+                }
+                else
+                {
+                    aesCache.Return(aes);
+                }
             }
         }
 

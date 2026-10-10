@@ -500,7 +500,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     }
 
     /// <summary>
-    /// Process-wide counters of the server process, captured at the start and end of the window.
+    /// Process-wide counters, captured at the start and end of the measurement window.
     /// </summary>
     internal sealed record ProcessStats(
         long Allocated,
@@ -748,7 +748,6 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             m_publishingInterval = publishingInterval;
             m_writeInterval = writeInterval;
             m_itemCallback = itemCallback;
-            m_handler = new NotificationHandler(this);
         }
 
         public override double Operations => Interlocked.Read(ref m_notifications);
@@ -897,8 +896,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         private async Task CreateManagedSubscriptionAsync(ManagedSession session, CancellationToken ct)
         {
+            var setup = new SubscriptionSetup();
             V2.ISubscription subscription = session.AddSubscription(
-                m_handler,
+                new NotificationHandler(this, setup),
                 new V2.SubscriptionOptions
                 {
                     PublishingInterval = TimeSpan.FromMilliseconds(m_publishingInterval),
@@ -908,7 +908,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 });
             for (int i = 0; i < m_nodeIds.Count; i++)
             {
-                subscription.TryAddMonitoredItem(
+                if (!subscription.TryAddMonitoredItem(
                     i.ToString(CultureInfo.InvariantCulture),
                     new V2.MonitoredItems.MonitoredItemOptions
                     {
@@ -918,12 +918,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                         SamplingInterval = TimeSpan.Zero,
                         QueueSize = 1
                     },
-                    out _);
+                    out _))
+                {
+                    throw new InvalidOperationException(
+                        $"Could not add monitored item '{m_nodeIds[i]}' during subscription setup.");
+                }
             }
-            while (!subscription.Created || subscription.MonitoredItems.Items.Any(item => !item.Created))
-            {
-                await Task.Delay(50, ct).ConfigureAwait(false);
-            }
+            await setup.WaitForReadyAsync(subscription, ct).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -931,9 +932,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         /// </summary>
         private sealed class NotificationHandler : V2.ISubscriptionNotificationHandler
         {
-            public NotificationHandler(SubscribeWorkload owner)
+            public NotificationHandler(SubscribeWorkload owner, SubscriptionSetup setup)
             {
                 m_owner = owner;
+                m_setup = setup;
             }
 
             public ValueTask OnDataChangeNotificationAsync(
@@ -979,10 +981,12 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 V2.PublishState publishStateMask,
                 CancellationToken ct = default)
             {
+                m_setup.OnStateChanged(state);
                 return ValueTask.CompletedTask;
             }
 
             private readonly SubscribeWorkload m_owner;
+            private readonly SubscriptionSetup m_setup;
         }
 
         private readonly ISession[] m_sessions;
@@ -991,7 +995,6 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private readonly int m_publishingInterval;
         private readonly int m_writeInterval;
         private readonly bool m_itemCallback;
-        private readonly NotificationHandler m_handler;
         private readonly long[] m_writeTicks = new long[1 << 16];
         private readonly LatencyRecorder m_latency = new();
         private long m_notifications;

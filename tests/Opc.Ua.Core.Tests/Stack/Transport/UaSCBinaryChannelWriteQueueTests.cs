@@ -253,7 +253,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 get
                 {
-                    lock (m_sent)
+                    lock (m_sentLock)
                     {
                         return new List<int>(m_sent);
                     }
@@ -329,7 +329,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                         throw ServiceResultException.Create(StatusCodes.BadConnectionClosed, "send failed");
                     }
 
-                    lock (m_sent)
+                    lock (m_sentLock)
                     {
                         m_sent.Add(index);
                     }
@@ -340,6 +340,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 }
             }
 
+            private readonly Lock m_sentLock = new();
             private readonly List<int> m_sent = [];
             private int m_concurrent;
             private int m_maxConcurrent;

@@ -51,6 +51,10 @@ Environment variables prefixed `SERVER_` are passed to the server process withou
 for example `SERVER_DOTNET_gcServer=1` to compare garbage collector modes. `DOTNET_gcServer=1`
 set for the harness itself switches the client.
 
+Managed subscription setup has a one-minute deadline per subscription. Rejected monitored
+items and subscription error or deletion states fail the scenario instead of waiting
+indefinitely or starting a measurement with incomplete subscriptions.
+
 The result block reports client throughput and latency percentiles, the deltas of both
 processes for the window (`server:`, `client-process:`), and the allocated bytes and CPU time
 per request (or per notification) of the server (`per-op:`) and of the client
