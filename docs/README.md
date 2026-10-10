@@ -327,6 +327,12 @@ guide describes its current limitations.
   connectivity first.
 - [KeyCredential issued-token bridge](KeyCredentialService.md#experimental-keycredential-issued-token-bridge)
   (experimental).
+- [PubSub Avro and Arrow encodings](PubSub.md#avro--opcuapubsubencoding-experimental)
+  (experimental) — the Avro and Apache Arrow message mappings and their schema
+  exchange. Assumes the PubSub path.
+- [PubSub JSON schema exchange](PubSub.md#json-schema-exchange--opcuapubsubencodingjson-experimental)
+  (experimental) — opt-in JSON Schema announcements for the standard JSON
+  encoding. Assumes the PubSub path.
 
 These samples combine several draft or preview capabilities. Read the guides
 for their models first:
