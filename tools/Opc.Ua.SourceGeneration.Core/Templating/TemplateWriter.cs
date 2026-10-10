@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.IO;
 
 namespace Opc.Ua.SourceGeneration
@@ -111,7 +112,7 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <inheritdoc/>
-        public void Write(string text)
+        public void Write(string? text)
         {
             WriteWhiteSpaceIfNeeded();
             m_writer.Write(text ?? string.Empty);
@@ -121,21 +122,24 @@ namespace Opc.Ua.SourceGeneration
         public void Write(string format, object arg1)
         {
             WriteWhiteSpaceIfNeeded();
-            m_writer.Write(format ?? string.Empty, arg1);
+            m_writer.Write(
+                string.Format(CultureInfo.InvariantCulture, format ?? string.Empty, arg1));
         }
 
         /// <inheritdoc/>
         public void Write(string format, object arg1, object arg2)
         {
             WriteWhiteSpaceIfNeeded();
-            m_writer.Write(format ?? string.Empty, arg1, arg2);
+            m_writer.Write(
+                string.Format(CultureInfo.InvariantCulture, format ?? string.Empty, arg1, arg2));
         }
 
         /// <inheritdoc/>
         public void Write(string format, object arg1, object arg2, object arg3)
         {
             WriteWhiteSpaceIfNeeded();
-            m_writer.Write(format ?? string.Empty, arg1, arg2, arg3);
+            m_writer.Write(string.Format(
+                CultureInfo.InvariantCulture, format ?? string.Empty, arg1, arg2, arg3));
         }
 
         /// <inheritdoc/>
@@ -153,10 +157,15 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <inheritdoc/>
-        public void WriteLine(string text, params object[] args)
+        public void WriteLine(string text, params object?[] args)
         {
             WriteWhiteSpaceIfNeeded();
-            m_writer.Write(text ?? string.Empty, args ?? []);
+            // Always format invariantly: the sink is generated source code and
+            // schema documents, which must not pick up the machine's culture
+            // (a culture specific minus sign or decimal separator would make the
+            // generated output invalid).
+            m_writer.Write(
+                string.Format(CultureInfo.InvariantCulture, text ?? string.Empty, args ?? []));
             WriteNewLine(int.MaxValue);
         }
 

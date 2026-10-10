@@ -28,8 +28,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 // CA2000: test code; many disposables are ownership-transferred to test fixtures or short-lived,
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
@@ -444,11 +442,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ConfiguredEndpoint endpoint = GetTestEndpoint();
-            var channelMock = CreateManagedChannelMock(endpoint);
-            var transportBindingsMock = CreateBindings(channelMock, telemetry);
-            var manager = new ClientChannelManager(new ApplicationConfiguration(telemetry), telemetry, transportBindingsMock.Object);
-            var participant1 = CreateParticipant("p1", endpoint);
-            var participant2 = CreateParticipant("p2", endpoint);
+            Mock<IChannel> channelMock = CreateManagedChannelMock(endpoint);
+            Mock<ITransportChannelBindings> transportBindingsMock = CreateBindings(channelMock, telemetry);
+            var manager = new ClientChannelManager(
+                new ApplicationConfiguration(telemetry), telemetry, transportBindingsMock.Object);
+            Mock<IReconnectParticipant> participant1 = CreateParticipant("p1", endpoint);
+            Mock<IReconnectParticipant> participant2 = CreateParticipant("p2", endpoint);
 
             IManagedTransportChannel lease1 = await manager.GetAsync(participant1.Object).ConfigureAwait(false);
             IManagedTransportChannel lease2 = await manager.GetAsync(participant2.Object).ConfigureAwait(false);
@@ -476,14 +475,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ConfiguredEndpoint endpoint = GetTestEndpoint();
-            var channelMock = CreateManagedChannelMock(endpoint);
+            Mock<IChannel> channelMock = CreateManagedChannelMock(endpoint);
             var response = new ReadResponse();
             channelMock
                 .Setup(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<IServiceResponse>(response));
-            var transportBindingsMock = CreateBindings(channelMock, telemetry);
-            var manager = new ClientChannelManager(new ApplicationConfiguration(telemetry), telemetry, transportBindingsMock.Object);
-            var participant = CreateParticipant("p1", endpoint);
+            Mock<ITransportChannelBindings> transportBindingsMock = CreateBindings(channelMock, telemetry);
+            var manager = new ClientChannelManager(
+                new ApplicationConfiguration(telemetry), telemetry, transportBindingsMock.Object);
+            Mock<IReconnectParticipant> participant = CreateParticipant("p1", endpoint);
 
             IManagedTransportChannel lease = await manager.GetAsync(participant.Object).ConfigureAwait(false);
             lease.OperationTimeout = 1234;
@@ -491,7 +491,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
 
             Assert.That(lease.SupportedFeatures, Is.EqualTo(TransportChannelFeatures.Reconnect));
             Assert.That(lease.EndpointDescription.EndpointUrl, Is.EqualTo(endpoint.Description.EndpointUrl));
-            Assert.That(lease.EndpointConfiguration.OperationTimeout, Is.EqualTo(endpoint.Configuration!.OperationTimeout));
+            Assert.That(lease.EndpointConfiguration.OperationTimeout,
+                Is.EqualTo(endpoint.Configuration!.OperationTimeout));
             Assert.That(lease.ChannelThumbprint, Is.EqualTo(new byte[] { 1, 2, 3 }));
             Assert.That(lease.ClientChannelCertificate, Is.EqualTo(new byte[] { 4, 5, 6 }));
             Assert.That(lease.ServerChannelCertificate, Is.EqualTo(new byte[] { 7, 8, 9 }));
@@ -506,11 +507,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ConfiguredEndpoint endpoint = GetTestEndpoint();
-            var channelMock = CreateManagedChannelMock(endpoint);
-            var transportBindingsMock = CreateBindings(channelMock, telemetry);
+            Mock<IChannel> channelMock = CreateManagedChannelMock(endpoint);
+            Mock<ITransportChannelBindings> transportBindingsMock = CreateBindings(channelMock, telemetry);
             var policy = new Mock<IChannelReconnectPolicy>();
             policy.Setup(p => p.GetDelay(It.IsAny<int>())).Returns(TimeSpan.Zero);
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             policy.Setup(p => p.GetDelay(It.IsAny<int>(), It.IsAny<IRetryBudget>())).Returns(TimeSpan.Zero);
             policy.SetupGet(p => p.ParticipantTimeout).Returns(Timeout.InfiniteTimeSpan);
 #endif
@@ -519,12 +520,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 telemetry,
                 transportBindingsMock.Object,
                 policy.Object);
-            var participant = CreateParticipant("p1", endpoint);
+            Mock<IReconnectParticipant> participant = CreateParticipant("p1", endpoint);
+            IManagedTransportChannel? recoveryChannel = null;
             participant
                 .Setup(p => p.OnReconnectAsync(
                     It.IsAny<IManagedTransportChannel>(),
                     0,
                     It.IsAny<CancellationToken>()))
+                .Callback<IManagedTransportChannel, int, CancellationToken>(
+                    (channel, _, _) => recoveryChannel = channel)
                 .Returns(new ValueTask<ParticipantReconnectResult>(ParticipantReconnectResult.Reactivated));
 
             IManagedTransportChannel lease = await manager.GetAsync(participant.Object).ConfigureAwait(false);
@@ -532,8 +536,18 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             await manager.ReconnectAsync(lease).ConfigureAwait(false);
 
             channelMock.Verify(c => c.ReconnectAsync(null, It.IsAny<CancellationToken>()), Times.Once);
-            participant.Verify(p => p.OnReconnectAsync(lease, 0, It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(recoveryChannel, Is.Not.Null);
+            Assert.That(recoveryChannel, Is.Not.SameAs(lease));
+            Assert.That(recoveryChannel!.Key, Is.EqualTo(lease.Key));
+            Assert.That(recoveryChannel.Manager, Is.SameAs(manager));
+            participant.Verify(p => p.OnReconnectAsync(recoveryChannel, 0, It.IsAny<CancellationToken>()), Times.Once);
             Assert.That(manager.GetChannelDiagnostics()[0].State, Is.EqualTo(ChannelState.Ready));
+            await Assert.ThatAsync(
+                async () => await recoveryChannel.SendRequestAsync(new ActivateSessionRequest()).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadInvalidState)).ConfigureAwait(false);
+            await recoveryChannel.CloseAsync().ConfigureAwait(false);
+            Assert.That(manager.GetChannelDiagnostics()[0].Refcount, Is.EqualTo(1));
 
             await lease.CloseAsync().ConfigureAwait(false);
         }
@@ -544,8 +558,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ConfiguredEndpoint endpoint1 = GetTestEndpoint("opc.tcp://localhost:4840");
             ConfiguredEndpoint endpoint2 = GetTestEndpoint("opc.tcp://localhost:4841");
-            var channelMock = CreateManagedChannelMock(endpoint1);
-            var transportBindingsMock = CreateBindings(channelMock, telemetry);
+            Mock<IChannel> channelMock = CreateManagedChannelMock(endpoint1);
+            Mock<ITransportChannelBindings> transportBindingsMock = CreateBindings(channelMock, telemetry);
             var manager = new ClientChannelManager(
                 new ApplicationConfiguration(telemetry),
                 telemetry,
@@ -567,14 +581,15 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ConfiguredEndpoint endpoint = GetTestEndpoint();
-            var channelMock = CreateManagedChannelMock(endpoint);
-            var transportBindingsMock = CreateBindings(channelMock, telemetry);
-            var manager = new ClientChannelManager(new ApplicationConfiguration(telemetry), telemetry, transportBindingsMock.Object);
+            Mock<IChannel> channelMock = CreateManagedChannelMock(endpoint);
+            Mock<ITransportChannelBindings> transportBindingsMock = CreateBindings(channelMock, telemetry);
+            var manager = new ClientChannelManager(
+                new ApplicationConfiguration(telemetry), telemetry, transportBindingsMock.Object);
 
-            InvalidOperationException ex = Assert.ThrowsAsync<InvalidOperationException>(
-                async () => await manager.GetAsync(endpoint, _ => null!, null).ConfigureAwait(false))!;
-
-            Assert.That(ex.Message, Does.Contain("Participant factory returned null."));
+            await Assert.ThatAsync(
+                async () => await manager.GetAsync(endpoint, _ => null!, null).ConfigureAwait(false),
+                Throws.TypeOf<InvalidOperationException>().With.Message.Contains("Participant factory returned null."))
+                .ConfigureAwait(false);
             Assert.That(manager.GetChannelDiagnostics(), Is.Empty);
             channelMock.Verify(c => c.CloseAsync(It.IsAny<CancellationToken>()), Times.Once);
             channelMock.Verify(c => c.Dispose(), Times.Once);
@@ -586,12 +601,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var manager = new ClientChannelManager(new ApplicationConfiguration(telemetry), telemetry);
             ConfiguredEndpoint endpoint = GetTestEndpoint();
-            var participant = CreateParticipant("p1", endpoint);
+            Mock<IReconnectParticipant> participant = CreateParticipant("p1", endpoint);
             var participantWithoutEndpoint = new Mock<IReconnectParticipant>();
             participantWithoutEndpoint.SetupGet(p => p.Id).Returns("missing");
 
             Assert.That(
-                async () => await manager.GetAsync((IReconnectParticipant)null!).ConfigureAwait(false),
+                async () => await manager.GetAsync(null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>());
             Assert.That(
                 async () => await manager.GetAsync(participant.Object, null!).ConfigureAwait(false),
@@ -738,7 +753,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             channelMock.SetupGet(c => c.ChannelThumbprint).Returns([1, 2, 3]);
             channelMock.SetupGet(c => c.ClientChannelCertificate).Returns([4, 5, 6]);
             channelMock.SetupGet(c => c.ServerChannelCertificate).Returns([7, 8, 9]);
-            channelMock.SetupGet(c => c.MessageContext).Returns(ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
+            channelMock.SetupGet(c => c.MessageContext)
+                .Returns(ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
             channelMock
                 .Setup(c => c.OpenAsync(
                     It.IsAny<Uri>(),
@@ -768,5 +784,29 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         }
 
         public interface IChannel : ITransportChannel, ISecureChannel;
+
+        /// <summary>
+        /// A Sign-only token of a policy that derives no encrypting key or IV still yields a
+        /// diagnostic key record (and so a Wireshark keyset entry) with its signing key length.
+        /// </summary>
+        [Test]
+        public void ChannelKeyIsReportedForSignOnlyTokenWithoutEncryptingKey()
+        {
+            ChannelKey? signOnly = ClientChannelManager.ToChannelKey([], [], new byte[32]);
+            Assert.That(signOnly, Is.Not.Null);
+            Assert.That(signOnly!.Iv, Is.Empty);
+            Assert.That(signOnly.Key, Is.Empty);
+            Assert.That(signOnly.SigLen, Is.EqualTo(32));
+
+            ChannelKey? full = ClientChannelManager.ToChannelKey([1, 2], [3, 4], new byte[16]);
+            Assert.That(full, Is.Not.Null);
+            Assert.That(full!.Iv, Is.EqualTo(new byte[] { 1, 2 }));
+            Assert.That(full.Key, Is.EqualTo(new byte[] { 3, 4 }));
+            Assert.That(full.SigLen, Is.EqualTo(16));
+
+            Assert.That(ClientChannelManager.ToChannelKey([1], [2], []), Is.Null);
+            Assert.That(ClientChannelManager.ToChannelKey([1], [], [3]), Is.Null);
+            Assert.That(ClientChannelManager.ToChannelKey(null, null, null), Is.Null);
+        }
     }
 }

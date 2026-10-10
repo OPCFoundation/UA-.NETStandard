@@ -1117,7 +1117,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 WotResolutionContext context,
                 CancellationToken cancellationToken)
             {
-                WotResolverResult result = m_map.TryGetValue(reference, out string json)
+                WotResolverResult result = m_map.TryGetValue(reference, out string? json)
                     ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(json))
                     : WotResolverResult.NotFound;
                 return new ValueTask<WotResolverResult>(result);

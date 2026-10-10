@@ -101,7 +101,7 @@ namespace Opc.Ua.Configuration.Tests
             {
                 appInstance.Build(ApplicationUri, ProductUri);
 
-                Assert.That(appInstance.ApplicationConfiguration.TransportQuotas, Is.Not.Null);
+                Assert.That(appInstance.ApplicationConfiguration!.TransportQuotas, Is.Not.Null);
             }
         }
 
@@ -115,7 +115,7 @@ namespace Opc.Ua.Configuration.Tests
                 appInstance.Build(ApplicationUri, ProductUri)
                     .AsClient();
 
-                Assert.That(appInstance.ApplicationConfiguration.ClientConfiguration, Is.Not.Null);
+                Assert.That(appInstance.ApplicationConfiguration!.ClientConfiguration, Is.Not.Null);
                 Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.Client));
                 Assert.That(
                     appInstance.ApplicationConfiguration.ApplicationType,
@@ -172,7 +172,7 @@ namespace Opc.Ua.Configuration.Tests
 
                 Assert.That(appInstance.ApplicationType, Is.EqualTo(ApplicationType.ClientAndServer));
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ApplicationType,
+                    appInstance.ApplicationConfiguration!.ApplicationType,
                     Is.EqualTo(ApplicationType.ClientAndServer));
                 Assert.That(appInstance.ApplicationConfiguration.ClientConfiguration, Is.Not.Null);
                 Assert.That(appInstance.ApplicationConfiguration.ServerConfiguration, Is.Not.Null);
@@ -242,7 +242,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([endpoint1, endpoint2]);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.BaseAddresses.Count,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.BaseAddresses.Count,
                     Is.EqualTo(2));
             }
         }
@@ -260,7 +260,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl], alternates);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.AlternateBaseAddresses.Count,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.AlternateBaseAddresses.Count,
                     Is.EqualTo(1));
             }
         }
@@ -276,7 +276,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl]);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxRegistrationInterval,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxRegistrationInterval,
                     Is.Zero);
             }
         }
@@ -292,7 +292,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl]);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies.Count,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies.Count,
                     Is.Zero);
                 Assert.That(
                     appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies.Count,
@@ -311,7 +311,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig, Is.Not.Null);
                 Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
                 Assert.That(secConfig.ApplicationCertificate.SubjectName, Is.Not.Null.And.Not.Empty);
@@ -336,7 +336,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig.AutoAcceptUntrustedCertificates, Is.False);
                 Assert.That(secConfig.AddAppCertToTrustedStore, Is.False);
                 Assert.That(secConfig.RejectSHA1SignedCertificates, Is.True);
@@ -365,7 +365,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsClient()
                     .AddSecurityConfiguration(certs, m_pkiRoot);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig.ApplicationCertificates.Count, Is.GreaterThan(0));
                 Assert.That(secConfig.AutoAcceptUntrustedCertificates, Is.False);
                 Assert.That(secConfig.SendCertificateChain, Is.True);
@@ -394,7 +394,7 @@ namespace Opc.Ua.Configuration.Tests
                         issuerRoot,
                         rejectedRoot);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
                 Assert.That(secConfig.TrustedPeerCertificates, Is.Not.Null);
                 Assert.That(secConfig.TrustedIssuerCertificates, Is.Not.Null);
@@ -421,7 +421,7 @@ namespace Opc.Ua.Configuration.Tests
                         trustedRoot,
                         issuerRoot);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig.RejectedCertificateStore, Is.Not.Null);
                 Assert.That(secConfig.RejectedCertificateStore.StorePath, Is.Not.Null.And.Not.Empty);
             }
@@ -445,7 +445,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddSecurityConfigurationStores(SubjectName, appRoot, trustedRoot, issuerRoot)
                     .AddSecurityConfigurationUserStore(userTrusted, userIssuer);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig.TrustedUserCertificates, Is.Not.Null);
                 Assert.That(secConfig.UserIssuerCertificates, Is.Not.Null);
             }
@@ -469,9 +469,13 @@ namespace Opc.Ua.Configuration.Tests
                     .AddSecurityConfigurationStores(SubjectName, appRoot, trustedRoot, issuerRoot)
                     .AddSecurityConfigurationHttpsStore(httpsTrusted, httpsIssuer);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig.TrustedHttpsCertificates, Is.Not.Null);
                 Assert.That(secConfig.HttpsIssuerCertificates, Is.Not.Null);
+                // both stores live under the roots that were passed in (the
+                // trusted store used to be derived from the store type).
+                Assert.That(secConfig.TrustedHttpsCertificates.StorePath, Does.StartWith(httpsTrusted));
+                Assert.That(secConfig.HttpsIssuerCertificates.StorePath, Does.StartWith(httpsIssuer));
             }
         }
 
@@ -487,7 +491,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                     .SetHiResClockDisabled(true);
 
-                Assert.That(appInstance.ApplicationConfiguration.DisableHiResClock, Is.True);
+                Assert.That(appInstance.ApplicationConfiguration!.DisableHiResClock, Is.True);
             }
         }
 
@@ -504,7 +508,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetTransportQuotas(quotas);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.OperationTimeout,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.OperationTimeout,
                     Is.EqualTo(42000));
             }
         }
@@ -520,7 +524,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetOperationTimeout(15000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.OperationTimeout,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.OperationTimeout,
                     Is.EqualTo(15000));
             }
         }
@@ -536,7 +540,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxStringLength(1_000_000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.MaxStringLength,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.MaxStringLength,
                     Is.EqualTo(1_000_000));
             }
         }
@@ -552,7 +556,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxByteStringLength(2_000_000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.MaxByteStringLength,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.MaxByteStringLength,
                     Is.EqualTo(2_000_000));
             }
         }
@@ -568,7 +572,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxArrayLength(5000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.MaxArrayLength,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.MaxArrayLength,
                     Is.EqualTo(5000));
             }
         }
@@ -584,7 +588,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxMessageSize(8_000_000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.MaxMessageSize,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.MaxMessageSize,
                     Is.EqualTo(8_000_000));
             }
         }
@@ -600,7 +604,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxBufferSize(65536);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.MaxBufferSize,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.MaxBufferSize,
                     Is.EqualTo(65536));
             }
         }
@@ -616,7 +620,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetChannelLifetime(600_000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.ChannelLifetime,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.ChannelLifetime,
                     Is.EqualTo(600_000));
             }
         }
@@ -632,7 +636,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetSecurityTokenLifetime(3_600_000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.SecurityTokenLifetime,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.SecurityTokenLifetime,
                     Is.EqualTo(3_600_000));
             }
         }
@@ -648,7 +652,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxEncodingNestingLevels(128);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.MaxEncodingNestingLevels,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.MaxEncodingNestingLevels,
                     Is.EqualTo(128));
             }
         }
@@ -664,7 +668,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxDecoderRecoveries(10);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.TransportQuotas.MaxDecoderRecoveries,
+                    appInstance.ApplicationConfiguration!.TransportQuotas!.MaxDecoderRecoveries,
                     Is.EqualTo(10));
             }
         }
@@ -682,7 +686,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetAutoAcceptUntrustedCertificates(true);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.SecurityConfiguration.AutoAcceptUntrustedCertificates,
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.AutoAcceptUntrustedCertificates,
                     Is.True);
             }
         }
@@ -700,7 +704,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetAddAppCertToTrustedStore(true);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.SecurityConfiguration.AddAppCertToTrustedStore,
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.AddAppCertToTrustedStore,
                     Is.True);
             }
         }
@@ -718,7 +722,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetRejectSHA1SignedCertificates(false);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.SecurityConfiguration.RejectSHA1SignedCertificates,
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.RejectSHA1SignedCertificates,
                     Is.False);
             }
         }
@@ -736,7 +740,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetRejectUnknownRevocationStatus(false);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.SecurityConfiguration.RejectUnknownRevocationStatus,
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.RejectUnknownRevocationStatus,
                     Is.False);
             }
         }
@@ -754,7 +758,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetUseValidatedCertificates(true);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.SecurityConfiguration.UseValidatedCertificates,
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.UseValidatedCertificates,
                     Is.True);
             }
         }
@@ -772,7 +776,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetSuppressNonceValidationErrors(true);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.SecurityConfiguration.SuppressNonceValidationErrors,
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.SuppressNonceValidationErrors,
                     Is.True);
             }
         }
@@ -790,7 +794,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetSendCertificateChain(false);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.SecurityConfiguration.SendCertificateChain,
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.SendCertificateChain,
                     Is.False);
             }
         }
@@ -808,7 +812,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMinimumCertificateKeySize(4096);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.SecurityConfiguration.MinimumCertificateKeySize,
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.MinimumCertificateKeySize,
                     Is.EqualTo(4096));
             }
         }
@@ -826,7 +830,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxRejectedCertificates(100);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.SecurityConfiguration.MaxRejectedCertificates,
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.MaxRejectedCertificates,
                     Is.EqualTo(100));
             }
         }
@@ -850,7 +854,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetApplicationCertificates(certs);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.SecurityConfiguration.ApplicationCertificates.Count,
+                    appInstance.ApplicationConfiguration!.SecurityConfiguration.ApplicationCertificates.Count,
                     Is.GreaterThan(0));
             }
         }
@@ -886,7 +890,7 @@ namespace Opc.Ua.Configuration.Tests
                         ],
                         m_pkiRoot)
                     .SetAutoAcceptUntrustedCertificates(true)
-                    .CreateAsync();
+                    .CreateAsync().ConfigureAwait(false);
 
                 SecurityConfiguration securityConfiguration = configuration.SecurityConfiguration;
                 Assert.That(securityConfiguration.ApplicationCertificates, Has.Count.EqualTo(1));
@@ -910,7 +914,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddUnsecurePolicyNone();
 
-                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
                 Assert.That(policies.Count, Is.EqualTo(1));
                 Assert.That(policies[0].SecurityMode, Is.EqualTo(MessageSecurityMode.None));
             }
@@ -927,7 +931,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddUnsecurePolicyNone(false);
 
-                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
                 Assert.That(policies.Count, Is.Zero);
             }
         }
@@ -943,7 +947,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddSignPolicies();
 
-                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
                 Assert.That(policies.Count, Is.GreaterThan(0));
                 Assert.That(
                     policies.ToList().All(p => p.SecurityMode >= MessageSecurityMode.Sign),
@@ -962,7 +966,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddSignPolicies(false);
 
-                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
                 Assert.That(policies.Count, Is.Zero);
             }
         }
@@ -978,7 +982,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddSignAndEncryptPolicies();
 
-                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
                 Assert.That(policies.Count, Is.GreaterThan(0));
                 Assert.That(
                     policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
@@ -997,7 +1001,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddSignAndEncryptPolicies(false);
 
-                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
                 Assert.That(policies.Count, Is.Zero);
             }
         }
@@ -1013,7 +1017,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddEccSignPolicies();
 
-                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
                 Assert.That(policies.Count, Is.GreaterThan(0));
                 Assert.That(
                     policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.Sign),
@@ -1032,7 +1036,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddEccSignAndEncryptPolicies();
 
-                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
                 Assert.That(policies.Count, Is.GreaterThan(0));
                 Assert.That(
                     policies.ToList().All(p => p.SecurityMode == MessageSecurityMode.SignAndEncrypt),
@@ -1051,7 +1055,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
 
-                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
                 Assert.That(policies.Count, Is.EqualTo(1));
                 Assert.That(policies[0].SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
                 Assert.That(policies[0].SecurityPolicyUri, Is.EqualTo(SecurityPolicies.Basic256Sha256));
@@ -1112,7 +1116,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256)
                     .AddPolicy(MessageSecurityMode.SignAndEncrypt, SecurityPolicies.Basic256Sha256);
 
-                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration.ServerConfiguration.SecurityPolicies;
+                ArrayOf<ServerSecurityPolicy> policies = appInstance.ApplicationConfiguration!.ServerConfiguration!.SecurityPolicies;
                 Assert.That(policies.Count, Is.EqualTo(1));
             }
         }
@@ -1129,7 +1133,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddUserTokenPolicy(UserTokenType.Anonymous)
                     .AddUserTokenPolicy(UserTokenType.UserName);
 
-                ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
+                ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration!.ServerConfiguration!.UserTokenPolicies;
                 Assert.That(tokenPolicies.Count, Is.EqualTo(2));
             }
         }
@@ -1150,7 +1154,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsServer([EndpointUrl])
                     .AddUserTokenPolicy(policy);
 
-                ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration.ServerConfiguration.UserTokenPolicies;
+                ArrayOf<UserTokenPolicy> tokenPolicies = appInstance.ApplicationConfiguration!.ServerConfiguration!.UserTokenPolicies;
                 Assert.That(tokenPolicies.Count, Is.EqualTo(1));
             }
         }
@@ -1165,7 +1169,7 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.Throws<ArgumentNullException>(() =>
                     appInstance.Build(ApplicationUri, ProductUri)
                         .AsServer([EndpointUrl])
-                        .AddUserTokenPolicy(null));
+                        .AddUserTokenPolicy(null!));
             }
         }
 
@@ -1181,7 +1185,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMinRequestThreadCount(5);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MinRequestThreadCount,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MinRequestThreadCount,
                     Is.EqualTo(5));
             }
         }
@@ -1198,7 +1202,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxRequestThreadCount(100);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxRequestThreadCount,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxRequestThreadCount,
                     Is.EqualTo(100));
             }
         }
@@ -1215,7 +1219,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxQueuedRequestCount(200);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxQueuedRequestCount,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxQueuedRequestCount,
                     Is.EqualTo(200));
             }
         }
@@ -1232,7 +1236,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetDiagnosticsEnabled(true);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.DiagnosticsEnabled,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.DiagnosticsEnabled,
                     Is.True);
             }
         }
@@ -1249,7 +1253,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxSessionCount(500);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxSessionCount,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxSessionCount,
                     Is.EqualTo(500));
             }
         }
@@ -1266,7 +1270,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxChannelCount(300);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxChannelCount,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxChannelCount,
                     Is.EqualTo(300));
             }
         }
@@ -1283,7 +1287,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMinSessionTimeout(1000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MinSessionTimeout,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MinSessionTimeout,
                     Is.EqualTo(1000));
             }
         }
@@ -1300,7 +1304,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxSessionTimeout(60000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxSessionTimeout,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxSessionTimeout,
                     Is.EqualTo(60000));
             }
         }
@@ -1317,7 +1321,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxFailedAuthenticationAttempts(0);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxFailedAuthenticationAttempts,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxFailedAuthenticationAttempts,
                     Is.Zero);
             }
         }
@@ -1335,8 +1339,8 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxQueryContinuationPoints(20)
                     .SetMaxHistoryContinuationPoints(30);
 
-                ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
-                Assert.That(srv.MaxBrowseContinuationPoints, Is.EqualTo(10));
+                ServerConfiguration srv = appInstance.ApplicationConfiguration!.ServerConfiguration!;
+                Assert.That(srv!.MaxBrowseContinuationPoints, Is.EqualTo(10));
                 Assert.That(srv.MaxQueryContinuationPoints, Is.EqualTo(20));
                 Assert.That(srv.MaxHistoryContinuationPoints, Is.EqualTo(30));
             }
@@ -1354,7 +1358,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxRequestAge(600_000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxRequestAge,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxRequestAge,
                     Is.EqualTo(600_000));
             }
         }
@@ -1372,8 +1376,8 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxPublishingInterval(60000)
                     .SetPublishingResolution(100);
 
-                ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
-                Assert.That(srv.MinPublishingInterval, Is.EqualTo(50));
+                ServerConfiguration srv = appInstance.ApplicationConfiguration!.ServerConfiguration!;
+                Assert.That(srv!.MinPublishingInterval, Is.EqualTo(50));
                 Assert.That(srv.MaxPublishingInterval, Is.EqualTo(60000));
                 Assert.That(srv.PublishingResolution, Is.EqualTo(100));
             }
@@ -1391,8 +1395,8 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMinSubscriptionLifetime(1000)
                     .SetMaxSubscriptionLifetime(3_600_000);
 
-                ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
-                Assert.That(srv.MinSubscriptionLifetime, Is.EqualTo(1000));
+                ServerConfiguration srv = appInstance.ApplicationConfiguration!.ServerConfiguration!;
+                Assert.That(srv!.MinSubscriptionLifetime, Is.EqualTo(1000));
                 Assert.That(srv.MaxSubscriptionLifetime, Is.EqualTo(3_600_000));
             }
         }
@@ -1411,8 +1415,8 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxNotificationsPerPublish(2000)
                     .SetMaxEventQueueSize(3000);
 
-                ServerConfiguration srv = appInstance.ApplicationConfiguration.ServerConfiguration;
-                Assert.That(srv.MaxMessageQueueSize, Is.EqualTo(500));
+                ServerConfiguration srv = appInstance.ApplicationConfiguration!.ServerConfiguration!;
+                Assert.That(srv!.MaxMessageQueueSize, Is.EqualTo(500));
                 Assert.That(srv.MaxNotificationQueueSize, Is.EqualTo(1000));
                 Assert.That(srv.MaxNotificationsPerPublish, Is.EqualTo(2000));
                 Assert.That(srv.MaxEventQueueSize, Is.EqualTo(3000));
@@ -1431,7 +1435,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMinSupportedSamplingInterval(100);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MinSupportedSamplingInterval,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MinSupportedSamplingInterval,
                     Is.EqualTo(100.0));
             }
         }
@@ -1453,7 +1457,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetAvailableSamplingRates(rates);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.AvailableSamplingRates.Count,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.AvailableSamplingRates.Count,
                     Is.EqualTo(1));
             }
         }
@@ -1472,7 +1476,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetRegistrationEndpoint(endpoint);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.RegistrationEndpoint,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.RegistrationEndpoint,
                     Is.Not.Null);
             }
         }
@@ -1489,7 +1493,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxRegistrationInterval(30000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxRegistrationInterval,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxRegistrationInterval,
                     Is.EqualTo(30000));
             }
         }
@@ -1506,7 +1510,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetNodeManagerSaveFile("nodemanager.xml");
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.NodeManagerSaveFile,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.NodeManagerSaveFile,
                     Is.EqualTo("nodemanager.xml"));
             }
         }
@@ -1523,7 +1527,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxPublishRequestCount(50);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxPublishRequestCount,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxPublishRequestCount,
                     Is.EqualTo(50));
             }
         }
@@ -1540,7 +1544,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxSubscriptionCount(200);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxSubscriptionCount,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxSubscriptionCount,
                     Is.EqualTo(200));
             }
         }
@@ -1559,7 +1563,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddServerProfile(profile);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.ServerProfileArray.ToList(),
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.ServerProfileArray.ToList(),
                     Does.Contain(profile));
             }
         }
@@ -1576,7 +1580,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetShutdownDelay(5);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.ShutdownDelay,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.ShutdownDelay,
                     Is.EqualTo(5));
             }
         }
@@ -1593,7 +1597,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddServerCapabilities("DA")
                     .AddServerCapabilities("HA");
 
-                var capabilities = appInstance.ApplicationConfiguration.ServerConfiguration.ServerCapabilities.ToList();
+                var capabilities = appInstance.ApplicationConfiguration!.ServerConfiguration!.ServerCapabilities.ToList();
                 Assert.That(capabilities, Does.Contain("DA"));
                 Assert.That(capabilities, Does.Contain("HA"));
             }
@@ -1613,7 +1617,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetSupportedPrivateKeyFormats(formats);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.SupportedPrivateKeyFormats.Count,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.SupportedPrivateKeyFormats.Count,
                     Is.EqualTo(2));
             }
         }
@@ -1630,7 +1634,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxTrustListSize(65536);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxTrustListSize,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxTrustListSize,
                     Is.EqualTo(65536));
             }
         }
@@ -1647,7 +1651,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMultiCastDnsEnabled(true);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MultiCastDnsEnabled,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MultiCastDnsEnabled,
                     Is.True);
             }
         }
@@ -1666,7 +1670,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetReverseConnect(reverseConnect);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.ReverseConnect,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.ReverseConnect,
                     Is.Not.Null);
             }
         }
@@ -1685,7 +1689,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetOperationLimits(limits);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.OperationLimits,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.OperationLimits,
                     Is.Not.Null);
                 Assert.That(
                     appInstance.ApplicationConfiguration.ServerConfiguration.OperationLimits.MaxNodesPerRead,
@@ -1705,7 +1709,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetAuditingEnabled(true);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.AuditingEnabled,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.AuditingEnabled,
                     Is.True);
             }
         }
@@ -1722,7 +1726,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetHttpsMutualTls(true);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.HttpsMutualTls,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.HttpsMutualTls,
                     Is.True);
             }
         }
@@ -1739,7 +1743,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetDurableSubscriptionsEnabled(true);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.DurableSubscriptionsEnabled,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.DurableSubscriptionsEnabled,
                     Is.True);
             }
         }
@@ -1756,7 +1760,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxDurableNotificationQueueSize(5000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxDurableNotificationQueueSize,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxDurableNotificationQueueSize,
                     Is.EqualTo(5000));
             }
         }
@@ -1773,7 +1777,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxDurableEventQueueSize(3000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxDurableEventQueueSize,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxDurableEventQueueSize,
                     Is.EqualTo(3000));
             }
         }
@@ -1790,7 +1794,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetMaxDurableSubscriptionLifetime(720);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ServerConfiguration.MaxDurableSubscriptionLifetimeInHours,
+                    appInstance.ApplicationConfiguration!.ServerConfiguration!.MaxDurableSubscriptionLifetimeInHours,
                     Is.EqualTo(720));
             }
         }
@@ -1807,7 +1811,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetDefaultSessionTimeout(30000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ClientConfiguration.DefaultSessionTimeout,
+                    appInstance.ApplicationConfiguration!.ClientConfiguration!.DefaultSessionTimeout,
                     Is.EqualTo(30000));
             }
         }
@@ -1824,7 +1828,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddWellKnownDiscoveryUrls("opc.tcp://localhost:4840");
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ClientConfiguration.WellKnownDiscoveryUrls.Count,
+                    appInstance.ApplicationConfiguration!.ClientConfiguration!.WellKnownDiscoveryUrls.Count,
                     Is.EqualTo(1));
             }
         }
@@ -1843,7 +1847,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddDiscoveryServer(discovery);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ClientConfiguration.DiscoveryServers.Count,
+                    appInstance.ApplicationConfiguration!.ClientConfiguration!.DiscoveryServers.Count,
                     Is.EqualTo(1));
             }
         }
@@ -1860,7 +1864,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetEndpointCacheFilePath("endpoints.xml");
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ClientConfiguration.EndpointCacheFilePath,
+                    appInstance.ApplicationConfiguration!.ClientConfiguration!.EndpointCacheFilePath,
                     Is.EqualTo("endpoints.xml"));
             }
         }
@@ -1878,7 +1882,7 @@ namespace Opc.Ua.Configuration.Tests
                 clientBuilder.SetMinSubscriptionLifetime(5000);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ClientConfiguration.MinSubscriptionLifetime,
+                    appInstance.ApplicationConfiguration!.ClientConfiguration!.MinSubscriptionLifetime,
                     Is.EqualTo(5000));
             }
         }
@@ -1897,7 +1901,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetReverseConnect(reverseConnect);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ClientConfiguration.ReverseConnect,
+                    appInstance.ApplicationConfiguration!.ClientConfiguration!.ReverseConnect,
                     Is.Not.Null);
             }
         }
@@ -1916,7 +1920,7 @@ namespace Opc.Ua.Configuration.Tests
                     .SetClientOperationLimits(limits);
 
                 Assert.That(
-                    appInstance.ApplicationConfiguration.ClientConfiguration.OperationLimits,
+                    appInstance.ApplicationConfiguration!.ClientConfiguration!.OperationLimits,
                     Is.Not.Null);
                 Assert.That(
                     appInstance.ApplicationConfiguration.ClientConfiguration.OperationLimits.MaxNodesPerRead,
@@ -2010,7 +2014,7 @@ namespace Opc.Ua.Configuration.Tests
                     .CreateAsync()
                     .ConfigureAwait(false);
 
-                Assert.That(config.ServerConfiguration.UserTokenPolicies.Count, Is.GreaterThan(0));
+                Assert.That(config.ServerConfiguration!.UserTokenPolicies.Count, Is.GreaterThan(0));
             }
         }
 
@@ -2034,7 +2038,7 @@ namespace Opc.Ua.Configuration.Tests
                     .CreateAsync()
                     .ConfigureAwait(false);
 
-                Assert.That(config.ServerConfiguration.SecurityPolicies.Count, Is.GreaterThan(0));
+                Assert.That(config.ServerConfiguration!.SecurityPolicies.Count, Is.GreaterThan(0));
             }
         }
 
@@ -2114,7 +2118,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig, Is.Not.Null);
                 Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
                 Assert.That(secConfig.ApplicationCertificate.StorePath, Is.Not.Null.And.Not.Empty);
@@ -2138,7 +2142,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsClient()
                     .AddSecurityConfiguration(certs);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig, Is.Not.Null);
                 Assert.That(secConfig.TrustedPeerCertificates.StorePath, Is.Not.Null.And.Not.Empty);
             }
@@ -2234,7 +2238,7 @@ namespace Opc.Ua.Configuration.Tests
                 Assert.That(config.ClientConfiguration, Is.Not.Null);
                 Assert.That(config.ServerConfiguration, Is.Not.Null);
                 Assert.That(config.SecurityConfiguration, Is.Not.Null);
-                Assert.That(config.TransportQuotas.OperationTimeout, Is.EqualTo(10000));
+                Assert.That(config.TransportQuotas!.OperationTimeout, Is.EqualTo(10000));
                 Assert.That(config.ServerConfiguration.DiagnosticsEnabled, Is.True);
                 Assert.That(config.ServerConfiguration.DurableSubscriptionsEnabled, Is.True);
             }
@@ -2363,7 +2367,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot, null, rejectedRoot);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig.RejectedCertificateStore, Is.Not.Null);
                 Assert.That(secConfig.RejectedCertificateStore.StorePath, Does.Contain("rejected"));
             }
@@ -2382,7 +2386,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AsClient()
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot, appRoot);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
                 Assert.That(secConfig.ApplicationCertificate, Is.Not.Null);
                 Assert.That(secConfig.ApplicationCertificate.StorePath, Does.Contain("app"));
             }
@@ -2407,8 +2411,8 @@ namespace Opc.Ua.Configuration.Tests
                     .AsClient()
                     .AddSecurityConfiguration(certs, m_pkiRoot, rejectedRoot);
 
-                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration.SecurityConfiguration;
-                Assert.That(secConfig.RejectedCertificateStore.StorePath, Does.Contain("rejected"));
+                SecurityConfiguration secConfig = appInstance.ApplicationConfiguration!.SecurityConfiguration;
+                Assert.That(secConfig.RejectedCertificateStore!.StorePath, Does.Contain("rejected"));
             }
         }
 
@@ -2427,7 +2431,7 @@ namespace Opc.Ua.Configuration.Tests
                     .AddSecurityConfiguration(SubjectName, m_pkiRoot)
                     .AddExtension(qualifiedName, limits);
 
-                OperationLimits extension = appInstance.ApplicationConfiguration.ParseExtension<OperationLimits>(qualifiedName);
+                OperationLimits extension = appInstance.ApplicationConfiguration!.ParseExtension<OperationLimits>(qualifiedName)!;
                 Assert.That(extension, Is.Not.Null);
                 Assert.That(extension.MaxNodesPerRead, Is.EqualTo(42));
             }

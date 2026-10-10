@@ -81,9 +81,10 @@ namespace Opc.Ua.Server
         {
             // check if the node is already being monitored.
 
+            NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
+
             if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out MonitoredNode2? monitoredNode))
             {
-                NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId]
                     = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode,
                         IsMultiConsumerNode(cachedNode.NodeId));
@@ -147,8 +148,11 @@ namespace Opc.Ua.Server
             MonitoredItemIdFactory monitoredItemIdFactory,
             Func<ISystemContext, NodeHandle, NodeState, NodeState> addNodeToComponentCache,
             Action<ISystemContext, NodeHandle> removeNodeFromComponentCache,
-            MonitoredItemFactory factory)
+            MonitoredItemFactory factory,
+            bool initialValueQueued)
         {
+            // monitored nodes report changes; there is no immediate sample to suppress.
+            _ = initialValueQueued;
             MonitoredNode2? monitoredNode = null;
             ISampledDataChangeMonitoredItem? monitoredItem = null;
             bool monitoredNodeCreated = false;
@@ -163,11 +167,10 @@ namespace Opc.Ua.Server
 
             try
             {
+                NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
+                componentCacheAdded = true;
                 if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out monitoredNode))
                 {
-                    NodeState cachedNode =
-                        addNodeToComponentCache(context, handle, handle.Node);
-                    componentCacheAdded = true;
                     MonitoredNodes[handle.Node.NodeId] = monitoredNode =
                         new MonitoredNode2(
                             m_nodeManager,
@@ -270,7 +273,12 @@ namespace Opc.Ua.Server
             if (MonitoredNodes.TryGetValue(handle.NodeId, out MonitoredNode2? monitoredNode))
             {
                 monitoredNode.Remove(monitoredItem);
-                MonitoredItems.TryRemove(monitoredItem.Id, out _);
+                if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.Events) == 0 ||
+                    monitoredItem is not IEventMonitoredItem { MonitoringAllEvents: true } ||
+                    !IsEventMonitoredItemLinked(monitoredItem.Id))
+                {
+                    MonitoredItems.TryRemove(monitoredItem.Id, out _);
+                }
 
                 // check if node is no longer being monitored.
                 if (!monitoredNode.HasMonitoredItems)
@@ -300,9 +308,12 @@ namespace Opc.Ua.Server
             // update monitoring mode.
             MonitoringMode previousMode = monitoredItem.SetMonitoringMode(monitoringMode);
 
-            // must send the latest value after enabling a disabled item.
-            if (monitoringMode == MonitoringMode.Reporting &&
-                previousMode == MonitoringMode.Disabled)
+            // must send the latest value after enabling a disabled item. For an item whose
+            // node was deleted SetMonitoringMode already queued Bad_NodeIdUnknown, and the
+            // stale node must not override it with a Good value.
+            if (previousMode == MonitoringMode.Disabled &&
+                monitoringMode != MonitoringMode.Disabled &&
+                monitoredItem is not IDetachableMonitoredItem { IsDeleted: true })
             {
                 await handle.MonitoredNode.QueueValueAsync(context, handle.Node, monitoredItem, cancellationToken).ConfigureAwait(false);
             }
@@ -327,10 +338,11 @@ namespace Opc.Ua.Server
                 return false;
             }
 
+            NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
+
             // check if the node is already being monitored.
             if (!MonitoredNodes.TryGetValue(handle.Node.NodeId, out MonitoredNode2? monitoredNode))
             {
-                NodeState cachedNode = addNodeToComponentCache(context, handle, handle.Node);
                 MonitoredNodes[handle.Node.NodeId]
                     = monitoredNode = new MonitoredNode2(m_nodeManager, m_server, cachedNode,
                         IsMultiConsumerNode(cachedNode.NodeId));
@@ -428,6 +440,7 @@ namespace Opc.Ua.Server
                 if (!monitoredNode.HasMonitoredItems)
                 {
                     MonitoredNodes.Remove(source.NodeId);
+                    monitoredNode.Dispose();
                 }
                 if (!MonitoredNodes.Values.Any(node =>
                     node.EventMonitoredItems.TryGetValue(monitoredItem.Id, out IEventMonitoredItem? remaining) &&
@@ -719,6 +732,19 @@ namespace Opc.Ua.Server
                     MonitoredItems.TryRemove(monitoredItem.Id, out _);
                 }
             }
+        }
+
+        private bool IsEventMonitoredItemLinked(uint monitoredItemId)
+        {
+            foreach (MonitoredNode2 monitoredNode in MonitoredNodes.Values)
+            {
+                if (monitoredNode.EventMonitoredItems.ContainsKey(monitoredItemId))
+                {
+                    return true;
+                }
+            }
+
+            return false;
         }
 
         private bool IsMultiConsumerNode(NodeId nodeId)

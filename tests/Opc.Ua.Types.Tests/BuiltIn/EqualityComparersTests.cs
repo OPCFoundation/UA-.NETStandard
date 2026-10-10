@@ -267,7 +267,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void SequenceEqualityComparerGetHashCodeNullArray()
         {
-            int hash = SequenceEqualityComparer<int>.Default.GetHashCode(null);
+            int hash = SequenceEqualityComparer<int>.Default.GetHashCode(null!);
             Assert.That(hash, Is.Not.Zero.Or.Zero);
         }
 
@@ -386,7 +386,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void ArrayEqualityComparerGetHashCodeNullArray()
         {
-            int hash = ArrayEqualityComparer<string>.Default.GetHashCode(null);
+            int hash = ArrayEqualityComparer<string>.Default.GetHashCode(null!);
             Assert.That(hash, Is.Not.Zero.Or.Zero);
         }
 
@@ -527,8 +527,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementStringEqualityComparerGetHashCodeNullElement()
         {
-            int hash = XmlElementStringEqualityComparer.Default.GetHashCode(null);
-            Assert.That(hash, Is.EqualTo(EqualityComparer<string>.Default.GetHashCode(null)));
+            int hash = XmlElementStringEqualityComparer.Default.GetHashCode(null!);
+            Assert.That(hash, Is.EqualTo(EqualityComparer<string>.Default.GetHashCode(null!)));
         }
 
         [Test]
@@ -637,8 +637,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         public void XmlElementArrayStringEqualityComparerEqualsWithNullElements()
         {
             System.Xml.XmlElement element = CreateXmlElement("test", "value");
-            System.Xml.XmlElement[] array1 = [element, null];
-            System.Xml.XmlElement[] array2 = [CreateXmlElement("test", "value"), null];
+            System.Xml.XmlElement[] array1 = [element, null!];
+            System.Xml.XmlElement[] array2 = [CreateXmlElement("test", "value"), null!];
             Assert.That(
                 XmlElementArrayStringEqualityComparer.Default.Equals(array1, array2),
                 Is.True);
@@ -667,7 +667,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlElementArrayStringEqualityComparerGetHashCodeNullArray()
         {
-            int hash = XmlElementArrayStringEqualityComparer.Default.GetHashCode(null);
+            int hash = XmlElementArrayStringEqualityComparer.Default.GetHashCode(null!);
             Assert.That(hash, Is.Not.Zero.Or.Zero);
         }
 
@@ -787,8 +787,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void XmlQualifiedNameEqualityComparerGetHashCodeNullName()
         {
-            int hash = XmlQualifiedNameEqualityComparer.Default.GetHashCode(null);
-            Assert.That(hash, Is.EqualTo(HashCode.Combine((string)null, (string)null)));
+            int hash = XmlQualifiedNameEqualityComparer.Default.GetHashCode(null!);
+            Assert.That(hash, Is.EqualTo(HashCode.Combine((string)null!, (string)null!)));
         }
 
         [Test]
@@ -1075,7 +1075,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 Is.False);
         }
 
-        private static System.Xml.XmlElement CreateXmlElement(string name, string value = null, string attributeName = null, string attributeValue = null)
+        private static System.Xml.XmlElement CreateXmlElement(string name, string? value = null, string? attributeName = null, string? attributeValue = null)
         {
             var doc = new XmlDocument();
             System.Xml.XmlElement element = doc.CreateElement(name);

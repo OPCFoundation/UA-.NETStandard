@@ -59,7 +59,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 {
-                    using ISession s = await ConnectOnceAsync(ep.SecurityPolicyUri, user)
+                    using ISession s = await ConnectOnceAsync(ep.SecurityPolicyUri!, user)
                         .ConfigureAwait(false);
                 });
                 AssertCertRejection(sre.StatusCode);
@@ -84,7 +84,7 @@ namespace Opc.Ua.Core.Security.Tests
 
             ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
             {
-                using ISession s = await ConnectOnceAsync(ep.SecurityPolicyUri, user)
+                using ISession s = await ConnectOnceAsync(ep.SecurityPolicyUri!, user)
                     .ConfigureAwait(false);
             });
             AssertCertRejection(sre.StatusCode);
@@ -108,7 +108,7 @@ namespace Opc.Ua.Core.Security.Tests
             await AddTrustedUserAsync(user).ConfigureAwait(false);
             try
             {
-                using ISession s = await ConnectOnceAsync(ep.SecurityPolicyUri, user)
+                using ISession s = await ConnectOnceAsync(ep.SecurityPolicyUri!, user)
                     .ConfigureAwait(false);
 
                 Assert.That(s.Connected, Is.True,
@@ -149,7 +149,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool foundCertWithPolicy = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -174,7 +174,7 @@ namespace Opc.Ua.Core.Security.Tests
             bool found = false;
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -199,7 +199,7 @@ namespace Opc.Ua.Core.Security.Tests
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {
@@ -231,7 +231,7 @@ namespace Opc.Ua.Core.Security.Tests
         private async Task<EndpointDescription> FindSecureEndpointAsync()
         {
             ArrayOf<EndpointDescription> endpoints = await GetEndpointsAsync().ConfigureAwait(false);
-            EndpointDescription ep = null;
+            EndpointDescription? ep = null;
             foreach (EndpointDescription e in endpoints)
             {
                 if (e.SecurityMode == MessageSecurityMode.SignAndEncrypt)
@@ -255,7 +255,7 @@ namespace Opc.Ua.Core.Security.Tests
             {
                 Assert.Fail("No secure endpoint available.");
             }
-            return ep;
+            return ep!;
         }
 
         private static void AssertCertRejection(StatusCode code)
@@ -277,8 +277,8 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task AddIssuerToServerAsync(X509Certificate2 caCert)
         {
-            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration?
-                .TrustedIssuerCertificates;
+            CertificateTrustList store = (ServerFixture.Config?.SecurityConfiguration?
+                .TrustedIssuerCertificates)!;
             if (store == null)
             {
                 Assert.Ignore("Server has no TrustedIssuerCertificates store.");
@@ -290,8 +290,8 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task RemoveIssuerFromServerAsync(X509Certificate2 caCert)
         {
-            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration?
-                .TrustedIssuerCertificates;
+            CertificateTrustList store = (ServerFixture.Config?.SecurityConfiguration?
+                .TrustedIssuerCertificates)!;
             if (store == null)
             {
                 return;
@@ -302,8 +302,8 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task AddTrustedUserAsync(X509Certificate2 cert)
         {
-            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration?
-                .TrustedUserCertificates;
+            CertificateTrustList store = (ServerFixture.Config?.SecurityConfiguration?
+                .TrustedUserCertificates)!;
             if (store == null)
             {
                 Assert.Ignore("Server has no TrustedUserCertificates store.");
@@ -315,8 +315,8 @@ namespace Opc.Ua.Core.Security.Tests
 
         private async Task RemoveTrustedUserAsync(X509Certificate2 cert)
         {
-            CertificateTrustList store = ServerFixture.Config?.SecurityConfiguration?
-                .TrustedUserCertificates;
+            CertificateTrustList store = (ServerFixture.Config?.SecurityConfiguration?
+                .TrustedUserCertificates)!;
             if (store == null)
             {
                 return;
@@ -344,7 +344,7 @@ namespace Opc.Ua.Core.Security.Tests
         {
             foreach (EndpointDescription ep in endpoints)
             {
-                if (ep.UserIdentityTokens != default)
+                if (ep.UserIdentityTokens != default!)
                 {
                     foreach (UserTokenPolicy t in ep.UserIdentityTokens)
                     {

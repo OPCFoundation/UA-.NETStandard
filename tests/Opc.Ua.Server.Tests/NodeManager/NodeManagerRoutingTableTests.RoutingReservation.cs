@@ -248,7 +248,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             using NodeState.ReferenceUpdate accepted = table.PrepareReferences(owner, node, additions, [], next);
             Assert.That(next[node], Is.SameAs(accepted.Next));
-            Assert.That(accepted.Next.References.Keys.Select(reference => reference.TargetId),
+            NodeState.ReferenceSnapshot acceptedSnapshot = accepted.Next;
+            var acceptedReferences = acceptedSnapshot.References ??
+                throw new AssertionException("The accepted reference snapshot did not contain its required references.");
+            Assert.That(acceptedReferences.Keys.Select(reference => reference.TargetId),
                 Is.EquivalentTo(new[] { original, addition }));
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, addition), Is.False,
                 "Preparing the private image must not install its references.");

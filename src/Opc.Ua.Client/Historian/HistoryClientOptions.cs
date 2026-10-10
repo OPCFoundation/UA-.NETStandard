@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+
 namespace Opc.Ua.Client.Historian
 {
     /// <summary>
@@ -46,5 +48,17 @@ namespace Opc.Ua.Client.Historian
         /// </summary>
         public TimestampsToReturn DefaultTimestampsToReturn { get; init; }
             = TimestampsToReturn.Source;
+
+        /// <summary>
+        /// Maximum number of HistoryRead pages followed by one async enumeration.
+        /// Zero means unlimited.
+        /// </summary>
+        public uint MaxPagesPerRead { get; init; } = 100_000;
+
+        /// <summary>
+        /// Maximum elapsed time spent following HistoryRead continuation points.
+        /// Zero means unlimited.
+        /// </summary>
+        public TimeSpan MaxReadDuration { get; init; }
     }
 }

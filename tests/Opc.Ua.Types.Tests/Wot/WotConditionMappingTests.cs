@@ -76,7 +76,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = Convert(
                 ConditionEvent("ua:LimitAlarmType", withEventId: true));
 
-            Assert.That(SupertypeOfEvent(result.Value), Is.EqualTo(LimitAlarmType));
+            Assert.That(SupertypeOfEvent(result.Value!), Is.EqualTo(LimitAlarmType));
         }
 
         /// <summary>
@@ -90,7 +90,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"events\":{\"tick\":{\"@type\":\"uav:eventType\"," +
                 "\"data\":{\"type\":\"object\",\"properties\":{}}}}");
 
-            Assert.That(SupertypeOfEvent(result.Value), Is.EqualTo(BaseEventType));
+            Assert.That(SupertypeOfEvent(result.Value!), Is.EqualTo(BaseEventType));
         }
 
         /// <summary>
@@ -113,7 +113,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(
                 result.Diagnostics.Where(d => d.Severity == WotDiagnosticSeverity.Error),
                 Is.Empty);
-            Assert.That(SupertypeOfEvent(result.Value), Is.Not.EqualTo(BaseEventType));
+            Assert.That(SupertypeOfEvent(result.Value!), Is.Not.EqualTo(BaseEventType));
         }
 
         [Test]
@@ -420,10 +420,10 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static string SupertypeOfEvent(UANodeSet nodeSet)
         {
-            UANode eventType = nodeSet.Items.First(i => i is UAObjectType);
-            return eventType.References.First(r =>
+            UANode eventType = nodeSet.Items!.First(i => i is UAObjectType);
+            return eventType.References!.First(r =>
                 string.Equals(r.ReferenceType, "HasSubtype", StringComparison.Ordinal) &&
-                !r.IsForward).Value;
+                !r.IsForward).Value!;
         }
 
         private static WotConversionResult<UANodeSet> Convert(string members)

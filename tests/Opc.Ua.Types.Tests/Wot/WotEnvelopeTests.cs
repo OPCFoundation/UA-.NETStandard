@@ -237,7 +237,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             using var document = WotDocument.Parse(Encoding.UTF8.GetBytes(json));
 
-            WotConversionResult<UANodeSet> result = null;
+            WotConversionResult<UANodeSet>? result = null;
             Assert.That(
                 () => result = WotNodeSetConverter.ToNodeSetResult(document),
                 Throws.Nothing);

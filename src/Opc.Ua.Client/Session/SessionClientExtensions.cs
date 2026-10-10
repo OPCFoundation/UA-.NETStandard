@@ -33,6 +33,7 @@ using System.Diagnostics;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Client
 {
@@ -63,6 +64,14 @@ namespace Opc.Ua.Client
             var errors = new ServiceResult[errorValues.Count];
             for (int ii = 0; ii < variableIds.Count; ii++)
             {
+                if (ServiceResult.IsBad(errorValues[ii]))
+                {
+                    // Report why the read failed rather than masking it as a
+                    // type mismatch against the value the server never sent.
+                    errors[ii] = errorValues[ii];
+                    continue;
+                }
+
                 if (dataValues[ii].WrappedValue.TypeInfo != expectedTypes[ii])
                 {
                     errors[ii] = ServiceResult.Create(
@@ -125,6 +134,41 @@ namespace Opc.Ua.Client
             Debug.Assert(referencesList.Count == 1);
             Debug.Assert(continuationPoints.Count == 1);
             return (responseHeader, continuationPoints[0], referencesList[0]);
+        }
+
+        /// <summary>
+        /// Releases a continuation point the caller stops following. Part 4
+        /// §5.9.3.2 requires the client to do so; otherwise the point stays
+        /// active until the session is closed (§7.9) and pins the server's
+        /// per-session quota. Best effort: the session may already be gone,
+        /// in which case the server reclaims the point anyway. A failure is
+        /// logged and not rethrown.
+        /// </summary>
+        /// <param name="session">The session the point belongs to.</param>
+        /// <param name="continuationPoint">The point to release; an empty
+        /// one is ignored.</param>
+        /// <param name="logger">Receives a failed release.</param>
+        public static async ValueTask ReleaseContinuationPointAsync(
+            this ISessionClient session,
+            ByteString continuationPoint,
+            ILogger logger)
+        {
+            if (continuationPoint.IsEmpty)
+            {
+                return;
+            }
+            try
+            {
+                await session.BrowseNextAsync(
+                    requestHeader: null,
+                    releaseContinuationPoint: true,
+                    continuationPoint,
+                    default).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                logger.ReleaseContinuationPointFailed(ex);
+            }
         }
 
         /// <summary>
@@ -778,6 +822,16 @@ namespace Opc.Ua.Client
                         // will return empty array constant.
                         break;
                     }
+                    if (chunk.Length > maxByteStringLength)
+                    {
+                        // The server ignored the IndexRange: appending the chunk would
+                        // corrupt the value and the loop would never terminate.
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnknownResponse,
+                            "Server returned {0} bytes for an index range of {1} bytes.",
+                            chunk.Length,
+                            maxByteStringLength);
+                    }
                     if (chunk.Length < maxByteStringLength && offset == 0)
                     {
                         // Fast path for small values, just return the chunk
@@ -792,6 +846,14 @@ namespace Opc.Ua.Client
                     if (chunk.Length < maxByteStringLength)
                     {
                         break;
+                    }
+                    if ((long)offset + (2L * maxByteStringLength) - 1 > int.MaxValue)
+                    {
+                        // The next range would not fit into an int and the value
+                        // could not be returned as a single byte string anyway.
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadEncodingLimitsExceeded,
+                            "ByteString value exceeds the maximum supported length.");
                     }
                     offset += maxByteStringLength;
                 }
@@ -898,5 +960,15 @@ namespace Opc.Ua.Client
             }
             return errors.ToArrayOf();
         }
+    }
+
+    /// <summary>
+    /// Source-generated log messages for <see cref="SessionClientExtensions"/>.
+    /// </summary>
+    internal static partial class SessionClientExtensionsLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.SessionClientExtensions + 0, Level = LogLevel.Warning,
+            Message = "Failed to release a continuation point; the server keeps it until the session closes.")]
+        public static partial void ReleaseContinuationPointFailed(this ILogger logger, Exception exception);
     }
 }

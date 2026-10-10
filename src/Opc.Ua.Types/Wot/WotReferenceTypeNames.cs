@@ -437,7 +437,7 @@ namespace Opc.Ua.Wot
             int separator = nodeId.IndexOf(';', StringComparison.Ordinal);
             if (separator < 0 ||
                 !int.TryParse(
-#if NETSTANDARD2_0 || NET472 || NET48
+#if NETSTANDARD2_0 || NET48
                     nodeId.Substring(3, separator - 3),
 #else
                     nodeId.AsSpan(3, separator - 3),

@@ -662,8 +662,6 @@ namespace Opc.Ua.PubSub.Application
             var metaDataPublisher = new MetaDataPublisher(
                 this,
                 MetaDataRegistry,
-                m_encoderMap,
-                m_aggregatingDiagnostics,
                 m_telemetry,
                 m_timeProvider);
             try
@@ -1830,6 +1828,70 @@ namespace Opc.Ua.PubSub.Application
                             publishedDataSet.DataSetClassId,
                             version.MajorVersion);
                         MetaDataRegistry.Register(key, metaData);
+                    }
+                }
+            }
+
+            RegisterDataSetReaderMetaData();
+        }
+
+        /// <summary>
+        /// Registers the DataSetMetaData configured on each DataSetReader, which
+        /// provides the information needed to decode its DataSetMessages
+        /// (Part 14 §6.2.9.4). A Subscriber can therefore decode RawData
+        /// messages without first receiving a metadata announcement, for example
+        /// when announcements are not sent or are dropped by a secured reader.
+        /// </summary>
+        /// <remarks>
+        /// The registry is keyed by the exact DataSetWriter identity, so readers
+        /// whose PublisherId, WriterGroupId, or DataSetWriterId filter is a
+        /// wildcard are skipped. An existing entry, such as the metadata of a
+        /// PublishedDataSet in the same application, is kept; a later metadata
+        /// announcement replaces the registered entry.
+        /// </remarks>
+        private void RegisterDataSetReaderMetaData()
+        {
+            foreach (PubSubConnection connection in m_connections)
+            {
+                for (int readerGroupIndex = 0;
+                    readerGroupIndex < connection.ReaderGroups.Count;
+                    readerGroupIndex++)
+                {
+                    if (connection.ReaderGroups[readerGroupIndex] is not ReaderGroup readerGroup)
+                    {
+                        continue;
+                    }
+                    for (int readerIndex = 0;
+                        readerIndex < readerGroup.DataSetReaders.Count;
+                        readerIndex++)
+                    {
+                        if (readerGroup.DataSetReaders[readerIndex] is not DataSetReader reader)
+                        {
+                            continue;
+                        }
+
+                        DataSetMetaDataType? metaData = reader.Configuration.DataSetMetaData;
+                        if (metaData is null ||
+                            reader.ExpectedPublisherId.IsNull ||
+                            reader.WriterGroupId == 0 ||
+                            reader.DataSetWriterId == 0)
+                        {
+                            continue;
+                        }
+
+                        ConfigurationVersionDataType version =
+                            metaData.ConfigurationVersion
+                            ?? new ConfigurationVersionDataType();
+                        var key = new DataSetMetaDataKey(
+                            reader.ExpectedPublisherId,
+                            reader.WriterGroupId,
+                            reader.DataSetWriterId,
+                            metaData.DataSetClassId,
+                            version.MajorVersion);
+                        if (MetaDataRegistry.TryGet(key, out _) == MetaDataMatchResult.NotFound)
+                        {
+                            MetaDataRegistry.Register(key, metaData);
+                        }
                     }
                 }
             }

@@ -34,6 +34,9 @@ using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Implements mapped states, transitions, and cause callbacks for a finite state machine.
+    /// </summary>
     public partial class FiniteStateMachineState
     {
         /// <summary>
@@ -450,6 +453,16 @@ namespace Opc.Ua
         public bool SuppressTransitionEvents { get; set; }
 
         /// <summary>
+        /// Creates transition-local callbacks that retain the captured source and destination states.
+        /// </summary>
+        internal StateMachineTransitionCallbackFactory? TransitionCallbackFactory { get; set; }
+
+        /// <summary>
+        /// Gets the revision used to reject work armed before the current state was entered.
+        /// </summary>
+        internal long StateRevision => Interlocked.Read(ref m_stateRevision);
+
+        /// <summary>
         /// Invokes the callback function if it has been specified.
         /// </summary>
         protected ServiceResult InvokeCallback(
@@ -522,10 +535,13 @@ namespace Opc.Ua
         /// </summary>
         public virtual void SetState(ISystemContext context, uint newState)
         {
-            uint transitionId = GetTransitionToState(context, newState);
-
-            UpdateStateVariable(context, newState, CurrentState);
-            UpdateTransitionVariable(context, transitionId, LastTransition);
+            lock (m_transitionLock)
+            {
+                uint transitionId = GetTransitionToState(context, newState);
+                UpdateStateVariable(context, newState, CurrentState);
+                UpdateTransitionVariable(context, transitionId, LastTransition);
+                m_stateRevision++;
+            }
         }
 
         /// <summary>
@@ -533,7 +549,30 @@ namespace Opc.Ua
         /// </summary>
         public virtual ServiceResult DoCause(
             ISystemContext context,
-            MethodState causeMethod,
+            MethodState? causeMethod,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            try
+            {
+                lock (m_transitionLock)
+                {
+                    return DoCauseCore(context, causeMethod, causeId, inputArguments, outputArguments);
+                }
+            }
+            finally
+            {
+                DispatchTransitionCompletions();
+            }
+        }
+
+        /// <summary>
+        /// Checks a cause's permissions, performs its transition, and reports applicable audit events.
+        /// </summary>
+        private ServiceResult DoCauseCore(
+            ISystemContext context,
+            MethodState? causeMethod,
             uint causeId,
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
@@ -547,7 +586,8 @@ namespace Opc.Ua
 
                 if (transitionId == 0)
                 {
-                    return StatusCodes.BadNotSupported;
+                    // assign the result so the audit event reports the failure (Part 5 6.4.3).
+                    return result = StatusCodes.BadNotSupported;
                 }
 
                 // check access rights.
@@ -581,16 +621,26 @@ namespace Opc.Ua
                 // report any changes to state machine.
                 ClearChangeMasks(context, true);
             }
+            catch (Exception ex)
+            {
+                // a failed transition must not be audited as successful.
+                result = ServiceResult.Create(
+                    ex,
+                    StatusCodes.BadUnexpectedError,
+                    "Unexpected error processing a state machine cause.");
+                throw;
+            }
             finally
             {
                 // report the event.
-                if (AreEventsMonitored)
+                if (AreEventsMonitored && causeMethod != null)
                 {
                     AuditUpdateStateEventState e = CreateAuditEvent(context, causeMethod, causeId);
                     UpdateAuditEvent(context, causeMethod, inputArguments, causeId, e, result);
                     ReportEvent(context, e);
 
-                    if (m_causeId != causeId)
+                    // only a performed transition is reported as a program transition.
+                    if (m_causeId != causeId && ServiceResult.IsGood(result))
                     {
                         ReportAuditProgramTransitionEvent(
                             context,
@@ -697,6 +747,17 @@ namespace Opc.Ua
         /// <param name="causeId">The cause id.</param>
         public virtual void CauseProcessingCompleted(ISystemContext context, uint causeId)
         {
+            lock (m_transitionLock)
+            {
+                CompleteCauseCore(context, causeId);
+            }
+        }
+
+        /// <summary>
+        /// Publishes the completed cause's state and transition, advancing the state revision.
+        /// </summary>
+        private void CompleteCauseCore(ISystemContext context, uint causeId)
+        {
             // get the transition.
             uint transitionId = GetTransitionForCause(context, causeId);
 
@@ -714,15 +775,12 @@ namespace Opc.Ua
             }
 
             // save the last state.
-            (LastState ??= new FiniteStateVariableState(this)).SetChildValue(
-                context,
-                null,
-                CurrentState,
-                false);
+            LastState = CoreUtils.Clone(CurrentState);
 
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);
             UpdateTransitionVariable(context, transitionId, LastTransition);
+            m_stateRevision++;
         }
 
         /// <summary>
@@ -735,6 +793,143 @@ namespace Opc.Ua
             ArrayOf<Variant> inputArguments,
             List<Variant> outputArguments)
         {
+            try
+            {
+                lock (m_transitionLock)
+                {
+                    return DoTransitionCore(context, transitionId, causeId, inputArguments, outputArguments);
+                }
+            }
+            finally
+            {
+                DispatchTransitionCompletions();
+            }
+        }
+
+        /// <summary>
+        /// Executes an armed transition only while its source state, revision, and timer are still current.
+        /// </summary>
+        internal ServiceResult TryTimedTransition(
+            ISystemContext context,
+            uint fromState,
+            long stateRevision,
+            uint transitionId,
+            uint causeId,
+            Func<bool> isCurrent)
+        {
+            try
+            {
+                lock (m_transitionLock)
+                {
+                    if (m_stateRevision != stateRevision || GetCurrentStateId() != fromState || !isCurrent())
+                    {
+                        return StatusCodes.BadInvalidState;
+                    }
+                    return transitionId == 0
+                        ? DoCause(context, null, causeId, default, [])
+                        : DoTransition(context, transitionId, causeId, default, []);
+                }
+            }
+            finally
+            {
+                DispatchTransitionCompletions();
+            }
+        }
+
+        /// <summary>
+        /// Coalesces related-node synchronization until the outer transition invocation completes.
+        /// </summary>
+        internal void ScheduleTransitionCompletion(NodeId nodeId, Action completion)
+        {
+            lock (m_transitionLock)
+            {
+                if (!m_transitionCompletions.ContainsKey(nodeId))
+                {
+                    m_transitionCompletionOrder.Enqueue(nodeId);
+                }
+                m_transitionCompletions[nodeId] = completion;
+            }
+        }
+
+        /// <summary>
+        /// Queues one lifecycle invocation after related-node synchronization, outside the transition lock.
+        /// </summary>
+        internal void ScheduleTransitionObserver(Action observer)
+        {
+            lock (m_transitionLock)
+            {
+                m_transitionObserverQueue.Enqueue(observer);
+            }
+        }
+
+        private void DispatchTransitionCompletions()
+        {
+            if (m_transitionLock.IsHeldByCurrentThread)
+            {
+                return;
+            }
+            lock (m_transitionLock)
+            {
+                if (m_dispatchingCompletions ||
+                    (m_transitionCompletionOrder.Count == 0 && m_transitionObserverQueue.Count == 0))
+                {
+                    return;
+                }
+                m_dispatchingCompletions = true;
+            }
+
+            bool drained = false;
+            try
+            {
+                while (true)
+                {
+                    Action completion;
+                    lock (m_transitionLock)
+                    {
+                        if (m_transitionCompletionOrder.Count != 0)
+                        {
+                            NodeId nodeId = m_transitionCompletionOrder.Dequeue();
+                            completion = m_transitionCompletions[nodeId];
+                            m_transitionCompletions.Remove(nodeId);
+                        }
+                        else if (m_transitionObserverQueue.Count != 0)
+                        {
+                            completion = m_transitionObserverQueue.Dequeue();
+                        }
+                        else
+                        {
+                            m_dispatchingCompletions = false;
+                            drained = true;
+                            return;
+                        }
+                    }
+                    completion();
+                }
+            }
+            finally
+            {
+                if (!drained)
+                {
+                    lock (m_transitionLock)
+                    {
+                        m_dispatchingCompletions = false;
+                    }
+                }
+            }
+        }
+
+        /// <summary>
+        /// Runs transition-local callbacks and commits the new state only if the captured revision remains current.
+        /// </summary>
+        private ServiceResult DoTransitionCore(
+            ISystemContext context,
+            uint transitionId,
+            uint causeId,
+            ArrayOf<Variant> inputArguments,
+            List<Variant> outputArguments)
+        {
+            long revision = m_stateRevision;
+            uint fromState = GetCurrentStateId();
             // check for valid transition.
             uint newState = GetNewStateForTransition(context, transitionId);
 
@@ -750,8 +945,11 @@ namespace Opc.Ua
             }
 
             // do any pre-transition processing.
+            (StateMachineTransitionHandler? before, StateMachineTransitionHandler? after) =
+                TransitionCallbackFactory?.Invoke(fromState, newState, OnBeforeTransition, OnAfterTransition)
+                ?? (OnBeforeTransition, OnAfterTransition);
             ServiceResult result = InvokeCallback(
-                OnBeforeTransition,
+                before,
                 context,
                 this,
                 transitionId,
@@ -763,21 +961,32 @@ namespace Opc.Ua
             {
                 return result;
             }
+            if (m_stateRevision != revision || GetCurrentStateId() != fromState)
+            {
+                return StatusCodes.BadInvalidState;
+            }
 
             // save the last state.
-            (LastState ??= new FiniteStateVariableState(this)).SetChildValue(
-                context,
-                null,
-                CurrentState,
-                false);
+            LastState = CoreUtils.Clone(CurrentState);
 
             // update state and transition variables.
             UpdateStateVariable(context, newState, CurrentState);
             UpdateTransitionVariable(context, transitionId, LastTransition);
+            m_stateRevision++;
+
+            TransitionEventState? transitionEvent = null;
+            if (AreEventsMonitored && !SuppressTransitionEvents)
+            {
+                transitionEvent = CreateTransitionEvent(context, transitionId, causeId);
+                if (transitionEvent != null)
+                {
+                    UpdateTransitionEvent(context, transitionId, causeId, transitionEvent);
+                }
+            }
 
             // do any post-transition processing.
             InvokeCallback(
-                OnAfterTransition,
+                after,
                 context,
                 this,
                 transitionId,
@@ -786,15 +995,9 @@ namespace Opc.Ua
                 outputArguments);
 
             // report the event.
-            if (AreEventsMonitored && !SuppressTransitionEvents)
+            if (transitionEvent != null)
             {
-                TransitionEventState? e = CreateTransitionEvent(context, transitionId, causeId);
-
-                if (e != null)
-                {
-                    UpdateTransitionEvent(context, transitionId, causeId, e);
-                    ReportEvent(context, e);
-                }
+                ReportEvent(context, transitionEvent);
             }
 
             return ServiceResult.Good;
@@ -840,6 +1043,20 @@ namespace Opc.Ua
         }
 
         private uint m_causeId;
+
+        /// <summary>
+        /// Serializes state changes and the checks that reject superseded transitions.
+        /// </summary>
+        private readonly Lock m_transitionLock = new();
+        private readonly Dictionary<NodeId, Action> m_transitionCompletions = [];
+        private readonly Queue<NodeId> m_transitionCompletionOrder = [];
+        private readonly Queue<Action> m_transitionObserverQueue = [];
+        private bool m_dispatchingCompletions;
+
+        /// <summary>
+        /// Advances on every state update so delayed work cannot act on a later entry into the same state.
+        /// </summary>
+        private long m_stateRevision;
         private ILogger m_logger = LoggerUtils.Null.Logger;
     }
 
@@ -853,6 +1070,16 @@ namespace Opc.Ua
         uint causeId,
         ArrayOf<Variant> inputArguments,
         List<Variant>? outputArguments);
+
+    /// <summary>
+    /// Creates before and after callbacks bound to one transition's source and destination states.
+    /// </summary>
+    internal delegate (StateMachineTransitionHandler? Before, StateMachineTransitionHandler? After)
+        StateMachineTransitionCallbackFactory(
+            uint fromState,
+            uint toState,
+            StateMachineTransitionHandler? before,
+            StateMachineTransitionHandler? after);
 
     /// <summary>
     /// Source-generated log messages for <see cref="FiniteStateMachineState"/>.

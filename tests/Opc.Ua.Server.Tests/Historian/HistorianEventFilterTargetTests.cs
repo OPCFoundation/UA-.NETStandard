@@ -31,15 +31,19 @@ using System.Collections.Generic;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies event field lookup and exact or inherited type matching for historical event filters.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class HistorianEventFilterTargetTests
     {
+        /// <summary>
+        /// Verifies that event attribute lookup resolves a field by browse name.
+        /// </summary>
         [Test]
         public void GetAttributeValueResolvesBrowseNameField()
         {
@@ -50,7 +54,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new Dictionary<string, Variant>(System.StringComparer.Ordinal)
                 {
                     [BrowseNames.Severity] = new Variant((ushort)500)
-                });
+                }.ToArrayOf());
 
             var target = new HistorianEventFilterTarget(record);
             ArrayOf<QualifiedName> path = new QualifiedName[] { new(BrowseNames.Severity) };
@@ -59,6 +63,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(severity, Is.EqualTo(500));
         }
 
+        /// <summary>
+        /// Verifies that event attribute lookup returns an empty value for an unknown field.
+        /// </summary>
         [Test]
         public void GetAttributeValueReturnsEmptyForUnknownField()
         {
@@ -66,7 +73,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 ByteString.Empty,
                 ObjectTypeIds.BaseEventType,
                 new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
-                new Dictionary<string, Variant>(System.StringComparer.Ordinal));
+                new Dictionary<string, Variant>(
+                    System.StringComparer.Ordinal).ToArrayOf());
 
             var target = new HistorianEventFilterTarget(record);
             ArrayOf<QualifiedName> path = new QualifiedName[] { new("DoesNotExist") };
@@ -74,6 +82,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(value, Is.EqualTo(Variant.Null));
         }
 
+        /// <summary>
+        /// Verifies that event type matching accepts an exact type identifier.
+        /// </summary>
         [Test]
         public void IsTypeOfReturnsTrueWhenExactMatch()
         {
@@ -81,12 +92,16 @@ namespace Opc.Ua.Server.Tests.Historian
                 ByteString.Empty,
                 ObjectTypeIds.BaseEventType,
                 new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
-                new Dictionary<string, Variant>(System.StringComparer.Ordinal));
+                new Dictionary<string, Variant>(
+                    System.StringComparer.Ordinal).ToArrayOf());
 
             var target = new HistorianEventFilterTarget(record);
             Assert.That(target.IsTypeOf(null!, ObjectTypeIds.BaseEventType), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that event type matching resolves subtype relationships through the type tree.
+        /// </summary>
         [Test]
         public void IsTypeOfResolvesSubtypeViaTypeTree()
         {
@@ -95,7 +110,8 @@ namespace Opc.Ua.Server.Tests.Historian
                 ByteString.Empty,
                 ObjectTypeIds.AuditEventType,
                 new System.DateTime(2025, 1, 1, 0, 0, 0, System.DateTimeKind.Utc),
-                new Dictionary<string, Variant>(System.StringComparer.Ordinal));
+                new Dictionary<string, Variant>(
+                    System.StringComparer.Ordinal).ToArrayOf());
 
             // Build a TypeTable with the AuditEventType -> BaseEventType subtype
             // relationship pre-registered (mirrors what a real server's TypeTable

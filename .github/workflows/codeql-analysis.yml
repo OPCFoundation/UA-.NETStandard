@@ -2,15 +2,23 @@
 name: "CodeQL"
 
 on:
+  # master is analyzed by the daily schedule below rather than on every push.
+  # Each analysis takes about three hours, and with a per-branch concurrency
+  # group most push runs on master were cancelled by the next merge before they
+  # finished (49 of 76 over two weeks in October 2026), burning runner time
+  # without ever uploading a result. A daily run always completes, and it is
+  # the base-branch analysis that pull request results are compared against.
+  # The other long-lived branches change rarely and keep their push trigger.
   push:
-    branches: [ master, main, master378, release/*, develop/* ]
+    branches: [ master378, release/*, develop/* ]
   pull_request:
-    # The branches below must be a subset of the branches above
+    # master is not in the push list above; the schedule provides its base
+    # analysis.
     branches: [ master, main, master378 ]
     paths:
     - '**.cs'
   schedule:
-    - cron: '30 6 * * 6'
+    - cron: '30 6 * * *'
   workflow_dispatch:
 
 permissions:
@@ -19,14 +27,21 @@ permissions:
   packages: read
   security-events: write
 
+# A superseded pull request analysis is cancelled. A push or scheduled run is
+# never cancelled, so a branch analysis always finishes and uploads; a newer
+# one queues behind it, replacing any run already waiting.
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   analyze:
     name: Analyze
-    runs-on: windows-2025
+    # Linux: only net10.0 is built (see below), so the extracted sources are the
+    # same as on Windows. On windows-2025 the traced build alone took 70 minutes,
+    # against 12 for the build-UA net10.0 (linux) leg of buildandtest.yml, which
+    # also keeps UA.slnx building on Linux.
+    runs-on: ubuntu-latest
 
     strategy:
       fail-fast: false
@@ -53,7 +68,7 @@ jobs:
     - name: Set up .NET
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '10.x'
+        dotnet-version: '10.0.401'
     # https://docs.github.com/en/code-security/code-scanning/creating-an-advanced-setup-for-code-scanning/codeql-code-scanning-for-compiled-languages#c-compiler-flags-injected-by-codeql-for-manual-builds
     #
     # CustomTestTarget pins the build to a single target framework (see

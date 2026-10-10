@@ -63,10 +63,10 @@ namespace Opc.Ua.Server.Historian
     /// <see cref="HistorianCaptureOptions.FullMode"/> is
     /// <see cref="CaptureFullMode.DropOldest"/> or
     /// <see cref="CaptureFullMode.DropNewest"/>, samples are dropped
-    /// silently (counted in <see cref="DroppedSampleCount"/>). Provider
-    /// exceptions during flush are logged and swallowed; the consumer
-    /// continues. Callers needing durability should use the explicit
-    /// HistoryUpdate Insert service instead.
+    /// and counted in <see cref="DroppedSampleCount"/>. A failed provider
+    /// call drops its samples, records a rate-limited warning, and leaves
+    /// the consumer running for later batches. Callers needing durability
+    /// should use the explicit HistoryUpdate Insert service instead.
     /// </para>
     /// </remarks>
     internal sealed class HistorianCaptureSink : IAsyncDisposable
@@ -100,8 +100,40 @@ namespace Opc.Ua.Server.Historian
             TimeProvider? timeProvider = null)
         {
             m_provider = provider ?? throw new ArgumentNullException(nameof(provider));
+            if (provider is not IHistorianBulkInsertProvider and
+                not IHistorianDataProvider)
+            {
+                throw new ArgumentException(
+                    "The capture provider must support bulk or per-node data inserts.",
+                    nameof(provider));
+            }
             m_systemContext = systemContext ?? throw new ArgumentNullException(nameof(systemContext));
             m_options = options ?? new HistorianCaptureOptions();
+            if (m_options.MaxQueuedSamples <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "MaxQueuedSamples must be positive.");
+            }
+            if (m_options.BatchTarget <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "BatchTarget must be positive.");
+            }
+            if (m_options.BatchWindow < TimeSpan.Zero)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "BatchWindow must not be negative.");
+            }
+            if (m_options.FullMode is not CaptureFullMode.DropOldest and
+                not CaptureFullMode.DropNewest)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(options),
+                    "FullMode is not supported.");
+            }
             m_logger = systemContext.Server?.Telemetry?.CreateLogger<HistorianCaptureSink>();
             m_timeProvider = timeProvider
                 ?? (systemContext.Server as ITimeProviderProvider)?.TimeProvider
@@ -117,72 +149,78 @@ namespace Opc.Ua.Server.Historian
             m_channel = Channel.CreateBounded<CaptureEvent>(
                 channelOptions, OnSampleDropped);
             m_shutdownCts = new CancellationTokenSource();
-            m_consumer = Task.Run(() => ConsumeAsync(m_shutdownCts.Token));
+            CancellationToken shutdownToken = m_shutdownCts.Token;
+            m_consumer = Task.Run(() => ConsumeAsync(shutdownToken));
         }
 
         /// <summary>
-        /// The number of samples that have been dropped because the
-        /// queue was full. Increments on
-        /// <see cref="CaptureFullMode.DropOldest"/> /
-        /// <see cref="CaptureFullMode.DropNewest"/>; never increments
-        /// when <see cref="CaptureFullMode.Wait"/> is selected.
+        /// The number of samples lost to queue overflow, a failed provider call,
+        /// or an unexpectedly unavailable consumer. Operation-level rejections
+        /// are counted separately by <see cref="RejectedSampleCount"/>.
         /// </summary>
         public long DroppedSampleCount => Interlocked.Read(ref m_droppedSamples);
 
         /// <summary>
-        /// Enqueues a new sample for the supplied node. Non-blocking for
-        /// <see cref="CaptureFullMode.DropOldest"/> /
-        /// <see cref="CaptureFullMode.DropNewest"/>; blocks for
-        /// <see cref="CaptureFullMode.Wait"/>.
+        /// The number of samples rejected by the provider with an operation-level
+        /// bad status. Rejections do not fault the shared capture pipeline.
         /// </summary>
+        public long RejectedSampleCount => Interlocked.Read(ref m_rejectedSamples);
+
+        /// <summary>
+        /// Enqueues a new sample for the supplied node without blocking the
+        /// value-setting callback.
+        /// </summary>
+        /// <exception cref="ArgumentException"></exception>
         public void Enqueue(NodeId nodeId, DataValue value)
         {
             if (nodeId.IsNull || value.IsNull)
             {
+                throw new ArgumentException(
+                    "A capture sample requires a non-null NodeId and DataValue.");
+            }
+            if (Volatile.Read(ref m_disposed) != 0)
+            {
                 return;
             }
-            if (m_disposed)
+            if (m_consumer.IsFaulted)
             {
+                Interlocked.Increment(ref m_droppedSamples);
+                if (Interlocked.Exchange(ref m_unavailableReported, 1) == 0)
+                {
+                    m_logger?.HistorianCaptureSinkUnavailable(
+                        m_consumer.Exception?.InnerException ??
+                        m_consumer.Exception!,
+                        nodeId);
+                }
                 return;
             }
 
             var ev = new CaptureEvent(nodeId, value);
 
-            if (m_options.FullMode == CaptureFullMode.Wait)
+            if (!m_channel.Writer.TryWrite(ev))
             {
-                // Synchronous wait — must not block the value-setting
-                // thread indefinitely if the consumer crashed; honour
-                // the shutdown token.
-                try
+                Interlocked.Increment(ref m_droppedSamples);
+                if (Interlocked.Exchange(ref m_unavailableReported, 1) == 0)
                 {
-                    m_channel.Writer.WriteAsync(ev, m_shutdownCts.Token)
-                        .AsTask().GetAwaiter().GetResult();
+                    m_logger?.HistorianCaptureSinkQueueClosed(nodeId);
                 }
-                catch (OperationCanceledException)
-                {
-                    // sink shutting down — silently drop
-                }
-                catch (ChannelClosedException)
-                {
-                    // sink shutting down — silently drop
-                }
-                return;
             }
-
-            _ = m_channel.Writer.TryWrite(ev);
         }
 
         /// <summary>
         /// Flushes pending samples and shuts down the consumer task.
         /// Idempotent.
         /// </summary>
+        /// <remarks>
+        /// A timeout cancels capture and is surfaced to the caller. Token resources remain alive
+        /// until an in-flight provider completes; its eventual failure is still observed.
+        /// </remarks>
         public async ValueTask DisposeAsync()
         {
-            if (m_disposed)
+            if (Interlocked.Exchange(ref m_disposed, 1) != 0)
             {
                 return;
             }
-            m_disposed = true;
             // Close the writer; the consumer drains remaining items and
             // exits its async-foreach loop normally.
             m_channel.Writer.TryComplete();
@@ -198,12 +236,31 @@ namespace Opc.Ua.Server.Historian
             {
                 m_logger?.HistorianCaptureSinkConsumerDidNotDrainWithin5s();
                 m_shutdownCts.Cancel();
+                throw;
             }
-            catch (Exception ex)
+            finally
             {
-                m_logger?.HistorianCaptureSinkConsumerFaultedDuringShutdown(ex);
+                if (m_consumer.IsCompleted)
+                {
+                    _ = m_consumer.Exception;
+                    m_shutdownCts.Dispose();
+                }
+                else
+                {
+                    // A timed-out provider still owns the token. This one-shot cleanup
+                    // only observes completion and disposes its source; it cannot capture this.
+                    _ = m_consumer.ContinueWith(
+                        static (completed, state) =>
+                        {
+                            _ = completed.Exception;
+                            ((CancellationTokenSource)state!).Dispose();
+                        },
+                        m_shutdownCts,
+                        CancellationToken.None,
+                        TaskContinuationOptions.ExecuteSynchronously,
+                        TaskScheduler.Default);
+                }
             }
-            m_shutdownCts.Dispose();
         }
 
         private async Task ConsumeAsync(CancellationToken ct)
@@ -221,16 +278,38 @@ namespace Opc.Ua.Server.Historian
                     {
                         continue;
                     }
-                    await FlushAsync(batch, ct).ConfigureAwait(false);
+                    try
+                    {
+                        await FlushAsync(batch, ct).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (ct.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception) when (!ct.IsCancellationRequested)
+                    {
+                        int dropped = 0;
+                        foreach (List<DataValue> values in batch.Values)
+                        {
+                            dropped += values.Count;
+                        }
+                        ReportFailedFlush(exception, batch.Count, dropped);
+                    }
                 }
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (ct.IsCancellationRequested)
             {
                 // shutdown
             }
             catch (Exception ex)
             {
+                m_channel.Writer.TryComplete(ex);
+                while (m_channel.Reader.TryRead(out _))
+                {
+                    Interlocked.Increment(ref m_droppedSamples);
+                }
                 m_logger?.HistorianCaptureSinkConsumerTerminatedUnexpectedly(ex);
+                throw;
             }
         }
 
@@ -288,43 +367,117 @@ namespace Opc.Ua.Server.Historian
             Dictionary<NodeId, List<DataValue>> batch,
             CancellationToken ct)
         {
-            var opContext = new OperationContext(
+            ct.ThrowIfCancellationRequested();
+            using var opContext = new OperationContext(
                 new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
             var historianContext = new HistorianOperationContext(
                 m_systemContext, opContext, null, HistoryUpdateType.Insert);
 
-            try
+            if (m_provider is IHistorianBulkInsertProvider bulk)
             {
-                if (m_provider is IHistorianBulkInsertProvider bulk)
+                var entries = new HistorianDataBatch[batch.Count];
+                int entryIndex = 0;
+                foreach (KeyValuePair<NodeId, List<DataValue>> kv in batch)
                 {
-                    // Hand the same view to the provider; convert lists
-                    // to IList<DataValue> via assignment.
-                    var view = new Dictionary<NodeId, IList<DataValue>>(batch.Count);
-                    foreach (KeyValuePair<NodeId, List<DataValue>> kv in batch)
-                    {
-                        view[kv.Key] = kv.Value;
-                    }
-                    _ = await bulk.InsertBatchAsync(historianContext, view, ct)
-                        .ConfigureAwait(false);
-                    return;
+                    entries[entryIndex++] = new HistorianDataBatch(
+                        kv.Key,
+                        kv.Value);
                 }
+                ArrayOf<HistorianUpdateOutcome<DataValue>> outcomes =
+                    await bulk.InsertBatchAsync(
+                        historianContext,
+                        entries,
+                        ct)
+                    .ConfigureAwait(false);
+                if (outcomes.Count != entries.Length)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadUnexpectedError,
+                        "The historian bulk insert returned a mismatched node count.");
+                }
+                for (int i = 0; i < entries.Length; i++)
+                {
+                    HistorianUpdateOutcome<DataValue>? outcome =
+                        outcomes[i] ??
+                        throw new ServiceResultException(
+                            StatusCodes.BadUnexpectedError,
+                            "The historian bulk insert returned a null node result.");
+                    ValidateInsertOutcome(
+                        entries[i].NodeId,
+                        outcome,
+                        entries[i].Values.Count);
+                }
+                return;
+            }
 
-                if (m_provider is IHistorianDataProvider data)
+            var data = (IHistorianDataProvider)m_provider;
+            foreach (KeyValuePair<NodeId, List<DataValue>> kv in batch)
+            {
+                ct.ThrowIfCancellationRequested();
+                try
                 {
-                    foreach (KeyValuePair<NodeId, List<DataValue>> kv in batch)
-                    {
-                        _ = await data.InsertAsync(historianContext, kv.Key, kv.Value, ct)
-                            .ConfigureAwait(false);
-                    }
+                    HistorianUpdateOutcome<DataValue> outcome = await data.InsertAsync(
+                        historianContext,
+                        kv.Key,
+                        kv.Value,
+                        ct).ConfigureAwait(false);
+                    ValidateInsertOutcome(
+                        kv.Key,
+                        outcome,
+                        kv.Value.Count);
+                }
+                catch (Exception exception) when (!ct.IsCancellationRequested)
+                {
+                    ReportFailedFlush(exception, 1, kv.Value.Count);
                 }
             }
-            catch (OperationCanceledException)
+        }
+
+        private void ReportFailedFlush(Exception exception, int nodes, int dropped)
+        {
+            Interlocked.Add(ref m_droppedSamples, dropped);
+            long now = m_timeProvider.GetTimestamp();
+            if (!m_failureReported ||
+                m_timeProvider.GetElapsedTime(m_lastFailureReport, now) >= TimeSpan.FromSeconds(30))
             {
-                // shutdown
+                m_failureReported = true;
+                m_lastFailureReport = now;
+                m_logger?.HistorianCaptureSinkFlushFailedForNodesNodeS(exception, nodes);
             }
-            catch (Exception ex)
+        }
+
+        private void ValidateInsertOutcome(
+            NodeId nodeId,
+            HistorianUpdateOutcome<DataValue> outcome,
+            int expectedCount)
+        {
+            if (outcome.OperationResults.Count != expectedCount)
             {
-                m_logger?.HistorianCaptureSinkFlushFailedForNodesNodeS(ex, batch.Count);
+                throw new ServiceResultException(
+                    StatusCodes.BadUnexpectedError,
+                    "The historian insert returned a mismatched operation count.");
+            }
+            int rejected = 0;
+            StatusCode firstRejection = StatusCodes.Good;
+            for (int i = 0; i < outcome.OperationResults.Count; i++)
+            {
+                StatusCode status = outcome.OperationResults[i];
+                if (StatusCode.IsBad(status))
+                {
+                    if (rejected == 0)
+                    {
+                        firstRejection = status;
+                    }
+                    rejected++;
+                }
+            }
+            if (rejected > 0)
+            {
+                Interlocked.Add(ref m_rejectedSamples, rejected);
+                m_logger?.HistorianCaptureSinkRejectedSamples(
+                    nodeId,
+                    rejected,
+                    firstRejection);
             }
         }
 
@@ -341,8 +494,7 @@ namespace Opc.Ua.Server.Historian
             {
                 CaptureFullMode.DropOldest => BoundedChannelFullMode.DropOldest,
                 CaptureFullMode.DropNewest => BoundedChannelFullMode.DropNewest,
-                CaptureFullMode.Wait => BoundedChannelFullMode.Wait,
-                _ => BoundedChannelFullMode.DropOldest
+                _ => throw new ArgumentOutOfRangeException(nameof(mode))
             };
         }
 
@@ -357,7 +509,11 @@ namespace Opc.Ua.Server.Historian
         private readonly CancellationTokenSource m_shutdownCts;
         private readonly TimeProvider m_timeProvider;
         private long m_droppedSamples;
-        private bool m_disposed;
+        private long m_rejectedSamples;
+        private long m_lastFailureReport;
+        private int m_unavailableReported;
+        private bool m_failureReported;
+        private int m_disposed;
     }
 
     /// <summary>
@@ -365,20 +521,32 @@ namespace Opc.Ua.Server.Historian
     /// </summary>
     internal static partial class HistorianCaptureSinkLog
     {
+        /// <summary>
+        /// Logs forced cancellation after the sample capture consumer failed to drain within five seconds.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 0, Level = LogLevel.Warning,
             Message = "HistorianCaptureSink consumer did not drain within 5s; cancelling forcibly.")]
         public static partial void HistorianCaptureSinkConsumerDidNotDrainWithin5s(this ILogger logger);
 
+        /// <summary>
+        /// Logs a sample capture consumer failure during shutdown.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 1, Level = LogLevel.Warning,
             Message = "HistorianCaptureSink consumer faulted during shutdown.")]
         public static partial void HistorianCaptureSinkConsumerFaultedDuringShutdown(this ILogger logger, Exception ex);
 
+        /// <summary>
+        /// Logs an exception that unexpectedly terminated the sample capture consumer.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 2, Level = LogLevel.Error,
             Message = "HistorianCaptureSink consumer terminated unexpectedly.")]
         public static partial void HistorianCaptureSinkConsumerTerminatedUnexpectedly(
             this ILogger logger,
             Exception ex);
 
+        /// <summary>
+        /// Logs a failed historian flush and the number of nodes whose samples were dropped.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 3, Level = LogLevel.Warning,
             Message = "HistorianCaptureSink flush failed for {Nodes} node(s); samples dropped.")]
         public static partial void HistorianCaptureSinkFlushFailedForNodesNodeS(
@@ -386,12 +554,45 @@ namespace Opc.Ua.Server.Historian
             Exception ex,
             int nodes);
 
+        /// <summary>
+        /// Logs a sample dropped under the capture queue's configured full mode.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 4, Level = LogLevel.Trace,
             Message = "HistorianCaptureSink dropped sample for {NodeId} ({Mode}).")]
         public static partial void HistorianCaptureSinkDroppedSampleForNodeIdMode(
             this ILogger logger,
             NodeId nodeId,
             CaptureFullMode mode);
-    }
 
+        /// <summary>
+        /// Logs the count and first status code of samples rejected by the historian provider.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 5, Level = LogLevel.Warning,
+            Message = "HistorianCaptureSink provider rejected {Count} sample(s) for {NodeId}; " +
+                "first status {StatusCode}.")]
+        public static partial void HistorianCaptureSinkRejectedSamples(
+            this ILogger logger,
+            NodeId nodeId,
+            int count,
+            StatusCode statusCode);
+
+        /// <summary>
+        /// Logs a sample dropped because the capture consumer is unavailable.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 6, Level = LogLevel.Error,
+            Message = "HistorianCaptureSink is unavailable; dropping the sample for {NodeId}.")]
+        public static partial void HistorianCaptureSinkUnavailable(
+            this ILogger logger,
+            Exception exception,
+            NodeId nodeId);
+
+        /// <summary>
+        /// Logs a sample dropped because the capture queue is closed.
+        /// </summary>
+        [LoggerMessage(EventId = ServerEventIds.HistorianCaptureSink + 7, Level = LogLevel.Warning,
+            Message = "HistorianCaptureSink queue is closed; dropping the sample for {NodeId}.")]
+        public static partial void HistorianCaptureSinkQueueClosed(
+            this ILogger logger,
+            NodeId nodeId);
+    }
 }

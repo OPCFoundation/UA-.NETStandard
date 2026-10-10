@@ -48,9 +48,19 @@ namespace Opc.Ua.SourceGeneration
         public SourceGeneratorFileSystem(
             IEnumerable<AdditionalText> additionalTexts)
         {
-            m_files = additionalTexts.ToDictionary(
-                text => text.Path,
-                text => text);
+            // A project can list the same file as an AdditionalFile more than
+            // once (globs overlapping an explicit item, for instance). Keep the
+            // first entry rather than letting ToDictionary throw out of the
+            // generator's constructor, which happens before any guarded region
+            // and surfaces as a bare generator crash.
+            m_files = [];
+            foreach (AdditionalText text in additionalTexts)
+            {
+                if (text?.Path != null && !m_files.ContainsKey(text.Path))
+                {
+                    m_files.Add(text.Path, text);
+                }
+            }
         }
 
         /// <inheritdoc/>

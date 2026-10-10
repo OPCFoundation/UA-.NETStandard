@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -70,8 +68,60 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public ValueTask QueueAsync(SubscriptionAcknowledgement ack,
             CancellationToken ct = default)
         {
-            QueuedAcks.Add(ack);
+            lock (m_lock)
+            {
+                QueuedAcks.Add(ack);
+            }
             return OnQueueAsync?.Invoke(ack, ct) ?? default;
+        }
+
+        /// <summary>
+        /// Waits until at least <paramref name="count"/> acknowledgements have
+        /// been queued. The processor under test dispatches a notification
+        /// before it queues the acknowledgement for it, so a test that only
+        /// waits for the dispatch races the enqueue that follows it.
+        /// </summary>
+        /// <param name="count">
+        /// The number of queued acknowledgements to wait for.
+        /// </param>
+        /// <param name="timeoutMs">How long to wait before giving up.</param>
+        /// <exception cref="TimeoutException">
+        /// The acknowledgements did not arrive in time. Failing here rather
+        /// than returning quietly keeps the diagnosis at the right level: a
+        /// caller that went on to assert the count would only report the
+        /// mismatch, which cannot distinguish an acknowledgement that was
+        /// never queued from one that merely arrived late - and if that
+        /// assertion is ever loosened, a silent return would hide the race
+        /// this helper exists to close.
+        /// </exception>
+        public async Task WaitForQueuedAckAsync(int count, int timeoutMs = 5000)
+        {
+            const int kPollIntervalMs = 10;
+            var timeout = TimeSpan.FromMilliseconds(timeoutMs);
+            long start = TimeProvider.System.GetTimestamp();
+            while (true)
+            {
+                int queued;
+                lock (m_lock)
+                {
+                    queued = QueuedAcks.Count;
+                }
+                if (queued >= count)
+                {
+                    return;
+                }
+                // Measure against a monotonic clock rather than accumulating
+                // the poll interval: Task.Delay routinely overshoots, so
+                // counting the requested interval silently stretches the
+                // effective timeout well past what the caller asked for.
+                if (TimeProvider.System.GetElapsedTime(start) >= timeout)
+                {
+                    throw new TimeoutException(
+                        $"Expected at least {count} queued acknowledgement(s) within " +
+                        $"{timeout.TotalSeconds:0.##}s but only {queued} arrived.");
+                }
+                await Task.Delay(kPollIntervalMs).ConfigureAwait(false);
+            }
         }
 
         public ValueTask CompleteAsync(IMessageProcessor subscription,
@@ -92,6 +142,22 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         }
 
         /// <summary>
+        /// Optional override for <see cref="RunWithSessionAvailableAsync"/>,
+        /// e.g. to simulate a session that is not available. If null, runs
+        /// the operation.
+        /// </summary>
+        public Func<Func<CancellationToken, ValueTask>, CancellationToken, ValueTask>?
+            OnRunWithSessionAvailableAsync
+        { get; set; }
+
+        public ValueTask RunWithSessionAvailableAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct = default)
+        {
+            return OnRunWithSessionAvailableAsync?.Invoke(operation, ct) ?? operation(ct);
+        }
+
+        /// <summary>
         /// Records the subscription ids dropped via
         /// <see cref="DropPendingForSubscription"/> so tests can assert
         /// stale-ack pruning happened during recovery.
@@ -101,8 +167,29 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public int DropPendingForSubscription(uint subscriptionId)
         {
             DroppedSubscriptions.Add(subscriptionId);
-            return QueuedAcks.RemoveAll(
-                ack => ack.SubscriptionId == subscriptionId);
+            lock (m_lock)
+            {
+                return QueuedAcks.RemoveAll(
+                    ack => ack.SubscriptionId == subscriptionId);
+            }
+        }
+
+        /// <summary>
+        /// Test-controlled answer for
+        /// <see cref="IMessageAckQueue.OwnsSubscriptionId"/>. Defaults to
+        /// <c>true</c>, i.e. the caller still owns the id.
+        /// </summary>
+        public Func<IMessageProcessor, uint, bool>? OnOwnsSubscriptionId { get; set; }
+
+        /// <summary>
+        /// Ids <see cref="OwnsSubscriptionId"/> was asked about.
+        /// </summary>
+        public List<uint> OwnershipChecks { get; } = [];
+
+        public bool OwnsSubscriptionId(IMessageProcessor subscription, uint subscriptionId)
+        {
+            OwnershipChecks.Add(subscriptionId);
+            return OnOwnsSubscriptionId?.Invoke(subscription, subscriptionId) ?? true;
         }
 
         public void Update()
@@ -117,5 +204,7 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         /// pooled-notification reuse walk.
         /// </summary>
         public bool PoolNotifications { get; set; }
+
+        private readonly Lock m_lock = new();
     }
 }

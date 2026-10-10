@@ -1,10 +1,64 @@
 # Migration Guide
 
-This document is the landing page for migrating your application between
-versions of the OPC UA .NET Standard Stack. The detailed per-version
-content lives in the [`migrate/`](migrate/) sub-folder; this page is the
-index that points you at the right version folder and keeps cross-cutting
-migration notes inline.
+Use this guide to migrate an application between versions of the OPC UA
+.NET Standard Stack. Detailed, version-specific instructions live in the
+[`migrate/`](migrate/) subfolder. This page links to those guides and
+covers cross-cutting changes.
+
+## Contents
+
+- [General principles](#general-principles)
+- [Empty LocalizedText fields in 2.0](#empty-localizedtext-fields-in-20)
+- [Per-version migration index](#per-version-migration-index)
+- [Migrating code that used the exposed diagnostics locks](#migrating-code-that-used-the-exposed-diagnostics-locks)
+  - [Why there is no `[Obsolete]` shim](#why-there-is-no-obsolete-shim)
+- [Migrating code that used ILocalNode.DataLock](#migrating-code-that-used-ilocalnodedatalock)
+- [Migrating code that used BaseVariableValue.Lock](#migrating-code-that-used-basevariablevaluelock)
+- [Migrating code that locked on a NodeState or a NodeBrowser](#migrating-code-that-locked-on-a-nodestate-or-a-nodebrowser)
+- [Migrating code that used ApplicationConfiguration.PropertiesLock](#migrating-code-that-used-applicationconfigurationpropertieslock)
+- [Migrating node types that override FindChild or CreateChild](#migrating-node-types-that-override-findchild-or-createchild)
+- [Adopting replica-consistent NodeIds](#adopting-replica-consistent-nodeids)
+- [Removed members on ISession](#removed-members-on-isession)
+- [Awaiting custom node-manager cleanup](#awaiting-custom-node-manager-cleanup)
+- [Migrating code that called IServerInternal.Set* mutators](#migrating-code-that-called-iserverinternalset-mutators)
+- [Migrating IServerStartupTask implementations to IServerContext](#migrating-iserverstartuptask-implementations-to-iservercontext)
+- [Removed members on IServerInternal](#removed-members-on-iserverinternal)
+- [Migrating servers that relied on unserved history advertisement](#migrating-servers-that-relied-on-unserved-history-advertisement)
+- [Migrating custom ISessionManager implementations to ShutdownAsync](#migrating-custom-isessionmanager-implementations-to-shutdownasync)
+- [Configuring distributed address-space storage](#configuring-distributed-address-space-storage)
+- [Migrating SamplingGroupManager create/modify overrides](#migrating-samplinggroupmanager-createmodify-overrides)
+- [Migrating callers of the synchronous MonitoredNode2 notification wrappers](#migrating-callers-of-the-synchronous-monitorednode2-notification-wrappers)
+- [Migrating callers of the SecurityPolicies lookup and cryptography statics](#migrating-callers-of-the-securitypolicies-lookup-and-cryptography-statics)
+- [Migrating code that drove the server subscription publish pipeline](#migrating-code-that-drove-the-server-subscription-publish-pipeline)
+- [Migrating channel subclasses that guarded state with DataLock](#migrating-channel-subclasses-that-guarded-state-with-datalock)
+- [Transport resource limits](#transport-resource-limits)
+- [Naming server session binding providers](#naming-server-session-binding-providers)
+- [Migrating channel subclasses that override HandleIncomingMessage](#migrating-channel-subclasses-that-override-handleincomingmessage)
+- [Migrating custom IUserDatabase implementations](#migrating-custom-iuserdatabase-implementations)
+- [Reading certificates from SecureChannelContext](#reading-certificates-from-securechannelcontext)
+- [Write service Value semantics follow OPC 10000-3 and OPC 10000-4](#write-service-value-semantics-follow-opc-10000-3-and-opc-10000-4)
+- [Address space permissions, Call, NodeManagement and locales follow OPC 10000-3](#address-space-permissions-call-nodemanagement-and-locales-follow-opc-10000-3)
+- [Migrating from 1.05.377 to 1.05.378](#migrating-from-105377-to-105378)
+  - [Asynchronous as default](#asynchronous-as-default)
+  - [Observability](#observability)
+- [Migrating from 1.04 to 1.05](#migrating-from-104-to-105)
+- [Support](#support)
+
+## Empty LocalizedText fields in 2.0
+
+`LocalizedText.Locale` and `LocalizedText.Text` now expose empty strings as
+`null`, matching the absent-field representation in OPC 10000-6, Table 24.
+Plain values constructed with both fields null or empty are the null value,
+including `new LocalizedText(string.Empty)`. Whitespace is not normalized.
+Use null-aware checks rather than relying on `Text == string.Empty`.
+
+Equality and hashing use these canonical fields, so empty inputs compare and
+hash like null inputs before and after encoding. Translation keys, templates,
+arguments, dictionaries and fallback metadata are retained. An explicitly
+empty selected translation remains absent text rather than selecting fallback
+text; its `Text` property returns `null`. Translation-backed values retain
+their metadata and are not necessarily `IsNull`, even when both exposed fields
+are null.
 
 ## General principles
 
@@ -50,6 +104,22 @@ copilot plugin install opcua-v20-migration@opcua-dotnet
 Looking for the broader narrative (non-prescriptive overview of what
 changed in a release)? See
 [What's New in 2.0](WhatsNewIn2.0.md).
+
+## Naming server session binding providers
+
+**Source compatibility change for server provider adopters:** the optional
+server lookup capability is named `IServerSessionBindingProvider`, not
+`ISessionBindingProvider`. Update custom server implementations, casts, type
+annotations, and DI registrations to the server-specific name. Its `HasSession`
+and `TryGetSessionContext` members and read-only classification behavior are
+unchanged. Existing `SessionBindingProvider` property names remain unchanged.
+
+The client's `ISessionBindingProvider.CreateBindingAsync` contract retains its
+name and generation-bound dispatch behavior. No compatibility alias can reuse
+that name for the server lookup in the same `Opc.Ua` namespace without requiring
+unrelated capabilities from clients or servers. See
+[server session bindings](Transports.md#committed-session-bindings) and
+[generation-bound session clients](SessionBindings.md).
 
 ## WoT Refresh publication providers
 
@@ -357,56 +427,17 @@ already, so this only affects hand-written derived value classes and callers.
 
 ## Migrating code that locked on a NodeState or a NodeBrowser
 
-A `NodeState` guards its own attributes, children, notifiers and references, and
-`NodeState.CreateBrowser` guards the browser it builds. Nothing in the stack
-takes a lock on a node instance any more, so neither should a caller:
+Remove external `lock (node)` statements: `NodeState` synchronizes its own
+attributes and collections. Replace reference check-then-add pairs with
+`AddReferenceIfMissing`. Browsers are single-consumer, and `NodeBrowser.DataLock`
+is removed (analyzer `UA0027`).
 
-```csharp
-// was — the node manager reached for the node's monitor from outside the node
-lock (source)
-{
-    browser = source.CreateBrowser(context, view, referenceType, includeSubtypes,
-        browseDirection, default, null, false);
-}
-
-// now
-INodeBrowser browser = source.CreateBrowser(context, view, referenceType,
-    includeSubtypes, browseDirection, default, null, false);
-```
-
-`lock (node)` was also the only way to make a check-then-act pair atomic. Use
-`NodeState.AddReferenceIfMissing` instead, which does the check and the insert
-under the node's own lock:
-
-```csharp
-// was
-lock (node)
-{
-    if (!node.ReferenceExists(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server))
-    {
-        node.AddReference(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-    }
-}
-
-// now
-node.AddReferenceIfMissing(ReferenceTypeIds.HasNotifier, true, ObjectIds.Server);
-```
-
-`NodeBrowser.DataLock` is gone with it. A browser is **single-consumer**: it
-belongs to whoever created it and performs no synchronization of its own. A
-derived browser that took `DataLock` inside its `Next()` override drops the
-`lock` statement and keeps the body. Where a browser genuinely outlives one
-service call — the instance parked in a continuation point for `BrowseNext` —
-its owner serializes it, as the stack does for its own continuation points.
-
-A node type that overrides `CreateBrowser` and builds its own browser instead of
-delegating to the base implementation must fill it through
-`PopulateBrowserSynchronized` rather than calling `PopulateBrowser` directly,
-otherwise its browser is assembled from separately locked reads and can observe
-a node halfway through a change.
-
-Analyzer `UA0027` flags `NodeBrowser.DataLock`. See
-[migrate/2.0.x/node-states.md](migrate/2.0.x/node-states.md).
+The [node-state migration guide](migrate/2.0.x/node-states.md#nodestate-guards-itself-nodebrowser-is-single-consumer-ua0027)
+contains the before/after examples and the `PopulateBrowserSynchronized`
+requirement for custom browsers. For I/O-backed iteration, see
+[the async iteration seam](migrate/2.0.x/node-states.md#nodebrowser-gains-an-async-iteration-seam).
+The current [threading contract](NodeManagers.md#threading-contract-for-nodes-and-browsers)
+defines snapshot and synchronization boundaries.
 
 ## Migrating code that used ApplicationConfiguration.PropertiesLock
 
@@ -485,6 +516,20 @@ See
 for the before/after and
 [Custom node types and assignment control](NodeManagers.md#custom-node-types-and-assignment-control)
 for the runtime rules.
+
+## Adopting replica-consistent NodeIds
+
+When moving a custom 1.5.378 redundant deployment to the 2.0 shared address-space
+modules, configure [`UseReplicaNodeIdentity`](ReplicaNodeIdentity.md) with the same
+ordered model/instance namespace list on every replica. Namespace 1 remains local
+to each ApplicationUri; shared namespaces start at index 2. Do not assume that
+previously clock-seeded counters or namespace registration order form a portable
+identity contract. Preserve existing agreed IDs explicitly where compatible, or
+plan an offline namespace/identifier migration and client cutover.
+
+Unbound legacy shared state is not automatically adopted or renumbered. The
+identity module refuses unknown or conflicting stored contracts; see its
+new-store provisioning and migration limits before attaching an existing store.
 
 ## Removed members on ISession
 
@@ -580,6 +625,22 @@ invalidates affected points. Failed service responses release undelivered points
 envelopes remain cleanup metadata rather than portable provider cursors.
 See [historian pagination](HistoricalAccess.md) and
 [NodeManager continuation points](NodeManagers.md#continuation-points).
+
+## Awaiting custom node-manager cleanup
+
+When directly owning a `CustomNodeManager2`, use `await using` or await
+`DisposeAsync()` if subsequent work depends on its resources being released.
+Unlike the synchronous cleanup in 1.5.x, `Dispose()` now closes admission and
+can return while previously admitted operations finish. The monitored-item
+manager and address-space nodes remain alive until those operations return.
+New service and lifecycle calls after admission closes throw
+`ObjectDisposedException`.
+
+An admitted callback may call `Dispose()` to initiate shutdown, but must not
+await its own drain with `DisposeAsync()`. Await completion outside the
+callback. Server and master-node-manager asynchronous teardown already await
+adapted synchronous managers, so server-owned managers need no additional
+disposal call.
 
 ## Migrating code that called IServerInternal.Set* mutators
 
@@ -740,6 +801,42 @@ Deriving from `SessionManager` requires no change beyond renaming any
 `Shutdown` override: `ShutdownAsync` is `virtual` and the base
 implementation already awaits the monitor loop.
 
+## Configuring distributed address-space storage
+
+Direct `InMemoryNodeStateStore` writers require their backend to implement
+`ISharedKeyValueStoreConsistency` and provide linearizable operations for
+`election/addressspace-sequence`. A bare CRDT store is not a valid writer
+backend. Compose it with the shared Raft coordinator using
+`HybridSharedKeyValueStore`, or use the fluent consistency registration before
+`UseDistributedAddressSpace`.
+
+Use strong state storage for authoritative bootstrap and compacted snapshots.
+CRDT payload storage retains merge-only hydration and delta replay without
+absence-based cleanup or snapshot compaction. These are configuration
+requirements of the distributed-state extension, not a 1.5 persisted-format
+migration guarantee. See
+[address-space consistency](HighAvailability.md#activepassive-address-space-consistency).
+
+## Migrating SamplingGroupManager create/modify overrides
+
+The public virtual `SamplingGroupManager.CreateMonitoredItem` and
+`ModifyMonitoredItem` entry points, and the protected virtual creation
+factory, have been removed. They did not accept a separate server-revised
+filter, so preserving their dispatch required request-local state merely to
+carry that filter through existing overrides.
+
+Use the node manager's `IMonitoredItemManager` pipeline for creation and
+modification. For custom item construction, return
+`MonitoredItemCreateDecision.Use(factory)` from `OnCreateMonitoredItem` or
+`AsyncCustomNodeManager.OnCreatingMonitoredItemAsync`; the stack registers
+and owns the returned item. See
+[monitored-item creation and lifecycle](NodeManagers.md#monitored-item-creation-and-lifecycle).
+
+Sampling-group creation/modification now receives the original request and
+revised filter directly through internal, nonvirtual methods. The request is
+not rewritten, and the unrelated monitoring/lifecycle hooks are unchanged.
+This is an intentional API removal, not an obsolete forwarding shim.
+
 ## Migrating callers of the synchronous MonitoredNode2 notification wrappers
 
 `MonitoredNode2.OnReportEvent` and `MonitoredNode2.OnMonitoredNodeChanged`
@@ -830,68 +927,18 @@ a warning rather than an error. The `ILogger` argument on the `Encrypt` and
 
 ## Migrating code that drove the server subscription publish pipeline
 
-Twelve members left the server `Opc.Ua.Server.ISubscription`, and the
-`SessionPublishQueue` class became internal. The publish pipeline — timer
-expiry, message acknowledgement, notification consumption, session release —
-is now driven exclusively by `SubscriptionManager` and the publish queue
-through an internal contract that only `Subscription` implements. Any holder
-of an `ISubscription` (for example via
-`IServerInternal.SubscriptionManager.GetSubscriptions()`) could previously
-call these members and corrupt the publishing state machine: consume
-notifications a client never saw, advance sequence numbers, or release a
-subscription its session still owned.
+The server publish pipeline is internal. Analyzer `UA0030` identifies removed
+`Opc.Ua.Server.ISubscription` members: remove no-op calls and use the service
+operations for publishing, acknowledgements, transfers, and session teardown.
+Custom server subscriptions must derive from `Subscription`.
 
-**Deleted outright — remove the call.** `ItemReadyToPublish` and
-`ItemNotificationsAvailable` had commented-out bodies since 1.5.x, so every
-call was already a no-op. The obsolete parameterless `SessionClosed()` is
-gone with them, and so is `TransferSessionAsync`: the server transfers
-subscriptions through its internal claim/prepare/commit protocol, reached
-via the `TransferSubscriptions` service
-(`ISubscriptionManager.TransferSubscriptionsAsync`) — the one-shot direct
-transfer bypassed the reservation that protects a transfer against a
-concurrently closing source session.
+See the [server subscription migration](migrate/2.0.x/sessions-subscriptions.md#opcuaserverisubscription-the-publish-pipeline-is-server-internal)
+for the complete removed-member list, replacement service paths, and custom
+implementation requirements. `SessionPublishQueue` is internal too; applications
+must not drive it directly.
 
-**Internalized — use the service operations.** `PublishTimerExpired`,
-`Acknowledge`, `PublishTimeout`, `SubscriptionTransferred`,
-`AvailableSequenceNumbersForRetransmission`, `QueueOverflowHandler`,
-`SessionClosed(ISession)` and `Publish` are no longer on the interface.
-Code that called them was reimplementing a slice of the server; the
-supported path is the service set (`Publish`, `Republish`,
-`TransferSubscriptions`) and the `ISubscriptionManager` surface
-(`SessionClosingAsync` for session teardown). `ResendData`,
-`GetMonitoredItems` and the monitored-item service operations remain on
-`ISubscription` — resolve the subscription with
-`ISubscriptionManager.TryGetSubscription` first, the way the
-`Server_ResendData` method handler does.
-
-```csharp
-// was: drive the pipeline directly
-if (server.SubscriptionManager.TryGetSubscription(subscriptionId, out ISubscription? subscription))
-{
-    subscription.PublishTimerExpired();
-    subscription.Acknowledge(context, sequenceNumber);
-}
-
-// now: the pipeline is server-internal; acknowledgements travel with the
-// Publish service request, and the publish timer belongs to the server
-Task<PublishResponse> response = server.SubscriptionManager.PublishAsync(
-    context, subscriptionAcknowledgements, parkSink, cancellationToken);
-```
-
-**Custom subscription implementations must derive from `Subscription`.**
-`SubscriptionManager.CreateSubscription` and `RestoreSubscriptionAsync`
-still return `ISubscription`, but an override returning a type that does not
-derive from `Subscription` now fails at creation with `Bad_InternalError`
-instead of publishing partially (transfer already required the concrete
-type). Derive from `Subscription` and override the behaviour you need; the
-pipeline members are explicit implementations of the internal contract and
-are not virtual.
-
-The no-`[Obsolete]`-shim rule [above](#why-there-is-no-obsolete-shim)
-applies here for the same reason: `ISubscription` is implemented by
-downstream code, and re-adding an interface member later would break every
-implementer. Analyzer `UA0030` flags each removed member on the migration
-path and names the replacement.
+The [no-obsolete-shim rule](#why-there-is-no-obsolete-shim) applies because
+restoring members to a public interface would break downstream implementers.
 
 ## Migrating channel subclasses that guarded state with DataLock
 
@@ -967,6 +1014,39 @@ A subclass that took `DataLock` in order to be mutually exclusive with
 the **channel's** state transitions was already relying on an
 implementation detail, and can no longer do so.
 
+## Transport resource limits
+
+Applications migrating from 1.5.x have a server-wide budget for retained
+intermediate-message buffers. With the reference server's 4 MiB maximum message
+size, the default budget is **64 MiB**. Under SharedOnly, channels without an
+activated Session may retain chunks only while total usage remains within the
+lower **32 MiB**. Balanced instead divides the same total between shared memory
+and memory reserved for specific kinds of work. With a 65,536-byte buffer limit,
+16.25 MiB is reserved for verified startup traffic and 16.25 MiB for continuity
+or reconnect traffic, leaving 31.5 MiB shared. Other traffic cannot borrow these
+reserves. Channels already carrying an activated Session can use the continuity
+reserve for incomplete messages. A chunk that does not fit discards its partial
+message and closes the channel with `BadTcpNotEnoughResources`. Final chunks,
+single-chunk requests, response buffers, and client buffers are not charged to
+this reassembly budget. Once a complete request has been decoded, separate
+limits control how many requests may wait, execute, or remain parked, and how
+much request data they may retain. A request refused at that stage receives
+`BadServerTooBusy`, even if it fitted in a single transport chunk.
+
+For workloads with many simultaneous large requests, set
+`WithChunkReassemblyBudget(maxBytes)` on the Dependency Injection (DI) server builder or assign
+`ServerBase.ChunkReassemblyBudget` before startup. A host opening listeners
+directly can share a budget through `TransportListenerSettings.ChunkReassemblyBudget`.
+See [incomplete messages](RateLimiting.md#incomplete-messages) for sizing and
+sessionless configuration. General buffer-manager limits remain opt-in.
+
+Server-channel `ChannelLifetime` also bounds an unfinished message from its
+first retained chunk, even if more chunks keep arriving. Size this lifetime
+for legitimate large transfers without relying on continuation chunks to
+extend it indefinitely. A zero or negative value uses the 30-second default
+for message assembly. It does not disable assembly cleanup. See
+[incomplete-message limits](Transports.md#incomplete-message-resource-limits).
+
 ## Migrating channel subclasses that override HandleIncomingMessage
 
 `UaSCBinaryChannel.HandleIncomingMessage` and `OnChunkReceived` have been
@@ -1017,6 +1097,175 @@ the buffer manager for you.
 parameters, which an asynchronous method cannot have. Use
 `WriteAsymmetricMessageAsync` in place of the removed synchronous
 overload.
+
+## Migrating custom IUserDatabase implementations
+
+`IUserDatabase` gained four members. A store now persists user metadata
+alongside credentials, so disabled and `MustChangePassword` decisions survive a
+restart and an administrative password reset is a single transaction rather than
+a delete followed by a create:
+
+```csharp
+IReadOnlyList<UserManagementDataType> GetUsers();
+
+bool CreateUser(
+    string userName,
+    ReadOnlySpan<byte> password,
+    ArrayOf<Role> roles,
+    UserConfigurationMask userConfiguration,
+    string description);
+
+bool ResetPassword(
+    string userName,
+    ReadOnlySpan<byte> newPassword,
+    UserConfigurationMask userConfiguration,
+    string description);
+
+bool UpdateUserMetadata(
+    string userName,
+    UserConfigurationMask userConfiguration,
+    string description);
+```
+
+The five 1.5.378 members are unchanged. Implement the new ones on your store, or
+derive from `LinqUserDatabase` / `JsonUserDatabase`, which provide in-memory and
+atomic file-backed transactions respectively.
+
+Each mutation must commit as one transaction, and a rejected or failed write must
+leave both the live and the persisted record unchanged. `ChangePassword` must
+clear `UserConfigurationMask.MustChangePassword` in the same transaction as the
+password it commits. `ResetPassword` must preserve the user's identity and roles
+and must not delete and recreate the user.
+
+There is no optional-capability fallback: `UserManagement` requires these members
+and no longer keeps metadata only in memory, so a store that cannot persist
+metadata should reject the write by returning `false` rather than silently
+accepting it.
+
+## Reading certificates from SecureChannelContext
+
+`SecureChannelContext.ClientChannelCertificate`, `ServerChannelCertificate` and
+`ChannelThumbprint` are `ByteString` instead of `byte[]`. The transport now shares
+one buffer of a channel's certificates with every request on that channel instead
+of copying the DER encoding per request, and a `ByteString` is a read-only view of
+it, so a request handler or an `IResourceIsolationClassifier` cannot alter the
+evidence later requests are checked against.
+
+The constructor still takes `byte[]` and wraps it without copying. A missing
+value is `IsNull`; an empty array stays empty, not null.
+
+| Before | After |
+|---|---|
+| `context.ClientChannelCertificate == null` | `context.ClientChannelCertificate.IsNull` |
+| `context.ClientChannelCertificate?.Length > 0` | `context.ClientChannelCertificate.Length > 0` |
+| `context.ClientChannelCertificate.AsSpan()` | `context.ClientChannelCertificate.Span` |
+| `Certificate.FromRawData(context.ClientChannelCertificate)` | `Certificate.FromRawData(context.ClientChannelCertificate.Memory)` |
+| `context.ClientChannelCertificate.ToByteString()` | `context.ClientChannelCertificate` |
+| passing the array to an API that takes `byte[]?` | `value.IsNull ? null : value.ToArray()` |
+
+Keep a missing certificate null when converting: the session signature helpers
+hash an empty array but skip a null one, so substituting `ToArray()` for a null
+value changes the signature data.
+
+## ContentFilter NULL semantics follow OPC 10000-4 1.05.07
+
+`FilterEvaluator` applies the NULL rules of
+[OPC 10000-4 §7.7.3](https://reference.opcfoundation.org/Core/Part4/v105/docs/7.7.3)
+to event where-clauses and every other `ContentFilter`:
+
+- An element with a null operand evaluates to NULL (except `IsNull`), and a
+  filter that ends as NULL is FALSE. `Equals(field, 0)` no longer matches an
+  event without that field, and `Not(Equals(field, 5))` no longer matches it
+  either.
+- `IsNull` is TRUE for the null value of a nullable built-in type (a null
+  String, ByteString, NodeId, the all-zero Guid, `DateTime.MinValue`, …) and for
+  a null or empty array, which
+  [OPC 10000-6 §5.1.11](https://reference.opcfoundation.org/Core/Part6/v105/docs/5.1.11)
+  treats as the same. A zero, `false` or a Good StatusCode is a value.
+- Operands that cannot be converted to a common type make `Between` FALSE
+  instead of NULL.
+
+Clients whose where-clauses relied on the old matching of missing fields should
+test them explicitly with `IsNull`, for example `Or(IsNull(field), Equals(field, 0))`.
+
+## Write service Value semantics follow OPC 10000-3 and OPC 10000-4
+
+A Value written through the Write service is now checked the same way on every path of
+`BaseVariableState` ([OPC 10000-4 §5.11.4](https://reference.opcfoundation.org/Core/Part4/v105/docs/5.11.4)):
+
+- **StatusWrite / TimestampWrite.** Without the `StatusWrite` bit of the AccessLevel only the
+  StatusCode Good may be written, and without the `TimestampWrite` bit only a null
+  SourceTimestamp ([OPC 10000-3 §8.57](https://reference.opcfoundation.org/Core/Part3/v105/docs/8.57)).
+  Other combinations return `Bad_WriteNotSupported`. The bits must also be present in the
+  effective UserAccessLevel of the caller (including `OnReadUserAccessLevel`); otherwise the
+  write returns `Bad_UserAccessDenied`. "Good" is compared by the code bits only, so Good
+  with info bits (for example SemanticsChanged or LimitBits) needs no StatusWrite, while a
+  Good SubCode such as `Good_Clamped` does. Server code that assigns `Value`,
+  `StatusCode` or `Timestamp` directly is not affected. Set
+  `AccessLevels.StatusWrite | AccessLevels.TimestampWrite` on both the AccessLevel and the
+  UserAccessLevel of Variables whose clients legitimately write status codes or source
+  timestamps.
+- **Type check before `OnWriteValue`.** The DataType and ValueRank are verified before the
+  synchronous `OnWriteValue` handler (fluent `OnWrite`) runs, so a handler no longer
+  receives a value of the wrong type; the write returns `Bad_TypeMismatch`.
+- **IndexRange with `OnWriteValue`.** After the handler accepts an IndexRange write, the slice
+  is merged into the cached value instead of replacing it.
+- **Enumerations.** Writing an Int32 that is not a defined value of an Enumeration DataType
+  registered with the encodeable factory returns `Bad_OutOfRange` (also for every element of
+  an array or matrix).
+- **OptionSet.** A written OptionSet structure must have Value and ValidBits of the same size
+  as the stored value and may only select valid bits, otherwise `Bad_OutOfRange`. The valid
+  bits are the ValidBits of the stored value (an all-zero mask means no bit is valid), or the
+  bits of the OptionSet DataType definition when the stored value has no ValidBits. The selected
+  bits are merged into the stored value
+  ([OPC 10000-3 §8.40](https://reference.opcfoundation.org/Core/Part3/v105/docs/8.40)).
+  The same applies to each element of an OptionSet array or matrix, including elements
+  written through an IndexRange.
+
+Server code that changes a Property with semantic meaning (for example `EURange` or
+`EngineeringUnits`) directly calls `ReportPropertyValueChanged(context, property, previousValue)`
+or `ReportSemanticChange(context, property)` on its `AsyncCustomNodeManager` or
+`CustomNodeManager2`, so that a SemanticChangeEvent is raised and the next value notification
+carries the SemanticsChanged bit ([OPC 10000-3 §5.6.2](https://reference.opcfoundation.org/Core/Part3/v105/docs/5.6.2)).
+
+The PubSub subscriber that writes TargetVariables of an external server retries a write that
+fails with `Bad_WriteNotSupported` without the received timestamps and remembers the target
+([OPC 10000-14 §6.2.11.1](https://reference.opcfoundation.org/Core/Part14/v105/docs/6.2.11.1)).
+
+## Address space permissions, Call, NodeManagement and locales follow OPC 10000-3
+
+- **Role permissions on type nodes.** ObjectTypes, VariableTypes and their children stay
+  browsable and readable for every user, but all other permission bits are now checked on
+  them ([OPC 10000-3 §8.55](https://reference.opcfoundation.org/Core/Part3/v105/docs/8.55)).
+  In particular `ReceiveEvents` is verified on the EventType: the standard NodeSet grants it on
+  `AuditEventType` and its subtypes only to `SecurityAdmin`, so Anonymous and
+  AuthenticatedUser sessions no longer receive audit events. Give the users that monitor
+  audit events the SecurityAdmin role (or change the RolePermissions of the audit event types).
+  `MasterNodeManager.ValidateAccessRestrictions` has an overload that takes the requested
+  permission; the existing two-argument overload behaves as a Browse/Read request.
+- **Call.** The `Call` permission is required on the Object passed as `objectId` as well as on
+  the Method, and the Object's AccessRestrictions apply. When the `methodId` is the Method
+  declaration of the ObjectType, the Method of the Object with the same BrowseName is
+  permission-checked and invoked ([OPC 10000-4 §5.12.2.2](https://reference.opcfoundation.org/Core/Part4/v105/docs/5.12.2.2));
+  bind method handlers on the instance Methods. Trailing input arguments described by
+  `HasOptionalInputArgumentDescription` may be omitted by the client and reach the handler as
+  `Variant.Null`; override `MethodState.GetOptionalInputArgumentCount` to customize this.
+- **NodeManagement.** AddNodes rejects abstract TypeDefinitions (including `BaseVariableType`,
+  `BaseEventType` and Interfaces) with `Bad_TypeDefinitionInvalid` and creates the Mandatory
+  InstanceDeclarations of the type below the new node. AddReferences, DeleteReferences and
+  DeleteNodes bump the `NodeVersion` and raise `GeneralModelChangeEvent`s.
+- **Locales.** Read (DisplayName, Description, InverseName, LocalizedText values), Browse and
+  data change notifications return the translation that best matches the session's LocaleIds,
+  or all translations for `mul`
+  ([OPC 10000-4 §5.4](https://reference.opcfoundation.org/Core/Part4/v105/docs/5.4)). The
+  selection uses `ResourceManager.TranslateValue`, which calls the overridable
+  `ResourceManager.Translate`. Locale ids are matched case-insensitively.
+- **NodeSet import.** `UANodeSet.Import` completes the `StructureDefinition` of structure
+  subtypes with the fields of their base types (base fields first,
+  [OPC 10000-3 §8.48](https://reference.opcfoundation.org/Core/Part3/v105/docs/8.48)), creates a
+  definition for structures without fields, and sets the `DefaultEncodingId` of concrete
+  structures. `StructureDefinition.FirstExplicitFieldIndex` marks the first field of the
+  subtype; NodeSet export writes only those fields.
 
 ## Migrating from 1.05.377 to 1.05.378
 

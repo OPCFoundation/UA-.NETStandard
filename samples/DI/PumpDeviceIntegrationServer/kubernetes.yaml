@@ -35,7 +35,12 @@ spec:
         fsGroupChangePolicy: OnRootMismatch
       containers:
         - name: app
-          image: ghcr.io/opcfoundation/pumpdeviceintegrationserver:latest
+          # Published by the `Images CI` workflow alongside every other sample
+          # image. `latest-master` is the most recent development build; swap
+          # it for `:latest` once a stable release has been promoted from a
+          # canonical release/<major>.<minor> branch, or pin an exact
+          # `:<version>` tag. See docs/ContainerReferenceServer.md.
+          image: ghcr.io/opcfoundation/uanetstandard/pumpserver:latest-master
           env:
             - name: DOTNET_DiagnosticPorts
               value: /diag/dotnet-diagnostic.sock,connect,nosuspend

@@ -35,6 +35,7 @@ using System.Threading.Tasks;
 using System.Xml;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
+using Moq;
 using NUnit.Framework;
 
 // The encodeable type registry and runtime stand-in APIs are experimental.
@@ -49,6 +50,36 @@ namespace Opc.Ua.Schema.Tests
     [Category("Schema")]
     public class ComplexTypeSystemCoverageTests
     {
+        [Test]
+        [TestCase(true)]
+        [TestCase(false)]
+        public void DisposeReleasesTheResolverOnlyWhenOwned(bool ownsResolver)
+        {
+            var resolver = new Mock<IComplexTypeResolver>();
+            Mock<IDisposable> disposable = resolver.As<IDisposable>();
+            var system = new ComplexTypeSystem(
+                resolver.Object,
+                new DefaultComplexTypeFactory(),
+                null!,
+                ownsResolver);
+
+            system.Dispose();
+
+            disposable.Verify(d => d.Dispose(), ownsResolver ? Times.Once() : Times.Never());
+        }
+
+        [Test]
+        public void DisposeLeavesACallerSuppliedResolverAlone()
+        {
+            var resolver = new Mock<IComplexTypeResolver>();
+            Mock<IDisposable> disposable = resolver.As<IDisposable>();
+            var system = new ComplexTypeSystem(resolver.Object, new DefaultComplexTypeFactory(), null!);
+
+            system.Dispose();
+
+            disposable.Verify(d => d.Dispose(), Times.Never());
+        }
+
         [Test]
         public async Task LoadAsyncBuildsEnumAndCachesDefinition()
         {
@@ -169,6 +200,32 @@ namespace Opc.Ua.Schema.Tests
             bool loaded = await system.LoadAsync();
 
             Assert.That(loaded, Is.False);
+        }
+
+        [Test]
+        public async Task LoadAsyncCommitsAvailableDefinitionsWhenDictionaryIsDisabled()
+        {
+            var resolver = new TestComplexTypeResolver();
+            resolver.AddDataType(
+                CreateEnumNode(TestIds.EnumNodeId, "TestEnum", CreateEnumDefinition("First", "Second")),
+                DataTypeIds.Enumeration);
+            resolver.AddDataType(new DataTypeNode
+            {
+                NodeId = new NodeId(7999, SchemaTestData.TestNamespaceIndex),
+                BrowseName = new QualifiedName("MissingDefinition", SchemaTestData.TestNamespaceIndex)
+            }, DataTypeIds.Enumeration);
+            using var system = new ComplexTypeSystem(resolver, new RecordingComplexTypeFactory(), null!)
+            {
+                DisableDataTypeDictionary = true
+            };
+
+            bool loaded = await system.LoadAsync(throwOnError: true).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(loaded, Is.False);
+                Assert.That(resolver.Factory.TryGetEnumeratedType(TestIds.EnumType, out _), Is.True);
+            });
         }
 
         [Test]
@@ -375,6 +432,98 @@ namespace Opc.Ua.Schema.Tests
             });
         }
 
+        /// <summary>
+        /// S1-18: resolving a field of a custom simple subtype must not rewrite the
+        /// declared DataType in the definition owned by the DataType node.
+        /// </summary>
+        [Test]
+        public async Task InternalAddStructuredTypeDoesNotMutateDeclaredDefinition()
+        {
+            var resolver = new TestComplexTypeResolver();
+            var myString = new NodeId(7801, SchemaTestData.TestNamespaceIndex);
+            resolver.AddDataType(
+                new DataTypeNode
+                {
+                    NodeId = myString,
+                    BrowseName = new QualifiedName("MyString", SchemaTestData.TestNamespaceIndex)
+                },
+                DataTypeIds.String);
+            var factory = new RecordingComplexTypeFactory();
+            var system = new ComplexTypeSystem(resolver, factory, null!);
+            IComplexTypeBuilder builder = factory.Create(
+                SchemaTestData.TestNamespace,
+                SchemaTestData.TestNamespaceIndex);
+            var definition = new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields = [CreateStructureField("Text", myString)]
+            };
+
+            object? result = await InvokePrivateAsync(
+                system,
+                "AddStructuredTypeAsync",
+                builder,
+                definition,
+                new QualifiedName("SubtypedFieldStructure", SchemaTestData.TestNamespaceIndex),
+                new ExpandedNodeId(new NodeId(7802, SchemaTestData.TestNamespaceIndex), SchemaTestData.TestNamespace),
+                ExpandedNodeId.Null,
+                ExpandedNodeId.Null,
+                CancellationToken.None);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(GetTupleItem<IEncodeableType>(result, "Item1"), Is.Not.Null);
+                Assert.That(definition.Fields[0].DataType, Is.EqualTo(myString));
+            });
+        }
+
+        /// <summary>
+        /// S1-17: supertype walks terminate on a cyclic HasSubtype hierarchy from the server.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task SuperTypeWalksTerminateOnCyclicHierarchy()
+        {
+            // [CancelAfter] only cancels the test's token: the walks observe
+            // it, so a regression that spins fails the test instead of hanging.
+            CancellationToken ct = TestContext.CurrentContext.CancellationToken;
+            var resolver = new TestComplexTypeResolver();
+            var first = new NodeId(7811, SchemaTestData.TestNamespaceIndex);
+            var second = new NodeId(7812, SchemaTestData.TestNamespaceIndex);
+            var firstNode = new DataTypeNode
+            {
+                NodeId = first,
+                BrowseName = new QualifiedName("CycleA", SchemaTestData.TestNamespaceIndex)
+            };
+            resolver.AddDataType(firstNode, second);
+            resolver.AddDataType(
+                new DataTypeNode
+                {
+                    NodeId = second,
+                    BrowseName = new QualifiedName("CycleB", SchemaTestData.TestNamespaceIndex)
+                },
+                first);
+            var system = new ComplexTypeSystem(resolver, new RecordingComplexTypeFactory(), null!);
+
+            object? isOptionSet = await InvokePrivateAsync(
+                system,
+                "IsOptionSetSubtypeAsync",
+                new ExpandedNodeId(first),
+                ct);
+
+            Assert.That(isOptionSet, Is.False);
+            Assert.That(
+                () => InvokePrivateAsync(
+                    system,
+                    "AddEnumerationOrStructureTypeAsync",
+                    firstNode,
+                    new List<INode>(),
+                    new List<INode>(),
+                    ct),
+                Throws.InstanceOf<ServiceResultException>());
+        }
+
         [Test]
         public void InternalGetStructureDefinitionValidatesRequiredMembers()
         {
@@ -471,7 +620,10 @@ namespace Opc.Ua.Schema.Tests
                 Assert.That(binaryDictionary.Contains(enumDescriptionId), Is.True);
                 Assert.That(binaryDictionary.Contains(new NodeId(9999, SchemaTestData.TestNamespaceIndex)), Is.False);
                 Assert.That(binaryDictionary.GetSchema(new NodeId(9999, SchemaTestData.TestNamespaceIndex)), Is.Null);
-                Assert.That(binaryDictionary.GetSchema(NodeId.Null), Does.Contain("TypeDictionary"));
+                // a dictionary that failed to parse has no schema (and must not throw).
+                Assert.That(binaryDictionary.GetSchema(NodeId.Null), Is.Null);
+                Assert.That(binaryDictionary.GetSchema(enumDescriptionId), Is.Null);
+                Assert.That(xmlDictionary.GetSchema(NodeId.Null), Is.Null);
                 Assert.That(
                     () => InvokeValidate(binaryDictionary, InvalidDictionaryBytes, throwOnError: true),
                     Throws.TypeOf<System.Reflection.TargetInvocationException>());

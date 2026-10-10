@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Types.Tests.State
 {
@@ -209,7 +210,7 @@ namespace Opc.Ua.Types.Tests.State
         private static SystemContext CreateContext()
         {
             var namespaces = new NamespaceTable();
-            return new SystemContext(null)
+            return new SystemContext(NUnitTelemetryContext.Create())
             {
                 NamespaceUris = namespaces,
                 TypeTable = new TypeTable(namespaces)

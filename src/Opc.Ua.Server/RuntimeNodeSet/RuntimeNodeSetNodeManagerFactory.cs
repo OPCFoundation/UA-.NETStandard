@@ -167,7 +167,8 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                 sorted,
                 defaultNs,
                 m_configure,
-                m_configureAsync);
+                m_configureAsync,
+                AllowLifecycleFromRequestCallback);
 #pragma warning restore CA2000
         }
 
@@ -406,6 +407,13 @@ namespace Opc.Ua.Server.RuntimeNodeSet
                         if (!modelUriToIndex.TryGetValue(reqUri!, out int depIndex))
                         {
                             // External dependency — permitted.
+                            continue;
+                        }
+
+                        // A model requiring another model of the same document
+                        // imposes no ordering between documents.
+                        if (depIndex == i)
+                        {
                             continue;
                         }
 

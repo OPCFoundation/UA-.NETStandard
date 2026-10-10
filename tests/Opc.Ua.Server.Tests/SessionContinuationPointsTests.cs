@@ -33,7 +33,6 @@ using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
-#nullable enable
 #pragma warning disable CA2000
 
 namespace Opc.Ua.Server.Tests
@@ -51,6 +50,9 @@ namespace Opc.Ua.Server.Tests
         private static readonly NodeId s_sessionId = new(1000);
         private static readonly NodeId s_ownerSessionId = new(2000);
 
+        /// <summary>
+        /// Verifies that continuation storage construction rejects a null session-identifier provider.
+        /// </summary>
         [Test]
         public void ConstructorThrowsWhenSessionIdProviderNull()
         {
@@ -59,6 +61,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.ParamName, Is.EqualTo("sessionIdProvider"));
         }
 
+        /// <summary>
+        /// Verifies that the maximum number of browse continuations can be configured.
+        /// </summary>
         [Test]
         public void MaxBrowseIsConfigurable()
         {
@@ -70,6 +75,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.MaxBrowse, Is.EqualTo(5));
         }
 
+        /// <summary>
+        /// Verifies that saving a null browse continuation is rejected.
+        /// </summary>
         [Test]
         public void SaveBrowseThrowsOnNullContinuationPoint()
         {
@@ -80,6 +88,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.ParamName, Is.EqualTo("continuationPoint"));
         }
 
+        /// <summary>
+        /// Verifies that saving and restoring a browse continuation returns the same instance.
+        /// </summary>
         [Test]
         public void SaveBrowseThenRestoreBrowseReturnsSamePoint()
         {
@@ -94,6 +105,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(ToByteString(cp.Id)), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that saving a browse continuation evicts the oldest entry and notifies the backing store.
+        /// </summary>
         [Test]
         public void SaveBrowseEvictsOldestAndNotifiesStore()
         {
@@ -121,6 +135,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that browse continuation eviction occurs when the configured count limit is reached.
+        /// </summary>
         [Test]
         public void SaveBrowseEvictsWhenCountReachesConfiguredLimit()
         {
@@ -145,6 +162,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that persisted browse envelopes normalize node identifiers.
+        /// </summary>
         [Test]
         public void SaveBrowseStoresEnvelopeWithNormalizedNodeIds()
         {
@@ -169,6 +189,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(captured.ReferenceTypeId.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that browse restoration returns null before any continuation is saved.
+        /// </summary>
         [Test]
         public void RestoreBrowseReturnsNullBeforeAnySave()
         {
@@ -177,6 +200,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(ToByteString(Guid.NewGuid())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that browse restoration returns null for an identifier with the wrong length.
+        /// </summary>
         [Test]
         public void RestoreBrowseReturnsNullForWrongLength()
         {
@@ -186,6 +212,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(new ByteString(new byte[] { 1, 2, 3 })), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that browse restoration returns null for an unknown continuation.
+        /// </summary>
         [Test]
         public void RestoreBrowseReturnsNullWhenNotFound()
         {
@@ -195,6 +224,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(ToByteString(Guid.NewGuid())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that browse cleanup rejects a null node manager.
+        /// </summary>
         [Test]
         public void RemoveBrowseForManagerThrowsOnNullNodeManager()
         {
@@ -205,6 +237,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
         }
 
+        /// <summary>
+        /// Verifies that browse cleanup without saved points has no effect.
+        /// </summary>
         [Test]
         public void RemoveBrowseForManagerIsNoOpWhenNoBrowsePointsSaved()
         {
@@ -214,6 +249,9 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(() => holder.RemoveBrowseForManager(nodeManager));
         }
 
+        /// <summary>
+        /// Verifies that browse cleanup removes matching node-manager points and notifies the store.
+        /// </summary>
         [Test]
         public void RemoveBrowseForManagerRemovesMatchingManagerAndNotifiesStore()
         {
@@ -242,6 +280,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that browse cleanup matches the underlying synchronous manager across different adapter instances.
+        /// </summary>
         [Test]
         public void RemoveBrowseForManagerMatchesBySyncNodeManagerWhenManagerInstancesDiffer()
         {
@@ -259,6 +300,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(ToByteString(cp.Id)), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that saving a null history continuation is rejected.
+        /// </summary>
         [Test]
         public void SaveHistoryThrowsOnNullContinuationPoint()
         {
@@ -269,6 +313,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.ParamName, Is.EqualTo("continuationPoint"));
         }
 
+        /// <summary>
+        /// Verifies that a saved history continuation can be restored.
+        /// </summary>
         [Test]
         public void SaveHistoryThenRestoreHistoryReturnsValue()
         {
@@ -283,49 +330,64 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreHistory(ToByteString(id)), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that asynchronous history saving evicts the oldest point and schedules its durable removal.
+        /// </summary>
         [Test]
-        public void SaveHistoryEvictsOldestAndNotifiesStore()
+        public async Task SaveHistoryAsyncEvictsOldestAndSchedulesRemovalAsync()
         {
-            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
-            SessionContinuationPoints holder = NewHolder(maxHistory: 1, store: store.Object);
+            (Mock<IHistoryContinuationPointStore> historyStore, Mock<IHistoryContinuationPointCodec> historyCodec) =
+                NewPersistingHistoryMocks();
+            SessionContinuationPoints holder = NewHolder(
+                maxHistory: 1,
+                historyStore: historyStore.Object,
+                historyCodec: historyCodec.Object);
 
             var id1 = Guid.NewGuid();
             var id2 = Guid.NewGuid();
             var evicted = new TrackingDisposable(id1);
 
-            holder.SaveHistory(evicted);
-            holder.SaveHistory(new TrackingDisposable(id2));
+            await holder.SaveHistoryAsync(evicted).ConfigureAwait(false);
+            await holder.SaveHistoryAsync(new TrackingDisposable(id2)).ConfigureAwait(false);
 
             Assert.That(evicted.Disposed, Is.True);
             Assert.That(holder.RestoreHistory(ToByteString(id1)), Is.Null);
-            Assert.That(holder.RestoreHistory(ToByteString(id2)), Is.Not.Null);
-            store.Verify(
-                s => s.RemoveContinuationPoint(s_sessionId, ContinuationPointKind.History, id1),
+            Assert.That(
+                await holder.RestoreHistoryAsync(ToByteString(id2)).ConfigureAwait(false),
+                Is.Not.Null);
+            historyStore.Verify(
+                s => s.ScheduleRemove(s_sessionId, id1),
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that asynchronous history saving persists a continuation envelope.
+        /// </summary>
         [Test]
-        public void SaveHistoryStoresEnvelope()
+        public async Task SaveHistoryAsyncStoresEnvelopeAsync()
         {
-            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
-            ContinuationPointEnvelope? captured = null;
-            store
-                .Setup(s => s.StoreContinuationPoint(It.IsAny<ContinuationPointEnvelope>()))
-                .Callback<ContinuationPointEnvelope>(envelope => captured = envelope);
+            (Mock<IHistoryContinuationPointStore> historyStore, Mock<IHistoryContinuationPointCodec> historyCodec) =
+                NewPersistingHistoryMocks();
+            HistoryContinuationPointEnvelope? captured = null;
+            historyStore
+                .Setup(s => s.StoreAsync(It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()))
+                .Callback<HistoryContinuationPointEnvelope, CancellationToken>((envelope, _) => captured = envelope)
+                .Returns(default(ValueTask));
 
-            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            SessionContinuationPoints holder = NewHolder(
+                historyStore: historyStore.Object, historyCodec: historyCodec.Object);
             var id = Guid.NewGuid();
 
-            holder.SaveHistory(new TrackingDisposable(id));
+            await holder.SaveHistoryAsync(new TrackingDisposable(id)).ConfigureAwait(false);
 
             Assert.That(captured, Is.Not.Null);
             Assert.That(captured!.Id, Is.EqualTo(id));
             Assert.That(captured.OwnerSessionId, Is.EqualTo(s_sessionId));
-            Assert.That(captured.Kind, Is.EqualTo(ContinuationPointKind.History));
-            Assert.That(captured.BrowseNodeId.IsNull, Is.True);
-            Assert.That(captured.ReferenceTypeId.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that history restoration returns null before any continuation is saved.
+        /// </summary>
         [Test]
         public void RestoreHistoryReturnsNullBeforeAnySave()
         {
@@ -334,6 +396,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreHistory(ToByteString(Guid.NewGuid())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that history restoration returns null for an identifier with the wrong length.
+        /// </summary>
         [Test]
         public void RestoreHistoryReturnsNullForWrongLength()
         {
@@ -343,6 +408,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreHistory(new ByteString("\t"u8.ToArray())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that history restoration returns null for an unknown continuation.
+        /// </summary>
         [Test]
         public void RestoreHistoryReturnsNullWhenNotFound()
         {
@@ -352,6 +420,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreHistory(ToByteString(Guid.NewGuid())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that mirrored continuation loading performs no work without a backing store.
+        /// </summary>
         [Test]
         public async Task LoadMirroredAsyncReturnsEarlyWithoutStoreAsync()
         {
@@ -364,6 +435,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(holder.RestoreBrowse(ToByteString(Guid.NewGuid())), Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that mirrored continuation loading performs no work for a null owner.
+        /// </summary>
         [Test]
         public async Task LoadMirroredAsyncReturnsEarlyForNullOwnerAsync()
         {
@@ -377,6 +451,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that mirrored loading consumes both browse and history continuation envelopes.
+        /// </summary>
         [Test]
         public async Task LoadMirroredAsyncConsumesMirroredBrowseAndHistoryAsync()
         {
@@ -420,6 +497,103 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that clearing mirrored-only continuation points removes the records under their original owners.
+        /// </summary>
+        [Test]
+        public async Task ClearRemovesMirroredOnlyPointsUsingOriginalOwnersAsync()
+        {
+            var originalOwner = new NodeId("original-owner", 1);
+            var browseId = Guid.NewGuid();
+            var historyId = Guid.NewGuid();
+            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
+            store
+                .Setup(s => s.LoadContinuationPointsAsync(originalOwner, It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<ArrayOf<ContinuationPointEnvelope>>(
+                [
+                    new ContinuationPointEnvelope
+                    {
+                        Id = browseId,
+                        OwnerSessionId = originalOwner,
+                        Kind = ContinuationPointKind.Browse
+                    },
+                    new ContinuationPointEnvelope
+                    {
+                        Id = historyId,
+                        OwnerSessionId = originalOwner,
+                        Kind = ContinuationPointKind.History
+                    }
+                ]));
+
+            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            await holder.LoadMirroredAsync(originalOwner).ConfigureAwait(false);
+            holder.Clear();
+            holder.Clear();
+
+            store.Verify(
+                s => s.RemoveContinuationPoint(
+                    originalOwner,
+                    ContinuationPointKind.Browse,
+                    browseId),
+                Times.Once);
+            store.Verify(
+                s => s.RemoveContinuationPoint(
+                    originalOwner,
+                    ContinuationPointKind.History,
+                    historyId),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that a mirrored load completing after close cleans up instead of repopulating owner maps.
+        /// </summary>
+        [Test]
+        public async Task LateMirroredLoadAfterClearCleansUpOriginalOwnersAsync()
+        {
+            var originalOwner = new NodeId("late-owner", 1);
+            var browseId = Guid.NewGuid();
+            var loadStarted = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseLoad = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var store = new Mock<IContinuationPointStore>(MockBehavior.Loose);
+            store
+                .Setup(s => s.LoadContinuationPointsAsync(originalOwner, It.IsAny<CancellationToken>()))
+                .Returns(async () =>
+                {
+                    loadStarted.TrySetResult(true);
+                    await releaseLoad.Task.ConfigureAwait(false);
+                    return new ArrayOf<ContinuationPointEnvelope>(
+                        new[]
+                        {
+                            new ContinuationPointEnvelope
+                            {
+                                Id = browseId,
+                                OwnerSessionId = originalOwner,
+                                Kind = ContinuationPointKind.Browse
+                            }
+                        });
+                });
+
+            SessionContinuationPoints holder = NewHolder(store: store.Object);
+            Task load = holder.LoadMirroredAsync(originalOwner).AsTask();
+            await loadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            holder.Clear();
+            releaseLoad.TrySetResult(true);
+            await load.ConfigureAwait(false);
+            holder.Clear();
+
+            store.Verify(
+                s => s.RemoveContinuationPoint(
+                    originalOwner,
+                    ContinuationPointKind.Browse,
+                    browseId),
+                Times.Once);
+        }
+
+        /// <summary>
+        /// Verifies that clearing continuation storage disposes browse and history points.
+        /// </summary>
         [Test]
         public void ClearDisposesBrowseAndHistoryPoints()
         {
@@ -447,6 +621,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that clearing empty continuation storage does not throw.
+        /// </summary>
         [Test]
         public void ClearWithoutPointsDoesNotThrow()
         {
@@ -455,6 +632,9 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(holder.Clear);
         }
 
+        /// <summary>
+        /// Verifies that history cleanup rejects a null node manager.
+        /// </summary>
         [Test]
         public void RemoveHistoryForManagerThrowsOnNullNodeManager()
         {
@@ -465,6 +645,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex.ParamName, Is.EqualTo("nodeManager"));
         }
 
+        /// <summary>
+        /// Verifies that history cleanup without saved points has no effect.
+        /// </summary>
         [Test]
         public void RemoveHistoryForManagerIsNoOpWhenNoHistoryPointsSaved()
         {
@@ -474,11 +657,14 @@ namespace Opc.Ua.Server.Tests
                 () => holder.RemoveHistoryForManager(NewNodeManager(Mock.Of<INodeManager>())));
         }
 
+        /// <summary>
+        /// Verifies that manager-specific cleanup preserves history continuations not attributable to that manager.
+        /// </summary>
         [Test]
         public void RemoveHistoryForManagerLeavesPointsOfOtherOwners()
         {
             SessionContinuationPoints holder = NewHolder();
-            Guid id = Guid.NewGuid();
+            var id = Guid.NewGuid();
 
             // A continuation point that does not record a provider cannot be attributed to a
             // NodeManager, so it is left alone rather than dropped on a guess.
@@ -488,12 +674,397 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(holder.RestoreHistory(ToByteString(id)), Is.Not.Null);
         }
+
+        /// <summary>
+        /// Verifies that a HistoryRead request that needs more continuation points than the
+        /// limit gets Bad_NoContinuationPoints for the overflow instead of evicting a point it
+        /// created itself (Part 4 §7.9), and that the points become evictable once the request ends.
+        /// </summary>
+        [Test]
+        public void HistoryRequestDoesNotEvictItsOwnContinuationPoints()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 2);
+            var first = new TrackingDisposable();
+            var second = new TrackingDisposable();
+            var third = new TrackingDisposable();
+
+            using (holder.BeginHistoryRequest([new HistoryReadValueId(), new HistoryReadValueId(), new HistoryReadValueId()]))
+            {
+                holder.SaveHistory(first);
+                holder.SaveHistory(second);
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => holder.SaveHistory(third))!;
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+            }
+
+            Assert.That(first.Disposed, Is.False);
+            Assert.That(second.Disposed, Is.False);
+            Assert.That(third.Disposed, Is.True);
+
+            // a later request may free the points of this (now prior) request.
+            var next = new TrackingDisposable();
+            holder.SaveHistory(next);
+            Assert.That(first.Disposed, Is.True);
+            Assert.That(holder.RestoreHistory(ToByteString(second.Id)), Is.SameAs(second));
+            Assert.That(holder.RestoreHistory(ToByteString(next.Id)), Is.SameAs(next));
+        }
+
+        /// <summary>
+        /// Verifies that a new read in a HistoryRead request cannot evict a point that a later
+        /// operation of the same request continues: continuing a halted operation never fails for
+        /// lack of continuation points, so the new read gets Bad_NoContinuationPoints (Part 4 §7.9).
+        /// </summary>
+        [Test]
+        public void HistoryRequestKeepsTheContinuedPointFromEviction()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 1);
+            var held = new TrackingDisposable();
+            holder.SaveHistory(held);
+            var newRead = new TrackingDisposable();
+
+            using (holder.BeginHistoryRequest(
+            [
+                new HistoryReadValueId(),
+                new HistoryReadValueId { ContinuationPoint = ToByteString(held.Id) }
+            ]))
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => holder.SaveHistory(newRead))!;
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoContinuationPoints));
+                Assert.That(newRead.Disposed, Is.True);
+
+                Assert.That(holder.RestoreHistory(ToByteString(held.Id)), Is.SameAs(held));
+                Assert.That(held.Disposed, Is.False);
+            }
+        }
+
+        /// <summary>
+        /// Verifies that an in-flight HistoryRead does not keep the points of another, already
+        /// completed request of the session from being freed: at the limit a new request evicts
+        /// the prior request's point instead of failing with Bad_NoContinuationPoints (Part 4 §7.9).
+        /// </summary>
+        [Test]
+        public async Task InFlightHistoryRequestDoesNotPinPointsOfCompletedRequestsAsync()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 1);
+            var completedRead = new TrackingDisposable();
+            var newRead = new TrackingDisposable();
+
+            // request A stays in flight on its own asynchronous flow (e.g. a slow historian).
+            IDisposable slowRequest = await Task.Run(
+                () => holder.BeginHistoryRequest([new HistoryReadValueId()])).ConfigureAwait(false);
+            try
+            {
+                // request B saves a point and returns its response.
+                await Task.Run(() =>
+                {
+                    using (holder.BeginHistoryRequest([new HistoryReadValueId()]))
+                    {
+                        holder.SaveHistory(completedRead);
+                    }
+                }).ConfigureAwait(false);
+
+                // request C needs a slot: B's point is from a prior request and is freed.
+                await Task.Run(() =>
+                {
+                    using (holder.BeginHistoryRequest([new HistoryReadValueId()]))
+                    {
+                        holder.SaveHistory(newRead);
+                    }
+                }).ConfigureAwait(false);
+
+                Assert.That(completedRead.Disposed, Is.True);
+                Assert.That(newRead.Disposed, Is.False);
+                Assert.That(holder.RestoreHistory(ToByteString(newRead.Id)), Is.SameAs(newRead));
+            }
+            finally
+            {
+                slowRequest.Dispose();
+            }
+        }
+
+        /// <summary>
+        /// Verifies that a point saved after its HistoryRead has returned (e.g. by background
+        /// work of a node manager) is not pinned by the ended request and stays evictable.
+        /// </summary>
+        [Test]
+        public async Task SaveAfterHistoryRequestEndedIsNotPinnedAsync()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 1);
+            var lateSave = new TrackingDisposable();
+            var next = new TrackingDisposable();
+            var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            Task background;
+
+            using (holder.BeginHistoryRequest([new HistoryReadValueId()]))
+            {
+                // the background work captures the request's execution context.
+                background = Task.Run(async () =>
+                {
+                    await release.Task.ConfigureAwait(false);
+                    holder.SaveHistory(lateSave);
+                });
+            }
+
+            release.SetResult(true);
+            await background.ConfigureAwait(false);
+
+            holder.SaveHistory(next);
+            Assert.That(lateSave.Disposed, Is.True);
+            Assert.That(holder.RestoreHistory(ToByteString(next.Id)), Is.SameAs(next));
+        }
+
+        /// <summary>
+        /// Verifies that a HistoryRead request which restored a point to continue an operation
+        /// keeps its slot until it saves the successor: a concurrent request cannot take it, so
+        /// continuing the halted operation does not fail with Bad_NoContinuationPoints (Part 4 §7.9).
+        /// </summary>
+        [Test]
+        public async Task ContinuedHistoryOperationKeepsItsSlotFromConcurrentRequestAsync()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 1);
+            var held = new TrackingDisposable();
+            holder.SaveHistory(held);
+            var successor = new TrackingDisposable();
+            var concurrent = new TrackingDisposable();
+            var restored = new TaskCompletionSource<IHistoryContinuationPoint?>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var concurrentSaved = new TaskCompletionSource<StatusCode>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var successorSaved = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // request A continues the held point and awaits its historian before saving the successor.
+            Task<StatusCode> requestA = Task.Run(async () =>
+            {
+                try
+                {
+                    using (holder.BeginHistoryRequest(
+                        [new HistoryReadValueId { ContinuationPoint = ToByteString(held.Id) }]))
+                    {
+                        restored.SetResult(holder.RestoreHistory(ToByteString(held.Id)));
+                        _ = await concurrentSaved.Task.ConfigureAwait(false);
+                        holder.SaveHistory(successor);
+                        return (StatusCode)StatusCodes.Good;
+                    }
+                }
+                catch (ServiceResultException e)
+                {
+                    return e.StatusCode;
+                }
+                finally
+                {
+                    successorSaved.TrySetResult(true);
+                }
+            });
+
+            Assert.That(await restored.Task.ConfigureAwait(false), Is.SameAs(held));
+
+            // request B starts a new read while A is in flight and stays in flight itself.
+            Task requestB = Task.Run(async () =>
+            {
+                using (holder.BeginHistoryRequest([new HistoryReadValueId()]))
+                {
+                    try
+                    {
+                        holder.SaveHistory(concurrent);
+                        concurrentSaved.SetResult(StatusCodes.Good);
+                    }
+                    catch (ServiceResultException e)
+                    {
+                        concurrentSaved.SetResult(e.StatusCode);
+                    }
+                    await successorSaved.Task.ConfigureAwait(false);
+                }
+            });
+
+            StatusCode resultA = await requestA.ConfigureAwait(false);
+            await requestB.ConfigureAwait(false);
+            StatusCode concurrentResult = await concurrentSaved.Task.ConfigureAwait(false);
+
+            Assert.That(resultA, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(concurrentResult, Is.EqualTo((StatusCode)StatusCodes.BadNoContinuationPoints));
+            Assert.That(concurrent.Disposed, Is.True);
+            Assert.That(successor.Disposed, Is.False);
+            Assert.That(holder.RestoreHistory(ToByteString(successor.Id)), Is.SameAs(successor));
+        }
+
+        /// <summary>
+        /// Verifies that a successor which consumed the reserved slot of a continued operation
+        /// gives the reservation back when persisting it fails: a concurrent request cannot take
+        /// the slot before the request restores the continuation it claimed (Part 4 §7.9).
+        /// </summary>
+        [Test]
+        public async Task FailedSuccessorPersistenceKeepsTheReservedSlotForTheRestorationAsync()
+        {
+            var held = new TrackingDisposable();
+            var successor = new TrackingDisposable();
+            var concurrent = new TrackingDisposable();
+            (Mock<IHistoryContinuationPointStore> historyStore, Mock<IHistoryContinuationPointCodec> historyCodec) =
+                NewPersistingHistoryMocks();
+            historyStore
+                .Setup(s => s.StoreAsync(
+                    It.Is<HistoryContinuationPointEnvelope>(e => e.Id == successor.Id),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask(Task.FromException(
+                    new ServiceResultException(StatusCodes.BadInternalError, "store failed"))));
+            SessionContinuationPoints holder = NewHolder(
+                maxHistory: 1,
+                historyStore: historyStore.Object,
+                historyCodec: historyCodec.Object);
+            holder.SaveHistory(held);
+
+            var successorFailed = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var concurrentSaved = new TaskCompletionSource<StatusCode>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var restorationSaved = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+
+            // request A continues the held point; persisting its successor fails, so it puts
+            // the claimed continuation back, as HistorianContinuationClaim.DisposeAsync does.
+            Task<StatusCode> requestA = Task.Run(async () =>
+            {
+                try
+                {
+                    using (holder.BeginHistoryRequest(
+                        [new HistoryReadValueId { ContinuationPoint = ToByteString(held.Id) }]))
+                    {
+                        Assert.That(holder.RestoreHistory(ToByteString(held.Id)), Is.SameAs(held));
+                        Assert.That(
+                            async () => await holder.SaveHistoryAsync(successor).ConfigureAwait(false),
+                            Throws.TypeOf<ServiceResultException>());
+                        successorFailed.SetResult(true);
+                        _ = await concurrentSaved.Task.ConfigureAwait(false);
+                        await holder.SaveHistoryAsync(held).ConfigureAwait(false);
+                        return (StatusCode)StatusCodes.Good;
+                    }
+                }
+                catch (ServiceResultException e)
+                {
+                    return e.StatusCode;
+                }
+                finally
+                {
+                    successorFailed.TrySetResult(false);
+                    restorationSaved.TrySetResult(true);
+                }
+            });
+
+            // request B saves a point between the failed persistence and the restoration and
+            // stays in flight, so its point is pinned.
+            Task requestB = Task.Run(async () =>
+            {
+                _ = await successorFailed.Task.ConfigureAwait(false);
+                using (holder.BeginHistoryRequest([new HistoryReadValueId()]))
+                {
+                    try
+                    {
+                        holder.SaveHistory(concurrent);
+                        concurrentSaved.SetResult(StatusCodes.Good);
+                    }
+                    catch (ServiceResultException e)
+                    {
+                        concurrentSaved.SetResult(e.StatusCode);
+                    }
+                    await restorationSaved.Task.ConfigureAwait(false);
+                }
+            });
+
+            StatusCode resultA = await requestA.ConfigureAwait(false);
+            await requestB.ConfigureAwait(false);
+            StatusCode concurrentResult = await concurrentSaved.Task.ConfigureAwait(false);
+
+            Assert.That(resultA, Is.EqualTo((StatusCode)StatusCodes.Good));
+            Assert.That(concurrentResult, Is.EqualTo((StatusCode)StatusCodes.BadNoContinuationPoints));
+            Assert.That(successor.Disposed, Is.True);
+            Assert.That(concurrent.Disposed, Is.True);
+            Assert.That(held.Disposed, Is.False);
+            Assert.That(
+                await holder.RestoreHistoryAsync(ToByteString(held.Id)).ConfigureAwait(false),
+                Is.SameAs(held));
+        }
+
+        /// <summary>
+        /// Verifies that the slot reserved for a continued operation is released when its
+        /// request ends without saving a successor (the operation completed).
+        /// </summary>
+        [Test]
+        public void ReservationForContinuedOperationIsReleasedWhenRequestEnds()
+        {
+            SessionContinuationPoints holder = NewHolder(maxHistory: 1);
+            var held = new TrackingDisposable();
+            holder.SaveHistory(held);
+
+            using (holder.BeginHistoryRequest(
+                [new HistoryReadValueId { ContinuationPoint = ToByteString(held.Id) }]))
+            {
+                Assert.That(holder.RestoreHistory(ToByteString(held.Id)), Is.SameAs(held));
+            }
+
+            var next = new TrackingDisposable();
+            holder.SaveHistory(next);
+            Assert.That(next.Disposed, Is.False);
+            Assert.That(holder.RestoreHistory(ToByteString(next.Id)), Is.SameAs(next));
+        }
+
         private static SessionContinuationPoints NewHolder(
             int maxBrowse = 10,
             int maxHistory = 10,
-            IContinuationPointStore? store = null)
+            IContinuationPointStore? store = null,
+            IHistoryContinuationPointStore? historyStore = null,
+            IHistoryContinuationPointCodec? historyCodec = null)
         {
-            return new SessionContinuationPoints(() => s_sessionId, maxBrowse, maxHistory, store);
+            return new SessionContinuationPoints(
+                () => s_sessionId,
+                maxBrowse,
+                maxHistory,
+                store,
+                historyStore,
+                historyCodec,
+                new NamespaceTable());
+        }
+
+        /// <summary>
+        /// Creates a loose <see cref="IHistoryContinuationPointStore"/>/<see cref="IHistoryContinuationPointCodec"/>
+        /// pair that round-trips a history continuation point through a no-op envelope, so
+        /// <see cref="SessionContinuationPoints.SaveHistoryAsync"/> completes the point as portable.
+        /// </summary>
+        private static (Mock<IHistoryContinuationPointStore> Store, Mock<IHistoryContinuationPointCodec> Codec)
+            NewPersistingHistoryMocks()
+        {
+            var historyCodec = new Mock<IHistoryContinuationPointCodec>(MockBehavior.Loose);
+            historyCodec
+                .Setup(c => c.EncodeAsync(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<IHistoryContinuationPoint>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<NodeId, IHistoryContinuationPoint, CancellationToken>(
+                    (ownerSessionId, continuationPoint, _) =>
+                        new ValueTask<HistoryContinuationPointEnvelope?>(
+                            new HistoryContinuationPointEnvelope
+                            {
+                                Id = continuationPoint.Id,
+                                OwnerSessionId = ownerSessionId,
+                                CodecId = "test",
+                                CodecVersion = 1,
+                                Payload = ByteString.Empty
+                            }));
+
+            var historyStore = new Mock<IHistoryContinuationPointStore>(MockBehavior.Loose);
+            historyStore
+                .Setup(s => s.StoreAsync(
+                    It.IsAny<HistoryContinuationPointEnvelope>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(default(ValueTask));
+            historyStore
+                .Setup(s => s.TryTakeAsync(
+                    It.IsAny<NodeId>(),
+                    It.IsAny<Guid>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+
+            return (historyStore, historyCodec);
         }
 
         private static IAsyncNodeManager NewNodeManager(INodeManager syncNodeManager)

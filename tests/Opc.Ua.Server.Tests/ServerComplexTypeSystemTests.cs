@@ -77,8 +77,8 @@ namespace Opc.Ua.Server.Tests
                     It.IsAny<NodeId>(),
                     It.IsAny<CancellationToken>()))
                 .Returns<NodeId, CancellationToken>((id, _) =>
-                    new ValueTask<NodeState>(
-                        m_nodesById.TryGetValue(id, out NodeState node) ? node : null));
+                    new ValueTask<NodeState?>(
+                        (m_nodesById.TryGetValue(id, out NodeState? node) ? node : null)!));
 
             m_mockServer = new Mock<IServerInternal>();
             m_mockServer.Setup(s => s.NamespaceUris).Returns(m_namespaceUris);
@@ -104,7 +104,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(
                     m_factory.TryGetEncodeableType(
                         NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris),
-                        out IEncodeableType structType),
+                        out IEncodeableType? structType),
                     Is.True,
                     "the runtime structure type should be registered in the factory");
                 Assert.That(structType, Is.Not.Null);
@@ -119,10 +119,38 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(
                     m_factory.TryGetEnumeratedType(
                         NodeId.ToExpandedNodeId(m_enumTypeId, m_namespaceUris),
-                        out IEnumeratedType enumType),
+                        out IEnumeratedType? enumType),
                     Is.True,
                     "the runtime enumeration type should be registered in the factory");
                 Assert.That(enumType, Is.Not.Null);
+            });
+        }
+
+        [Test]
+        public async Task LoadComplexTypesUsesAddressSpaceMetadataForImportedDefinitions()
+        {
+            var node = (DataTypeState)m_nodesById[m_structTypeId];
+            Assert.That(node.DataTypeDefinition.TryGetValue(out StructureDefinition? definition), Is.True);
+            var importedDefinition = new StructureDefinition
+            {
+                StructureType = definition!.StructureType,
+                Fields = definition.Fields
+            };
+            node.DataTypeDefinition = new ExtensionObject(importedDefinition);
+
+            await m_mockServer.Object.LoadComplexTypesAsync(m_telemetry,
+                new ServerComplexTypeOptions { ThrowOnError = true }).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(m_factory.TryGetEncodeableType(
+                    NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris), out _), Is.True);
+                Assert.That(m_factory.TryGetEncodeableType(
+                    NodeId.ToExpandedNodeId(m_structEncodingId, m_namespaceUris), out _), Is.True);
+                Assert.That(node.DataTypeDefinition.TryGetValue(out StructureDefinition? retainedDefinition), Is.True);
+                Assert.That(retainedDefinition, Is.SameAs(importedDefinition));
+                Assert.That(importedDefinition.BaseDataType.IsNull, Is.True);
+                Assert.That(importedDefinition.DefaultEncodingId.IsNull, Is.True);
             });
         }
 
@@ -178,25 +206,25 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(
                     resolver.TryResolve(
                         NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris),
-                        out UaTypeDescription structDescription),
+                        out UaTypeDescription? structDescription),
                     Is.True);
-                Assert.That(structDescription.Definition, Is.InstanceOf<StructureDefinition>());
+                Assert.That(structDescription!.Definition, Is.InstanceOf<StructureDefinition>());
                 Assert.That(structDescription.NamespaceUri, Is.EqualTo(TestNamespaceUri));
 
                 Assert.That(
                     resolver.TryResolve(
                         NodeId.ToExpandedNodeId(m_enumTypeId, m_namespaceUris),
-                        out UaTypeDescription enumDescription),
+                        out UaTypeDescription? enumDescription),
                     Is.True);
-                Assert.That(enumDescription.Definition, Is.InstanceOf<EnumDefinition>());
+                Assert.That(enumDescription!.Definition, Is.InstanceOf<EnumDefinition>());
 
                 // the composite falls through to the registry for schema-only types
                 Assert.That(
                     resolver.TryResolve(
                         new ExpandedNodeId(schemaOnlyId),
-                        out UaTypeDescription schemaOnlyDescription),
+                        out UaTypeDescription? schemaOnlyDescription),
                     Is.True);
-                Assert.That(schemaOnlyDescription.Name, Is.EqualTo("SchemaOnly"));
+                Assert.That(schemaOnlyDescription!.Name, Is.EqualTo("SchemaOnly"));
             });
         }
 
@@ -212,7 +240,7 @@ namespace Opc.Ua.Server.Tests
             using ServiceProvider provider = services.BuildServiceProvider();
 
             ServerComplexTypeOptions registeredOptions =
-                provider.GetService<ServerComplexTypeOptions>();
+                provider.GetService<ServerComplexTypeOptions>()!;
             Assert.That(registeredOptions, Is.Not.Null);
             Assert.That(registeredOptions.OnlyEnumTypes, Is.True);
             Assert.That(provider.GetService<IDataTypeDefinitionResolver>(), Is.Not.Null);
@@ -342,7 +370,7 @@ namespace Opc.Ua.Server.Tests
         {
             var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
 
-            (ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode dataTypeNode) = await resolver
+            (ExpandedNodeId typeId, ExpandedNodeId encodingId, DataTypeNode? dataTypeNode) = await resolver
                 .BrowseTypeIdsForDictionaryComponentAsync(
                     NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris))
                 .ConfigureAwait(false);
@@ -372,19 +400,19 @@ namespace Opc.Ua.Server.Tests
         {
             var resolver = new AddressSpaceComplexTypeResolver(m_mockServer.Object);
 
-            INode dataTypeNode = await resolver
+            INode dataTypeNode = (await resolver
                 .FindAsync(NodeId.ToExpandedNodeId(m_structTypeId, m_namespaceUris))
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             // the encoding node is a BaseObjectState, not a DataType
-            INode encodingNode = await resolver
+            INode encodingNode = (await resolver
                 .FindAsync(NodeId.ToExpandedNodeId(m_structEncodingId, m_namespaceUris))
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.Multiple(() =>
             {
                 Assert.That(dataTypeNode, Is.InstanceOf<DataTypeNode>());
                 Assert.That(
-                    ExpandedNodeId.ToNodeId(dataTypeNode.NodeId, m_namespaceUris),
+                    ExpandedNodeId.ToNodeId(dataTypeNode!.NodeId, m_namespaceUris),
                     Is.EqualTo(m_structTypeId));
                 Assert.That(encodingNode, Is.Null);
             });

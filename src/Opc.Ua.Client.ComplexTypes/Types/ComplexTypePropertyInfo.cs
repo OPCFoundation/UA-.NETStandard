@@ -136,6 +136,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         return Variant.From((QualifiedName)value);
                     case BuiltInType.LocalizedText:
                         return Variant.From((LocalizedText)value);
+                    case BuiltInType.Null:
                     case BuiltInType.ExtensionObject:
                         return
                             PropertyInfo.PropertyType == typeof(ExtensionObject) ?
@@ -202,11 +203,12 @@ namespace Opc.Ua.Client.ComplexTypes
                         return Variant.From((QualifiedName[])value);
                     case BuiltInType.LocalizedText:
                         return Variant.From((LocalizedText[])value);
+                    case BuiltInType.Null:
                     case BuiltInType.ExtensionObject:
                         return
                             PropertyInfo.PropertyType.GetElementType() == typeof(ExtensionObject) ?
                             Variant.From((ExtensionObject[])value) :
-                            Variant.FromStructure(((IEncodeable[])value).ToArrayOf());
+                            Variant.FromStructure(Array.ConvertAll((IEncodeable[])value, element => element).ToArrayOf());
                     case BuiltInType.DataValue:
                         return Variant.From((DataValue[])value);
                     case BuiltInType.Number:
@@ -268,6 +270,7 @@ namespace Opc.Ua.Client.ComplexTypes
                         return Variant.From(MatrixOf.From<QualifiedName>((Array)value));
                     case BuiltInType.LocalizedText:
                         return Variant.From(MatrixOf.From<LocalizedText>((Array)value));
+                    case BuiltInType.Null:
                     case BuiltInType.ExtensionObject:
                         return
                             PropertyInfo.PropertyType.GetElementType() == typeof(ExtensionObject) ?
@@ -368,6 +371,7 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.LocalizedText:
                         PropertyInfo.SetValue(o, v.GetLocalizedText());
                         return;
+                    case BuiltInType.Null:
                     case BuiltInType.ExtensionObject:
                         PropertyInfo.SetValue(o,
                             PropertyInfo.PropertyType == typeof(ExtensionObject) ?
@@ -461,11 +465,22 @@ namespace Opc.Ua.Client.ComplexTypes
                     case BuiltInType.LocalizedText:
                         PropertyInfo.SetValue(o, v.GetLocalizedTextArray().ToArray());
                         return;
+                    case BuiltInType.Null:
+                    case BuiltInType.ExtensionObject when
+                        PropertyInfo.PropertyType.GetElementType() != typeof(ExtensionObject):
+                        ArrayOf<IEncodeable> structures = v.GetStructureArray<IEncodeable>();
+                        if (structures.IsNull)
+                        {
+                            PropertyInfo.SetValue(o, null);
+                            return;
+                        }
+                        Array structureArray = Array.CreateInstance(
+                            PropertyInfo.PropertyType.GetElementType()!, structures.Count);
+                        Array.Copy(structures.ToArray()!, structureArray, structures.Count);
+                        PropertyInfo.SetValue(o, structureArray);
+                        return;
                     case BuiltInType.ExtensionObject:
-                        PropertyInfo.SetValue(o,
-                            PropertyInfo.PropertyType.GetElementType() == typeof(ExtensionObject) ?
-                                v.GetExtensionObjectArray().ToArray() :
-                                v.GetStructureArray<IEncodeable>().ToArray());
+                        PropertyInfo.SetValue(o, v.GetExtensionObjectArray().ToArray());
                         return;
                     case BuiltInType.DataValue:
                         PropertyInfo.SetValue(o, v.GetDataValueArray().ToArray());
@@ -485,94 +500,148 @@ namespace Opc.Ua.Client.ComplexTypes
                 switch (TypeInfo.BuiltInType)
                 {
                     case BuiltInType.Boolean:
-                        PropertyInfo.SetValue(o, v.GetBooleanMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetBooleanMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.SByte:
-                        PropertyInfo.SetValue(o, v.GetSByteMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetSByteMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.Byte:
-                        PropertyInfo.SetValue(o, v.GetByteMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetByteMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.Int16:
-                        PropertyInfo.SetValue(o, v.GetInt16Matrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetInt16Matrix().CreateArrayInstance());
                         return;
                     case BuiltInType.UInt16:
-                        PropertyInfo.SetValue(o, v.GetUInt16Matrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetUInt16Matrix().CreateArrayInstance());
                         return;
                     case BuiltInType.Int32:
-                        PropertyInfo.SetValue(o, v.GetInt32Matrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetInt32Matrix().CreateArrayInstance());
                         return;
                     case BuiltInType.Enumeration:
-                        PropertyInfo.SetValue(o, EnumHelper.Int32MatrixToEnumArray(
+                        SetMatrixValue(o, EnumHelper.Int32MatrixToEnumArray(
                            v.GetInt32Matrix(),
                            PropertyInfo.PropertyType.GetElementType()
                            ?? throw new InvalidOperationException(
                                "PropertyType is not an array type.")));
                         return;
                     case BuiltInType.UInt32:
-                        PropertyInfo.SetValue(o, v.GetUInt32Matrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetUInt32Matrix().CreateArrayInstance());
                         return;
                     case BuiltInType.Int64:
-                        PropertyInfo.SetValue(o, v.GetInt64Matrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetInt64Matrix().CreateArrayInstance());
                         return;
                     case BuiltInType.UInt64:
-                        PropertyInfo.SetValue(o, v.GetUInt64Matrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetUInt64Matrix().CreateArrayInstance());
                         return;
                     case BuiltInType.Float:
-                        PropertyInfo.SetValue(o, v.GetFloatMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetFloatMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.Double:
-                        PropertyInfo.SetValue(o, v.GetDoubleMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetDoubleMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.String:
-                        PropertyInfo.SetValue(o, v.GetStringMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetStringMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.DateTime:
-                        PropertyInfo.SetValue(o, v.GetDateTimeMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetDateTimeMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.Guid:
-                        PropertyInfo.SetValue(o, v.GetGuidMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetGuidMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.ByteString:
-                        PropertyInfo.SetValue(o, v.GetByteStringMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetByteStringMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.XmlElement:
-                        PropertyInfo.SetValue(o, v.GetXmlElementMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetXmlElementMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.NodeId:
-                        PropertyInfo.SetValue(o, v.GetNodeIdMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetNodeIdMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.ExpandedNodeId:
-                        PropertyInfo.SetValue(o, v.GetExpandedNodeIdMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetExpandedNodeIdMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.StatusCode:
-                        PropertyInfo.SetValue(o, v.GetStatusCodeMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetStatusCodeMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.QualifiedName:
-                        PropertyInfo.SetValue(o, v.GetQualifiedNameMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetQualifiedNameMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.LocalizedText:
-                        PropertyInfo.SetValue(o, v.GetLocalizedTextMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetLocalizedTextMatrix().CreateArrayInstance());
+                        return;
+                    case BuiltInType.Null:
+                    case BuiltInType.ExtensionObject when
+                        PropertyInfo.PropertyType.GetElementType() != typeof(ExtensionObject):
+                        MatrixOf<IEncodeable> structures = v.GetStructureMatrix<IEncodeable>();
+                        if (structures.IsNull)
+                        {
+                            PropertyInfo.SetValue(o, null);
+                            return;
+                        }
+                        if (structures.Dimensions.Length != PropertyInfo.PropertyType.GetArrayRank())
+                        {
+                            SetMatrixValue(o, structures.CreateArrayInstance());
+                            return;
+                        }
+                        Array structureArray = Array.CreateInstance(
+                            PropertyInfo.PropertyType.GetElementType()!, structures.Dimensions);
+                        Array.Copy(structures.CreateArrayInstance()!, structureArray, structures.Count);
+                        PropertyInfo.SetValue(o, structureArray);
                         return;
                     case BuiltInType.ExtensionObject:
-                        PropertyInfo.SetValue(o,
-                            PropertyInfo.PropertyType.GetElementType() == typeof(ExtensionObject) ?
-                                v.GetExtensionObjectMatrix().CreateArrayInstance() :
-                                v.GetStructureMatrix<IEncodeable>().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetExtensionObjectMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.DataValue:
-                        PropertyInfo.SetValue(o, v.GetDataValueMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetDataValueMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.Number:
                     case BuiltInType.Integer:
                     case BuiltInType.UInteger:
                     case BuiltInType.Variant:
-                        PropertyInfo.SetValue(o, v.GetVariantMatrix().CreateArrayInstance());
+                        SetMatrixValue(o, v.GetVariantMatrix().CreateArrayInstance());
                         return;
                     case BuiltInType.DiagnosticInfo:
                         break;
                 }
             }
+        }
+
+        /// <summary>
+        /// Sets a matrix field. The rank of the property is fixed by the
+        /// field's ValueRank, while the rank of a decoded matrix is whatever
+        /// the wire said (OPC 10000-6 5.2.5): an empty matrix of another rank
+        /// is set as an empty array of the property's rank, and a populated one
+        /// is a decoding error rather than an ArgumentException out of
+        /// <see cref="PropertyInfo.SetValue(object, object)"/>, which would
+        /// bypass the decoder's handling of malformed bodies.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadDecodingError"/> for a populated matrix
+        /// whose rank differs from the field's.</exception>
+        [UnconditionalSuppressMessage("AOT", "IL3050",
+            Justification = "The element type is that of the property, which the " +
+                "Reflection.Emit type builder already created.")]
+        private void SetMatrixValue(object o, Array? matrix)
+        {
+            int rank = PropertyInfo.PropertyType.IsArray
+                ? PropertyInfo.PropertyType.GetArrayRank()
+                : 0;
+            if (matrix != null && rank > 0 && matrix.Rank != rank)
+            {
+                if (matrix.Length != 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "The matrix of rank {0} does not match the rank {1} of the field '{2}'.",
+                        matrix.Rank,
+                        rank,
+                        Name);
+                }
+                matrix = Array.CreateInstance(
+                    PropertyInfo.PropertyType.GetElementType()!,
+                    new int[rank]);
+            }
+            PropertyInfo.SetValue(o, matrix);
         }
 
         /// <inheritdoc cref="PropertyInfo.PropertyType"/>
@@ -613,6 +682,14 @@ namespace Opc.Ua.Client.ComplexTypes
                 // ComplexTypeId is populated unconditionally when the dynamic type is built;
                 // a null here would produce the same NRE/format error as before.
                 return ExpandedNodeId.Parse(typeAttribute.ComplexTypeId!);
+            }
+            if (!string.IsNullOrEmpty(FieldAttribute.DataTypeId))
+            {
+                // the declared DataType of the field, used when the runtime type
+                // (e.g. an OptionSet subtype) does not identify the DataType. The
+                // id is stored with its namespace uri, independent of the namespace
+                // table of the session that built the type.
+                return ExpandedNodeId.Parse(FieldAttribute.DataTypeId!);
             }
             return TypeInfo.GetDataTypeId(type, namespaceTable);
         }

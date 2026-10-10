@@ -30,8 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Server
 {
@@ -40,6 +42,17 @@ namespace Opc.Ua.Server
     /// </summary>
     public partial class EventManager : IDisposable
     {
+        /// <summary>
+        /// The queue size used for an event monitored item that requests the
+        /// server default (queueSize 0) or the server minimum (queueSize 1),
+        /// before it is limited by the configured maximum event queue size.
+        /// </summary>
+        /// <remarks>
+        /// Part 4 §7.21: for event monitored items these two values do not
+        /// disable queueing as they do for data change items.
+        /// </remarks>
+        public const uint DefaultEventQueueSize = 1000;
+
         /// <summary>
         /// Creates a new instance of a sampling group.
         /// </summary>
@@ -169,16 +182,27 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                ServiceResult result = await nodeManager
-                    .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
-                    .ConfigureAwait(false);
-
-                if (ServiceResult.IsBad(result))
+                try
                 {
-                    continue;
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ServiceResult result = await nodeManager
+                        .ValidateEventRolePermissionsAsync(monitoredItem, e, cancellationToken)
+                        .ConfigureAwait(false);
+                    // An Uncertain verdict is not a denial, so it must not drop the event.
+                    if (!ServiceResult.IsBad(result))
+                    {
+                        monitoredItem.QueueEvent(e);
+                    }
                 }
-
-                monitoredItem.QueueEvent(e);
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception error) when (
+                    error is not OutOfMemoryException and not StackOverflowException and not AccessViolationException)
+                {
+                    TelemetryExtensions.CreateLogger<EventManager>(null).EventReceiverFailed(error, monitoredItem.Id);
+                }
             }
         }
 
@@ -199,13 +223,13 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                // calculate sampling interval.
-                double samplingInterval = itemToCreate.RequestedParameters.SamplingInterval;
-
-                if (samplingInterval < 0)
-                {
-                    samplingInterval = publishingInterval;
-                }
+                // calculate sampling interval: a negative value or NaN selects the
+                // publishing interval of the subscription (Part 4 7.21).
+                double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                    itemToCreate.RequestedParameters.SamplingInterval,
+                    publishingInterval,
+                    MinimumSamplingIntervals.Continuous,
+                    0);
 
                 // limit the queue size.
                 uint revisedQueueSize = CalculateRevisedQueueSize(
@@ -219,31 +243,35 @@ namespace Opc.Ua.Server
                     monitoredItemId = monitoredItemIdFactory.GetNextId();
                 } while (!m_monitoredItems.TryAdd(monitoredItemId, null!));
 
-                // create the monitored item.
-                IEventMonitoredItem monitoredItem = new MonitoredItem(
-                    m_server,
-                    nodeManager,
-                    handle,
-                    subscriptionId,
-                    monitoredItemId,
-                    itemToCreate.ItemToMonitor,
-                    context.DiagnosticsMask,
-                    timestampsToReturn,
-                    itemToCreate.MonitoringMode,
-                    itemToCreate.RequestedParameters.ClientHandle,
-                    filter,
-                    filter,
-                    null,
-                    samplingInterval,
-                    revisedQueueSize,
-                    itemToCreate.RequestedParameters.DiscardOldest,
-                    MinimumSamplingIntervals.Continuous,
-                    createDurable);
-
-                // now save the monitored item.
-                Debug.Assert(m_monitoredItems[monitoredItemId] == null);
-                m_monitoredItems[monitoredItemId] = monitoredItem;
-                return monitoredItem;
+                try
+                {
+                    IEventMonitoredItem monitoredItem = new MonitoredItem(
+                        m_server,
+                        nodeManager,
+                        handle,
+                        subscriptionId,
+                        monitoredItemId,
+                        itemToCreate.ItemToMonitor,
+                        context.DiagnosticsMask,
+                        timestampsToReturn,
+                        itemToCreate.MonitoringMode,
+                        itemToCreate.RequestedParameters.ClientHandle,
+                        filter,
+                        filter,
+                        null,
+                        samplingInterval,
+                        revisedQueueSize,
+                        itemToCreate.RequestedParameters.DiscardOldest,
+                        MinimumSamplingIntervals.Continuous,
+                        createDurable);
+                    m_monitoredItems[monitoredItemId] = monitoredItem;
+                    return monitoredItem;
+                }
+                catch
+                {
+                    m_monitoredItems.Remove(monitoredItemId);
+                    throw;
+                }
             }
         }
 
@@ -279,8 +307,19 @@ namespace Opc.Ua.Server
         /// <summary>
         /// calculates a revised queue size based on the application confiugration limits
         /// </summary>
+        /// <remarks>
+        /// Part 4 §7.21: for event monitored items a requested queueSize of 0 returns
+        /// the server default and 1 the minimum queue size the server requires for
+        /// Event Notifications. Taking 1 literally keeps only the last event raised
+        /// between two publishes.
+        /// </remarks>
         private uint CalculateRevisedQueueSize(bool isDurable, uint queueSize)
         {
+            if (queueSize <= 1)
+            {
+                queueSize = DefaultEventQueueSize;
+            }
+
             if (queueSize > m_maxEventQueueSize && !isDurable)
             {
                 queueSize = m_maxEventQueueSize;
@@ -317,6 +356,20 @@ namespace Opc.Ua.Server
                     monitoredItem.IsDurable,
                     itemToModify.RequestedParameters.QueueSize);
 
+                // a negative value or NaN selects the publishing interval of the
+                // subscription (Part 4 7.21), never the raw requested value.
+                double defaultSamplingInterval = monitoredItem.SamplingInterval;
+                if (monitoredItem.SubscriptionCallback is ISubscription subscription)
+                {
+                    defaultSamplingInterval = subscription.PublishingInterval;
+                }
+
+                double samplingInterval = SubscriptionManager.CalculateRevisedSamplingInterval(
+                    itemToModify.RequestedParameters.SamplingInterval,
+                    defaultSamplingInterval,
+                    MinimumSamplingIntervals.Continuous,
+                    0);
+
                 // modify the attributes.
                 monitoredItem.ModifyAttributes(
                     context.DiagnosticsMask,
@@ -325,7 +378,7 @@ namespace Opc.Ua.Server
                     filter,
                     filter,
                     null!,
-                    itemToModify.RequestedParameters.SamplingInterval,
+                    samplingInterval,
                     revisedQueueSize,
                     itemToModify.RequestedParameters.DiscardOldest);
             }
@@ -349,7 +402,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                return [.. m_monitoredItems.Values];
+                return [.. m_monitoredItems.Values.Where(item => item != null)];
             }
         }
 
@@ -358,5 +411,15 @@ namespace Opc.Ua.Server
         private readonly Dictionary<uint, IEventMonitoredItem> m_monitoredItems;
         private readonly uint m_maxEventQueueSize;
         private readonly uint m_maxDurableEventQueueSize;
+    }
+
+    internal static partial class EventManagerLog
+    {
+        [LoggerMessage(EventId = ServerEventIds.EventManager, Level = LogLevel.Error,
+            Message = "Event delivery to monitored item {MonitoredItemId} failed; other receivers will continue.")]
+        public static partial void EventReceiverFailed(
+            this ILogger logger,
+            Exception exception,
+            uint monitoredItemId);
     }
 }

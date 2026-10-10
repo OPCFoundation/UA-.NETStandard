@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+// CA2000: test code manages disposables at fixture scope or transfers ownership deliberately.
+#pragma warning disable CA2000
 using System;
 using System.Security.Cryptography;
 using System.Threading.Tasks;
@@ -47,6 +49,61 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public class EncryptedSecretTests
     {
+        /// <summary>
+        /// Verifies malformed RSA plaintext framing and padding share a cryptographic failure while valid data works.
+        /// </summary>
+        [TestCase("oversized", false)]
+        [TestCase("negative", false)]
+        [TestCase("short", false)]
+        [TestCase("padding", false)]
+        [TestCase("empty", false)]
+        [TestCase("valid", false)]
+        [TestCase("oversized", true)]
+        [TestCase("negative", true)]
+        [TestCase("short", true)]
+        [TestCase("padding", true)]
+        [TestCase("empty", true)]
+        [TestCase("valid", true)]
+        public async Task RsaMalformedFramingUsesCryptographicFailureAsync(string outcome, bool asynchronous)
+        {
+            byte[] plaintext = outcome switch
+            {
+                "oversized" => [0xFF, 0xFF, 0xFF, 0x7F],
+                "negative" => [0xFF, 0xFF, 0xFF, 0xFF],
+                "short" => [1, 0, 0],
+                _ => [3, 0, 0, 0, 1, 2, 3]
+            };
+            using RSA rsa = m_certificate.GetRSAPublicKey()!;
+            byte[] ciphertext = outcome switch
+            {
+                "padding" => new byte[rsa!.KeySize / 8],
+                "empty" => [],
+                _ => rsa!.Encrypt(plaintext, RSAEncryptionPadding.Pkcs1)
+            };
+            var encrypted = new EncryptedData { Algorithm = SecurityAlgorithms.Rsa15, Data = ciphertext };
+            if (outcome == "valid")
+            {
+                byte[] actual = (asynchronous
+                    ? await SecurityPolicies.Default.DecryptAsync(
+                        m_certificate, SecurityPolicies.Basic128Rsa15, encrypted).ConfigureAwait(false)
+                    : SecurityPolicies.Default.Decrypt(m_certificate, SecurityPolicies.Basic128Rsa15, encrypted))!;
+                Assert.That(actual, Is.EqualTo(new byte[] { 1, 2, 3 }));
+            }
+            else if (asynchronous)
+            {
+                Assert.That(
+                    async () => await SecurityPolicies.Default.DecryptAsync(
+                        m_certificate, SecurityPolicies.Basic128Rsa15, encrypted).ConfigureAwait(false),
+                    Throws.InstanceOf<CryptographicException>());
+            }
+            else
+            {
+                Assert.That(
+                    () => SecurityPolicies.Default.Decrypt(m_certificate, SecurityPolicies.Basic128Rsa15, encrypted),
+                    Throws.InstanceOf<CryptographicException>());
+            }
+        }
+
         private IServiceMessageContext m_context;
         private Certificate m_certificate;
 
@@ -76,7 +133,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             byte[] nonce = NonceBytes();
 
             byte[] encoded = encryptedSecret.EncryptRsa(secret, nonce);
-            bool ok = encryptedSecret.TryDecryptRsa(encoded, nonce, out byte[] decrypted);
+            bool ok = encryptedSecret.TryDecryptRsa(encoded, nonce, out byte[]? decrypted);
 
             Assert.That(ok, Is.True);
             Assert.That(decrypted, Is.EqualTo(secret));
@@ -90,7 +147,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             byte[] nonce = NonceBytes();
 
             byte[] encoded = encryptedSecret.Encrypt(secret, nonce);
-            bool ok = encryptedSecret.TryDecrypt(encoded, nonce, out byte[] decrypted);
+            bool ok = encryptedSecret.TryDecrypt(encoded, nonce, out byte[]? decrypted);
 
             Assert.That(ok, Is.True);
             Assert.That(decrypted, Is.EqualTo(secret));
@@ -104,7 +161,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             byte[] nonce = NonceBytes();
 
             byte[] encoded = encryptedSecret.EncryptRsa(secret, nonce);
-            (bool success, byte[] decrypted) = await encryptedSecret
+            (bool success, byte[]? decrypted) = await encryptedSecret
                 .TryDecryptAsync(encoded, nonce)
                 .ConfigureAwait(false);
 
@@ -141,12 +198,169 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                     .EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// A KeyData block that fails RSA unpadding, one that unpads to the wrong layout and one with
+        /// valid keys but a bad signature must all fail with the same status (OPC 10000-4 7.40.2.1),
+        /// and the non-throwing entry points must report every one of them as a plain failure.
+        /// </summary>
+        [TestCase("padding")]
+        [TestCase("layout")]
+        [TestCase("signature")]
+        public async Task TryDecryptRsaKeyDataFailuresAreIndistinguishableAsync(string failure)
+        {
+            EncryptedSecret encryptedSecret = CreateRsa();
+            byte[] nonce = NonceBytes();
+            byte[] encoded = encryptedSecret.EncryptRsa(SecretBytes(), nonce);
+            if (failure == "signature")
+            {
+                encoded[^1] ^= 0xFF;
+            }
+            else
+            {
+                using var decoder = new BinaryDecoder(encoded, m_context);
+                decoder.ReadNodeId(null);
+                decoder.ReadByte(null);
+                decoder.ReadUInt32(null);
+                decoder.ReadString(null);
+                decoder.ReadByteString(null);
+                decoder.ReadDateTime(null);
+                int keyDataLength = decoder.ReadUInt16(null);
+                int keyDataStart = decoder.Position;
+
+                using RSA rsa = m_certificate.GetRSAPublicKey()!;
+                byte[] keyData = failure == "padding"
+                    ? new byte[keyDataLength]
+                    : rsa!.Encrypt([0x03, 0x00, 0x00, 0x00, 0x01, 0x02, 0x03], RSAEncryptionPadding.OaepSHA1);
+                Assert.That(keyData, Has.Length.EqualTo(keyDataLength));
+                Buffer.BlockCopy(keyData, 0, encoded, keyDataStart, keyDataLength);
+            }
+
+            Assert.That(
+                () => encryptedSecret.TryDecryptRsa(encoded, nonce, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+
+            bool ok = encryptedSecret.TryDecrypt(encoded, nonce, out byte[]? decrypted);
+            Assert.That(ok, Is.False);
+            Assert.That(decrypted, Is.Null);
+
+            (bool success, byte[]? asyncDecrypted) = await encryptedSecret
+                .TryDecryptAsync(encoded, nonce)
+                .ConfigureAwait(false);
+            Assert.That(success, Is.False);
+            Assert.That(asyncDecrypted, Is.Null);
+        }
+
+        /// <summary>
+        /// A KeyData longer than the keys of the policy need is rejected with the same status as
+        /// any other KeyData failure, before a private-key operation is spent on the extra blocks.
+        /// </summary>
+        [Test]
+        public void TryDecryptRsaRejectsKeyDataWithExtraBlocks()
+        {
+            EncryptedSecret encryptedSecret = CreateRsa();
+            byte[] nonce = NonceBytes();
+            byte[] encoded = encryptedSecret.EncryptRsa(SecretBytes(), nonce);
+
+            using var decoder = new BinaryDecoder(encoded, m_context);
+            decoder.ReadNodeId(null);
+            decoder.ReadByte(null);
+            int lengthPosition = decoder.Position;
+            decoder.ReadUInt32(null);
+            decoder.ReadString(null);
+            decoder.ReadByteString(null);
+            decoder.ReadDateTime(null);
+            int keyDataLengthPosition = decoder.Position;
+            int keyDataLength = decoder.ReadUInt16(null);
+            int keyDataEnd = decoder.Position + keyDataLength;
+
+            using RSA rsa = m_certificate.GetRSAPublicKey()!;
+            int blockSize = rsa!.KeySize / 8;
+            byte[] extraBlock = rsa.Encrypt([1, 2, 3], RSAEncryptionPadding.OaepSHA1);
+            byte[] padded = new byte[encoded.Length + blockSize];
+            Buffer.BlockCopy(encoded, 0, padded, 0, keyDataEnd);
+            Buffer.BlockCopy(extraBlock, 0, padded, keyDataEnd, blockSize);
+            Buffer.BlockCopy(encoded, keyDataEnd, padded, keyDataEnd + blockSize, encoded.Length - keyDataEnd);
+            BitConverter.GetBytes((ushort)(keyDataLength + blockSize)).CopyTo(padded, keyDataLengthPosition);
+            uint secretLength = BitConverter.ToUInt32(encoded, lengthPosition);
+            BitConverter.GetBytes(secretLength + (uint)blockSize).CopyTo(padded, lengthPosition);
+
+            Assert.That(
+                () => encryptedSecret.TryDecryptRsa(padded, nonce, out _),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        /// <summary>
+        /// A multi-block KeyData whose first block fails RSA unpadding must still run one private-key
+        /// operation per block, so the operation count does not reveal which block was bad.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void RsaKeyDataDecryptsEveryBlockWhenOneBlockHasBadPadding(int badBlock)
+        {
+            const int blockCount = 3;
+            using RSA privateKey = m_certificate.GetRSAPrivateKey()!;
+            using var rsa = new DecryptCountingRsa(privateKey!);
+            int blockSize = rsa.KeySize / 8;
+            byte[] cipherText = new byte[blockCount * blockSize];
+            for (int ii = 0; ii < blockCount; ii++)
+            {
+                if (ii != badBlock)
+                {
+                    byte[] block = privateKey.Encrypt([1, 2, 3], RSAEncryptionPadding.OaepSHA256);
+                    Buffer.BlockCopy(block, 0, cipherText, ii * blockSize, blockSize);
+                }
+            }
+
+            Assert.That(
+                () => EncryptedSecret.TransformRsaBlocks(cipherText, rsa, RSAEncryptionPadding.OaepSHA256, encrypt: false),
+                Throws.InstanceOf<CryptographicException>());
+            Assert.That(rsa.DecryptCount, Is.EqualTo(blockCount));
+        }
+
+        /// <summary>
+        /// Delegates to an inner RSA key and counts the private-key decrypt operations.
+        /// </summary>
+        private sealed class DecryptCountingRsa : RSA
+        {
+            public DecryptCountingRsa(RSA inner)
+            {
+                m_inner = inner;
+                LegalKeySizesValue = [new KeySizes(inner.KeySize, inner.KeySize, 0)];
+                KeySizeValue = inner.KeySize;
+            }
+
+            public int DecryptCount { get; private set; }
+
+            public override byte[] Decrypt(byte[] data, RSAEncryptionPadding padding)
+            {
+                DecryptCount++;
+                return m_inner.Decrypt(data, padding);
+            }
+
+            public override RSAParameters ExportParameters(bool includePrivateParameters)
+            {
+                return m_inner.ExportParameters(includePrivateParameters);
+            }
+
+            public override void ImportParameters(RSAParameters parameters)
+            {
+                throw new NotSupportedException();
+            }
+
+            private readonly RSA m_inner;
+        }
+
         [Test]
         public void TryDecryptRsaReturnsFalseWhenDataTooShort()
         {
             EncryptedSecret encryptedSecret = CreateRsa();
 
-            bool ok = encryptedSecret.TryDecryptRsa([1, 2, 3, 4], NonceBytes(), out byte[] decrypted);
+            bool ok = encryptedSecret.TryDecryptRsa([1, 2, 3, 4], NonceBytes(), out byte[]? decrypted);
 
             Assert.That(ok, Is.False);
             Assert.That(decrypted, Is.Null);
@@ -161,9 +375,9 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             encoder.WriteNodeId(null, DataTypeIds.EccEncryptedSecret);
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
             encoder.WriteUInt32(null, 0);
-            byte[] wrongTyped = encoder.CloseAndReturnBuffer();
+            byte[] wrongTyped = encoder.CloseAndReturnBuffer()!;
 
-            bool ok = encryptedSecret.TryDecryptRsa(wrongTyped, NonceBytes(), out byte[] decrypted);
+            bool ok = encryptedSecret.TryDecryptRsa(wrongTyped!, NonceBytes(), out byte[]? decrypted);
 
             Assert.That(ok, Is.False);
             Assert.That(decrypted, Is.Null);
@@ -179,10 +393,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Xml);
             encoder.WriteUInt32(null, 0);
             encoder.WriteByte(null, 0);
-            byte[] encoded = encoder.CloseAndReturnBuffer();
+            byte[] encoded = encoder.CloseAndReturnBuffer()!;
 
             Assert.That(
-                () => encryptedSecret.TryDecryptRsa(encoded, NonceBytes(), out _),
+                () => encryptedSecret.TryDecryptRsa(encoded!, NonceBytes(), out _),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadDataEncodingUnsupported));
@@ -197,10 +411,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
             encoder.WriteUInt32(null, 0x00FFFFFF);
-            byte[] encoded = encoder.CloseAndReturnBuffer();
+            byte[] encoded = encoder.CloseAndReturnBuffer()!;
 
             Assert.That(
-                () => encryptedSecret.TryDecryptRsa(encoded, NonceBytes(), out _),
+                () => encryptedSecret.TryDecryptRsa(encoded!, NonceBytes(), out _),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadDecodingError));
@@ -261,7 +475,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             EncryptedSecret encryptedSecret = CreateRsa();
 
-            bool ok = encryptedSecret.TryDecrypt(null!, NonceBytes(), out byte[] decrypted);
+            bool ok = encryptedSecret.TryDecrypt(null!, NonceBytes(), out byte[]? decrypted);
 
             Assert.That(ok, Is.False);
             Assert.That(decrypted, Is.Null);
@@ -272,7 +486,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         {
             EncryptedSecret encryptedSecret = CreateRsa();
 
-            (bool success, byte[] decrypted) = await encryptedSecret
+            (bool success, byte[]? decrypted) = await encryptedSecret
                 .TryDecryptAsync(null!, NonceBytes())
                 .ConfigureAwait(false);
 
@@ -299,7 +513,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             byte[] encoded = encryptor.Encrypt(secret, nonce);
 
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
-            bool ok = decryptor.TryDecrypt(encoded, nonce, out byte[] decrypted);
+            bool ok = decryptor.TryDecrypt(encoded, nonce, out byte[]? decrypted);
 
             Assert.That(ok, Is.True);
             Assert.That(decrypted, Is.EqualTo(secret));
@@ -325,11 +539,41 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             byte[] encoded = encryptor.Encrypt(secret, nonce);
 
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
-            (bool success, byte[] decrypted) = await decryptor
+            (bool success, byte[]? decrypted) = await decryptor
                 .TryDecryptAsync(encoded, nonce)
                 .ConfigureAwait(false);
 
             Assert.That(success, Is.True);
+            Assert.That(decrypted, Is.EqualTo(secret));
+            decryptor.SenderCertificate?.Dispose();
+        }
+
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.ECC_nistP384)]
+        [Category("EncryptedSecretCoverage")]
+        public void TryDecryptEccAcceptsSpecCompliantCbcPayload(string policyUri)
+        {
+            RequireEccPolicy(policyUri);
+            ECCurve curve = CurveForPolicy(policyUri);
+            using Certificate senderCertificate = CreateEccCertificate(curve);
+            using Certificate receiverCertificate = CreateEccCertificate(curve);
+            using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
+            using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
+            byte[] secret = SecretBytes();
+            byte[] nonce = NonceBytes();
+            byte[] encoded = CreateSpecCompliantEccEncryptedSecret(
+                policyUri,
+                senderCertificate,
+                receiverCertificate,
+                receiverEphemeralKey,
+                senderEphemeralKey,
+                secret,
+                nonce);
+
+            EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
+            bool ok = decryptor.TryDecrypt(encoded, nonce, out byte[]? decrypted);
+
+            Assert.That(ok, Is.True);
             Assert.That(decrypted, Is.EqualTo(secret));
             decryptor.SenderCertificate?.Dispose();
         }
@@ -359,7 +603,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             EncryptedSecret decryptor = CreateEccDecryptor(
                 policyUri, receiverCertificate, receiverEphemeralKey, senderCertificate);
-            bool ok = decryptor.TryDecrypt(encoded, nonce, out byte[] decrypted);
+            bool ok = decryptor.TryDecrypt(encoded, nonce, out byte[]? decrypted);
 
             Assert.That(ok, Is.True);
             Assert.That(decrypted, Is.EqualTo(secret));
@@ -415,6 +659,165 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             });
         }
 
+        /// <summary>
+        /// OPC 10000-6 6.8.3: the receiver shall validate the signing certificate.
+        /// A validator result that is not valid must reject the secret instead of
+        /// being discarded, and the untrusted certificate must not replace the
+        /// expected sender certificate.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("EncryptedSecretCoverage")]
+        public void DecryptEccRejectsSenderCertificateTheValidatorRejects(bool asynchronous)
+        {
+            const string policyUri = SecurityPolicies.ECC_nistP256;
+            RequireEccPolicy(policyUri);
+            ECCurve curve = CurveForPolicy(policyUri);
+            using Certificate senderCertificate = CreateEccCertificate(curve);
+            using Certificate receiverCertificate = CreateEccCertificate(curve);
+            using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
+            using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
+            EncryptedSecret encryptor = CreateEccEncryptor(
+                policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
+            byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
+
+            var untrusted = new CertificateValidationResult(
+                isValid: false,
+                statusCode: StatusCodes.BadCertificateUntrusted,
+                errors: [new ServiceResult(StatusCodes.BadCertificateUntrusted)],
+                isSuppressible: true);
+            var validator = new Moq.Mock<ICertificateValidatorEx>();
+            validator
+                .Setup(v => v.ValidateAsync(
+                    Moq.It.IsAny<CertificateCollection>(),
+                    Moq.It.IsAny<TrustListIdentifier>(),
+                    Moq.It.IsAny<Opc.Ua.Security.Certificates.CertificateValidationOptions>(),
+                    Moq.It.IsAny<System.Threading.CancellationToken>()))
+                .Returns(Task.FromResult(untrusted));
+            using var decryptor = EncryptedSecret.CreateForEcc(
+                m_context,
+                policyUri,
+                [],
+                receiverCertificate,
+                receiverEphemeralKey,
+                null!,
+                null!,
+                validator: validator.Object);
+
+            ServiceResultException ex = (asynchronous
+                ? Assert.ThrowsAsync<ServiceResultException>(async () => await decryptor.DecryptAsync(
+                    EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length,
+                    decryptor.Context.Telemetry).ConfigureAwait(false))
+                : Assert.Throws<ServiceResultException>(() => decryptor.Decrypt(
+                    EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length,
+                    decryptor.Context.Telemetry)))!;
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(decryptor.SenderCertificate, Is.Null);
+        }
+
+        /// <summary>
+        /// Without a validator the embedded sender certificate must be the one the
+        /// caller expects (the server passes the secure channel's client
+        /// certificate, OPC 10000-4 7.40.2.5); a self-generated certificate that
+        /// signs the secret must not be accepted.
+        /// </summary>
+        [Test]
+        [Category("EncryptedSecretCoverage")]
+        public void DecryptEccRejectsUnexpectedSenderCertificateWithoutValidator()
+        {
+            const string policyUri = SecurityPolicies.ECC_nistP256;
+            RequireEccPolicy(policyUri);
+            ECCurve curve = CurveForPolicy(policyUri);
+            using Certificate senderCertificate = CreateEccCertificate(curve);
+            using Certificate channelCertificate = CreateEccCertificate(curve);
+            using Certificate receiverCertificate = CreateEccCertificate(curve);
+            using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
+            using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
+            EncryptedSecret encryptor = CreateEccEncryptor(
+                policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
+            byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
+
+            using EncryptedSecret mismatched = CreateEccDecryptor(
+                policyUri, receiverCertificate, receiverEphemeralKey, channelCertificate);
+            Assert.That(
+                () => mismatched.Decrypt(
+                    EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length, mismatched.Context.Telemetry),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadCertificateInvalid));
+            Assert.That(mismatched.SenderCertificate, Is.SameAs(channelCertificate));
+
+            using EncryptedSecret matching = CreateEccDecryptor(
+                policyUri, receiverCertificate, receiverEphemeralKey, senderCertificate);
+            byte[] decrypted = matching.Decrypt(
+                EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length, matching.Context.Telemetry);
+            Assert.That(decrypted, Is.EqualTo(SecretBytes()));
+        }
+
+        /// <summary>
+        /// OPC 10000-4 7.40.2.5 allows a SigningCertificate other than the client
+        /// certificate and OPC 10000-6 6.8.3 requires it to be validated. With a
+        /// validator (the server passes its peer certificate validator) a
+        /// differing embedded certificate the validator trusts is accepted and
+        /// replaces the expected one, rather than being rejected outright.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        [Category("EncryptedSecretCoverage")]
+        public async Task DecryptEccAcceptsDifferentSenderCertificateTheValidatorTrustsAsync(bool asynchronous)
+        {
+            const string policyUri = SecurityPolicies.ECC_nistP256;
+            RequireEccPolicy(policyUri);
+            ECCurve curve = CurveForPolicy(policyUri);
+            using Certificate senderCertificate = CreateEccCertificate(curve);
+            using Certificate channelCertificate = CreateEccCertificate(curve);
+            using Certificate receiverCertificate = CreateEccCertificate(curve);
+            using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
+            using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
+            EncryptedSecret encryptor = CreateEccEncryptor(
+                policyUri, senderCertificate, receiverCertificate, receiverEphemeralKey, senderEphemeralKey);
+            byte[] encoded = encryptor.Encrypt(SecretBytes(), NonceBytes());
+
+            var trusted = new CertificateValidationResult(
+                isValid: true,
+                statusCode: StatusCodes.Good,
+                errors: [],
+                isSuppressible: false);
+            var validator = new Moq.Mock<ICertificateValidatorEx>();
+            validator
+                .Setup(v => v.ValidateAsync(
+                    Moq.It.IsAny<CertificateCollection>(),
+                    Moq.It.IsAny<TrustListIdentifier>(),
+                    Moq.It.IsAny<Opc.Ua.Security.Certificates.CertificateValidationOptions>(),
+                    Moq.It.IsAny<System.Threading.CancellationToken>()))
+                .Returns(Task.FromResult(trusted));
+            using var decryptor = EncryptedSecret.CreateForEcc(
+                m_context,
+                policyUri,
+                [],
+                receiverCertificate,
+                receiverEphemeralKey,
+                channelCertificate,
+                null!,
+                validator: validator.Object);
+
+            byte[] decrypted = asynchronous
+                ? await decryptor.DecryptAsync(
+                    EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length,
+                    decryptor.Context.Telemetry).ConfigureAwait(false)
+                : decryptor.Decrypt(
+                    EarliestValidSigningTime(), NonceBytes(), encoded, 0, encoded.Length,
+                    decryptor.Context.Telemetry);
+
+            Assert.That(decrypted, Is.EqualTo(SecretBytes()));
+            Assert.That(decryptor.SenderCertificate!.RawData, Is.EqualTo(senderCertificate.RawData));
+            validator.Verify(v => v.ValidateAsync(
+                Moq.It.IsAny<CertificateCollection>(),
+                Moq.It.IsAny<TrustListIdentifier>(),
+                Moq.It.IsAny<Opc.Ua.Security.Certificates.CertificateValidationOptions>(),
+                Moq.It.IsAny<System.Threading.CancellationToken>()), Moq.Times.Once);
+        }
+
         [Test]
         [Category("EncryptedSecretCoverage")]
         public void DecryptEccThrowsBadNonceInvalidWhenNonceMismatched()
@@ -441,7 +844,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
         [Test]
         [Category("EncryptedSecretCoverage")]
-        public async Task DecryptAsyncEccThrowsBadNonceInvalidWhenNonceMismatchedAsync()
+        public Task DecryptAsyncEccThrowsBadNonceInvalidWhenNonceMismatchedAsync()
         {
             const string policyUri = SecurityPolicies.ECC_nistP256;
             RequireEccPolicy(policyUri);
@@ -469,6 +872,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             Assert.That(ex.StatusCode.Code, Is.EqualTo(StatusCodes.BadNonceInvalid));
             decryptor.SenderCertificate?.Dispose();
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -517,10 +921,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             encoder.WriteNodeId(null, DataTypeIds.RsaEncryptedSecret);
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
             encoder.WriteUInt32(null, 0);
-            byte[] blob = encoder.CloseAndReturnBuffer();
+            byte[] blob = encoder.CloseAndReturnBuffer()!;
 
             Assert.That(
-                () => DecryptEcc(decryptor, NonceBytes(), blob),
+                () => DecryptEcc(decryptor, NonceBytes(), blob!),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadDataTypeIdUnknown));
@@ -541,10 +945,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             encoder.WriteNodeId(null, DataTypeIds.EccEncryptedSecret);
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Xml);
             encoder.WriteUInt32(null, 0);
-            byte[] blob = encoder.CloseAndReturnBuffer();
+            byte[] blob = encoder.CloseAndReturnBuffer()!;
 
             Assert.That(
-                () => DecryptEcc(decryptor, NonceBytes(), blob),
+                () => DecryptEcc(decryptor, NonceBytes(), blob!),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadDataEncodingUnsupported));
@@ -566,10 +970,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
             encoder.WriteUInt32(null, 0);
             encoder.WriteString(null, SecurityPolicies.Basic256Sha256);
-            byte[] blob = encoder.CloseAndReturnBuffer();
+            byte[] blob = encoder.CloseAndReturnBuffer()!;
 
             Assert.That(
-                () => DecryptEcc(decryptor, NonceBytes(), blob),
+                () => DecryptEcc(decryptor, NonceBytes(), blob!),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadSecurityPolicyRejected));
@@ -591,10 +995,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
             encoder.WriteUInt32(null, 0);
             encoder.WriteString(null, "http://opcfoundation.org/UA/SecurityPolicy#DoesNotExist");
-            byte[] blob = encoder.CloseAndReturnBuffer();
+            byte[] blob = encoder.CloseAndReturnBuffer()!;
 
             Assert.That(
-                () => DecryptEcc(decryptor, NonceBytes(), blob),
+                () => DecryptEcc(decryptor, NonceBytes(), blob!),
                 Throws.TypeOf<ServiceResultException>()
                     .With.Property(nameof(ServiceResultException.StatusCode))
                     .EqualTo(StatusCodes.BadSecurityPolicyRejected));
@@ -694,7 +1098,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             encoded[^1] ^= 0xFF;
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
 
-            bool ok = decryptor.TryDecrypt(encoded, NonceBytes(), out byte[] decrypted);
+            bool ok = decryptor.TryDecrypt(encoded, NonceBytes(), out byte[]? decrypted);
 
             Assert.That(ok, Is.False);
             Assert.That(decrypted, Is.Null);
@@ -718,7 +1122,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             encoded[^1] ^= 0xFF;
             EncryptedSecret decryptor = CreateEccDecryptor(policyUri, receiverCertificate, receiverEphemeralKey);
 
-            (bool success, byte[] decrypted) = await decryptor
+            (bool success, byte[]? decrypted) = await decryptor
                 .TryDecryptAsync(encoded, NonceBytes())
                 .ConfigureAwait(false);
 
@@ -831,7 +1235,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             var encryptedSecret = EncryptedSecret.CreateForRsa(
                 m_context, policyUri, m_certificate);
 
-            bool ok = encryptedSecret.TryDecryptRsa([1, 2, 3, 4, 5, 6, 7, 8], NonceBytes(), out byte[] decrypted);
+            bool ok = encryptedSecret.TryDecryptRsa([1, 2, 3, 4, 5, 6, 7, 8], NonceBytes(), out byte[]? decrypted);
 
             Assert.That(ok, Is.False);
             Assert.That(decrypted, Is.Null);
@@ -840,6 +1244,84 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         private EncryptedSecret CreateRsa(string policyUri = SecurityPolicies.Basic256Sha256)
         {
             return EncryptedSecret.CreateForRsa(m_context, policyUri, m_certificate);
+        }
+
+        /// <summary>
+        /// The ECC secret is decrypted in place, over the buffer the caller
+        /// handed in, and only the extracted key is copied out. The plain text
+        /// left in that buffer is wiped - including on the failure path, which
+        /// is the one that matters: the decryption runs before the signature and
+        /// padding are verified, so a rejected message has the secret written
+        /// out and nothing returned.
+        /// </summary>
+        [TestCase(SecurityPolicies.ECC_nistP256)]
+        [TestCase(SecurityPolicies.ECC_nistP384)]
+        [Category("EncryptedSecretCoverage")]
+        public void EccDecryptWipesThePlainTextFromTheCallersBufferOnFailure(string policyUri)
+        {
+            RequireEccPolicy(policyUri);
+            ECCurve curve = CurveForPolicy(policyUri);
+            using Certificate senderCertificate = CreateEccCertificate(curve);
+            using Certificate receiverCertificate = CreateEccCertificate(curve);
+            using Nonce receiverEphemeralKey = CreateEphemeralKey(policyUri);
+            using Nonce senderEphemeralKey = CreateEphemeralKey(policyUri);
+            byte[] secret = SecretBytes();
+            byte[] nonce = NonceBytes();
+
+            EncryptedSecret encryptor = CreateEccEncryptor(
+                policyUri,
+                senderCertificate,
+                receiverCertificate,
+                receiverEphemeralKey,
+                senderEphemeralKey);
+            byte[] encoded = encryptor.Encrypt(secret, nonce);
+
+            int longestZeroRunBefore = LongestZeroRun(encoded);
+
+            EncryptedSecret decryptor = CreateEccDecryptor(
+                policyUri, receiverCertificate, receiverEphemeralKey);
+
+            bool accepted;
+
+            try
+            {
+                // a nonce the message was not built for: rejected after the body
+                // has already been decrypted in place.
+                accepted = decryptor.TryDecrypt(encoded, [0xAA, 0xBB, 0xCC, 0xDD], out _);
+            }
+            catch (ServiceResultException)
+            {
+                accepted = false;
+            }
+            finally
+            {
+                decryptor.SenderCertificate?.Dispose();
+            }
+
+            Assert.That(accepted, Is.False);
+
+            Assert.That(
+                LongestZeroRun(encoded),
+                Is.GreaterThan(longestZeroRunBefore + secret.Length),
+                "the decrypted secret was left behind in the caller's buffer.");
+        }
+
+        private static int LongestZeroRun(byte[] buffer)
+        {
+            int longest = 0;
+            int current = 0;
+
+            foreach (byte value in buffer)
+            {
+                current = value == 0 ? current + 1 : 0;
+
+                if (current > longest)
+                {
+                    longest = current;
+                }
+            }
+
+            return longest;
         }
 
         private static byte[] SecretBytes()
@@ -875,9 +1357,151 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 .CreateForECDsa();
         }
 
+        private byte[] CreateSpecCompliantEccEncryptedSecret(
+            string policyUri,
+            Certificate senderCertificate,
+            Certificate receiverCertificate,
+            Nonce receiverEphemeralKey,
+            Nonce senderEphemeralKey,
+            byte[] secret,
+            byte[] nonce)
+        {
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(policyUri)
+                ?? throw new InvalidOperationException($"Security policy '{policyUri}' is not supported.");
+
+            if (securityPolicy.SymmetricEncryptionAlgorithm is not
+                (SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc))
+            {
+                throw new NotSupportedException("The test helper supports ECC security policies with CBC encryption only.");
+            }
+
+            byte[] senderNonce = senderEphemeralKey.Data ?? throw new InvalidOperationException("Missing sender nonce.");
+            byte[] receiverNonce = receiverEphemeralKey.Data ?? throw new InvalidOperationException("Missing receiver nonce.");
+            byte[] secretMaterial = senderEphemeralKey.GenerateSecret(receiverEphemeralKey, null)
+                ?? throw new InvalidOperationException("Failed to derive the shared secret.");
+            byte[]? derivedKeyData = null;
+            byte[]? encryptingKey = null;
+            byte[]? iv = null;
+            byte[]? payload = null;
+            byte[]? encryptedPayload = null;
+
+            try
+            {
+                byte[] keyLength = BitConverter.GetBytes(
+                    (ushort)(securityPolicy.SymmetricEncryptionKeyLength + securityPolicy.InitializationVectorLength));
+                byte[] salt = Utils.Append(keyLength, System.Text.Encoding.UTF8.GetBytes("opcua-secret"), senderNonce, receiverNonce);
+                derivedKeyData = senderEphemeralKey.DeriveKeyData(
+                    secretMaterial,
+                    salt,
+                    securityPolicy.KeyDerivationAlgorithm,
+                    securityPolicy.SymmetricEncryptionKeyLength + securityPolicy.InitializationVectorLength);
+                encryptingKey = new byte[securityPolicy.SymmetricEncryptionKeyLength];
+                iv = new byte[securityPolicy.InitializationVectorLength];
+                Buffer.BlockCopy(derivedKeyData, 0, encryptingKey, 0, encryptingKey.Length);
+                Buffer.BlockCopy(derivedKeyData, encryptingKey.Length, iv, 0, iv.Length);
+
+                using (var payloadEncoder = new BinaryEncoder(m_context))
+                {
+                    int startOfPayload = payloadEncoder.Position;
+                    payloadEncoder.WriteByteString(null, nonce);
+                    payloadEncoder.WriteByteString(null, secret);
+                    int paddingCount = GetSpecPaddingCount(
+                        securityPolicy.InitializationVectorLength,
+                        secret.Length,
+                        payloadEncoder.Position - startOfPayload);
+
+                    for (int ii = 0; ii < paddingCount; ii++)
+                    {
+                        payloadEncoder.WriteByte(null, (byte)paddingCount);
+                    }
+
+                    payloadEncoder.WriteUInt16(null, (ushort)paddingCount);
+                    payload = payloadEncoder.CloseAndReturnBuffer()!;
+                }
+
+                encryptedPayload = EncryptCbcWithoutPadding(payload!, encryptingKey, iv);
+                int signatureLength = CryptoUtils.GetSignatureLength(senderCertificate);
+
+                using var encoder = new BinaryEncoder(m_context);
+                encoder.WriteNodeId(null, DataTypeIds.EccEncryptedSecret);
+                encoder.WriteByte(null, (byte)ExtensionObjectEncoding.Binary);
+                int lengthPosition = encoder.Position;
+                encoder.WriteUInt32(null, 0);
+                encoder.WriteString(null, securityPolicy.Uri);
+                encoder.WriteByteString(null, senderCertificate.RawData);
+                encoder.WriteDateTime(null, DateTime.UtcNow);
+                encoder.WriteUInt16(null, (ushort)(senderNonce.Length + receiverNonce.Length + 8));
+                encoder.WriteByteString(null, senderNonce);
+                encoder.WriteByteString(null, receiverNonce);
+
+                foreach (byte value in encryptedPayload)
+                {
+                    encoder.WriteByte(null, value);
+                }
+
+                for (int ii = 0; ii < signatureLength; ii++)
+                {
+                    encoder.WriteByte(null, 0);
+                }
+
+                byte[] encoded = encoder.CloseAndReturnBuffer()!;
+                int length = encoded.Length - lengthPosition - 4;
+                encoded[lengthPosition++] = (byte)(length & 0xFF);
+                encoded[lengthPosition++] = (byte)((length >> 8) & 0xFF);
+                encoded[lengthPosition++] = (byte)((length >> 16) & 0xFF);
+                encoded[lengthPosition] = (byte)((length >> 24) & 0xFF);
+
+                byte[] signature = CryptoUtils.Sign(
+                    new ArraySegment<byte>(encoded, 0, encoded.Length - signatureLength),
+                    senderCertificate,
+                    securityPolicy.AsymmetricSignatureAlgorithm)
+                    ?? throw new InvalidOperationException("Failed to sign the encrypted secret.");
+                Buffer.BlockCopy(signature, 0, encoded, encoded.Length - signatureLength, signatureLength);
+                return encoded;
+            }
+            finally
+            {
+                CryptoUtils.ZeroMemory(secretMaterial);
+                CryptoUtils.ZeroMemory(derivedKeyData);
+                CryptoUtils.ZeroMemory(encryptingKey);
+                CryptoUtils.ZeroMemory(iv);
+                CryptoUtils.ZeroMemory(payload);
+                CryptoUtils.ZeroMemory(encryptedPayload);
+            }
+        }
+
         private static Nonce CreateEphemeralKey(string policyUri)
         {
             return Nonce.CreateNonce(SecurityPolicies.Default.GetInfo(policyUri)!);
+        }
+
+        private static byte[] EncryptCbcWithoutPadding(byte[] payload, byte[] encryptingKey, byte[] iv)
+        {
+            using var aes = Aes.Create();
+            aes.Mode = CipherMode.CBC;
+            aes.Padding = PaddingMode.None;
+            aes.Key = encryptingKey;
+            aes.IV = iv;
+            // Protocol vectors require the supplied derived IV. TODO: remove when CA5401 tracks nonce-derived IVs.
+#pragma warning disable CA5401
+            using ICryptoTransform encryptor = aes.CreateEncryptor();
+#pragma warning restore CA5401
+            return encryptor.TransformFinalBlock(payload, 0, payload.Length);
+        }
+
+        private static int GetSpecPaddingCount(int blockSize, int secretLength, int dataLength)
+        {
+            dataLength += 2;
+            int paddingCount = dataLength % blockSize == 0
+                ? 0
+                : blockSize - (dataLength % blockSize);
+
+            if (paddingCount + secretLength < blockSize)
+            {
+                paddingCount += blockSize;
+            }
+
+            return paddingCount;
         }
 
         private static DateTime EarliestValidSigningTime()
@@ -909,7 +1533,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string policyUri,
             Certificate receiverCertificate,
             Nonce receiverEphemeralKey,
-            Certificate senderCertificate = null)
+            Certificate? senderCertificate = null)
         {
             return EncryptedSecret.CreateForEcc(
                 m_context,

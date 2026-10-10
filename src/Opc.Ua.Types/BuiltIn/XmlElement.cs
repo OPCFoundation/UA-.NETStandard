@@ -188,7 +188,10 @@ namespace Opc.Ua
             {
                 return false;
             }
-            return XNode.DeepEquals(other, AsXElement());
+            // DeepEquals descends only while both trees match, so bounding
+            // ours bounds the recursion.
+            XElement? ours = AsComparableXElement();
+            return ours != null && XNode.DeepEquals(other, ours);
         }
 
         /// <inheritdoc/>
@@ -228,7 +231,21 @@ namespace Opc.Ua
             {
                 return IsEmpty;
             }
-            return XNode.DeepEquals(other.AsXElement(), AsXElement());
+            if (IsEmpty)
+            {
+                return false;
+            }
+            XElement? ours = AsComparableXElement();
+            XElement? theirs = other.AsComparableXElement();
+            if (ours == null || theirs == null)
+            {
+                // At least one document is malformed, or nested too deep, and
+                // cannot be compared structurally. Compare the raw text instead - two different
+                // malformed documents must not report equality while hashing
+                // differently.
+                return string.Equals(m_outerXml, other.m_outerXml, StringComparison.Ordinal);
+            }
+            return XNode.DeepEquals(theirs, ours);
         }
 
         /// <inheritdoc/>
@@ -252,7 +269,27 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override int GetHashCode()
         {
-            return m_outerXml?.GetHashCode(StringComparison.Ordinal) ?? 0;
+            if (IsEmpty)
+            {
+                return 0;
+            }
+
+            XElement? element = AsComparableXElement();
+            if (element == null)
+            {
+                // A malformed or too deeply nested document is compared by its
+                // raw text, so hash it the same way.
+                return m_outerXml!.GetHashCode(StringComparison.Ordinal);
+            }
+
+            // Equals compares structurally through XNode.DeepEquals, which
+            // ignores attribute order and the spelling of an empty element, so
+            // the hash may only use properties DeepEquals requires to match.
+            // Hashing the raw text put two equal elements in different buckets.
+            var hash = new HashCode();
+            hash.Add(element.Name);
+            hash.Add(element.Value, StringComparer.Ordinal);
+            return hash.ToHashCode();
         }
 
         /// <inheritdoc/>
@@ -336,8 +373,60 @@ namespace Opc.Ua
         {
             using var stream = new MemoryStream(
                 Encoding.UTF8.GetBytes(OuterXml ?? string.Empty));
-            return XElement.Load(stream, LoadOptions.SetBaseUri);
+            // XElement.Load(Stream) parses DTDs and expands entities, which
+            // lets a tiny untrusted payload expand to megabytes on every
+            // comparison. Use the safe defaults (no resolver) and keep the
+            // whitespace handling of XElement.Load. The DTD is skipped rather
+            // than rejected so that a harmless DOCTYPE keeps the value valid;
+            // its entities are never defined, so they cannot expand.
+            XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
+            settings.DtdProcessing = DtdProcessing.Ignore;
+            settings.IgnoreWhitespace = true;
+            using var reader = XmlReader.Create(stream, settings);
+            return XElement.Load(reader, LoadOptions.SetBaseUri);
         }
+
+        /// <summary>
+        /// Returns the element for a structural comparison, or null when it is
+        /// malformed or nested deeper than <see cref="kMaxComparisonDepth"/>.
+        /// XNode.DeepEquals and XElement.Value recurse once per element level,
+        /// so a deeply nested value would otherwise exhaust the stack.
+        /// </summary>
+        private XElement? AsComparableXElement()
+        {
+            // measure the depth with a streaming pass first: loading a deep
+            // tree into LINQ to XML is itself slow (the base URI of every
+            // element is resolved through its ancestors).
+            try
+            {
+                using var stream = new MemoryStream(
+                    Encoding.UTF8.GetBytes(OuterXml ?? string.Empty));
+                XmlReaderSettings settings = CoreUtils.DefaultXmlReaderSettings();
+                settings.DtdProcessing = DtdProcessing.Ignore;
+                using var reader = XmlReader.Create(stream, settings);
+                while (reader.Read())
+                {
+                    if (reader.NodeType == XmlNodeType.Element &&
+                        reader.Depth > kMaxComparisonDepth)
+                    {
+                        return null;
+                    }
+                }
+            }
+            catch (XmlException)
+            {
+                return null;
+            }
+
+            return AsXElement();
+        }
+
+        /// <summary>
+        /// The deepest element nesting that is compared structurally. It covers
+        /// the XML element depth the decoders accept by default
+        /// (<see cref="DefaultEncodingLimits.MaxEncodingNestingLevels"/>).
+        /// </summary>
+        private const int kMaxComparisonDepth = 256;
 
 #pragma warning disable IDE0032 // Use auto property
         private readonly string? m_outerXml;

@@ -113,9 +113,9 @@ namespace Opc.Ua.Types.Tests.Wot
         public void ArgumentListFormattingDoesNotHideTheMethodSignature(System.Xml.XmlNodeType formatting)
         {
             UANodeSet source = CreateMethodNodeSet();
-            UAVariable arguments = source.Items.OfType<UAVariable>()
+            UAVariable arguments = source.Items!.OfType<UAVariable>()
                 .Single(variable => variable.BrowseName == "InputArguments");
-            System.Xml.XmlDocument xml = arguments.Value.OwnerDocument;
+            System.Xml.XmlDocument xml = arguments.Value!.OwnerDocument;
             System.Xml.XmlNode node = formatting switch
             {
                 System.Xml.XmlNodeType.Whitespace => xml.CreateWhitespace("\n  "),
@@ -140,7 +140,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AnUndecodableArgumentListStaysAProperty()
         {
             UANodeSet source = CreateMethodNodeSet();
-            UAVariable arguments = source.Items.OfType<UAVariable>()
+            UAVariable arguments = source.Items!.OfType<UAVariable>()
                 .Single(v => v.BrowseName == "InputArguments");
             arguments.Value = WotTestData.ParseValue(
                 "<uax:ListOfExtensionObject xmlns:uax=\"" +
@@ -184,15 +184,15 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(output.Select(a => a.Name), Is.EqualTo(s_resetOutputOrder));
             Assert.That(output[0].DataType, Is.EqualTo("i=1"));
 
-            UAVariable arguments = result.Value!.Items.OfType<UAVariable>()
+            UAVariable arguments = result.Value!.Items!.OfType<UAVariable>()
                 .Single(v => v.BrowseName == "InputArguments");
             Assert.That(arguments.DataType, Is.EqualTo("i=296"));
             Assert.That(arguments.ValueRank, Is.EqualTo(1));
             Assert.That(arguments.ArrayDimensions, Is.EqualTo("2"));
 
-            UAMethod method = result.Value.Items.OfType<UAMethod>().Single();
+            UAMethod method = result.Value.Items!.OfType<UAMethod>().Single();
             Assert.That(
-                method.References.Count(r =>
+                method.References!.Count(r =>
                     string.Equals(r.ReferenceType, "HasProperty", StringComparison.Ordinal) &&
                     r.IsForward),
                 Is.EqualTo(2),
@@ -227,12 +227,12 @@ namespace Opc.Ua.Types.Tests.Wot
 
             UANodeSet restored = WotNodeSetConverter.ToNodeSet(document);
 
-            UAVariable input = restored.Items.OfType<UAVariable>()
+            UAVariable input = restored.Items!.OfType<UAVariable>()
                 .Single(v => string.Equals(
                     v.BrowseName, "InputArguments", StringComparison.Ordinal));
             Assert.That(input.NodeId, Is.EqualTo("ns=1;i=6002"));
             Assert.That(
-                restored.Items.OfType<UAVariable>().Single(v => string.Equals(
+                restored.Items!.OfType<UAVariable>().Single(v => string.Equals(
                     v.BrowseName, "OutputArguments", StringComparison.Ordinal)).NodeId,
                 Is.EqualTo("ns=1;i=6003"));
         }
@@ -297,7 +297,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolved = NodeId.Parse(mode.DataType!);
             Assert.That(resolved.IdentifierAsString, Is.EqualTo("3002"));
             Assert.That(
-                result.Value!.NamespaceUris[resolved.NamespaceIndex - 1],
+                result.Value!.NamespaceUris![resolved.NamespaceIndex - 1],
                 Is.EqualTo("urn:test:pump"));
         }
 
@@ -460,7 +460,7 @@ namespace Opc.Ua.Types.Tests.Wot
                     d.Severity == WotDiagnosticSeverity.Error),
                 Is.True);
             Assert.That(
-                result.Value!.Items.OfType<UAVariable>()
+                result.Value!.Items!.OfType<UAVariable>()
                     .Any(v => v.BrowseName == "InputArguments"),
                 Is.False,
                 "Nothing is materialized from an order that cannot be known.");
@@ -825,10 +825,10 @@ namespace Opc.Ua.Types.Tests.Wot
             UANodeSet nodeSet,
             string browseName)
         {
-            UAVariable variable = nodeSet.Items.OfType<UAVariable>()
+            UAVariable variable = nodeSet.Items!.OfType<UAVariable>()
                 .Single(v => string.Equals(v.BrowseName, browseName, StringComparison.Ordinal));
             var decoded = new List<DecodedArgument>();
-            foreach (System.Xml.XmlNode node in variable.Value.ChildNodes)
+            foreach (System.Xml.XmlNode node in variable.Value!.ChildNodes)
             {
                 System.Xml.XmlElement argument = ((System.Xml.XmlElement)node)
                     .GetElementsByTagName("Argument", UaXsd)
@@ -850,12 +850,12 @@ namespace Opc.Ua.Types.Tests.Wot
             string localName)
         {
             return parent.ChildNodes.OfType<System.Xml.XmlElement>().FirstOrDefault(e =>
-                string.Equals(e.LocalName, localName, StringComparison.Ordinal));
+                string.Equals(e.LocalName, localName, StringComparison.Ordinal))!;
         }
 
         private static string Text(System.Xml.XmlElement element)
         {
-            return element is null || element.InnerText.Length == 0 ? null : element.InnerText;
+            return (element is null || element.InnerText.Length == 0 ? null : element.InnerText)!;
         }
 
         private sealed record DecodedArgument(

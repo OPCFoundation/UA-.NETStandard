@@ -28,14 +28,109 @@
  * ======================================================================*/
 
 using System;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server.Fluent
 {
     /// <summary>
+    /// Undoes everything attaching an alarm changed in the address space.
+    /// </summary>
+    /// <remarks>
+    /// Held by the node manager as a behavior, so release runs in exact reverse order
+    /// with every other behavior and is aggregated with their failures rather than
+    /// being lost.
+    /// </remarks>
+    internal sealed class AlarmRelease : IAsyncDisposable
+    {
+        /// <summary>
+        /// Initializes a new instance of the <see cref="AlarmRelease"/> class.
+        /// </summary>
+        /// <param name="alarm">The alarm to release.</param>
+        /// <param name="context">The context to release it in.</param>
+        /// <param name="eventSource">What registering the alarm changed.</param>
+        /// <param name="enabledByUs">
+        /// Whether attaching the alarm was what enabled it. False when it arrived
+        /// already enabled, in which case its enable state was never ours to undo.
+        /// </param>
+        public AlarmRelease(
+            ConditionState alarm,
+            ISystemContext context,
+            AlarmEventSourceRegistration eventSource,
+            bool enabledByUs)
+        {
+            m_alarm = alarm;
+            m_context = context;
+            m_eventSource = eventSource;
+            m_enabledByUs = enabledByUs;
+        }
+
+        public async ValueTask DisposeAsync()
+        {
+            if (m_released)
+            {
+                return;
+            }
+            m_released = true;
+
+            // A failure here must not cost us the rest of the cleanup, but it must not
+            // vanish either: the engine promises to aggregate release failures, and an
+            // operator otherwise gets no sign that teardown left registration state
+            // behind. It is retained and rethrown once the rest has run.
+            Exception? rootNotifierFailure = null;
+            try
+            {
+                await m_eventSource.DisposeAsync().ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OutOfMemoryException)
+            {
+                rootNotifierFailure = ex;
+            }
+
+            // The OnAcknowledge/OnConfirm slots are plain delegates on a node that is
+            // being deleted, so they are left alone: they hold nothing to release, and
+            // the fields are not nullable.
+
+            // Disable only what attaching enabled, and only while it is still enabled.
+            // Both halves matter, and for different reasons.
+            //
+            // The ownership half is parity with everything else this class reverses: the
+            // notifier bits list only nodes whose bit we set, and the root notifier is
+            // claimed only when we inserted it. The enable state was the one thing
+            // reversed unconditionally.
+            //
+            // The still-enabled half guards a case ownership does not cover. A client may
+            // disable the condition at runtime through the Disable method, and that path
+            // refuses a redundant transition — ProcessBeforeEnableDisable answers
+            // BadConditionAlreadyDisabled. SetEnableState is the programmatic path and
+            // makes no such check, so disabling an already-disabled condition would
+            // rewrite EnabledState, clear Retain and stamp a fresh TransitionTime: a
+            // second, spurious disable transition emitted on the way out.
+            if (m_enabledByUs && m_alarm.EnabledState?.Id?.Value == true)
+            {
+                m_alarm.SetEnableState(m_context, enabled: false);
+            }
+
+            if (rootNotifierFailure is not null)
+            {
+                System.Runtime.ExceptionServices.ExceptionDispatchInfo
+                    .Capture(rootNotifierFailure)
+                    .Throw();
+            }
+        }
+
+        private readonly ConditionState m_alarm;
+        private readonly ISystemContext m_context;
+        private readonly AlarmEventSourceRegistration m_eventSource;
+        private readonly bool m_enabledByUs;
+        private bool m_released;
+    }
+
+    /// <summary>
     /// Strongly-typed fluent builder for an alarm/condition state
     /// instance. Returned by the <c>CreateLimitAlarm</c> /
     /// <c>CreateExclusiveLimitAlarm</c> / <c>CreateOffNormalAlarm</c>
-    /// helpers on <see cref="INodeBuilder"/>.
+    /// helpers on <see cref="INodeBuilder"/>, and by <c>CreateAlarm</c> for
+    /// any other condition type.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -73,6 +168,11 @@ namespace Opc.Ua.Server.Fluent
         /// a non-limit alarm. Pass <c>double.NaN</c> for any limit you
         /// don't want to set.
         /// </summary>
+        /// <param name="highHigh">The high-high limit, or NaN to leave it unchanged.</param>
+        /// <param name="high">The high limit, or NaN to leave it unchanged.</param>
+        /// <param name="low">The low limit, or NaN to leave it unchanged.</param>
+        /// <param name="lowLow">The low-low limit, or NaN to leave it unchanged.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> WithLimits(
             double highHigh = double.NaN,
             double high = double.NaN,
@@ -80,10 +180,14 @@ namespace Opc.Ua.Server.Fluent
             double lowLow = double.NaN);
 
         /// <summary>
-        /// Sets the alarm's <c>SourceNode</c> reference and
-        /// <c>SourceName</c> to the supplied target. Equivalent to
-        /// setting the alarm's "InputNode" semantics from the spec.
+        /// Sets the alarm's <c>SourceNode</c> and <c>SourceName</c> to the
+        /// supplied target. A Variable target also becomes the alarm's
+        /// <c>InputNode</c> (Part 9 5.8.2) and a ConditionSource: it gets a
+        /// HasCondition reference to the alarm and the Object the alarm was
+        /// created on gets a HasEventSource reference to it (Part 9 5.5.2).
         /// </summary>
+        /// <param name="source">The source node monitored by the alarm.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> MonitorVariable(NodeState source);
 
         /// <summary>
@@ -91,11 +195,15 @@ namespace Opc.Ua.Server.Fluent
         /// Return <see cref="ServiceResult.Good"/> from the handler to
         /// permit the acknowledge transition; any other code cancels it.
         /// </summary>
+        /// <param name="handler">The callback that accepts or rejects acknowledgement.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> OnAcknowledge(ConditionAddCommentEventHandler handler);
 
         /// <summary>
         /// Wires <see cref="AcknowledgeableConditionState.OnConfirm"/>.
         /// </summary>
+        /// <param name="handler">The callback that accepts or rejects confirmation.</param>
+        /// <returns>This builder for further alarm configuration.</returns>
         IAlarmBuilder<TState> OnConfirm(ConditionAddCommentEventHandler handler);
     }
 
@@ -145,6 +253,46 @@ namespace Opc.Ua.Server.Fluent
         }
 
         /// <summary>
+        /// Creates an alarm of any condition type under the resolved
+        /// parent, for the types the dedicated helpers do not cover - a
+        /// companion specification's alarm or condition type, or a server
+        /// specific subtype. The alarm is attached and registered exactly
+        /// as the dedicated helpers attach theirs: it is enabled, the
+        /// parent becomes its <c>SourceNode</c>, <c>SourceName</c> and
+        /// event notifier, and a fluent node manager releases all of that
+        /// again on teardown.
+        /// </summary>
+        /// <typeparam name="TState">The condition state the factory creates.</typeparam>
+        /// <param name="parent">The Object the alarm is created on.</param>
+        /// <param name="browseName">The browse name of the alarm.</param>
+        /// <param name="factory">
+        /// Creates the uninitialized alarm for the parent it is handed, for
+        /// example <c>parent =&gt; new OffNormalAlarmState(parent)</c>. The
+        /// builder assigns the identity and initializes the alarm.
+        /// </param>
+        /// <returns>A builder for further configuration of the alarm.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="parent"/>, <paramref name="browseName"/> or
+        /// <paramref name="factory"/> is <c>null</c>.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// <see cref="StatusCodes.BadTypeMismatch"/> when the parent is not an
+        /// Object.
+        /// </exception>
+        /// <exception cref="InvalidOperationException">
+        /// <paramref name="factory"/> returned <c>null</c>.
+        /// </exception>
+        public static IAlarmBuilder<TState> CreateAlarm<TState>(
+            this INodeBuilder parent,
+            QualifiedName browseName,
+            Func<NodeState, TState> factory)
+            where TState : ConditionState
+        {
+            TState alarm = AttachAlarm(parent, browseName, factory);
+            return new AlarmBuilder<TState>(parent, alarm);
+        }
+
+        /// <summary>
         /// Escape hatch: directly mutate the underlying alarm state.
         /// Use for properties not covered by the narrow MVP surface
         /// (e.g. severity table, retain flag, branches).
@@ -185,6 +333,13 @@ namespace Opc.Ua.Server.Fluent
             return builder.Builder;
         }
 
+        /// <summary>
+        /// Creates and registers an alarm beneath an object, assigning child identifiers and event-source ownership.
+        /// </summary>
+        /// <typeparam name="TState">The concrete alarm state created by the factory.</typeparam>
+        /// <exception cref="ArgumentNullException"><paramref name="parent"/> is <c>null</c>.</exception>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="InvalidOperationException">The factory returned <c>null</c>.</exception>
         private static TState AttachAlarm<TState>(
             INodeBuilder parent,
             QualifiedName browseName,
@@ -203,7 +358,7 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(factory));
             }
-            if (parent.Node is not BaseObjectState parentObject)
+            if (parent.Node is not BaseObjectState)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadTypeMismatch,
@@ -212,15 +367,13 @@ namespace Opc.Ua.Server.Fluent
                     parent.Node.NodeClass);
             }
             string symbolicName = browseName.Name ?? string.Empty;
-            TState alarm = factory(parent.Node);
+            TState alarm = factory(parent.Node)
+                ?? throw new InvalidOperationException("The alarm factory returned no alarm.");
             alarm.SymbolicName = symbolicName;
             alarm.BrowseName = browseName;
             alarm.DisplayName = new LocalizedText(symbolicName);
 
-            string parentIdentifier = parent.Node.NodeId.IdentifierAsString;
-            alarm.NodeId = new NodeId(
-                $"{parentIdentifier}_{symbolicName}",
-                parent.Node.NodeId.NamespaceIndex);
+            FluentNodeRegistration.AssignNodeId(parent.Builder, alarm);
 
             // Initialize standard alarm state surface so the alarm is
             // immediately addressable as a valid OPC UA condition.
@@ -230,14 +383,23 @@ namespace Opc.Ua.Server.Fluent
                 browseName,
                 displayName: new LocalizedText(symbolicName),
                 assignNodeIds: false);
+            parent.Builder.Context.AssignInstanceChildNodeIds(alarm);
+
+            // Record whether enabling is ours to undo, before doing it. A freshly
+            // created condition is disabled, so today this is always true; it is captured
+            // rather than assumed so that teardown reverses a state it observed instead
+            // of one it inferred, the same way the notifier chain is recorded below.
+            bool enabledByUs = alarm.EnabledState?.Id?.Value != true;
             alarm.SetEnableState(parent.Builder.Context, enabled: true);
 
             alarm.ReferenceTypeId = ReferenceTypeIds.HasCondition;
             parent.Node.AddChild(alarm);
             InitializeAlarmSource(parent.Node, alarm);
 
-            parentObject.EventNotifier |= EventNotifiers.SubscribeToEvents;
-
+            // The parent's EventNotifier is promoted by RegisterAlarmEventSource below,
+            // which walks the whole notifier chain starting at this very node and
+            // records what it changed so teardown can undo it. Promoting here as well
+            // would set the bit first and leave that record empty.
             parent.Node.AddReference(
                 ReferenceTypeIds.HasEventSource,
                 isInverse: false,
@@ -252,7 +414,29 @@ namespace Opc.Ua.Server.Fluent
             // source as a root notifier so clients subscribing on the
             // Server Object receive the condition events.
             FluentNodeRegistration.RegisterCreatedNode(parent.Builder, alarm);
-            FluentNodeRegistration.RegisterAlarmEventSource(parent.Builder, parent.Node);
+            AlarmEventSourceRegistration eventSource =
+                FluentNodeRegistration.RegisterAlarmEventSource(parent.Builder, parent.Node);
+
+            // Hand release to the behavior mechanism. Everything above mutates the
+            // address space and, until now, nothing undid any of it: an alarm survived
+            // its own node manager's teardown as an enabled condition with a promoted
+            // notifier chain and a root-notifier registration still in place.
+            // Alarms work on any node manager, so a manager that has not opted into the
+            // fluent surface keeps the behavior it always had: it simply gets no
+            // automatic release.
+            NodeManagerBuilder? concrete =
+                FluentNodeManagerBase.TryResolveAttachedBuilder(parent.Builder);
+            concrete?.RegisterNodeAttachment(
+                NodeAttachRegistration.ForNode(
+                    alarm,
+                    static (_, _, _, state) => new ValueTask<IAsyncDisposable?>(
+                        (AlarmRelease)state),
+                    new AlarmRelease(
+                        alarm,
+                        parent.Builder.Context,
+                        eventSource,
+                        enabledByUs)));
+
             return alarm;
         }
 
@@ -280,12 +464,9 @@ namespace Opc.Ua.Server.Fluent
                 alarm.ConditionName.Value = alarm.BrowseName.Name ?? string.Empty;
             }
 
-            if (alarm is AlarmConditionState alarmCondition &&
-                alarmCondition.InputNode != null &&
-                alarmCondition.InputNode.Value.IsNull)
-            {
-                alarmCondition.InputNode.Value = source.NodeId;
-            }
+            // The source is always an Object here (AttachAlarm rejects any
+            // other parent), so InputNode stays NULL until MonitorVariable
+            // supplies the Variable (Part 9 5.8.2).
         }
     }
 
@@ -305,6 +486,7 @@ namespace Opc.Ua.Server.Fluent
         public TState Alarm { get; }
         public INodeBuilder Builder { get; }
 
+        /// <inheritdoc/>
         public IAlarmBuilder<TState> WithLimits(
             double highHigh = double.NaN,
             double high = double.NaN,
@@ -320,30 +502,42 @@ namespace Opc.Ua.Server.Fluent
                     Alarm.GetType().Name);
             }
 
-            _ = Builder.Builder.Context;
+            ISystemContext context = Builder.Builder.Context;
             if (!double.IsNaN(highHigh))
             {
-                limit.HighHighLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.HighHighLimit.Value = highHigh;
+                if (limit.HighHighLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddHighHighLimit(context).HighHighLimit!);
+                }
+                limit.HighHighLimit!.Value = highHigh;
             }
             if (!double.IsNaN(high))
             {
-                limit.HighLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.HighLimit.Value = high;
+                if (limit.HighLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddHighLimit(context).HighLimit!);
+                }
+                limit.HighLimit!.Value = high;
             }
             if (!double.IsNaN(low))
             {
-                limit.LowLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.LowLimit.Value = low;
+                if (limit.LowLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddLowLimit(context).LowLimit!);
+                }
+                limit.LowLimit!.Value = low;
             }
             if (!double.IsNaN(lowLow))
             {
-                limit.LowLowLimit ??=
-                    new PropertyState<double>.Implementation<VariantBuilder>(limit);
-                limit.LowLowLimit.Value = lowLow;
+                if (limit.LowLowLimit == null)
+                {
+                    FluentNodeRegistration.RegisterCreatedNode(
+                        Builder.Builder, limit.AddLowLowLimit(context).LowLowLimit!);
+                }
+                limit.LowLowLimit!.Value = lowLow;
             }
             return this;
         }
@@ -354,6 +548,34 @@ namespace Opc.Ua.Server.Fluent
             {
                 throw new ArgumentNullException(nameof(source));
             }
+
+            if (source is BaseVariableState)
+            {
+                // Part 9 5.8.2: a monitored Variable is the alarm's InputNode.
+                if (Alarm is AlarmConditionState alarmCondition &&
+                    alarmCondition.InputNode != null)
+                {
+                    alarmCondition.InputNode.Value = source.NodeId;
+                }
+
+                // Part 9 5.5.2: SourceNode names the ConditionSource. Make the Variable
+                // one: HasCondition to the alarm, and HasEventSource from the Object
+                // that owns the notifier chain, so the source the events name leads to
+                // the condition. Deleting the alarm removes these references again.
+                if (!source.ReferenceExists(ReferenceTypeIds.HasCondition, false, Alarm.NodeId))
+                {
+                    source.AddReference(ReferenceTypeIds.HasCondition, false, Alarm.NodeId);
+                    Alarm.AddReference(ReferenceTypeIds.HasCondition, true, source.NodeId);
+                }
+                NodeState? owner = Alarm.Parent;
+                if (owner != null &&
+                    !owner.ReferenceExists(ReferenceTypeIds.HasEventSource, false, source.NodeId))
+                {
+                    owner.AddReference(ReferenceTypeIds.HasEventSource, false, source.NodeId);
+                    source.AddReference(ReferenceTypeIds.HasEventSource, true, owner.NodeId);
+                }
+            }
+
             Alarm.SourceNode!.Value = source.NodeId;
             QualifiedName srcName = source.BrowseName;
             Alarm.SourceName!.Value = srcName.IsNull ? string.Empty : (srcName.Name ?? string.Empty);

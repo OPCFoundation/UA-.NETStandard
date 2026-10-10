@@ -31,6 +31,7 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -49,6 +50,33 @@ namespace Opc.Ua.Server.Tests.Redundancy
     public class PeerEndpointDirectoryTests
     {
         [Test]
+        public async Task ProtectedPeerEndpointsRejectAnotherPeerKeyAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var random = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            random.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            IServiceMessageContext context = CreateContext();
+            var options = new LoadDirectionOptions { EndpointKeyPrefix = "deployment/endpoints/" };
+            var publisher = new SharedPeerEndpointPublisher(
+                store, context, protector, options, "urn:server:a");
+            await publisher.PublishAsync(
+                [Endpoint("opc.tcp://a:4840", MessageSecurityMode.None, "urn:server:a")]).ConfigureAwait(false);
+            (bool found, ByteString record) = await store.TryGetAsync(
+                options.EndpointKeyPrefix + "urn:server:a").ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            await store.SetAsync(options.EndpointKeyPrefix + "urn:server:b", record).ConfigureAwait(false);
+            var directory = new SharedPeerEndpointDirectory(store, context, protector, options);
+
+            Assert.That(await directory.GetEndpointsAsync("urn:server:b").ConfigureAwait(false), Is.Empty);
+            ArrayOf<EndpointDescription> original = await directory.GetEndpointsAsync("urn:server:a")
+                .ConfigureAwait(false);
+            Assert.That(original, Has.Count.EqualTo(1));
+            Assert.That(original[0].EndpointUrl, Is.EqualTo("opc.tcp://a:4840"));
+        }
+
+        [Test]
         public async Task PublishAndReadRoundTripReturnsEndpointsAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
@@ -66,7 +94,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray()!;
 
             Assert.That(resolved, Has.Length.EqualTo(2));
             Assert.That(resolved[0].EndpointUrl, Is.EqualTo("opc.tcp://a:4840"));
@@ -83,7 +111,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:missing").ConfigureAwait(false)).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:missing").ConfigureAwait(false)).ToArray()!;
 
             Assert.That(resolved, Is.Empty);
         }
@@ -97,7 +125,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync(string.Empty).ConfigureAwait(false)).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync(string.Empty).ConfigureAwait(false)).ToArray()!;
 
             Assert.That(resolved, Is.Empty);
         }
@@ -112,7 +140,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var directory = new SharedPeerEndpointDirectory(
                 store, context, NullRecordProtector.Instance, options);
-            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray();
+            EndpointDescription[] resolved = (await directory.GetEndpointsAsync("urn:server:a").ConfigureAwait(false)).ToArray()!;
 
             Assert.That(resolved, Is.Empty, "an undecodable endpoint record must be dropped (fail-closed)");
         }

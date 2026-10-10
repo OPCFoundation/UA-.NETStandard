@@ -462,7 +462,7 @@ namespace Opc.Ua.Types.Tests.Wot
             UAObjectType root = result.Value!.Items!.OfType<UAObjectType>().First();
             Assert.That(root, Is.Not.Null);
             Assert.That(
-                root.BrowseName.Contains("MyType", StringComparison.Ordinal),
+                root.BrowseName!.Contains("MyType", StringComparison.Ordinal),
                 Is.True,
                 "nsu= browseName should produce a valid qualified name.");
         }
@@ -692,7 +692,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAVariable property = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault();
+            UAVariable property = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault()!;
             Assert.That(property, Is.Not.Null);
             bool hasModellingRule = property!.References != null &&
                 property.References.Any(r =>
@@ -720,7 +720,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAVariable property = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault();
+            UAVariable property = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault()!;
             Assert.That(property, Is.Not.Null);
             Assert.That(property!.AccessLevel & 1u, Is.Not.Zero, "ReadOnly=true should set AccessLevel read bit.");
             Assert.That(property.AccessLevel & 2u, Is.Zero, "ReadOnly=true should not set the write bit.");
@@ -742,7 +742,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAVariable property = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault();
+            UAVariable property = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault()!;
             Assert.That(property, Is.Not.Null);
             Assert.That(property!.AccessLevel & 2u, Is.Not.Zero, "WriteOnly=true should set AccessLevel write bit.");
             Assert.That(property.AccessLevel & 1u, Is.Zero, "WriteOnly=true should not set the read bit.");
@@ -1057,7 +1057,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAVariable property = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault();
+            UAVariable property = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault()!;
             Assert.That(property, Is.Not.Null);
             Assert.That(
                 property!.AccessLevel & 1u,
@@ -1251,7 +1251,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UANode root1266 = result.Value!.Items?.FirstOrDefault();
+            UANode root1266 = (result.Value!.Items?.FirstOrDefault())!;
             Assert.That(root1266, Is.Not.Null);
             bool hasForwardComponents = root1266.References?.Any(r =>
                 r.IsForward && string.Equals(r.ReferenceType, "HasComponent", StringComparison.Ordinal)) ?? false;
@@ -1275,7 +1275,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UANode root1290 = result.Value!.Items?.FirstOrDefault();
+            UANode root1290 = (result.Value!.Items?.FirstOrDefault())!;
             Assert.That(root1290, Is.Not.Null);
             bool hasBackwardComponent = root1290.References?.Any(r =>
                 !r.IsForward && string.Equals(r.ReferenceType, "HasComponent", StringComparison.Ordinal)) ?? false;
@@ -1319,7 +1319,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UANode root1334 = result.Value!.Items?.FirstOrDefault();
+            UANode root1334 = (result.Value!.Items?.FirstOrDefault())!;
             Assert.That(root1334, Is.Not.Null);
             Assert.That(
                 root1334.BrowseName,
@@ -1367,7 +1367,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAVariable variable = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault();
+            UAVariable variable = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault()!;
             Assert.That(variable, Is.Not.Null);
             Assert.That(
                 variable.BrowseName,
@@ -1392,7 +1392,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAVariable variable = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault();
+            UAVariable variable = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault()!;
             Assert.That(variable, Is.Not.Null,
                 "A property with nsu= browseName without semicolon should still produce a UAVariable.");
         }
@@ -1413,7 +1413,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAMethod method = result.Value!.Items!.OfType<UAMethod>().FirstOrDefault();
+            UAMethod method = result.Value!.Items!.OfType<UAMethod>().FirstOrDefault()!;
             Assert.That(method, Is.Not.Null);
             Assert.That(
                 method.DisplayName != null && method.DisplayName.Length > 0 &&
@@ -1439,7 +1439,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.Value, Is.Not.Null);
             UAObjectType eventType = result.Value!.Items!.OfType<UAObjectType>()
-                .Skip(1).FirstOrDefault();
+                .Skip(1).FirstOrDefault()!;
             Assert.That(eventType, Is.Not.Null);
             Assert.That(
                 eventType.DisplayName != null && eventType.DisplayName.Length > 0 &&
@@ -1730,7 +1730,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAVariable variable = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault();
+            UAVariable variable = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault()!;
             Assert.That(variable, Is.Not.Null);
             Assert.That(
                 variable.BrowseName,
@@ -1752,7 +1752,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UANode root = result.Value!.Items?.FirstOrDefault();
+            UANode root = (result.Value!.Items?.FirstOrDefault())!;
             Assert.That(root, Is.Not.Null);
             Assert.That(
                 root.NodeId,
@@ -1774,7 +1774,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UANode root = result.Value!.Items?.FirstOrDefault();
+            UANode root = (result.Value!.Items?.FirstOrDefault())!;
             Assert.That(root, Is.Not.Null);
             Assert.That(
                 root.NodeId,
@@ -1800,7 +1800,7 @@ namespace Opc.Ua.Types.Tests.Wot
             WotConversionResult<UANodeSet> result = WotNodeSetConverter.ToNodeSetResult(document);
 
             Assert.That(result.Value, Is.Not.Null);
-            UAVariable variable = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault();
+            UAVariable variable = result.Value!.Items!.OfType<UAVariable>().FirstOrDefault()!;
             Assert.That(variable, Is.Not.Null);
             Assert.That(
                 variable.BrowseName,
@@ -2038,7 +2038,7 @@ namespace Opc.Ua.Types.Tests.Wot
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 return new ValueTask<WotResolverResult>(
-                    m_documents.TryGetValue(reference, out byte[] document)
+                    m_documents.TryGetValue(reference, out byte[]? document)
                         ? WotResolverResult.FromBytes(document)
                         : WotResolverResult.NotFound);
             }

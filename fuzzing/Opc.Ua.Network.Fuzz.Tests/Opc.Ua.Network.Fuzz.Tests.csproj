@@ -1,15 +1,12 @@
 <Project Sdk="Microsoft.NET.Sdk">
   <PropertyGroup>
     <OutputType>Exe</OutputType>
+    <StartupObject>Opc.Ua.Fuzzing.FuzzReplayProgram</StartupObject>
     <!-- Follow CustomTestTarget like the Opc.Ua.Core.Diagnostics project this
          test indirectly references; see Opc.Ua.Network.Fuzz.csproj for
          the rationale. -->
     <TargetFrameworks Condition="'$(CustomTestTarget)' == ''">net8.0;net9.0;net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(CustomTestTarget)' == 'net8.0' OR '$(CustomTestTarget)' == 'net9.0' OR '$(CustomTestTarget)' == 'net10.0'">$(CustomTestTarget)</TargetFrameworks>
-    <!-- netstandard2.0/2.1 can't host the empty $(RestrictForLegacyTfm) shell
-         (CS8021 - no reference assembly defines System.Object), so build those
-         shells as net10.0. net472/net48 shells compile empty fine. -->
-    <TargetFrameworks Condition="'$(TargetFrameworks)' == '' AND ('$(CustomTestTarget)' == 'netstandard2.0' OR '$(CustomTestTarget)' == 'netstandard2.1')">net10.0</TargetFrameworks>
     <TargetFrameworks Condition="'$(TargetFrameworks)' == ''">$(CustomTestTarget)</TargetFrameworks>
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <AssemblyName>Opc.Ua.Network.Fuzz.Tests</AssemblyName>
@@ -82,5 +79,9 @@
     <None Update="Assets\**">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Fuzz\EncodingFidelityException.cs" Link="EncodingFidelityException.cs" />
+    <Compile Include="..\Common\Fuzz\FuzzOracles.cs" Link="FuzzOracles.cs" />
   </ItemGroup>
 </Project>

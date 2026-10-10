@@ -33,6 +33,10 @@ using System.Collections.ObjectModel;
 using System.Globalization;
 using System.Linq;
 using System.Security.Cryptography;
+#if NETFRAMEWORK
+using AesGcm = Opc.Ua.Security.Certificates.BouncyCastle.AesGcm;
+using ChaCha20Poly1305 = Opc.Ua.Security.Certificates.BouncyCastle.ChaCha20Poly1305;
+#endif
 using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.PubSub.Udp.Dtls
@@ -192,7 +196,10 @@ namespace Opc.Ua.PubSub.Udp.Dtls
     }
 
     /// <summary>
-    /// Runtime .NET BCL primitive support for DTLS profiles.
+    /// Runtime primitive support for DTLS profiles: the .NET 8+ BCL ciphers and
+    /// curves, or on .NET Framework the BouncyCastle AES-GCM and
+    /// ChaCha20-Poly1305 from Opc.Ua.Security.Certificates and the CNG curves.
+    /// HKDF is the managed, HMAC-based <see cref="DtlsHkdf"/> on every target.
     /// </summary>
     public readonly record struct DtlsPrimitiveSupport(
         bool HasAesGcm,
@@ -206,11 +213,13 @@ namespace Opc.Ua.PubSub.Udp.Dtls
         bool HasBrainpoolP384r1)
     {
         /// <summary>
-        /// Probes the current runtime using typed BCL APIs only.
+        /// Probes the primitives the DTLS stack uses on this target: the AEAD
+        /// ciphers (BCL on .NET 8+, BouncyCastle on .NET Framework), the
+        /// managed <see cref="DtlsHkdf"/>, and the named curves the platform can
+        /// create.
         /// </summary>
         public static DtlsPrimitiveSupport Probe()
         {
-#if NET8_0_OR_GREATER
             bool hasAesGcm = AesGcm.IsSupported;
             bool hasChaCha20Poly1305 = ChaCha20Poly1305.IsSupported;
             return new DtlsPrimitiveSupport(
@@ -223,9 +232,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 CanCreateCurve(ECCurve.NamedCurves.nistP384),
                 CanCreateCurve(ECCurve.CreateFromValue("1.3.36.3.3.2.8.1.1.7")),
                 CanCreateCurve(ECCurve.CreateFromValue("1.3.36.3.3.2.8.1.1.11")));
-#else
-            return new DtlsPrimitiveSupport(false, false, false, false, false, false, false, false, false);
-#endif
         }
 
         /// <summary>
@@ -272,7 +278,6 @@ namespace Opc.Ua.PubSub.Udp.Dtls
             };
         }
 
-#if NET8_0_OR_GREATER
         private static bool CanCreateCurve(ECCurve curve)
         {
             try
@@ -290,10 +295,11 @@ namespace Opc.Ua.PubSub.Udp.Dtls
 
         private static bool ProbeHkdf()
         {
-            Span<byte> output = stackalloc byte[32];
+            // The key schedule uses the HMAC-based DtlsHkdf, not the BCL HKDF,
+            // so probe that: it also runs on .NET Framework.
             try
             {
-                HKDF.Extract(HashAlgorithmName.SHA256, [], [], output);
+                byte[] output = DtlsHkdf.Extract(HashAlgorithmName.SHA256, [], []);
                 CryptoUtils.ZeroMemory(output);
                 return true;
             }
@@ -301,11 +307,9 @@ namespace Opc.Ua.PubSub.Udp.Dtls
                 or CryptographicException
                 or NotSupportedException)
             {
-                CryptoUtils.ZeroMemory(output);
                 return false;
             }
         }
-#endif
     }
 
     /// <summary>

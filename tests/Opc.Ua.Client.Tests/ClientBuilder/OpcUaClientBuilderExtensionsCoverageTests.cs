@@ -230,6 +230,71 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         }
 
         [Test]
+        public async Task ApplyManagedSessionOptionsServerRedundancyOptionsAsync()
+        {
+            var redundancy = new ServerRedundancyOptions();
+            ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services => services.AddOpcUa().AddClient(opts =>
+                {
+                    opts.Configuration = CreateConfig();
+                    opts.Session = new ManagedSessionOptions
+                    {
+                        EnableServerRedundancy = true,
+                        ServerRedundancy = redundancy
+                    };
+                })).ConfigureAwait(false);
+
+            Assert.That(captured.ServerRedundancy, Is.SameAs(redundancy));
+        }
+
+        [Test]
+        public void AddDiscoveryAndConnectRewritesAdvertisedHostToDiscoveryHost()
+        {
+            var services = new ServiceCollection();
+            services.AddOpcUa()
+                .AddClient(opts => opts.Configuration = CreateConfig())
+                .AddDiscoveryAndConnect(opts =>
+                {
+                    opts.DiscoveryUrl = "opc.tcp://public-name:4841";
+                    opts.SecurityMode = MessageSecurityMode.None;
+                    opts.SecurityPolicyUri = SecurityPolicies.None;
+                });
+            services.AddSingleton<IOpcUaDiscoveryService>(new EndpointDiscoveryStub(
+            [
+                new EndpointDescription
+                {
+                    EndpointUrl = "https://internal-host:4843",
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None
+                },
+                new EndpointDescription
+                {
+                    EndpointUrl = "opc.tcp://internal-host:4840/path",
+                    SecurityMode = MessageSecurityMode.None,
+                    SecurityPolicyUri = SecurityPolicies.None
+                }
+            ]));
+            ConfiguredEndpoint? connected = null;
+            var factory = new Mock<IManagedSessionFactory>();
+            factory.Setup(f => f.ConnectAsync(It.IsAny<ConfiguredEndpoint>(), It.IsAny<CancellationToken>()))
+                .Callback<ConfiguredEndpoint, CancellationToken>((endpoint, _) => connected = endpoint)
+                .ThrowsAsync(new OperationCanceledException());
+            services.AddSingleton(factory.Object);
+
+            using ServiceProvider sp = services.BuildServiceProvider();
+            Func<CancellationToken, Task<Client.ManagedSession>> connect =
+                sp.GetRequiredService<Func<CancellationToken, Task<Client.ManagedSession>>>();
+
+            Assert.CatchAsync<OperationCanceledException>(() => connect(CancellationToken.None));
+
+            Assert.That(connected, Is.Not.Null);
+            Uri url = connected!.EndpointUrl!;
+            Assert.That(url.Scheme, Is.EqualTo("opc.tcp"));
+            Assert.That(url.Host, Is.EqualTo("public-name"));
+            Assert.That(url.Port, Is.EqualTo(4841));
+            Assert.That(url.AbsolutePath, Is.EqualTo("/path"));
+        }
+
+        [Test]
         public async Task ApplyManagedSessionOptionsTimeProviderAsync()
         {
             ManagedSessionOptions captured = await CaptureAppliedSessionOptionsAsync(services => services.AddOpcUa().AddClient(opts =>
@@ -334,6 +399,32 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
         /// Minimal discovery stub that returns an empty endpoint list so that
         /// <c>SelectDiscoveredEndpointAsync</c> always reaches the "no match" throw.
         /// </summary>
+        private sealed class EndpointDiscoveryStub : IOpcUaDiscoveryService
+        {
+            public EndpointDiscoveryStub(EndpointDescription[] endpoints)
+            {
+                m_endpoints = endpoints;
+            }
+
+            public ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(
+                string discoveryUrl,
+                ArrayOf<string> serverUris = default,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<ArrayOf<ApplicationDescription>>([]);
+            }
+
+            public ValueTask<ArrayOf<EndpointDescription>> GetEndpointsAsync(
+                string discoveryUrl,
+                ArrayOf<string> profileUris = default,
+                CancellationToken ct = default)
+            {
+                return new ValueTask<ArrayOf<EndpointDescription>>(m_endpoints.ToArrayOf());
+            }
+
+            private readonly EndpointDescription[] m_endpoints;
+        }
+
         private sealed class EmptyDiscoveryStub : IOpcUaDiscoveryService
         {
             public ValueTask<ArrayOf<ApplicationDescription>> FindServersAsync(

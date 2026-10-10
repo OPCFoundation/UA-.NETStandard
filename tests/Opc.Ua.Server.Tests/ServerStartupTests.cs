@@ -27,7 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
+using System.IO;
+using System.Net.Sockets;
 using System.Threading.Tasks;
+using Microsoft.AspNetCore.Connections;
 using NUnit.Framework;
 using Opc.Ua.Server.TestFramework;
 
@@ -64,6 +68,62 @@ namespace Opc.Ua.Server.Tests
             Assert.That(server, Is.Not.Null);
             await Task.Delay(1000).ConfigureAwait(false);
             await fixture.StopAsync().ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// The port a fixture is handed is only known to be free at the moment
+        /// it is picked, so a parallel fixture or an unrelated process on the
+        /// agent can take it before the server binds. Every transport's way of
+        /// reporting that has to be recognised as retryable: the https
+        /// listeners bind through Kestrel, which surfaces the collision as an
+        /// IOException wrapping an AddressInUseException rather than as a
+        /// ServiceResultException, and used to escape the retry and fail the
+        /// caller's whole OneTimeSetUp.
+        /// </summary>
+        [Test]
+        public void IsPortUnavailableRecognisesEveryTransportsPortCollision()
+        {
+            var uaTcp = new ServiceResultException(
+                StatusCodes.BadNoCommunication, "Failed to open a listening socket.");
+            var inUse = new SocketException((int)SocketError.AddressAlreadyInUse);
+            var kestrel = new IOException(
+                "Failed to bind to address https://[::]:49254: address already in use.",
+                new AddressInUseException("Address already in use.", inUse));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(ServerFixtureUtils.IsPortUnavailable(uaTcp), Is.True);
+                Assert.That(ServerFixtureUtils.IsPortUnavailable(inUse), Is.True);
+                Assert.That(ServerFixtureUtils.IsPortUnavailable(kestrel), Is.True);
+                Assert.That(
+                    ServerFixtureUtils.IsPortUnavailable(new AggregateException(kestrel)),
+                    Is.True);
+            });
+        }
+
+        /// <summary>
+        /// A failure that has nothing to do with the port must not be retried
+        /// on a different one - it would only hide the real error behind a
+        /// second, identical failure.
+        /// </summary>
+        [Test]
+        public void IsPortUnavailableIgnoresUnrelatedFailures()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    ServerFixtureUtils.IsPortUnavailable(
+                        new InvalidOperationException("Application instance certificate invalid!")),
+                    Is.False);
+                Assert.That(
+                    ServerFixtureUtils.IsPortUnavailable(
+                        new ServiceResultException(StatusCodes.BadCertificateInvalid)),
+                    Is.False);
+                Assert.That(
+                    ServerFixtureUtils.IsPortUnavailable(
+                        new SocketException((int)SocketError.ConnectionRefused)),
+                    Is.False);
+            });
         }
     }
 }

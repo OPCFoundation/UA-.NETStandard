@@ -2266,7 +2266,9 @@ namespace Opc.Ua.Wot
                     {
                         return;
                     }
-                    linked = JsonDocument.Parse(linkedData);
+                    linked = JsonDocument.Parse(
+                        linkedData,
+                        WotDocument.ReparseOptions);
                     data = linked.RootElement;
                 }
                 if (!data.TryGetProperty("properties", out JsonElement properties) ||

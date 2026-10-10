@@ -333,7 +333,11 @@ namespace Opc.Ua.Pcap.Tests.Dissection
             Assert.That(reassembler.DrainCompleted(), Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies request summaries include service-specific counts and use the fallback body size for unknown kinds.
+        /// </summary>
         [Test]
+        [SetCulture("en-US")]
         public void PrivateRequestSummaryFormatsKnownRequestKinds()
         {
             Assert.That(
@@ -396,6 +400,26 @@ namespace Opc.Ua.Pcap.Tests.Dissection
             Assert.That(
                 InvokeCreateRequestSummary(new RegisterNodesRequest(), "RegisterNodesRequest", 108),
                 Is.EqualTo("handle=0 audit= RegisterNodesRequest body=108B"));
+        }
+
+        /// <summary>
+        /// Verifies request summary display values use the current culture's decimal separator.
+        /// </summary>
+        [Test]
+        [SetCulture("de-DE")]
+        public void RequestSummaryFormatsNumericDisplayValuesUsingCurrentCulture()
+        {
+            Assert.That(
+                InvokeCreateRequestSummary(
+                    new ReadRequest
+                    {
+                        RequestHeader = new RequestHeader { RequestHandle = 10, AuditEntryId = "audit" },
+                        NodesToRead = [new ReadValueId { NodeId = ObjectIds.Server }],
+                        MaxAge = 12.5
+                    },
+                    "ReadRequest",
+                    100),
+                Is.EqualTo("handle=10 audit=audit 1 nodes, maxAge=12,5"));
         }
 
         [Test]

@@ -56,13 +56,13 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Assert.That(factory.TryGetType(structure.XmlName, out _), Is.False);
                 Assert.That(factory.TryGetType(enumeration.XmlName, out _), Is.False);
                 Assert.That(snapshot.KnownTypeIds, Is.EquivalentTo(new[] { s_structureId, s_enumId }));
-                Assert.That(snapshot.TryGetEncodeableType(s_structureId, out IEncodeableType stored), Is.True);
+                Assert.That(snapshot.TryGetEncodeableType(s_structureId, out IEncodeableType? stored), Is.True);
                 Assert.That(stored, Is.SameAs(structure));
-                Assert.That(snapshot.TryGetEnumeratedType(s_enumId, out IEnumeratedType storedEnum), Is.True);
+                Assert.That(snapshot.TryGetEnumeratedType(s_enumId, out IEnumeratedType? storedEnum), Is.True);
                 Assert.That(storedEnum, Is.SameAs(enumeration));
-                Assert.That(snapshot.TryGetType(structure.XmlName, out IType xmlStructure), Is.True);
+                Assert.That(snapshot.TryGetType(structure.XmlName, out IType? xmlStructure), Is.True);
                 Assert.That(xmlStructure, Is.SameAs(structure));
-                Assert.That(snapshot.TryGetType(enumeration.XmlName, out IType xmlEnum), Is.True);
+                Assert.That(snapshot.TryGetType(enumeration.XmlName, out IType? xmlEnum), Is.True);
                 Assert.That(xmlEnum, Is.SameAs(enumeration));
             }
             using EncodeableFactory.Publication publication = factory.BeginPublication(source, revision);
@@ -81,18 +81,18 @@ namespace Opc.Ua.Types.Tests.Encoders
             EncodeableFactory fork = factory.Fork();
             using (Assert.EnterMultipleScope())
             {
-                Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType encoded), Is.True);
+                Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType? encoded), Is.True);
                 Assert.That(encoded, Is.SameAs(structure));
-                Assert.That(factory.TryGetEnumeratedType(s_enumId, out IEnumeratedType enumerated), Is.True);
+                Assert.That(factory.TryGetEnumeratedType(s_enumId, out IEnumeratedType? enumerated), Is.True);
                 Assert.That(enumerated, Is.SameAs(enumeration));
-                Assert.That(factory.TryGetType(structure.XmlName, out IType xmlType), Is.True);
+                Assert.That(factory.TryGetType(structure.XmlName, out IType? xmlType), Is.True);
                 Assert.That(xmlType, Is.SameAs(structure));
                 Assert.That(factory.KnownTypeIds, Is.EquivalentTo(fork.KnownTypeIds));
             }
             selected = new EncodeableFactory();
             Assert.That(factory.KnownTypeIds, Is.Empty);
             Assert.That(factory.TryGetEncodeableType(s_structureId, out _), Is.False);
-            Assert.That(fork.TryGetEncodeableType(s_structureId, out IEncodeableType retained), Is.True);
+            Assert.That(fork.TryGetEncodeableType(s_structureId, out IEncodeableType? retained), Is.True);
             Assert.That(retained, Is.SameAs(structure));
         }
 
@@ -123,7 +123,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             else
             {
                 builder.Commit();
-                Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType stored), Is.True);
+                Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType? stored), Is.True);
                 Assert.That(stored, Is.SameAs(structure));
             }
         }
@@ -175,7 +175,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             factory.Builder.AddEncodeableType(s_structureId, structure).AddEnumeratedType(s_enumId, enumeration).Commit();
             owner.Release(selected);
             owner.Release(selected);
-            Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType retained), Is.True);
+            Assert.That(factory.TryGetEncodeableType(s_structureId, out IEncodeableType? retained), Is.True);
             Assert.That(retained, Is.SameAs(structure));
             Assert.That(factory.TryGetEnumeratedType(s_enumId, out _), Is.True);
             Assert.That(factory.TryGetType(structure.XmlName, out _), Is.True);

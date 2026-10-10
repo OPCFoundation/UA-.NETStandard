@@ -53,23 +53,23 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ValidateRolePermissions_NullNodeMetadata_ReturnsGood()
         {
-            ServiceResult result = MasterNodeManager.ValidateRolePermissions(null, null, PermissionType.Read);
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(null!, null!, PermissionType.Read);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
         public void ValidateRolePermissions_PermissionNone_ReturnsGood()
         {
-            var nodeMetadata = new NodeMetadata(null, new NodeId(1));
-            ServiceResult result = MasterNodeManager.ValidateRolePermissions(null, nodeMetadata, PermissionType.None);
+            var nodeMetadata = new NodeMetadata(null!, new NodeId(1));
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(null!, nodeMetadata, PermissionType.None);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
         public void ValidateRolePermissions_NoRestrictions_ReturnsGood()
         {
-            var nodeMetadata = new NodeMetadata(null, new NodeId(1));
-            ServiceResult result = MasterNodeManager.ValidateRolePermissions(null, nodeMetadata, PermissionType.Read);
+            var nodeMetadata = new NodeMetadata(null!, new NodeId(1));
+            ServiceResult result = MasterNodeManager.ValidateRolePermissions(null!, nodeMetadata, PermissionType.Read);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.Good));
         }
 
@@ -78,9 +78,9 @@ namespace Opc.Ua.Server.Tests
         {
             var identity = new Mock<IUserIdentity>();
             identity.Setup(x => x.GrantedRoleIds).Returns(new ArrayOf<NodeId>());
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null!, identity.Object);
 
-            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            var nodeMetadata = new NodeMetadata(null!, new NodeId(1))
             {
                 RolePermissions = [
                     new RolePermissionType { RoleId = new NodeId(1), Permissions = (uint)PermissionType.Read }
@@ -99,7 +99,7 @@ namespace Opc.Ua.Server.Tests
                     It.Is<EventId>(e => e.Name == "CurrentUserHasNoGrantedRole"),
                     It.IsAny<It.IsAnyType>(),
                     It.IsAny<Exception>(),
-                    (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
+                    (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()),
                 Times.Once);
 #pragma warning restore CA1873
         }
@@ -109,9 +109,9 @@ namespace Opc.Ua.Server.Tests
         {
             var identity = new Mock<IUserIdentity>();
             identity.Setup(x => x.GrantedRoleIds).Returns([new NodeId(2)]);
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null!, identity.Object);
 
-            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            var nodeMetadata = new NodeMetadata(null!, new NodeId(1))
             {
                 RolePermissions = [
                     new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Browse }
@@ -130,7 +130,7 @@ namespace Opc.Ua.Server.Tests
                     It.Is<EventId>(e => e.Name == "RolePermissionsValidationFailedForNodeNodeId"),
                     It.IsAny<It.IsAnyType>(),
                     It.IsAny<Exception>(),
-                    (Func<It.IsAnyType, Exception, string>)It.IsAny<object>()),
+                    (Func<It.IsAnyType, Exception?, string>)It.IsAny<object>()),
                 Times.Once);
 #pragma warning restore CA1873
         }
@@ -140,9 +140,9 @@ namespace Opc.Ua.Server.Tests
         {
             var identity = new Mock<IUserIdentity>();
             identity.Setup(x => x.GrantedRoleIds).Returns([new NodeId(2)]);
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null!, identity.Object);
 
-            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            var nodeMetadata = new NodeMetadata(null!, new NodeId(1))
             {
                 RolePermissions = [
                     new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Read }
@@ -160,9 +160,9 @@ namespace Opc.Ua.Server.Tests
         {
             var identity = new Mock<IUserIdentity>();
             identity.Setup(x => x.GrantedRoleIds).Returns([new NodeId(2)]);
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null!, identity.Object);
 
-            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            var nodeMetadata = new NodeMetadata(null!, new NodeId(1))
             {
                 DefaultRolePermissions = [
                     new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Read }
@@ -180,9 +180,9 @@ namespace Opc.Ua.Server.Tests
         {
             var identity = new Mock<IUserIdentity>();
             identity.Setup(x => x.GrantedRoleIds).Returns([new NodeId(2)]);
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null!, identity.Object);
 
-            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            var nodeMetadata = new NodeMetadata(null!, new NodeId(1))
             {
                 DefaultUserRolePermissions = [
                     new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Read }
@@ -200,9 +200,9 @@ namespace Opc.Ua.Server.Tests
         {
             var identity = new Mock<IUserIdentity>();
             identity.Setup(x => x.GrantedRoleIds).Returns([new NodeId(2)]);
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null, identity.Object);
+            var context = new OperationContext(new RequestHeader(), null, RequestType.Read, null!, identity.Object);
 
-            var nodeMetadata = new NodeMetadata(null, new NodeId(1))
+            var nodeMetadata = new NodeMetadata(null!, new NodeId(1))
             {
                 UserRolePermissions = [
                     new RolePermissionType { RoleId = new NodeId(2), Permissions = (uint)PermissionType.Read | (uint)PermissionType.Browse }

@@ -151,7 +151,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
             Assert.That(result.HasErrors, Is.False);
             Assert.That(
-                result.Value.Items!.OfType<UAObjectType>().Any(t =>
+                result.Value!.Items!.OfType<UAObjectType>().Any(t =>
                     t.BrowseName!.EndsWith("OverTemp", StringComparison.Ordinal)),
                 Is.True);
         }

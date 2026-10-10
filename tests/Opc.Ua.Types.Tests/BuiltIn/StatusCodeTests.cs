@@ -228,6 +228,33 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void WithSubCodeKeepsSeverityAndFlagBits()
+        {
+            StatusCode result = new StatusCode(0x80348400).WithSubCode(0x00350000);
+            Assert.That(result.Code, Is.EqualTo(0x80358400));
+            Assert.That(StatusCode.IsBad(result), Is.True);
+        }
+
+        [Test]
+        public void WithSubCodeAndWithCodeBitsResolveNewSymbolicId()
+        {
+            StatusCode bad = StatusCodes.BadUnexpectedError;
+            StatusCode subCode = bad.WithSubCode(StatusCodes.BadDecodingError.Code);
+            StatusCode codeBits = bad.WithCodeBits(StatusCodes.BadDecodingError.Code);
+            StatusCode codeBitsFrom = bad.WithCodeBits(StatusCodes.BadDecodingError);
+            StatusCode flags = bad.WithFlagBits(0x00000400);
+            Assert.Multiple(() =>
+            {
+                Assert.That(subCode.SymbolicId, Is.EqualTo(StatusCodes.BadDecodingError.SymbolicId));
+                Assert.That(subCode.ToString(), Is.EqualTo(StatusCodes.BadDecodingError.ToString()));
+                Assert.That(codeBits.SymbolicId, Is.EqualTo(StatusCodes.BadDecodingError.SymbolicId));
+                Assert.That(codeBitsFrom.SymbolicId, Is.EqualTo(StatusCodes.BadDecodingError.SymbolicId));
+                Assert.That(flags.SymbolicId, Is.EqualTo(bad.SymbolicId));
+                Assert.That(new StatusCode(0x80000000u).WithSubCode(0x0ABC0000).SymbolicId, Is.Null);
+            });
+        }
+
+        [Test]
         public void StructureChangedReturnsTrueWhenBitSet()
         {
             // kStructureChangedBit = 0x8000
@@ -1003,14 +1030,14 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             };
             StatusCode.Intern(customCodes);
 
-            string result = StatusCode.LookupSymbolicId(0x0FFA0000);
+            string? result = StatusCode.LookupSymbolicId(0x0FFA0000);
             Assert.That(result, Is.EqualTo("LookupTest"));
         }
 
         [Test]
         public void LookupSymbolicIdReturnsNullForUnknownCode()
         {
-            string result = StatusCode.LookupSymbolicId(0x12340000);
+            string? result = StatusCode.LookupSymbolicId(0x12340000);
             Assert.That(result, Is.Null);
         }
 #pragma warning restore CS0618  // Type or member is obsolete
@@ -1024,7 +1051,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             };
             StatusCode.Intern(customCodes);
 
-            byte[] result = StatusCode.LookupUtf8SymbolicId(0x0FFB0000);
+            byte[] result = StatusCode.LookupUtf8SymbolicId(0x0FFB0000)!;
             Assert.That(result, Is.Not.Null);
             Assert.That(Encoding.UTF8.GetString(result), Is.EqualTo("Utf8LookupTest"));
         }
@@ -1032,7 +1059,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [Test]
         public void LookupUtf8SymbolicIdReturnsNullForUnknownCode()
         {
-            byte[] result = StatusCode.LookupUtf8SymbolicId(0x12340000);
+            byte[]? result = StatusCode.LookupUtf8SymbolicId(0x12340000);
             Assert.That(result, Is.Null);
         }
 

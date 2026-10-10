@@ -33,8 +33,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Historian
 {
     /// <summary>
@@ -51,8 +49,9 @@ namespace Opc.Ua.Server.Tests.Historian
         private static readonly DateTime BaseTime =
             new(2025, 6, 1, 0, 0, 0, DateTimeKind.Utc);
 
-        // ─── IsTypeOf ───────────────────────────────────────────────────────
-
+        /// <summary>
+        /// Verifies that event type matching accepts a null requested type definition.
+        /// </summary>
         [Test]
         public void IsTypeOfReturnsTrueWhenTypeDefinitionIdIsNull()
         {
@@ -63,6 +62,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(target.IsTypeOf(null!, NodeId.Null), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that nonexact event type matching fails when no type tree is available.
+        /// </summary>
         [Test]
         public void IsTypeOfReturnsFalseWhenContextTypeTreeIsNullAndNotExactMatch()
         {
@@ -82,24 +84,25 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.False);
         }
 
-        // ─── GetAttributeValue – empty browse path ──────────────────────────
-
+        /// <summary>
+        /// Verifies that an unstored NodeId attribute is not replaced with the event type.
+        /// </summary>
         [Test]
-        public void GetAttributeValueReturnsEventTypeForEmptyPathAndNodeIdAttribute()
+        public void GetAttributeValueReturnsNullForUnstoredNodeIdAttribute()
         {
             NodeId eventType = ObjectTypeIds.AuditEventType;
             HistorianEventRecord record = MakeRecord(eventType);
             var target = new HistorianEventFilterTarget(record);
 
-            // relativePath.Count == 0 && attributeId == Attributes.NodeId
-            // → returns new Variant(m_record.EventType)  (lines 107-112)
             Variant result = target.GetAttributeValue(
                 null!, NodeId.Null, [], Attributes.NodeId, NumericRange.Null);
 
-            Assert.That(result.TryGetValue(out NodeId resolved), Is.True);
-            Assert.That(resolved, Is.EqualTo(eventType));
+            Assert.That(result.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that an empty browse path with a non-NodeId attribute returns the default value.
+        /// </summary>
         [Test]
         public void GetAttributeValueReturnsDefaultForEmptyPathAndNonNodeIdAttribute()
         {
@@ -113,8 +116,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
 
-        // ─── GetAttributeValue – multi-segment browse path ──────────────────
-
+        /// <summary>
+        /// Verifies that event attribute lookup resolves a multisegment field key.
+        /// </summary>
         [Test]
         public void GetAttributeValueResolvesMultiSegmentBrowsePathKey()
         {
@@ -126,7 +130,7 @@ namespace Opc.Ua.Server.Tests.Historian
                 new Dictionary<string, Variant>(StringComparer.Ordinal)
                 {
                     ["Root/Child"] = new Variant("found-it")
-                });
+                }.ToArrayOf());
 
             var target = new HistorianEventFilterTarget(record);
             ArrayOf<QualifiedName> path = new QualifiedName[] { new("Root"), new("Child") };
@@ -138,6 +142,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(val, Is.EqualTo("found-it"));
         }
 
+        /// <summary>
+        /// Verifies that unresolved multisegment event paths return the default value.
+        /// </summary>
         [Test]
         public void GetAttributeValueReturnsDefaultForUnresolvedMultiSegmentPath()
         {
@@ -151,15 +158,14 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.EqualTo(Variant.Null));
         }
 
-        // ─── Helpers ─────────────────────────────────────────────────────────
-
         private static HistorianEventRecord MakeRecord(NodeId eventType)
         {
             return new HistorianEventRecord(
                 ByteString.Empty,
                 eventType,
                 (DateTimeUtc)BaseTime,
-                new Dictionary<string, Variant>(StringComparer.Ordinal));
+                new Dictionary<string, Variant>(
+                    StringComparer.Ordinal).ToArrayOf());
         }
     }
 }

@@ -36,6 +36,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
 using Opc.Ua.Server.Alarms;
+using Opc.Ua.Server.Fluent;
 using Quickstarts.Servers;
 
 namespace Alarms
@@ -74,7 +75,7 @@ namespace Alarms
     /// <summary>
     /// A node manager for a server that exposes several variables.
     /// </summary>
-    public class AlarmNodeManager : AsyncCustomNodeManager
+    public class AlarmNodeManager : FluentNodeManagerBase
     {
         /// <summary>
         /// Initializes the node manager.
@@ -99,6 +100,12 @@ namespace Alarms
         {
             if (disposing)
             {
+                // The simulation lease owns the timer and releases it from
+                // DeleteAddressSpaceAsync, which MasterNodeManager.ShutdownAsync
+                // calls before disposing its managers. This stays as the backstop
+                // for the direct-construction path, where nothing deletes the
+                // address space first. DisposeTimer nulls the field, so running
+                // on both paths is harmless.
                 DisposeTimer();
                 m_suppressionEngine?.Dispose();
                 m_suppressionEngine = null;
@@ -106,23 +113,6 @@ namespace Alarms
                 m_logger.DisposedAlarmNodeManager();
             }
             base.Dispose(disposing);
-        }
-
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance &&
-                instance.Parent != null &&
-                instance.Parent.NodeId.TryGetValue(out string id))
-            {
-                return new NodeId(
-                    id + "_" + instance.SymbolicName,
-                    instance.Parent.NodeId.NamespaceIndex);
-            }
-
-            return node.NodeId;
         }
 
         /// <summary>
@@ -483,13 +473,55 @@ namespace Alarms
                 startBranchMethod = null;
                 endMethod = null;
 
-                StartTimer();
-                m_allowEntry = true;
             }
             catch (Exception e)
             {
                 m_logger.ErrorCreatingAddressSpace(e);
             }
+
+            // Deliberately outside the catch above. That catch swallows everything so a
+            // sample server still comes up with a partial address space, which is a
+            // reasonable trade for node construction and the wrong one for sealing: a
+            // swallowed seal failure would leave a manager that looks built but has
+            // activated none of its behaviors.
+            //
+            // The simulation timer is a resource with a lifetime, so it is attached as a
+            // manager-scoped behavior instead of being started by hand. Sealing activates
+            // it, and the lease returned here is what stops it again — released in
+            // reverse order with every other behavior when the address space is deleted,
+            // rather than depending on Dispose remembering to.
+            NodeManagerBuilder builder = CreateFluentBuilder(NamespaceIndex);
+            builder.Attach((_, _) =>
+            {
+                StartTimer();
+                m_allowEntry = true;
+                return new ValueTask<IAsyncDisposable?>(new SimulationLease(this));
+            });
+
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Owns the alarm simulation timer for as long as the address space lives.
+        /// </summary>
+        private sealed class SimulationLease : IAsyncDisposable
+        {
+            public SimulationLease(AlarmNodeManager owner)
+            {
+                m_owner = owner;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                // Disposing the timer is the stop: no further callback is scheduled.
+                // m_allowEntry is not touched here — it is a reentrancy guard that every
+                // pass re-arms on its way out, so clearing it would neither stop a pass
+                // already running nor stay cleared.
+                m_owner.DisposeTimer();
+                return default;
+            }
+
+            private readonly AlarmNodeManager m_owner;
         }
 
         /// <summary>
@@ -836,7 +868,7 @@ namespace Alarms
             {
                 // This is bad, but I'm not sure why the NodeName is being attached with an underscore.
                 // It messes with this lookup.
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 string name = unmodifiedName.Replace(
                     "Alarms_",
                     "Alarms.",
@@ -927,7 +959,7 @@ namespace Alarms
                 // Alarms.UnitName.AnalogSource
                 if (splitString.Length >= 2)
                 {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     sourceName = splitString[^1].Replace(
                         "Source",
                         string.Empty,
@@ -974,26 +1006,25 @@ namespace Alarms
             ServerSystemContext systemContext = SystemContext.Copy(context);
             IDictionary<NodeId, NodeState> operationCache = new NodeIdDictionary<NodeState>();
 
-            bool didRefresh = false;
+            HashSet<(uint SubscriptionId, uint MonitoredItemId)>? refreshesInCall = null;
 
             for (int ii = 0; ii < methodsToCall.Count; ii++)
             {
                 CallMethodRequest methodToCall = methodsToCall[ii];
 
-                bool refreshMethod =
-                    methodToCall.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh) ||
-                    methodToCall.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh2);
-
-                if (refreshMethod)
+                // A second refresh of the same subscription (or monitored item) in one
+                // Call is still in progress when it is processed. Refreshes of other
+                // subscriptions are independent and must reach the server's refresh
+                // queue: OPC 10000-9 §5.5.7 scopes Bad_RefreshInProgress to the
+                // subscription being refreshed. Only valid targets are recorded, so an
+                // unknown subscription or monitored item keeps its own error every time.
+                if (TryGetRefreshTarget(methodToCall, out (uint, uint) refreshTarget) &&
+                    IsValidRefreshTarget(context, refreshTarget) &&
+                    !(refreshesInCall ??= []).Add(refreshTarget))
                 {
-                    if (didRefresh)
-                    {
-                        errors[ii] = StatusCodes.BadRefreshInProgress;
-                        methodToCall.Processed = true;
-                        continue;
-                    }
-
-                    didRefresh = true;
+                    errors[ii] = StatusCodes.BadRefreshInProgress;
+                    methodToCall.Processed = true;
+                    continue;
                 }
 
                 bool ackMethod = methodToCall.MethodId
@@ -1188,6 +1219,75 @@ namespace Alarms
             foreach (AlarmHolder alarmHolder in m_alarms.Values)
             {
                 alarmHolder.GetBranchesForConditionRefresh(events);
+            }
+        }
+
+        /// <summary>
+        /// Returns the subscription and monitored item a ConditionRefresh or
+        /// ConditionRefresh2 request targets. Requests with malformed arguments
+        /// return false and are left to the method's own argument validation.
+        /// </summary>
+        private static bool TryGetRefreshTarget(
+            CallMethodRequest request,
+            out (uint SubscriptionId, uint MonitoredItemId) target)
+        {
+            target = default;
+            ArrayOf<Variant> arguments = request.InputArguments;
+
+            if (request.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh))
+            {
+                if (arguments.Count == 1 &&
+                    arguments[0].TryGetValue(out uint subscriptionId))
+                {
+                    target = (subscriptionId, 0);
+                    return true;
+                }
+            }
+            else if (request.MethodId.Equals(MethodIds.ConditionType_ConditionRefresh2))
+            {
+                if (arguments.Count == 2 &&
+                    arguments[0].TryGetValue(out uint subscriptionId) &&
+                    arguments[1].TryGetValue(out uint monitoredItemId))
+                {
+                    target = (subscriptionId, monitoredItemId);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Returns true when the subscription manager would accept a refresh of the target
+        /// for the calling session, apart from a refresh already being in progress.
+        /// </summary>
+        private bool IsValidRefreshTarget(
+            OperationContext context,
+            (uint SubscriptionId, uint MonitoredItemId) target)
+        {
+            if (!Server.SubscriptionManager.TryGetSubscription(
+                target.SubscriptionId,
+                out ISubscription? subscription))
+            {
+                return false;
+            }
+
+            try
+            {
+                if (target.MonitoredItemId == 0)
+                {
+                    subscription.ValidateConditionRefresh(context);
+                }
+                else
+                {
+                    subscription.ValidateConditionRefresh2(context, target.MonitoredItemId);
+                }
+
+                return true;
+            }
+            catch (ServiceResultException e)
+            {
+                return e.StatusCode == StatusCodes.BadRefreshInProgress;
             }
         }
 

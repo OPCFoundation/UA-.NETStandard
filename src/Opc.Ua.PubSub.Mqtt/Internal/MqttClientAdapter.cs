@@ -53,7 +53,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
     /// </summary>
     /// <remarks>
     /// The adapter compiles against MQTTnet v5 on net8.0+ (root namespace)
-    /// and MQTTnet v4 on netstandard / net4x (the legacy
+    /// and MQTTnet v4 on net48 (the legacy
     /// <c>MQTTnet.Client</c> namespace). The two arms expose identical
     /// observable behaviour through <see cref="IMqttClientAdapter"/>.
     /// </remarks>
@@ -198,7 +198,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
                 ? null
                 : System.Text.Encoding.UTF8.GetBytes(options.ResourceUri);
 #else
-            // TODO(B11): MQTTnet 4.x (used by the netstandard/net48 target TFMs)
+            // TODO(B11): MQTTnet 4.x (used by the net48 target TFM)
             // exposes no MqttClientOptions AuthenticationMethod,
             // AuthenticationData, or EnhancedAuthenticationHandler API. Enhanced
             // AUTH/SASL is wired for MQTTnet 5.x TFMs above; older TFMs require a
@@ -586,7 +586,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
             chain.ChainPolicy.ExtraStore.AddRange(trustChain);
 
             // Build populates ChainStatus/ChainElements; the return value is ignored because
-            // MQTTnet v4 (net4x / netstandard2.1) cannot set a custom root trust store and a
+            // MQTTnet v4 (net48) cannot set a custom root trust store and a
             // self-signed configured CA always reports UntrustedRoot.
             _ = chain.Build(brokerCertificate);
             foreach (X509ChainStatus status in chain.ChainStatus)

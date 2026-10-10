@@ -867,7 +867,7 @@ namespace Opc.Ua.Wot
                 DefinitionCandidate? located = await ResolveReferenceTargetAsync(
                         currentDocument, carryingNode, origin, current, where, scope, cancellationToken)
                     .ConfigureAwait(false);
-                if (located is null)
+                if (!located.HasValue)
                 {
                     return null;
                 }

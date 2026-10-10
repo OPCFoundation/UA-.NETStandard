@@ -37,6 +37,7 @@
 
 using System;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
@@ -56,6 +57,43 @@ namespace Opc.Ua.Server.Tests.Redundancy
     public class PeerDirectionViewTests
     {
         [Test]
+        public async Task ProtectedPeerSignalsRejectCrossKeySubstitutionAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            using var random = RandomNumberGenerator.Create();
+            byte[] key = new byte[32];
+            random.GetBytes(key);
+            using var protector = new AesCbcHmacRecordProtector(key);
+            IServiceMessageContext context = CreateContext();
+            var options = new LoadDirectionOptions
+            {
+                ServiceLevelKeyPrefix = "deployment/health/",
+                LoadKeyPrefix = "deployment/load/"
+            };
+            var time = new FakeTimeProvider();
+            var publisher = new SharedPeerDirectionPublisher(
+                store, context, protector, options, time, "urn:server:a");
+            var view = new SharedPeerDirectionView(store, context, protector, options, time);
+            await publisher.PublishServiceLevelAsync(200).ConfigureAwait(false);
+            await publisher.PublishLoadWeightAsync(30).ConfigureAwait(false);
+            ArrayOf<PeerDirectionRecord> original = await view.GetPeersAsync().ConfigureAwait(false);
+            Assert.That(original, Has.Count.EqualTo(1));
+            Assert.That(original[0].LoadKnown, Is.True);
+            Assert.That(original[0].LoadWeight, Is.EqualTo(30));
+            (bool found, ByteString health) = await store.TryGetAsync(
+                options.ServiceLevelKeyPrefix + "urn:server:a").ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            await store.SetAsync(options.LoadKeyPrefix + "urn:server:a", health).ConfigureAwait(false);
+
+            ArrayOf<PeerDirectionRecord> peers = await view.GetPeersAsync().ConfigureAwait(false);
+
+            Assert.That(peers, Has.Count.EqualTo(1));
+            Assert.That(peers[0].ServerUri, Is.EqualTo("urn:server:a"));
+            Assert.That(peers[0].ServiceLevel, Is.EqualTo(200));
+            Assert.That(peers[0].LoadKnown, Is.False);
+        }
+
+        [Test]
         public async Task PublishAndViewRoundTripReturnsFreshPeerAsync()
         {
             using var store = new InMemorySharedKeyValueStore();
@@ -70,7 +108,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray()!;
 
             Assert.That(peers, Has.Length.EqualTo(1));
             Assert.That(peers[0].ServerUri, Is.EqualTo("urn:server:a"));
@@ -96,7 +134,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray()!;
 
             Assert.That(peers, Is.Empty, "a peer whose health record is stale must be aged out");
         }
@@ -117,7 +155,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray()!;
 
             Assert.That(peers, Has.Length.EqualTo(1));
             Assert.That(peers[0].ServiceLevel, Is.EqualTo((byte)200));
@@ -137,7 +175,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray()!;
 
             Assert.That(peers, Is.Empty, "an undecodable record must be dropped (fail-closed)");
         }
@@ -159,9 +197,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray()!;
 
-            Assert.That(peers.Select(p => p.ServerUri), Is.EquivalentTo(["urn:server:a", "urn:server:b"]));
+            Assert.That(peers!.Select(p => p.ServerUri), Is.EquivalentTo(["urn:server:a", "urn:server:b"]));
             Assert.That(peers.Single(p => p.ServerUri == "urn:server:b").ServiceLevel, Is.EqualTo((byte)210));
         }
 
@@ -181,7 +219,7 @@ namespace Opc.Ua.Server.Tests.Redundancy
 
             var view = new SharedPeerDirectionView(
                 store, context, NullRecordProtector.Instance, options, time);
-            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray();
+            PeerDirectionRecord[] peers = (await view.GetPeersAsync().ConfigureAwait(false)).ToArray()!;
 
             Assert.That(peers, Has.Length.EqualTo(1));
             Assert.That(peers[0].ServiceLevel, Is.EqualTo((byte)120), "the latest published health value must win");

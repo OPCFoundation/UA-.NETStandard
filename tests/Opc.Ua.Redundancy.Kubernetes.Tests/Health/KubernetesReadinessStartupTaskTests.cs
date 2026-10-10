@@ -38,7 +38,6 @@
 using System;
 using System.Net;
 using System.Net.Http;
-using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -81,31 +80,18 @@ namespace Opc.Ua.Redundancy.Kubernetes.Tests
         [Test]
         public async Task OnServerStartedStartsReadinessServerAsync()
         {
-            int port = GetFreePort();
-            await using var readiness = new KubernetesReadinessServer(
-                new ConstantServiceLevelProvider(255),
-                new KubernetesReadinessOptions { Host = "localhost", Port = port });
-            var task = new KubernetesReadinessStartupTask(readiness);
-
-            await task.OnServerStartedAsync(Mock.Of<IServerInternal>(), CancellationToken.None).ConfigureAwait(false);
+            await using ReadinessTestServer readiness = await ReadinessTestServer.StartAsync(
+                port => new KubernetesReadinessServer(
+                    new ConstantServiceLevelProvider(255),
+                    new KubernetesReadinessOptions { Host = "localhost", Port = port }),
+                server => new KubernetesReadinessStartupTask(server)
+                    .OnServerStartedAsync(Mock.Of<IServerInternal>(), CancellationToken.None)).ConfigureAwait(false);
 
             using var client = new HttpClient { Timeout = TimeSpan.FromSeconds(20) };
-            using HttpResponseMessage response = await client.GetAsync(new Uri($"http://localhost:{port}/readyz")).ConfigureAwait(false);
+            using HttpResponseMessage response = await client
+                .GetAsync(new Uri($"http://localhost:{readiness.Port}/readyz"))
+                .ConfigureAwait(false);
             Assert.That(response.StatusCode, Is.EqualTo(HttpStatusCode.OK));
-        }
-
-        private static int GetFreePort()
-        {
-            var probe = new TcpListener(IPAddress.Loopback, 0);
-            probe.Start();
-            try
-            {
-                return ((IPEndPoint)probe.LocalEndpoint).Port;
-            }
-            finally
-            {
-                probe.Stop();
-            }
         }
     }
 }

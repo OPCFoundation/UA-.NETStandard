@@ -117,19 +117,30 @@ namespace Opc.Ua.SourceGeneration
                     .Collect();
             IncrementalValueProvider<ModelCompilationOptions> options =
                 context.AnalyzerConfigOptionsProvider
-                    .Select((p, _) => ModelCompilationOptions.From(p));
+                    .Select((p, _) => ModelCompilationOptions.From(p))
+                    .WithTrackingName(TrackingNames.ModelCompilationOptions);
             IncrementalValueProvider<CompilationOptions> settings =
                 context.CompilationProvider
                     .Select((c, _) => CompilationOptions.From(c));
+            // Value comparers, not the reference equality ImmutableArray and
+            // ImmutableHashSet default to: these stages are derived from the
+            // compilation, so without them every keystroke invalidates the whole
+            // model generation even though nothing they read has changed.
             IncrementalValueProvider<ImmutableArray<ModelDependencyReference>> referencedModels =
                 context.CompilationProvider
-                    .Select((c, _) => ReferencedModelDependencyScanner.Scan(c));
+                    .Select((c, _) => ReferencedModelDependencyScanner.Scan(c))
+                    .WithComparer(
+                        IncrementalValueComparers.ForArray<ModelDependencyReference>());
             IncrementalValueProvider<ImmutableArray<ModelFluentAccessorProviderReference>>
                 referencedAccessorProviders = context.CompilationProvider
-                    .Select((c, _) => ReferencedFluentAccessorProviderScanner.Scan(c));
+                    .Select((c, _) => ReferencedFluentAccessorProviderScanner.Scan(c))
+                    .WithComparer(
+                        IncrementalValueComparers
+                            .ForArray<ModelFluentAccessorProviderReference>());
             IncrementalValueProvider<ImmutableHashSet<string>> stateTypeIndex =
                 context.CompilationProvider
-                    .Select((c, _) => OpcUaStateTypeIndex.Build(c));
+                    .Select((c, _) => OpcUaStateTypeIndex.Build(c))
+                    .WithComparer(IncrementalValueComparers.ForSet<string>());
 
             IncrementalValueProvider<ImmutableArray<NodeManagerAttributeDiscovery>> nodeManagerBindings =
                 context.SyntaxProvider.ForAttributeWithMetadataName(
@@ -137,6 +148,7 @@ namespace Opc.Ua.SourceGeneration
                     static (node, ct) => NodeManagerAttributeDiscovery.Handles(node, ct),
                     static (ctx, ct) => NodeManagerAttributeDiscovery.Create(ctx, ct))
                 .Where(static m => m is not null)
+                .WithTrackingName(TrackingNames.NodeManagerBindings)
                 .Collect();
 
             IncrementalValueProvider<
@@ -210,7 +222,8 @@ namespace Opc.Ua.SourceGeneration
                         pair.Right.ReferencedModels,
                         pair.Right.ReferencedAccessorProviders,
                         pair.Right.NodeManagerBindings,
-                        pair.Right.AvailableStateTypeNames));
+                        pair.Right.AvailableStateTypeNames))
+                    .WithTrackingName(TrackingNames.ModelCompilationInput);
 
             context.RegisterSourceOutput(
                 modelCompilationInput,
@@ -233,17 +246,62 @@ namespace Opc.Ua.SourceGeneration
                     .Select((p, _) => p.GlobalOptions.GetBool(
                         "PublicDataTypeExtensions"));
 
-            context.RegisterSourceOutput(context.SyntaxProvider.ForAttributeWithMetadataName(
+            IncrementalValueProvider<ImmutableArray<DataTypeCompilation>> dataTypeCompilations =
+                context.SyntaxProvider.ForAttributeWithMetadataName(
                     "Opc.Ua.DataTypeAttribute",
                     static (node, ct) => DataTypeCompilation.Handles(node, ct),
                     static (context, ct) => new DataTypeCompilation(context, ct))
                 .Where(static m => m is not null)
-                .Collect()
-                .Combine(publicDataTypeExtensions),
+                .WithTrackingName(TrackingNames.DataTypeCompilations)
+                .Collect();
+
+            context.RegisterSourceOutput(
+                dataTypeCompilations.Combine(publicDataTypeExtensions),
                 static (spc, pair) => SourceGenerator.Guard(
                     spc,
                     () => DataTypeCompilation.EmitBatch(
                         spc, pair.Left, pair.Right)));
+
+            // The pipeline values carry value-equatable location snapshots
+            // (LocationInfo), not locations, so the sources above stay cached.
+            // Diagnostics are reported from separate outputs that combine the
+            // snapshots with the compilation and re-create each location in
+            // its syntax tree: a location without a tree is not subject to
+            // #pragma warning, per-file severity configuration or #line.
+            context.RegisterSourceOutput(
+                dataTypeCompilations.Combine(context.CompilationProvider),
+                static (spc, pair) => SourceGenerator.Guard(
+                    spc,
+                    () => DataTypeCompilation.ReportDiagnostics(
+                        spc, pair.Left, pair.Right)));
+
+            context.RegisterSourceOutput(
+                nodeManagerBindings
+                    .Combine(inputFiles.Select(static (files, _) => files.Length > 0))
+                    .Combine(context.CompilationProvider),
+                static (spc, pair) => SourceGenerator.Guard(
+                    spc,
+                    () =>
+                    {
+                        // Reported only when there are models to bind to,
+                        // like the binding itself.
+                        if (pair.Left.Right)
+                        {
+                            NodeManagerAttributeDiscovery.ReportDiagnostics(
+                                spc, pair.Left.Left, pair.Right);
+                        }
+                    }));
+        }
+
+        /// <summary>
+        /// Names of the pipeline steps whose caching the tests verify.
+        /// </summary>
+        internal static class TrackingNames
+        {
+            public const string ModelCompilationOptions = nameof(ModelCompilationOptions);
+            public const string NodeManagerBindings = nameof(NodeManagerBindings);
+            public const string ModelCompilationInput = nameof(ModelCompilationInput);
+            public const string DataTypeCompilations = nameof(DataTypeCompilations);
         }
 
         private readonly record struct ModelCompilationInput(

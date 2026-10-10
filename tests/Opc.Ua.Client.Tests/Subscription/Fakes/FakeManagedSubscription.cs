@@ -27,12 +27,11 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
 
 namespace Opc.Ua.Client.Subscriptions.Fakes
@@ -53,13 +52,27 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public uint ServerId => Id;
 
         public bool Created { get; set; }
+        public bool IsCreationInProgress
+        {
+            get => OnIsCreationInProgress?.Invoke() ?? m_isCreationInProgress;
+            set => m_isCreationInProgress = value;
+        }
+
+        /// <summary>
+        /// Optional override for reads of <see cref="IsCreationInProgress"/>,
+        /// e.g. to complete a creation exactly when the manager checks it.
+        /// </summary>
+        public Func<bool>? OnIsCreationInProgress { get; set; }
+
+        private bool m_isCreationInProgress;
+        public bool IsIntentionallyDeleted { get; set; }
         public TimeSpan CurrentPublishingInterval { get; set; }
         public byte CurrentPriority { get; set; }
         public uint CurrentLifetimeCount { get; set; }
         public uint CurrentKeepAliveCount { get; set; }
         public bool CurrentPublishingEnabled { get; set; }
         public uint CurrentMaxNotificationsPerPublish { get; set; }
-        public IMonitoredItemCollection MonitoredItems { get; set; } = null!;
+        public IMonitoredItemCollection MonitoredItems { get; set; } = Mock.Of<IMonitoredItemCollection>();
         public long MissingMessageCount { get; set; }
         public long RepublishMessageCount { get; set; }
 

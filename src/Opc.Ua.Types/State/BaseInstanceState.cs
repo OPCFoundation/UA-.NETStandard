@@ -125,7 +125,21 @@ namespace Opc.Ua
         /// <summary>
         /// The parent node.
         /// </summary>
-        public NodeState? Parent { get; internal set; }
+        public NodeState? Parent
+        {
+            get => m_parent;
+            internal set
+            {
+                NodeState? previous = m_parent;
+                m_parent = value;
+
+                // the previous parent may still list this child in its browse name index.
+                if (previous != null && value != null && !ReferenceEquals(previous, value))
+                {
+                    previous.InvalidateChildNameIndex();
+                }
+            }
+        }
 
         /// <summary>
         /// Returns the id of the default type definition node for the instance.
@@ -643,6 +657,7 @@ namespace Opc.Ua
         private bool IsObjectOrVariable
             => ((int)NodeClass & ((int)NodeClass.Variable | (int)NodeClass.Object)) != 0;
 
+        private NodeState? m_parent;
         private NodeId m_referenceTypeId;
         private NodeId m_typeDefinitionId;
         private NodeId m_modellingRuleId;

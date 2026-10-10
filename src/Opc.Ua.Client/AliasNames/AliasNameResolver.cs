@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client.AliasNames.Refresh;
 
 namespace Opc.Ua.Client.AliasNames
@@ -81,6 +82,8 @@ namespace Opc.Ua.Client.AliasNames
             Options = (options ?? new AliasNameResolverOptions()).Clone();
             m_strategy = Options.RefreshStrategy
                 ?? BuildBuiltInStrategy(Options);
+            m_logger = client.Session.MessageContext.Telemetry
+                .CreateLogger<AliasNameResolver>();
         }
 
         /// <summary>The wrapped <see cref="AliasNameClient"/>.</summary>
@@ -99,11 +102,24 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public async Task EnsureLoadedAsync(CancellationToken ct = default)
         {
-            if (Volatile.Read(ref m_loaded) == 1)
+            if (Volatile.Read(ref m_loadedGeneration) ==
+                Interlocked.Read(ref m_invalidationGeneration))
             {
                 return;
             }
-            await EnsureStrategyStartedAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await EnsureStrategyStartedAsync(ct).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is not OperationCanceledException ||
+                !ct.IsCancellationRequested)
+            {
+                // The refresh strategy only drives invalidation; a server that
+                // rejects its subscription (or lacks the optional LastChange)
+                // must not make alias resolution fail. Run degraded (manual
+                // refresh) and retry the start on the next load.
+                m_logger.AliasRefreshStrategyStartFailed(ex, m_strategy.GetType().Name);
+            }
             await RefreshAsync(ct).ConfigureAwait(false);
         }
 
@@ -135,6 +151,11 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public async Task RefreshAsync(CancellationToken ct = default)
         {
+            // Capture the invalidation generation before the fetch: an
+            // Invalidate that lands while it is in flight must not be undone by
+            // marking the (already stale) result as loaded.
+            long generation = Interlocked.Read(ref m_invalidationGeneration);
+
             var forward = new Dictionary<string, ExpandedNodeId[]>(StringComparer.Ordinal);
             var serverUris = new Dictionary<string, string?[]>(StringComparer.Ordinal);
             var reverse = new Dictionary<ExpandedNodeId, string>();
@@ -179,7 +200,14 @@ namespace Opc.Ua.Client.AliasNames
                 m_forward = forward;
                 m_serverUris = serverUris;
                 m_reverse = reverse;
-                Volatile.Write(ref m_loaded, 1);
+
+                // Publish the generation this data was fetched for rather than
+                // a separate "loaded" flag: an Invalidate that lands between a
+                // check and the flag write would otherwise be overwritten and
+                // mark pre-invalidation data as current forever. A reader
+                // compares the two generations, so the single write below can
+                // never swallow an invalidation.
+                Volatile.Write(ref m_loadedGeneration, generation);
             }
             finally
             {
@@ -290,7 +318,11 @@ namespace Opc.Ua.Client.AliasNames
         /// </summary>
         public void Invalidate()
         {
-            Volatile.Write(ref m_loaded, 0);
+            // One atomic step: a refresh that is already fetching publishes the
+            // generation it fetched for, which no longer matches this one, so
+            // its stale result can neither be served nor swallow this
+            // invalidation.
+            Interlocked.Increment(ref m_invalidationGeneration);
         }
 
         /// <summary>
@@ -374,8 +406,27 @@ namespace Opc.Ua.Client.AliasNames
                     arr[i] = a.ReferencedNodes[i];
                     reverse[arr[i]] = key;
                 }
-                forward[key] = arr;
+                forward[key] = Merge(forward, key, arr);
             }
+        }
+
+        /// <summary>
+        /// The cache is keyed by <see cref="QualifiedName.Name"/> only, but
+        /// FindAlias may legally return the same name more than once (other
+        /// namespace, or defined in several sub-categories). Append the
+        /// targets of a repeated name instead of replacing the earlier ones.
+        /// </summary>
+        /// <typeparam name="T">The element type of the cached arrays.</typeparam>
+        private static T[] Merge<T>(Dictionary<string, T[]> map, string key, T[] values)
+        {
+            if (!map.TryGetValue(key, out T[]? existing) || existing.Length == 0)
+            {
+                return values;
+            }
+            var merged = new T[existing.Length + values.Length];
+            Array.Copy(existing, merged, existing.Length);
+            Array.Copy(values, 0, merged, existing.Length, values.Length);
+            return merged;
         }
 
         private static void PopulateFromVerbose(
@@ -396,14 +447,17 @@ namespace Opc.Ua.Client.AliasNames
                     uris[i] = i < a.ServerUris.Count ? a.ServerUris[i] : null;
                     reverse[arr[i]] = key;
                 }
-                forward[key] = arr;
-                serverUris[key] = uris;
+                // Merge both maps the same way so the ServerUris stay
+                // parallel to the targets.
+                forward[key] = Merge(forward, key, arr);
+                serverUris[key] = Merge(serverUris, key, uris);
             }
         }
 
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private readonly SemaphoreSlim m_strategyStartLock = new(1, 1);
         private readonly IAliasNameRefreshStrategy m_strategy;
+        private readonly ILogger m_logger;
 
         private Dictionary<string, ExpandedNodeId[]> m_forward
             = new(StringComparer.Ordinal);
@@ -412,7 +466,35 @@ namespace Opc.Ua.Client.AliasNames
             = new(StringComparer.Ordinal);
 
         private Dictionary<ExpandedNodeId, string> m_reverse = [];
-        private int m_loaded;
+
+        /// <summary>
+        /// The <see cref="m_invalidationGeneration"/> the cached data was
+        /// fetched for. The cache is loaded exactly while this equals the
+        /// current generation; <c>-1</c> is "never loaded", which no
+        /// generation can collide with.
+        /// </summary>
+        private long m_loadedGeneration = -1;
+
+        /// <summary>
+        /// Incremented by every <see cref="Invalidate"/> so an in-flight
+        /// <see cref="RefreshAsync"/> can tell whether its result is still
+        /// current when it completes.
+        /// </summary>
+        private long m_invalidationGeneration;
         private int m_strategyStarted;
+    }
+
+    /// <summary>
+    /// Source-generated logging for <see cref="AliasNameResolver"/>.
+    /// </summary>
+    internal static partial class AliasNameResolverLog
+    {
+        [LoggerMessage(EventId = ClientEventIds.AliasNameResolver + 0, Level = LogLevel.Warning,
+            Message = "Alias refresh strategy {Strategy} failed to start; resolving without " +
+                "automatic invalidation and retrying the start on the next load.")]
+        public static partial void AliasRefreshStrategyStartFailed(
+            this ILogger logger,
+            Exception exception,
+            string strategy);
     }
 }

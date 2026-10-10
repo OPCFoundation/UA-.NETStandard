@@ -69,9 +69,10 @@ x-strong-server-env: &strong-server-env
   HA_MODE: ap
   HA_CONSISTENCY: strong
   REDUNDANCY_MODE: hot
-  # Isolated demo posture: run without record protection / gossip auth. For a secure run,
-  # REMOVE HA_INSECURE and configure gossip mutual TLS + HA_RECORD_KEY (see the READMEs).
-  HA_INSECURE: "true"
+  HA_HISTORIAN: "true"
+  HA_FAST_RECONNECT: "true"
+  # The historian and portable continuations require authenticated shared records.
+  HA_RECORD_KEY: "${HA_RECORD_KEY:?Set HA_RECORD_KEY to one shared base64 32-byte key}"
   HA_RAFT_MEMBERS: "3"
   HA_RAFT_BIND: "tcp://0.0.0.0:6560"
 

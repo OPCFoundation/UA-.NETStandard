@@ -421,7 +421,7 @@ namespace Opc.Ua.Types.Tests.Nodes
                 { RefType1, false, Target1 }
             };
 
-            bool result = collection.Contains(null);
+            bool result = collection.Contains(null!);
 
             Assert.That(result, Is.False);
         }
@@ -759,7 +759,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var collection = new ReferenceCollection();
 
             Assert.That(
-                () => collection.CopyTo(null, 0),
+                () => collection.CopyTo(null!, 0),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -844,6 +844,36 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             return new ReferenceNode(refType, isInverse, target);
         }
+        [Test]
+        public void FindReturnsReferencesInInsertionOrder()
+        {
+            var dict = new ReferenceDictionary<string>();
+            var expected = new List<ExpandedNodeId>();
+            for (uint ii = 0; ii < 40; ii++)
+            {
+                // interleave another reference type so the filtered result is a subset.
+                var target = new ExpandedNodeId(97_000u - (ii * 37u));
+                dict.Add(MakeRef(RefType1, false, target), "component");
+                dict.Add(MakeRef(RefType2, false, new ExpandedNodeId(5_000u + ii)), "other");
+                expected.Add(target);
+            }
+            dict.Add(MakeRef(RefType1, false, AbsoluteTarget1), "external");
+            expected.Add(AbsoluteTarget1);
+
+            IList<IReference> byType = dict.Find(RefType1, false);
+            Assert.That(byType.Select(r => r.TargetId), Is.EqualTo(expected));
+
+            var typeTable = new TypeTable(new NamespaceTable());
+            typeTable.AddSubtype(ReferenceTypeIds.References, NodeId.Null);
+            typeTable.AddSubtype(RefType1, ReferenceTypeIds.References);
+            typeTable.AddSubtype(RefType2, ReferenceTypeIds.References);
+            IList<IReference> bySupertype = dict.Find(ReferenceTypeIds.References, false, typeTable);
+            Assert.That(
+                bySupertype.Select(r => r.TargetId),
+                Is.EqualTo(dict.Keys.Select(r => r.TargetId)),
+                "A browse of all subtypes returns the references in the order of the unfiltered list.");
+        }
+
         [Test]
         public void ConstructorCreatesEmptyDictionary()
         {
@@ -942,7 +972,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var dict = new ReferenceDictionary<string>();
 
             Assert.That(
-                () => dict.Add(null, "value"),
+                () => dict.Add(null!, "value"),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -1055,7 +1085,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var dict = new ReferenceDictionary<string>();
 
             Assert.That(
-                () => _ = dict[null],
+                () => _ = dict[null!],
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -1137,7 +1167,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var dict = new ReferenceDictionary<string>();
 
-            bool result = dict.ContainsKey(null);
+            bool result = dict.ContainsKey(null!);
 
             Assert.That(result, Is.False);
         }
@@ -1202,7 +1232,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var dict = new ReferenceDictionary<string>();
             var typeTree = new Mock<ITypeTable>();
 
-            bool result = dict.ContainsKey(null, typeTree.Object);
+            bool result = dict.ContainsKey(null!, typeTree.Object);
 
             Assert.That(result, Is.False);
         }
@@ -1268,7 +1298,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         {
             var dict = new ReferenceDictionary<string>();
 
-            bool result = dict.TryGetValue(null, out string value);
+            bool result = dict.TryGetValue(null!, out string value);
 
             Assert.That(result, Is.False);
             Assert.That(value, Is.Null);
@@ -1373,7 +1403,7 @@ namespace Opc.Ua.Types.Tests.Nodes
             var dict = new ReferenceDictionary<string>();
 
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            bool result = dict.Remove((IReference)null);
+            bool result = dict.Remove((IReference)null!);
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
 
             Assert.That(result, Is.False);

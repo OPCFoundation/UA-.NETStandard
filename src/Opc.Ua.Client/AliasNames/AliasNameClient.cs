@@ -32,6 +32,7 @@ using System.Collections.Generic;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Client;
 
 namespace Opc.Ua.Client.AliasNames
@@ -96,6 +97,7 @@ namespace Opc.Ua.Client.AliasNames
                 session,
                 categoryId,
                 session.MessageContext.Telemetry);
+            m_logger = session.MessageContext.Telemetry.CreateLogger<AliasNameClient>();
         }
 
         /// <summary>
@@ -406,7 +408,8 @@ namespace Opc.Ua.Client.AliasNames
         /// <summary>
         /// Asynchronously enumerates the sub-categories of this category
         /// (Part 17 §6.3.1 <c>SubAliasNameCategories</c>) via a forward
-        /// browse on <see cref="ReferenceTypeIds.Organizes"/>.
+        /// browse on <see cref="ReferenceTypeIds.Organizes"/>. Children of
+        /// <c>AliasNameCategoryType</c> or of a subtype are returned.
         /// </summary>
         /// <exception cref="ServiceResultException">The browse operation
         /// returned an error status code.</exception>
@@ -445,37 +448,12 @@ namespace Opc.Ua.Client.AliasNames
                 throw new ServiceResultException(br.StatusCode);
             }
 
-            foreach (ReferenceDescription r in SnapshotReferences(br.References))
-            {
-                if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
-                {
-                    continue;
-                }
-                var localId = ExpandedNodeId.ToNodeId(
-                    r.NodeId, Session.NamespaceUris);
-                if (localId.IsNull)
-                {
-                    continue;
-                }
-                yield return new AliasNameSubCategoryInfo(
-                    localId,
-                    r.BrowseName,
-                    r.DisplayName);
-            }
-
             ByteString continuationPoint = br.ContinuationPoint;
-            while (!continuationPoint.IsEmpty)
+            try
             {
-                (_, continuationPoint, ArrayOf<ReferenceDescription> nextReferences) =
-                    await Session.BrowseNextAsync(
-                        requestHeader: null,
-                        releaseContinuationPoint: false,
-                        continuationPoint,
-                        ct).ConfigureAwait(false);
-
-                foreach (ReferenceDescription r in SnapshotReferences(nextReferences))
+                foreach (ReferenceDescription r in SnapshotReferences(br.References))
                 {
-                    if (!r.TypeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
+                    if (!await IsAliasNameCategoryAsync(r.TypeDefinition, ct).ConfigureAwait(false))
                     {
                         continue;
                     }
@@ -490,12 +468,49 @@ namespace Opc.Ua.Client.AliasNames
                         r.BrowseName,
                         r.DisplayName);
                 }
+
+                while (!continuationPoint.IsEmpty)
+                {
+                    (_, continuationPoint, ArrayOf<ReferenceDescription> nextReferences) =
+                        await Session.BrowseNextAsync(
+                            requestHeader: null,
+                            releaseContinuationPoint: false,
+                            continuationPoint,
+                            ct).ConfigureAwait(false);
+
+                    foreach (ReferenceDescription r in SnapshotReferences(nextReferences))
+                    {
+                        if (!await IsAliasNameCategoryAsync(r.TypeDefinition, ct).ConfigureAwait(false))
+                        {
+                            continue;
+                        }
+                        var localId = ExpandedNodeId.ToNodeId(
+                            r.NodeId, Session.NamespaceUris);
+                        if (localId.IsNull)
+                        {
+                            continue;
+                        }
+                        yield return new AliasNameSubCategoryInfo(
+                            localId,
+                            r.BrowseName,
+                            r.DisplayName);
+                    }
+                }
+            }
+            finally
+            {
+                // Part 4 §5.9.3.2 requires releasing a continuation point the
+                // client stops following.
+                await Session.ReleaseContinuationPointAsync(continuationPoint, m_logger)
+                    .ConfigureAwait(false);
             }
         }
 
         // --------------------------------------------------------------
         // Internal helpers
         // --------------------------------------------------------------
+
+        private readonly ILogger m_logger;
 
         private static ReferenceDescription[] SnapshotReferences(
             ArrayOf<ReferenceDescription> references)
@@ -507,6 +522,30 @@ namespace Opc.Ua.Client.AliasNames
                 snapshot[i] = references[i];
             }
             return snapshot;
+        }
+
+        /// <summary>
+        /// Whether a browsed child is a sub-category: an instance of
+        /// <c>AliasNameCategoryType</c> or of one of its subtypes. Part 17
+        /// §6.3.1 declares <c>&lt;SubAliasNameCategories&gt;</c> as an
+        /// <c>OptionalPlaceholder</c> of that type and does not rule out
+        /// subtypes, so the type hierarchy is checked through the node cache.
+        /// </summary>
+        private async ValueTask<bool> IsAliasNameCategoryAsync(
+            ExpandedNodeId typeDefinition,
+            CancellationToken ct)
+        {
+            if (typeDefinition.IsNull)
+            {
+                return false;
+            }
+            if (typeDefinition.Equals(ObjectTypeIds.AliasNameCategoryType))
+            {
+                return true;
+            }
+            return await Session.NodeCache
+                .IsTypeOfAsync(typeDefinition, ObjectTypeIds.AliasNameCategoryType, ct)
+                .ConfigureAwait(false);
         }
 
         private async Task<NodeId> ResolveChildAsync(

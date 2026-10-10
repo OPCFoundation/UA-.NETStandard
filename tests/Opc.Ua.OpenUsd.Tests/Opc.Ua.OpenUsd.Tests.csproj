@@ -3,7 +3,6 @@
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.OpenUsd.Tests</RootNamespace>
     <AssemblyName>Opc.Ua.OpenUsd.Tests</AssemblyName>
-    <Nullable>enable</Nullable>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
   </PropertyGroup>
@@ -67,21 +66,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
   </ItemGroup>
-  <!-- GeneratorServer matches AppTargetFrameworks, which does not include net472,
-       while the test frameworks do. Referencing it on net472 would fail to
-       restore, so the reference and every fixture that reads the sample's
-       internals are excluded there. GeneratorAssetContractTests only reads the
-       authored .usda as text, so it stays on every framework. -->
-  <ItemGroup Condition="'$(TargetFramework)' != 'net472'">
+  <ItemGroup>
     <ProjectReference Include="..\..\samples\OpenUsd\GeneratorServer\GeneratorServer.csproj" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-    <Compile Remove="Generator\GeneratorDatasheetConformanceTests.cs" />
-    <Compile Remove="Generator\GeneratorOpenUsdE2eTests.cs" />
-    <Compile Remove="Generator\GeneratorMethodTests.cs" />
-    <Compile Remove="Generator\GeneratorProtectionAlarmNodeTests.cs" />
-    <Compile Remove="Generator\GeneratorProtectionTests.cs" />
-    <Compile Remove="Generator\GeneratorStateMachineTests.cs" />
-    <Compile Remove="Generator\SimulationHarness.cs" />
   </ItemGroup>
 </Project>

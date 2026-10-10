@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Net.Security;
 using System.Net.WebSockets;
 using System.Threading;
 using System.Threading.Tasks;
@@ -178,10 +179,11 @@ namespace Opc.Ua.Bindings
             }
 
             var ws = new ClientWebSocket();
+            System.Security.Cryptography.X509Certificates.X509Certificate2? clientCertificate = null;
             try
             {
                 ws.Options.AddSubProtocol(Profiles.OpcUaWsSubProtocolUaJson);
-                ConfigureClientTls(ws);
+                clientCertificate = ConfigureClientTls(ws);
                 Uri wsUrl = NormalizeUrl(m_url);
                 await ws.ConnectAsync(wsUrl, cts.Token).ConfigureAwait(false);
 
@@ -209,7 +211,7 @@ namespace Opc.Ua.Bindings
                     payload = memory.ToArray();
                 }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 await ws.SendAsync(
                     new ReadOnlyMemory<byte>(payload, 0, payload.Length),
                     WebSocketMessageType.Text,
@@ -223,34 +225,10 @@ namespace Opc.Ua.Bindings
                     cts.Token).ConfigureAwait(false);
 #endif
 
-                byte[] responseBytes;
-                using (var memory = new MemoryStream())
-                {
-                    byte[] receiveBuffer = new byte[8192];
-                    while (true)
-                    {
-                        WebSocketReceiveResult result = await ws
-                            .ReceiveAsync(
-                                new ArraySegment<byte>(receiveBuffer),
-                                cts.Token)
-                            .ConfigureAwait(false);
-                        if (result.MessageType == WebSocketMessageType.Close)
-                        {
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadConnectionClosed,
-                                "Server closed the WebSocket before sending a response.");
-                        }
-                        if (result.Count > 0)
-                        {
-                            memory.Write(receiveBuffer, 0, result.Count);
-                        }
-                        if (result.EndOfMessage)
-                        {
-                            break;
-                        }
-                    }
-                    responseBytes = memory.ToArray();
-                }
+                byte[] responseBytes = await ReceiveMessageAsync(
+                    ws,
+                    m_messageContext.MaxMessageSize,
+                    cts.Token).ConfigureAwait(false);
 
                 return JsonDecoder.DecodeMessage<IServiceResponse>(responseBytes, m_messageContext);
             }
@@ -276,17 +254,17 @@ namespace Opc.Ua.Bindings
                 {
                     if (ws.State == WebSocketState.Open)
                     {
-                        await ws.CloseAsync(
-                            WebSocketCloseStatus.NormalClosure,
-                            string.Empty,
-                            CancellationToken.None).ConfigureAwait(false);
+                        await CloseNormalAsync(ws, ct).ConfigureAwait(false);
                     }
                 }
-                catch
+                finally
                 {
-                    // Best-effort.
+                    ws.Dispose();
                 }
-                ws.Dispose();
+
+                // The TLS client certificate must outlive the handshake and
+                // the connection; release it only after the socket is gone.
+                clientCertificate?.Dispose();
             }
         }
 
@@ -308,6 +286,104 @@ namespace Opc.Ua.Bindings
             };
         }
 
+        /// <summary>
+        /// Receives one WebSocket message. The size is checked against
+        /// <paramref name="maxMessageSize"/> (zero means unlimited) while the
+        /// frames arrive, so a peer that never ends its message cannot grow
+        /// the buffer beyond the limit before the decoder rejects it.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static async Task<byte[]> ReceiveMessageAsync(
+            WebSocket ws,
+            int maxMessageSize,
+            CancellationToken ct)
+        {
+            using var memory = new MemoryStream();
+            byte[] receiveBuffer = new byte[8192];
+            while (true)
+            {
+                WebSocketReceiveResult result = await ws
+                    .ReceiveAsync(
+                        new ArraySegment<byte>(receiveBuffer),
+                        ct)
+                    .ConfigureAwait(false);
+                if (result.MessageType == WebSocketMessageType.Close)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "Server closed the WebSocket before sending a response.");
+                }
+                if (maxMessageSize > 0 && memory.Length + result.Count > maxMessageSize)
+                {
+                    // OPC 10000-6 §7.5.2: close with status 1009 (MessageTooBig).
+                    // Only the Close frame is sent, briefly bounded, and the socket
+                    // is then aborted instead of waiting for a handshake the peer
+                    // may never answer.
+                    await CloseMessageTooBigAsync(ws).ConfigureAwait(false);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxMessageSize {0} < {1}",
+                        maxMessageSize,
+                        memory.Length + result.Count);
+                }
+                if (result.Count > 0)
+                {
+                    memory.Write(receiveBuffer, 0, result.Count);
+                }
+                if (result.EndOfMessage)
+                {
+                    return memory.ToArray();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Sends a Close frame with status 1009 (MessageTooBig), waiting at most
+        /// <see cref="kMessageTooBigCloseTimeout"/> milliseconds, then aborts
+        /// the socket.
+        /// </summary>
+        private static async Task CloseMessageTooBigAsync(WebSocket ws)
+        {
+            try
+            {
+                using var cts = new CancellationTokenSource(kMessageTooBigCloseTimeout);
+                await ws.CloseOutputAsync(
+                    WebSocketCloseStatus.MessageTooBig,
+                    "Response exceeds MaxMessageSize.",
+                    cts.Token).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Best-effort: the socket is aborted either way.
+            }
+            ws.Abort();
+        }
+
+        /// <summary>
+        /// Sends a normal Close frame without waiting for the peer's Close
+        /// (one message per connection, OPC 10000-6 7.5.2), bounded by
+        /// <see cref="kMessageTooBigCloseTimeout"/> and the caller's token,
+        /// then aborts the socket. A peer that never answers the close
+        /// handshake must not hang a request whose response already arrived.
+        /// </summary>
+        private static async Task CloseNormalAsync(WebSocket ws, CancellationToken ct)
+        {
+            try
+            {
+                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                cts.CancelAfter(kMessageTooBigCloseTimeout);
+                await ws.CloseOutputAsync(
+                    WebSocketCloseStatus.NormalClosure,
+                    string.Empty,
+                    cts.Token).ConfigureAwait(false);
+            }
+            catch
+            {
+                // Best-effort: the socket is aborted either way.
+            }
+            ws.Abort();
+        }
+
         private static Uri NormalizeUrl(Uri url)
         {
             if (string.Equals(url.Scheme, Utils.UriSchemeOpcWss, StringComparison.OrdinalIgnoreCase))
@@ -322,7 +398,12 @@ namespace Opc.Ua.Bindings
             return url;
         }
 
-        private void ConfigureClientTls(ClientWebSocket ws)
+        /// <summary>
+        /// Installs the TLS server validation callback and the optional TLS
+        /// client certificate. Returns the caller-owned client certificate
+        /// copy, which must stay alive until the WebSocket is disposed.
+        /// </summary>
+        private System.Security.Cryptography.X509Certificates.X509Certificate2? ConfigureClientTls(ClientWebSocket ws)
         {
 #if NET5_0_OR_GREATER
             ICertificateValidatorEx? validator = m_settings?.CertificateValidator;
@@ -332,26 +413,30 @@ namespace Opc.Ua.Bindings
                     (sender, cert, chain, errors) => ValidateRemoteCertificate(
                         validator,
                         cert as System.Security.Cryptography.X509Certificates.X509Certificate2,
-                        chain);
+                        chain,
+                        errors);
             }
 
             Certificate? clientCert = m_settings?.ClientCertificate;
             if (clientCert != null)
             {
-                using System.Security.Cryptography.X509Certificates.X509Certificate2 x509 =
+                System.Security.Cryptography.X509Certificates.X509Certificate2 x509 =
                     clientCert.AsX509Certificate2();
                 ws.Options.ClientCertificates ??=
                     [];
                 ws.Options.ClientCertificates.Add(x509);
+                return x509;
             }
 #endif
+            return null;
         }
 
 #if NET5_0_OR_GREATER
         private bool ValidateRemoteCertificate(
             ICertificateValidatorEx validator,
             System.Security.Cryptography.X509Certificates.X509Certificate2? cert,
-            System.Security.Cryptography.X509Certificates.X509Chain? chain)
+            System.Security.Cryptography.X509Certificates.X509Chain? chain,
+            SslPolicyErrors sslPolicyErrors)
         {
             if (cert == null)
             {
@@ -359,6 +444,12 @@ namespace Opc.Ua.Bindings
             }
             try
             {
+                if ((sslPolicyErrors & SslPolicyErrors.RemoteCertificateNameMismatch) != 0)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateHostNameInvalid,
+                        "The TLS certificate host name does not match the endpoint.");
+                }
                 using CertificateCollection validation = CertificateValidationHelpers
                     .BuildValidationCertificateCollection(cert, chain);
 #pragma warning disable CA2025
@@ -386,6 +477,7 @@ namespace Opc.Ua.Bindings
                 nameof(WssJsonTransportChannel));
         }
 
+        private const int kMessageTooBigCloseTimeout = 1000;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private Uri? m_url;

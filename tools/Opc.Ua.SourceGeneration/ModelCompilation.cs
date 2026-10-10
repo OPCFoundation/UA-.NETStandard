@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Globalization;
 using System.Linq;
 using System.Text;
 using System.Threading;
@@ -138,40 +139,12 @@ namespace Opc.Ua.SourceGeneration
                     new Dictionary<NodeManagerAttributeBinding, NodeManagerAttributeDiscovery>();
                 foreach (NodeManagerAttributeDiscovery discovery in m_nodeManagerBindings)
                 {
-                    if (discovery == null)
+                    // An invalid discovery is reported by
+                    // NodeManagerAttributeDiscovery.ReportDiagnostics, in a
+                    // separate output that has the compilation to report it
+                    // at a source location.
+                    if (discovery == null || discovery.IsInvalid)
                     {
-                        continue;
-                    }
-                    if (!discovery.InvalidExpressions.IsDefaultOrEmpty)
-                    {
-                        string targetType = string.IsNullOrEmpty(
-                            discovery.Binding.TargetNamespace)
-                                ? discovery.Binding.TargetClassName
-                                : discovery.Binding.TargetNamespace +
-                                    "." +
-                                    discovery.Binding.TargetClassName;
-                        foreach (NodeManagerAttributeExpressionError error in
-                            discovery.InvalidExpressions)
-                        {
-                            m_context.ReportDiagnostic(
-                                Diagnostic.Create(
-                                    SourceGenerator.NodeManagerArgumentUnresolved,
-                                    error.Location,
-                                    error.ArgumentName,
-                                    error.Expression,
-                                    targetType));
-                        }
-                        continue;
-                    }
-                    if (!discovery.IsPartial)
-                    {
-                        m_context.ReportDiagnostic(
-                            Diagnostic.Create(
-                                SourceGenerator.NodeManagerNotPartial,
-                                discovery.Location,
-                                discovery.Binding.TargetNamespace +
-                                "." +
-                                discovery.Binding.TargetClassName));
                         continue;
                     }
                     bindings.Add(discovery.Binding);
@@ -180,10 +153,13 @@ namespace Opc.Ua.SourceGeneration
 
                 void reportBinding(NodeManagerAttributeBinding binding, string message)
                 {
+                    // Reported while the models are generated, which does not
+                    // depend on the compilation (to stay cached), so there is
+                    // no syntax tree to report at: an external location.
                     Location loc =
                         bindingByPayload.TryGetValue(binding, out NodeManagerAttributeDiscovery d) &&
                         d != null
-                            ? d.Location
+                            ? d.Location.ToLocation()
                             : Location.None;
                     m_context.ReportDiagnostic(
                         Diagnostic.Create(
@@ -224,14 +200,46 @@ namespace Opc.Ua.SourceGeneration
                 // Use a set for O(1) membership tests instead of an O(n)
                 // ContainsValue scan per input (Ordinal preserves the previous
                 // dictionary-value equality semantics exactly).
+                // AllFilePaths, not Files.Values: Files exposes one entry per
+                // model URI, so a superseded NodeSet2 version would not be
+                // recognised as a NodeSet input and would be picked up as a
+                // ModelDesign target and generated a second time.
                 var nodesetPaths = new HashSet<string>(
-                    nodesets.Files.Values, StringComparer.Ordinal);
-                List<string> designTargets = [.. m_input
+                    nodesets.AllFilePaths, StringComparer.Ordinal);
+                // Distinct: a project can list the same file as an AdditionalFile
+                // more than once (a glob overlapping an explicit item). The file
+                // system dedupes its own view, but a repeated design target is
+                // generated twice and the second AddSource throws on the
+                // duplicate hint name - and it also inflates totalModelCount,
+                // which decides the single-model [NodeManager] fallback.
+                List<string> designInputs = [.. m_input
                     .Where(f => !nodesetPaths.Contains(f.Item1.Path))
-                    .Select(f => f.Item1.Path)];
+                    .Select(f => f.Item1.Path)
+                    .Distinct(StringComparer.Ordinal)];
+                // A design marked ModelSourceGeneratorIgnore is, like an
+                // ignored NodeSet2 input, only there to resolve references
+                // of the other inputs: it stays a dependency but is not
+                // generated, or its types would be emitted a second time
+                // next to the assembly that already provides them.
+                var ignoredDesigns = new HashSet<string>(
+                    m_input.Where(f => f.Item2?.Ignore == true).Select(f => f.Item1.Path),
+                    StringComparer.Ordinal);
+                List<string> designTargets = [.. designInputs
+                    .Where(path => !ignoredDesigns.Contains(path))];
 
                 var designDependencies = new List<string>(nodesets.DesignFileEntries);
-                designDependencies.AddRange(designTargets);
+                designDependencies.AddRange(designInputs);
+
+                // A CSV that a NodeSet claims through its IdentifierFile metadata
+                // is that NodeSet's sidecar. Left in the list, the ModelDesign
+                // pass adopts it as the identifier file of a design that has no
+                // same-named CSV and is the only design in the folder, and the
+                // design silently takes the NodeSet's numeric ids.
+                var claimedIdentifierFiles = new HashSet<string>(
+                    nodesets.IdentifierFilePaths, StringComparer.Ordinal);
+                List<string> designIdentifierFiles = [.. m_identifierFiles
+                    .Select(i => i.Path)
+                    .Where(path => !claimedIdentifierFiles.Contains(path))];
 
                 // A [NodeManager] may bind to a model produced by either pass
                 // (a NodeSet2 type model or a ModelDesign instance model). The
@@ -290,7 +298,7 @@ namespace Opc.Ua.SourceGeneration
                     m_telemetry,
                     generatorOptions,
                     m_options.UseAllowSubtypes,
-                    [.. m_identifierFiles.Select(i => i.Path)],
+                    designIdentifierFiles,
                     referencedModels,
                     bindings.Count > 0 ? bindings : null,
                     bindings.Count > 0 ? reportBinding : null,
@@ -315,6 +323,12 @@ namespace Opc.Ua.SourceGeneration
                     string content = Encoding.UTF8.GetString(vfs.Get(file));
                     m_context.AddSource(file, content);
                 }
+            }
+            catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+            {
+                // A cancelled run is not a generator failure: let the driver
+                // see the cancellation instead of caching an error diagnostic.
+                throw;
             }
             catch (Exception ex)
             {
@@ -352,6 +366,11 @@ namespace Opc.Ua.SourceGeneration
                         "ModelSourceGeneratorOmitFluentApi cannot both be enabled."));
                 return false;
             }
+            // The project-wide switch would emit a conventionally named
+            // manager into the *referenced* model's own C# namespace for
+            // every design in the project. A [NodeManager] says which model
+            // gets a manager and what it is called, so that is the way to
+            // put one on a model a reference supplies.
             if (m_options.FluentAccessorsOnly && m_options.Options.GenerateNodeManager)
             {
                 m_context.ReportDiagnostic(
@@ -359,7 +378,9 @@ namespace Opc.Ua.SourceGeneration
                         SourceGenerator.FluentAccessorsOnlyOptionsError,
                         Location.None,
                         "ModelSourceGeneratorFluentAccessorsOnly cannot be combined with " +
-                        "ModelSourceGeneratorGenerateNodeManager."));
+                        "ModelSourceGeneratorGenerateNodeManager. Apply a [NodeManager] " +
+                        "attribute to the manager class instead; it binds to a model a " +
+                        "referenced assembly supplies without re-emitting the model."));
                 return false;
             }
             return true;
@@ -402,8 +423,9 @@ namespace Opc.Ua.SourceGeneration
         /// Group the referenced-assembly attributes by model URI; when more
         /// than one assembly contributes the same URI, prefer a payload-bearing
         /// self producer over payloadless transitive re-exports, then use the
-        /// highest <c>(Version, PublicationDate)</c> lexicographic tuple per
-        /// the contract on <see cref="ModelDependencyAttribute"/>.
+        /// highest <c>(Version, PublicationDate)</c> tuple per the contract on
+        /// <see cref="ModelDependencyAttribute"/> (see
+        /// <see cref="CompareReferencedModels"/>).
         /// </summary>
         private IReadOnlyDictionary<string, ModelDependencyReference>
             BuildReferencedModelMap()
@@ -425,18 +447,7 @@ namespace Opc.Ua.SourceGeneration
                     map[candidate.ModelUri] = candidate;
                     continue;
                 }
-                bool candidateIsProducer = IsModelProducer(candidate);
-                bool existingIsProducer = IsModelProducer(existing);
-                int cmp = candidateIsProducer.CompareTo(existingIsProducer);
-                if (cmp == 0)
-                {
-                    cmp = string.CompareOrdinal(candidate.Version, existing.Version);
-                }
-                if (cmp == 0)
-                {
-                    cmp = string.CompareOrdinal(
-                        candidate.PublicationDate, existing.PublicationDate);
-                }
+                int cmp = CompareReferencedModels(candidate, existing);
                 if (cmp > 0)
                 {
                     m_context.ReportDiagnostic(
@@ -460,6 +471,60 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
             return map;
+        }
+
+        /// <summary>
+        /// Orders two referenced-assembly entries for the same model URI: a
+        /// payload-bearing self producer first, then the version, then the
+        /// publication date. The newest entry is picked by pairwise
+        /// replacement, so this must be a total order or the winner depends on
+        /// the order the assemblies are referenced in. The versions go through
+        /// <see cref="SemVer.CompareModels"/>, the OPC 10000-6 F.2 comparator
+        /// NodesetFileCollection uses, so the two halves of the pipeline cannot
+        /// pick different winners.
+        /// </summary>
+        /// <remarks>
+        /// <see cref="ModelDependencyAttribute"/> and its ModelDependencyV1
+        /// payload carry a single version string and no separate ModelVersion.
+        /// That string is the version the producing generator publishes as the
+        /// model's version (the ModelDesign pipeline derives the
+        /// NamespaceMetadata ModelVersion from it), so it takes the ModelVersion
+        /// slot of the comparison; there is no separate Version label to fall
+        /// back to. The raw publication date text breaks what is left.
+        /// </remarks>
+        internal static int CompareReferencedModels(
+            ModelDependencyReference candidate,
+            ModelDependencyReference existing)
+        {
+            int cmp = IsModelProducer(candidate).CompareTo(IsModelProducer(existing));
+            if (cmp == 0)
+            {
+                cmp = SemVer.CompareModels(
+                    candidate.Version,
+                    ParsePublicationDate(candidate.PublicationDate),
+                    null,
+                    existing.Version,
+                    ParsePublicationDate(existing.PublicationDate),
+                    null);
+            }
+            if (cmp == 0)
+            {
+                cmp = string.CompareOrdinal(
+                    candidate.PublicationDate, existing.PublicationDate);
+            }
+            return cmp;
+        }
+
+        private static DateTime ParsePublicationDate(string publicationDate)
+        {
+            return !string.IsNullOrEmpty(publicationDate) &&
+                DateTime.TryParse(
+                    publicationDate,
+                    CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal,
+                    out DateTime date)
+                ? date
+                : DateTime.MinValue;
         }
 
         private static bool IsModelProducer(ModelDependencyReference reference)

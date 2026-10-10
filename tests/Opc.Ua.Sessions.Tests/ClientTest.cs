@@ -100,7 +100,7 @@ namespace Opc.Ua.Sessions.Tests
             .. SupportedEccPolicies.Where(policyUri =>
             {
                 CertificateKeyAlgorithm certificateKeyAlgorithm =
-                    SecurityPolicies.Default.GetInfo(policyUri).CertificateKeyAlgorithm;
+                    SecurityPolicies.Default.GetInfo(policyUri)!.CertificateKeyAlgorithm;
                 return certificateKeyAlgorithm is not CertificateKeyAlgorithm.Curve25519 and
                     not CertificateKeyAlgorithm.Curve448;
             })
@@ -302,6 +302,52 @@ namespace Opc.Ua.Sessions.Tests
             }
         }
 
+        /// <summary>
+        /// FindServers and GetEndpoints return the ApplicationName in the requested
+        /// locale when the server advertises it (CTT Discovery Find Servers Filter
+        /// 003.js/006.js, Get Endpoints 002.js request de-DE).
+        /// </summary>
+        [Test]
+        [Order(101)]
+        [TestCase("de-DE")]
+        [TestCase("en-US")]
+        public async Task DiscoveryReturnsApplicationNameInRequestedLocaleAsync(string locale)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            var endpointConfiguration = EndpointConfiguration.Create();
+            endpointConfiguration.OperationTimeout = 10000;
+
+            using DiscoveryClient client = await DiscoveryClient.CreateAsync(
+                ServerUrl,
+                endpointConfiguration,
+                telemetry).ConfigureAwait(false);
+            ArrayOf<string> localeIds = [locale];
+            FindServersResponse servers = await client.FindServersAsync(
+                null,
+                client.Endpoint.EndpointUrl,
+                localeIds,
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+            GetEndpointsResponse endpoints = await client.GetEndpointsAsync(
+                null,
+                client.Endpoint.EndpointUrl,
+                localeIds,
+                default,
+                CancellationToken.None).ConfigureAwait(false);
+            await client.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+
+            ApplicationDescription self = servers.Servers.ToArray()!.Single(s =>
+                s.ApplicationUri == ServerFixture.Config.ApplicationUri);
+            Assert.That(self.ApplicationName.Locale, Is.EqualTo(locale));
+            Assert.That(self.ApplicationName.Text, Is.Not.Empty);
+            Assert.That(endpoints.Endpoints.Count, Is.GreaterThan(0));
+            foreach (EndpointDescription endpoint in endpoints.Endpoints)
+            {
+                Assert.That(endpoint.Server.ApplicationName.Locale, Is.EqualTo(locale));
+            }
+        }
+
         [Test]
         [Order(100)]
         public async Task FindServersOnNetworkAsync()
@@ -367,7 +413,7 @@ namespace Opc.Ua.Sessions.Tests
                 ReturnDiagnostics = DiagnosticsMasks.SymbolicIdAndText
             };
 
-            var request = new ReadRequest { RequestHeader = null };
+            var request = new ReadRequest { RequestHeader = null! };
 
             var readValueId = new ReadValueId
             {
@@ -465,10 +511,10 @@ namespace Opc.Ua.Sessions.Tests
 
             ArrayOf<CertificateIdentifier> applicationCerts =
                 ApplicationConfigurationBuilder.CreateDefaultApplicationCertificates(
-                    ClientFixture.Config.SecurityConfiguration.ApplicationCertificate.SubjectName);
+                    ClientFixture.Config.SecurityConfiguration.ApplicationCertificate!.SubjectName!);
 
             _ = await applicationInstance
-                .Build(ClientFixture.Config.ApplicationUri, ClientFixture.Config.ProductUri)
+                .Build(ClientFixture.Config.ApplicationUri!, ClientFixture.Config.ProductUri!)
                 .AsClient()
                 .AddSecurityConfiguration(applicationCerts)
                 .CreateAsync()
@@ -607,7 +653,7 @@ namespace Opc.Ua.Sessions.Tests
             session.DetachChannel();
 
             int waitTime =
-                ServerFixture.Application.ApplicationConfiguration.TransportQuotas.ChannelLifetime +
+                ServerFixture.Application.ApplicationConfiguration!.TransportQuotas!.ChannelLifetime +
                 (ServerFixture.Application.ApplicationConfiguration.TransportQuotas
                     .ChannelLifetime /
                     2) +
@@ -624,7 +670,11 @@ namespace Opc.Ua.Sessions.Tests
 
         [Theory]
         [Order(210)]
-        public async Task ConnectAndReconnectAsync(bool reconnectAbort, bool useMaxReconnectPeriod)
+        [CancelAfter(120_000)]
+        public async Task ConnectAndReconnectAsync(
+            bool reconnectAbort,
+            bool useMaxReconnectPeriod,
+            CancellationToken ct)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
@@ -640,7 +690,8 @@ namespace Opc.Ua.Sessions.Tests
             int sessionClosing = 0;
             session.SessionClosing += (sender, e) => sessionClosing++;
 
-            var quitEvent = new ManualResetEvent(false);
+            var reconnected = new TaskCompletionSource<bool>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
             var reconnectHandler = new SessionReconnectHandler(
                 telemetry,
                 reconnectAbort,
@@ -674,10 +725,16 @@ namespace Opc.Ua.Sessions.Tests
                         TestContext.Out.WriteLine("Reconnect aborted reusing secure channel.");
                     }
 
-                    quitEvent.Set();
+                    reconnected.TrySetResult(true);
                 });
 
-            bool timeout = quitEvent.WaitOne(connectTimeout);
+            // Await rather than block: the reconnect this waits for runs on
+            // the thread pool, and parking a pool thread on it (WaitOne) is
+            // what lets parallel fixtures starve a small CI runner.
+            Task completed = await Task
+                .WhenAny(reconnected.Task, Task.Delay(connectTimeout, ct))
+                .ConfigureAwait(false);
+            bool timeout = ReferenceEquals(completed, reconnected.Task);
             Assert.That(timeout, Is.True);
 
             if (reconnectAbort)
@@ -692,7 +749,7 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(sessionConfigChanged, Is.EqualTo(reconnectAbort ? 0 : 1));
             Assert.That(sessionClosing, Is.Zero);
 
-            StatusCode result = await session.CloseAsync().ConfigureAwait(false);
+            StatusCode result = await session.CloseAsync(ct).ConfigureAwait(false);
             reconnectHandler.Dispose();
             session.Dispose();
 
@@ -713,7 +770,7 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(session, Is.Not.Null);
             Assert.That(TokenValidator.LastIssuedToken, Is.Not.Null);
 
-            byte[] receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData;
+            byte[] receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData!;
             Assert.That(receivedToken, Is.EqualTo(identityToken));
 
             _ = await session.CloseAsync().ConfigureAwait(false);
@@ -739,7 +796,7 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(session, Is.Not.Null);
             Assert.That(TokenValidator.LastIssuedToken, Is.Not.Null);
 
-            byte[] receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData;
+            byte[] receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData!;
             Assert.That(receivedToken, Is.EqualTo(identityToken));
             Array.Clear(receivedToken, 0, receivedToken.Length);
 
@@ -747,7 +804,7 @@ namespace Opc.Ua.Sessions.Tests
             session.RenewUserIdentity += (_, _) => CreateUserIdentity(newIdentityToken);
 
             await session.ReconnectAsync().ConfigureAwait(false);
-            receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData;
+            receivedToken = TokenValidator.LastIssuedToken.DecryptedTokenData!;
             Assert.That(receivedToken, Is.EqualTo(newIdentityToken));
             Array.Clear(receivedToken, 0, receivedToken.Length);
 
@@ -850,10 +907,10 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(channel, Is.Not.Null);
 
             ISession session1 = ClientFixture.CreateSession(channel, endpoint);
-            await session1.OpenAsync("Session1", null, CancellationToken.None).ConfigureAwait(false);
+            await session1.OpenAsync("Session1", null!, CancellationToken.None).ConfigureAwait(false);
 
             ISession session2 = ClientFixture.CreateSession(channel, endpoint);
-            await session2.OpenAsync("Session2", null, CancellationToken.None).ConfigureAwait(false);
+            await session2.OpenAsync("Session2", null!, CancellationToken.None).ConfigureAwait(false);
 
             await session1.ReadValueAsync<ServerStatusDataType>(
                 VariableIds.Server_ServerStatus).ConfigureAwait(false);
@@ -887,7 +944,10 @@ namespace Opc.Ua.Sessions.Tests
         /// </summary>
         [Theory]
         [Order(250)]
-        public async Task ReconnectSessionOnAlternateChannelAsync(bool closeChannel)
+        [CancelAfter(120_000)]
+        public async Task ReconnectSessionOnAlternateChannelAsync(
+            bool closeChannel,
+            CancellationToken ct)
         {
             ServiceResultException sre;
 
@@ -905,7 +965,7 @@ namespace Opc.Ua.Sessions.Tests
 
             // test by reading a value
             ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
             Assert.That(value1, Is.Not.Null);
 
             // save the channel to close it later
@@ -926,12 +986,12 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(channel2, Is.Not.Null);
 
             // activate the session on the new channel
-            await session1.ReconnectAsync(channel2, CancellationToken.None)
+            await session1.ReconnectAsync(channel2, ct)
                 .ConfigureAwait(false);
 
             // test by reading a value
             ServerStatusDataType value2 = await session1.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
             Assert.That(value2, Is.Not.Null);
             Assert.That(value2.State, Is.EqualTo(value1.State));
 
@@ -946,39 +1006,40 @@ namespace Opc.Ua.Sessions.Tests
 
             // test by reading a value
             ServerStatusDataType value3 = await session1.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
             Assert.That(value3, Is.Not.Null);
             Assert.That(value3.State, Is.EqualTo(value1.State));
 
             // close the session, keep the channel open
-            await session1.CloseAsync(closeChannel: false, CancellationToken.None)
+            await session1.CloseAsync(closeChannel: false, ct)
                 .ConfigureAwait(false);
 
             // cannot read using a closed session, validate the status code
             sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session1.ReadValueAsync<ServerStatusDataType>(
-                    VariableIds.Server_ServerStatus).ConfigureAwait(false));
+                    VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
             Assert.That(
                 sre.StatusCode,
                 Is.EqualTo(StatusCodes.BadSessionIdInvalid),
                 sre.Message);
 
             // close the channel
-            await channel2.CloseAsync(CancellationToken.None).ConfigureAwait(false);
+            await channel2.CloseAsync(ct).ConfigureAwait(false);
             channel2.Dispose();
 
             // cannot read using a closed channel, validate the status code
             sre = Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await session1.ReadValueAsync<ServerStatusDataType>(
-                    VariableIds.Server_ServerStatus).ConfigureAwait(false));
+                    VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
 
-            if (StatusCodes.BadSecureChannelClosed != sre.StatusCode)
-            {
-                Assert.That(
-                    sre.StatusCode,
-                    Is.EqualTo(StatusCodes.BadNotConnected),
-                    sre.Message);
-            }
+            // the Session is closed as well, so the client refuses the request
+            // (it would go out without authenticationToken, which is a
+            // session-less invocation per Part 4 §6.3.1) before it reaches the
+            // closed channel.
+            Assert.That(
+                sre.StatusCode,
+                Is.EqualTo(StatusCodes.BadSessionIdInvalid),
+                sre.Message);
 
             session1.Dispose();
         }
@@ -998,9 +1059,11 @@ namespace Opc.Ua.Sessions.Tests
         [TestCase(SecurityPolicies.RSA_DH_ChaChaPoly, true)]
         [TestCase(SecurityPolicies.RSA_DH_ChaChaPoly, false)]
         [TestCaseSource(nameof(ReconnectSessionOnAlternateChannelWithSavedSessionSecretsEccTestCases))]
+        [CancelAfter(120_000)]
         public async Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
             string securityPolicy,
-            bool anonymous)
+            bool anonymous,
+            CancellationToken ct)
         {
             await IgnoreIfPolicyNotAdvertisedAsync(securityPolicy).ConfigureAwait(false);
 
@@ -1019,7 +1082,7 @@ namespace Opc.Ua.Sessions.Tests
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri);
+                endpoint.Description.SecurityPolicyUri!)!;
             if (identityPolicy == null)
             {
                 Assert.Ignore(
@@ -1033,7 +1096,7 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(session1, Is.Not.Null);
 
             ServerStatusDataType value1 = await session1.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
             Assert.That(value1, Is.Not.Null);
 
             // save the session configuration
@@ -1051,14 +1114,14 @@ namespace Opc.Ua.Sessions.Tests
 
             // create the inactive channel
             ITransportChannel channel2 = await ClientFixture
-                .CreateChannelAsync(sessionConfiguration.ConfiguredEndpoint, false)
+                .CreateChannelAsync(sessionConfiguration!.ConfiguredEndpoint!, false)
                 .ConfigureAwait(false);
             Assert.That(channel2, Is.Not.Null);
 
             // prepare the inactive session with the new channel
             ISession session2 = ClientFixture.CreateSession(
                 channel2,
-                sessionConfiguration.ConfiguredEndpoint);
+                sessionConfiguration.ConfiguredEndpoint!);
 
             // apply the saved session configuration
             bool success = session2.ApplySessionConfiguration(sessionConfiguration);
@@ -1067,25 +1130,27 @@ namespace Opc.Ua.Sessions.Tests
             session2.RenewUserIdentity += (_, _) => userIdentity;
 
             // activate the session from saved session secrets on the new channel
-            await session2.ReconnectAsync(channel2, CancellationToken.None)
+            await session2.ReconnectAsync(channel2, ct)
                 .ConfigureAwait(false);
-            Thread.Sleep(500);
+            // Awaited, not Thread.Sleep: blocking a pool thread inside an async
+            // test is what starves a small runner when fixtures run in parallel.
+            await Task.Delay(500, ct).ConfigureAwait(false);
 
             Assert.That(session2.SessionId, Is.EqualTo(session1.SessionId));
 
             ServerStatusDataType value2 = await session2.ReadValueAsync<ServerStatusDataType>(
-                VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
             Assert.That(value2, Is.Not.Null);
 
-            await Task.Delay(500).ConfigureAwait(false);
+            await Task.Delay(500, ct).ConfigureAwait(false);
 
             // cannot read using a closed channel, validate the status code
-            if (endpoint.EndpointUrl.ToString()
+            if (endpoint.EndpointUrl!.ToString()
                 .StartsWith(Utils.UriSchemeOpcTcp, StringComparison.Ordinal))
             {
                 sre = Assert.ThrowsAsync<ServiceResultException>(
                     async () => await session1.ReadValueAsync<ServerStatusDataType>(
-                        VariableIds.Server_ServerStatus).ConfigureAwait(false));
+                        VariableIds.Server_ServerStatus, ct).ConfigureAwait(false));
                 Assert.That(
                     sre.StatusCode,
                     Is.EqualTo(StatusCodes.BadSecureChannelIdInvalid),
@@ -1094,16 +1159,16 @@ namespace Opc.Ua.Sessions.Tests
             else
             {
                 object result = await session1.ReadValueAsync<ServerStatusDataType>(
-                    VariableIds.Server_ServerStatus).ConfigureAwait(false);
+                    VariableIds.Server_ServerStatus, ct).ConfigureAwait(false);
                 Assert.That(result, Is.Not.Null);
             }
 
             session1.DeleteSubscriptionsOnClose = true;
-            await session1.CloseAsync(1000).ConfigureAwait(false);
+            await session1.CloseAsync(1000, ct).ConfigureAwait(false);
             session1?.Dispose();
 
             session2.DeleteSubscriptionsOnClose = true;
-            await session2.CloseAsync(1000).ConfigureAwait(false);
+            await session2.CloseAsync(1000, ct).ConfigureAwait(false);
             session2?.Dispose();
         }
 
@@ -1138,7 +1203,7 @@ namespace Opc.Ua.Sessions.Tests
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                tokenPolicyEndpoint.Description.SecurityPolicyUri);
+                tokenPolicyEndpoint.Description.SecurityPolicyUri!)!;
             if (identityPolicy == null)
             {
                 Assert.Ignore(
@@ -1151,7 +1216,7 @@ namespace Opc.Ua.Sessions.Tests
                     $"UserTokenPolicy SecurityPolicyUri {identityPolicy.SecurityPolicyUri} does not match test expected SecurityPolicyUri {userTokenPolicy}. " +
                     "Please fix test parameters or the test server configuration.");
             }
-            userIdentity.PolicyId = identityPolicy.PolicyId;
+            userIdentity.PolicyId = identityPolicy.PolicyId!;
 
             // the active channel
             ISession session1 = await ClientFixture.ConnectAsync(endpoint, userIdentity)
@@ -1192,7 +1257,7 @@ namespace Opc.Ua.Sessions.Tests
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentityAnonymous.TokenType,
                 userIdentityAnonymous.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri);
+                endpoint.Description.SecurityPolicyUri!)!;
             if (identityPolicy == null)
             {
                 Assert.Ignore(
@@ -1423,9 +1488,9 @@ namespace Opc.Ua.Sessions.Tests
             Assert.That(dataTypeNode, Is.Not.Null);
             ExtensionObject dataTypeDefinition = dataTypeNode.DataTypeDefinition;
             Assert.That(dataTypeDefinition.IsNull, Is.False);
-            Assert.That(dataTypeDefinition.TryGetValue(out StructureDefinition structureDefinition), Is.True);
+            Assert.That(dataTypeDefinition.TryGetValue(out StructureDefinition? structureDefinition), Is.True);
             Assert.That(
-                structureDefinition.DefaultEncodingId,
+                structureDefinition!.DefaultEncodingId,
                 Is.EqualTo(ObjectIds.ProgramDiagnosticDataType_Encoding_DefaultBinary));
         }
 
@@ -1486,7 +1551,7 @@ namespace Opc.Ua.Sessions.Tests
         {
             if (ReferenceDescriptions.IsNull)
             {
-                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null!).ConfigureAwait(false);
             }
             ArrayOf<NodeId> nodeIds = ReferenceDescriptions
                 .ConvertAll(n => ExpandedNodeId.ToNodeId(n.NodeId, Session.NamespaceUris));
@@ -1558,7 +1623,7 @@ namespace Opc.Ua.Sessions.Tests
         {
             if (ReferenceDescriptions.IsNull)
             {
-                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null!).ConfigureAwait(false);
             }
 
             foreach (ReferenceDescription reference in ReferenceDescriptions[..MaxReferences].ToList())
@@ -1589,7 +1654,7 @@ namespace Opc.Ua.Sessions.Tests
         {
             if (ReferenceDescriptions.IsNull)
             {
-                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null!).ConfigureAwait(false);
             }
 
             foreach (ReferenceDescription reference in ReferenceDescriptions[..MaxReferences].ToList())
@@ -1623,7 +1688,7 @@ namespace Opc.Ua.Sessions.Tests
         {
             if (ReferenceDescriptions.IsNull)
             {
-                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null!).ConfigureAwait(false);
             }
 
             ArrayOf<NodeId> nodes =
@@ -1695,7 +1760,7 @@ namespace Opc.Ua.Sessions.Tests
         {
             if (ReferenceDescriptions.IsNull)
             {
-                await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
+                await BrowseFullAddressSpaceAsync(null!).ConfigureAwait(false);
             }
 
             ArrayOf<NodeId> nodes =
@@ -1789,7 +1854,7 @@ namespace Opc.Ua.Sessions.Tests
         public async Task TransferSubscriptionNativeAsync(bool sendInitialData)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ISession transferSession = null;
+            ISession? transferSession = null;
             try
             {
                 var requestHeader = new RequestHeader
@@ -1863,7 +1928,7 @@ namespace Opc.Ua.Sessions.Tests
                 ITransportChannel channel,
                 ApplicationConfiguration configuration,
                 ConfiguredEndpoint endpoint)
-                : base(channel, configuration, endpoint, null)
+                : base(channel, configuration, endpoint, null!)
             {
                 ActivityTraceFlags = ClientTraceFlags.Traces;
             }
@@ -1891,7 +1956,7 @@ namespace Opc.Ua.Sessions.Tests
                 {
                     continue;
                 }
-                if (item.Value.TryGetStructure(out SpanContextDataType spanContext))
+                if (item.Value.TryGetStructure<SpanContextDataType>(out SpanContextDataType? spanContext))
                 {
 #if NET8_0_OR_GREATER
                     Span<byte> spanIdBytes = stackalloc byte[8];
@@ -1932,7 +1997,7 @@ namespace Opc.Ua.Sessions.Tests
             ActivitySource.AddActivityListener(activityListener);
 
             using (Activity activity = new ActivitySource("TestActivitySource").StartActivity(
-                "Test_Activity"))
+                "Test_Activity")!)
             {
                 if (activity != null && activity.Id != null)
                 {
@@ -1961,10 +2026,10 @@ namespace Opc.Ua.Sessions.Tests
                     // Get the AdditionalHeader from the request
                     ExtensionObject additionalHeader = request.RequestHeader.AdditionalHeader;
                     Assert.That(additionalHeader.IsNull, Is.False);
-                    Assert.That(additionalHeader.TryGetValue(out AdditionalParametersType additionalParams), Is.True);
+                    Assert.That(additionalHeader.TryGetValue(out AdditionalParametersType? additionalParams), Is.True);
 
                     // Simulate extraction
-                    ActivityContext extractedContext = TestExtractActivityContextFromParameters(additionalParams);
+                    ActivityContext extractedContext = TestExtractActivityContextFromParameters(additionalParams!);
                     // Verify that the trace context is propagated.
                     Assert.That(extractedContext.TraceId, Is.EqualTo(activity.TraceId));
                     Assert.That(extractedContext.SpanId, Is.EqualTo(activity.SpanId));
@@ -2016,7 +2081,7 @@ namespace Opc.Ua.Sessions.Tests
 
             // test build info contains the equal values as the properties
             (values[0].WrappedValue.TryGetValue(out ExtensionObject eo) ? eo : default)
-                .TryGetValue(out BuildInfo buildInfo);
+                .TryGetValue(out BuildInfo? buildInfo);
             Assert.That(buildInfo, Is.Not.Null);
             Assert.That((string)values[1].WrappedValue, Is.EqualTo(buildInfo.ProductName));
             Assert.That((string)values[2].WrappedValue, Is.EqualTo(buildInfo.ProductUri));
@@ -2049,7 +2114,7 @@ namespace Opc.Ua.Sessions.Tests
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                endpoint.Description.SecurityPolicyUri);
+                endpoint.Description.SecurityPolicyUri!)!;
             if (identityPolicy == null)
             {
                 Assert.Ignore(
@@ -2096,7 +2161,7 @@ namespace Opc.Ua.Sessions.Tests
             UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                 userIdentity.TokenType,
                 userIdentity.IssuedTokenType,
-                securityPolicy);
+                securityPolicy)!;
 
             if (identityPolicy == null)
             {
@@ -2144,14 +2209,14 @@ namespace Opc.Ua.Sessions.Tests
 
             foreach (ECCurveHashPair eccurveHashPair in eccCurveHashPairs)
             {
-                string extractedFriendlyNamae = null;
+                string? extractedFriendlyNamae = null;
                 string[] friendlyNameContext = securityPolicy.Split('_');
                 if (friendlyNameContext.Length > 1)
                 {
                     extractedFriendlyNamae = friendlyNameContext[1];
                 }
-                if (eccurveHashPair.Curve.Oid.FriendlyName
-                    .Contains(extractedFriendlyNamae, StringComparison.Ordinal))
+                if (eccurveHashPair.Curve.Oid.FriendlyName!
+                    .Contains(extractedFriendlyNamae!, StringComparison.Ordinal))
                 {
                     using Certificate cert = CertificateBuilder
                         .Create("CN=Client Test ECC Subject, O=OPC Foundation")
@@ -2179,7 +2244,7 @@ namespace Opc.Ua.Sessions.Tests
                     UserTokenPolicy identityPolicy = endpoint.Description.FindUserTokenPolicy(
                         userIdentity.TokenType,
                         userIdentity.IssuedTokenType,
-                        endpoint.Description.SecurityPolicyUri);
+                        endpoint.Description.SecurityPolicyUri!)!;
                     if (identityPolicy == null)
                     {
                         Assert.Ignore(
@@ -2501,7 +2566,7 @@ namespace Opc.Ua.Sessions.Tests
         [Benchmark]
         public async Task BrowseFullAddressSpaceBenchmarkAsync()
         {
-            await BrowseFullAddressSpaceAsync(null).ConfigureAwait(false);
+            await BrowseFullAddressSpaceAsync(null!).ConfigureAwait(false);
         }
 
         private static void ValidateOperationLimit(uint serverLimit, uint clientLimit)

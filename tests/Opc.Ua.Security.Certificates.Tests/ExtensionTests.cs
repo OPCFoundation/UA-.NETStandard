@@ -67,21 +67,21 @@ namespace Opc.Ua.Security.Certificates.Tests
             TestContext.Out.WriteLine("CertificateAsset:");
             TestContext.Out.WriteLine(x509Cert);
             X509SubjectAltNameExtension altName = x509Cert
-                .FindExtension<X509SubjectAltNameExtension>();
+                .FindExtension<X509SubjectAltNameExtension>()!;
             if (altName != null)
             {
                 TestContext.Out.WriteLine("X509SubjectAltNameExtension:");
                 TestContext.Out.WriteLine(altName.Format(true));
-                var ext = new X509Extension(altName.Oid, altName.RawData, altName.Critical);
+                var ext = new X509Extension(altName.Oid!, altName.RawData, altName.Critical);
                 TestContext.Out.WriteLine(ext.Format(true));
             }
             X509AuthorityKeyIdentifierExtension authority =
-                x509Cert.FindExtension<X509AuthorityKeyIdentifierExtension>();
+                x509Cert.FindExtension<X509AuthorityKeyIdentifierExtension>()!;
             if (authority != null)
             {
                 TestContext.Out.WriteLine("X509AuthorityKeyIdentifierExtension:");
                 TestContext.Out.WriteLine(authority.Format(true));
-                var ext = new X509Extension(authority.Oid, authority.RawData, authority.Critical);
+                var ext = new X509Extension(authority.Oid!, authority.RawData, authority.Critical);
                 TestContext.Out.WriteLine(ext.Format(true));
             }
             TestContext.Out.WriteLine("All extensions:");
@@ -112,24 +112,24 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(aki.SerialNumber, Is.EqualTo(serialNumber.ToHexString(true)));
             Assert.That(aki.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
             var akidecoded = new X509AuthorityKeyIdentifierExtension(
-                aki.Oid,
+                aki.Oid!,
                 aki.RawData,
                 aki.Critical);
             TestContext.Out.WriteLine("Decoded:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
             Assert.That(akidecoded.RawData, Is.EqualTo(aki.RawData));
-            Assert.That(akidecoded.Issuer.Name, Is.EqualTo(authorityName.Name));
+            Assert.That(akidecoded.Issuer!.Name, Is.EqualTo(authorityName.Name));
             Assert.That(akidecoded.GetSerialNumber(), Is.EqualTo(serialNumber));
             Assert.That(akidecoded.SerialNumber, Is.EqualTo(serialNumber.ToHexString(true)));
             Assert.That(akidecoded.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
             akidecoded = new X509AuthorityKeyIdentifierExtension(
-                aki.Oid.Value,
+                aki.Oid!.Value!,
                 aki.RawData,
                 aki.Critical);
             TestContext.Out.WriteLine("Decoded2:");
             TestContext.Out.WriteLine(akidecoded.Format(true));
             Assert.That(akidecoded.RawData, Is.EqualTo(aki.RawData));
-            Assert.That(akidecoded.Issuer.Name, Is.EqualTo(authorityName.Name));
+            Assert.That(akidecoded.Issuer!.Name, Is.EqualTo(authorityName.Name));
             Assert.That(akidecoded.GetSerialNumber(), Is.EqualTo(serialNumber));
             Assert.That(akidecoded.SerialNumber, Is.EqualTo(serialNumber.ToHexString(true)));
             Assert.That(akidecoded.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
@@ -151,7 +151,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(aki.SerialNumber, Is.Empty);
             Assert.That(aki.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
             var akidecoded = new X509AuthorityKeyIdentifierExtension(
-                aki.Oid,
+                aki.Oid!,
                 aki.RawData,
                 aki.Critical);
             TestContext.Out.WriteLine("Decoded:");
@@ -162,7 +162,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(aki.SerialNumber, Is.Empty);
             Assert.That(akidecoded.GetKeyIdentifier(), Is.EqualTo(subjectKeyIdentifier));
             akidecoded = new X509AuthorityKeyIdentifierExtension(
-                aki.Oid.Value,
+                aki.Oid!.Value!,
                 aki.RawData,
                 aki.Critical);
             TestContext.Out.WriteLine("Decoded2:");
@@ -186,7 +186,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var san = new X509SubjectAltNameExtension(applicationUri, domainNames);
             TestContext.Out.WriteLine(san.Format(true));
             var decodedsan = new X509SubjectAltNameExtension(
-                san.Oid.Value,
+                san.Oid!.Value!,
                 san.RawData,
                 san.Critical);
             Assert.That(decodedsan, Is.Not.Null);
@@ -198,7 +198,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             Assert.That(decodedsan.Uris, Has.Count.EqualTo(1));
             Assert.That(decodedsan.DomainNames, Has.Count.EqualTo(1));
             Assert.That(decodedsan.IPAddresses, Has.Count.EqualTo(2));
-            Assert.That(san.Oid.Value, Is.EqualTo(decodedsan.Oid.Value));
+            Assert.That(san.Oid.Value, Is.EqualTo(decodedsan.Oid!.Value));
             Assert.That(san.Critical, Is.EqualTo(decodedsan.Critical));
             Assert.That(decodedsan.Uris[0], Is.EqualTo(applicationUri));
             Assert.That(decodedsan.DomainNames[0], Is.EqualTo(domainNames[0]));
@@ -217,7 +217,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             var number = new X509CrlNumberExtension(crlNumber);
             TestContext.Out.WriteLine(number.Format(true));
             var decodednumber = new X509CrlNumberExtension(
-                number.Oid.Value,
+                number.Oid!.Value!,
                 number.RawData,
                 number.Critical);
             Assert.That(decodednumber, Is.Not.Null);

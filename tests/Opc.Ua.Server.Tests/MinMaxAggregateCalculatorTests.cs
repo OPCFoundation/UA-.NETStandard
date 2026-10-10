@@ -80,18 +80,18 @@ namespace Opc.Ua.Server.Tests
             double processingInterval)
         {
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry);
+                aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry)!;
 
             foreach (DataValue value in values)
             {
-                calculator.QueueRawValue(value);
+                calculator!.QueueRawValue(value);
             }
 
             var results = new List<DataValue>();
             bool hasData = true;
             while (hasData)
             {
-                bool _hasresult = calculator.TryGetProcessedValue(true, out DataValue result);
+                bool _hasresult = calculator!.TryGetProcessedValue(true, out DataValue result);
                 if (_hasresult)
                 {
                     results.Add(result);
@@ -118,7 +118,7 @@ namespace Opc.Ua.Server.Tests
             double processingInterval)
         {
             IAggregateCalculator calculator = Aggregators.CreateStandardCalculator(
-                aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry);
+                aggregateId, startTime, endTime, processingInterval, false, m_configuration, m_telemetry)!;
 
             // Reverse reads (endTime earlier than startTime) require the raw stream to be
             // queued latest-first; forward reads require earliest-first.
@@ -126,19 +126,19 @@ namespace Opc.Ua.Server.Tests
             {
                 for (int index = ascendingValues.Count - 1; index >= 0; index--)
                 {
-                    calculator.QueueRawValue(ascendingValues[index]);
+                    calculator!.QueueRawValue(ascendingValues[index]);
                 }
             }
             else
             {
                 foreach (DataValue value in ascendingValues)
                 {
-                    calculator.QueueRawValue(value);
+                    calculator!.QueueRawValue(value);
                 }
             }
 
             var results = new List<DataValue>();
-            while (calculator.TryGetProcessedValue(true, out DataValue result))
+            while (calculator!.TryGetProcessedValue(true, out DataValue result))
             {
                 results.Add(result);
             }
@@ -341,6 +341,44 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.WrappedValue.IsNull, Is.False);
             Assert.That((double)result.WrappedValue.ConvertToDouble(), Is.EqualTo(47.0).Within(0.0001));
+        }
+
+        /// <summary>
+        /// Part 13 Tables 62 and 67: Range and Range2 return the source data
+        /// type; Double only when the range overflows it.
+        /// </summary>
+        [TestCase("Range")]
+        [TestCase("Range2")]
+        public void Range_ReturnsSourceDataType(string aggregateName)
+        {
+            NodeId aggregateId = aggregateName == "Range"
+                ? ObjectIds.AggregateFunction_Range
+                : ObjectIds.AggregateFunction_Range2;
+            var startTime = new DateTimeUtc(2024, 1, 1, 0, 0, 0);
+            DateTimeUtc endTime = startTime.AddMilliseconds(12000);
+            var ints = new List<DataValue>();
+            var sbytes = new List<DataValue>();
+            int[] values = [10, 50, 20, 3, 15, 15];
+            for (int i = 0; i < values.Length; i++)
+            {
+                DateTimeUtc timestamp = startTime.AddMilliseconds(500 + (i * 2000));
+                ints.Add(new DataValue(new Variant(values[i]), StatusCodes.Good, timestamp, timestamp));
+                sbytes.Add(new DataValue(
+                    new Variant((sbyte)(i % 2 == 0 ? -100 : 100)),
+                    StatusCodes.Good,
+                    timestamp,
+                    timestamp));
+            }
+
+            DataValue intResult = ComputeAggregate(aggregateId, ints, startTime, endTime, 12000);
+            DataValue sbyteResult = ComputeAggregate(aggregateId, sbytes, startTime, endTime, 12000);
+
+            Assert.That(intResult.WrappedValue.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Int32));
+            Assert.That(intResult.WrappedValue.TryGetValue(out int range), Is.True);
+            Assert.That(range, Is.EqualTo(47));
+            // 200 does not fit into SByte.
+            Assert.That(sbyteResult.WrappedValue.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.Double));
+            Assert.That((double)sbyteResult.WrappedValue.ConvertToDouble(), Is.EqualTo(200.0).Within(0.0001));
         }
 
         [Test]

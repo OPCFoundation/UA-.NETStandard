@@ -81,14 +81,14 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(serverNodeId).ConfigureAwait(false);
 
             ReferenceDescription directory = children.FirstOrDefault(
-                r => r.BrowseName.Name == "Directory");
+                r => r.BrowseName.Name == "Directory")!;
             if (directory == null)
             {
                 // The Directory object may be under the Objects folder instead
                 children = await BrowseChildrenAsync(Ua.ObjectIds.ObjectsFolder)
                     .ConfigureAwait(false);
                 directory = children.FirstOrDefault(
-                    r => r.BrowseName.Name == "Directory");
+                    r => r.BrowseName.Name == "Directory")!;
             }
 
             Assert.That(directory, Is.Not.Null,
@@ -102,7 +102,7 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
 
             ReferenceDescription certGroups = children.FirstOrDefault(
-                r => r.BrowseName.Name == "CertificateGroups");
+                r => r.BrowseName.Name == "CertificateGroups")!;
             Assert.That(certGroups, Is.Not.Null,
                 "Directory.CertificateGroups not found.");
         }
@@ -127,7 +127,7 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
 
             ReferenceDescription registerApp = children.FirstOrDefault(
-                r => r.BrowseName.Name == "RegisterApplication");
+                r => r.BrowseName.Name == "RegisterApplication")!;
             Assert.That(registerApp, Is.Not.Null,
                 "Directory.RegisterApplication method not found.");
             Assert.That(registerApp.NodeClass, Is.EqualTo(NodeClass.Method));
@@ -139,7 +139,7 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
 
             ReferenceDescription findApps = children.FirstOrDefault(
-                r => r.BrowseName.Name == "FindApplications");
+                r => r.BrowseName.Name == "FindApplications")!;
             Assert.That(findApps, Is.Not.Null,
                 "Directory.FindApplications method not found.");
             Assert.That(findApps.NodeClass, Is.EqualTo(NodeClass.Method));
@@ -151,7 +151,7 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
 
             ReferenceDescription unregApp = children.FirstOrDefault(
-                r => r.BrowseName.Name == "UnregisterApplication");
+                r => r.BrowseName.Name == "UnregisterApplication")!;
             Assert.That(unregApp, Is.Not.Null,
                 "Directory.UnregisterApplication method not found.");
             Assert.That(unregApp.NodeClass, Is.EqualTo(NodeClass.Method));
@@ -163,7 +163,7 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
 
             ReferenceDescription getApp = children.FirstOrDefault(
-                r => r.BrowseName.Name == "GetApplication");
+                r => r.BrowseName.Name == "GetApplication")!;
             Assert.That(getApp, Is.Not.Null,
                 "Directory.GetApplication method not found.");
             Assert.That(getApp.NodeClass, Is.EqualTo(NodeClass.Method));
@@ -175,7 +175,7 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId).ConfigureAwait(false);
 
             ReferenceDescription queryApps = children.FirstOrDefault(
-                r => r.BrowseName.Name == "QueryApplications");
+                r => r.BrowseName.Name == "QueryApplications")!;
             Assert.That(queryApps, Is.Not.Null,
                 "Directory.QueryApplications method not found.");
             Assert.That(queryApps.NodeClass, Is.EqualTo(NodeClass.Method));
@@ -353,7 +353,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterApplicationAsync(appRecord).ConfigureAwait(false);
 
             List<ApplicationRecordDataType> results = await FindApplicationsAsync(
-                appRecord.ApplicationUri).ConfigureAwait(false);
+                appRecord.ApplicationUri!).ConfigureAwait(false);
             Assert.That(results, Is.Not.Empty,
                 "FindApplications should return at least one match.");
             Assert.That(results.Any(r => r.ApplicationUri == appRecord.ApplicationUri),
@@ -369,6 +369,38 @@ namespace Opc.Ua.Gds.Tests
                 "urn:opcfoundation.org:tests:nonexistent:app:xyz").ConfigureAwait(false);
             Assert.That(results, Has.Count.Zero,
                 "FindApplications with non-matching URI should return empty.");
+        }
+
+        /// <summary>
+        /// OPC 10000-4 §7.7.3: the '^' shall be the first character of a list.
+        /// QueryServers used to accept '%[a^j-l]%' with Good
+        /// (CTT GDS Application Directory 078.js).
+        /// </summary>
+        [Test]
+        public async Task QueryServersWithInvalidPatternReturnsBadInvalidArgumentAsync()
+        {
+            CallResponse response = await Session.CallAsync(
+                null,
+                new CallMethodRequest[] {
+                    new() {
+                        ObjectId = m_directoryNodeId,
+                        MethodId = ToNodeId(MethodIds.Directory_QueryServers),
+                        InputArguments = new Variant[] {
+                            new(0u),
+                            new(0u),
+                            new(string.Empty),
+                            new("%[a^j-l]%"),
+                            new(string.Empty),
+                            new(Array.Empty<string>())
+                        }.ToArrayOf()
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
+            Assert.That(response.Results[0].OutputArguments, Is.Empty);
         }
 
         [Test]
@@ -460,6 +492,50 @@ namespace Opc.Ua.Gds.Tests
             Assert.ThrowsAsync<ServiceResultException>(async () => await UnregisterApplicationAsync(invalidId).ConfigureAwait(false));
         }
 
+        /// <summary>
+        /// Several RegisterApplication calls in one Call request each get their
+        /// own result (CTT GDS Application Directory 019.js reports BadNotFound
+        /// for this request, but it never reaches the server).
+        /// </summary>
+        [Test]
+        public async Task RegisterApplicationBatchedInOneCallRequestAsync()
+        {
+            ApplicationRecordDataType[] records =
+            [
+                CreateTestApplicationRecord("Batch1", ApplicationType.Client),
+                CreateTestApplicationRecord("Batch2"),
+                CreateTestApplicationRecord("Batch3"),
+                CreateTestApplicationRecord("Batch4", ApplicationType.ClientAndServer)
+            ];
+            records[3].DiscoveryUrls = ["opc.tcp://localhost:4840/Batch4a", "opc.tcp://localhost:4840/Batch4b"];
+
+            NodeId methodId = ToNodeId(MethodIds.Directory_RegisterApplication);
+            CallResponse response = await Session.CallAsync(
+                null,
+                records.Select(record => new CallMethodRequest
+                {
+                    ObjectId = m_directoryNodeId,
+                    MethodId = methodId,
+                    InputArguments = new Variant[] { new(new ExtensionObject(record)) }.ToArrayOf()
+                }).ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(StatusCode.IsGood(response.ResponseHeader.ServiceResult), Is.True);
+            Assert.That(response.Results.Count, Is.EqualTo(records.Length));
+            var applicationIds = new List<NodeId>();
+            foreach (CallMethodResult result in response.Results)
+            {
+                Assert.That(result.StatusCode, Is.EqualTo((StatusCode)StatusCodes.Good));
+                applicationIds.Add((NodeId)result.OutputArguments[0]);
+            }
+            Assert.That(applicationIds, Is.Unique);
+
+            foreach (NodeId applicationId in applicationIds)
+            {
+                await UnregisterApplicationAsync(applicationId).ConfigureAwait(false);
+            }
+        }
+
         private async Task<NodeId> RegisterApplicationAsync(
             ApplicationRecordDataType appRecord,
             CancellationToken ct = default)
@@ -540,7 +616,7 @@ namespace Opc.Ua.Gds.Tests
 
             // The output may be an ExtensionObject containing the decoded type,
             // or a Variant wrapping the structure directly.
-            if (outputArg.TryGetStructure(out ApplicationRecordDataType directResult))
+            if (outputArg.TryGetStructure<ApplicationRecordDataType>(out ApplicationRecordDataType? directResult))
             {
                 return directResult;
             }
@@ -554,7 +630,7 @@ namespace Opc.Ua.Gds.Tests
                     throw new ServiceResultException(StatusCodes.BadNotFound);
                 }
 
-                if (eo.TryGetValue(out ApplicationRecordDataType eoResult, Session.MessageContext))
+                if (eo.TryGetValue(out ApplicationRecordDataType? eoResult, Session.MessageContext))
                 {
                     return eoResult;
                 }
@@ -573,7 +649,7 @@ namespace Opc.Ua.Gds.Tests
                 // a server bug; AsBoxedObject() is acceptable here because the
                 // payload is logged for diagnostics, not asserted on.
                 $"Value type: {outputArg.AsBoxedObject()?.GetType()?.FullName ?? "null"}");
-            return null;
+            return null!;
         }
 
         private async Task UpdateApplicationAsync(
@@ -634,7 +710,7 @@ namespace Opc.Ua.Gds.Tests
             {
                 foreach (ExtensionObject eo in eoArray)
                 {
-                    if (eo.TryGetValue(out ApplicationRecordDataType record, Session.MessageContext))
+                    if (eo.TryGetValue(out ApplicationRecordDataType? record, Session.MessageContext))
                     {
                         records.Add(record);
                     }

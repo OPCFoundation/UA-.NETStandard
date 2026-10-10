@@ -153,7 +153,12 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                     "The entry should remain registered with refcount zero until the reconnect operation exits.");
 
                 barrier.Release();
-                await reconnectTask.WaitAsync(DefaultWait, ct).ConfigureAwait(false);
+
+                // Releasing the last lease cancels the in-flight recovery, so the
+                // reconnect caller observes cancellation rather than success.
+                Assert.That(
+                    async () => await reconnectTask.WaitAsync(DefaultWait, ct).ConfigureAwait(false),
+                    Throws.InstanceOf<OperationCanceledException>());
 
                 Assert.That(
                     await WaitForQuiescence.EntryGoneAsync(environment.Manager, key, DefaultWait, ct)

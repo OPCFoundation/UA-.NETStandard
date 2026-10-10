@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -67,11 +68,18 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 var candidate = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
                 int namespaces = server.CurrentInstance.NamespaceUris.Count;
                 var lifecycle = (INodeManagerBatchLifecycle)server.NodeManagerLifecycle;
+                ArrayOf<NodeManagerRegistration> initialRegistrations = lifecycle.Registrations;
                 await Assert.ThatAsync(() => lifecycle.PrepareAsync(
                     [NodeManagerBatchChange.Add(candidate.Object)]).AsTask(),
                     Throws.TypeOf<NotSupportedException>()).ConfigureAwait(false);
                 candidate.VerifyNoOtherCalls();
-                Assert.That(lifecycle.Registrations.IsEmpty, Is.True);
+                ArrayOf<NodeManagerRegistration> retainedRegistrations = lifecycle.Registrations;
+                Assert.That(retainedRegistrations.ToList(), Is.EqualTo(initialRegistrations.ToList()));
+                foreach (NodeManagerRegistration initial in initialRegistrations)
+                {
+                    Assert.That(retainedRegistrations.Find(registration => registration.Id == initial.Id),
+                        Is.SameAs(initial));
+                }
                 Assert.That(server.CurrentInstance.NamespaceUris.Count, Is.EqualTo(namespaces));
             }
             finally
@@ -97,10 +105,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 LifecycleTestServer first = await fixture.StartAsync(pki).ConfigureAwait(false);
                 Assert.That(first.CurrentInstance.Factory.TryGetEncodeableType(
-                    DataTypeIds.Range, out IEncodeableType type), Is.True);
+                    DataTypeIds.Range, out IEncodeableType? type), Is.True);
+                AssertLifecycleValue(type);
                 first.CurrentInstance.Factory.Builder.AddEncodeableType(alias, type).Commit();
                 await fixture.StopAsync().ConfigureAwait(false);
-                Assert.That(factory.TryGetEncodeableType(alias, out IEncodeableType retained), Is.True,
+                Assert.That(factory.TryGetEncodeableType(alias, out IEncodeableType? retained), Is.True,
                     "A supplied private factory must retain committed registrations when its server stops.");
                 Assert.That(retained, Is.SameAs(type));
                 LifecycleTestServer second = await fixture.StartAsync(pki).ConfigureAwait(false);
@@ -148,13 +157,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await Assert.ThatAsync(() => lifecycle.PrepareAsync(
                 [
-                    NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false))),
+                    NodeManagerBatchChange.Add(
+                        new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false))),
                     NodeManagerBatchChange.Add(failed.Object)
                 ]).AsTask(), Throws.TypeOf<IOException>()).ConfigureAwait(false);
             Assert.That(m_server.CurrentInstance.Factory.TryGetEncodeableType(
                 new ExpandedNodeId(RuntimeNodeSetTestServer.TestPointDataType, RuntimeNodeSetTestServer.NamespaceUri),
                 out _), Is.False);
-            Assert.That(lifecycle.Registrations.IsEmpty, Is.True);
+            Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
         }
 
         [TestCase(false)]
@@ -173,7 +183,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ExpandedNodeId structure = new(RuntimeNodeSetTestServer.TestPointDataType,
                 RuntimeNodeSetTestServer.NamespaceUri);
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))])
+                [NodeManagerBatchChange.Add(
+                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))])
                 .ConfigureAwait(false))
             {
                 Assert.That(holder.TryResolve(marker, out _), Is.True);
@@ -192,10 +203,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))])
+                [NodeManagerBatchChange.Add(
+                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))])
                 .ConfigureAwait(false);
             IEncodeableFactory factory = m_server.CurrentInstance.Factory;
-            Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType type), Is.True);
+            Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType? type), Is.True);
+            AssertLifecycleValue(type);
             ExpandedNodeId alias = new(8305, "urn:opcfoundation.org:Tests:ConcurrentFactory");
             factory.Builder.AddEncodeableType(alias, type).Commit();
             int decisions = 0;
@@ -205,7 +218,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return default;
             }).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
             Assert.That(decisions, Is.Zero);
-            Assert.That(factory.TryGetEncodeableType(alias, out IEncodeableType retained), Is.True);
+            Assert.That(factory.TryGetEncodeableType(alias, out IEncodeableType? retained), Is.True);
             Assert.That(retained, Is.SameAs(type));
             Assert.That(prepared.IsCommitted, Is.False);
         }
@@ -217,11 +230,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             IEncodeableFactory factory = m_server.CurrentInstance.Factory;
-            Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType type), Is.True);
+            Assert.That(factory.TryGetEncodeableType(DataTypeIds.Range, out IEncodeableType? type), Is.True);
+            AssertLifecycleValue(type);
             ExpandedNodeId alias = new(8306, "urn:opcfoundation.org:Tests:ConcurrentFactory");
             IEncodeableFactoryBuilder writer = factory.Builder.AddEncodeableType(alias, type);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))],
+                [NodeManagerBatchChange.Add(
+                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))],
                 timeout.Token).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -263,7 +278,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 NodeManagerBatchResult result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.Null);
             }
-            Assert.That(factory.TryGetEncodeableType(alias, out IEncodeableType retained), Is.EqualTo(accepted),
+            Assert.That(factory.TryGetEncodeableType(alias, out IEncodeableType? retained), Is.EqualTo(accepted),
                 "A factory write must survive publication or be rejected before effects.");
             if (accepted)
             {
@@ -289,7 +304,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             bool preparedEncoding;
             bool preparedEnumeration;
             await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
-                [NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))])
+                [NodeManagerBatchChange.Add(
+                    new RuntimeNodeSetNodeManagerFactory(CreateBatchComplexTypeOptions(false)))])
                 .ConfigureAwait(false))
             {
                 preparedStructure = factory.TryGetEncodeableType(structure, out _);
@@ -306,9 +322,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(preparedStructure, Is.False, "A prepared structure must not enter the serving factory.");
                 Assert.That(preparedEncoding, Is.False, "A prepared encoding must not enter the serving factory.");
                 Assert.That(preparedEnumeration, Is.False, "A prepared enum must not enter the serving factory.");
-                Assert.That(factory.TryGetEncodeableType(structure, out IEncodeableType structureType),
+                Assert.That(factory.TryGetEncodeableType(structure, out IEncodeableType? structureType),
                     Is.EqualTo(publish));
-                Assert.That(factory.TryGetEncodeableType(encoding, out IEncodeableType encodingType),
+                Assert.That(factory.TryGetEncodeableType(encoding, out IEncodeableType? encodingType),
                     Is.EqualTo(publish));
                 Assert.That(factory.TryGetEnumeratedType(enumeration, out _), Is.EqualTo(publish));
                 if (publish)
@@ -328,7 +344,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ExpandedNodeId structure = new(RuntimeNodeSetTestServer.TestPointDataType,
                 RuntimeNodeSetTestServer.NamespaceUri);
             ExpandedNodeId alias = new(kBatchAliasId, RuntimeNodeSetTestServer.NamespaceUri);
-            Assert.That(factory.TryGetEncodeableType(structure, out IEncodeableType original), Is.True);
+            Assert.That(factory.TryGetEncodeableType(structure, out IEncodeableType? original), Is.True);
             Assert.That(factory.TryGetEncodeableType(alias, out _), Is.False);
             bool visibleWhilePrepared;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
@@ -347,8 +363,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(visibleWhilePrepared, Is.False, "An alias must stay private until its owner is published.");
-                Assert.That(factory.TryGetEncodeableType(alias, out IEncodeableType resolved), Is.EqualTo(publish));
-                Assert.That(factory.TryGetEncodeableType(structure, out IEncodeableType retained), Is.True);
+                Assert.That(factory.TryGetEncodeableType(alias, out IEncodeableType? resolved), Is.EqualTo(publish));
+                Assert.That(factory.TryGetEncodeableType(structure, out IEncodeableType? retained), Is.True);
                 Assert.That(retained, Is.SameAs(original));
                 if (publish)
                 {
@@ -361,14 +377,16 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using Stream source = RuntimeNodeSetTestServer.OpenTestStream();
             XDocument document = XDocument.Load(source);
-            XNamespace ns = document.Root.Name.Namespace;
+            XElement root = RequireLifecycleValue(document.Root);
+            XNamespace ns = root.Name.Namespace;
             if (includeAlias)
             {
-                XElement structure = document.Root.Elements(ns + "UADataType").Single(element =>
-                    element.Attribute("NodeId").Value == $"ns=1;i={RuntimeNodeSetTestServer.TestPointDataType}");
-                structure.Element(ns + "References").Add(new XElement(ns + "Reference",
+                XElement structure = root.Elements(ns + "UADataType").Single(element =>
+                    RequireLifecycleValue(element.Attribute("NodeId")).Value ==
+                        $"ns=1;i={RuntimeNodeSetTestServer.TestPointDataType}");
+                RequireLifecycleValue(structure.Element(ns + "References")).Add(new XElement(ns + "Reference",
                     new XAttribute("ReferenceType", "HasEncoding"), $"ns=1;i={kBatchAliasId}"));
-                document.Root.Add(new XElement(ns + "UAObject",
+                root.Add(new XElement(ns + "UAObject",
                     new XAttribute("NodeId", $"ns=1;i={kBatchAliasId}"),
                     new XAttribute("BrowseName", "Default XML"),
                     new XElement(ns + "DisplayName", "Default XML"),
@@ -396,17 +414,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             public IEnumerable<ExpandedNodeId> KnownTypeIds => factory.KnownTypeIds;
             public IEncodeableFactoryBuilder Builder => factory.Builder;
 
-            public bool TryGetEncodeableType(ExpandedNodeId typeId, out IEncodeableType type)
+            public bool TryGetEncodeableType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEncodeableType? type)
             {
                 return factory.TryGetEncodeableType(typeId, out type);
             }
 
-            public bool TryGetEnumeratedType(ExpandedNodeId typeId, out IEnumeratedType type)
+            public bool TryGetEnumeratedType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEnumeratedType? type)
             {
                 return factory.TryGetEnumeratedType(typeId, out type);
             }
 
-            public bool TryGetType(XmlQualifiedName xmlName, out IType type)
+            public bool TryGetType(XmlQualifiedName xmlName, [NotNullWhen(true)] out IType? type)
             {
                 return factory.TryGetType(xmlName, out type);
             }

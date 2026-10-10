@@ -87,8 +87,6 @@ namespace TestData
 
             // use suitable defaults if no configuration exists.
 
-            m_lastUsedId = m_configuration.NextUnusedId - 1;
-
             // create the object used to access the test system.
             m_system = new TestDataSystem(
                 this,
@@ -167,18 +165,6 @@ namespace TestData
         }
 
         /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        /// <param name="context">The context.</param>
-        /// <param name="node">The node.</param>
-        /// <returns>The new NodeId.</returns>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            uint id = Opc.Ua.Utils.IncrementIdentifier(ref m_lastUsedId);
-            return new NodeId(id, m_namespaceIndex);
-        }
-
-        /// <summary>
         /// Does any initialization required before the address space can be used.
         /// </summary>
         /// <remarks>
@@ -194,6 +180,13 @@ namespace TestData
             m_typeNamespaceIndex = Server.NamespaceUris.GetIndexOrAppend(Namespaces.TestData);
             m_namespaceIndex = Server.NamespaceUris
                 .GetIndexOrAppend(Namespaces.TestData + "Instance");
+
+            // counter identifiers in the instance namespace. The factory's
+            // counter starts far above any authored identifier, which is
+            // what NextUnusedId used to be configured for.
+            NodeIdFactory = NodeIdFactory
+                .WithMode(NodeIdAssignmentMode.Counter)
+                .WithDefaultNamespaceIndex(m_namespaceIndex);
 
             await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
 
@@ -717,7 +710,6 @@ namespace TestData
         private ushort m_namespaceIndex;
         private ushort m_typeNamespaceIndex;
         private readonly TestDataSystem m_system;
-        private uint m_lastUsedId;
 #if CONDITION_SAMPLES
         private Timer m_systemStatusTimer;
         private TestSystemConditionState m_systemStatusCondition;

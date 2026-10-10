@@ -45,9 +45,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task OverlappingBindingSuspensionsRestoreAdmissionOnlyAfterTheirLastReleaseAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            TrackingLifecycleNodeManager manager = null;
+            TrackingLifecycleNodeManager? manager = null;
             await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 kGeneration1Value, value => manager = value), null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             m_requestHeader.Timestamp = DateTimeUtc.Now;
             CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
@@ -70,7 +71,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await release.Task.WaitAsync(token).ConfigureAwait(false);
             };
             Task<uint> firstAdmission = CreateEventMonitoredItemAsync(services, subscriptionId, ObjectIds.Server, 1);
-            Task<uint> secondAdmission = null;
+            Task<uint>? secondAdmission = null;
             bool blockedByEarlyRelease = false;
             try
             {
@@ -89,7 +90,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                manager.AllEventsCallback = null;
+                manager.AllEventsCallback = (_, _, _) => default;
                 await firstAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
                 if (secondAdmission is not null)
                 {
@@ -106,9 +107,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task OverlappingBindingResumptionsAcquireAdmissionOnlyOnceAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
-            TrackingLifecycleNodeManager manager = null;
+            TrackingLifecycleNodeManager? manager = null;
             await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 kGeneration1Value, value => manager = value), null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             m_requestHeader.Timestamp = DateTimeUtc.Now;
             CreateSubscriptionResponse subscription = await services.CreateSubscriptionAsync(
@@ -135,7 +137,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await using IAsyncDisposable second = host.SuspendBindingAdmission();
                     Task secondResumption = second.DisposeAsync().AsTask();
                     resumptionsQueued.TrySetResult(true);
-                    await Task.WhenAll(firstResumption, secondResumption).WaitAsync(timeout.Token).ConfigureAwait(false);
+                    await Task.WhenAll(firstResumption, secondResumption).WaitAsync(timeout.Token)
+                        .ConfigureAwait(false);
                 }
                 else
                 {
@@ -145,7 +148,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
             Task<uint> firstAdmission = CreateEventMonitoredItemAsync(
                 services, subscription.SubscriptionId, ObjectIds.Server, 1);
-            Task<uint> secondAdmission = null;
+            Task<uint>? secondAdmission = null;
             try
             {
                 await suspended.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -157,7 +160,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(firstAdmission.IsCompleted, Is.False);
                 releasePeer.TrySetResult(true);
                 await Task.WhenAll(firstAdmission, secondAdmission).WaitAsync(timeout.Token).ConfigureAwait(false);
-                manager.AllEventsCallback = null;
+                manager.AllEventsCallback = (_, _, _) => default;
                 await CreateEventMonitoredItemAsync(services, subscription.SubscriptionId, ObjectIds.Server, 3)
                     .WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(manager.AllEventsSubscribeCount, Is.EqualTo(3));
@@ -166,7 +169,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 resume.TrySetResult(true);
                 releasePeer.TrySetResult(true);
-                manager.AllEventsCallback = null;
+                manager.AllEventsCallback = (_, _, _) => default;
                 await firstAdmission.WaitAsync(timeout.Token).ConfigureAwait(false);
                 if (secondAdmission is not null)
                 {
@@ -207,15 +210,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            TrackingLifecycleNodeManager original = null;
-            TrackingLifecycleNodeManager candidate = null;
-            TrackingLifecycleNodeManager nested = null;
+            TrackingLifecycleNodeManager? original = null;
+            TrackingLifecycleNodeManager? candidate = null;
+            TrackingLifecycleNodeManager? nested = null;
             await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 kGeneration1Value, value => original = value), null, timeout.Token).ConfigureAwait(false);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kGeneration2Value, value => candidate = value, kSecondModelNamespaceUri))],
                 timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(original);
+            AssertLifecycleValue(candidate);
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 303, value => nested = value, kReadinessProbeNamespaceUri);
             var factory = new CallbackSafeNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
@@ -242,7 +247,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
             Task<Opc.Ua.Client.ISession> activation = client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None);
-            Opc.Ua.Client.ISession activatedSession = null;
+            Opc.Ua.Client.ISession? activatedSession = null;
             try
             {
                 await queued.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -260,7 +265,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(result.CleanupFailure, Is.Null);
                 }
                 activatedSession = await activation.WaitAsync(timeout.Token).ConfigureAwait(false);
-                NodeId initialId = server.SessionManager.GetSession(m_requestHeader.AuthenticationToken).Id;
+                NodeId initialId = RequireLifecycleValue(
+                    server.SessionManager.GetSession(m_requestHeader.AuthenticationToken)).Id;
+                AssertLifecycleValue(nested);
                 NodeId activatedId = activatedSession.SessionId;
                 using (Assert.EnterMultipleScope())
                 {
@@ -275,7 +282,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 release.TrySetResult(true);
                 cancellation.Cancel();
-                original.SessionActivatedCallback = null;
+                original.SessionActivatedCallback = _ => default;
                 if (activatedSession is not null)
                 {
                     await activatedSession.CloseAsync(timeout.Token).ConfigureAwait(false);
@@ -302,15 +309,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                 .ConfigureAwait(false);
-            TrackingLifecycleNodeManager original = null;
+            TrackingLifecycleNodeManager? original = null;
             await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 kGeneration1Value, manager => original = manager), null, timeout.Token).ConfigureAwait(false);
-            TrackingLifecycleNodeManager candidate = null;
+            AssertLifecycleValue(original);
+            TrackingLifecycleNodeManager? candidate = null;
             await using IPreparedNodeManagerBatch prepared = await ((INodeManagerBatchLifecycle)lifecycle).PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, manager => candidate = manager, kSecondModelNamespaceUri))],
                 timeout.Token).ConfigureAwait(false);
-            TrackingLifecycleNodeManager nested = null;
+            AssertLifecycleValue(candidate);
+            TrackingLifecycleNodeManager? nested = null;
             IAsyncNodeManagerFactory nestedFactory = CreateTrackingNodeManagementFactory(
                 303, manager => nested = manager, kReadinessProbeNamespaceUri);
             var callbackFactory = new CallbackSafeNodeManagerFactory(
@@ -320,7 +329,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var callbackEntered = new TaskCompletionSource<uint>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseCallback = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var lifecycleQueued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            NodeManagerRegistration added = null;
+            NodeManagerRegistration? added = null;
             int decisions = 0;
             original.AllEventsCallback = async (item, unsubscribe, _) =>
             {
@@ -388,14 +397,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         "for lifecycle admission; the request drain confirmed the callback was a lifecycle waiter.");
                 }
                 NodeManagerBatchResult result = await commit.ConfigureAwait(false);
-                NodeId sessionId = server.SessionManager.GetSession(m_requestHeader.AuthenticationToken).Id;
+                NodeId sessionId = RequireLifecycleValue(
+                    server.SessionManager.GetSession(m_requestHeader.AuthenticationToken)).Id;
+                AssertLifecycleValue(added);
+                AssertLifecycleValue(nested);
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(result.CleanupFailure, Is.Null);
                     Assert.That(decisions, Is.EqualTo(1));
                     Assert.That(prepared.IsCommitted, Is.True);
                     Assert.That(added.NodeManager, Is.SameAs(nested));
-                    Assert.That(lifecycle.Registrations.Count, Is.EqualTo(3));
+                    Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(3));
                     Assert.That(await admission.ConfigureAwait(false), Is.EqualTo(itemId));
                     Assert.That(candidate.ActivatedSessionIds.ToList(),
                         Is.EquivalentTo(new[] { sessionId, session.SessionId }));
@@ -410,7 +422,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 releaseCallback.TrySetResult(true);
                 releaseDecision.TrySetResult(true);
                 cleanup.Cancel();
-                original.AllEventsCallback = null;
+                original.AllEventsCallback = (_, _, _) => default;
                 await admission.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await session.DeleteSubscriptionsAsync(null, [subscription.SubscriptionId], timeout.Token)
@@ -465,15 +477,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                 .ConfigureAwait(false);
-            TrackingLifecycleNodeManager original = null;
-            TrackingLifecycleNodeManager candidate = null;
-            TrackingLifecycleNodeManager nested = null;
+            TrackingLifecycleNodeManager? original = null;
+            TrackingLifecycleNodeManager? candidate = null;
+            TrackingLifecycleNodeManager? nested = null;
             await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 kGeneration1Value, value => original = value), null, timeout.Token).ConfigureAwait(false);
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kGeneration2Value, value => candidate = value, kSecondModelNamespaceUri))],
                 timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(original);
+            AssertLifecycleValue(candidate);
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 303, value => nested = value, kReadinessProbeNamespaceUri);
             var nestedFactory = new CallbackSafeNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
@@ -561,12 +575,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }
                     if (!cancelNested)
                     {
+                        AssertLifecycleValue(nested);
                         Assert.That(nested.SubscribedAllEventIds.ToList(), Is.EqualTo(new[] { eventId }));
                         Assert.That(nested.UnsubscribedAllEventIds.ToList(),
                             Is.EqualTo(failAdmission ? new[] { eventId } : Array.Empty<uint>()));
                     }
                 }
-                original.AllEventsCallback = null;
+                original.AllEventsCallback = (_, _, _) => default;
                 CreateMonitoredItemsResponse later = await CreateEventAsync(2).WaitAsync(timeout.Token)
                     .ConfigureAwait(false);
                 Assert.That(later.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good),
@@ -576,7 +591,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 release.TrySetResult(true);
                 nestedCancellation.Cancel();
-                original.AllEventsCallback = null;
+                original.AllEventsCallback = (_, _, _) => default;
                 await session.DeleteSubscriptionsAsync(null, [subscription.SubscriptionId], timeout.Token)
                     .ConfigureAwait(false);
                 await session.CloseAsync(timeout.Token).ConfigureAwait(false);

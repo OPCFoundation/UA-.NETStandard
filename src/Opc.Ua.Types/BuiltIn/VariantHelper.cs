@@ -32,10 +32,8 @@ using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
-using Opc.Ua.Types;
-#if NET8_0_OR_GREATER
 using System.Runtime.CompilerServices;
-#endif
+using Opc.Ua.Types;
 
 namespace Opc.Ua
 {
@@ -64,325 +62,656 @@ namespace Opc.Ua
                     result = AsT(value);
                     break;
                 case Type t when t.IsEnum:
-                    result = AsT(value.GetInt32());
-                    break;
+                {
+                    // Reinterpreting the Int32 as T reads past the local
+                    // for enums wider than 4 bytes; convert by value.
+                    bool ok = value.TryGetValue(out int v);
+                    result = EnumFromInt64(v);
+                    return ok;
+                }
                 case Type t when t == typeof(bool):
-                    result = AsT(value.GetBoolean());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out bool v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(byte):
-                    result = AsT(value.GetByte());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out byte v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(sbyte):
-                    result = AsT(value.GetSByte());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out sbyte v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ushort):
-                    result = AsT(value.GetUInt16());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ushort v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(short):
-                    result = AsT(value.GetInt16());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out short v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(uint):
-                    result = AsT(value.GetUInt32());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out uint v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(int):
-                    result = AsT(value.GetInt32());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out int v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ulong):
-                    result = AsT(value.GetUInt64());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ulong v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(long):
-                    result = AsT(value.GetInt64());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out long v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(double):
-                    result = AsT(value.GetDouble());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out double v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(float):
-                    result = AsT(value.GetFloat());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out float v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(string):
-                    result = AsRefT(value.GetString());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out string v);
+                    result = AsRefT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(DateTimeUtc):
-                    result = AsT(value.GetDateTime());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out DateTimeUtc v);
+                    result = AsT(v);
+                    return ok;
+                }
+                case Type t when t == typeof(DateTime):
+                {
+                    bool ok = value.TryGetValue(out DateTimeUtc v);
+                    result = AsT((DateTime)v);
+                    return ok;
+                }
                 case Type t when t == typeof(Guid):
-                    result = AsT<Uuid>(value.GetGuid().Guid);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out Uuid v);
+                    result = AsT(v.Guid);
+                    return ok;
+                }
                 case Type t when t == typeof(Uuid):
-                    result = AsT(value.GetGuid());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out Uuid v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ByteString):
-                    result = AsT(value.GetByteString());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ByteString v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(XmlElement):
-                    result = AsT(value.GetXmlElement());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out XmlElement v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(NodeId):
-                    result = AsT(value.GetNodeId());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out NodeId v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ExpandedNodeId):
-                    result = AsT(value.GetExpandedNodeId());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ExpandedNodeId v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(LocalizedText):
-                    result = AsT(value.GetLocalizedText());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out LocalizedText v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(QualifiedName):
-                    result = AsT(value.GetQualifiedName());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out QualifiedName v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(StatusCode):
-                    result = AsT(value.GetStatusCode());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out StatusCode v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(DataValue):
-                    result = AsT(value.GetDataValue());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out DataValue v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ExtensionObject):
-                    result = AsT(value.GetExtensionObject());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ExtensionObject v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when typeof(IEncodeable).IsAssignableFrom(t):
-                    if (!value.GetExtensionObject()
-                        .TryGetValue(out IEncodeable? encodeable))
+                    if (!value.TryGetValue(out ExtensionObject extensionObject) ||
+                        !extensionObject.TryGetValue(out IEncodeable? encodeable) ||
+                        encodeable is not T typedEncodeable)
                     {
                         result = default!;
                         return false;
                     }
-                    result = (T)(object)encodeable!;
+                    result = typedEncodeable;
                     break;
                 case Type t when t == typeof(ArrayOf<bool>):
-                    result = AsT(value.GetBooleanArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<bool> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<sbyte>):
-                    result = AsT(value.GetSByteArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<sbyte> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<byte>):
-                    result = AsT(value.GetByteArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<byte> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<short>):
-                    result = AsT(value.GetInt16Array());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<short> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<ushort>):
-                    result = AsT(value.GetUInt16Array());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<ushort> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<int>):
-                    result = AsT(value.GetInt32Array());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<int> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<uint>):
-                    result = AsT(value.GetUInt32Array());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<uint> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<long>):
-                    result = AsT(value.GetInt64Array());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<long> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<ulong>):
-                    result = AsT(value.GetUInt64Array());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<ulong> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<float>):
-                    result = AsT(value.GetFloatArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<float> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<double>):
-                    result = AsT(value.GetDoubleArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<double> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<string>):
-                    result = AsT(value.GetStringArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<string> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<DateTimeUtc>):
-                    result = AsT(value.GetDateTimeArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<DateTimeUtc> v);
+                    result = AsT(v);
+                    return ok;
+                }
+                case Type t when t == typeof(ArrayOf<DateTime>):
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<DateTimeUtc> v);
+                    result = AsT(v.ConvertAll(d => (DateTime)d));
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<Guid>):
-                    result = AsT(value.GetGuidArray().ConvertAll(g => g.Guid));
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<Uuid> v);
+                    result = AsT(v.ConvertAll(g => g.Guid));
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<Uuid>):
-                    result = AsT(value.GetGuidArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<Uuid> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<ByteString>):
-                    result = AsT(value.GetByteStringArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<ByteString> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<XmlElement>):
-                    result = AsT(value.GetXmlElementArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<XmlElement> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<NodeId>):
-                    result = AsT(value.GetNodeIdArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<NodeId> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<ExpandedNodeId>):
-                    result = AsT(value.GetExpandedNodeIdArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<ExpandedNodeId> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<LocalizedText>):
-                    result = AsT(value.GetLocalizedTextArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<LocalizedText> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<QualifiedName>):
-                    result = AsT(value.GetQualifiedNameArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<QualifiedName> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<StatusCode>):
-                    result = AsT(value.GetStatusCodeArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<StatusCode> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<DataValue>):
-                    result = AsT(value.GetDataValueArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<DataValue> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<Variant>):
-                    result = AsT(value.GetVariantArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<Variant> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(ArrayOf<ExtensionObject>):
-                    result = AsT(value.GetExtensionObjectArray());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<ExtensionObject> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<bool>):
-                    result = AsT(value.GetBooleanMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<bool> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<sbyte>):
-                    result = AsT(value.GetSByteMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<sbyte> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<byte>):
-                    result = AsT(value.GetByteMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<byte> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<short>):
-                    result = AsT(value.GetInt16Matrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<short> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<ushort>):
-                    result = AsT(value.GetUInt16Matrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<ushort> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<int>):
-                    result = AsT(value.GetInt32Matrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<int> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<uint>):
-                    result = AsT(value.GetUInt32Matrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<uint> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<long>):
-                    result = AsT(value.GetInt64Matrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<long> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<ulong>):
-                    result = AsT(value.GetUInt64Matrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<ulong> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<float>):
-                    result = AsT(value.GetFloatMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<float> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<double>):
-                    result = AsT(value.GetDoubleMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<double> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<string>):
-                    result = AsT(value.GetStringMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<string> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<DateTimeUtc>):
-                    result = AsT(value.GetDateTimeMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<DateTimeUtc> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<Guid>):
-                    result = AsT(value.GetGuidMatrix().ConvertAll(g => g.Guid));
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<Uuid> v);
+                    result = AsT(v.ConvertAll(g => g.Guid));
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<Uuid>):
-                    result = AsT(value.GetGuidMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<Uuid> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<ByteString>):
-                    result = AsT(value.GetByteStringMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<ByteString> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<XmlElement>):
-                    result = AsT(value.GetXmlElementMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<XmlElement> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<NodeId>):
-                    result = AsT(value.GetNodeIdMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<NodeId> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<ExpandedNodeId>):
-                    result = AsT(value.GetExpandedNodeIdMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<ExpandedNodeId> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<LocalizedText>):
-                    result = AsT(value.GetLocalizedTextMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<LocalizedText> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<QualifiedName>):
-                    result = AsT(value.GetQualifiedNameMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<QualifiedName> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<StatusCode>):
-                    result = AsT(value.GetStatusCodeMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<StatusCode> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<DataValue>):
-                    result = AsT(value.GetDataValueMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<DataValue> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<Variant>):
-                    result = AsT(value.GetVariantMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<Variant> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(MatrixOf<ExtensionObject>):
-                    result = AsT(value.GetExtensionObjectMatrix());
-                    break;
+                {
+                    bool ok = value.TryGetValue(out MatrixOf<ExtensionObject> v);
+                    result = AsT(v);
+                    return ok;
+                }
                 case Type t when t == typeof(bool[]):
-                    result = AsRefT(value.GetBooleanArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<bool> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(byte[]):
-                    result = AsRefT(value.GetByteArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<byte> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(sbyte[]):
-                    result = AsRefT(value.GetSByteArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<sbyte> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(ushort[]):
-                    result = AsRefT(value.GetUInt16Array().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<ushort> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(short[]):
-                    result = AsRefT(value.GetInt16Array().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<short> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(uint[]):
-                    result = AsRefT(value.GetUInt32Array().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<uint> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(int[]):
-                    result = AsRefT(value.GetInt32Array().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<int> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(ulong[]):
-                    result = AsRefT(value.GetUInt64Array().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<ulong> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(long[]):
-                    result = AsRefT(value.GetInt64Array().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<long> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(double[]):
-                    result = AsRefT(value.GetDoubleArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<double> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(float[]):
-                    result = AsRefT(value.GetFloatArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<float> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(string[]):
-                    result = AsRefT(value.GetStringArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<string> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(DateTimeUtc[]):
-                    result = AsRefT(value.GetDateTimeArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<DateTimeUtc> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(Uuid[]):
-                    result = AsRefT(value.GetGuidArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<Uuid> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(ByteString[]):
-                    result = AsRefT(value.GetByteStringArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<ByteString> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(XmlElement[]):
-                    result = AsRefT(value.GetXmlElementArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<XmlElement> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(NodeId[]):
-                    result = AsRefT(value.GetNodeIdArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<NodeId> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(ExpandedNodeId[]):
-                    result = AsRefT(value.GetExpandedNodeIdArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<ExpandedNodeId> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(LocalizedText[]):
-                    result = AsRefT(value.GetLocalizedTextArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<LocalizedText> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(QualifiedName[]):
-                    result = AsRefT(value.GetQualifiedNameArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<QualifiedName> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(StatusCode[]):
-                    result = AsRefT(value.GetStatusCodeArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<StatusCode> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(DataValue[]):
-                    result = AsRefT(value.GetDataValueArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<DataValue> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(Variant[]):
-                    result = AsRefT(value.GetVariantArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<Variant> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(ExtensionObject[]):
-                    result = AsRefT(value.GetExtensionObjectArray().ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<ExtensionObject> v);
+                    result = AsRefT(v.ToArray()!);
+                    return ok;
+                }
+                case Type t when t == typeof(DateTime[]):
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<DateTimeUtc> v);
+                    result = AsRefT(v.ConvertAll(d => (DateTime)d).ToArray()!);
+                    return ok;
+                }
                 case Type t when t == typeof(Guid[]):
-                    result = AsRefT(value.GetGuidArray().ConvertAll(g => g.Guid).ToArray()!);
-                    break;
+                {
+                    bool ok = value.TryGetValue(out ArrayOf<Uuid> v);
+                    result = AsRefT(v.ConvertAll(g => g.Guid).ToArray()!);
+                    return ok;
+                }
                 case Type t when typeof(IEncodeable[]).IsAssignableFrom(t):
-                    ArrayOf<ExtensionObject> extensionObjects = value.GetExtensionObjectArray();
-                    var encodeables = new IEncodeable[extensionObjects.Count];
+                    if (!value.TryGetValue(out ArrayOf<ExtensionObject> extensionObjects))
+                    {
+                        result = default!;
+                        return false;
+                    }
+                    // Allocate an array of T's element type (e.g. Argument[]),
+                    // an IEncodeable[] cannot be cast to a derived array type.
+                    Type encodeableType = t.GetElementType()!;
+                    var encodeables = Array.CreateInstance(
+                        encodeableType,
+                        extensionObjects.Count);
                     for (int ii = 0; ii < encodeables.Length; ii++)
                     {
-                        if (!extensionObjects[ii].TryGetValue(out IEncodeable? e))
+                        if (!extensionObjects[ii].TryGetValue(out IEncodeable? e) ||
+                            !encodeableType.IsInstanceOfType(e))
                         {
                             result = default!;
                             return false;
                         }
-                        encodeables[ii] = e!;
+                        encodeables.SetValue(e, ii);
                     }
                     result = AsRefT(encodeables);
                     break;
@@ -390,7 +719,14 @@ namespace Opc.Ua
                     t.GetArrayRank() == 1 &&
                     t.GetElementType() is Type et &&
                     et.IsEnum:
-                    ArrayOf<int> enumValues = value.GetInt32Array();
+                    // An int[] can only be reinterpreted as an array of an
+                    // enum whose underlying type is Int32.
+                    if (Enum.GetUnderlyingType(et) != typeof(int) ||
+                        !value.TryGetValue(out ArrayOf<int> enumValues))
+                    {
+                        result = default!;
+                        return false;
+                    }
                     result = AsRefT(enumValues.ToArray()!);
                     break;
                 default:
@@ -406,12 +742,28 @@ namespace Opc.Ua
             static T AsT<U>(U value) where U : struct
             {
                 Debug.Assert(typeof(U) == typeof(T));
-#if NET8_0_OR_GREATER
                 Debug.Assert(Unsafe.SizeOf<T>() == Unsafe.SizeOf<U>());
                 return Unsafe.As<U, T>(ref value);
-#else
-                return (T)(object)value;
-#endif
+            }
+
+            // Helper to convert to the enum T like Enum.ToObject without boxing:
+            // keep the low bytes of the value that fit the underlying type.
+            static T EnumFromInt64(long value)
+            {
+                switch (Unsafe.SizeOf<T>())
+                {
+                    case sizeof(byte):
+                        byte b = unchecked((byte)value);
+                        return Unsafe.As<byte, T>(ref b);
+                    case sizeof(short):
+                        short s = unchecked((short)value);
+                        return Unsafe.As<short, T>(ref s);
+                    case sizeof(int):
+                        int i = unchecked((int)value);
+                        return Unsafe.As<int, T>(ref i);
+                    default:
+                        return Unsafe.As<long, T>(ref value);
+                }
             }
         }
 
@@ -558,6 +910,9 @@ namespace Opc.Ua
                     break;
                 case DateTimeUtc o:
                     variant = Variant.From(o);
+                    break;
+                case DateTime o:
+                    variant = Variant.From((DateTimeUtc)o);
                     break;
                 case Guid o:
                     variant = Variant.From(new Uuid(o));
@@ -795,6 +1150,9 @@ namespace Opc.Ua
                     break;
                 case DateTimeUtc[] o:
                     variant = Variant.From(o.ToArrayOf());
+                    break;
+                case DateTime[] o:
+                    variant = Variant.From(o.ToArrayOf(d => (DateTimeUtc)d));
                     break;
                 case Guid[] o:
                     variant = Variant.From(o.ToArrayOf(g => new Uuid(g)));
@@ -1121,7 +1479,8 @@ namespace Opc.Ua
                 }
                 variants.Add(variant);
             }
-            return Variant.Collapse(variants.ToArrayOf());
+            // Keep the array shape (a one element or empty array stays an array).
+            return Variant.Collapse(variants.ToArrayOf(), BuiltInType.Variant);
         }
 
         private static Variant FromEnums(IEnumerable<Enum> values)
@@ -1131,7 +1490,8 @@ namespace Opc.Ua
             {
                 variants.Add(Variant.From(EnumValue.From(value, value.GetType())));
             }
-            return Variant.Collapse(variants.ToArrayOf());
+            // Keep the array shape (a one element or empty array stays an array).
+            return Variant.Collapse(variants.ToArrayOf(), BuiltInType.Enumeration);
         }
 
         private static Variant FromArrayOfEncodeable<T>(ArrayOf<T> values)

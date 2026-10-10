@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Reflection;
@@ -63,6 +61,7 @@ namespace Opc.Ua.Client.Tests
                 Assert.That(context.Disposed, Is.False);
                 Assert.That(context.DeleteSubscriptionsOnClose, Is.True);
                 Assert.That(context.OperationTimeout, Is.Zero);
+                Assert.That(context.SessionTimeout, Is.EqualTo(scope.Session.SessionTimeout));
                 Assert.That(context.ServerState, Is.EqualTo(ServerState.Running));
                 Assert.That(context.ReturnDiagnostics, Is.EqualTo(DiagnosticsMasks.None));
                 Assert.That(context.Telemetry, Is.SameAs(scope.Telemetry));

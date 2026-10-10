@@ -187,7 +187,7 @@ namespace Opc.Ua.Server.Tests
         public void ConstructorAddsApplicationUriToServerUris()
         {
             using ServerInternalData data = CreateServerInternalData();
-            string appUri = data.ServerUris.GetString(0);
+            string appUri = data.ServerUris.GetString(0)!;
             Assert.That(appUri, Is.EqualTo("urn:test:server"));
         }
 
@@ -215,7 +215,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ConstructorFiltersInvalidBaseAddresses()
         {
-            m_configuration.ServerConfiguration.BaseAddresses = [
+            m_configuration.ServerConfiguration!.BaseAddresses = [
                 "opc.tcp://localhost:4840",
                 "not-a-valid-uri",
                 "https://localhost:4841"
@@ -228,7 +228,7 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void ConstructorHandlesEmptyBaseAddresses()
         {
-            m_configuration.ServerConfiguration.BaseAddresses = [];
+            m_configuration.ServerConfiguration!.BaseAddresses = [];
             using ServerInternalData data = CreateServerInternalData();
             Assert.That(data.EndpointAddresses.Count(), Is.Zero);
         }
@@ -238,9 +238,9 @@ namespace Opc.Ua.Server.Tests
         {
             using ServerInternalData data = CreateServerInternalData();
             var mockNodeManager = new Mock<IMasterNodeManager>();
-            mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
-            mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
-            mockNodeManager.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null);
+            mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null!);
+            mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null!);
+            mockNodeManager.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null!);
 
             data.SetNodeManager(mockNodeManager.Object);
 
@@ -293,9 +293,9 @@ namespace Opc.Ua.Server.Tests
             INodeManager[] nodeManagers)
         {
             var mock = new Mock<IMasterNodeManager>();
-            mock.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
-            mock.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
-            mock.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null);
+            mock.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null!);
+            mock.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null!);
+            mock.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null!);
             mock.Setup(m => m.AsyncNodeManagers).Returns(asyncNodeManagers);
             mock.Setup(m => m.NodeManagers).Returns(nodeManagers);
             return mock.Object;
@@ -367,6 +367,19 @@ namespace Opc.Ua.Server.Tests
             data.SetMonitoredItemQueueFactory(mockFactory.Object);
 
             Assert.That(data.MonitoredItemQueueFactory, Is.SameAs(mockFactory.Object));
+        }
+
+        [Test]
+        public void DisposeKeepsCallerOwnedMonitoredItemQueueFactory()
+        {
+            ServerInternalData data = CreateServerInternalData();
+            var mockFactory = new Mock<IMonitoredItemQueueFactory>();
+            data.SetMonitoredItemQueueFactory(mockFactory.Object, ownsFactory: false);
+
+            data.Dispose();
+
+            mockFactory.Verify(factory => factory.Dispose(), Times.Never);
+            Assert.That(data.MonitoredItemQueueFactory, Is.Null);
         }
 
         [Test]
@@ -465,17 +478,23 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void UpdateServerDiagnosticsInvokesTheUpdateUnderTheLock()
+        public void UpdateServerDiagnosticsIsANoOpUntilTheServerObjectIsCreated()
         {
             using ServerInternalData data = CreateServerInternalData();
 
-            // ServerDiagnostics is only populated once the server object is created, so
-            // this asserts the callback is invoked rather than inspecting the payload.
+            // ServerDiagnostics is only populated once the server object is created. A request
+            // rejected while the server is still starting (e.g. a CreateSession refused with
+            // Bad_ServerHalted) is counted before that; counting it must not turn the rejection
+            // into a NullReferenceException.
             bool invoked = false;
 
-            data.UpdateServerDiagnostics(_ => invoked = true);
+            Assert.DoesNotThrow(() => data.UpdateServerDiagnostics(diagnostics =>
+            {
+                invoked = true;
+                diagnostics.RejectedSessionCount++;
+            }));
 
-            Assert.That(invoked, Is.True);
+            Assert.That(invoked, Is.False);
         }
 
         [Test]
@@ -588,10 +607,10 @@ namespace Opc.Ua.Server.Tests
             data.UpdateServerDiagnostics(diagnostics => diagnostics.RejectedSessionCount = 99);
 
             Assert.That(
-                snapshot.TryGetStructure(out ServerDiagnosticsSummaryDataType read),
+                snapshot.TryGetStructure<ServerDiagnosticsSummaryDataType>(out ServerDiagnosticsSummaryDataType? read),
                 Is.True);
             Assert.That(
-                read.RejectedSessionCount,
+                read!.RejectedSessionCount,
                 Is.EqualTo(7u),
                 "a later update changed a value that had already been handed out");
         }
@@ -827,8 +846,8 @@ namespace Opc.Ua.Server.Tests
             var mockDiag = new Mock<IDiagnosticsNodeManager>();
             var mockNodeManager = new Mock<IMasterNodeManager>();
             mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns(mockDiag.Object);
-            mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
-            mockNodeManager.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null);
+            mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null!);
+            mockNodeManager.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null!);
 
             data.SetNodeManager(mockNodeManager.Object);
 
@@ -841,8 +860,8 @@ namespace Opc.Ua.Server.Tests
             using ServerInternalData data = CreateServerInternalData();
             var mockCore = new Mock<ICoreNodeManager>();
             var mockNodeManager = new Mock<IMasterNodeManager>();
-            mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
-            mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
+            mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null!);
+            mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null!);
             mockNodeManager.Setup(m => m.CoreNodeManager).Returns(mockCore.Object);
 
             data.SetNodeManager(mockNodeManager.Object);
@@ -856,9 +875,9 @@ namespace Opc.Ua.Server.Tests
             using ServerInternalData data = CreateServerInternalData();
             var mockConfig = new Mock<IConfigurationNodeManager>();
             var mockNodeManager = new Mock<IMasterNodeManager>();
-            mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
+            mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null!);
             mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns(mockConfig.Object);
-            mockNodeManager.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null);
+            mockNodeManager.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null!);
 
             data.SetNodeManager(mockNodeManager.Object);
 
@@ -907,7 +926,7 @@ namespace Opc.Ua.Server.Tests
         public void ReportAuditEventDoesNothingWhenAuditingDisabled()
         {
             using ServerInternalData data = CreateServerInternalData();
-            Assert.DoesNotThrow(() => data.ReportAuditEvent(data.DefaultSystemContext, null));
+            Assert.DoesNotThrow(() => data.ReportAuditEvent(data.DefaultSystemContext, null!));
         }
 
         [Test]
@@ -991,9 +1010,9 @@ namespace Opc.Ua.Server.Tests
         private static void ConfigureDisposableState(ServerInternalData data)
         {
             var mockNodeManager = new Mock<IMasterNodeManager>();
-            mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
-            mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
-            mockNodeManager.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null);
+            mockNodeManager.Setup(m => m.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null!);
+            mockNodeManager.Setup(m => m.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null!);
+            mockNodeManager.Setup(m => m.CoreNodeManager).Returns((ICoreNodeManager)null!);
             data.SetNodeManager(mockNodeManager.Object);
 
             var mockSessionManager = new Mock<ISessionManager>();
@@ -1013,9 +1032,9 @@ namespace Opc.Ua.Server.Tests
             var counts = new DisposalCounts();
 
             var mockNodeManager = new Mock<IMasterNodeManager>();
-            mockNodeManager.Setup(manager => manager.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null);
-            mockNodeManager.Setup(manager => manager.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null);
-            mockNodeManager.Setup(manager => manager.CoreNodeManager).Returns((ICoreNodeManager)null);
+            mockNodeManager.Setup(manager => manager.DiagnosticsNodeManager).Returns((IDiagnosticsNodeManager)null!);
+            mockNodeManager.Setup(manager => manager.ConfigurationNodeManager).Returns((IConfigurationNodeManager)null!);
+            mockNodeManager.Setup(manager => manager.CoreNodeManager).Returns((ICoreNodeManager)null!);
             mockNodeManager.As<IDisposable>().Setup(manager => manager.Dispose()).Callback(() => counts.NodeManager++);
             data.SetNodeManager(mockNodeManager.Object);
 

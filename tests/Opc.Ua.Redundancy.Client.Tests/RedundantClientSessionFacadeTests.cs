@@ -35,8 +35,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -1133,6 +1131,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                     typeof(bool),
                     typeof(bool),
                     typeof(NetworkRedundancyOptions),
+                    typeof(ServerRedundancyOptions),
                     typeof(IClientChannelManager),
                     typeof(IClientConnectGate)
                 ],
@@ -1158,6 +1157,7 @@ namespace Opc.Ua.Client.Redundancy.Tests
                 false,
                 false,
                 false,
+                null,
                 null,
                 null,
                 null

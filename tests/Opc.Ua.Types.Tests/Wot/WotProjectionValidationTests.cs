@@ -52,11 +52,11 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
 
             Assert.Throws<ArgumentNullException>(
-                () => WotProjection.Parse(null, diagnostics));
+                () => WotProjection.Parse(null!, diagnostics));
             Assert.Throws<ArgumentNullException>(
-                () => WotProjection.Parse(document, null));
+                () => WotProjection.Parse(document, null!));
             Assert.Throws<ArgumentNullException>(
-                () => WotProjection.IsProjection(null));
+                () => WotProjection.IsProjection(null!));
         }
 
         [Test]
@@ -83,7 +83,7 @@ namespace Opc.Ua.Types.Tests.Wot
         public void AMissingScenarioIsReported()
         {
             WotProjection projection = ParseProjection(
-                Projection(scenario: null), out List<WotDiagnostic> diagnostics);
+                Projection(scenario: null!), out List<WotDiagnostic> diagnostics);
 
             Assert.That(projection, Is.Not.Null);
             Assert.That(projection.Scenario, Is.Empty);
@@ -381,7 +381,7 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static string Projection(
             string scenario = "http://example.com/scenario/Simple",
-            string sources = null,
+            string? sources = null,
             string affordances = "",
             string links = "")
         {

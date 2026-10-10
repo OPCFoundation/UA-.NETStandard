@@ -355,7 +355,7 @@ namespace Opc.Ua.Client.Tests
             Assert.That(decoded.ConfiguredEndpoint.UpdateBeforeConnect, Is.True);
             Assert.That(decoded.ConfiguredEndpoint.BinaryEncodingSupport,
                 Is.EqualTo(BinaryEncodingSupport.Required));
-            Assert.That(decoded.ConfiguredEndpoint.Configuration.OperationTimeout,
+            Assert.That(decoded.ConfiguredEndpoint.Configuration!.OperationTimeout,
                 Is.EqualTo(60000));
             Assert.That(decoded.ConfiguredEndpoint.Configuration.UseBinaryEncoding, Is.True);
             Assert.That(decoded.ConfiguredEndpoint.Configuration.MaxMessageSize,
@@ -492,7 +492,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicyUri = SecurityPolicies.None
             };
 
-            var configuredEndpoint = new ConfiguredEndpoint(null, endpointDescription)
+            var configuredEndpoint = new ConfiguredEndpoint(null!, endpointDescription)
             {
                 ReverseConnect = new ReverseConnectEndpoint
                 {
@@ -530,7 +530,7 @@ namespace Opc.Ua.Client.Tests
                 SecurityPolicyUri = SecurityPolicies.None
             };
 
-            var configuredEndpoint = new ConfiguredEndpoint(null, endpointDescription)
+            var configuredEndpoint = new ConfiguredEndpoint(null!, endpointDescription)
             {
                 ReverseConnect = null
             };
@@ -680,8 +680,8 @@ namespace Opc.Ua.Client.Tests
 
             SessionConfiguration decoded = RoundTrip(original);
 
-            EndpointConfiguration cfg = decoded.ConfiguredEndpoint.Configuration;
-            Assert.That(cfg.OperationTimeout, Is.EqualTo(30000));
+            EndpointConfiguration cfg = decoded.ConfiguredEndpoint!.Configuration!;
+            Assert.That(cfg!.OperationTimeout, Is.EqualTo(30000));
             Assert.That(cfg.UseBinaryEncoding, Is.True);
             Assert.That(cfg.MaxMessageSize, Is.EqualTo(2097152));
             Assert.That(cfg.MaxBufferSize, Is.EqualTo(32768));
@@ -808,8 +808,8 @@ namespace Opc.Ua.Client.Tests
             // Decode exactly like Session.Load does
             ms.Position = 0;
             using var decoder = new BinaryDecoder(ms, m_context);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> serverUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> serverUris = decoder.ReadStringArray(null);
             int count = decoder.ReadInt32(null);
 
             Assert.That(count, Is.EqualTo(1), "subscription count");

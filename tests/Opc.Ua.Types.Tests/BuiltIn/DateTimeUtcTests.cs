@@ -156,36 +156,61 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(hash, Is.EqualTo(value.GetHashCode()));
         }
 
-        [TestCase("2023-01-01")]
-        [TestCase("2023-01-01T12:30:45Z")]
-        public void ParseStringShouldReturnCorrectDateTimeUtc(string dateString)
+        // Text without a time zone designator denotes UTC, so the result must not
+        // depend on the machine's local offset.
+        [TestCase("2023-01-01", 2023, 1, 1, 0, 0, 0)]
+        [TestCase("2023-01-01T12:30:45Z", 2023, 1, 1, 12, 30, 45)]
+        public void ParseStringShouldReturnCorrectDateTimeUtc(
+            string dateString,
+            int year,
+            int month,
+            int day,
+            int hour,
+            int minute,
+            int second)
         {
             // Act
             var result = DateTimeUtc.Parse(dateString, null);
 
             // Assert
-            DateTime expectedDateTime = DateTime.Parse(dateString, null).ToUniversalTime();
+            var expectedDateTime = new DateTime(
+                year, month, day, hour, minute, second, DateTimeKind.Utc);
             var actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
-        [TestCase("2023-01-01")]
-        [TestCase("2023-01-01T12:30:45Z")]
-        [TestCase("01/15/2023")]
-        public void ParseStringShouldReturnCorrectDateTimeUtcWithFormatProvider(string dateString)
+        [TestCase("2023-01-01", 2023, 1, 1, 0, 0, 0)]
+        [TestCase("2023-01-01T12:30:45Z", 2023, 1, 1, 12, 30, 45)]
+        [TestCase("01/15/2023", 2023, 1, 15, 0, 0, 0)]
+        public void ParseStringShouldReturnCorrectDateTimeUtcWithFormatProvider(
+            string dateString,
+            int year,
+            int month,
+            int day,
+            int hour,
+            int minute,
+            int second)
         {
             // Act
             var result = DateTimeUtc.Parse(dateString, CultureInfo.InvariantCulture);
 
             // Assert
-            DateTime expectedDateTime = DateTime.Parse(dateString, CultureInfo.InvariantCulture).ToUniversalTime();
+            var expectedDateTime = new DateTime(
+                year, month, day, hour, minute, second, DateTimeKind.Utc);
             var actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
 
-        [TestCase("2023-01-01")]
-        [TestCase("2023-01-01T12:30:45Z")]
-        public void ParseReadOnlySpanShouldReturnCorrectDateTimeUtc(string dateString)
+        [TestCase("2023-01-01", 2023, 1, 1, 0, 0, 0)]
+        [TestCase("2023-01-01T12:30:45Z", 2023, 1, 1, 12, 30, 45)]
+        public void ParseReadOnlySpanShouldReturnCorrectDateTimeUtc(
+            string dateString,
+            int year,
+            int month,
+            int day,
+            int hour,
+            int minute,
+            int second)
         {
             // Arrange
             ReadOnlySpan<char> span = dateString.AsSpan();
@@ -194,9 +219,8 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = DateTimeUtc.Parse(span, null);
 
             // Assert
-#pragma warning disable CA1305 // Specify IFormatProvider
-            DateTime expectedDateTime = DateTime.Parse(dateString).ToUniversalTime();
-#pragma warning restore CA1305 // Specify IFormatProvider
+            var expectedDateTime = new DateTime(
+                year, month, day, hour, minute, second, DateTimeKind.Utc);
             var actualDateTime = (DateTime)result;
             Assert.That(actualDateTime, Is.EqualTo(expectedDateTime));
         }
@@ -441,7 +465,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         [TestCase("u")]
         [TestCase("U")]
         [TestCase("y")]
-        public void ToStringWithFormatShouldDelegateToDateTime(string format)
+        public void ToStringWithFormatShouldDelegateToDateTime(string? format)
         {
             // Arrange
             var dateTime = new DateTime(2023, 1, 1, 12, 30, 45, DateTimeKind.Utc);
@@ -615,6 +639,44 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Assert
             Assert.That(result, Is.True);
+        }
+
+        [Test]
+        [NonParallelizable]
+        public void EqualsWithSameLocalDateTimeShouldReturnTrue()
+        {
+            // the constructor converts local times to UTC, Equals must too. A local zone
+            // other than UTC is forced, otherwise raw and converted ticks are equal.
+            using LocalTimeZoneScope scope = LocalTimeZoneScope.Create();
+            var local = new DateTime(2023, 1, 1, 12, 0, 0, DateTimeKind.Local);
+            DateTimeUtc dateTimeUtc = local;
+
+            bool equalsDateTime = dateTimeUtc.Equals(local);
+            bool equalsObject = dateTimeUtc.Equals((object)local);
+
+            Assert.That(equalsDateTime, Is.True);
+            Assert.That(equalsObject, Is.True);
+        }
+
+        [Test]
+        public void MaxValueEqualsItsOwnLongAndDateTimeForms()
+        {
+            DateTimeUtc max = DateTimeUtc.MaxValue;
+
+            bool equalsOwnLong = max.Equals((long)max);
+            bool equalsLongMax = max.Equals(long.MaxValue);
+            bool equalsBoxedLongMax = max.Equals((object)long.MaxValue);
+            bool equalsDateTimeMax = max.Equals(
+                DateTime.SpecifyKind(DateTime.MaxValue, DateTimeKind.Utc));
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(equalsOwnLong, Is.True);
+                Assert.That(equalsLongMax, Is.True);
+                Assert.That(equalsBoxedLongMax, Is.True);
+                Assert.That(equalsDateTimeMax, Is.True);
+                Assert.That(max.CompareTo((long)max), Is.Zero);
+            });
         }
 
         [Test]

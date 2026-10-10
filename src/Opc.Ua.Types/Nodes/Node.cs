@@ -191,10 +191,10 @@ namespace Opc.Ua
             encoder.WriteLocalizedText("Description", Description);
             encoder.WriteUInt32("WriteMask", WriteMask);
             encoder.WriteUInt32("UserWriteMask", UserWriteMask);
-            encoder.WriteEncodeableArray("RolePermissions", [.. RolePermissions]);
-            encoder.WriteEncodeableArray("UserRolePermissions", [.. UserRolePermissions]);
+            encoder.WriteEncodeableArray("RolePermissions", RolePermissions);
+            encoder.WriteEncodeableArray("UserRolePermissions", UserRolePermissions);
             encoder.WriteUInt16("AccessRestrictions", AccessRestrictions);
-            encoder.WriteEncodeableArray("References", [.. References]);
+            encoder.WriteEncodeableArray("References", References);
 
             encoder.PopNamespace();
         }
@@ -312,6 +312,20 @@ namespace Opc.Ua
             clone.UserRolePermissions = CoreUtils.Clone(UserRolePermissions);
             clone.AccessRestrictions = CoreUtils.Clone(AccessRestrictions);
             clone.References = CoreUtils.Clone(References);
+
+            // the indexed reference table is mutable, so the clone needs its own copy.
+            clone.m_referenceTable = null;
+
+            if (m_referenceTable != null)
+            {
+                foreach (IReference reference in m_referenceTable)
+                {
+                    clone.ReferenceTable.Add(
+                        reference.ReferenceTypeId,
+                        reference.IsInverse,
+                        reference.TargetId);
+                }
+            }
 
             return clone;
         }
@@ -591,15 +605,59 @@ namespace Opc.Ua
                 case Attributes.NodeClass:
                     return StatusCodes.BadNotWritable;
                 default:
-                    // check data type.
                     if (attributeId != Attributes.Value &&
-                        Attributes.GetDataTypeId(attributeId) !=
-                            TypeInfo.GetDataTypeId(value, null)) // TODO: Pass message context
+                        !IsAssignableToAttribute(attributeId, value.WrappedValue))
                     {
                         return StatusCodes.BadTypeMismatch;
                     }
                     return Write(attributeId, value.WrappedValue);
             }
+        }
+
+        /// <summary>
+        /// Checks whether a value can be written to an attribute.
+        /// </summary>
+        /// <remarks>
+        /// The data type is compared by built-in type rather than by data type
+        /// id, because some attributes are typed by a subtype of a built-in type
+        /// (MinimumSamplingInterval is a Duration, i.e. a Double) which never
+        /// compares equal to the data type id of the value itself. The value rank
+        /// has to match as well: the built-in type alone does not separate a
+        /// Boolean from an array of Boolean, and the write handlers cast the
+        /// value unconditionally, so an array would reach them and throw
+        /// InvalidCastException out of a method that reports failure as a status
+        /// code.
+        /// </remarks>
+        /// <param name="attributeId">The attribute id.</param>
+        /// <param name="value">The value to write.</param>
+        private static bool IsAssignableToAttribute(uint attributeId, Variant value)
+        {
+            BuiltInType expectedType =
+                TypeInfo.GetBuiltInType(Attributes.GetDataTypeId(attributeId));
+            int expectedRank = ValueRanks.Scalar;
+
+            switch (attributeId)
+            {
+                case Attributes.RolePermissions:
+                case Attributes.UserRolePermissions:
+                    // RolePermissionType is not a built-in type, so the data
+                    // type id above yields BuiltInType.Null. The permissions
+                    // travel as an array of ExtensionObject.
+                    expectedType = BuiltInType.ExtensionObject;
+                    expectedRank = ValueRanks.OneDimension;
+                    break;
+                case Attributes.ArrayDimensions:
+                    expectedRank = ValueRanks.OneDimension;
+                    break;
+            }
+
+            // The value's own built-in type is read directly rather than by way
+            // of its data type id: for a structured value that id is the
+            // concrete structure (StructureDefinition and the like), which is
+            // not a built-in type at all, so the round trip resolved every
+            // DataTypeDefinition write to BuiltInType.Null and rejected it.
+            return expectedType == value.TypeInfo.BuiltInType &&
+                value.TypeInfo.ValueRank == expectedRank;
         }
 
         /// <summary>

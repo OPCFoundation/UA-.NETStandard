@@ -57,7 +57,7 @@ namespace Opc.Ua.SourceGeneration.Templating
         /// <param name="raw">
         /// The raw input. <c>null</c> is treated as an empty string.
         /// </param>
-        public static string AsCSharpStringLiteralContent(string raw)
+        public static string AsCSharpStringLiteralContent(string? raw)
         {
             return AsCSharpStringLiteralContent(raw, out _);
         }
@@ -75,7 +75,7 @@ namespace Opc.Ua.SourceGeneration.Templating
         /// required. Callers use this signal to emit the
         /// <c>UASG_BROWSENAME_UNSAFE</c> diagnostic.
         /// </param>
-        public static string AsCSharpStringLiteralContent(string raw, out bool modified)
+        public static string AsCSharpStringLiteralContent(string? raw, out bool modified)
         {
             modified = false;
             if (string.IsNullOrEmpty(raw))
@@ -123,7 +123,7 @@ namespace Opc.Ua.SourceGeneration.Templating
                         builder.Append("\\t");
                         break;
                     default:
-                        if (IsControl(c))
+                        if (IsControl(c) || IsNewLine(c))
                         {
                             builder.Append("\\u")
                                 .Append(((int)c).ToString("X4",
@@ -162,13 +162,21 @@ namespace Opc.Ua.SourceGeneration.Templating
 
         private static bool RequiresEscape(char c)
         {
-            return c == '\\' || c == '"' || IsControl(c);
+            return c == '\\' || c == '"' || IsControl(c) || IsNewLine(c);
         }
 
         private static bool IsControl(char c)
         {
             // C0 control range and DEL.
             return c is < (char)0x20 or (char)0x7f;
+        }
+
+        private static bool IsNewLine(char c)
+        {
+            // Besides CR and LF (C0), C# treats NEL, LINE SEPARATOR and
+            // PARAGRAPH SEPARATOR as new-line characters, which terminate a
+            // regular string literal (CS1010).
+            return c is '\u0085' or '\u2028' or '\u2029';
         }
     }
 }

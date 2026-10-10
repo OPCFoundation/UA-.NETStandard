@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Microsoft.Extensions.Logging;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -65,13 +66,13 @@ namespace Opc.Ua.SourceGeneration
         /// Optional override for the namespace of the generated partial.
         /// Defaults to the design's <c>TargetNamespace.Prefix</c>.
         /// </summary>
-        public string OverrideNamespace { get; init; }
+        public string? OverrideNamespace { get; init; }
 
         /// <summary>
         /// Optional override for the class name of the generated partial.
         /// Defaults to <c>{Prefix}NodeManager</c>.
         /// </summary>
-        public string OverrideClassName { get; init; }
+        public string? OverrideClassName { get; init; }
 
         /// <summary>
         /// When <c>false</c> the matching <c>{ClassName}Factory</c> is
@@ -80,12 +81,20 @@ namespace Opc.Ua.SourceGeneration
         public bool EmitFactory { get; init; } = true;
 
         /// <summary>
+        /// When <c>false</c> the public
+        /// <c>(IServerInternal, ApplicationConfiguration)</c> constructor
+        /// is not emitted; only the <c>protected</c> constructor taking
+        /// the namespace URI array is. Defaults to <c>true</c>.
+        /// </summary>
+        public bool EmitDefaultConstructor { get; init; } = true;
+
+        /// <summary>
         /// Additional namespace URIs (beyond the model namespace) that
         /// the generated constructor passes to the base node manager and
         /// the generated factory advertises via <c>NamespacesUris</c>.
         /// Typically a sample's separate instance namespace. Optional.
         /// </summary>
-        public IReadOnlyList<string> AdditionalNamespaceUris { get; init; }
+        public IReadOnlyList<string>? AdditionalNamespaceUris { get; init; }
 
         /// <summary>
         /// Create node manager generator.
@@ -93,6 +102,7 @@ namespace Opc.Ua.SourceGeneration
         public NodeManagerGenerator(IGeneratorContext context)
         {
             m_context = context ?? throw new ArgumentNullException(nameof(context));
+            m_logger = context.Telemetry.CreateLogger<NodeManagerGenerator>();
         }
 
         /// <inheritdoc/>
@@ -100,7 +110,7 @@ namespace Opc.Ua.SourceGeneration
         {
             string nsPrefix = m_context.ModelDesign.TargetNamespace.Prefix;
             string typeStem = nsPrefix.Replace(".", string.Empty, StringComparison.Ordinal);
-            string nsUriSymbol = m_context.ModelDesign.Namespaces
+            string? nsUriSymbol = m_context.ModelDesign.Namespaces
                 .GetConstantSymbolForNamespace(m_context.ModelDesign.TargetNamespace.Value);
 
             string targetNamespace = string.IsNullOrEmpty(OverrideNamespace)
@@ -112,17 +122,34 @@ namespace Opc.Ua.SourceGeneration
             string factoryClass = string.IsNullOrEmpty(OverrideClassName)
                 ? typeStem + "NodeManagerFactory"
                 : OverrideClassName + "Factory";
+            // The namespace is part of the stem: two bound managers may share a
+            // class name in different namespaces, and the output file system
+            // silently overwrites an existing file of the same name.
             string fileStem = string.IsNullOrEmpty(OverrideClassName)
                 ? nsPrefix
-                : OverrideClassName;
+                : targetNamespace + "." + OverrideClassName;
 
             var resources = new List<Resource>(2)
             {
-                EmitNodeManager(nsPrefix, targetNamespace, targetClass, typeStem, nsUriSymbol, fileStem)
+                EmitNodeManager(nsPrefix, targetNamespace, targetClass, typeStem, nsUriSymbol!, fileStem)
             };
-            if (EmitFactory)
+            // The factory body is a call to the public (server, configuration)
+            // constructor. When that constructor is suppressed the manager cannot
+            // be built from those two arguments alone, so a factory would not
+            // compile - skip it and say so rather than emitting broken code.
+            if (EmitFactory && !EmitDefaultConstructor)
             {
-                resources.Add(EmitFactoryFile(targetNamespace, targetClass, factoryClass, nsUriSymbol, fileStem));
+                m_logger?.LogWarning(
+                    "Node manager '{ClassName}' suppresses the public " +
+                    "(IServerInternal, ApplicationConfiguration) constructor, so no " +
+                    "'{FactoryName}' is generated. Set GenerateFactory=false to " +
+                    "silence this, or allow the default constructor.",
+                    targetClass,
+                    factoryClass);
+            }
+            else if (EmitFactory)
+            {
+                resources.Add(EmitFactoryFile(targetNamespace, targetClass, factoryClass, nsUriSymbol!, fileStem));
             }
             return resources;
         }
@@ -153,6 +180,12 @@ namespace Opc.Ua.SourceGeneration
             template.AddReplacement(
                 Tokens.AdditionalNamespaceUris,
                 FormatAdditionalNamespaceUris());
+            // An empty target list collapses the block, which is how the
+            // template expresses "omit the default constructor".
+            template.AddReplacement(
+                Tokens.NodeManagerDefaultConstructor,
+                NodeManagerTemplates.DefaultConstructor,
+                EmitDefaultConstructor ? [targetClass] : Array.Empty<object>());
             template.Render();
             return fileName.AsTextFileResource();
         }
@@ -206,5 +239,6 @@ namespace Opc.Ua.SourceGeneration
         }
 
         private readonly IGeneratorContext m_context;
+        private readonly ILogger m_logger;
     }
 }

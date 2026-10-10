@@ -153,12 +153,11 @@ namespace Opc.Ua.Server
             m_securityPolicies =
                 (server as ISecurityPolicyRegistryProvider)?.SecurityPolicyRegistry
                 ?? SecurityPolicies.Default;
-            m_logger = server.Telemetry.CreateLogger<Session>();
             m_eventLogger = server.Telemetry.CreateLogger(
                 ServerCompatibilityEventIds.CategoryName);
             ClientNonce = clientNonce;
             m_serverNonce = serverNonce;
-            m_sessionName = sessionName;
+            SessionName = sessionName;
             // The session owns an independent ref-counted handle on the server
             // certificate so it stays valid for the whole session lifetime even
             // if the certificate registry is updated.
@@ -172,7 +171,11 @@ namespace Opc.Ua.Server
                 () => Id,
                 maxBrowseContinuationPoints,
                 maxHistoryContinuationPoints,
-                server.SubscriptionStore as IContinuationPointStore);
+                server.SubscriptionStore as IContinuationPointStore,
+                (server as IHistoryContinuationPointStoreProvider)?
+                    .HistoryContinuationPointStore,
+                new Historian.HistorianContinuationPointCodec(server),
+                server.NamespaceUris);
             EndpointDescription = context.ChannelContext.EndpointDescription!;
 
             // use anonymous the default identity.
@@ -201,7 +204,7 @@ namespace Opc.Ua.Server
                 SessionId = Id,
                 ClientUserIdOfSession = null,
                 AuthenticationMechanism = Identity.TokenType.ToString(),
-                Encoding = context.ChannelContext.MessageEncoding.ToString()
+                Encoding = GetEncodingName(context.ChannelContext.MessageEncoding)
             };
 
             EndpointDescription? description = context.ChannelContext.EndpointDescription;
@@ -242,6 +245,11 @@ namespace Opc.Ua.Server
 
             ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(context);
 
+            // A requested id travels in the diagnostics; the diagnostics node manager
+            // uses it when it is still free and assigns its own otherwise.
+            SessionDiagnostics.SessionId = RequestedId;
+            m_securityDiagnostics.SessionId = RequestedId;
+
             // create diagnostics object.
             Id = await m_server.DiagnosticsNodeManager.CreateSessionDiagnosticsAsync(
                 systemContext,
@@ -252,6 +260,21 @@ namespace Opc.Ua.Server
                 cancellationToken).ConfigureAwait(false);
 
             TraceState("CREATED");
+        }
+
+        /// <summary>
+        /// Returns the SessionSecurityDiagnostics encoding name for a message encoding.
+        /// Part 5 12.12 requires the strings "UA Binary", "XML" or "JSON".
+        /// </summary>
+        internal static string GetEncodingName(RequestEncoding encoding)
+        {
+            return encoding switch
+            {
+                RequestEncoding.Binary => "UA Binary",
+                RequestEncoding.Xml => "XML",
+                RequestEncoding.Json => "JSON",
+                _ => encoding.ToString()
+            };
         }
 
         /// <summary>
@@ -270,9 +293,18 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
+                Nonce? retired;
+                Nonce? prepared;
+                lock (m_lock)
+                {
+                    m_userTokenNonceStopped = true;
+                    m_userTokenSecurityPolicyUri = null;
+                    retired = ReplaceUserTokenNonce(null);
+                    prepared = TakePreparedUserTokenNonce();
+                }
+                retired?.Dispose();
+                prepared?.Dispose();
                 m_continuationPoints.Clear();
-                m_userTokenNonce?.Dispose();
-                m_userTokenNonce = null;
 
                 IdentityToken = null!;
 
@@ -288,6 +320,22 @@ namespace Opc.Ua.Server
         public NodeId Id { get; private set; }
 
         /// <summary>
+        /// The SessionId <see cref="InitializeAsync"/> asks the diagnostics node manager
+        /// to assign, for example a cluster-unique id or the id of a session restored from
+        /// another replica of a redundant server set. A null id, or one that is already in
+        /// use, lets the diagnostics node manager assign its own.
+        /// </summary>
+        internal NodeId RequestedId { get; set; }
+
+        /// <summary>
+        /// The certificate of the server that created the session when it was restored on
+        /// another replica of a redundant server set. A client may keep signing the
+        /// certificate it received in CreateSession (OPC 10000-4 5.7.3.2), so the client
+        /// signature is also verified against it.
+        /// </summary>
+        internal ByteString OriginalServerCertificate { get; set; }
+
+        /// <summary>
         /// The user identity provided by the client.
         /// </summary>
         public IUserIdentity Identity { get; private set; }
@@ -298,12 +346,33 @@ namespace Opc.Ua.Server
         public IUserIdentity EffectiveIdentity { get; private set; } = null!;
 
         /// <inheritdoc/>
-        public bool IsIdentityStale => Volatile.Read(ref m_identityStale) != 0;
+        public bool IsIdentityStale
+        {
+            get
+            {
+                lock (m_lock)
+                {
+                    return m_identityRefreshGeneration != m_identityGeneration;
+                }
+            }
+        }
+
+        /// <inheritdoc/>
+        public IdentityRefreshSnapshot CaptureIdentityRefreshSnapshot()
+        {
+            lock (m_lock)
+            {
+                return new IdentityRefreshSnapshot(Identity, m_identityGeneration);
+            }
+        }
 
         /// <inheritdoc/>
         public void MarkIdentityStale()
         {
-            Volatile.Write(ref m_identityStale, 1);
+            lock (m_lock)
+            {
+                m_identityGeneration++;
+            }
         }
 
         /// <inheritdoc/>
@@ -317,10 +386,37 @@ namespace Opc.Ua.Server
             lock (m_lock)
             {
                 EffectiveIdentity = effectiveIdentity;
-                // Clearing the stale flag while holding the session lock
-                // ensures any subsequent IsIdentityStale read observes a
-                // consistent (refreshed identity, cleared flag) pair.
-                Volatile.Write(ref m_identityStale, 0);
+                m_identityRefreshGeneration = m_identityGeneration;
+            }
+        }
+
+        /// <inheritdoc/>
+        public bool TryRefreshEffectiveIdentity(
+            IUserIdentity expectedIdentity,
+            long expectedGeneration,
+            IUserIdentity effectiveIdentity)
+        {
+            if (expectedIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(expectedIdentity));
+            }
+            if (effectiveIdentity == null)
+            {
+                throw new ArgumentNullException(nameof(effectiveIdentity));
+            }
+
+            lock (m_lock)
+            {
+                if (!ReferenceEquals(Identity, expectedIdentity) ||
+                    m_identityGeneration != expectedGeneration ||
+                    m_identityRefreshGeneration == m_identityGeneration)
+                {
+                    return false;
+                }
+
+                EffectiveIdentity = effectiveIdentity;
+                m_identityRefreshGeneration = m_identityGeneration;
+                return true;
             }
         }
 
@@ -396,7 +492,7 @@ namespace Opc.Ua.Server
         /// Read from the field rather than from the diagnostics: it is assigned once during
         /// construction and never changes, so no lock is involved.
         /// </remarks>
-        public string SessionName => m_sessionName;
+        public string SessionName { get; }
 
         /// <inheritdoc/>
         public string? ClientApplicationUri
@@ -494,38 +590,135 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
         public virtual void SetUserTokenSecurityPolicy(string securityPolicyUri)
         {
+            Nonce? retired;
             lock (m_lock)
             {
+                if (m_userTokenNonceStopped)
+                {
+                    throw new ObjectDisposedException(nameof(Session));
+                }
                 m_userTokenSecurityPolicyUri = securityPolicyUri;
-                m_userTokenNonce = null;
+                retired = ReplaceUserTokenNonce(null);
             }
+            retired?.Dispose();
         }
 
         /// <summary>
         /// Create new ECC ephemeral key
         /// </summary>
         /// <returns>A new ephemeral key</returns>
+        /// <exception cref="ObjectDisposedException"></exception>
         public virtual EphemeralKeyType? GetNewEphemeralKey()
         {
+            Nonce? retired;
+            EphemeralKeyType key;
             lock (m_lock)
             {
+                if (m_userTokenNonceStopped)
+                {
+                    throw new ObjectDisposedException(nameof(Session));
+                }
                 if (m_userTokenSecurityPolicyUri == null)
                 {
                     return null;
                 }
+                key = CreateEphemeralKey(m_userTokenSecurityPolicyUri, out Nonce nonce);
+                retired = ReplaceUserTokenNonce(nonce);
+            }
+            retired?.Dispose();
+            return key;
+        }
 
-                m_userTokenNonce = Nonce.CreateNonce(m_userTokenSecurityPolicyUri);
+        /// <summary>
+        /// Takes the EphemeralKey that the last committed activation installed in place
+        /// of the key its identity token used, if it has not been handed out yet.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-6 6.8.2: without an ECDHPolicyUri the Server returns a new key only
+        /// when the previous key was used in the request, and otherwise returns nothing
+        /// and retains the previous key. The replacement is created before the
+        /// activation commits, so a used key is never retired without one; any later
+        /// change of the session key (<see cref="GetNewEphemeralKey"/>,
+        /// <see cref="SetUserTokenSecurityPolicy"/>) discards it.
+        /// </remarks>
+        /// <returns>The new key, or <c>null</c> when there is nothing to return.</returns>
+        internal EphemeralKeyType? TakeUnsentEphemeralKey()
+        {
+            lock (m_lock)
+            {
+                EphemeralKeyType? key = m_unsentEphemeralKey;
+                m_unsentEphemeralKey = null;
+                return key;
+            }
+        }
 
-                return new EphemeralKeyType
+        /// <summary>
+        /// Whether the client application certificate passed the server's validation
+        /// when the session was created. <c>false</c> when an
+        /// <see cref="StandardServer.OnApplicationCertificateError"/> override accepted
+        /// a validation error: the session may still activate and sign with the
+        /// certificate, but the certificate does not establish a trusted application
+        /// identity for role assignment (OPC 10000-3 4.9, OPC 10000-18 4.4.4).
+        /// </summary>
+        internal bool ClientCertificateValidated
+        {
+            get => ClientCertificateProvenance.IsValidated(this);
+            set => ClientCertificateProvenance.SetValidated(this, value);
+        }
+
+        /// <summary>
+        /// Whether a signed EphemeralKey can be created for the policy with this
+        /// session's server certificate (e.g. an ECC policy cannot be signed with an
+        /// RSA certificate). Leaves the session's key state untouched, so a policy
+        /// that cannot be served is rejected before the working key is discarded.
+        /// </summary>
+        internal bool CanCreateEphemeralKey(string securityPolicyUri)
+        {
+            lock (m_lock)
+            {
+                if (m_userTokenNonceStopped)
                 {
-                    PublicKey = m_userTokenNonce.Data.ToByteString(),
+                    throw new ObjectDisposedException(nameof(Session));
+                }
+                try
+                {
+                    CreateEphemeralKey(securityPolicyUri, out Nonce nonce);
+                    nonce.Dispose();
+                    return true;
+                }
+                catch (Exception e) when (e is not ObjectDisposedException)
+                {
+                    return false;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Creates a new ephemeral key for the policy, signed with the server certificate.
+        /// </summary>
+        private EphemeralKeyType CreateEphemeralKey(string securityPolicyUri, out Nonce nonce)
+        {
+            var created = Nonce.CreateNonce(securityPolicyUri);
+            try
+            {
+                var key = new EphemeralKeyType
+                {
+                    PublicKey = created.Data.ToByteString(),
                     Signature = CryptoUtils.Sign(
-                        new ArraySegment<byte>(m_userTokenNonce.Data!),
+                        new ArraySegment<byte>(created.Data!),
                         m_serverCertificate,
-                        m_userTokenSecurityPolicyUri).ToByteString()
+                        securityPolicyUri).ToByteString()
                 };
+                nonce = created;
+                return key;
+            }
+            catch
+            {
+                created.Dispose();
+                throw;
             }
         }
 
@@ -581,6 +774,18 @@ namespace Opc.Ua.Server
                     throw new ServiceResultException(StatusCodes.BadSessionNotActivated);
                 }
 
+                // OPC 10000-4 5.7.2.1: a Session that is being closed, or whose timeout has
+                // elapsed, is terminated and serves no further requests. The expiry check and
+                // the contact refresh are one step under the diagnostics lock, so a request
+                // cannot revive a Session that the session monitor has already seen expire.
+                // CloseSession on an expired Session that is not closing yet is still the
+                // client's close, so the requested DeleteSubscriptions is honoured.
+                if (IsClosing || (!TryRefreshLastContact() && requestType != RequestType.CloseSession))
+                {
+                    UpdateDiagnosticCounters(requestType, true, false);
+                    throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                }
+
                 // request accepted.
                 UpdateDiagnosticCounters(requestType, false, false);
             }
@@ -630,18 +835,20 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                string[] ids = [.. localeIds];
+                // A null LocaleId is legal on the wire (Part 3 8.4, "unknown") but
+                // carries no preference, and translation helpers do not expect it.
+                string[] ids = Array.FindAll<string>([.. localeIds], id => id != null);
+
+                // The diagnostics report the LocaleIds as specified by the client,
+                // null entries included (Part 5 12.11); only the preference list is filtered.
+                lock (m_diagnosticsLock)
+                {
+                    SessionDiagnostics.LocaleIds = [.. localeIds];
+                }
 
                 if (!Utils.IsEqual(ids, PreferredLocales))
                 {
                     PreferredLocales = ids;
-
-                    // update diagnostics.
-                    lock (m_diagnosticsLock)
-                    {
-                        SessionDiagnostics.LocaleIds = [.. localeIds];
-                    }
-
                     return true;
                 }
 
@@ -659,9 +866,22 @@ namespace Opc.Ua.Server
                 SignatureData userTokenSignature,
                 CancellationToken cancellationToken)
         {
-            lock (m_lock)
+            Nonce? stale = null;
+            try
             {
-                ValidateChannelBeforeActivate(context, clientSignature);
+                lock (m_lock)
+                {
+                    // a previous activation attempt that failed before Activate must not
+                    // make this one retire a key it did not use.
+                    m_consumedUserTokenNonce = null;
+                    stale = TakePreparedUserTokenNonce();
+                    ValidateChannelBeforeActivate(context, clientSignature);
+                }
+            }
+            finally
+            {
+                // detached above, so it is disposed even when the channel check throws.
+                stale?.Dispose();
             }
 
             (IUserIdentityTokenHandler identityToken, UserTokenPolicy? userTokenPolicy) =
@@ -670,6 +890,33 @@ namespace Opc.Ua.Server
                     userIdentityToken,
                     userTokenSignature,
                     cancellationToken).ConfigureAwait(false);
+
+            // The identity token used the EphemeralKey: create its replacement now,
+            // before the activation commits, so the activation that retires the used
+            // key can install the new one in the same step (OPC 10000-6 6.8.2). A
+            // failure here fails the activation while the used key is still valid.
+            Nonce? superseded = null;
+            try
+            {
+                lock (m_lock)
+                {
+                    if (m_consumedUserTokenNonce != null &&
+                        ReferenceEquals(m_consumedUserTokenNonce, m_userTokenNonce) &&
+                        m_userTokenSecurityPolicyUri != null &&
+                        !m_userTokenNonceStopped)
+                    {
+                        superseded = TakePreparedUserTokenNonce();
+                        m_preparedEphemeralKey = CreateEphemeralKey(
+                            m_userTokenSecurityPolicyUri,
+                            out Nonce prepared);
+                        m_preparedUserTokenNonce = prepared;
+                    }
+                }
+            }
+            finally
+            {
+                superseded?.Dispose();
+            }
 
             TraceState("VALIDATED");
             return (identityToken, userTokenPolicy);
@@ -712,66 +959,146 @@ namespace Opc.Ua.Server
                 byte[] clientNonceData = ClientNonce.ToArray();
 
                 byte[] dataToSign = securityPolicy.GetClientSignatureData(
-                    context.ChannelContext.ChannelThumbprint,
+                    context.ChannelContext.ChannelThumbprint.ToArrayOrNull(),
                     m_serverNonce.Data,
                     m_serverCertificate.RawData,
-                    context.ChannelContext.ServerChannelCertificate,
-                    context.ChannelContext.ClientChannelCertificate,
+                    context.ChannelContext.ServerChannelCertificate.ToArrayOrNull(),
+                    context.ChannelContext.ClientChannelCertificate.ToArrayOrNull(),
                     clientNonceData);
 
-                if (!m_securityPolicies.VerifySignatureData(
+                if (!VerifyClientSignature(clientSignature!, dataToSign) &&
+                    !VerifyClientSignatureOverServerCertificateChain(
+                        context.ChannelContext,
+                        securityPolicy,
                         clientSignature!,
-                        EndpointDescription.SecurityPolicyUri!,
-                        ClientCertificate,
-                        dataToSign))
+                        clientNonceData) &&
+                    !VerifyClientSignatureOverOriginalServerCertificate(
+                        context.ChannelContext,
+                        securityPolicy,
+                        clientSignature!,
+                        clientNonceData))
                 {
-                    // verify for certificate chain in endpoint.
-                    // validate the signature with complete chain if the check with leaf certificate failed.
-                    using CertificateCollection serverCertificateChain =
-                        Utils.ParseCertificateChainBlob(
-                            EndpointDescription.ServerCertificate,
-                            m_server.Telemetry);
-                    if (serverCertificateChain.Count > 1)
-                    {
-                        var serverCertificateChainList = new List<byte>();
-
-                        for (int i = 0; i < serverCertificateChain.Count; i++)
-                        {
-                            serverCertificateChainList.AddRange(
-                                serverCertificateChain[i].RawData);
-                        }
-
-                        byte[] serverCertificateChainData = [.. serverCertificateChainList];
-
-                        dataToSign = securityPolicy.GetClientSignatureData(
-                            context.ChannelContext.ChannelThumbprint,
-                            m_serverNonce.Data,
-                            serverCertificateChainData,
-                            context.ChannelContext.ServerChannelCertificate,
-                            context.ChannelContext.ClientChannelCertificate,
-                            clientNonceData);
-
-                        if (!m_securityPolicies.VerifySignatureData(
-                              clientSignature!,
-                              EndpointDescription.SecurityPolicyUri!,
-                              ClientCertificate,
-                              dataToSign))
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadApplicationSignatureInvalid);
-                        }
-                    }
-                    else
-                    {
-                        throw new ServiceResultException(
-                            StatusCodes.BadApplicationSignatureInvalid);
-                    }
+                    throw new ServiceResultException(
+                        StatusCodes.BadApplicationSignatureInvalid);
                 }
             }
 
             if (!Activated && SecureChannelId != context.ChannelContext.SecureChannelId)
             {
                 throw new ServiceResultException(StatusCodes.BadSecureChannelIdInvalid);
+            }
+        }
+
+        /// <summary>
+        /// Verifies the client signature over the complete server certificate chain of
+        /// the endpoint, for a client that signed the chain rather than the leaf.
+        /// </summary>
+        private bool VerifyClientSignatureOverServerCertificateChain(
+            SecureChannelContext channelContext,
+            SecurityPolicyInfo securityPolicy,
+            SignatureData clientSignature,
+            byte[] clientNonceData)
+        {
+            using CertificateCollection serverCertificateChain =
+                Utils.ParseCertificateChainBlob(
+                    EndpointDescription.ServerCertificate,
+                    m_server.Telemetry);
+            if (serverCertificateChain.Count <= 1)
+            {
+                return false;
+            }
+
+            var serverCertificateChainList = new List<byte>();
+            for (int i = 0; i < serverCertificateChain.Count; i++)
+            {
+                serverCertificateChainList.AddRange(serverCertificateChain[i].RawData);
+            }
+
+            byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                channelContext.ChannelThumbprint.ToArrayOrNull(),
+                m_serverNonce.Data,
+                [.. serverCertificateChainList],
+                channelContext.ServerChannelCertificate.ToArrayOrNull(),
+                channelContext.ClientChannelCertificate.ToArrayOrNull(),
+                clientNonceData);
+            return VerifyClientSignature(clientSignature, dataToSign);
+        }
+
+        /// <summary>
+        /// Verifies the client signature over the certificate of the server that created a
+        /// session restored on this replica: replicas of a non-transparent redundant server
+        /// set have their own ApplicationUri and certificate (OPC 10000-4 6.6.2.4.1).
+        /// </summary>
+        private bool VerifyClientSignatureOverOriginalServerCertificate(
+            SecureChannelContext channelContext,
+            SecurityPolicyInfo securityPolicy,
+            SignatureData clientSignature,
+            byte[] clientNonceData)
+        {
+            ByteString original = OriginalServerCertificate;
+            if (original.IsEmpty || original == m_serverCertificate.RawData.ToByteString())
+            {
+                return false;
+            }
+
+            // The original server may have returned its complete chain; a client signs
+            // either that blob or the leaf certificate.
+            if (VerifyClientSignatureOverServerCertificate(
+                    channelContext, securityPolicy, clientSignature, clientNonceData, original.ToArray()))
+            {
+                return true;
+            }
+
+            using CertificateCollection chain = Utils.ParseCertificateChainBlob(original, m_server.Telemetry);
+            return chain.Count > 1 &&
+                VerifyClientSignatureOverServerCertificate(
+                    channelContext, securityPolicy, clientSignature, clientNonceData, chain[0].RawData);
+        }
+
+        private bool VerifyClientSignatureOverServerCertificate(
+            SecureChannelContext channelContext,
+            SecurityPolicyInfo securityPolicy,
+            SignatureData clientSignature,
+            byte[] clientNonceData,
+            byte[] serverCertificate)
+        {
+            byte[] dataToSign = securityPolicy.GetClientSignatureData(
+                channelContext.ChannelThumbprint.ToArrayOrNull(),
+                m_serverNonce.Data,
+                serverCertificate,
+                channelContext.ServerChannelCertificate.ToArrayOrNull(),
+                channelContext.ClientChannelCertificate.ToArrayOrNull(),
+                clientNonceData);
+            return VerifyClientSignature(clientSignature, dataToSign);
+        }
+
+        /// <summary>
+        /// Verifies the client signature against the client certificate.
+        /// </summary>
+        /// <remarks>
+        /// The shared signature check reports an unexpected SignatureData algorithm as
+        /// the channel-level Bad_SecurityChecksFailed; for ActivateSession that is a
+        /// missing or invalid client signature, Bad_ApplicationSignatureInvalid
+        /// (Part 4 5.7.3.3).
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool VerifyClientSignature(SignatureData clientSignature, byte[] dataToSign)
+        {
+            try
+            {
+                return m_securityPolicies.VerifySignatureData(
+                    clientSignature,
+                    EndpointDescription.SecurityPolicyUri!,
+                    ClientCertificate!,
+                    dataToSign);
+            }
+            catch (ServiceResultException e)
+                when (e.StatusCode == StatusCodes.BadSecurityChecksFailed)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadApplicationSignatureInvalid,
+                    e,
+                    "The client signature uses an unexpected algorithm.");
             }
         }
 
@@ -786,11 +1113,12 @@ namespace Opc.Ua.Server
             ArrayOf<string> localeIds,
             Nonce serverNonce)
         {
+            Nonce? retiredUserTokenNonce = null;
+            Nonce? unusedUserTokenNonce = null;
+            bool changed = false;
             lock (m_lock)
             {
                 // update user identity.
-                bool changed = false;
-
                 if (identityToken != null &&
                     UpdateUserIdentity(identityToken, identity, effectiveIdentity))
                 {
@@ -822,16 +1150,35 @@ namespace Opc.Ua.Server
                 // update server nonce.
                 m_serverNonce = serverNonce;
 
+                // once ActivateSession succeeds the EphemeralKey that decrypted the
+                // identity token shall not be accepted again (OPC 10000-6 6.8.2).
+                // It is replaced here, inside the activation, by the key prepared
+                // during validation, so the used key is never accepted again and the
+                // session is never left without a key the response can hand out.
+                // A key the identity token did not use is retained.
+                if (m_consumedUserTokenNonce != null &&
+                    ReferenceEquals(m_consumedUserTokenNonce, m_userTokenNonce))
+                {
+                    EphemeralKeyType? replacementKey = m_preparedEphemeralKey;
+                    Nonce? replacement = TakePreparedUserTokenNonce();
+                    retiredUserTokenNonce = ReplaceUserTokenNonce(replacement);
+                    m_unsentEphemeralKey = replacement != null ? replacementKey : null;
+                }
+                unusedUserTokenNonce = TakePreparedUserTokenNonce();
+                m_consumedUserTokenNonce = null;
+
                 // update the contact time.
                 lock (m_diagnosticsLock)
                 {
                     SessionDiagnostics.ClientLastContactTime = m_timeProvider.GetUtcNow().UtcDateTime;
                     m_lastContactTickCount = m_timeProvider.GetTimestampMilliseconds();
                 }
-
-                // indicate whether the user context has changed.
-                return changed;
             }
+            retiredUserTokenNonce?.Dispose();
+            unusedUserTokenNonce?.Dispose();
+
+            // indicate whether the user context has changed.
+            return changed;
         }
 
         /// <summary>
@@ -876,7 +1223,7 @@ namespace Opc.Ua.Server
             m_eventLogger.CompatibilitySessionState(
                 context,
                 sessionId,
-                m_sessionName,
+                SessionName,
                 SecureChannelId,
                 Identity?.DisplayName ?? "(none)");
         }
@@ -922,145 +1269,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Validates the identity token supplied by the client.
+        /// Resolves the endpoint's user-token policy and verifies the identity token
+        /// while retaining its decryption nonce.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private IUserIdentityTokenHandler ValidateUserIdentityToken(
-            ExtensionObject identityToken,
-            out UserTokenPolicy? policy)
-        {
-            policy = null!;
-
-            // check for anonymous (same as empty) token.
-            if (identityToken.IsNull ||
-                identityToken.TryGetValue(out AnonymousIdentityToken? _))
-            {
-                // check if an anonymous login is permitted.
-                if (!EndpointDescription.UserIdentityTokens.IsEmpty)
-                {
-                    bool found = false;
-
-                    for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
-                    {
-                        if (EndpointDescription.UserIdentityTokens[ii]
-                            .TokenType == UserTokenType.Anonymous)
-                        {
-                            found = true;
-                            policy = EndpointDescription.UserIdentityTokens[ii];
-                            break;
-                        }
-                    }
-
-                    if (!found)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadIdentityTokenRejected,
-                            "Anonymous user token policy not supported.");
-                    }
-                }
-
-                // create an anonymous token to use for subsequent validation.
-                return AnonymousIdentityTokenHandler.Create(policy!);
-            }
-
-            IUserIdentityTokenHandler token;
-            // check for unrecognized token.
-            if (identityToken.TryGetValue(out UserIdentityToken? decodedToken))
-            {
-                // get the token.
-                token = decodedToken.AsTokenHandler(m_securityPolicies);
-            }
-            else
-            {
-                //handle the use case when the UserIdentityToken is binary encoded over xml message encoding
-                if (identityToken.Encoding != ExtensionObjectEncoding.Binary ||
-                    !identityToken.TryGetAsBinary(out ByteString _))
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
-                        "Invalid user identity token provided.");
-                }
-                if (BaseVariableState.DecodeExtensionObject(
-                        null!,
-                        typeof(UserIdentityToken),
-                        identityToken,
-                        false)
-                    is not UserIdentityToken newToken)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
-                        "Invalid user identity token provided.");
-                }
-
-                policy = EndpointDescription.FindUserTokenPolicy(
-                    newToken.PolicyId!,
-                    EndpointDescription.SecurityPolicyUri!) ??
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
-                        "User token policy not supported.",
-                        "Opc.Ua.Server.Session.ValidateUserIdentityToken");
-
-                UserIdentityToken? userToken;
-                switch (policy.TokenType)
-                {
-                    case UserTokenType.Anonymous:
-                        userToken = (AnonymousIdentityToken)BaseVariableState.DecodeExtensionObject(
-                            null!,
-                            typeof(AnonymousIdentityToken),
-                            identityToken,
-                            true)!;
-                        break;
-                    case UserTokenType.UserName:
-                        userToken = (UserNameIdentityToken)BaseVariableState.DecodeExtensionObject(
-                            null!,
-                            typeof(UserNameIdentityToken),
-                            identityToken,
-                            true)!;
-                        break;
-                    case UserTokenType.Certificate:
-                        userToken = (X509IdentityToken)BaseVariableState.DecodeExtensionObject(
-                            null!,
-                            typeof(X509IdentityToken),
-                            identityToken,
-                            true)!;
-                        break;
-                    case UserTokenType.IssuedToken:
-                        userToken = (IssuedIdentityToken)BaseVariableState.DecodeExtensionObject(
-                            null!,
-                            typeof(IssuedIdentityToken),
-                            identityToken,
-                            true)!;
-                        break;
-                    default:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadUserAccessDenied,
-                            "Invalid user identity token provided.");
-                }
-
-                token = userToken.AsTokenHandler(m_securityPolicies)!;
-            }
-
-            // find the user token policy.
-            policy = EndpointDescription.FindUserTokenPolicy(
-                token.Token.PolicyId!,
-                EndpointDescription.SecurityPolicyUri!) ??
-                throw ServiceResultException.Create(
-                    StatusCodes.BadIdentityTokenInvalid,
-                    "User token policy not supported.");
-
-            token.UpdatePolicy(policy);
-
-            if (ServerBase.RequireEncryption(EndpointDescription))
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNotSupported,
-                    "Secure user identity validation requires the asynchronous activation path.");
-            }
-
-            // validate user identity token.
-            return token;
-        }
-
         private async ValueTask<(
             IUserIdentityTokenHandler IdentityToken,
             UserTokenPolicy? UserTokenPolicy)> ValidateUserIdentityTokenAsync(
@@ -1072,8 +1284,9 @@ namespace Opc.Ua.Server
             UserTokenPolicy? policy = null;
 
             // check for anonymous (same as empty) token.
+            AnonymousIdentityToken? anonymousToken = null;
             if (identityToken.IsNull ||
-                identityToken.TryGetValue(out AnonymousIdentityToken? _))
+                identityToken.TryGetValue(out anonymousToken))
             {
                 // check if an anonymous login is permitted.
                 if (!EndpointDescription.UserIdentityTokens.IsEmpty)
@@ -1097,13 +1310,43 @@ namespace Opc.Ua.Server
                             StatusCodes.BadIdentityTokenRejected,
                             "Anonymous user token policy not supported.");
                     }
+
+                    // a token that names its policy must conform to that policy
+                    // (Part 4 7.40.3); only an omitted token or PolicyId falls back
+                    // to the first anonymous policy of the endpoint.
+                    if (!string.IsNullOrEmpty(anonymousToken?.PolicyId))
+                    {
+                        policy = null;
+                        for (int ii = 0; ii < EndpointDescription.UserIdentityTokens.Count; ii++)
+                        {
+                            UserTokenPolicy candidate = EndpointDescription.UserIdentityTokens[ii];
+                            if (candidate.TokenType == UserTokenType.Anonymous &&
+                                string.Equals(
+                                    candidate.PolicyId,
+                                    anonymousToken!.PolicyId,
+                                    StringComparison.Ordinal))
+                            {
+                                policy = candidate;
+                                break;
+                            }
+                        }
+
+                        if (policy == null)
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadIdentityTokenInvalid,
+                                "The anonymous identity token does not match an anonymous user token policy.");
+                        }
+                    }
                 }
 
                 return (AnonymousIdentityTokenHandler.Create(policy!), policy);
             }
 
             IUserIdentityTokenHandler token;
-            // check for unrecognized token.
+            // check for unrecognized token. A token that cannot be decoded or names an
+            // unknown policy is Bad_IdentityTokenInvalid (Part 4 5.7.3.3), the same
+            // result the regular path below returns.
             if (identityToken.TryGetValue(out UserIdentityToken? decodedToken))
             {
                 token = decodedToken.AsTokenHandler(m_securityPolicies);
@@ -1115,7 +1358,7 @@ namespace Opc.Ua.Server
                     !identityToken.TryGetAsBinary(out ByteString _))
                 {
                     throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
+                        StatusCodes.BadIdentityTokenInvalid,
                         "Invalid user identity token provided.");
                 }
                 if (BaseVariableState.DecodeExtensionObject(
@@ -1126,7 +1369,7 @@ namespace Opc.Ua.Server
                     is not UserIdentityToken newToken)
                 {
                     throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
+                        StatusCodes.BadIdentityTokenInvalid,
                         "Invalid user identity token provided.");
                 }
 
@@ -1134,7 +1377,7 @@ namespace Opc.Ua.Server
                     newToken.PolicyId!,
                     EndpointDescription.SecurityPolicyUri!) ??
                     throw ServiceResultException.Create(
-                        StatusCodes.BadUserAccessDenied,
+                        StatusCodes.BadIdentityTokenInvalid,
                         "User token policy not supported.",
                         "Opc.Ua.Server.Session.ValidateUserIdentityTokenAsync");
 
@@ -1171,7 +1414,7 @@ namespace Opc.Ua.Server
                         break;
                     default:
                         throw ServiceResultException.Create(
-                            StatusCodes.BadUserAccessDenied,
+                            StatusCodes.BadIdentityTokenInvalid,
                             "Invalid user identity token provided.");
                 }
 
@@ -1185,6 +1428,13 @@ namespace Opc.Ua.Server
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenInvalid,
                     "User token policy not supported.");
+
+            if (policy.TokenType != token.TokenType)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadIdentityTokenInvalid,
+                    "The identity token type does not match its user token policy.");
+            }
 
             token.UpdatePolicy(policy);
 
@@ -1204,6 +1454,7 @@ namespace Opc.Ua.Server
                     throw ServiceResultException.ConfigurationError(
                         "ApplicationCertificate cannot be found.");
 
+                Nonce? userTokenNonce = AcquireUserTokenNonce();
                 try
                 {
                     await token.DecryptAsync(
@@ -1211,18 +1462,50 @@ namespace Opc.Ua.Server
                         m_serverNonce,
                         securityPolicyUri!,
                         m_server.MessageContext,
-                        m_userTokenNonce,
+                        userTokenNonce,
                         ClientCertificate,
                         m_clientIssuerCertificates,
-                        ct: cancellationToken).ConfigureAwait(false);
+                        // a signing certificate the client embeds in an
+                        // EncryptedSecret is validated before it is used
+                        // (OPC 10000-6 6.8.3); without a validator it must be
+                        // the client certificate.
+                        (m_server as ICertificateValidatorProvider)?.CertificateValidator,
+                        cancellationToken).ConfigureAwait(false);
+
+                    // Only a token that was decrypted with the EphemeralKey used it;
+                    // an Anonymous or X509 token, or a token under a policy without
+                    // an ephemeral key, leaves it valid (OPC 10000-6 6.8.2).
+                    if (userTokenNonce != null && UsesEphemeralKey(token, securityPolicyUri))
+                    {
+                        lock (m_lock)
+                        {
+                            if (string.Equals(
+                                    securityPolicyUri,
+                                    m_userTokenSecurityPolicyUri,
+                                    StringComparison.Ordinal))
+                            {
+                                m_consumedUserTokenNonce = userTokenNonce;
+                            }
+                        }
+                    }
                 }
                 catch (Exception e)
-                    when (e is not ServiceResultException and not OperationCanceledException)
+                    when (e is not OperationCanceledException)
                 {
+                    // Every decryption, padding, layout, signature or nonce error must
+                    // look the same to the client (OPC 10000-4 7.40.2.1). The cause is
+                    // logged here only: attaching it as the inner result would let a
+                    // client that asks for inner diagnostics tell the failures apart
+                    // and use the server key as a decryption oracle.
+                    m_server.Telemetry.CreateLogger<Session>()
+                        .IdentityTokenDecryptionFailed(e, Id, securityPolicyUri);
                     throw ServiceResultException.Create(
                         StatusCodes.BadIdentityTokenInvalid,
-                        e,
                         "Could not decrypt identity token.");
+                }
+                finally
+                {
+                    ReleaseUserTokenNonce(userTokenNonce);
                 }
 
                 // verify the signature.
@@ -1235,13 +1518,14 @@ namespace Opc.Ua.Server
                     byte[] clientNonceData = ClientNonce.ToArray();
 
                     byte[] dataToSign = securityPolicy.GetUserTokenSignatureData(
-                        channelContext.ChannelThumbprint,
+                        channelContext.ChannelThumbprint.ToArrayOrNull(),
                         m_serverNonce.Data,
                         m_serverCertificate.RawData,
-                        channelContext.ServerChannelCertificate,
+                        channelContext.ServerChannelCertificate.ToArrayOrNull(),
                         ClientCertificate?.RawData,
-                        channelContext.ClientChannelCertificate,
-                        clientNonceData);
+                        channelContext.ClientChannelCertificate.ToArrayOrNull(),
+                        clientNonceData,
+                        EndpointDescription.SecurityMode);
 
                     if (!await token.VerifyAsync(
                             dataToSign,
@@ -1266,13 +1550,14 @@ namespace Opc.Ua.Server
                             }
 
                             dataToSign = securityPolicy.GetUserTokenSignatureData(
-                                channelContext.ChannelThumbprint,
+                                channelContext.ChannelThumbprint.ToArrayOrNull(),
                                 m_serverNonce.Data,
                                 [.. serverCertificateChainList],
-                                channelContext.ServerChannelCertificate,
+                                channelContext.ServerChannelCertificate.ToArrayOrNull(),
                                 ClientCertificate?.RawData,
-                                channelContext.ClientChannelCertificate,
-                                clientNonceData);
+                                channelContext.ClientChannelCertificate.ToArrayOrNull(),
+                                clientNonceData,
+                                EndpointDescription.SecurityMode);
 
                             if (!await token.VerifyAsync(
                                     dataToSign,
@@ -1281,14 +1566,14 @@ namespace Opc.Ua.Server
                                     cancellationToken).ConfigureAwait(false))
                             {
                                 throw new ServiceResultException(
-                                    StatusCodes.BadIdentityTokenRejected,
+                                    StatusCodes.BadUserSignatureInvalid,
                                     "Invalid user signature!");
                             }
                         }
                         else
                         {
                             throw new ServiceResultException(
-                                StatusCodes.BadIdentityTokenRejected,
+                                StatusCodes.BadUserSignatureInvalid,
                                 "Invalid user signature!");
                         }
                     }
@@ -1296,6 +1581,105 @@ namespace Opc.Ua.Server
             }
 
             return (token, policy);
+        }
+
+        /// <summary>
+        /// Borrows the current user-token nonce so replacement cannot dispose it during token validation.
+        /// </summary>
+        /// <exception cref="ObjectDisposedException"></exception>
+        private Nonce? AcquireUserTokenNonce()
+        {
+            lock (m_lock)
+            {
+                if (m_userTokenNonceStopped)
+                {
+                    throw new ObjectDisposedException(nameof(Session));
+                }
+                Nonce? nonce = m_userTokenNonce;
+                if (nonce != null)
+                {
+                    m_userTokenNonceBorrows ??= [];
+                    m_userTokenNonceBorrows.TryGetValue(nonce, out int borrowers);
+                    m_userTokenNonceBorrows[nonce] = borrowers + 1;
+                }
+                return nonce;
+            }
+        }
+
+        /// <summary>
+        /// Releases a nonce borrow and disposes a retired nonce after its final borrower finishes.
+        /// </summary>
+        private void ReleaseUserTokenNonce(Nonce? nonce)
+        {
+            if (nonce == null)
+            {
+                return;
+            }
+            Nonce? retired = null;
+            lock (m_lock)
+            {
+                int borrowers = m_userTokenNonceBorrows![nonce] - 1;
+                if (borrowers == 0)
+                {
+                    m_userTokenNonceBorrows.Remove(nonce);
+                    if (m_retiredUserTokenNonces?.Remove(nonce) == true)
+                    {
+                        retired = nonce;
+                    }
+                }
+                else
+                {
+                    m_userTokenNonceBorrows[nonce] = borrowers;
+                }
+            }
+            retired?.Dispose();
+        }
+
+        /// <summary>
+        /// Replaces the user-token nonce, returning the old nonce for disposal unless borrowers still need it.
+        /// </summary>
+        private Nonce? ReplaceUserTokenNonce(Nonce? replacement)
+        {
+            Nonce? previous = m_userTokenNonce;
+            m_userTokenNonce = replacement;
+            // a key that was not handed out yet no longer belongs to the session.
+            m_unsentEphemeralKey = null;
+            if (previous != null && m_userTokenNonceBorrows?.ContainsKey(previous) == true)
+            {
+                m_retiredUserTokenNonces ??= [];
+                m_retiredUserTokenNonces.Add(previous);
+                return null;
+            }
+            return previous;
+        }
+
+        /// <summary>
+        /// Clears the replacement key prepared for the activation being validated and
+        /// returns its nonce for disposal. The prepared nonce is never borrowed.
+        /// </summary>
+        private Nonce? TakePreparedUserTokenNonce()
+        {
+            Nonce? prepared = m_preparedUserTokenNonce;
+            m_preparedUserTokenNonce = null;
+            m_preparedEphemeralKey = null;
+            return prepared;
+        }
+
+        /// <summary>
+        /// Whether decrypting the token used the session's EphemeralKey: only UserName
+        /// and IssuedToken secrets are encrypted, and only a policy with an ephemeral
+        /// key algorithm (ECC, RSA-DH) encrypts them with it (OPC 10000-6 6.8.2).
+        /// </summary>
+        private bool UsesEphemeralKey(IUserIdentityTokenHandler token, string? securityPolicyUri)
+        {
+            if (token.TokenType is not (UserTokenType.UserName or UserTokenType.IssuedToken) ||
+                string.IsNullOrEmpty(securityPolicyUri))
+            {
+                return false;
+            }
+            SecurityPolicyInfo? securityPolicy = m_securityPolicies.GetInfo(securityPolicyUri!);
+            return securityPolicy != null &&
+                securityPolicy.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None;
         }
 
         /// <summary>
@@ -1326,6 +1710,8 @@ namespace Opc.Ua.Server
                 // always save the new identity since it may have additional information that does not affect equality.
                 IdentityToken = identityToken;
                 Identity = identity;
+                m_identityGeneration++;
+                m_identityRefreshGeneration = m_identityGeneration;
                 EffectiveIdentity = effectiveIdentity!;
 
                 // update diagnostics.
@@ -1334,13 +1720,51 @@ namespace Opc.Ua.Server
                     string? clientUserId = ClientUserIdResolver.Resolve(
                         identityToken,
                         identity);
-                    m_securityDiagnostics.ClientUserIdOfSession = clientUserId;
+                    ArrayOf<string> history = m_securityDiagnostics.ClientUserIdHistory;
+
+                    // ClientUserIdOfSession names the user authenticated when the session
+                    // was created (Part 5 12.12); later identity changes go to the history only.
+                    if (history.Count == 0)
+                    {
+                        m_securityDiagnostics.ClientUserIdOfSession = clientUserId;
+                    }
                     m_securityDiagnostics.AuthenticationMechanism = identity.TokenType.ToString();
-                    m_securityDiagnostics.ClientUserIdHistory =
-                        m_securityDiagnostics.ClientUserIdHistory.AddItem(clientUserId!);
+                    if (history.Count == 0 ||
+                        !string.Equals(
+                            history[^1],
+                            clientUserId,
+                            StringComparison.Ordinal))
+                    {
+                        int retainedCount = Math.Min(history.Count, kMaxClientUserIdHistory - 1);
+                        string[] updatedHistory = new string[retainedCount + 1];
+                        if (retainedCount > 0)
+                        {
+                            history.Span[^retainedCount..].CopyTo(updatedHistory);
+                        }
+                        updatedHistory[retainedCount] = clientUserId!;
+                        m_securityDiagnostics.ClientUserIdHistory = updatedHistory.ToArrayOf();
+                    }
                 }
 
                 return changed;
+            }
+        }
+
+        /// <summary>
+        /// Refreshes the last contact time unless the session timeout has already elapsed.
+        /// </summary>
+        /// <returns><c>false</c> when the session has expired.</returns>
+        private bool TryRefreshLastContact()
+        {
+            lock (m_diagnosticsLock)
+            {
+                long now = m_timeProvider.GetTimestampMilliseconds();
+                if (now - m_lastContactTickCount > (long)SessionDiagnostics.ActualSessionTimeout)
+                {
+                    return false;
+                }
+                m_lastContactTickCount = now;
+                return true;
             }
         }
 
@@ -1499,22 +1923,62 @@ namespace Opc.Ua.Server
         /// <see cref="UpdateDiagnostics"/> and <see cref="ReadDiagnostics{TResult}"/>.
         /// </summary>
         private readonly Lock m_diagnosticsLock = new();
+        private const int kMaxClientUserIdHistory = 100;
         private int m_closing;
-        private readonly ILogger m_logger;
         private readonly ILogger m_eventLogger;
         private readonly IServerInternal m_server;
         private readonly TimeProvider m_timeProvider;
         private readonly ISecurityPolicyRegistry m_securityPolicies;
-        private readonly string m_sessionName;
         private Certificate m_serverCertificate;
         private Nonce m_serverNonce;
         private string? m_userTokenSecurityPolicyUri;
         private Nonce? m_userTokenNonce;
+
+        /// <summary>
+        /// The user-token nonce that decrypted the identity token of the activation
+        /// being validated; <see cref="Activate"/> retires it when it commits.
+        /// Only compared by reference and not owned (the borrow tracking disposes
+        /// the nonce), hence typed as object.
+        /// </summary>
+        private object? m_consumedUserTokenNonce;
+
+        /// <summary>
+        /// The replacement for <see cref="m_consumedUserTokenNonce"/>, created while the
+        /// activation is validated and installed by <see cref="Activate"/>. Owned.
+        /// </summary>
+        private Nonce? m_preparedUserTokenNonce;
+
+        /// <summary>
+        /// The signed EphemeralKey of <see cref="m_preparedUserTokenNonce"/>.
+        /// </summary>
+        private EphemeralKeyType? m_preparedEphemeralKey;
+
+        /// <summary>
+        /// The EphemeralKey of the current user-token nonce that an activation
+        /// installed and that was not returned to the client yet.
+        /// </summary>
+        private EphemeralKeyType? m_unsentEphemeralKey;
+
+        /// <summary>
+        /// Counts active validation operations borrowing each user-token nonce.
+        /// </summary>
+        private Dictionary<Nonce, int>? m_userTokenNonceBorrows;
+
+        /// <summary>
+        /// Retains replaced nonces until their outstanding validation operations release them.
+        /// </summary>
+        private HashSet<Nonce>? m_retiredUserTokenNonces;
+
+        /// <summary>
+        /// Prevents new nonce borrows after session disposal starts.
+        /// </summary>
+        private bool m_userTokenNonceStopped;
         private readonly CertificateCollection? m_clientIssuerCertificates;
         private readonly SessionContinuationPoints m_continuationPoints;
         private readonly SessionSecurityDiagnosticsDataType m_securityDiagnostics;
         private long m_lastContactTickCount;
-        private int m_identityStale;
+        private long m_identityGeneration;
+        private long m_identityRefreshGeneration;
     }
 
     /// <summary>
@@ -1522,6 +1986,9 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class SessionLog
     {
+        /// <summary>
+        /// Logs session state and identity using the retained EventSource-compatible event identity.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerCompatibilityEventIds.SessionState,
             EventName = "SessionState",
@@ -1535,6 +2002,20 @@ namespace Opc.Ua.Server
             string sessionName,
             string secureChannelId,
             string identity);
-    }
 
+        /// <summary>
+        /// Logs the server-side cause of a user identity token decryption failure that is
+        /// reported to the client only as Bad_IdentityTokenInvalid.
+        /// </summary>
+        [LoggerMessage(
+            EventId = ServerEventIds.Session + 0,
+            Level = LogLevel.Warning,
+            Message = "Could not decrypt the user identity token of session {SessionId} " +
+                "(SecurityPolicyUri={SecurityPolicyUri}).")]
+        public static partial void IdentityTokenDecryptionFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId sessionId,
+            string? securityPolicyUri);
+    }
 }

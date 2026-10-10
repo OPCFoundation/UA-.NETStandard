@@ -110,7 +110,6 @@ namespace SiteComposition
             IOptions<SiteCompositionOptions>? options = null)
             : base(server, configuration, Namespaces.Site, Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
-            SystemContext.NodeIdFactory = this;
             m_options = options?.Value ?? new SiteCompositionOptions();
             m_log = server.Telemetry.CreateLogger<SiteNodeManager>();
         }
@@ -119,17 +118,6 @@ namespace SiteComposition
         /// Gets the namespace index this sample's instances live in.
         /// </summary>
         private ushort SiteNamespaceIndex => NamespaceIndexes[0];
-
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)        {
-            if (node is BaseInstanceState { Parent: not null } instance)
-            {
-                return new NodeId(
-                    $"{instance.Parent.NodeId.IdentifierAsString}_{instance.SymbolicName}",
-                    SiteNamespaceIndex);
-            }
-            return node.NodeId;
-        }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -146,7 +134,7 @@ namespace SiteComposition
             IDictionary<NodeId, IList<IReference>> externalReferences,
             CancellationToken cancellationToken = default)
         {
-            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken)
+            await LoadPredefinedNodesAsync(SystemContext, externalReferences, cancellationToken)
                 .ConfigureAwait(false);
 
             NodeManagerBuilder builder = CreateFluentBuilder(SiteNamespaceIndex);
@@ -160,7 +148,7 @@ namespace SiteComposition
             // reference to the Objects folder into externalReferences.
             await RegisterAuthoredNodesAsync(builder, cancellationToken).ConfigureAwait(false);
             await CompleteConfigureAsync(externalReferences, cancellationToken).ConfigureAwait(false);
-            builder.Seal();
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
 
             m_log.SiteAddressSpaceReady(
                 m_options.PumpServerEndpointUrl ?? "(none)",

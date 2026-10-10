@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.PubSub.Schema.Tests</RootNamespace>
-    <Nullable>enable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
     <IsPackable>false</IsPackable>
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
@@ -14,7 +13,7 @@
     <!-- JsonSchema.Net transitively requires System.Collections.Immutable >= 10.0.5, while the
          central pin tracks the Roslyn band's runtime version for the analyzer closure
          (see roslyn.props). Test projects are not part of that closure, so override here. -->
-    <PackageReference Include="System.Collections.Immutable" VersionOverride="10.0.11" />
+    <PackageReference Include="System.Collections.Immutable" VersionOverride="10.0.12" />
     <PackageReference Include="Microsoft.NET.Test.Sdk" />
     <PackageReference Include="Moq" />
     <PackageReference Include="NUnit" />

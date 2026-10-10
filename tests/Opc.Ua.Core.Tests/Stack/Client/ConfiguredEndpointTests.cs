@@ -80,8 +80,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 ));
 
             Assert.IsInstanceOf<ServiceResultException>(ex.InnerException);
-            var serviceException = (ServiceResultException)ex.InnerException;
-            Assert.That(serviceException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            var serviceException = (ServiceResultException)ex.InnerException!;
+            Assert.That(serviceException!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             Assert.That(serviceException.Message, Does.Contain(SecurityPolicies.Aes256_Sha256_RsaPss));
         }
 
@@ -110,12 +110,12 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                     serverEndpoints,
                     new Uri("opc.tcp://localhost:4840"),
                     MessageSecurityMode.SignAndEncrypt,
-                    null // no specific policy requested, only mode
+                    null! // no specific policy requested, only mode
                 ));
 
             Assert.IsInstanceOf<ServiceResultException>(ex.InnerException);
-            var serviceException = (ServiceResultException)ex.InnerException;
-            Assert.That(serviceException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
+            var serviceException = (ServiceResultException)ex.InnerException!;
+            Assert.That(serviceException!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityModeRejected));
             Assert.That(serviceException.Message, Does.Contain("SignAndEncrypt"));
         }
 
@@ -148,8 +148,8 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 ));
 
             Assert.IsInstanceOf<ServiceResultException>(ex.InnerException);
-            var serviceException = (ServiceResultException)ex.InnerException;
-            Assert.That(serviceException.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            var serviceException = (ServiceResultException)ex.InnerException!;
+            Assert.That(serviceException!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
             Assert.That(serviceException.Message, Does.Contain(SecurityPolicies.Basic256Sha256));
             Assert.That(serviceException.Message, Does.Contain("SignAndEncrypt"));
         }
@@ -183,7 +183,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 serverEndpoints,
                 new Uri("opc.tcp://localhost:4840"),
                 MessageSecurityMode.Invalid,
-                null
+                null!
             );
 
             // Should return available endpoints
@@ -237,7 +237,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Uri endpointUrl,
             MessageSecurityMode securityMode,
             string securityPolicyUri,
-            string transportProfileUri = null)
+            string? transportProfileUri = null)
         {
             Type configuredEndpointType = typeof(ConfiguredEndpoint);
             MethodInfo matchEndpointsMethod = configuredEndpointType.GetMethod(
@@ -246,14 +246,14 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 null,
                 [typeof(ArrayOf<EndpointDescription>), typeof(Uri), typeof(MessageSecurityMode), typeof(string), typeof(string)],
                 null
-            );
+            )!;
 
             Assert.That(matchEndpointsMethod, Is.Not.Null, "MatchEndpoints method not found");
 
             return (ArrayOf<EndpointDescription>)matchEndpointsMethod.Invoke(
                 null,
                 [collection, endpointUrl, securityMode, securityPolicyUri, transportProfileUri]
-            );
+            )!;
         }
 
         [Test]
@@ -274,7 +274,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 SecurityMode = MessageSecurityMode.None,
                 SecurityPolicyUri = SecurityPolicies.None
             };
-            var endpoint = new ConfiguredEndpoint(null, description);
+            var endpoint = new ConfiguredEndpoint(null!, description);
 
             Assert.That(endpoint.Description, Is.Not.Null);
             Assert.That(endpoint.Description.EndpointUrl, Is.EqualTo("opc.tcp://localhost:4840"));
@@ -302,7 +302,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void ConstructorWithNullDescriptionThrows()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                new ConfiguredEndpoint(null, (EndpointDescription)null));
+                new ConfiguredEndpoint(null!, (EndpointDescription)null!));
         }
 
         [Test]
@@ -327,7 +327,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void ConstructorWithNullApplicationDescriptionThrows()
         {
             Assert.Throws<ArgumentNullException>(() =>
-                new ConfiguredEndpoint(null, EndpointConfiguration.Create()));
+                new ConfiguredEndpoint(null!, EndpointConfiguration.Create()));
         }
 
         [Test]
@@ -348,7 +348,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void UpdateWithEndpointDescription()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = MessageSecurityMode.None,
@@ -370,17 +370,17 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void UpdateWithNullDescriptionThrows()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
-            Assert.Throws<ArgumentNullException>(() => endpoint.Update((EndpointDescription)null));
+            Assert.Throws<ArgumentNullException>(() => endpoint.Update((EndpointDescription)null!));
         }
 
         [Test]
         public void UpdateWithEndpointConfiguration()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
@@ -393,17 +393,17 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void UpdateWithNullConfigurationThrows()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
-            Assert.Throws<ArgumentNullException>(() => endpoint.Update((EndpointConfiguration)null));
+            Assert.Throws<ArgumentNullException>(() => endpoint.Update((EndpointConfiguration)null!));
         }
 
         [Test]
         public void UpdateWithConfiguredEndpoint()
         {
-            var source = new ConfiguredEndpoint(null, new EndpointDescription
+            var source = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://remotehost:4841",
                 SecurityMode = MessageSecurityMode.SignAndEncrypt,
@@ -413,7 +413,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
                 UpdateBeforeConnect = false
             };
 
-            var target = new ConfiguredEndpoint(null, new EndpointDescription
+            var target = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
@@ -426,17 +426,17 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void UpdateWithNullConfiguredEndpointThrows()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
-            Assert.Throws<ArgumentNullException>(() => endpoint.Update((ConfiguredEndpoint)null));
+            Assert.Throws<ArgumentNullException>(() => endpoint.Update((ConfiguredEndpoint)null!));
         }
 
         [Test]
         public void ToStringReturnsFormattedString()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = MessageSecurityMode.SignAndEncrypt,
@@ -451,7 +451,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void ToStringWithInvalidFormatThrows()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
@@ -461,11 +461,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void EndpointUrlPropertyGetterReturnsUri()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
-            Uri url = endpoint.EndpointUrl;
+            Uri url = endpoint.EndpointUrl!;
             Assert.That(url, Is.Not.Null);
             Assert.That(url.Host, Is.EqualTo("localhost"));
             Assert.That(url.Port, Is.EqualTo(4840));
@@ -474,7 +474,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void EndpointUrlPropertySetterUpdatesDescription()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             })
@@ -487,7 +487,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void EndpointUrlPropertySetterWithNull()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             })
@@ -507,7 +507,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void SelectedUserTokenPolicyReturnsNullWhenNoTokens()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
@@ -518,7 +518,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         public void SelectedUserTokenPolicyReturnsCorrectPolicy()
         {
             var policy = new UserTokenPolicy(UserTokenType.Anonymous);
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 UserIdentityTokens = [policy]
@@ -531,10 +531,87 @@ namespace Opc.Ua.Core.Tests.Stack.Client
             Assert.That(endpoint.SelectedUserTokenPolicy.TokenType, Is.EqualTo(UserTokenType.Anonymous));
         }
 
+        /// <summary>
+        /// Verifies selecting an advertised user-token policy preserves its index and clears unmatched selections.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        public void SelectedUserTokenPolicySetterPreservesMatchingPolicy(int index)
+        {
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost",
+                UserIdentityTokens =
+                [
+                    new UserTokenPolicy(UserTokenType.Anonymous),
+                    new UserTokenPolicy(UserTokenType.UserName)
+                ]
+            });
+            UserTokenPolicy selected = endpoint.Description.UserIdentityTokens[index];
+            endpoint.SelectedUserTokenPolicy = selected;
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(index));
+            Assert.That(endpoint.SelectedUserTokenPolicy, Is.SameAs(selected));
+
+            endpoint.SelectedUserTokenPolicy = new UserTokenPolicy(UserTokenType.Certificate);
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(-1));
+            Assert.That(endpoint.SelectedUserTokenPolicy, Is.Null);
+            endpoint.SelectedUserTokenPolicy = null;
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(-1));
+        }
+
+        /// <summary>
+        /// Assigning a policy selects it. The setter used to break out of its
+        /// search loop and fall through to the not-found assignment, so the
+        /// index always ended at -1 and the selection was silently discarded.
+        /// </summary>
+        [TestCase(0)]
+        [TestCase(1)]
+        [TestCase(2)]
+        public void SelectedUserTokenPolicySetterSelectsTheAssignedPolicy(int index)
+        {
+            var anonymous = new UserTokenPolicy(UserTokenType.Anonymous);
+            var userName = new UserTokenPolicy(UserTokenType.UserName);
+            var certificate = new UserTokenPolicy(UserTokenType.Certificate);
+            UserTokenPolicy[] policies = [anonymous, userName, certificate];
+
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost:4840",
+                UserIdentityTokens = [.. policies]
+            })
+            {
+                SelectedUserTokenPolicy = policies[index]
+            };
+
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(index));
+            Assert.That(
+                endpoint.SelectedUserTokenPolicy?.TokenType,
+                Is.EqualTo(policies[index].TokenType));
+        }
+
+        /// <summary>
+        /// A policy the endpoint does not offer clears the selection.
+        /// </summary>
+        [Test]
+        public void SelectedUserTokenPolicySetterClearsForAnUnknownPolicy()
+        {
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://localhost:4840",
+                UserIdentityTokens = [new UserTokenPolicy(UserTokenType.Anonymous)]
+            })
+            {
+                SelectedUserTokenPolicy = new UserTokenPolicy(UserTokenType.UserName)
+            };
+
+            Assert.That(endpoint.SelectedUserTokenPolicyIndex, Is.EqualTo(-1));
+            Assert.That(endpoint.SelectedUserTokenPolicy, Is.Null);
+        }
+
         [Test]
         public void SelectedUserTokenPolicyIndexOutOfRangeReturnsNull()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 UserIdentityTokens = [
@@ -550,7 +627,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void NeedUpdateFromServerReturnsFalseWithNoneSecurity()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = MessageSecurityMode.None,
@@ -569,7 +646,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void UpdateFromServerWithNullApplicationConfigurationThrowsArgumentNullException()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.wss://localhost:4840",
                 SecurityMode = MessageSecurityMode.None,
@@ -586,7 +663,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void GetDiscoveryUrlWithHttpScheme()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "https://localhost:4840"
             });
@@ -598,7 +675,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void GetDiscoveryUrlWithOpcTcpScheme()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
@@ -609,7 +686,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void GetDiscoveryUrlWithServerDiscoveryUrls()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 Server = new ApplicationDescription
@@ -626,11 +703,11 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void GetDiscoveryUrlWithNullUsesEndpointUrl()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
-            Uri discoveryUrl = endpoint.GetDiscoveryUrl(null);
+            Uri discoveryUrl = endpoint.GetDiscoveryUrl(null!);
             Assert.That(discoveryUrl, Is.Not.Null);
         }
 
@@ -650,7 +727,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void UserIdentityProperty()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
@@ -663,7 +740,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void ReverseConnectProperty()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
@@ -673,7 +750,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void ExtensionsProperty()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });
@@ -683,7 +760,7 @@ namespace Opc.Ua.Core.Tests.Stack.Client
         [Test]
         public void UpdateBeforeConnectDefaultIsTrue()
         {
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840"
             });

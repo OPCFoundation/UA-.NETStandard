@@ -63,9 +63,10 @@ namespace Opc.Ua.PubSub.MetaData
         /// resolved metadata description. On
         /// <see cref="MetaDataMatchResult.MajorVersionMismatch"/> the
         /// currently registered description for the same
-        /// PublisherId/WriterGroupId/DataSetWriterId is returned for
-        /// diagnostics; the caller must still reject the payload. On
-        /// <see cref="MetaDataMatchResult.NotFound"/>,
+        /// PublisherId/WriterGroupId/DataSetWriterId. A caller must reject
+        /// a payload that carries a different MajorVersion; a payload without
+        /// a ConfigurationVersion can only be decoded with this description.
+        /// On <see cref="MetaDataMatchResult.NotFound"/>,
         /// <see langword="null"/>.
         /// </param>
         /// <returns>The match classification.</returns>

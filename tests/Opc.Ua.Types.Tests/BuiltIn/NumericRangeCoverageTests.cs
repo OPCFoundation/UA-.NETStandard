@@ -1189,12 +1189,12 @@ namespace Opc.Ua.Types.Tests.Utils
         }
 
         [Test]
-        public void UpdateRangeStringDirectWithWrongSliceLengthReturnsBadIndexRangeNoData()
+        public void UpdateRangeStringDirectWithWrongSliceLengthReturnsBadIndexRangeDataMismatch()
         {
             string value = "abcdef";
             var range = new NumericRange(1, 3);
             StatusCode status = range.UpdateRange(ref value, "XY");
-            Assert.That(status, Is.EqualTo(StatusCodes.BadIndexRangeNoData));
+            Assert.That(status, Is.EqualTo(StatusCodes.BadIndexRangeDataMismatch));
         }
 
         [Test]

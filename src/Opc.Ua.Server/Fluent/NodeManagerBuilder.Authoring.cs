@@ -215,8 +215,8 @@ namespace Opc.Ua.Server.Fluent
         /// <summary>
         /// Hands every staged root to <paramref name="register"/> in the order
         /// it was added. Called once by the owning manager between the user's
-        /// <c>Configure</c> delegates and <see cref="Seal"/>; a manager that
-        /// staged no nodes registers nothing.
+        /// <c>Configure</c> delegates and <see cref="SealAsync"/>; a manager
+        /// that staged no nodes registers nothing.
         /// </summary>
         /// <param name="register">
         /// Registers one root subtree with the manager; typically

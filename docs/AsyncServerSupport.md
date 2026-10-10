@@ -1,28 +1,48 @@
 # Support of the TAP (Task Asynchronous Pattern) for server operations
 
-The OPC UA .NET Standard stack has supported asynchronous operations for a long time. The asynchronous operations are based on the IAsyncResult pattern, which is also called the APM (Asynchronous Programming Model) or the Begin/End pattern. This pattern was introduced with .NET Framework 1.0 and is still supported in .NET 8.0.
+The OPC UA .NET Standard stack has long supported asynchronous server
+operations through the APM (Asynchronous Programming Model). APM uses
+`IAsyncResult` and the Begin/End pattern. .NET Framework 1.0 introduced
+this pattern, which remains supported in .NET 8.0.
 
-In addition to the APM, the TAP (Task Asynchronous Pattern) is now also supported for server operations. The TAP is based on the Task and async/await keywords introduced in .NET Framework 4.0 and is the recommended way to implement asynchronous operations in modern .NET applications.
+The stack also supports the TAP (Task Asynchronous Pattern) for server
+operations. TAP uses `Task` and the `async`/`await` keywords introduced
+in .NET Framework 4.0. It is the recommended way to implement asynchronous
+operations in modern .NET applications.
 
-In the future APM support will be deprecated, as it was never implemented for NodeManagers.
+Server applications can implement node managers with TAP. This pattern
+improves scalability by using server resources more efficiently.
 
-Starting with 1.5.378 the server library allows users to also implement Task based NodeManagers.
-Implementing the TAP allows to improve the scalability of the server, as the TAP is significantly more efficient in terms of resource usage and performance.
+The server library provides these TAP features:
 
-In order to support the TAP pattern, the following changes have been made to the server library:
+- Task-based `RequestQueue` and `TransportListenerCallback`
+- Generated code and `MasterNodeManager` support Task-based operations.
+- The `IAsyncNodeManager` interface supports fully asynchronous node managers.
+- `AsyncNodeManagerAdapter` and `SyncNodeManagerAdapter` let synchronous
+  and asynchronous node managers run side by side.
 
-- Introduce a Task based `RequestQueue`
-- Introduce a Task based `TransportListenerCallback`
-- Update the generated Code to support Task based operations
-- Update of the `MasterNodeManager` to support Task based operations
-- Introduce a Task based `IAsyncNodeManager` interface
-- Introduce `AsyncNodeManagerAdapter` and `SyncNodeManagerAdapter` classes to support sync and async node managers side by side.
+## Contents
+
+- [Upgrading an existing server](#upgrading-an-existing-server)
+- [Async method calls](#async-method-calls)
+- [AsyncCustomNodeManager](#asynccustomnodemanager)
+  - [Registering an AsyncCustomNodeManager](#registering-an-asynccustomnodemanager)
+  - [Async browse iteration](#async-browse-iteration)
+  - [Locking strategy vs CustomNodeManager2](#locking-strategy-vs-customnodemanager2)
+    - [1. Global write semaphore — `m_writeSemaphore`](#1-global-write-semaphore--m_writesemaphore)
+    - [2. Monitored-item semaphore — `m_monitoredItemSemaphore`](#2-monitored-item-semaphore--m_monitoreditemsemaphore)
+    - [3. Per-node locking for read and attribute access](#3-per-node-locking-for-read-and-attribute-access)
+  - [Monitored-item manager selection](#monitored-item-manager-selection)
+  - [Fully asynchronous change notifications](#fully-asynchronous-change-notifications)
+  - [Creating a custom node manager](#creating-a-custom-node-manager)
 
 ## Upgrading an existing server
 
 - Update `INodeManager.CreateMonitoredItems` to support the new `MonitoredItemIdFactory`.
-- In a future release an `CustomNodeManagerAsync` class will be provided to simplify the creation of fully async NodeManagers.
-- The existing `CustomNodeManager2` class can be used as is, and async operations can be implemented as needed using the different interfaces provided by the server library:
+- `AsyncCustomNodeManager` is the recommended base class for fully
+  asynchronous node managers; see [AsyncCustomNodeManager](#asynccustomnodemanager).
+- Keep using `CustomNodeManager2` and implement the asynchronous interfaces
+  your server needs:
   - `IAsyncNodeManager` for full async support
   - `ICallAsyncNodeManager` for async method calls
   - `IReadAsyncNodeManager` for async reading
@@ -38,16 +58,24 @@ In order to support the TAP pattern, the following changes have been made to the
   - `IModifyMonitoredItemsAsyncNodeManager` for async monitored item modification
   - `ICreateMonitoredItemsAsyncNodeManager` for async monitored item creation
 
---> The MasterNodeManager automatically detects if a NodeManager implements any of the async interfaces and uses the async implementation if available. If no async interface is implemented, the sync implementation is used.
+> `MasterNodeManager` detects which asynchronous interfaces a node manager
+> implements. It uses an asynchronous implementation when available and
+> otherwise falls back to the synchronous implementation.
 
-- The Server already allows to register fully async NodeManagers, which implement the `IAsyncNodeManager` interface. To register a fully async Nodemanager use `StandardServer.RegisterNodeManager(IAsyncNodeManagerFactory)`.
-  For compatibility reasons the IAsyncNodeManager has a property `SyncNodeManager`, this needs to be implemented by passing your IAsyncNodeManager to the `SyncNodeManagerAdapter`.
+- The server supports fully asynchronous node managers that implement
+  `IAsyncNodeManager`. Register one with
+  `StandardServer.RegisterNodeManager(IAsyncNodeManagerFactory)`.
+  `IAsyncNodeManager.SyncNodeManager` is required for compatibility; pass
+  the node manager to `SyncNodeManagerAdapter` to provide it.
 
-## Async Method call
+## Async method calls
 
-Support for async method callbacks is already implemented by `CustomNodeManager2` to enable the support just add `IAsyncNodeManager` to your NodeManager implementation.
-All generated code already has support for Async Methods e.g. `UpdateCertificateMethodState.OnCallAsync`. If the NodeManager implements `IAsyncNodeManager` the async callback is used automatically.
-If a generic Method handler shall be used the `MethodState.OnCallMethod2Async` handler shall be used.
+`CustomNodeManager2` supports asynchronous method callbacks. Implement
+`IAsyncNodeManager` on your node manager to enable them. Generated method
+state classes expose asynchronous callbacks such as
+`UpdateCertificateMethodState.OnCallAsync`; the server uses these callbacks
+when the node manager implements the interface. For a generic method handler,
+use `MethodState.OnCallMethod2Async`.
 
 ## AsyncCustomNodeManager
 
@@ -71,87 +99,67 @@ server.RegisterNodeManager(context =>
     new MyAsyncNodeManager(server, configuration));
 ```
 
+### Async browse iteration
+
+Every hook a custom node manager overrides is awaitable, including browse
+operations. `AsyncCustomNodeManager.BrowseAsync` and
+`TranslateBrowsePathAsync` iterate an `INodeBrowser` with
+`NextAsync(CancellationToken)` instead of `Next()`. A browser can therefore
+fetch data from an underlying system asynchronously. For example, it can
+retrieve references from another server without occupying a request worker
+with a blocking call. The default `NextAsync` wraps `Next()`, so the browsers
+provided by the stack and existing custom browsers continue to work.
+See [NodeManagers.md](NodeManagers.md#threading-contract-for-nodes-and-browsers)
+for the browser contract.
+
 ### Locking strategy vs CustomNodeManager2
 
-`CustomNodeManager2` protects its entire address space with a **single coarse-grained monitor
-lock** stored in the `Lock` property:
+The synchronous `CustomNodeManager2` service paths use coarse-grained manager
+synchronization. `AsyncCustomNodeManager` instead coordinates writes and
+monitored-item management with awaitable semaphores while leaving node-state
+synchronization inside `NodeState`.
 
-```csharp
-lock (Lock)
-{
-    // all reads and writes go through this single lock
-}
-```
-
-While simple, this serialises all concurrent requests for the whole node manager and blocks the
-calling thread, which prevents the use of `await` inside the critical section.
-
-`AsyncCustomNodeManager` replaces this with a **two-tier, await-compatible locking model**:
+The following describes the implementation, not locks that application callers
+should acquire. Use the manager's service, lifecycle, and fluent APIs so operation
+admission, cancellation, and disposal remain coordinated.
 
 #### 1. Global write semaphore — `m_writeSemaphore`
 
-A `SemaphoreSlim(1, 1)` that serialises all **write** operations across the node manager.
-Because it is a `SemaphoreSlim` it can be acquired with `await`:
-
-```csharp
-await m_writeSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-try
-{
-    // safe to write any node
-}
-finally
-{
-    m_writeSemaphore.Release();
-}
-```
-
-Only one write request runs at a time, preventing concurrent modifications of the address space.
-Read operations do **not** acquire this semaphore.
+The manager serializes its Write service operations through an awaitable semaphore.
+Read operations do not acquire it. The semaphore does not turn external updates or
+several attribute accesses into a transaction; use the node APIs for state access.
 
 #### 2. Monitored-item semaphore — `m_monitoredItemSemaphore`
 
-A second `SemaphoreSlim(1, 1)` that serialises all **monitored-item management** operations
-(create, modify, delete, set-monitoring-mode, subscribe-to-events, condition-refresh, transfer).
-This keeps subscription state consistent without blocking reads or writes:
+A second `SemaphoreSlim(1, 1)` serializes **monitored-item management**
+operations. It keeps subscription state consistent without blocking reads
+or writes. The semaphore protects:
 
-```csharp
-await m_monitoredItemSemaphore.WaitAsync(cancellationToken).ConfigureAwait(false);
-try
-{
-    // create / delete / modify monitored items
-}
-finally
-{
-    m_monitoredItemSemaphore.Release();
-}
-```
+- create, modify, and delete operations
+- monitoring-mode changes
+- event subscriptions and condition refresh
+- monitored-item transfers
 
 #### 3. Per-node locking for read and attribute access
 
-Reads do not acquire any manager-wide lock. Instead they lock **only the individual `NodeState`
-object** being accessed. This allows many reads to run truly in parallel across different nodes:
+Reads do not acquire a manager-wide lock. `NodeState` synchronizes attribute and
+collection access internally; the async manager awaits `ReadAttributeAsync` so that
+asynchronous value handlers can complete without blocking a thread.
 
-```csharp
-lock (handle.Node)
-{
-    errors[ii] = handle.Node.ReadAttribute(
-        systemContext,
-        nodeToRead.AttributeId,
-        nodeToRead.ParsedIndexRange,
-        nodeToRead.DataEncoding,
-        value);
-}
-```
+**Do not use `lock (node)` or `lock (handle.Node)`.** Those monitors do not coordinate
+with the node's private locks and cannot protect its state. Use the node's attribute,
+child, and reference APIs instead. Individually synchronized operations do not form
+an atomic multi-attribute transaction.
 
-The same per-node lock is used for the old-value read inside `WriteAsync` and for
-`FindChildBySymbolicName` lookups in the component cache.
+See the [threading contract for nodes and browsers](NodeManagers.md#threading-contract-for-nodes-and-browsers)
+for supported operations, snapshot boundaries, and browser ownership.
 
 | Concern                          | `CustomNodeManager2`       | `AsyncCustomNodeManager`           |
 |----------------------------------|----------------------------|------------------------------------|
-| Address-space reads              | Global `lock (Lock)`       | Per-node `lock (node)` (parallel)  |
-| Address-space writes             | Global `lock (Lock)`       | `await m_writeSemaphore` (serial)  |
-| Monitored-item management        | Global `lock (Lock)`       | `await m_monitoredItemSemaphore`   |
-| `await` inside critical section  | Not possible               | Supported everywhere               |
+| Address-space reads              | Manager synchronization   | Internally synchronized node APIs |
+| Write service operations         | Manager synchronization   | Awaitable write serialization     |
+| Monitored-item management        | Manager synchronization   | Awaitable monitored-item serialization |
+| Awaiting asynchronous handlers   | Use the asynchronous path | Supported by asynchronous operations |
 | Implemented interface            | `INodeManager3`            | `IAsyncNodeManager`                |
 
 ### Monitored-item manager selection
@@ -179,7 +187,10 @@ public MyNodeManager(IServerInternal server, ApplicationConfiguration config)
 
 ### Fully asynchronous change notifications
 
-`AsyncCustomNodeManager` propagates value changes and events to monitored items over a fully asynchronous push path, so no thread is blocked when a node exposes an asynchronous value read handler or when the per-node notification channel applies back-pressure.
+`AsyncCustomNodeManager` sends value changes and events to monitored items
+through an asynchronous push path. This path does not block a thread when a
+node uses an asynchronous value-read handler or when the per-node notification
+channel applies back-pressure.
 
 `NodeState` exposes asynchronous counterparts of its change-notification API alongside the existing synchronous members:
 
@@ -190,11 +201,30 @@ public MyNodeManager(IServerInternal server, ApplicationConfiguration config)
 | `ReportEvent(context, e)` | `ReportEventAsync(context, e, ct)` |
 | `OnReportEvent` | `OnReportEventAsync` |
 
-The additions are non-breaking: existing synchronous callers and sinks continue to work unchanged. `MonitoredNodeMonitoredItemManager` wires the asynchronous sinks, so after a successful write `AsyncCustomNodeManager.WriteAsync` flushes changes with `await handle.Node.ClearChangeMasksAsync(...)`. The value for each monitored attribute is read at that moment through `NodeState.ReadAttributeAsync` — honoring an asynchronous `OnReadValueAsync` / `OnSimpleReadValueAsync` handler when one is registered — and the resulting snapshot is enqueued by awaiting the bounded per-node channel. Because the read is materialized before the change is enqueued, every notification carries the node value at the instant of the change (an enqueue-time snapshot); because both the read and the enqueue are awaited, the producing thread is never blocked.
+These additions do not break existing synchronous callers or sinks.
+`MonitoredNodeMonitoredItemManager` wires the asynchronous sinks. After a
+successful write, `AsyncCustomNodeManager.WriteAsync` flushes changes by
+awaiting `handle.Node.ClearChangeMasksAsync(...)`.
 
-The synchronous `ClearChangeMasks` / `ReportEvent` still drive the asynchronous sinks: they complete inline when the node is synchronously readable and the channel has capacity, and block the calling thread only when a genuinely asynchronous read is in flight or the channel is full. A synchronous node manager therefore keeps working without any change, paying a blocking cost only in those two cases.
+The asynchronous sink reads each monitored attribute through
+`NodeState.ReadAttributeAsync`. When registered, an asynchronous
+`OnReadValueAsync` or `OnSimpleReadValueAsync` handler supplies the value. The
+sink then enqueues that snapshot through the bounded per-node channel and
+awaits completion. It reads the value before enqueueing the change, so each
+notification captures the node value at the time of the change. Awaiting both
+operations keeps the producing thread from blocking.
 
-Overflow and discard — the FIFO/LIFO `DiscardOldest` behavior and the `Overflow` status bit — remain a property of each monitored item's own queue. The shared per-node channel is a lossless conduit and does not drop notifications, so a monitored item's configured queue policy is always applied to the full stream of changes.
+The synchronous `ClearChangeMasks` and `ReportEvent` methods also drive the
+asynchronous sinks. They complete inline when the node is synchronously
+readable and the channel has capacity. They block the calling thread only
+while an asynchronous read is in flight or the channel is full. Synchronous
+node managers continue to work without changes, but may block in those two
+cases.
+
+Each monitored item's queue controls overflow and discard behavior,
+including FIFO/LIFO `DiscardOldest` and the `Overflow` status bit. The shared
+per-node channel does not drop notifications. As a result, the configured
+queue policy applies to the full stream of changes.
 
 ### Creating a custom node manager
 

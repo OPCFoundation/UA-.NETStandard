@@ -32,8 +32,10 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Security.Cryptography;
 using System.Threading;
 using System.Threading.Tasks;
+using NUnit.Framework;
 
 namespace Opc.Ua.Redundancy.Samples.Tests
 {
@@ -172,11 +174,11 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             TimeSpan startupTimeout,
             CancellationToken cancellationToken = default)
         {
-            int[] ports = TestPorts.GetFreePorts(count);
-            int[] raftPorts = TestPorts.GetFreePorts(count);
+            (int[] ports, int[] raftPorts) = AllocateStrongPorts(count, TestPorts.GetFreePorts);
             string pkiRoot = CreateFreshPkiRoot();
             string[] nodeIds = new string[count];
             string[] raftBinds = new string[count];
+            string recordKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
             for (int i = 0; i < count; i++)
             {
                 nodeIds[i] = "replica-" + (char)('a' + i);
@@ -193,7 +195,9 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                         ["HA_MODE"] = "ap",
                         ["HA_CONSISTENCY"] = "strong",
                         ["REDUNDANCY_MODE"] = "hot",
-                        ["HA_INSECURE"] = "true",
+                        ["HA_HISTORIAN"] = "true",
+                        ["HA_RECORD_KEY"] = recordKey,
+                        ["HA_FAST_RECONNECT"] = "true",
                         ["HA_HOST"] = "127.0.0.1",
                         ["HA_NODE_ID"] = nodeIds[i],
                         ["HA_PKI_ROOT"] = Path.Combine(pkiRoot, nodeIds[i]),
@@ -225,6 +229,11 @@ namespace Opc.Ua.Redundancy.Samples.Tests
                 foreach (RedundantServerReplica replica in replicas)
                 {
                     await replica.Process.DisposeAsync().ConfigureAwait(false);
+                    TestContext.Out.WriteLine(
+                        "Sample server '{0}' startup output:{1}{2}",
+                        replica.NodeId,
+                        Environment.NewLine,
+                        replica.Process.GetOutputTail(40));
                 }
 
                 throw;
@@ -289,6 +298,88 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             await WaitUntilListeningAsync(replica.Process, startupTimeout, cancellationToken).ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// Starts independent active/active sample processes using an isolated loopback gossip fabric.
+        /// </summary>
+        public static async Task<RedundantServerCluster> StartActiveActiveAsync(
+            int count,
+            TimeSpan startupTimeout,
+            CancellationToken cancellationToken = default)
+        {
+            int[] ports = TestPorts.GetFreePorts(count);
+            string pkiRoot = CreateFreshPkiRoot();
+            string recordKey = Convert.ToBase64String(RandomNumberGenerator.GetBytes(32));
+            var allocated = new HashSet<int>(ports);
+            int[] gossipPorts = new int[count];
+            string[] nodeIds = new string[count];
+            for (int i = 0; i < count; i++)
+            {
+                int port;
+                do
+                {
+                    port = TestPorts.GetFreeGossipPortPair();
+                }
+                while (allocated.Contains(port) || allocated.Contains(port + 1));
+                allocated.Add(port);
+                allocated.Add(port + 1);
+                gossipPorts[i] = port;
+                nodeIds[i] = "replica-" + (char)('a' + i);
+            }
+            var replicas = new List<RedundantServerReplica>(count);
+            try
+            {
+                for (int i = 0; i < count; i++)
+                {
+                    var peers = new List<string>();
+                    for (int peer = 0; peer < count; peer++)
+                    {
+                        if (peer != i)
+                        {
+                            peers.Add("127.0.0.1:" + gossipPorts[peer].ToString(CultureInfo.InvariantCulture));
+                        }
+                    }
+                    var environment = new Dictionary<string, string?>(StringComparer.Ordinal)
+                    {
+                        ["HA_MODE"] = "aa",
+                        ["HA_CONSISTENCY"] = "eventual",
+                        ["REDUNDANCY_MODE"] = "hotandmirrored",
+                        ["HA_HISTORIAN"] = "false",
+                        ["HA_INSECURE"] = "true",
+                        ["HA_RECORD_KEY"] = recordKey,
+                        ["HA_HOST"] = "127.0.0.1",
+                        ["HA_NODE_ID"] = nodeIds[i],
+                        ["HA_PKI_ROOT"] = Path.Combine(pkiRoot, nodeIds[i]),
+                        ["HA_GOSSIP_PORT"] = gossipPorts[i].ToString(CultureInfo.InvariantCulture),
+                        ["HA_GOSSIP_PEERS"] = string.Join(",", peers),
+                        ["HA_REDUNDANT_PEERS"] = BuildRedundantPeers(nodeIds, ports, i)
+                    };
+                    replicas.Add(new RedundantServerReplica(
+                        nodeIds[i],
+                        ports[i],
+                        string.Format(
+                            CultureInfo.InvariantCulture,
+                            "opc.tcp://127.0.0.1:{0}/RedundantServer",
+                            ports[i]),
+                        ["--port", ports[i].ToString(CultureInfo.InvariantCulture)],
+                        environment));
+                }
+                foreach (RedundantServerReplica replica in replicas)
+                {
+                    await WaitUntilListeningAsync(replica.Process, startupTimeout, cancellationToken)
+                        .ConfigureAwait(false);
+                }
+                return new RedundantServerCluster(replicas, pkiRoot);
+            }
+            catch
+            {
+                foreach (RedundantServerReplica replica in replicas)
+                {
+                    await replica.Process.DisposeAsync().ConfigureAwait(false);
+                }
+                throw;
+            }
+        }
+
         /// <inheritdoc/>
         public async ValueTask DisposeAsync()
         {
@@ -314,10 +405,30 @@ namespace Opc.Ua.Redundancy.Samples.Tests
             }
         }
 
+        /// <summary>
+        /// Allocates both endpoint groups together so released ports cannot repeat between protocols.
+        /// </summary>
+        /// <param name="count">The number of replicas.</param>
+        /// <param name="allocatePorts">Allocates one batch of distinct free ports.</param>
+        /// <returns>The disjoint OPC UA and Raft endpoint groups.</returns>
+        internal static (int[] ServerPorts, int[] RaftPorts) AllocateStrongPorts(
+            int count,
+            Func<int, int[]> allocatePorts)
+        {
+            int[] allocated = allocatePorts(checked(count * 2));
+            int[] serverPorts = new int[count];
+            int[] raftPorts = new int[count];
+            Array.Copy(allocated, 0, serverPorts, 0, count);
+            Array.Copy(allocated, count, raftPorts, 0, count);
+            return (serverPorts, raftPorts);
+        }
+
         private static string CreateFreshPkiRoot()
         {
             string root = Path.Combine(
-                Path.GetTempPath(), "opcua-ha-sample-tests", Guid.NewGuid().ToString("N"));
+                AppContext.BaseDirectory,
+                "ha-sample-test-state",
+                Guid.NewGuid().ToString("N"));
             Directory.CreateDirectory(root);
             return root;
         }

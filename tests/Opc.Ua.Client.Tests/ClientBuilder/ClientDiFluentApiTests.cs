@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -448,6 +446,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                     typeof(bool),
                     typeof(bool),
                     typeof(NetworkRedundancyOptions),
+                    typeof(ServerRedundancyOptions),
                     typeof(IClientChannelManager),
                     typeof(IClientConnectGate)
                 ],
@@ -470,6 +469,7 @@ namespace Opc.Ua.Client.Tests.ClientBuilder
                 false,
                 false,
                 false,
+                null,
                 null,
                 null,
                 null

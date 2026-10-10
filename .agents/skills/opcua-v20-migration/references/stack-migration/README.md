@@ -29,6 +29,12 @@ find the sub-doc that matches the symptom you are seeing.
 > skill, which knows when to load each sub-doc and runs the codefixer
 > for you.
 
+## Contents
+
+- [Migration sub-doc index](#migration-sub-doc-index)
+- [All sub-documents](#all-sub-documents)
+- [See also](#see-also)
+
 ## Migration sub-doc index
 
 Find the row that matches the error / API surface you are dealing with
@@ -44,7 +50,7 @@ table; loading a single sub-doc keeps the context window small.
 | `IEncodeableFactoryBuilder`, `IType`, JSON / XML / binary encoders, `EncodeableFactory.GlobalFactory`, `IJsonEncodeable`, `ComplexTypes` namespace move | [`encoders.md`](encoders.md) |
 | `CustomNodeManager`, `NodeState` clone / read / write helpers, `OnAfterCreate(CancellationToken)`, `FindChild` / `CreateChild` NodeId assignment, `INodeManager3`, `INodeCache.InvalidateNode`, generics on `BaseVariableState` / `BaseVariableTypeState`, predefined-node processing, `lock (node)` on a `NodeState`, `NodeBrowser.DataLock` (analyzer `UA0027`) | [`node-states.md`](node-states.md) |
 | `IUserIdentityTokenHandler`, `IClientIdentityProvider`, `IUserTokenAuthenticator`, `IAccessTokenProvider`, `ITokenIssuer`, `IIdentityClaims`, caller-supplied secrets, secret store | [`identity.md`](identity.md) |
-| `CertificateValidator`, ref-counted `Certificate` wrapper, `CertificateManager`, `ICertificateProvider`, obsoleted `X509Certificate2` direct-exposure APIs, PushManagement transactions (`ApplyChanges`-gated TrustList updates), caller-owned `CertificateStoreIdentifier.OpenStore` stores | [`certificates.md`](certificates.md) |
+| `CertificateValidator`, ref-counted `Certificate` wrapper, `CertificateManager`, `ICertificateProvider`, obsoleted `X509Certificate2` direct-exposure APIs, PushManagement transactions (`ApplyChanges`-gated TrustList updates), caller-owned `CertificateStoreIdentifier.OpenStore` stores, non-suppressible `Bad_CertificateChainIncomplete` | [`certificates.md`](certificates.md) |
 | `ApplicationConfiguration` changes, Data-Contract serializer removal, `MinMetadataSamplingInterval` → `MinSupportedSamplingInterval`, `ParseExtension` / `UpdateExtension` signature, session / browser state persistence | [`configuration.md`](configuration.md) |
 | `Session` → `ManagedSession`, V2 subscription engine, GDS-client `Task` → `ValueTask` modernisation, removed obsolete GDS APIs, durable subscriptions, PubSub, reverse-connect, server `ISubscription` publish-pipeline members / `SessionPublishQueue` internalized (analyzer `UA0030`) | [`sessions-subscriptions.md`](sessions-subscriptions.md) |
 | `UaPubSubApplication.Create*`, `IUaPubSubConnection`, `UaPubSubConfigurator`, `IUaPublisher`, AMQP transport, `JsonEncodingMode.Reversible/NonReversible`, PubSub JSON encoder changes, `DataSetFieldContentMask` RawData / timestamp behaviour | [`pubsub.md`](pubsub.md) |

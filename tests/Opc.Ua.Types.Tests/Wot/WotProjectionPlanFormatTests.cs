@@ -83,10 +83,10 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(source.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument resolved = result.Value;
+            using WotDocument? resolved = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(resolved.RootElement.GetProperty("@type").EnumerateArray()
+            Assert.That(resolved.Required().RootElement.GetProperty("@type").EnumerateArray()
                 .Select(value => value.GetString()), Does.Contain(expectedType));
             Assert.That(resolved.Kind, Is.EqualTo(kind == "ThingModel"
                 ? WotDocumentKind.ThingModel : WotDocumentKind.ThingDescription));
@@ -175,7 +175,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var parsed = WotProjection.Parse(
                 document, diagnostics, WotProjectionCompatibilityMode.DraftProjection11);
 
-            Assert.That(parsed.ResultKind, Is.EqualTo(expected));
+            Assert.That(parsed.Required().ResultKind, Is.EqualTo(expected));
             Assert.That(diagnostics.Any(value => value.Severity == WotDiagnosticSeverity.Error),
                 Is.EqualTo(expected == WotDocumentKind.Unknown));
             Assert.That(document.RootElement.TryGetProperty("uav:projectionKind", out _), Is.False);
@@ -200,12 +200,12 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> rejected = await current.ResolveAsync(document).ConfigureAwait(false);
             WotConversionResult<WotDocument> accepted = await compatible.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument resolved = accepted.Value;
+            using WotDocument? resolved = accepted.Value;
 
             Assert.That(rejected.Success, Is.False);
             Assert.That(rejected.Value, Is.Null);
             Assert.That(accepted.Success, Is.True, string.Join("; ", accepted.Diagnostics));
-            Assert.That(WotProjection.IsProjection(resolved), Is.False);
+            Assert.That(WotProjection.IsProjection(resolved.Required()), Is.False);
             source.Verify(resolver => resolver.ResolveThingAsync(
                 "urn:plan:source", It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
         }
@@ -230,10 +230,10 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(source.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument resolved = result.Value;
+            using WotDocument? resolved = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(WotProjection.IsProjection(resolved), Is.False);
+            Assert.That(WotProjection.IsProjection(resolved.Required()), Is.False);
             Assert.That(resolved.Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
                 Is.EqualTo("https://source.test/value"));
             source.Verify(resolver => resolver.ResolveThingAsync(
@@ -270,7 +270,7 @@ namespace Opc.Ua.Types.Tests.Wot
             });
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument resolved = result.Value;
+            using WotDocument? resolved = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);

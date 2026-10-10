@@ -74,7 +74,7 @@ namespace Opc.Ua.Client.FileSystem
     /// </para>
     /// </remarks>
     public sealed class UaFileStream : Stream
-#if !(NETSTANDARD2_1_OR_GREATER || NET)
+#if !NET
         , IAsyncDisposable
 #endif
     {
@@ -162,7 +162,7 @@ namespace Opc.Ua.Client.FileSystem
             return WriteCoreAsync(buffer, offset, count, cancellationToken);
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
         /// <inheritdoc/>
         public override async ValueTask<int> ReadAsync(
             Memory<byte> buffer,
@@ -409,6 +409,17 @@ namespace Opc.Ua.Client.FileSystem
                     }
 
                     int read = data.Length;
+                    if (read > chunkLen)
+                    {
+                        // A server that returns more than was asked for would
+                        // otherwise have the surplus written past the caller's
+                        // window (or throw out of CopyTo).
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadUnexpectedError,
+                            "Server returned {0} bytes for a {1} byte read.",
+                            read,
+                            chunkLen);
+                    }
                     data.Span.CopyTo(buffer.AsSpan(offset + total, read));
                     total += read;
                     m_position += read;
@@ -424,6 +435,12 @@ namespace Opc.Ua.Client.FileSystem
                     }
                 }
                 return total;
+            }
+            catch
+            {
+                // The server may have advanced its cursor before the reply was lost.
+                m_serverPosition = -1;
+                throw;
             }
             finally
             {
@@ -475,13 +492,19 @@ namespace Opc.Ua.Client.FileSystem
                     }
                 }
             }
+            catch
+            {
+                // A failed call does not prove that the server left the cursor unchanged.
+                m_serverPosition = -1;
+                throw;
+            }
             finally
             {
                 m_lock.Release();
             }
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
         private async ValueTask<int> ReadIntoSpanAsync(
             Memory<byte> buffer,
             CancellationToken ct)

@@ -247,11 +247,20 @@ namespace Opc.Ua
                     {
 #pragma warning disable CS8600 // Converting null literal or possible null value to non-nullable type.
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
-                        if (dataTypeDefinition.TryGetValue(out StructureDefinition structureType) &&
+                        if (!IsAbstract &&
+                            dataTypeDefinition.TryGetValue(out StructureDefinition structureType) &&
                             structureType.DefaultEncodingId.IsNull)
                         {
-                            // one time set the id for binary encoding, currently the only supported encoding
-                            structureType.SetDefaultEncodingId(context, NodeId, default);
+                            // Part 3 8.48: a concrete Structure reports its Default Binary
+                            // encoding (null only for abstract types). The id is resolved
+                            // through the encodeable factory on a copy, so concurrent reads
+                            // never mutate the shared stored definition.
+                            var completed = (StructureDefinition)structureType.Clone();
+                            completed.SetDefaultEncodingId(context, NodeId, default);
+                            if (!completed.DefaultEncodingId.IsNull)
+                            {
+                                dataTypeDefinition = new ExtensionObject(completed);
+                            }
                         }
 #pragma warning restore CS8602, CS8600
                         value = dataTypeDefinition;
@@ -281,14 +290,63 @@ namespace Opc.Ua
             switch (attributeId)
             {
                 case Attributes.DataTypeDefinition:
-                    if (!value.TryGetValue(out ExtensionObject dataTypeDefinition))
-                    {
-                        dataTypeDefinition = default;
-                    }
-
+                    // an attribute that is not writable is rejected before its value
+                    // is validated (Part 4 5.11.4.4 Bad_NotWritable).
                     if ((WriteMask & AttributeWriteMask.DataTypeDefinition) == 0)
                     {
                         return StatusCodes.BadNotWritable;
+                    }
+
+                    DefinitionKind requiredKind = GetRequiredDefinitionKind(context);
+
+                    if (!value.TryGetValue(out ExtensionObject dataTypeDefinition))
+                    {
+                        // only a Null value clears the definition; any other type is
+                        // not a DataTypeDefinition (Part 4 7.38.2 Bad_TypeMismatch).
+                        if (!value.IsNull)
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+
+                        dataTypeDefinition = default;
+                    }
+
+                    if (dataTypeDefinition.IsNull)
+                    {
+                        // the definition is mandatory for concrete structures, unions,
+                        // enumerations and option sets (Part 3 5.8.3), so it cannot be
+                        // cleared there.
+                        if (requiredKind != DefinitionKind.Unknown && !IsAbstract)
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+                    }
+                    else
+                    {
+                        // the body must decode to a DataTypeDefinition subtype; an opaque
+                        // (undecodable) or missing body is not a DataTypeDefinition either.
+                        if (!dataTypeDefinition.TryGetValue(
+                                out Opc.Ua.DataTypeDefinition? definition,
+                                context.AsMessageContext()))
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+
+                        // structures and unions carry a StructureDefinition, enumerations
+                        // and option sets an EnumDefinition (Part 3 5.8.3).
+                        if ((requiredKind == DefinitionKind.Structure &&
+                                definition is not StructureDefinition) ||
+                            (requiredKind == DefinitionKind.Enum &&
+                                definition is not EnumDefinition))
+                        {
+                            return StatusCodes.BadTypeMismatch;
+                        }
+
+                        if (!dataTypeDefinition.TryGetValue(out IEncodeable? _))
+                        {
+                            // keep the decoded form so reads return the definition.
+                            dataTypeDefinition = new ExtensionObject(definition);
+                        }
                     }
 
                     if (OnWriteDataTypeDefinition is { } onWriteDataTypeDefinition)
@@ -298,13 +356,64 @@ namespace Opc.Ua
 
                     if (ServiceResult.IsGood(result))
                     {
-                        m_dataTypeDefinition = dataTypeDefinition;
+                        // Through the property so the change mask is raised and
+                        // monitored items on the attribute are notified.
+                        DataTypeDefinition = dataTypeDefinition;
                     }
 
                     return result!;
                 default:
                     return base.WriteNonValueAttribute(context, attributeId, value);
             }
+        }
+
+        /// <summary>
+        /// The DataTypeDefinition subtype a DataType requires (Part 3 5.8.3).
+        /// </summary>
+        private enum DefinitionKind
+        {
+            Unknown,
+            Structure,
+            Enum
+        }
+
+        /// <summary>
+        /// Determines which DataTypeDefinition subtype the DataType requires
+        /// from its supertype chain: DataTypes derived from OptionSet or
+        /// Enumeration require an EnumDefinition, other DataTypes derived from
+        /// Structure (including Union) a StructureDefinition (Part 3 5.8.3).
+        /// The chain is resolved through the SuperTypeId and the context type
+        /// table; if it cannot be resolved (or the DataType is a UInteger
+        /// subtype, which only requires an EnumDefinition when it represents an
+        /// OptionSet) the kind is unknown and no definition kind is enforced.
+        /// </summary>
+        private DefinitionKind GetRequiredDefinitionKind(ISystemContext context)
+        {
+            NodeId superTypeId = SuperTypeId;
+
+            if (superTypeId.IsNull)
+            {
+                return DefinitionKind.Unknown;
+            }
+
+            if (IsTypeOf(context, superTypeId, DataTypeIds.OptionSet) ||
+                IsTypeOf(context, superTypeId, DataTypeIds.Enumeration))
+            {
+                return DefinitionKind.Enum;
+            }
+
+            if (IsTypeOf(context, superTypeId, DataTypeIds.Structure))
+            {
+                return DefinitionKind.Structure;
+            }
+
+            return DefinitionKind.Unknown;
+        }
+
+        private static bool IsTypeOf(ISystemContext context, NodeId typeId, NodeId superTypeId)
+        {
+            return typeId == superTypeId ||
+                (context.TypeTable != null && context.TypeTable.IsTypeOf(typeId, superTypeId));
         }
 
         private ExtensionObject m_dataTypeDefinition;

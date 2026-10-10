@@ -1749,7 +1749,7 @@ namespace Opc.Ua.WotCon.Server.Registry
 
         private static void AppendToHash(IncrementalHash hash, ByteString chunk)
         {
-#if NETFRAMEWORK || NETSTANDARD2_0
+#if NETFRAMEWORK
             hash.AppendData(chunk.Span.ToArray());
 #else
             hash.AppendData(chunk.Span);
@@ -1780,7 +1780,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             for (int i = 0; i < bytes.Length; i++)
             {
                 // TODO: the span overload of byte.Parse is only available on
-                // .NET Core; this project also targets net472/net48, where the
+                // .NET Core; this project also targets net48, where the
                 // string overload is the portable equivalent. Revisit if the
                 // minimum TFM floor is ever raised to drop those targets.
 #pragma warning disable CA1846
@@ -2502,7 +2502,7 @@ namespace Opc.Ua.WotCon.Server.Registry
                 bufferSize: 4096,
                 FileOptions.WriteThrough | FileOptions.Asynchronous);
             fileCreated?.Invoke(path);
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
             await stream.WriteAsync(bytes.AsMemory(), cancellationToken).ConfigureAwait(false);
 #else
             await stream.WriteAsync(bytes, 0, bytes.Length, cancellationToken).ConfigureAwait(false);
@@ -2566,7 +2566,7 @@ namespace Opc.Ua.WotCon.Server.Registry
             string path,
             CancellationToken cancellationToken)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET
+#if NET
             return await File.ReadAllBytesAsync(path, cancellationToken).ConfigureAwait(false);
 #else
             await Task.CompletedTask.ConfigureAwait(false);

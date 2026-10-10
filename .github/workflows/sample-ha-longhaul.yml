@@ -2,11 +2,14 @@ name: Sample HA Long-Haul Test
 
 # Long-haul high-availability soak of the redundant sample applications
 # (RedundantServer / RedundantClient / RedundantPubSub). These tests are marked
-# [Explicit] so they never run on pull requests; the short-haul variants of the
-# same scenarios run automatically as part of the normal Build and Test workflow.
+# [Explicit] so the normal CI workflow never runs them; the short-haul variants
+# of the same scenarios run there automatically.
 #
 # Run on demand (Actions -> Sample HA Long-Haul Test -> Run workflow) and choose
 # the duration, or let the weekly schedule exercise the default one-hour soak.
+# Pull requests labelled 'soak' run a 15-minute-per-scenario soak; it is not a
+# required check. Adding the label starts a run; every later push to the
+# labelled pull request starts a new one and cancels the run in progress.
 on:
   workflow_dispatch:
     inputs:
@@ -18,24 +21,44 @@ on:
   schedule:
     # Weekly, Sunday 04:00 UTC (after the nightly build/stress windows).
     - cron: '0 4 * * 0'
+  pull_request:
+    types: [labeled, synchronize, opened, reopened]
 
 permissions:
   contents: read
 
+# A pull request run is superseded by the next push. A 'labeled' event for any
+# other label gets a group of its own so it cannot cancel a run in progress.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.action == 'labeled' && github.event.label.name != 'soak' && github.run_id || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 jobs:
   sample-ha-longhaul:
-    name: Sample HA Long-Haul (${{ github.event.inputs.duration || '60' }} min)
+    name: Sample HA Long-Haul (${{ github.event_name == 'pull_request' && '15' || github.event.inputs.duration || '60' }} min/scenario)
+    # On a pull request only when it carries the 'soak' label, and not again
+    # when some other label is added to it.
+    if: >-
+      github.event_name != 'pull_request' ||
+      (contains(github.event.pull_request.labels.*.name, 'soak') &&
+      (github.event.action != 'labeled' || github.event.label.name == 'soak'))
     runs-on: ubuntu-latest
-    # Allow generous head-room beyond the configured soak duration for build,
-    # startup and teardown.
-    timeout-minutes: 120
+    # SAMPLE_HA_DURATION_MINUTES is the soak length of *each* scenario, and the
+    # fixture is [NonParallelizable], so the two soaks (PubSubFailoverSoakAsync
+    # and ClientReconnectSoakAsync) run back to back: the floor is 2 x duration,
+    # plus each test's own teardown head-room (5 and 10 minutes) before its
+    # CancellationTokenSource fires. The previous 110/120-minute budgets were
+    # below that floor for the default 60-minute duration, so the weekly
+    # schedule could never pass - it always tripped the step timeout. Keep the
+    # budgets above 2 x duration + teardown + build.
+    timeout-minutes: 180
 
     env:
-      DOTNET_VERSION: '10.0.x'
+      DOTNET_VERSION: '10.0.401'
       TARGET_FRAMEWORK: 'net10.0'
       CONFIGURATION: 'Release'
       TESTPROJECT: './tests/Opc.Ua.Redundancy.Samples.Tests/Opc.Ua.Redundancy.Samples.Tests.csproj'
-      SAMPLE_HA_DURATION_MINUTES: ${{ github.event.inputs.duration || '60' }}
+      SAMPLE_HA_DURATION_MINUTES: ${{ github.event_name == 'pull_request' && '15' || github.event.inputs.duration || '60' }}
 
     steps:
     - name: Checkout code
@@ -65,7 +88,7 @@ jobs:
 
     - name: Run long-haul HA soak
       run: |
-        echo "Running the sample HA long-haul soak for $SAMPLE_HA_DURATION_MINUTES minute(s)."
+        echo "Running the sample HA long-haul soak for $SAMPLE_HA_DURATION_MINUTES minute(s) per scenario."
         dotnet test ${{ env.TESTPROJECT }} \
           --configuration ${{ env.CONFIGURATION }} \
           --no-build \
@@ -75,7 +98,11 @@ jobs:
           --logger "trx;LogFileName=sample-ha-longhaul.trx" \
           --logger "console;verbosity=detailed" \
           --results-directory ./TestResults
-      timeout-minutes: 110
+      timeout-minutes: 150
+
+    - name: Check that the long-haul tests ran
+      shell: pwsh
+      run: ./.github/scripts/assert-tests-ran.ps1 -ResultsDirectory ./TestResults
 
     - name: Upload test results
       uses: actions/upload-artifact@v7

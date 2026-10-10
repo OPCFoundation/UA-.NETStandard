@@ -82,6 +82,7 @@ namespace Opc.Ua.SourceGeneration
         private const string kStandardUaNamespaceUri = "http://opcfoundation.org/UA/";
 
         private readonly IGeneratorContext m_context;
+        private Dictionary<string, string> m_nonNumericIdentifiedNodes = [];
 
         public StateMachineIdsGenerator(IGeneratorContext context)
         {
@@ -204,6 +205,8 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(Tokens.Name, entry.Name);
             context.Template.AddReplacement(Tokens.NamespacePrefix, namespacePrefix);
             context.Template.AddReplacement(Tokens.Identifier, entry.ObjectsConstantName);
+            context.Template.AddReplacement(Tokens.IdType, entry.IdType);
+            context.Template.AddReplacement(Tokens.IdModifier, entry.IdModifier);
             return context.Template.Render();
         }
 
@@ -254,6 +257,34 @@ namespace Opc.Ua.SourceGeneration
 
         private List<FsmTypeInfo> CollectFiniteStateMachineTypes()
         {
+            // The Objects constants this generator aliases are emitted by
+            // NodeIdGenerator from the flattened node list, keyed by symbolic id
+            // name, and typed uint or string depending on the node's identifier.
+            // The declaration children walked below carry no identifier of their
+            // own, so the constant type has to come from the flattened node.
+            //
+            // NodeIdGenerator reads the top-level nodes *and* each node's
+            // instance hierarchy (GetIdentifiers), and a state or transition of
+            // a FiniteStateMachineType only ever exists as a hierarchy entry -
+            // never as a top-level item. Indexing just the top-level list left
+            // the lookup permanently empty, so every alias fell back to "uint"
+            // and the CS0029 this was meant to fix survived.
+            m_nonNumericIdentifiedNodes = [];
+            foreach (NodeDesign node in m_context.ModelDesign.GetNodeDesigns())
+            {
+                AddIfNotNumericallyIdentified(node);
+
+                if (node.Hierarchy?.Nodes == null)
+                {
+                    continue;
+                }
+
+                foreach (KeyValuePair<string, HierarchyNode> entry in node.Hierarchy.Nodes)
+                {
+                    AddIfNotNumericallyIdentified((entry.Value?.Instance)!);
+                }
+            }
+
             var result = new List<FsmTypeInfo>();
             foreach (NodeDesign node in m_context.ModelDesign.GetNodeDesigns())
             {
@@ -263,7 +294,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                FsmTypeInfo info = BuildMachineInfo(objectType);
+                FsmTypeInfo? info = BuildMachineInfo(objectType);
                 if (info != null)
                 {
                     result.Add(info);
@@ -275,7 +306,7 @@ namespace Opc.Ua.SourceGeneration
 
         private static bool IsFiniteStateMachineSubtype(ObjectTypeDesign type)
         {
-            TypeDesign current = type;
+            TypeDesign? current = type;
             while (current != null)
             {
                 if (string.Equals(current.SymbolicName?.Name, kFiniteStateMachineTypeName,
@@ -290,7 +321,7 @@ namespace Opc.Ua.SourceGeneration
             return false;
         }
 
-        private FsmTypeInfo BuildMachineInfo(ObjectTypeDesign objectType)
+        private FsmTypeInfo? BuildMachineInfo(ObjectTypeDesign objectType)
         {
             // FiniteStateMachineType itself is abstract / has no child
             // state objects — skip it; only concrete subtypes get IDs.
@@ -302,7 +333,7 @@ namespace Opc.Ua.SourceGeneration
                 return null;
             }
 
-            InstanceDesign[] children = objectType.Children?.Items;
+            InstanceDesign[]? children = objectType.Children?.Items;
             if (children == null || children.Length == 0)
             {
                 return null;
@@ -345,21 +376,53 @@ namespace Opc.Ua.SourceGeneration
             return info;
         }
 
-        private static FsmEntry BuildStateEntry(
-            string parentTypeName, ObjectDesign child, string numberPropertyName)
+        /// <summary>
+        /// Records the C# type of a node whose <c>Objects</c> constant
+        /// NodeIdGenerator does not emit as a <c>uint</c> - that is, one without
+        /// a numeric identifier. Guid and Opaque identified nodes are emitted as
+        /// their identifier type, everything else as a <c>string</c>.
+        /// </summary>
+        private void AddIfNotNumericallyIdentified(NodeDesign node)
+        {
+            if (node is ObjectDesign &&
+                !node.NumericIdSpecified &&
+                node.SymbolicId?.Name != null)
+            {
+                if (node.HasNonConstantIdentifier())
+                {
+                    ModelDesignExtensions.GetIdentifierAsCode(
+                        node.GetIdentifier()!,
+                        out string? idType);
+                    m_nonNumericIdentifiedNodes[node.SymbolicId.Name] = idType!;
+                    return;
+                }
+                m_nonNumericIdentifiedNodes[node.SymbolicId.Name] = "string";
+            }
+        }
+
+        private FsmEntry BuildStateEntry(
+            string? parentTypeName, ObjectDesign child, string numberPropertyName)
         {
             string name = child.SymbolicName?.Name ?? string.Empty;
             uint? number = ExtractNumberProperty(child, numberPropertyName);
             string objectsConstantName = string.IsNullOrEmpty(parentTypeName)
                 ? name
                 : CoreUtils.Format("{0}_{1}", parentTypeName, name);
-            return new FsmEntry(name, number, objectsConstantName);
+            // The Objects constant this entry aliases is emitted by NodeIdGenerator as a
+            // uint only when the node carries a numeric identifier; string, Guid and
+            // Opaque identified nodes get a constant of their own type, so the alias
+            // has to follow the same type.
+            if (!m_nonNumericIdentifiedNodes.TryGetValue(objectsConstantName, out string? idType))
+            {
+                idType = "uint";
+            }
+            return new FsmEntry(name, number, objectsConstantName, idType);
         }
 
         private static uint? ExtractNumberProperty(
             ObjectDesign parent, string propertyName)
         {
-            InstanceDesign[] grandchildren = parent.Children?.Items;
+            InstanceDesign[]? grandchildren = parent.Children?.Items;
             if (grandchildren == null)
             {
                 return null;
@@ -407,7 +470,7 @@ namespace Opc.Ua.SourceGeneration
 
         private sealed class FsmTypeInfo
         {
-            public FsmTypeInfo(string typeName)
+            public FsmTypeInfo(string? typeName)
             {
                 TypeName = typeName ?? string.Empty;
             }
@@ -419,16 +482,26 @@ namespace Opc.Ua.SourceGeneration
 
         private sealed class FsmEntry
         {
-            public FsmEntry(string name, uint? number, string objectsConstantName)
+            public FsmEntry(string name, uint? number, string objectsConstantName, string idType)
             {
                 Name = name ?? string.Empty;
                 Number = number;
                 ObjectsConstantName = objectsConstantName ?? string.Empty;
+                IdType = idType ?? "uint";
             }
 
             public string Name { get; }
             public uint? Number { get; }
             public string ObjectsConstantName { get; }
+            public string IdType { get; }
+
+            /// <summary>
+            /// Guid and Opaque identifiers have no C# constant form, so the
+            /// alias of such an identifier is a static readonly field.
+            /// </summary>
+            public string IdModifier => IdType is "uint" or "string"
+                ? "const"
+                : "static readonly";
         }
     }
 }

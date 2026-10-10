@@ -101,6 +101,74 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void PublishResponsePreservesServerSequenceAvailability()
+        {
+            using var subscription = new Subscription(m_telemetry);
+            m_mockContext.Setup(context => context.Subscriptions).Returns([subscription]);
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+            ArrayOf<uint> available = new uint[] { 9, 10, 11 }.ToArrayOf();
+
+            engine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTimeUtc.Now },
+                subscription.Id,
+                available,
+                false,
+                new NotificationMessage
+                {
+                    SequenceNumber = 11,
+                    PublishTime = DateTimeUtc.Now,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                });
+
+            Assert.That(subscription.AvailableSequenceNumbers.ToArray(), Is.EquivalentTo(available.ToArray()!));
+        }
+
+        /// <summary>
+        /// A Republish response has no available sequence numbers. It must
+        /// neither wipe the subscription's list (so other missing messages are
+        /// still republished) nor drop pending acknowledgements (L7-1).
+        /// </summary>
+        [Test]
+        public void RepublishResponseKeepsAvailableSequenceNumbersAndAcknowledgements()
+        {
+            m_mockContext.Setup(c => c.ServerState).Returns(ServerState.Running);
+            using var subscription = new Subscription(m_telemetry);
+            m_mockContext.Setup(context => context.Subscriptions).Returns([subscription]);
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+            ArrayOf<uint> available = new uint[] { 7, 8, 9 }.ToArrayOf();
+
+            engine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTimeUtc.Now },
+                subscription.Id,
+                available,
+                false,
+                new NotificationMessage
+                {
+                    SequenceNumber = 9,
+                    PublishTime = DateTimeUtc.Now,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                });
+            engine.AddPendingAcknowledgement(subscription.Id, 30);
+
+            engine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTimeUtc.Now },
+                subscription.Id,
+                default,
+                false,
+                new NotificationMessage
+                {
+                    SequenceNumber = 7,
+                    PublishTime = DateTimeUtc.Now,
+                    NotificationData = [new ExtensionObject(new DataChangeNotification())]
+                },
+                republished: true);
+
+            Assert.That(subscription.AvailableSequenceNumbers.ToArray(), Is.EquivalentTo(available.ToArray()!));
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(subscription.Id), Is.EqualTo(3),
+                "The acks for 9 and 30 are kept and the republished 7 is added.");
+        }
+
+        [Test]
         public void StartPublishingWithNoSubscriptionsDoesNothing()
         {
             m_mockContext.Setup(c => c.Subscriptions)
@@ -229,7 +297,7 @@ namespace Opc.Ua.Client.Tests
         public void ConstructorThrowsOnNullContext()
         {
             Assert.That(
-                () => new ClassicSubscriptionEngine(null),
+                () => new ClassicSubscriptionEngine(null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -386,6 +454,50 @@ namespace Opc.Ua.Client.Tests
             m_mockContext.Verify(c => c.OnPublishNotification(
                 It.IsAny<Subscription>(),
                 It.IsAny<NotificationEventArgs>()), Times.Never);
+        }
+
+        /// <summary>
+        /// A pending acknowledgement exactly 2^31 away from the latest
+        /// sequence number must not throw from Math.Abs(int.MinValue) and
+        /// abort the publish response (L4-1).
+        /// </summary>
+        [Test]
+        public void ProcessPublishResponseToleratesAcknowledgementHalfTheSequenceSpaceAway()
+        {
+            m_mockContext.Setup(c => c.ServerState).Returns(ServerState.Running);
+            m_mockContext.Setup(c => c.Subscriptions).Returns([]);
+            m_mockContext.Setup(c => c.DeleteSubscriptionsOnClose).Returns(false);
+            using var engine = new ClassicSubscriptionEngine(m_mockContext.Object);
+            engine.AddPendingAcknowledgement(7, 0x80000000u);
+
+            Assert.That(() => engine.ProcessPublishResponse(
+                new ResponseHeader { Timestamp = DateTime.UtcNow },
+                7,
+                [],
+                false,
+                new NotificationMessage
+                {
+                    SequenceNumber = 1,
+                    PublishTime = DateTime.UtcNow,
+                    NotificationData = []
+                }), Throws.Nothing);
+
+            Assert.That(engine.RemoveAcknowledgementsForSubscription(7), Is.Zero,
+                "An acknowledgement far outside the tolerance is dropped.");
+        }
+
+        [TestCase(10u, 1u, true)]
+        [TestCase(1u, 10u, true)]
+        [TestCase(1u, uint.MaxValue, true)]
+        [TestCase(20u, 1u, false)]
+        [TestCase(0x80000000u, 0u, false)]
+        [TestCase(0u, 0x80000000u, false)]
+        public void OutOfOrderThresholdIsWrapAwareAndNeverThrows(
+            uint sequenceNumber, uint latest, bool expected)
+        {
+            Assert.That(
+                ClassicSubscriptionEngine.IsWithinOutOfOrderThreshold(sequenceNumber, latest),
+                Is.EqualTo(expected));
         }
 
         [Test]

@@ -146,7 +146,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Writes an asynchronous method declaration.
         /// </summary>
-        private TemplateString LoadTemplate_InvokeServiceAsyncParameters(ILoadContext context)
+        private TemplateString? LoadTemplate_InvokeServiceAsyncParameters(ILoadContext context)
         {
             if (context.Target is not Service serviceType)
             {
@@ -159,9 +159,9 @@ namespace Opc.Ua.SourceGeneration
                 serviceType.Name);
             context.Out.Write("    secureChannelContext");
 
-            if (serviceType.Request != null || serviceType.Request.Fields.Length > 0)
+            if (serviceType.Request?.Fields is { Length: > 0 } fields)
             {
-                foreach (Parameter field in serviceType.Request.Fields)
+                foreach (Parameter field in fields)
                 {
                     context.Out.WriteLine(",");
                     context.Out.Write("    request.{0}", field.Name);
@@ -176,7 +176,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Writes a synchronous method declaration for known types.
         /// </summary>
-        private TemplateString LoadTemplate_KnownType(ILoadContext context)
+        private TemplateString? LoadTemplate_KnownType(ILoadContext context)
         {
             if (context.Target is not Service serviceType)
             {

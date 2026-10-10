@@ -50,14 +50,14 @@ namespace Opc.Ua.Client.TestFramework
         private const uint kDefaultOperationLimits = 5000;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
-        private ApplicationInstance m_application;
+        private ApplicationInstance m_application = null!;
         private int m_disposed;
 
-        public ApplicationConfiguration Config { get; private set; }
-        public ConfiguredEndpoint Endpoint { get; private set; }
-        public string EndpointUrl { get; private set; }
-        public string ReverseConnectUri { get; private set; }
-        public ReverseConnectManager ReverseConnectManager { get; private set; }
+        public ApplicationConfiguration Config { get; private set; } = null!;
+        public ConfiguredEndpoint Endpoint { get; private set; } = null!;
+        public string EndpointUrl { get; private set; } = null!;
+        public string ReverseConnectUri { get; private set; } = null!;
+        public ReverseConnectManager ReverseConnectManager { get; private set; } = null!;
         public uint SessionTimeout { get; set; } = 10000;
         public int OperationTimeout { get; set; } = 10000;
 
@@ -68,7 +68,7 @@ namespace Opc.Ua.Client.TestFramework
             Utils.TraceMasks.Information;
 
         public ISessionFactory SessionFactory { get; set; }
-        public ActivityListener ActivityListener { get; private set; }
+        public ActivityListener ActivityListener { get; private set; } = null!;
 
         /// <summary>
         /// Optional <see cref="Bindings.ITransportBindingRegistry"/>
@@ -78,7 +78,7 @@ namespace Opc.Ua.Client.TestFramework
         /// the right factory for the URI scheme (e.g. Kestrel-TCP
         /// instead of the raw-socket TCP listener).
         /// </summary>
-        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; } = null!;
 
         /// <summary>
         /// Subscription engine factory to inject into every session
@@ -100,7 +100,7 @@ namespace Opc.Ua.Client.TestFramework
         /// <see cref="UseSubscriptionEngineFactory"/> to rebuild the
         /// factory.
         /// </remarks>
-        public ISubscriptionEngineFactory SubscriptionEngineFactory { get; private set; }
+        public ISubscriptionEngineFactory SubscriptionEngineFactory { get; private set; } = null!;
 
         /// <summary>
         /// Configure the engine factory used by this fixture's
@@ -192,12 +192,12 @@ namespace Opc.Ua.Client.TestFramework
             if (ReverseConnectManager != null)
             {
                 await ReverseConnectManager.DisposeAsync().ConfigureAwait(false);
-                ReverseConnectManager = null;
+                ReverseConnectManager = null!;
             }
             if (m_application != null)
             {
                 await m_application.DisposeAsync().ConfigureAwait(false);
-                m_application = null;
+                m_application = null!;
             }
             if (Config?.CertificateManager is IAsyncDisposable asyncCertificateManager)
             {
@@ -207,7 +207,7 @@ namespace Opc.Ua.Client.TestFramework
             {
                 certificateManager.Dispose();
             }
-            Config = null;
+            Config = null!;
         }
 
         /// <summary>
@@ -215,7 +215,7 @@ namespace Opc.Ua.Client.TestFramework
         /// </summary>
         /// <exception cref="InvalidOperationException"></exception>
         public async Task LoadClientConfigurationAsync(
-            string pkiRoot = null,
+            string? pkiRoot = null,
             string clientName = "TestClient")
         {
             if (m_application != null)
@@ -295,6 +295,11 @@ namespace Opc.Ua.Client.TestFramework
                 try
                 {
                     var reverseConnectUri = new Uri($"{uriScheme}://localhost:{testPort}");
+                    if (Utils.IsUriWssScheme(reverseConnectUri.AbsoluteUri))
+                    {
+                        // The client's certificate carries the machine name as its DNS identity.
+                        reverseConnectUri = new Uri(Utils.ReplaceLocalhost(reverseConnectUri.AbsoluteUri));
+                    }
                     ReverseConnectManager.AddEndpoint(reverseConnectUri, Config);
                     await ReverseConnectManager.StartServiceAsync(Config).ConfigureAwait(false);
                     ReverseConnectUri = reverseConnectUri.ToString();
@@ -347,16 +352,16 @@ namespace Opc.Ua.Client.TestFramework
                 try
                 {
                     EndpointDescription endpointDescription =
-                        await CoreClientUtils.SelectEndpointAsync(
+                        (await CoreClientUtils.SelectEndpointAsync(
                             Config,
                             endpointUrl,
                             true,
                             m_telemetry,
-                            ct).ConfigureAwait(false);
+                            ct).ConfigureAwait(false))!;
                     var endpointConfiguration = EndpointConfiguration.Create(Config);
                     var endpoint = new ConfiguredEndpoint(
                         null,
-                        endpointDescription,
+                        endpointDescription!,
                         endpointConfiguration);
 
                     return await ConnectAsync(endpoint).ConfigureAwait(false);
@@ -386,7 +391,7 @@ namespace Opc.Ua.Client.TestFramework
             Uri url,
             string securityProfile,
             ArrayOf<EndpointDescription> endpoints = default,
-            IUserIdentity userIdentity = null)
+            IUserIdentity? userIdentity = null)
         {
             string uri = url.AbsoluteUri;
             Uri getEndpointsUrl = url;
@@ -486,7 +491,7 @@ namespace Opc.Ua.Client.TestFramework
         /// <exception cref="ArgumentNullException"><paramref name="endpoint"/> is <c>null</c>.</exception>
         public async Task<ISession> ConnectAsync(
             ConfiguredEndpoint endpoint,
-            IUserIdentity userIdentity = null)
+            IUserIdentity? userIdentity = null)
         {
             endpoint ??= Endpoint ?? throw new ArgumentNullException(nameof(endpoint));
 
@@ -496,7 +501,7 @@ namespace Opc.Ua.Client.TestFramework
                     endpoint,
                     false,
                     false,
-                    Config.ApplicationName,
+                    Config.ApplicationName!,
                     SessionTimeout,
                     userIdentity,
                     default)
@@ -506,7 +511,7 @@ namespace Opc.Ua.Client.TestFramework
 
             session.KeepAlive += Session_KeepAlive;
 
-            EndpointUrl = session.ConfiguredEndpoint.EndpointUrl.ToString();
+            EndpointUrl = session.ConfiguredEndpoint.EndpointUrl!.ToString();
 
             return session;
         }
@@ -521,7 +526,7 @@ namespace Opc.Ua.Client.TestFramework
         {
             return SessionFactory.CreateChannelAsync(
                 Config,
-                null,
+                null!,
                 endpoint,
                 updateBeforeConnect,
                 checkDomain: false);
@@ -572,17 +577,17 @@ namespace Opc.Ua.Client.TestFramework
             Uri url,
             string securityPolicy)
         {
-            EndpointDescription selectedEndpoint = null;
+            EndpointDescription? selectedEndpoint = null;
 
             // select the best endpoint to use based on the selected URL and the UseSecurity checkbox.
             foreach (EndpointDescription endpoint in endpoints)
             {
                 // check for a match on the URL scheme.
-                if (endpoint.EndpointUrl.StartsWith(url.Scheme, StringComparison.Ordinal))
+                if (endpoint.EndpointUrl!.StartsWith(url.Scheme, StringComparison.Ordinal))
                 {
                     // skip unsupported security policies
                     if (!configuration.SecurityConfiguration.SupportedSecurityPolicies.Contains(
-                            endpoint.SecurityPolicyUri))
+                            endpoint.SecurityPolicyUri!))
                     {
                         continue;
                     }
@@ -603,7 +608,7 @@ namespace Opc.Ua.Client.TestFramework
                 }
             }
             // return the selected endpoint.
-            return selectedEndpoint;
+            return selectedEndpoint!;
         }
 
         /// <summary>
@@ -698,7 +703,7 @@ namespace Opc.Ua.Client.TestFramework
         public void StopActivityListener()
         {
             ActivityListener?.Dispose();
-            ActivityListener = null;
+            ActivityListener = null!;
         }
 
         private void Session_KeepAlive(ISession session, KeepAliveEventArgs e)

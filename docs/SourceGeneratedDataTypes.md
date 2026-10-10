@@ -5,6 +5,43 @@ implements the `IEncodeable` interface for annotated POCO classes and enums. Thi
 eliminates the need to hand-write `Encode`, `Decode`, `IsEqual`, and `Clone`
 methods for custom OPC UA data types.
 
+## Contents
+
+- [Quick Start](#quick-start)
+- [Prerequisites](#prerequisites)
+  - [Project Reference](#project-reference-internal-development)
+  - [NuGet Package](#nuget-package-external-consumers)
+- [The `DataType` Attribute](#the-datatype-attribute)
+  - [Properties](#properties)
+  - [Namespace Resolution Order](#namespace-resolution-order)
+- [The `DataTypeField` Attribute](#the-datatypefield-attribute)
+  - [Properties](#properties-1)
+  - [Field Selection Rules](#field-selection-rules)
+- [Supported Property Types](#supported-property-types)
+  - [Collections](#collections)
+  - [Enums and `IEncodeable` Types](#enums-and-iencodeable-types)
+  - [Unsupported Types](#unsupported-types)
+- [Class Variants](#class-variants)
+  - [Regular Partial Class](#regular-partial-class)
+  - [Sealed Partial Class](#sealed-partial-class)
+  - [Record Class](#record-class)
+  - [Derived Class](#derived-class-inheritance)
+  - [Internal Class](#internal-class)
+- [Enum Support](#enum-support)
+- [Registering Types with the Encodeable Factory](#registering-types-with-the-encodeable-factory)
+- [Complete Example](#complete-example)
+- [`StructureHandling` Enum](#structurehandling-enum)
+- [`DefaultValueHandling` Enum](#defaultvaluehandling-enum)
+  - [How It Works](#how-it-works)
+  - [Example: Configuration with Defaults](#example-configuration-with-defaults)
+- [Partial Init Properties](#partial-init-properties)
+  - [Example](#example)
+  - [How It Works](#how-it-works-1)
+  - [When to Use](#when-to-use)
+- [Requirements and Constraints](#requirements-and-constraints)
+- [Generated File Output](#generated-file-output)
+- [MSBuild Configuration](#msbuild-configuration)
+
 ## Quick Start
 
 1. Mark your class as `partial` and decorate it with `[DataType]`.
@@ -55,15 +92,24 @@ source generator project and import its props file:
 
 ### NuGet Package (external consumers)
 
-Reference the `OPCFoundation.NetStandard.Opc.Ua.SourceGeneration` package:
+Add the `OPCFoundation.NetStandard.Opc.Ua.SourceGeneration` package:
+
+```bash
+dotnet add package OPCFoundation.NetStandard.Opc.Ua.SourceGeneration
+```
+
+The package is a development dependency, so the command adds a reference that
+runs the generator at build time and does not flow to consumers of your
+project:
 
 ```xml
 <ItemGroup>
   <PackageReference
     Include="OPCFoundation.NetStandard.Opc.Ua.SourceGeneration"
-    Version="..."
-    OutputItemType="Analyzer"
-    ReferenceOutputAssembly="false" />
+    Version="...">
+    <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    <PrivateAssets>all</PrivateAssets>
+  </PackageReference>
 </ItemGroup>
 ```
 
@@ -407,48 +453,63 @@ public partial class MyConfig
 Controls how default values are handled during encode and decode. This is
 particularly important for configuration types where constructor defaults
 (e.g., `NonceLength = 32`, `RejectSHA1SignedCertificates = true`) should be
-preserved when the field is absent from XML/JSON.
+preserved when the field is absent from an XML configuration file.
 
 ```csharp
 [Flags]
 public enum DefaultValueHandling
 {
-    Exclude = 0,                       // Omit on write, preserve default on read
+    Exclude = 0,                       // Omit type defaults on write, keep declared default for missing XML
     Emit = 1,                          // Always write, even if default value
     SetIfMissing = 2,                  // Always set on read, even if absent
     Include = Emit | SetIfMissing      // Always write AND read (legacy behavior)
 }
 ```
 
+OPC 10000-6 (5.3.5, 5.4.1, 5.4.2.1, 5.4.7) defines a missing field as the
+default value of its *type* (Table 1: `0`, `false`, `null`, ...), not a
+per-field default. The generated code follows that rule for JSON and keeps a
+declared-default leniency only for XML decoding:
+
 | Value | Encode Behavior | Decode Behavior |
 |---|---|---|
-| `Exclude` (default) | Omits the field from XML/JSON if value equals `default(T)`. Binary always writes. | Skips assignment if field is absent from XML/JSON, preserving the constructor default. Binary always reads. |
+| `Exclude` (default) | Omits the field from XML/Compact JSON only if its value is the type default *and* the declared default (initializer) is the type default too; a field with any other declared default is always written. Binary and Verbose JSON always write. | JSON: a missing field is the type default. XML: a missing field keeps the declared (constructor/initializer) default, so configuration files that predate a field still load. Binary always reads. |
 | `Emit` | Always writes the field, even if default. | Same as `Exclude` for decode. |
-| `SetIfMissing` | Same as `Exclude` for encode. | Always assigns the decoded value, even if the field is absent (overwrites constructor default). |
+| `SetIfMissing` | Omits the field from XML/Compact JSON if its value is the type default. | A missing field is the type default in every encoding (overwrites the declared default). |
 | `Include` | Always writes. | Always reads and assigns. |
+
+Note that the Compact `JsonEncoder` drops a type-default value by itself even
+when the generated code writes it; since a missing JSON field decodes to the
+type default, e.g. `int Port = 4840` set to `0` still round trips as `0`.
+The `XmlEncoder` never writes a `null` reference (string, ByteString, ...),
+so a reference field with a non-null declared default that is set to `null`
+reads back from XML as its declared default. Use `SetIfMissing` or `Include`
+when that matters.
 
 ### How It Works
 
-The generated code uses two new `IEncoder`/`IDecoder` APIs:
+The generated code uses two `IEncoder`/`IDecoder` APIs:
 
-- **`IEncoder.CanOmitFields`**: Returns `true` for XML and JSON encoders,
-  `false` for Binary. Used by the encode guard.
+- **`IEncoder.CanOmitFields`**: Returns `true` for XML and for the Compact
+  JSON encoding, `false` for Binary and for the Verbose (and RawData) JSON
+  encoding, which include all fields (OPC 10000-6 5.4.1). Used by the encode
+  guard.
 - **`IDecoder.HasField(string)`**: Returns `true` if the field exists in the
   encoded data. Always `true` for Binary. Checks element/property existence
   for XML/JSON.
 
-Generated encode (when `Exclude` or `SetIfMissing`, i.e., `Emit` flag is NOT set):
+Generated encode (when `Emit` is NOT set and the declared default is the type
+default, or `SetIfMissing` is set):
 ```csharp
-if (!encoder.CanOmitFields || NonceLength != default)
-    encoder.WriteInt32("NonceLength", NonceLength);
+if (!encoder.CanOmitFields || Count != 0)
+    encoder.WriteInt32("Count", Count);
 ```
 
-Generated decode (when `Exclude` or `Emit`, i.e., `SetIfMissing` flag is NOT set):
+Generated decode (when `SetIfMissing` is NOT set):
 ```csharp
-if (decoder.HasField("NonceLength"))
+if (decoder.EncodingType != EncodingType.Xml || decoder.HasField("NonceLength"))
     NonceLength = decoder.ReadInt32("NonceLength");
 ```
-
 ### Example: Configuration with Defaults
 
 ```csharp
@@ -461,7 +522,8 @@ public partial class SecuritySettings
         RejectExpiredCertificates = true;
     }
 
-    // Exclude (default): omit from XML when 32, preserve 32 when absent
+    // Exclude (default): always written (32 is not the type default);
+    // a field missing from XML keeps 32, a field missing from JSON is 0
     [DataTypeField(Order = 0)]
     public int NonceLength { get; set; } = 32;
 

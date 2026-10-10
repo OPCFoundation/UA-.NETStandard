@@ -41,6 +41,27 @@ The reference server (`ConsoleReferenceServer`) advertises the
 configuration story (TLS certificates, mutual TLS, JSON sub-protocol
 restrictions, etc.).
 
+## Historical Access
+
+Use `--historian` against the reference server to run the Part 11 sample
+workflow:
+
+```bash
+dotnet ConsoleReferenceClient.dll --historian --autoaccept --nosecurity \
+  opc.tcp://localhost:62541/Quickstarts/ReferenceServer
+```
+
+The workflow uses `ISession.Historian()` to discover server and per-node
+configuration, follow paged raw and modified reads, read at-time and
+representative aggregate families, perform point and range deletes, and
+round-trip annotation Insert/Replace/Update/Remove batches. It also exercises
+generic `KeyValuePair` StructuredHistoryData through raw, modified, at-time,
+Insert, Replace, Update, and Remove operations, plus historical event
+insert/replace/update/delete. The workflow triggers and verifies automatic
+server-event capture, demonstrates server-generated EventIds, and releases
+continuation points automatically when an `await foreach` loop completes or
+exits early.
+
 ## Reverse Connect
 
 The OPC UA reverse connect feature allows an OPC UA server to initiate the connection to a client, rather than the traditional model where clients connect to servers. This is particularly useful in scenarios where the server is behind a firewall or NAT, making it difficult for clients to directly connect to it.
@@ -80,4 +101,3 @@ Place your user certificate in the TrustedUserCertificatesStore (the path can be
 Specify console parameters:
     `-uc Thumbprint` (of the user certificate to select)
     `-ucp Password` (of the user certificates private key (optional))
-

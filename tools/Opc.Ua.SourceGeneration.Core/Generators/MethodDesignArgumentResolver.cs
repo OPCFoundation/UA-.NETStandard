@@ -147,6 +147,40 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
+        /// Returns whether the method state of a method is a typed class that
+        /// is declared by a method type, rather than the base
+        /// <c>MethodState</c>.
+        /// </summary>
+        /// <remarks>
+        /// Typed method-state classes are only generated for method type
+        /// declarations. A method that declares its own arguments inline,
+        /// without a method type or a declaration that resolves to one, has
+        /// no typed class; its argument properties are still generated.
+        /// </remarks>
+        public static bool HasTypedMethodState(MethodDesign method)
+        {
+            if (method == null)
+            {
+                throw new ArgumentNullException(nameof(method));
+            }
+
+            if (method.TypeDefinition != null && method.MethodType == null)
+            {
+                return true;
+            }
+
+            MethodDesign definition = ResolveMethodDefinition(method);
+            if (definition.TypeDefinition != null || definition.IsMethodTypeDesign())
+            {
+                return true;
+            }
+
+            XmlQualifiedName identity = definition.SymbolicName ?? definition.SymbolicId;
+            return identity?.Name != null &&
+                identity.Name.EndsWith("MethodType", StringComparison.Ordinal);
+        }
+
+        /// <summary>
         /// Returns whether two methods have identical effective signatures.
         /// </summary>
         public static bool HaveSameMethodSignature(
@@ -254,8 +288,8 @@ namespace Opc.Ua.SourceGeneration
 
         private static Parameter[] ResolveArguments(
             Parameter[] methodArguments,
-            Parameter[] declarationArguments,
-            Parameter[] methodTypeArguments)
+            Parameter[]? declarationArguments,
+            Parameter[]? methodTypeArguments)
         {
             if (methodArguments is { Length: > 0 })
             {

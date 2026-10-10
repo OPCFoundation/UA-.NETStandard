@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -42,9 +43,14 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class DiagnosticsNodeManagerTests
     {
-        private Mock<IServerInternal> m_serverMock;
-        private Mock<ICoreNodeManager> m_coreNodeManagerMock;
-        private Mock<ISubscriptionManager> m_subscriptionManagerMock;
+        private static readonly string[] s_declaredAndContributedProfiles =
+            ["urn:profile:declared", "urn:profile:contributed"];
+
+        private static readonly string[] s_declaredProfiles = ["urn:profile:declared"];
+
+        private Mock<IServerInternal> m_serverMock = null!;
+        private Mock<ICoreNodeManager> m_coreNodeManagerMock = null!;
+        private Mock<ISubscriptionManager> m_subscriptionManagerMock = null!;
 
         private void SetupServerMock()
         {
@@ -122,6 +128,36 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public async Task PublishConformanceUnits_KeepsDeclaredProfilesAndWithdrawsContributedOnesAsync()
+        {
+            var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            BaseVariableState profiles = manager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerCapabilities_ServerProfileArray);
+            BaseVariableState units = manager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerCapabilities_ConformanceUnits);
+            ArrayOf<string> declared = ["urn:profile:declared"];
+            profiles.Value = Variant.From(declared);
+
+            await manager.PublishConformanceUnitsAsync(
+                [new QualifiedName("Contributed Unit")],
+                ["urn:profile:contributed", "urn:profile:declared"]).ConfigureAwait(false);
+            string[] first = profiles.Value.TryGetValue(out ArrayOf<string> afterFirst) ? afterFirst.ToArray()! : [];
+
+            await manager.PublishConformanceUnitsAsync([], []).ConfigureAwait(false);
+            string[] second = profiles.Value.TryGetValue(out ArrayOf<string> afterSecond) ? afterSecond.ToArray()! : [];
+
+            Assert.That(first, Is.EqualTo(s_declaredAndContributedProfiles));
+            Assert.That(second, Is.EqualTo(s_declaredProfiles));
+            Assert.That(
+                units.Value.TryGetValue(out ArrayOf<QualifiedName> unitsAfter) && unitsAfter.Count == 0,
+                Is.True);
+        }
+
+        [Test]
         public async Task CreateAddressSpace_DurableSubscriptionsEnabled_SetsOnCallAsync()
         {
             var config = new ApplicationConfiguration
@@ -193,7 +229,7 @@ namespace Opc.Ua.Server.Tests
                 manager.FindPredefinedNode<SetSubscriptionDurableMethodState>(MethodIds.Server_SetSubscriptionDurable);
 
             uint actualRevisedLifetime = 0;
-            ServiceResult result = setSubscriptionDurable.OnCall(
+            ServiceResult result = setSubscriptionDurable.OnCall!(
                 manager.SystemContext,
                 setSubscriptionDurable,
 ObjectIds.Server,
@@ -220,7 +256,7 @@ ObjectIds.Server,
             subMock.Setup(s => s.GetMonitoredItems(out serverHandles, out clientHandles));
 
             ISubscription outSub = subMock.Object;
-            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub)).Returns(true);
+            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub!)).Returns(true);
 
             using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
             var externalRefs = new Dictionary<NodeId, IList<IReference>>();
@@ -234,7 +270,7 @@ ObjectIds.Server,
             ArrayOf<Variant> inputs = [new Variant(1234u)];
             var outputs = new List<Variant> { Variant.Null, Variant.Null };
 
-            ServiceResult result = getMonitoredItems.OnCallMethod(
+            ServiceResult result = getMonitoredItems.OnCallMethod!(
                 sysContextMock.Object,
                 getMonitoredItems,
                 inputs,
@@ -261,8 +297,8 @@ ObjectIds.Server,
             var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
             SetupServerMock();
 
-            ISubscription outSub = null;
-            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub)).Returns(false);
+            ISubscription? outSub = null;
+            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub!)).Returns(false);
 
             using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
             var externalRefs = new Dictionary<NodeId, IList<IReference>>();
@@ -274,7 +310,7 @@ ObjectIds.Server,
             ArrayOf<Variant> inputs = [new Variant(1234u)];
             var outputs = new List<Variant> { Variant.Null, Variant.Null };
 
-            ServiceResult result = getMonitoredItems.OnCallMethod(
+            ServiceResult result = getMonitoredItems.OnCallMethod!(
                 sysContextMock.Object,
                 getMonitoredItems,
                 inputs,
@@ -295,7 +331,7 @@ ObjectIds.Server,
             subMock.Setup(s => s.ResendData(It.IsAny<OperationContext>()));
 
             ISubscription outSub = subMock.Object;
-            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub)).Returns(true);
+            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub!)).Returns(true);
 
             using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
             var externalRefs = new Dictionary<NodeId, IList<IReference>>();
@@ -309,13 +345,13 @@ ObjectIds.Server,
             var userIdentity = new UserIdentity();
             sessionMock.Setup(s => s.EffectiveIdentity).Returns(userIdentity);
 
-            var opContext = new OperationContext(reqHeader, null, RequestType.Read, RequestLifetime.None, sessionMock.Object);
+            var opContext = new OperationContext(reqHeader, null!, RequestType.Read, RequestLifetime.None, sessionMock.Object);
             var sysContext = new ServerSystemContext(m_serverMock.Object, opContext);
 
             ArrayOf<Variant> inputs = [new Variant(1234u)];
             var outputs = new List<Variant>();
 
-            ServiceResult result = resendData.OnCallMethod(
+            ServiceResult result = resendData.OnCallMethod!(
                 sysContext,
                 resendData,
                 inputs,
@@ -341,8 +377,8 @@ ObjectIds.Server,
             var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
             SetupServerMock();
 
-            ISubscription outSub = null;
-            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub)).Returns(false);
+            ISubscription? outSub = null;
+            m_subscriptionManagerMock.Setup(m => m.TryGetSubscription(It.IsAny<uint>(), out outSub!)).Returns(false);
 
             using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
             var externalRefs = new Dictionary<NodeId, IList<IReference>>();
@@ -356,13 +392,13 @@ ObjectIds.Server,
             var userIdentity = new UserIdentity();
             sessionMock.Setup(s => s.EffectiveIdentity).Returns(userIdentity);
 
-            var opContext = new OperationContext(reqHeader, null, RequestType.Read, RequestLifetime.None, sessionMock.Object);
+            var opContext = new OperationContext(reqHeader, null!, RequestType.Read, RequestLifetime.None, sessionMock.Object);
             var sysContext = new ServerSystemContext(m_serverMock.Object, opContext);
 
             ArrayOf<Variant> inputs = [new Variant(1234u)];
             var outputs = new List<Variant>();
 
-            ServiceResult result = resendData.OnCallMethod(
+            ServiceResult result = resendData.OnCallMethod!(
                 sysContext,
                 resendData,
                 inputs,
@@ -531,10 +567,12 @@ ObjectIds.Server,
 
             if (serverDiagnostics.SamplingIntervalDiagnosticsArray != null)
             {
-                // This array is not evaluated heavily on normal DoScan, so it stays BadWaitingForInitialData
+                // Sampling interval diagnostics are not collected; the array is empty but readable.
                 Assert.That(serverDiagnostics.SamplingIntervalDiagnosticsArray.StatusCode.Code,
-                    Is.EqualTo(StatusCodes.BadWaitingForInitialData));
+                    Is.EqualTo(StatusCodes.Good));
+                Assert.That(serverDiagnostics.SamplingIntervalDiagnosticsArray.Value, Is.Empty);
             }
+            Assert.That(serverDiagnostics.SubscriptionDiagnosticsArray?.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
 
             // The rest are populated with empty arrays due to no sessions in test
             if (serverDiagnostics.SubscriptionDiagnosticsArray != null)
@@ -554,6 +592,158 @@ ObjectIds.Server,
                 manager.FindPredefinedNode<ServerDiagnosticsSummaryState>(VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary);
             Assert.That(serverDiagSummary, Is.Not.Null);
             Assert.That(serverDiagSummary.StatusCode.Code, Is.EqualTo(StatusCodes.Good));
+        }
+
+        [Test]
+        public async Task SetDiagnosticsEnabledAsync_Toggle_HidesAndRestoresDiagnosticsAsync()
+        {
+            var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
+            var externalRefs = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalRefs).ConfigureAwait(false);
+
+            static ServiceResult SummaryCallback(ISystemContext ctx, NodeState node, ref Variant value)
+            {
+                value = Variant.FromStructure(new ServerDiagnosticsSummaryDataType { CumulatedSessionCount = 7 });
+                return ServiceResult.Good;
+            }
+            static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value) => ServiceResult.Good;
+
+            await manager.CreateServerDiagnosticsAsync(
+                manager.SystemContext,
+                new ServerDiagnosticsSummaryDataType(),
+                SummaryCallback,
+                CancellationToken.None).ConfigureAwait(false);
+
+            NodeId liveSessionId = await manager.CreateSessionDiagnosticsAsync(
+                manager.SystemContext,
+                new SessionDiagnosticsDataType { SessionName = "LiveSession" },
+                UpdateCallback,
+                new SessionSecurityDiagnosticsDataType(),
+                UpdateCallback).ConfigureAwait(false);
+            NodeId subscriptionId = await manager.CreateSubscriptionDiagnosticsAsync(
+                manager.SystemContext,
+                new SubscriptionDiagnosticsDataType { SubscriptionId = 42, SessionId = liveSessionId },
+                UpdateCallback).ConfigureAwait(false);
+
+            BaseVariableState cumulatedSessionCount = manager.FindPredefinedNode<BaseVariableState>(
+                VariableIds.Server_ServerDiagnostics_ServerDiagnosticsSummary_CumulatedSessionCount);
+            Assert.That(ReadValue(manager, cumulatedSessionCount).StatusCode, Is.EqualTo(StatusCodes.Good));
+
+            // Act: disable
+            await manager.SetDiagnosticsEnabledAsync(manager.SystemContext, false).ConfigureAwait(false);
+
+            DataValue disabledValue = ReadValue(manager, cumulatedSessionCount);
+            Assert.That(disabledValue.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
+            Assert.That(disabledValue.WrappedValue.IsNull, Is.True);
+            ServerDiagnosticsState serverDiagnostics = manager.FindPredefinedNode<ServerDiagnosticsState>(ObjectIds.Server_ServerDiagnostics);
+            Assert.That(
+                ReadValue(manager, serverDiagnostics.SubscriptionDiagnosticsArray!).StatusCode,
+                Is.EqualTo(StatusCodes.BadNotReadable));
+            Assert.That(manager.FindPredefinedNode<NodeState>(liveSessionId), Is.Null);
+            Assert.That(manager.FindPredefinedNode<NodeState>(subscriptionId), Is.Null);
+
+            // a session created while disabled gets an id but no node.
+            NodeId laterSessionId = await manager.CreateSessionDiagnosticsAsync(
+                manager.SystemContext,
+                new SessionDiagnosticsDataType { SessionName = "LaterSession" },
+                UpdateCallback,
+                new SessionSecurityDiagnosticsDataType(),
+                UpdateCallback).ConfigureAwait(false);
+            Assert.That(laterSessionId.IsNull, Is.False);
+            Assert.That(manager.FindPredefinedNode<NodeState>(laterSessionId), Is.Null);
+
+            // Act: enable
+            await manager.SetDiagnosticsEnabledAsync(manager.SystemContext, true).ConfigureAwait(false);
+
+            DataValue enabledValue = ReadValue(manager, cumulatedSessionCount);
+            Assert.That(enabledValue.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(enabledValue.WrappedValue.GetUInt32(), Is.EqualTo(7));
+
+            SessionDiagnosticsObjectState liveSession = manager.FindPredefinedNode<SessionDiagnosticsObjectState>(liveSessionId);
+            SessionDiagnosticsObjectState laterSession = manager.FindPredefinedNode<SessionDiagnosticsObjectState>(laterSessionId);
+            Assert.That(liveSession, Is.Not.Null, "The live session node is restored with its NodeId.");
+            Assert.That(laterSession, Is.Not.Null, "The session created while disabled gets its node.");
+            Assert.That(liveSession.SessionDiagnostics, Is.Not.Null);
+            Assert.That(liveSession.SessionDiagnostics.NodeId.IsNull, Is.False);
+            Assert.That(manager.FindPredefinedNode<SubscriptionDiagnosticsState>(subscriptionId), Is.Not.Null);
+
+            SessionsDiagnosticsSummaryState summary = manager.FindPredefinedNode<SessionsDiagnosticsSummaryState>(
+                ObjectIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary);
+            var references = new List<IReference>();
+            summary.GetReferences(manager.SystemContext, references, ReferenceTypeIds.HasComponent, false);
+            Assert.That(
+                references.Select(r => (NodeId)r.TargetId),
+                Is.SupersetOf([liveSessionId, laterSessionId]));
+            Assert.That(
+                references.Count(r => (NodeId)r.TargetId == liveSessionId),
+                Is.EqualTo(1),
+                "The summary must not reference a session twice.");
+
+            // deleting the restored nodes still works.
+            await manager.DeleteSubscriptionDiagnosticsAsync(manager.SystemContext, subscriptionId).ConfigureAwait(false);
+            await manager.DeleteSessionDiagnosticsAsync(manager.SystemContext, liveSessionId).ConfigureAwait(false);
+            Assert.That(manager.FindPredefinedNode<NodeState>(subscriptionId), Is.Null);
+            Assert.That(manager.FindPredefinedNode<NodeState>(liveSessionId), Is.Null);
+        }
+
+        [Test]
+        public async Task SetDiagnosticsEnabledAsync_EnableDuringDisable_KeepsRestoredNodesAsync()
+        {
+            var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
+            var externalRefs = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalRefs).ConfigureAwait(false);
+
+            // make the removal of the dynamic nodes asynchronous, as it is on a running server.
+            var slowNodeManager = new Mock<IMasterNodeManager>();
+            slowNodeManager.Setup(m => m.RemoveReferencesAsync(It.IsAny<List<LocalReference>>(), It.IsAny<CancellationToken>()))
+                .Returns(() => new ValueTask(Task.Delay(50)));
+            m_serverMock.Setup(s => s.NodeManager).Returns(slowNodeManager.Object);
+
+            static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value) => ServiceResult.Good;
+            var sessionIds = new List<NodeId>();
+            for (int ii = 0; ii < 3; ii++)
+            {
+                sessionIds.Add(await manager.CreateSessionDiagnosticsAsync(
+                    manager.SystemContext,
+                    new SessionDiagnosticsDataType { SessionName = "RacingSession" + ii },
+                    UpdateCallback,
+                    new SessionSecurityDiagnosticsDataType(),
+                    UpdateCallback).ConfigureAwait(false));
+            }
+
+            // the enable starts while the disable still has to delete the session node; it must
+            // run after the disable has finished and leave the restored node in place.
+            ValueTask disable = manager.SetDiagnosticsEnabledAsync(manager.SystemContext, false);
+            ValueTask enable = manager.SetDiagnosticsEnabledAsync(manager.SystemContext, true);
+            await disable.ConfigureAwait(false);
+            await enable.ConfigureAwait(false);
+
+            Assert.That(manager.DiagnosticsEnabled, Is.True);
+            foreach (NodeId sessionId in sessionIds)
+            {
+                Assert.That(
+                    manager.FindPredefinedNode<SessionDiagnosticsObjectState>(sessionId),
+                    Is.Not.Null,
+                    "A disable that finishes after the enable started must not delete the restored nodes.");
+            }
+        }
+
+        private static DataValue ReadValue(DiagnosticsNodeManager manager, NodeState node)
+        {
+            var value = new DataValue();
+            ServiceResult result = node.ReadAttribute(
+                manager.SystemContext,
+                Attributes.Value,
+                default,
+                default,
+                ref value);
+            return ServiceResult.IsBad(result) ? DataValue.FromStatusCode(result.StatusCode) : value;
         }
 
         [Test]
@@ -752,6 +942,146 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             Assert.That(permissionsOther.IsNull, Is.False);
             Assert.That(permissionsOther[0].Permissions, Is.EqualTo((uint)PermissionType.None),
                 "Other non-admin session should NOT have permissions on this session");
+
+            // 5. Any session may browse the server wide subscription array, whose entries are
+            // filtered per owning session; only an administrator may read its value.
+            NodeState subscriptionArray = manager.FindPredefinedNode<NodeState>(
+                VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
+            ArrayOf<RolePermissionType> permissionsArray = default;
+            subscriptionArray.OnReadUserRolePermissions!(otherContext, subscriptionArray, ref permissionsArray);
+            Assert.That(permissionsArray[0].Permissions, Is.EqualTo((uint)PermissionType.Browse),
+                "Non-admin sessions may browse, but not read, the subscription diagnostics array");
+
+            permissionsArray = default;
+            subscriptionArray.OnReadUserRolePermissions(adminContext, subscriptionArray, ref permissionsArray);
+            Assert.That(((PermissionType)permissionsArray[0].Permissions).HasFlag(PermissionType.Read), Is.True,
+                "Admin should read the subscription diagnostics array");
+
+            foreach (NodeId arrayId in new[]
+            {
+                VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray,
+                VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray
+            })
+            {
+                NodeState arrayNode = manager.FindPredefinedNode<NodeState>(arrayId);
+                permissionsArray = default;
+                arrayNode.OnReadUserRolePermissions!(otherContext, arrayNode, ref permissionsArray);
+                Assert.That(permissionsArray[0].Permissions, Is.EqualTo((uint)PermissionType.None), arrayId.ToString());
+            }
+        }
+
+        [Test]
+        public async Task DiagnosticsDescendantsAndTransferredSubscriptionsUseOwningSessionAsync()
+        {
+            var config = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            SetupServerMock();
+
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, config, NullLogger.Instance);
+            var externalRefs = new Dictionary<NodeId, IList<IReference>>();
+            await manager.CreateAddressSpaceAsync(externalRefs).ConfigureAwait(false);
+
+            static ServiceResult UpdateCallback(ISystemContext ctx, NodeState node, ref Variant value) => ServiceResult.Good;
+
+            NodeId sessionId = await manager.CreateSessionDiagnosticsAsync(
+                manager.SystemContext,
+                new SessionDiagnosticsDataType { SessionName = "Owner" },
+                UpdateCallback,
+                new SessionSecurityDiagnosticsDataType(),
+                UpdateCallback).ConfigureAwait(false);
+
+            var subscriptionDiagnostics = new SubscriptionDiagnosticsDataType
+            {
+                SessionId = sessionId,
+                SubscriptionId = 1
+            };
+            NodeId subscriptionId = await manager.CreateSubscriptionDiagnosticsAsync(
+                manager.SystemContext,
+                subscriptionDiagnostics,
+                UpdateCallback).ConfigureAwait(false);
+
+            SessionDiagnosticsObjectState sessionNode =
+                manager.FindPredefinedNode<SessionDiagnosticsObjectState>(sessionId);
+            SubscriptionDiagnosticsState subscriptionNode =
+                manager.FindPredefinedNode<SubscriptionDiagnosticsState>(subscriptionId);
+
+            Assert.That(sessionNode, Is.Not.Null);
+            Assert.That(subscriptionNode, Is.Not.Null);
+            var descendants = new List<BaseInstanceState>();
+            sessionNode.GetChildren(manager.SystemContext, descendants);
+            Assert.That(descendants, Is.Not.Empty);
+            foreach (BaseInstanceState descendant in descendants)
+            {
+                Assert.That(descendant.OnReadUserRolePermissions, Is.Not.Null);
+            }
+            Assert.That(subscriptionNode.OnReadUserRolePermissions, Is.Not.Null);
+
+            ServerSystemContext oldOwnerContext = CreateDiagnosticsReadContext(m_serverMock.Object, sessionId);
+            ArrayOf<RolePermissionType> permissions = default;
+            subscriptionNode.OnReadUserRolePermissions!(
+                oldOwnerContext,
+                subscriptionNode,
+                ref permissions);
+            Assert.That(permissions[0].Permissions, Is.Not.EqualTo((uint)PermissionType.None));
+
+            NodeId newSessionId = new(2, 1);
+            manager.RelinkSubscriptionDiagnostics(subscriptionId, sessionId, newSessionId);
+
+            permissions = default;
+            subscriptionNode.OnReadUserRolePermissions!(
+                oldOwnerContext,
+                subscriptionNode,
+                ref permissions);
+            Assert.That(permissions[0].Permissions, Is.EqualTo((uint)PermissionType.None));
+
+            ServerSystemContext newOwnerContext = CreateDiagnosticsReadContext(m_serverMock.Object, newSessionId);
+            permissions = default;
+            subscriptionNode.OnReadUserRolePermissions!(
+                newOwnerContext,
+                subscriptionNode,
+                ref permissions);
+            Assert.That(permissions[0].Permissions, Is.Not.EqualTo((uint)PermissionType.None));
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task SessionlessCallerDoesNotOwnOrphanedSubscriptionDiagnosticsAsync(bool restored)
+        {
+            SetupServerMock();
+            var configuration = new ApplicationConfiguration { ServerConfiguration = new ServerConfiguration() };
+            using var manager = new DiagnosticsNodeManager(m_serverMock.Object, configuration, NullLogger.Instance);
+            await manager.CreateAddressSpaceAsync(new Dictionary<NodeId, IList<IReference>>()).ConfigureAwait(false);
+            NodeId owner = restored ? NodeId.Null : new NodeId("former-owner", 1);
+            NodeId id = await manager.CreateSubscriptionDiagnosticsAsync(
+                manager.SystemContext,
+                new SubscriptionDiagnosticsDataType { SubscriptionId = 123, SessionId = owner },
+                static (_, _, ref _) => ServiceResult.Good).ConfigureAwait(false);
+            if (!restored)
+            {
+                manager.RelinkSubscriptionDiagnostics(id, owner, NodeId.Null);
+            }
+            SubscriptionDiagnosticsState node = manager.FindPredefinedNode<SubscriptionDiagnosticsState>(id);
+            using var operation = new OperationContext(
+                new RequestHeader(), null, RequestType.Read, RequestLifetime.None, new UserIdentity());
+            var context = new ServerSystemContext(m_serverMock.Object, operation);
+            ArrayOf<RolePermissionType> permissions = default;
+            node.OnReadUserRolePermissions!(context, node, ref permissions);
+
+            Assert.That(permissions, Is.Not.Empty);
+            foreach (RolePermissionType permission in permissions)
+            {
+                Assert.That(permission.Permissions, Is.EqualTo((uint)PermissionType.None));
+            }
+            var children = new List<BaseInstanceState>();
+            node.GetChildren(manager.SystemContext, children);
+            Assert.That(children, Is.Not.Empty);
+            foreach (BaseInstanceState child in children)
+            {
+                child.OnReadUserRolePermissions!(context, child, ref permissions);
+                foreach (RolePermissionType permission in permissions)
+                {
+                    Assert.That(permission.Permissions, Is.EqualTo((uint)PermissionType.None));
+                }
+            }
         }
 
         [Test]
@@ -857,36 +1187,36 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             SessionDiagnosticsArrayState sessionArrayNode = manager.FindPredefinedNode<SessionDiagnosticsArrayState>(
 VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionDiagnosticsArray);
             Variant arrayValue = default;
-            ServiceResult result = sessionArrayNode.OnSimpleReadValue(adminContext, sessionArrayNode, ref arrayValue);
+            ServiceResult result = sessionArrayNode.OnSimpleReadValue!(adminContext, sessionArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> sessionArray), Is.True);
             Assert.That(sessionArray.Count, Is.EqualTo(2));
-            sessionArray[0].TryGetValue(out SessionDiagnosticsDataType sessionDiagObj);
-            Assert.That(sessionDiagObj.SessionName, Is.EqualTo("TestSession"));
+            sessionArray[0].TryGetValue(out SessionDiagnosticsDataType? sessionDiagObj);
+            Assert.That(sessionDiagObj!.SessionName, Is.EqualTo("TestSession"));
 
             SessionSecurityDiagnosticsArrayState sessionSecurityArrayNode = manager.FindPredefinedNode<SessionSecurityDiagnosticsArrayState>(
 VariableIds.Server_ServerDiagnostics_SessionsDiagnosticsSummary_SessionSecurityDiagnosticsArray);
             arrayValue = default;
-            result = sessionSecurityArrayNode.OnSimpleReadValue(adminContext, sessionSecurityArrayNode, ref arrayValue);
+            result = sessionSecurityArrayNode.OnSimpleReadValue!(adminContext, sessionSecurityArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> sessionSecurityArray), Is.True);
             Assert.That(sessionSecurityArray.Count, Is.EqualTo(2));
-            sessionSecurityArray[0].TryGetValue(out SessionSecurityDiagnosticsDataType sessionSecDiagObj);
-            Assert.That(sessionSecDiagObj.SessionId, Is.EqualTo(sessionId));
+            sessionSecurityArray[0].TryGetValue(out SessionSecurityDiagnosticsDataType? sessionSecDiagObj);
+            Assert.That(sessionSecDiagObj!.SessionId, Is.EqualTo(sessionId));
 
             SubscriptionDiagnosticsArrayState subArrayNode = manager.FindPredefinedNode<SubscriptionDiagnosticsArrayState>(
 VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
 
             arrayValue = default;
-            result = subArrayNode.OnSimpleReadValue(adminContext, subArrayNode, ref arrayValue);
+            result = subArrayNode.OnSimpleReadValue!(adminContext, subArrayNode, ref arrayValue);
 
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> subArray), Is.True);
             Assert.That(subArray.Count, Is.EqualTo(2));
-            subArray[0].TryGetValue(out SubscriptionDiagnosticsDataType subDiagObj);
-            Assert.That(subDiagObj.SubscriptionId, Is.EqualTo(100));
+            subArray[0].TryGetValue(out SubscriptionDiagnosticsDataType? subDiagObj);
+            Assert.That(subDiagObj!.SubscriptionId, Is.EqualTo(100));
 
             // Test unauthorized non-admin user accessing their own session
             var normalIdentity = new UserIdentity("user", []);
@@ -910,8 +1240,8 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> normalSessionArray), Is.True);
             Assert.That(normalSessionArray.Count, Is.EqualTo(1));
-            normalSessionArray[0].TryGetValue(out SessionDiagnosticsDataType normalSessionDiagObj);
-            Assert.That(normalSessionDiagObj.SessionName, Is.EqualTo("TestSession"));
+            normalSessionArray[0].TryGetValue(out SessionDiagnosticsDataType? normalSessionDiagObj);
+            Assert.That(normalSessionDiagObj!.SessionName, Is.EqualTo("TestSession"));
 
             manager.ForceDiagnosticsScan();
 
@@ -921,8 +1251,8 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> normalSessionSecArray), Is.True);
             Assert.That(normalSessionSecArray.Count, Is.EqualTo(1));
-            normalSessionSecArray[0].TryGetValue(out SessionSecurityDiagnosticsDataType normalSessionSecDiagObj);
-            Assert.That(normalSessionSecDiagObj.SessionId, Is.EqualTo(sessionId));
+            normalSessionSecArray[0].TryGetValue(out SessionSecurityDiagnosticsDataType? normalSessionSecDiagObj);
+            Assert.That(normalSessionSecDiagObj!.SessionId, Is.EqualTo(sessionId));
 
             manager.ForceDiagnosticsScan();
 
@@ -932,8 +1262,8 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(arrayValue.TryGetValue(out ArrayOf<ExtensionObject> normalSubArray), Is.True);
             Assert.That(normalSubArray.Count, Is.EqualTo(1));
-            normalSubArray[0].TryGetValue(out SubscriptionDiagnosticsDataType normalSubDiagObj);
-            Assert.That(normalSubDiagObj.SessionId, Is.EqualTo(sessionId));
+            normalSubArray[0].TryGetValue(out SubscriptionDiagnosticsDataType? normalSubDiagObj);
+            Assert.That(normalSubDiagObj!.SessionId, Is.EqualTo(sessionId));
 
             // Test if recently scanned just returns Good
             result = sessionArrayNode.OnSimpleReadValue(adminContext, sessionArrayNode, ref arrayValue);
@@ -942,7 +1272,7 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             // Test behavior when diagnostics are disabled
             await manager.SetDiagnosticsEnabledAsync(manager.SystemContext, false).ConfigureAwait(false);
             result = sessionArrayNode.OnSimpleReadValue(adminContext, sessionArrayNode, ref arrayValue);
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadOutOfService));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
         }
 
         [Test]
@@ -1003,9 +1333,9 @@ VariableIds.Server_ServerDiagnostics_SubscriptionDiagnosticsArray);
             };
 
             var itemsToCreate = new List<MonitoredItemCreateRequest> { itemToCreate };
-            var createErrors = new List<ServiceResult> { null };
-            var filterErrors = new List<MonitoringFilterResult> { null };
-            var monitoredItems = new List<IMonitoredItem> { null };
+            var createErrors = new List<ServiceResult> { null! };
+            var filterErrors = new List<MonitoringFilterResult> { null! };
+            var monitoredItems = new List<IMonitoredItem> { null! };
 
             await manager.CreateMonitoredItemsAsync(
                 opContext,
@@ -1052,15 +1382,48 @@ TimestampsToReturn.Both,
 
             // Delete nodes
             var processedItems = new List<bool> { false };
-            var deleteErrors = new List<ServiceResult> { null };
+            var deleteErrors = new List<ServiceResult> { null! };
 
             await manager.DeleteMonitoredItemsAsync(
                 opContext,
-                [monitoredItem],
+                [monitoredItem!],
                 processedItems,
                 deleteErrors).ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(deleteErrors[0]), Is.True);
+        }
+
+        private static ServerSystemContext CreateDiagnosticsReadContext(
+            IServerInternal server,
+            NodeId sessionId)
+        {
+            var namespaces = new NamespaceTable();
+            namespaces.Append(Ua.Namespaces.OpcUa);
+            var identity = new RoleBasedIdentity(
+                new UserIdentity("owner", []),
+                [Role.AuthenticatedUser],
+                namespaces);
+            var session = new Mock<ISession>();
+            session.Setup(value => value.Id).Returns(sessionId);
+            session.Setup(value => value.EffectiveIdentity).Returns(identity);
+            var endpoint = new EndpointDescription
+            {
+                SecurityMode = MessageSecurityMode.SignAndEncrypt
+            };
+            var channelContext = new SecureChannelContext(
+                "1",
+                endpoint,
+                RequestEncoding.Binary,
+                clientChannelCertificate: null,
+                serverChannelCertificate: null,
+                channelThumbprint: null);
+            var operationContext = new OperationContext(
+                new RequestHeader(),
+                channelContext,
+                RequestType.Read,
+                RequestLifetime.None,
+                session.Object);
+            return new ServerSystemContext(server, operationContext);
         }
     }
 }

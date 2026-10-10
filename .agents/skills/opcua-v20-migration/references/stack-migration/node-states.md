@@ -2,6 +2,17 @@
 
 > **When to read this:** Read this when migrating custom NodeManagers, `NodeState` clone / read / write helpers (`Clone` -> `CreateCopy`, removed `BaseVariableState` helpers), the new `INodeManager3` role-permission hooks, `OnAfterCreate(CancellationToken)`, predefined-node processing, generics on `BaseVariableState` / `BaseVariableTypeState`, code that took `lock (node)` on a `NodeState` or used `NodeBrowser.DataLock`, or `INodeCache.InvalidateNode`.
 
+## Contents
+
+- [Node States](#node-states)
+  - [Generics and Typed BaseVariableState and BaseVariableTypeState](#generics-and-typed-basevariablestate-and-basevariabletypestate)
+  - [Predefined node processing](#predefined-node-processing)
+  - [NodeState Cloning and Lifecycle](#nodestate-cloning-and-lifecycle)
+  - [INodeManager3 - new role-permission and method-resolution hooks](#inodemanager3---new-role-permission-and-method-resolution-hooks)
+  - [NodeState guards itself; NodeBrowser is single-consumer (UA0027)](#nodestate-guards-itself-nodebrowser-is-single-consumer-ua0027)
+  - [NodeBrowser gains an async iteration seam](#nodebrowser-gains-an-async-iteration-seam)
+- [`INodeCache` changes](#inodecache-changes)
+
 ## Node States
 
 ### Generics and Typed BaseVariableState and BaseVariableTypeState
@@ -10,7 +21,7 @@ With the changes to Variant, the generic node state classes reflecting the inner
 
 1. T is a built in type -> use `VariantBuilder`
 2. T is a instance of `IEncodeable` (a complex structure) -> Use `StructureBuilder<T>` where T is the name of the structure.
-3. T is an instance of Enum (an enumeration) -> Use `EnumBuilder<T>` where T is the name fo the enumeration type.
+3. T is an instance of Enum (an enumeration) -> Use `EnumBuilder<T>` where T is the name of the enumeration type.
 
 E.g. to create an instance of a `PropertyState<T>` where T is `ArrayOf<ExtensionObject>` use
 
@@ -315,6 +326,55 @@ that to the browser's own `Next()`.
 
 Analyzer `UA0027` reports every remaining `NodeBrowser.DataLock` reference.
 
+### NodeBrowser gains an async iteration seam
+
+`INodeBrowser` and `NodeBrowser` gain
+`ValueTask<IReference?> NextAsync(CancellationToken cancellationToken = default)`.
+`AsyncCustomNodeManager.BrowseAsync` and `TranslateBrowsePathAsync` iterate a
+browser through it, so a browser whose references depend on I/O — the
+aggregation case, where the references come from another server — can `await`
+the fetch instead of blocking a request worker on it.
+
+**Nothing changes for an existing browser.** The default `NextAsync` completes
+synchronously with the result of `Next()`, so a browser that only overrides
+`Next()` is iterated exactly as before. Only a type that implements
+`INodeBrowser` directly, without deriving from `NodeBrowser`, has to add the
+member.
+
+A browser that was bridging sync-over-async moves the real work into
+`NextAsync` and keeps `Next()` as the bridge for the remaining synchronous
+consumers (`UANodeSetHelpers` export, `CustomNodeManager2`):
+
+```csharp
+// was — the fetch ran under GetResult() on every browse
+public override IReference Next()
+{
+    return NextAsync().GetAwaiter().GetResult();
+}
+
+private async Task<IReference> NextAsync() { ... }
+
+// now — the async server awaits the fetch; Next() is only reached by sync callers
+public override async ValueTask<IReference?> NextAsync(CancellationToken cancellationToken)
+{
+    IReference? reference = base.Next();
+    if (reference != null)
+    {
+        return reference;
+    }
+    ...
+}
+
+public override IReference? Next()
+{
+    return NextAsync(CancellationToken.None).AsTask().GetAwaiter().GetResult();
+}
+```
+
+Browser creation stays synchronous: `OnCreateBrowser` runs under the node's
+browse lock, so a browser does its first fetch lazily in `NextAsync`, not in its
+constructor.
+
 ## `INodeCache` changes
 
 Version 2.0 collapses the two parallel node-cache contracts into a single public interface and removes the remaining synchronous wrappers from the cache surface.
@@ -342,7 +402,7 @@ Version 2.0 collapses the two parallel node-cache contracts into a single public
     | `FetchSuperTypesAsync(ExpandedNodeId, ct)` | extension method that loops `FindSuperTypeAsync`. |
     | `GetNodeWithBrowsePathAsync(NodeId, ArrayOf<QualifiedName>, ct)` | extension method on `NodeCacheExtensions`. |
     | `GetBuiltInTypeAsync(NodeId, ct)` | extension method on `NodeCacheExtensions`. |
-    | `GetDisplayTextAsync(INode | ExpandedNodeId | ReferenceDescription, ct)` | three extension methods on `NodeCacheExtensions`. |
+    | `GetDisplayTextAsync(INode \| ExpandedNodeId \| ReferenceDescription, ct)` | three extension methods on `NodeCacheExtensions`. |
 
   External implementations of `INodeCache` no longer need to implement these members. Call sites that already used `using Opc.Ua;` keep compiling unchanged because the extensions live in the same namespace.
 

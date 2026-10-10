@@ -43,7 +43,7 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// -version [v104, v105]
         /// </summary>
-        public string Version { get; init; }
+        public string? Version { get; init; }
 
         /// <summary>
         /// -id [start id]
@@ -53,12 +53,12 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// -mv [model version]
         /// </summary>
-        public string ModelVersion { get; init; }
+        public string? ModelVersion { get; init; }
 
         /// <summary>
         /// -pd [publication date]
         /// </summary>
-        public string ModelPublicationDate { get; init; }
+        public string? ModelPublicationDate { get; init; }
 
         /// <summary>
         /// -rc
@@ -88,7 +88,7 @@ namespace Opc.Ua.SourceGeneration
         /// instead of using the design file <c>Prefix</c>. Used by the
         /// <c>[NodeManager]</c> attribute discovery path.
         /// </summary>
-        public string NodeManagerNamespace { get; init; }
+        public string? NodeManagerNamespace { get; init; }
 
         /// <summary>
         /// Optional override for the class name of the generated
@@ -96,7 +96,7 @@ namespace Opc.Ua.SourceGeneration
         /// <c>{Prefix}NodeManager</c>. Used by the <c>[NodeManager]</c>
         /// attribute discovery path.
         /// </summary>
-        public string NodeManagerClassName { get; init; }
+        public string? NodeManagerClassName { get; init; }
 
         /// <summary>
         /// Whether to also emit the <c>{ClassName}Factory</c>. Defaults
@@ -106,6 +106,18 @@ namespace Opc.Ua.SourceGeneration
         public bool EmitNodeManagerFactory { get; init; } = true;
 
         /// <summary>
+        /// Whether to emit the public
+        /// <c>(IServerInternal, ApplicationConfiguration)</c> constructor
+        /// on the generated <c>NodeManager</c>. Defaults to <c>true</c>.
+        /// Set to <c>false</c> for managers that need collaborators
+        /// beyond those two arguments; the <c>protected</c> constructor
+        /// taking the namespace URI array is emitted either way. Used by
+        /// the <c>[NodeManager]</c> attribute discovery path
+        /// (<c>GenerateDefaultConstructor</c> named argument).
+        /// </summary>
+        public bool EmitNodeManagerDefaultConstructor { get; init; } = true;
+
+        /// <summary>
         /// Additional namespace URIs (beyond the model namespace) that
         /// the generated <c>NodeManager</c> constructor reports to the
         /// base node manager and the generated factory advertises via
@@ -113,7 +125,7 @@ namespace Opc.Ua.SourceGeneration
         /// attribute discovery path
         /// (<c>AdditionalNamespaceUris</c> named argument).
         /// </summary>
-        public IReadOnlyList<string> NodeManagerAdditionalNamespaceUris { get; init; }
+        public IReadOnlyList<string>? NodeManagerAdditionalNamespaceUris { get; init; }
     }
 
     /// <summary>
@@ -137,12 +149,12 @@ namespace Opc.Ua.SourceGeneration
         /// Optional identifier file if not same name and side
         /// by side with design files
         /// </summary>
-        public string IdentifierFilePath { get; init; }
+        public string? IdentifierFilePath { get; init; }
 
         /// <summary>
         /// Design file options
         /// </summary>
-        public DesignFileOptions Options { get; init; }
+        public DesignFileOptions? Options { get; init; }
     }
 
     /// <summary>
@@ -160,7 +172,7 @@ namespace Opc.Ua.SourceGeneration
         /// is <c>null</c>.</exception>
         public static IEnumerable<DesignFileCollection> Group(
             this DesignFileCollection collection,
-            List<string> identifierFiles = null)
+            List<string>? identifierFiles = null)
         {
             if (collection is null)
             {
@@ -180,7 +192,7 @@ namespace Opc.Ua.SourceGeneration
                     IdentifierFilePath = ResolveIdentifierFile(
                         target,
                         idFiles,
-                        collection.IdentifierFilePath,
+                        collection.IdentifierFilePath!,
                         IsSoleTargetInDirectory(target, targets)),
                     Options = collection.Options
                 });
@@ -194,7 +206,7 @@ namespace Opc.Ua.SourceGeneration
         {
             string targetDirectory = Path.GetDirectoryName(target) ?? string.Empty;
             string targetName = Path.GetFileNameWithoutExtension(target);
-            string basenameMatch = identifierFiles.FirstOrDefault(path =>
+            string? basenameMatch = identifierFiles.FirstOrDefault(path =>
                 string.Equals(
                     Path.GetDirectoryName(path) ?? string.Empty,
                     targetDirectory,
@@ -283,7 +295,7 @@ namespace Opc.Ua.SourceGeneration
             IReadOnlyList<string> exclusions,
             ITelemetryContext telemetry,
             bool useAllowSubtypes,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies)
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1>? referencedDependencies)
         {
             DesignFileOptions options = designFiles.Options ?? new DesignFileOptions();
             var validator = new ModelDesignValidator(
@@ -311,11 +323,11 @@ namespace Opc.Ua.SourceGeneration
                 }
             }
 
-            string identifierFilePath = designFiles.IdentifierFilePath;
+            string? identifierFilePath = designFiles.IdentifierFilePath;
             validator.Validate(
                 designFiles.Targets,
                 designFiles.Dependencies ?? [],
-                identifierFilePath);
+                identifierFilePath!);
             return validator;
         }
     }

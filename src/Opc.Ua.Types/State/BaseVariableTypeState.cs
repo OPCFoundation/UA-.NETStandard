@@ -53,7 +53,7 @@ namespace Opc.Ua
         {
             if (source is BaseVariableTypeState type)
             {
-                m_value = m_value.Copy();
+                m_value = type.m_value.Copy();
                 m_dataType = type.m_dataType;
                 m_valueRank = type.m_valueRank;
                 m_arrayDimensions = type.m_arrayDimensions;
@@ -671,10 +671,12 @@ namespace Opc.Ua
                 sourceTimestamp = DateTimeUtc.Now;
             }
 
-            // index range writes not supported.
+            // index range writes not supported (Part 4 5.11.4.4:
+            // Bad_WriteNotSupported "is also used if writing of IndexRanges
+            // is not supported for a Node").
             if (!indexRange.IsNull)
             {
-                return StatusCodes.BadIndexRangeInvalid;
+                return StatusCodes.BadWriteNotSupported;
             }
 
             // verify data type.

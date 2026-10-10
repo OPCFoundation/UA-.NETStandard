@@ -61,6 +61,12 @@ namespace Opc.Ua
         public ConfiguredEndpoint Endpoint { get; }
 
         /// <inheritdoc/>
+        public IRetryBudget? CreateReconnectBudget(TimeProvider timeProvider)
+        {
+            return null;
+        }
+
+        /// <inheritdoc/>
         public ValueTask<ParticipantReconnectResult> OnReconnectAsync(
             IManagedTransportChannel channel,
             int reconnectAttempt,

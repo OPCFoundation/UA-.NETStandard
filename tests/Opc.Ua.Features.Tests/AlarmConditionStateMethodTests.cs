@@ -69,7 +69,7 @@ namespace Opc.Ua.Features.Tests
 
         private AlarmConditionState CreateAlarm()
         {
-            var alarm = new AlarmConditionState(m_telemetry, null);
+            var alarm = new AlarmConditionState(m_telemetry, null!);
             alarm.Create(m_context, new NodeId(1), QualifiedName.From("Alarm"), default, true);
             alarm.SetEnableState(m_context, true);
             return alarm;
@@ -92,7 +92,7 @@ namespace Opc.Ua.Features.Tests
             alarm.SetSilenceState(m_context, true);
             DateTimeUtc after = DateTimeUtc.Now;
 
-            Assert.That(alarm.SilenceState.Id.Value, Is.True);
+            Assert.That(alarm.SilenceState!.Id!.Value, Is.True);
             Assert.That(alarm.SilenceState.Timestamp, Is.GreaterThanOrEqualTo(before));
             Assert.That(alarm.SilenceState.Timestamp, Is.LessThanOrEqualTo(after));
             Assert.That(alarm.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
@@ -114,7 +114,7 @@ namespace Opc.Ua.Features.Tests
             AddTwoStateChild(alarm, BrowseNames.SilenceState, s => alarm.SilenceState = s);
 
             alarm.SetSilenceState(m_context, true);
-            Assert.That(alarm.SilenceState.Id.Value, Is.True);
+            Assert.That(alarm.SilenceState!.Id!.Value, Is.True);
 
             // New activation should clear silence
             alarm.SetActiveState(m_context, true);
@@ -128,11 +128,11 @@ namespace Opc.Ua.Features.Tests
             AlarmConditionState alarm = CreateAlarm();
             AddTwoStateChild(alarm, BrowseNames.OutOfServiceState, s => alarm.OutOfServiceState = s);
 
-            Assert.That(alarm.SuppressedOrShelved.Value, Is.False);
+            Assert.That(alarm.SuppressedOrShelved!.Value, Is.False);
 
             alarm.SetOutOfServiceState(m_context, true);
 
-            Assert.That(alarm.OutOfServiceState.Id.Value, Is.True);
+            Assert.That(alarm.OutOfServiceState!.Id!.Value, Is.True);
             Assert.That(alarm.SuppressedOrShelved.Value, Is.True, "OutOfService must set SuppressedOrShelved");
 
             alarm.SetOutOfServiceState(m_context, false);
@@ -151,7 +151,7 @@ namespace Opc.Ua.Features.Tests
             alarm.SetSuppressedState(m_context, true);
             alarm.SetOutOfServiceState(m_context, true);
 
-            Assert.That(alarm.SuppressedOrShelved.Value, Is.True);
+            Assert.That(alarm.SuppressedOrShelved!.Value, Is.True);
 
             // Place in service - suppressed remains, so SuppressedOrShelved must remain true
             alarm.SetOutOfServiceState(m_context, false);
@@ -172,7 +172,7 @@ namespace Opc.Ua.Features.Tests
             alarm.SetSuppressedState(m_context, true);
             alarm.SetOutOfServiceState(m_context, true);
 
-            Assert.That(alarm.SuppressedOrShelved.Value, Is.True);
+            Assert.That(alarm.SuppressedOrShelved!.Value, Is.True);
 
             alarm.SetSuppressedState(m_context, false);
             Assert.That(alarm.SuppressedOrShelved.Value, Is.True, "OutOfService keeps SuppressedOrShelved");
@@ -188,7 +188,7 @@ namespace Opc.Ua.Features.Tests
             alarm.SetLatchedState(m_context, true);
             DateTimeUtc after = DateTimeUtc.Now;
 
-            Assert.That(alarm.LatchedState.Id.Value, Is.True);
+            Assert.That(alarm.LatchedState!.Id!.Value, Is.True);
             Assert.That(alarm.LatchedState.Timestamp, Is.GreaterThanOrEqualTo(before));
             Assert.That(alarm.LatchedState.Timestamp, Is.LessThanOrEqualTo(after));
         }
@@ -199,7 +199,7 @@ namespace Opc.Ua.Features.Tests
             AlarmConditionState alarm = CreateAlarm();
             AddTwoStateChild(alarm, BrowseNames.LatchedState, s => alarm.LatchedState = s);
 
-            Assert.That(alarm.LatchedState.Id.Value, Is.False);
+            Assert.That(alarm.LatchedState!.Id!.Value, Is.False);
 
             alarm.SetActiveState(m_context, true);
 
@@ -213,11 +213,11 @@ namespace Opc.Ua.Features.Tests
             AddTwoStateChild(alarm, BrowseNames.LatchedState, s => alarm.LatchedState = s);
 
             alarm.SetActiveState(m_context, true);
-            Assert.That(alarm.LatchedState.Id.Value, Is.True);
+            Assert.That(alarm.LatchedState!.Id!.Value, Is.True);
 
             alarm.SetActiveState(m_context, false);
 
-            Assert.That(alarm.ActiveState.Id.Value, Is.False, "ActiveState reflects real process state");
+            Assert.That(alarm.ActiveState!.Id!.Value, Is.False, "ActiveState reflects real process state");
             Assert.That(alarm.LatchedState.Id.Value, Is.True, "LatchedState persists across deactivation");
         }
 
@@ -232,7 +232,7 @@ namespace Opc.Ua.Features.Tests
 
             // Retain is updated via state setters which call UpdateRetainState internally;
             // verify LatchedState alone keeps the alarm in retained state.
-            Assert.That(alarm.LatchedState.Id.Value, Is.True);
+            Assert.That(alarm.LatchedState!.Id!.Value, Is.True);
         }
 
         [Test]
@@ -307,7 +307,7 @@ namespace Opc.Ua.Features.Tests
             // AudibleEnabled not configured — should not affect silence
             alarm.UpdateAudibleState(m_context, true);
 
-            Assert.That(alarm.SilenceState.Id.Value, Is.True, "No change without AudibleEnabled");
+            Assert.That(alarm.SilenceState!.Id!.Value, Is.True, "No change without AudibleEnabled");
         }
 
         [Test]
@@ -320,7 +320,7 @@ namespace Opc.Ua.Features.Tests
             alarm.AudibleEnabled.Value = true;
 
             alarm.SetSilenceState(m_context, true);
-            Assert.That(alarm.SilenceState.Id.Value, Is.True);
+            Assert.That(alarm.SilenceState!.Id!.Value, Is.True);
 
             alarm.UpdateAudibleState(m_context, true);
 
@@ -338,7 +338,7 @@ namespace Opc.Ua.Features.Tests
         private sealed class TestableAlarm : AlarmConditionState
         {
             public TestableAlarm(ITelemetryContext telemetry)
-                : base(telemetry, null)
+                : base(telemetry, null!)
             {
             }
 
@@ -473,7 +473,7 @@ namespace Opc.Ua.Features.Tests
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(callCount, Is.EqualTo(1));
-            Assert.That(alarm.SilenceState.Id.Value, Is.True);
+            Assert.That(alarm.SilenceState!.Id!.Value, Is.True);
         }
 
         [Test]
@@ -486,7 +486,7 @@ namespace Opc.Ua.Features.Tests
             ServiceResult result = alarm.CallSilence(m_context);
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            Assert.That(alarm.SilenceState.Id.Value, Is.False, "Veto must not transition");
+            Assert.That(alarm.SilenceState!.Id!.Value, Is.False, "Veto must not transition");
         }
 
         // ---------- Suppress / Suppress2 ----------
@@ -545,7 +545,7 @@ namespace Opc.Ua.Features.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(callCount, Is.EqualTo(1));
             Assert.That(suppressingArg, Is.True);
-            Assert.That(alarm.SuppressedState.Id.Value, Is.True);
+            Assert.That(alarm.SuppressedState!.Id!.Value, Is.True);
         }
 
         [Test]
@@ -562,7 +562,7 @@ namespace Opc.Ua.Features.Tests
                 : alarm.CallSuppress2(m_context, new LocalizedText("en", "x"));
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            Assert.That(alarm.SuppressedState.Id.Value, Is.False);
+            Assert.That(alarm.SuppressedState!.Id!.Value, Is.False);
         }
 
         [Test]
@@ -576,7 +576,7 @@ namespace Opc.Ua.Features.Tests
             ServiceResult result = alarm.CallSuppress2(m_context, comment);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(alarm.Comment.Value, Is.EqualTo(comment));
+            Assert.That(alarm.Comment!.Value, Is.EqualTo(comment));
         }
 
         // ---------- Unsuppress / Unsuppress2 ----------
@@ -636,7 +636,7 @@ namespace Opc.Ua.Features.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(callCount, Is.EqualTo(1));
             Assert.That(suppressingArg, Is.False);
-            Assert.That(alarm.SuppressedState.Id.Value, Is.False);
+            Assert.That(alarm.SuppressedState!.Id!.Value, Is.False);
         }
 
         [Test]
@@ -654,7 +654,7 @@ namespace Opc.Ua.Features.Tests
                 : alarm.CallUnsuppress2(m_context, new LocalizedText("en", "x"));
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            Assert.That(alarm.SuppressedState.Id.Value, Is.True, "Veto preserves suppressed state");
+            Assert.That(alarm.SuppressedState!.Id!.Value, Is.True, "Veto preserves suppressed state");
         }
 
         [Test]
@@ -669,7 +669,7 @@ namespace Opc.Ua.Features.Tests
             ServiceResult result = alarm.CallUnsuppress2(m_context, comment);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(alarm.Comment.Value, Is.EqualTo(comment));
+            Assert.That(alarm.Comment!.Value, Is.EqualTo(comment));
         }
 
         // ---------- RemoveFromService / RemoveFromService2 ----------
@@ -727,7 +727,7 @@ namespace Opc.Ua.Features.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(callCount, Is.EqualTo(1));
             Assert.That(outOfServiceArg, Is.True);
-            Assert.That(alarm.OutOfServiceState.Id.Value, Is.True);
+            Assert.That(alarm.OutOfServiceState!.Id!.Value, Is.True);
         }
 
         [Test]
@@ -744,7 +744,7 @@ namespace Opc.Ua.Features.Tests
                 : alarm.CallRemoveFromService2(m_context, new LocalizedText("en", "x"));
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            Assert.That(alarm.OutOfServiceState.Id.Value, Is.False);
+            Assert.That(alarm.OutOfServiceState!.Id!.Value, Is.False);
         }
 
         [Test]
@@ -758,7 +758,7 @@ namespace Opc.Ua.Features.Tests
             ServiceResult result = alarm.CallRemoveFromService2(m_context, comment);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(alarm.Comment.Value, Is.EqualTo(comment));
+            Assert.That(alarm.Comment!.Value, Is.EqualTo(comment));
         }
 
         // ---------- PlaceInService / PlaceInService2 ----------
@@ -818,7 +818,7 @@ namespace Opc.Ua.Features.Tests
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(callCount, Is.EqualTo(1));
             Assert.That(outOfServiceArg, Is.False);
-            Assert.That(alarm.OutOfServiceState.Id.Value, Is.False);
+            Assert.That(alarm.OutOfServiceState!.Id!.Value, Is.False);
         }
 
         [Test]
@@ -836,7 +836,7 @@ namespace Opc.Ua.Features.Tests
                 : alarm.CallPlaceInService2(m_context, new LocalizedText("en", "x"));
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            Assert.That(alarm.OutOfServiceState.Id.Value, Is.True);
+            Assert.That(alarm.OutOfServiceState!.Id!.Value, Is.True);
         }
 
         [Test]
@@ -851,7 +851,7 @@ namespace Opc.Ua.Features.Tests
             ServiceResult result = alarm.CallPlaceInService2(m_context, comment);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(alarm.Comment.Value, Is.EqualTo(comment));
+            Assert.That(alarm.Comment!.Value, Is.EqualTo(comment));
         }
 
         // ---------- Reset / Reset2 ----------
@@ -910,7 +910,7 @@ namespace Opc.Ua.Features.Tests
         public void OnResetCalledInvokesRequestedDelegateAndClearsLatch(string variant)
         {
             TestableAlarm alarm = CreateResettableAlarm();
-            Assert.That(alarm.LatchedState.Id.Value, Is.True, "precondition: alarm is latched");
+            Assert.That(alarm.LatchedState!.Id!.Value, Is.True, "precondition: alarm is latched");
 
             int callCount = 0;
             alarm.OnResetRequested = (c, a) =>
@@ -941,7 +941,7 @@ namespace Opc.Ua.Features.Tests
                 : alarm.CallReset2(m_context, new LocalizedText("en", "x"));
 
             Assert.That(result.StatusCode.Code, Is.EqualTo(StatusCodes.BadUserAccessDenied));
-            Assert.That(alarm.LatchedState.Id.Value, Is.True);
+            Assert.That(alarm.LatchedState!.Id!.Value, Is.True);
         }
 
         [Test]
@@ -954,7 +954,7 @@ namespace Opc.Ua.Features.Tests
             ServiceResult result = alarm.CallReset2(m_context, comment);
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
-            Assert.That(alarm.Comment.Value, Is.EqualTo(comment));
+            Assert.That(alarm.Comment!.Value, Is.EqualTo(comment));
         }
 
         // ---------- GetGroupMemberships ----------
@@ -1006,6 +1006,7 @@ namespace Opc.Ua.Features.Tests
             alarm.Comment!.Value = new LocalizedText("en", "Original comment");
 
             var eventId = new ByteString(new byte[] { 1, 2, 3, 4 });
+            MakeAcknowledgeable(alarm, eventId);
             ServiceResult result = alarm.CallAcknowledge(
                 m_context, eventId, new LocalizedText(string.Empty));
 
@@ -1023,6 +1024,7 @@ namespace Opc.Ua.Features.Tests
             alarm.Comment!.Value = new LocalizedText("en", "Original comment");
 
             var eventId = new ByteString(new byte[] { 5, 6, 7, 8 });
+            MakeAcknowledgeable(alarm, eventId);
             ServiceResult result = alarm.CallAcknowledge(
                 m_context, eventId, new LocalizedText("en", "Operator comment"));
 
@@ -1038,6 +1040,7 @@ namespace Opc.Ua.Features.Tests
             alarm.Comment!.Value = new LocalizedText("en", "Original comment");
 
             ByteString eventId = ByteString.FromHexString("090A0B0C");
+            MakeAcknowledgeable(alarm, eventId);
             ServiceResult result = alarm.CallAcknowledge(
                 m_context,
                 eventId,
@@ -1045,7 +1048,16 @@ namespace Opc.Ua.Features.Tests
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(alarm.Comment!.Value.Locale, Is.EqualTo("en"));
-            Assert.That(alarm.Comment.Value.Text, Is.EqualTo(string.Empty));
+            Assert.That(alarm.Comment.Value.Text, Is.Null);
+        }
+
+        /// <summary>
+        /// Part 9 5.7.3: only the current, unacknowledged state can be acknowledged.
+        /// </summary>
+        private void MakeAcknowledgeable(AlarmConditionState alarm, ByteString eventId)
+        {
+            alarm.EventId!.Value = eventId;
+            alarm.SetAcknowledgedState(m_context, false);
         }
     }
 }

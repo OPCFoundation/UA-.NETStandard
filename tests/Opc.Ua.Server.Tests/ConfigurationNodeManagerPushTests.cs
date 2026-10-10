@@ -58,8 +58,10 @@ namespace Opc.Ua.Server.Tests
     {
         private static readonly ITelemetryContext s_telemetry = NUnitTelemetryContext.Create();
 
-        // A §7.10.10-compliant (>= 32 byte) additional-entropy nonce for
-        // CreateSigningRequest regeneratePrivateKey requests.
+        /// <summary>
+        /// A §7.10.10-compliant (>= 32 byte) additional-entropy nonce for
+        /// CreateSigningRequest regeneratePrivateKey requests.
+        /// </summary>
         private static readonly ByteString s_regenerateNonce = ByteString.From(
         [
             0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09, 0x0A, 0x0B, 0x0C, 0x0D, 0x0E, 0x0F,
@@ -78,13 +80,13 @@ namespace Opc.Ua.Server.Tests
             m_server = await m_fixture.StartAsync().ConfigureAwait(false);
 
             IServerInternal serverInternal = m_server.CurrentInstance;
-            m_configManager = serverInternal.ConfigurationNodeManager as ConfigurationNodeManager;
+            m_configManager = (serverInternal.ConfigurationNodeManager as ConfigurationNodeManager)!;
             Assert.That(m_configManager, Is.Not.Null, "ConfigurationNodeManager not found or not of expected type");
 
-            NodeState node = await serverInternal.NodeManager
+            NodeState node = (await serverInternal.NodeManager
                 .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
-                .ConfigureAwait(false);
-            m_configNode = node as ServerConfigurationState;
+                .ConfigureAwait(false))!;
+            m_configNode = (node as ServerConfigurationState)!;
             Assert.That(m_configNode, Is.Not.Null, "ServerConfiguration node not found");
         }
 
@@ -107,9 +109,9 @@ namespace Opc.Ua.Server.Tests
             // no-op returning BadNothingToDo when nothing is staged).
             if (m_configNode?.CancelChanges != null)
             {
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                ServiceResult result = await m_configNode.CancelChanges.OnCallMethod2Async(
+                ServiceResult result = await m_configNode.CancelChanges.OnCallMethod2Async!(
                     CreateAdminContext(),
                     m_configNode.CancelChanges,
                     m_configNode.NodeId,
@@ -130,7 +132,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
             ArrayOf<ByteString> certificates = default;
 
-            ServiceResult result = m_configNode.GetRejectedList.OnCall(
+            ServiceResult result = m_configNode.GetRejectedList!.OnCall!(
                 context,
                 m_configNode.GetRejectedList,
                 m_configNode.NodeId,
@@ -146,7 +148,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<ByteString> certificates = default;
 
             ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
-                m_configNode.GetRejectedList.OnCall(
+                m_configNode.GetRejectedList!.OnCall!(
                     context,
                     m_configNode.GetRejectedList,
                     m_configNode.NodeId,
@@ -179,7 +181,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<NodeId> certificateTypeIds = default;
             ArrayOf<ByteString> certificates = default;
 
-            ServiceResult result = m_configNode.GetCertificates.OnCall(
+            ServiceResult result = m_configNode.GetCertificates!.OnCall!(
                 context,
                 m_configNode.GetCertificates,
                 m_configNode.NodeId,
@@ -201,7 +203,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<NodeId> certificateTypeIds = default;
             ArrayOf<ByteString> certificates = default;
 
-            ServiceResult expectedResult = m_configNode.GetCertificates.OnCall(
+            ServiceResult expectedResult = m_configNode.GetCertificates!.OnCall!(
                 context,
                 m_configNode.GetCertificates,
                 m_configNode.NodeId,
@@ -230,7 +232,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<ByteString> certificates = default;
 
             ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
-                m_configNode.GetCertificates.OnCall(
+                m_configNode.GetCertificates!.OnCall!(
                     context,
                     m_configNode.GetCertificates,
                     m_configNode.NodeId,
@@ -249,7 +251,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<ByteString> certificates = default;
 
             ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
-                m_configNode.GetCertificates.OnCall(
+                m_configNode.GetCertificates!.OnCall!(
                     context,
                     m_configNode.GetCertificates,
                     m_configNode.NodeId,
@@ -269,7 +271,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSelfSignedCertificate.OnCallAsync(
+                await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
                         m_configNode.NodeId,
@@ -301,7 +303,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSelfSignedCertificate.OnCallAsync(
+                await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
                         m_configNode.NodeId,
@@ -310,8 +312,8 @@ namespace Opc.Ua.Server.Tests
                         string.Empty,
                         ["localhost", string.Empty],
                         ["127.0.0.1", string.Empty],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -327,7 +329,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSelfSignedCertificate.OnCallAsync(
+                await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
                         m_configNode.NodeId,
@@ -336,8 +338,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=Unsupported Key Size Probe",
                         ["localhost"],
                         ["127.0.0.1"],
-                        (ushort)0,
-                        (ushort)1024,
+                        0,
+                        1024,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -350,7 +352,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAnonymousContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSelfSignedCertificate.OnCallAsync(
+                await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
                         m_configNode.NodeId,
@@ -373,7 +375,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSelfSignedCertificate.OnCallAsync(
+                await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
                         m_configNode.NodeId,
@@ -391,7 +393,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task CreateSelfSignedCertificateWithDefaultLifetimeReturnsCertificateAsync()
+        public Task CreateSelfSignedCertificateWithDefaultLifetimeReturnsCertificateAsync()
         {
             ISystemContext context = CreateAdminContext();
 
@@ -400,7 +402,7 @@ namespace Opc.Ua.Server.Tests
             // application certificate) — CreateSelfSignedCertificate must never
             // replace an occupied slot.
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSelfSignedCertificate.OnCallAsync(
+                await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
                         m_configNode.NodeId,
@@ -409,13 +411,14 @@ namespace Opc.Ua.Server.Tests
                         "CN=ConfigurationNodeManager Self Signed Occupied Probe",
                         ["localhost", string.Empty],
                         ["127.0.0.1", string.Empty],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
             Assert.That(exception, Is.Not.Null, "expected BadInvalidState but call succeeded");
             Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            return Task.CompletedTask;
         }
 
         [Test]
@@ -431,14 +434,14 @@ namespace Opc.Ua.Server.Tests
             // Isolated fixture so the (rejected) deletion cannot affect any
             // test sharing m_configManager.
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
-            StandardServer server = null;
+            StandardServer? server = null;
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                NodeState node = await server.CurrentInstance.NodeManager
+                NodeState node = (await server.CurrentInstance.NodeManager
                     .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var configNode = node as ServerConfigurationState;
                 Assert.That(configNode, Is.Not.Null);
                 var configManager = server.CurrentInstance.ConfigurationNodeManager as ConfigurationNodeManager;
@@ -449,7 +452,7 @@ namespace Opc.Ua.Server.Tests
                 ArrayOf<NodeId> typesBefore = default;
                 ArrayOf<ByteString> certsBefore = default;
                 Assert.That(
-                    ServiceResult.IsGood(configNode.GetCertificates.OnCall(
+                    ServiceResult.IsGood(configNode.GetCertificates!.OnCall!(
                         context,
                         configNode.GetCertificates,
                         configNode.NodeId,
@@ -460,10 +463,10 @@ namespace Opc.Ua.Server.Tests
                 int rsaBefore = typesBefore.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaBefore, Is.GreaterThanOrEqualTo(0));
-                using Certificate referencedCertificate = Certificate.FromRawData(certsBefore[rsaBefore]);
+                using var referencedCertificate = Certificate.FromRawData(certsBefore[rsaBefore]);
 
                 DeleteCertificateMethodStateResult deleteResult = await configNode
-                    .DeleteCertificate.OnCallAsync(
+                    .DeleteCertificate!.OnCallAsync!(
                         context,
                         configNode.DeleteCertificate,
                         configNode.NodeId,
@@ -476,9 +479,9 @@ namespace Opc.Ua.Server.Tests
                     Is.True,
                     "staging DeleteCertificate must succeed; §7.10.7 is enforced at ApplyChanges");
 
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                ServiceResult applyResult = await configNode.ApplyChanges.OnCallMethod2Async(
+                ServiceResult applyResult = await configNode.ApplyChanges!.OnCallMethod2Async!(
                     context,
                     configNode.ApplyChanges,
                     configNode.NodeId,
@@ -487,7 +490,7 @@ namespace Opc.Ua.Server.Tests
                     CancellationToken.None).ConfigureAwait(false);
                 Assert.That(
                     applyResult.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState),
+                    Is.EqualTo(StatusCodes.BadInvalidState),
                     "deleting an endpoint-referenced certificate must be rejected at ApplyChanges (§7.10.7)");
                 await configManager.DrainPendingApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
 
@@ -509,7 +512,7 @@ namespace Opc.Ua.Server.Tests
                     rsaAfter,
                     Is.GreaterThanOrEqualTo(0),
                     "the referenced certificate must survive the rejected delete");
-                using Certificate afterCertificate = Certificate.FromRawData(certsAfter[rsaAfter]);
+                using var afterCertificate = Certificate.FromRawData(certsAfter[rsaAfter]);
                 Assert.That(afterCertificate.Thumbprint, Is.EqualTo(referencedCertificate.Thumbprint));
             }
             finally
@@ -538,28 +541,28 @@ namespace Opc.Ua.Server.Tests
             // determination. Isolated fixture so the rotation/rejected delete
             // cannot affect any test sharing m_configManager.
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
-            StandardServer server = null;
+            StandardServer? server = null;
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                NodeState node = await server.CurrentInstance.NodeManager
+                NodeState node = (await server.CurrentInstance.NodeManager
                     .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var configNode = node as ServerConfigurationState;
                 Assert.That(configNode, Is.Not.Null);
                 var configManager = server.CurrentInstance.ConfigurationNodeManager as ConfigurationNodeManager;
                 Assert.That(configManager, Is.Not.Null);
 
                 ISystemContext context = CreateAdminContext();
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
 
                 // Capture the certificate the RSA slot holds at startup (A).
                 ArrayOf<NodeId> typesBefore = default;
                 ArrayOf<ByteString> certsBefore = default;
                 Assert.That(
-                    ServiceResult.IsGood(configNode.GetCertificates.OnCall(
+                    ServiceResult.IsGood(configNode.GetCertificates!.OnCall!(
                         context,
                         configNode.GetCertificates,
                         configNode.NodeId,
@@ -570,15 +573,15 @@ namespace Opc.Ua.Server.Tests
                 int rsaBefore = typesBefore.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaBefore, Is.GreaterThanOrEqualTo(0));
-                using Certificate certificateA = Certificate.FromRawData(certsBefore[rsaBefore]);
-                string[] domainNames = X509Utils.GetDomainsFromCertificate(certificateA).ToArray();
+                using var certificateA = Certificate.FromRawData(certsBefore[rsaBefore]);
+                string[] domainNames = X509Utils.GetDomainsFromCertificate(certificateA).ToArray()!;
 
                 // Rotate A -> B via UpdateCertificate + ApplyChanges. B keeps the
                 // same subject so it stays the RSA application certificate.
                 using Certificate certificateB = DefaultCertificateFactory.Instance
                     .CreateApplicationCertificate(
-                        fixture.Config.ApplicationUri,
-                        fixture.Config.ApplicationName,
+                        fixture.Config.ApplicationUri!,
+                        fixture.Config.ApplicationName!,
                         certificateA.Subject,
                         domainNames)
                     .CreateForRSA();
@@ -588,21 +591,21 @@ namespace Opc.Ua.Server.Tests
                     "the rotation must produce a genuinely different certificate");
                 ByteString privateKeyB = certificateB.Export(X509ContentType.Pfx).ToByteString();
 
-                UpdateCertificateMethodStateResult updateResult = await configNode.UpdateCertificate.OnCallAsync(
+                UpdateCertificateMethodStateResult updateResult = await configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         configNode.UpdateCertificate,
                         configNode.NodeId,
                         ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                         ObjectTypeIds.RsaSha256ApplicationCertificateType,
                         certificateB.RawData.ToByteString(),
-                        ArrayOf<ByteString>.Empty,
+                        [],
                         "pfx",
                         privateKeyB,
                         CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(updateResult.ServiceResult), Is.True);
 
-                ServiceResult rotateApplyResult = await configNode.ApplyChanges.OnCallMethod2Async(
+                ServiceResult rotateApplyResult = await configNode.ApplyChanges!.OnCallMethod2Async!(
                     context,
                     configNode.ApplyChanges,
                     configNode.NodeId,
@@ -630,7 +633,7 @@ namespace Opc.Ua.Server.Tests
                 int rsaRotated = typesRotated.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaRotated, Is.GreaterThanOrEqualTo(0));
-                using (Certificate rotatedCert = Certificate.FromRawData(certsRotated[rsaRotated]))
+                using (var rotatedCert = Certificate.FromRawData(certsRotated[rsaRotated]))
                 {
                     Assert.That(
                         rotatedCert.Thumbprint,
@@ -641,7 +644,7 @@ namespace Opc.Ua.Server.Tests
                 // Staging DeleteCertificate(B) succeeds: the ECC slots keep the
                 // "last remaining certificate" staging check satisfied.
                 DeleteCertificateMethodStateResult deleteResult = await configNode
-                    .DeleteCertificate.OnCallAsync(
+                    .DeleteCertificate!.OnCallAsync!(
                         context,
                         configNode.DeleteCertificate,
                         configNode.NodeId,
@@ -665,7 +668,7 @@ namespace Opc.Ua.Server.Tests
                     CancellationToken.None).ConfigureAwait(false);
                 Assert.That(
                     deleteApplyResult.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState),
+                    Is.EqualTo(StatusCodes.BadInvalidState),
                     "deleting the rotated (currently presented) certificate must be rejected at " +
                     "ApplyChanges (§7.10.7)");
                 await configManager.DrainPendingApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
@@ -688,7 +691,7 @@ namespace Opc.Ua.Server.Tests
                     rsaAfter,
                     Is.GreaterThanOrEqualTo(0),
                     "the referenced rotated certificate must survive the rejected delete");
-                using Certificate afterCertificate = Certificate.FromRawData(certsAfter[rsaAfter]);
+                using var afterCertificate = Certificate.FromRawData(certsAfter[rsaAfter]);
                 Assert.That(afterCertificate.Thumbprint, Is.EqualTo(certificateB.Thumbprint));
             }
             finally
@@ -721,14 +724,14 @@ namespace Opc.Ua.Server.Tests
             // own application-certificate slot, which would break every
             // other test sharing m_configManager.
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
-            StandardServer server = null;
+            StandardServer? server = null;
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                NodeState node = await server.CurrentInstance.NodeManager
+                NodeState node = (await server.CurrentInstance.NodeManager
                     .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var configNode = node as ServerConfigurationState;
                 Assert.That(configNode, Is.Not.Null);
                 var configManager = server.CurrentInstance.ConfigurationNodeManager as ConfigurationNodeManager;
@@ -738,7 +741,7 @@ namespace Opc.Ua.Server.Tests
 
                 ArrayOf<NodeId> certificateTypeIdsBefore = default;
                 ArrayOf<ByteString> certificatesBefore = default;
-                ServiceResult getBeforeResult = configNode.GetCertificates.OnCall(
+                ServiceResult getBeforeResult = configNode.GetCertificates!.OnCall!(
                     context,
                     configNode.GetCertificates,
                     configNode.NodeId,
@@ -749,10 +752,10 @@ namespace Opc.Ua.Server.Tests
                 int rsaIndexBefore = certificateTypeIdsBefore.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaIndexBefore, Is.GreaterThanOrEqualTo(0));
-                using Certificate originalCertificate = Certificate.FromRawData(certificatesBefore[rsaIndexBefore]);
+                using var originalCertificate = Certificate.FromRawData(certificatesBefore[rsaIndexBefore]);
 
                 DeleteCertificateMethodStateResult deleteResult = await configNode
-                    .DeleteCertificate.OnCallAsync(
+                    .DeleteCertificate!.OnCallAsync!(
                         context,
                         configNode.DeleteCertificate,
                         configNode.NodeId,
@@ -766,7 +769,7 @@ namespace Opc.Ua.Server.Tests
                 // live store/registry still shows the slot occupied,
                 // since the staged delete above has not committed yet.
                 CreateSelfSignedCertificateMethodStateResult createResult = await configNode
-                    .CreateSelfSignedCertificate.OnCallAsync(
+                    .CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         configNode.CreateSelfSignedCertificate,
                         configNode.NodeId,
@@ -775,19 +778,19 @@ namespace Opc.Ua.Server.Tests
                         "CN=DeleteThenCreateSelfSigned " + Guid.NewGuid().ToString("N")[..8],
                         ["localhost", string.Empty],
                         ["127.0.0.1", string.Empty],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(
                     ServiceResult.IsGood(createResult.ServiceResult),
                     Is.True,
                     "DeleteCertificate staged earlier in the same transaction must permit CreateSelfSignedCertificate");
-                using Certificate newCertificate = Certificate.FromRawData(createResult.Certificate);
+                using var newCertificate = Certificate.FromRawData(createResult.Certificate);
 
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                ServiceResult applyResult = await configNode.ApplyChanges.OnCallMethod2Async(
+                ServiceResult applyResult = await configNode.ApplyChanges!.OnCallMethod2Async!(
                     context,
                     configNode.ApplyChanges,
                     configNode.NodeId,
@@ -810,7 +813,7 @@ namespace Opc.Ua.Server.Tests
                 int rsaIndexAfter = certificateTypeIdsAfter.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaIndexAfter, Is.GreaterThanOrEqualTo(0));
-                using Certificate finalCertificate = Certificate.FromRawData(certificatesAfter[rsaIndexAfter]);
+                using var finalCertificate = Certificate.FromRawData(certificatesAfter[rsaIndexAfter]);
                 Assert.That(
                     finalCertificate.Thumbprint,
                     Is.EqualTo(newCertificate.Thumbprint),
@@ -869,21 +872,21 @@ namespace Opc.Ua.Server.Tests
             // application-certificate slot, which would break every
             // other test sharing m_configManager.
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
-            StandardServer server = null;
+            StandardServer? server = null;
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                NodeState node = await server.CurrentInstance.NodeManager
+                NodeState node = (await server.CurrentInstance.NodeManager
                     .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var configNode = node as ServerConfigurationState;
                 Assert.That(configNode, Is.Not.Null);
                 var configManager = server.CurrentInstance.ConfigurationNodeManager as ConfigurationNodeManager;
                 Assert.That(configManager, Is.Not.Null);
 
                 ISystemContext context = CreateAdminContext();
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
 
                 // The RSA application certificate is referenced by the
@@ -897,7 +900,7 @@ namespace Opc.Ua.Server.Tests
                 // permit CreateSelfSignedCertificate, which in turn nets the
                 // slot occupied and must permit a further DeleteCertificate.
                 DeleteCertificateMethodStateResult firstDelete = await configNode
-                    .DeleteCertificate.OnCallAsync(
+                    .DeleteCertificate!.OnCallAsync!(
                         context,
                         configNode.DeleteCertificate,
                         configNode.NodeId,
@@ -908,7 +911,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(ServiceResult.IsGood(firstDelete.ServiceResult), Is.True);
 
                 CreateSelfSignedCertificateMethodStateResult createResult = await configNode
-                    .CreateSelfSignedCertificate.OnCallAsync(
+                    .CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         configNode.CreateSelfSignedCertificate,
                         configNode.NodeId,
@@ -917,8 +920,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=CreateThenDelete " + Guid.NewGuid().ToString("N")[..8],
                         ["localhost", string.Empty],
                         ["127.0.0.1", string.Empty],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false);
                 Assert.That(ServiceResult.IsGood(createResult.ServiceResult), Is.True);
@@ -940,7 +943,7 @@ namespace Opc.Ua.Server.Tests
                     Is.True,
                     "CreateSelfSignedCertificate staged earlier in the same transaction must permit DeleteCertificate");
 
-                ServiceResult cancelResult = await configNode.CancelChanges.OnCallMethod2Async(
+                ServiceResult cancelResult = await configNode.CancelChanges!.OnCallMethod2Async!(
                     context,
                     configNode.CancelChanges,
                     configNode.NodeId,
@@ -953,7 +956,7 @@ namespace Opc.Ua.Server.Tests
                 // endpoint-referenced RSA certificate in place.
                 ArrayOf<NodeId> certificateTypeIdsAfter = default;
                 ArrayOf<ByteString> certificatesAfter = default;
-                ServiceResult getAfterResult = configNode.GetCertificates.OnCall(
+                ServiceResult getAfterResult = configNode.GetCertificates!.OnCall!(
                     context,
                     configNode.GetCertificates,
                     configNode.NodeId,
@@ -984,7 +987,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             CreateSigningRequestMethodStateResult result = await m_configNode
-                .CreateSigningRequest.OnCallAsync(
+                .CreateSigningRequest!.OnCallAsync!(
                     context,
                     m_configNode.CreateSigningRequest,
                     m_configNode.NodeId,
@@ -1000,24 +1003,89 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.CertificateRequest.Length, Is.GreaterThan(0));
         }
 
+        /// <summary>
+        /// Existing-key CSR creation and certificate staging resolve the application's scoped own store.
+        /// </summary>
+        [TestCase("")]
+        [TestCase("PEM")]
+        public async Task CertificatePushUsesScopedOwnStoreProviderAsync(string privateKeyFormat)
+        {
+            ApplicationConfiguration configuration = m_fixture.Config;
+            CertificateIdentifier identifier = configuration.SecurityConfiguration.ApplicationCertificates
+                .ToList().First(candidate => candidate.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType);
+            string originalStoreType = identifier.StoreType!;
+            ICertificateManager originalManager = configuration.CertificateManager;
+            const string storeType = "ScopedCsrDirectory";
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(instance => instance.StoreTypeName).Returns(storeType);
+            provider.Setup(instance => instance.SupportsStorePath(It.IsAny<string>())).Returns(false);
+            provider.Setup(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()))
+                .Returns((ITelemetryContext telemetry) => new DirectoryCertificateStore(false, telemetry));
+            using var manager = new CertificateManager(s_telemetry, [provider.Object]);
+            try
+            {
+                identifier.StoreType = storeType;
+                manager.MapFromSecurityConfiguration(configuration.SecurityConfiguration);
+                await manager.LoadApplicationCertificatesAsync(configuration.SecurityConfiguration,
+                    configuration.ApplicationUri).ConfigureAwait(false);
+                configuration.CertificateManager = manager;
+                provider.Invocations.Clear();
+
+                CreateSigningRequestMethodStateResult result = await m_configNode.CreateSigningRequest!.OnCallAsync!(
+                    CreateAdminContext(), m_configNode.CreateSigningRequest, m_configNode.NodeId,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType, string.Empty, false, ByteString.Empty,
+                    CancellationToken.None).ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(result.CertificateRequest.Length, Is.GreaterThan(0));
+                Assert.That(result.CertificateRequest[0], Is.EqualTo(0x30));
+                provider.Verify(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()), Times.Once);
+
+                using CertificateEntry current = manager.AcquireApplicationCertificateByType(
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType)!;
+                using Certificate replacement = privateKeyFormat.Length == 0
+                    ? current.Certificate.AddRef()
+                    : DefaultCertificateFactory.Instance.CreateApplicationCertificate(
+                        configuration.ApplicationUri!, configuration.ApplicationName!, current.Certificate.Subject,
+                        X509Utils.GetDomainsFromCertificate(current.Certificate).ToArray()).CreateForRSA();
+                ByteString privateKey = privateKeyFormat.Length == 0
+                    ? ByteString.Empty
+                    : PEMWriter.ExportPrivateKeyAsPEM(replacement).ToByteString();
+                UpdateCertificateMethodStateResult update = await m_configNode.UpdateCertificate!.OnCallAsync!(
+                    CreateAdminContext(), m_configNode.UpdateCertificate, m_configNode.NodeId,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType, replacement.RawData.ToByteString(),
+                    [], privateKeyFormat, privateKey, CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(update.ServiceResult), Is.True);
+                Assert.That(update.ApplyChangesRequired, Is.True);
+                provider.Verify(instance => instance.CreateStore(It.IsAny<ITelemetryContext>()), Times.Exactly(2));
+            }
+            finally
+            {
+                configuration.CertificateManager = originalManager;
+                identifier.StoreType = originalStoreType;
+            }
+        }
+
         [Test]
         public async Task CreateSigningRequestWithRegeneratedPrivateKeyDisposesOnShutdownAsync()
         {
             long leakedBefore = Certificate.InstancesLeaked;
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
-            StandardServer server = null;
+            StandardServer? server = null;
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                NodeState node = await server.CurrentInstance.NodeManager
+                NodeState node = (await server.CurrentInstance.NodeManager
                     .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var configNode = node as ServerConfigurationState;
                 Assert.That(configNode, Is.Not.Null);
 
                 CreateSigningRequestMethodStateResult result = await configNode
-                    .CreateSigningRequest.OnCallAsync(
+                    .CreateSigningRequest!.OnCallAsync!(
                         CreateAdminContext(),
                         configNode.CreateSigningRequest,
                         configNode.NodeId,
@@ -1049,7 +1117,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAnonymousContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSigningRequest.OnCallAsync(
+                await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
                         m_configNode.NodeId,
@@ -1070,7 +1138,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSigningRequest.OnCallAsync(
+                await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
                         m_configNode.NodeId,
@@ -1091,7 +1159,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSigningRequest.OnCallAsync(
+                await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
                         m_configNode.NodeId,
@@ -1114,7 +1182,7 @@ namespace Opc.Ua.Server.Tests
             // Passing NodeId.Null for the group must hit the "default to
             // DefaultApplicationGroup" branch inside VerifyGroupAndTypeId.
             CreateSigningRequestMethodStateResult result = await m_configNode
-                .CreateSigningRequest.OnCallAsync(
+                .CreateSigningRequest!.OnCallAsync!(
                     context,
                     m_configNode.CreateSigningRequest,
                     m_configNode.NodeId,
@@ -1138,7 +1206,7 @@ namespace Opc.Ua.Server.Tests
             // DefaultHttpsGroup, never on DefaultApplicationGroup, so this
             // must hit the "certificate type not valid for group" branch.
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSigningRequest.OnCallAsync(
+                await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
                         m_configNode.NodeId,
@@ -1159,7 +1227,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await m_configNode.UpdateCertificate.OnCallAsync(
+                await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
                         m_configNode.NodeId,
@@ -1167,7 +1235,7 @@ namespace Opc.Ua.Server.Tests
                         ObjectTypeIds.RsaSha256ApplicationCertificateType,
                         ByteString.Empty,
                         [],
-                        null,
+                        null!,
                         ByteString.Empty,
                         CancellationToken.None)
                     .ConfigureAwait(false));
@@ -1179,7 +1247,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.UpdateCertificate.OnCallAsync(
+                await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
                         m_configNode.NodeId,
@@ -1187,7 +1255,7 @@ namespace Opc.Ua.Server.Tests
                         ObjectTypeIds.RsaSha256ApplicationCertificateType,
                         ByteString.From([1, 2, 3, 4]),
                         [],
-                        null,
+                        null!,
                         ByteString.Empty,
                         CancellationToken.None)
                     .ConfigureAwait(false));
@@ -1206,7 +1274,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
 
-            UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate.OnCallAsync(
+            UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate!.OnCallAsync!(
                     context,
                     m_configNode.UpdateCertificate,
                     m_configNode.NodeId,
@@ -1214,7 +1282,7 @@ namespace Opc.Ua.Server.Tests
                     ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     currentCertificate,
                     [ByteString.From([5, 4, 3, 2, 1])],
-                    null,
+                    null!,
                     ByteString.Empty,
                     CancellationToken.None)
                 .ConfigureAwait(false);
@@ -1234,14 +1302,14 @@ namespace Opc.Ua.Server.Tests
             // certificate, which would affect every other test sharing
             // m_configManager.
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
-            StandardServer server = null;
+            StandardServer? server = null;
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                NodeState node = await server.CurrentInstance.NodeManager
+                NodeState node = (await server.CurrentInstance.NodeManager
                     .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var configNode = node as ServerConfigurationState;
                 Assert.That(configNode, Is.Not.Null);
                 var configManager = server.CurrentInstance.ConfigurationNodeManager as ConfigurationNodeManager;
@@ -1251,7 +1319,7 @@ namespace Opc.Ua.Server.Tests
 
                 ArrayOf<NodeId> certificateTypeIds = default;
                 ArrayOf<ByteString> currentCertificates = default;
-                ServiceResult getBeforeResult = configNode.GetCertificates.OnCall(
+                ServiceResult getBeforeResult = configNode.GetCertificates!.OnCall!(
                     context,
                     configNode.GetCertificates,
                     configNode.NodeId,
@@ -1262,13 +1330,13 @@ namespace Opc.Ua.Server.Tests
                 int rsaIndex = certificateTypeIds.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaIndex, Is.GreaterThanOrEqualTo(0));
-                using Certificate current = Certificate.FromRawData(currentCertificates[rsaIndex]);
-                string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
+                using var current = Certificate.FromRawData(currentCertificates[rsaIndex]);
+                string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray()!;
 
                 using Certificate newCertificate = DefaultCertificateFactory.Instance
                     .CreateApplicationCertificate(
-                        fixture.Config.ApplicationUri,
-                        fixture.Config.ApplicationName,
+                        fixture.Config.ApplicationUri!,
+                        fixture.Config.ApplicationName!,
                         current.Subject,
                         domainNames)
                     .CreateForRSA();
@@ -1290,7 +1358,7 @@ namespace Opc.Ua.Server.Tests
                     .SetRSAKeySize(2048)
                     .CreateForRSA();
 
-                UpdateCertificateMethodStateResult updateResult = await configNode.UpdateCertificate.OnCallAsync(
+                UpdateCertificateMethodStateResult updateResult = await configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         configNode.UpdateCertificate,
                         configNode.NodeId,
@@ -1305,9 +1373,9 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(ServiceResult.IsGood(updateResult.ServiceResult), Is.True);
                 Assert.That(updateResult.ApplyChangesRequired, Is.True);
 
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                ServiceResult applyResult = await configNode.ApplyChanges.OnCallMethod2Async(
+                ServiceResult applyResult = await configNode.ApplyChanges!.OnCallMethod2Async!(
                     context,
                     configNode.ApplyChanges,
                     configNode.NodeId,
@@ -1344,7 +1412,7 @@ namespace Opc.Ua.Server.Tests
                 int rsaIndexAfter = certificateTypeIdsAfter.ToList()
                     .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
                 Assert.That(rsaIndexAfter, Is.GreaterThanOrEqualTo(0));
-                using Certificate committed = Certificate.FromRawData(certificatesAfter[rsaIndexAfter]);
+                using var committed = Certificate.FromRawData(certificatesAfter[rsaIndexAfter]);
                 Assert.That(
                     committed.Thumbprint,
                     Is.EqualTo(newCertificate.Thumbprint),
@@ -1359,14 +1427,13 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-
         public void UpdateCertificateWithInvalidPrivateKeyThrowsBadSecurityChecksFailed(string privateKeyFormat)
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.UpdateCertificate.OnCallAsync(
+                await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
                         m_configNode.NodeId,
@@ -1388,7 +1455,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.UpdateCertificate.OnCallAsync(
+                await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
                         m_configNode.NodeId,
@@ -1405,12 +1472,36 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void UpdateCertificateWithVersion1CertificateThrowsBadCertificateInvalid()
+        {
+            // OPC 10000-6 §6.2.2: application certificates are X.509 v3.
+            ISystemContext context = CreateAdminContext();
+            byte[] version1 = PushComplianceRegressionTests.CreateVersion1Certificate("CN=Update Version 1");
+
+            ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
+                await m_configNode.UpdateCertificate!.OnCallAsync!(
+                        context,
+                        m_configNode.UpdateCertificate,
+                        m_configNode.NodeId,
+                        ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                        ByteString.From(version1),
+                        [],
+                        null!,
+                        ByteString.Empty,
+                        CancellationToken.None)
+                    .ConfigureAwait(false));
+
+            Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadCertificateInvalid));
+        }
+
+        [Test]
         public void UpdateCertificateNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.UpdateCertificate.OnCallAsync(
+                await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
                         m_configNode.NodeId,
@@ -1418,7 +1509,7 @@ namespace Opc.Ua.Server.Tests
                         ObjectTypeIds.RsaSha256ApplicationCertificateType,
                         ByteString.Empty,
                         [],
-                        null,
+                        null!,
                         ByteString.Empty,
                         CancellationToken.None)
                     .ConfigureAwait(false));
@@ -1439,7 +1530,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.WellKnownRole_SecurityAdmin);
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.UpdateCertificate.OnCallAsync(
+                await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
                         m_configNode.NodeId,
@@ -1447,7 +1538,7 @@ namespace Opc.Ua.Server.Tests
                         ObjectTypeIds.RsaSha256ApplicationCertificateType,
                         ByteString.Empty,
                         [],
-                        null,
+                        null!,
                         ByteString.Empty,
                         CancellationToken.None)
                     .ConfigureAwait(false));
@@ -1461,7 +1552,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.UpdateCertificate.OnCallAsync(
+                await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
                         m_configNode.NodeId,
@@ -1469,7 +1560,7 @@ namespace Opc.Ua.Server.Tests
                         ObjectTypeIds.RsaSha256ApplicationCertificateType,
                         ByteString.From([1, 2, 3, 4]),
                         [],
-                        null,
+                        null!,
                         ByteString.Empty,
                         CancellationToken.None)
                     .ConfigureAwait(false));
@@ -1491,7 +1582,7 @@ namespace Opc.Ua.Server.Tests
 
             ArrayOf<NodeId> certificateTypeIds = default;
             ArrayOf<ByteString> certificates = default;
-            ServiceResult getResult = m_configNode.GetCertificates.OnCall(
+            ServiceResult getResult = m_configNode.GetCertificates!.OnCall!(
                 context,
                 m_configNode.GetCertificates,
                 m_configNode.NodeId,
@@ -1510,7 +1601,7 @@ namespace Opc.Ua.Server.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
 
-            UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate.OnCallAsync(
+            UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate!.OnCallAsync!(
                     context,
                     m_configNode.UpdateCertificate,
                     m_configNode.NodeId,
@@ -1518,7 +1609,7 @@ namespace Opc.Ua.Server.Tests
                     ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     currentCertificate,
                     [fakeIssuer.RawData.ToByteString()],
-                    null,
+                    null!,
                     ByteString.Empty,
                     CancellationToken.None)
                 .ConfigureAwait(false);
@@ -1527,23 +1618,203 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ApplyChangesRequired, Is.True);
         }
 
+        [TestCase("null")]
+        [TestCase("empty")]
+        [TestCase("unrelated")]
+        [TestCase("malformed")]
+        public async Task UpdateCertificateForApplicationCertificateGroupAcceptsCaSignedRenewalSignedByInstalledCaAsync(
+            string issuerCase)
+        {
+            // OPC 10000-12 §7.10.5: the issuers of an ApplicationCertificate
+            // are already in the group's TrustList, so a renewal signed by
+            // an installed CA must succeed whatever issuerCertificates the
+            // caller supplies (none, empty, unrelated or malformed), and
+            // nothing supplied may be imported into the TrustList.
+            ISystemContext context = CreateAdminContext();
+            using Certificate installedCa = CreateTestCa("CN=Installed Renewal CA ");
+            await AddTrustedCertificateAsync(installedCa).ConfigureAwait(false);
+            using Certificate unrelatedCa = CreateTestCa("CN=Unrelated Supplied CA ");
+            try
+            {
+                (string[] trustedBefore, string[] issuersBefore) = await ReadTrustListThumbprintsAsync(
+                    m_fixture.Config).ConfigureAwait(false);
+                using Certificate newCertificate = CreateCaSignedReplacement(
+                    context, installedCa, m_fixture.Config.ApplicationUri!);
+
+                UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate!.OnCallAsync!(
+                        context,
+                        m_configNode.UpdateCertificate,
+                        m_configNode.NodeId,
+                        ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                        newCertificate.RawData.ToByteString(),
+                        CreateIssuerArgument(issuerCase, unrelatedCa),
+                        "pfx",
+                        newCertificate.Export(X509ContentType.Pfx).ToByteString(),
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+
+                Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
+                Assert.That(result.ApplyChangesRequired, Is.True);
+                (string[] trustedAfter, string[] issuersAfter) = await ReadTrustListThumbprintsAsync(
+                    m_fixture.Config).ConfigureAwait(false);
+                Assert.That(trustedAfter, Is.EquivalentTo(trustedBefore), "Trusted store changed.");
+                Assert.That(issuersAfter, Is.EquivalentTo(issuersBefore), "Issuer store changed.");
+            }
+            finally
+            {
+                await CancelChangesAsync(context).ConfigureAwait(false);
+                await RemoveTrustedCertificateAsync(installedCa.Thumbprint).ConfigureAwait(false);
+            }
+        }
+
+        [Test]
+        public async Task UpdateCertificateForApplicationCertificateGroupRejectsRenewalWhoseCaIsOnlySuppliedAsIssuerAsync()
+        {
+            // OPC 10000-12 §7.10.5: the ignored issuerCertificates list
+            // cannot substitute for the TrustList. A renewal signed by a CA
+            // that is not installed fails chain building, which OPC 10000-4
+            // Table 100 does not allow to be suppressed, and leaves the
+            // TrustList and the current certificate untouched.
+            ISystemContext context = CreateAdminContext();
+            ByteString certificateBefore = GetCurrentRsaCertificate(context);
+            using Certificate uninstalledCa = CreateTestCa("CN=Uninstalled Renewal CA ");
+            (string[] trustedBefore, string[] issuersBefore) = await ReadTrustListThumbprintsAsync(
+                m_fixture.Config).ConfigureAwait(false);
+            using Certificate newCertificate = CreateCaSignedReplacement(
+                context, uninstalledCa, m_fixture.Config.ApplicationUri!);
+
+            try
+            {
+                ServiceResultException sre = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await m_configNode.UpdateCertificate!.OnCallAsync!(
+                            context,
+                            m_configNode.UpdateCertificate,
+                            m_configNode.NodeId,
+                            ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                            ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                            newCertificate.RawData.ToByteString(),
+                            [uninstalledCa.RawData.ToByteString()],
+                            "pfx",
+                            newCertificate.Export(X509ContentType.Pfx).ToByteString(),
+                            CancellationToken.None)
+                        .ConfigureAwait(false));
+                Assert.That(
+                    ContainsStatusCode(sre.Result, StatusCodes.BadCertificateChainIncomplete),
+                    Is.True,
+                    sre.Result.ToLongString());
+
+                (string[] trustedAfter, string[] issuersAfter) = await ReadTrustListThumbprintsAsync(
+                    m_fixture.Config).ConfigureAwait(false);
+                Assert.That(trustedAfter, Is.EquivalentTo(trustedBefore), "Trusted store changed.");
+                Assert.That(issuersAfter, Is.EquivalentTo(issuersBefore), "Issuer store changed.");
+            }
+            finally
+            {
+                await CancelChangesAsync(context).ConfigureAwait(false);
+            }
+
+            Assert.That(GetCurrentRsaCertificate(context), Is.EqualTo(certificateBefore));
+        }
+
+        [Test]
+        public async Task UpdateCertificateForApplicationCertificateGroupCommitsCaSignedRenewalWithoutIssuersAsync()
+        {
+            // End-to-end CTT renewal scenario: the CA is installed in the
+            // TrustList beforehand, UpdateCertificate omits the issuer list
+            // and ApplyChanges must commit the CA-signed replacement.
+            // Isolated fixture: this replaces the server's own application
+            // certificate.
+            var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
+            StandardServer? server = null;
+            using Certificate installedCa = CreateTestCa("CN=Installed Commit CA ");
+
+            try
+            {
+                server = await fixture.StartAsync().ConfigureAwait(false);
+                NodeState node = (await server.CurrentInstance.NodeManager
+                    .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
+                    .ConfigureAwait(false))!;
+                var configNode = node as ServerConfigurationState;
+                Assert.That(configNode, Is.Not.Null);
+                var configManager = server.CurrentInstance.ConfigurationNodeManager as ConfigurationNodeManager;
+                Assert.That(configManager, Is.Not.Null);
+                ISystemContext context = CreateAdminContext();
+
+                using (ICertificateStore store = fixture.Config.SecurityConfiguration.TrustedPeerCertificates
+                    .OpenStore(s_telemetry))
+                {
+                    await store.AddAsync(installedCa).ConfigureAwait(false);
+                }
+                (string[] trustedBefore, string[] issuersBefore) = await ReadTrustListThumbprintsAsync(
+                    fixture.Config).ConfigureAwait(false);
+                using Certificate newCertificate = CreateCaSignedReplacement(
+                    context, configNode, installedCa, fixture.Config.ApplicationUri!);
+
+                UpdateCertificateMethodStateResult updateResult = await configNode.UpdateCertificate!.OnCallAsync!(
+                        context,
+                        configNode.UpdateCertificate,
+                        configNode.NodeId,
+                        ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                        ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                        newCertificate.RawData.ToByteString(),
+                        default,
+                        "pfx",
+                        newCertificate.Export(X509ContentType.Pfx).ToByteString(),
+                        CancellationToken.None)
+                    .ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(updateResult.ServiceResult), Is.True);
+                Assert.That(updateResult.ApplyChangesRequired, Is.True);
+
+                ServiceResult applyResult = await configNode.ApplyChanges!.OnCallMethod2Async!(
+                    context,
+                    configNode.ApplyChanges,
+                    configNode.NodeId,
+                    [],
+                    [],
+                    CancellationToken.None).ConfigureAwait(false);
+                Assert.That(ServiceResult.IsGood(applyResult), Is.True);
+                await configManager.DrainPendingApplyChangesAsync(CancellationToken.None).ConfigureAwait(false);
+
+                using var committed = Certificate.FromRawData(GetCurrentRsaCertificate(context, configNode));
+                Assert.That(committed.Thumbprint, Is.EqualTo(newCertificate.Thumbprint));
+                (string[] trustedAfter, string[] issuersAfter) = await ReadTrustListThumbprintsAsync(
+                    fixture.Config).ConfigureAwait(false);
+                Assert.That(trustedAfter, Is.EquivalentTo(trustedBefore), "Trusted store changed.");
+                Assert.That(issuersAfter, Is.EquivalentTo(issuersBefore), "Issuer store changed.");
+            }
+            finally
+            {
+                if (server != null)
+                {
+                    await fixture.StopAsync().ConfigureAwait(false);
+                }
+                using ICertificateStore store = (fixture.Config?.SecurityConfiguration.TrustedPeerCertificates
+                    .OpenStore(s_telemetry))!;
+                if (store != null)
+                {
+                    await store.DeleteAsync(installedCa.Thumbprint).ConfigureAwait(false);
+                }
+            }
+        }
+
         [Test]
         public async Task UpdateCertificateWithPfxPrivateKeyStagesCertificateAsync()
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
             using var current = Certificate.FromRawData(currentCertificate);
-            string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
+            string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray()!;
             using Certificate newCertificate = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
-                    m_fixture.Config.ApplicationUri,
-                    m_fixture.Config.ApplicationName,
+                    m_fixture.Config.ApplicationUri!,
+                    m_fixture.Config.ApplicationName!,
                     current.Subject,
                     domainNames)
                 .CreateForRSA();
             ByteString privateKey = newCertificate.Export(X509ContentType.Pfx).ToByteString();
 
-            UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate.OnCallAsync(
+            UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate!.OnCallAsync!(
                     context,
                     m_configNode.UpdateCertificate,
                     m_configNode.NodeId,
@@ -1566,17 +1837,17 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
             using var current = Certificate.FromRawData(currentCertificate);
-            string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
+            string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray()!;
             using Certificate newCertificate = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
-                    m_fixture.Config.ApplicationUri,
-                    m_fixture.Config.ApplicationName,
+                    m_fixture.Config.ApplicationUri!,
+                    m_fixture.Config.ApplicationName!,
                     current.Subject,
                     domainNames)
                 .CreateForRSA();
             ByteString privateKey = PEMWriter.ExportPrivateKeyAsPEM(newCertificate).ToByteString();
 
-            UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate.OnCallAsync(
+            UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate!.OnCallAsync!(
                     context,
                     m_configNode.UpdateCertificate,
                     m_configNode.NodeId,
@@ -1593,19 +1864,24 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.ApplyChangesRequired, Is.True);
         }
 
-        [Test]
-        public async Task UpdateCertificateWithRegeneratedPrivateKeyStagesCertificateAsync()
+        /// <summary>
+        /// Stages a CA-signed certificate for a regenerated key. The issuing
+        /// CA is installed in the group's TrustList (OPC 10000-12 §7.10.5);
+        /// callers remove it with <see cref="RemoveTrustedCertificateAsync"/>.
+        /// </summary>
+        private async Task<(ByteString Certificate, string IssuerThumbprint)> StageCertificateWithRegeneratedPrivateKeyAsync()
         {
             ISystemContext context = CreateAdminContext();
             ByteString currentCertificate = GetCurrentRsaCertificate(context);
             using var current = Certificate.FromRawData(currentCertificate);
-            string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
+            string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray()!;
             using Certificate issuer = CertificateBuilder.Create("CN=ConfigurationNodeManager Push CA")
                 .SetCAConstraint(0)
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
+            await AddTrustedCertificateAsync(issuer).ConfigureAwait(false);
             CreateSigningRequestMethodStateResult signingRequest = await m_configNode
-                .CreateSigningRequest.OnCallAsync(
+                .CreateSigningRequest!.OnCallAsync!(
                     context,
                     m_configNode.CreateSigningRequest,
                     m_configNode.NodeId,
@@ -1620,15 +1896,15 @@ namespace Opc.Ua.Server.Tests
             Assert.That(request.Verify(), Is.True);
             using Certificate signedCertificate = CertificateBuilder.Create(request.Subject)
                 .AddExtension(new X509SubjectAltNameExtension(
-                    m_fixture.Config.ApplicationUri,
-                    domainNames))
+                    m_fixture.Config.ApplicationUri!,
+                    domainNames!))
                 .SetNotBefore(DateTime.UtcNow.Date.AddDays(-1))
                 .SetLifeTime(12)
                 .SetIssuer(issuer)
                 .SetRSAPublicKey(request.SubjectPublicKeyInfo)
                 .CreateForRSA();
 
-            UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate.OnCallAsync(
+            UpdateCertificateMethodStateResult result = await m_configNode.UpdateCertificate!.OnCallAsync!(
                     context,
                     m_configNode.UpdateCertificate,
                     m_configNode.NodeId,
@@ -1636,13 +1912,68 @@ namespace Opc.Ua.Server.Tests
                     ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     signedCertificate.RawData.ToByteString(),
                     [issuer.RawData.ToByteString()],
-                    null,
+                    null!,
                     ByteString.Empty,
                     CancellationToken.None)
                 .ConfigureAwait(false);
 
             Assert.That(ServiceResult.IsGood(result.ServiceResult), Is.True);
             Assert.That(result.ApplyChangesRequired, Is.True);
+            return (signedCertificate.RawData.ToByteString(), issuer.Thumbprint);
+        }
+
+        [Test]
+        public async Task UpdateCertificateWithRegeneratedPrivateKeyStagesCertificateAsync()
+        {
+            (_, string issuerThumbprint) = await StageCertificateWithRegeneratedPrivateKeyAsync()
+                .ConfigureAwait(false);
+            await RemoveTrustedCertificateAsync(issuerThumbprint).ConfigureAwait(false);
+        }
+
+        [Test]
+        public async Task UpdateCertificateWithRegeneratedPrivateKeyCanBeRetriedAfterCancelAsync()
+        {
+            ISystemContext context = CreateAdminContext();
+            (ByteString certificate, string issuerThumbprint) = await StageCertificateWithRegeneratedPrivateKeyAsync()
+                .ConfigureAwait(false);
+            try
+            {
+                await RetryRegeneratedPrivateKeyCertificateAfterCancelAsync(context, certificate)
+                    .ConfigureAwait(false);
+            }
+            finally
+            {
+                await RemoveTrustedCertificateAsync(issuerThumbprint).ConfigureAwait(false);
+            }
+        }
+
+        private async Task RetryRegeneratedPrivateKeyCertificateAfterCancelAsync(
+            ISystemContext context,
+            ByteString certificate)
+        {
+
+            ServiceResult cancelResult = await m_configNode.CancelChanges!.OnCallMethod2Async!(
+                context,
+                m_configNode.CancelChanges,
+                m_configNode.NodeId,
+                [],
+                [],
+                CancellationToken.None).ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(cancelResult), Is.True);
+
+            UpdateCertificateMethodStateResult retry = await m_configNode.UpdateCertificate!.OnCallAsync!(
+                    context,
+                    m_configNode.UpdateCertificate,
+                    m_configNode.NodeId,
+                    ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
+                    ObjectTypeIds.RsaSha256ApplicationCertificateType,
+                    certificate,
+                    [],
+                    null!,
+                    ByteString.Empty,
+                    CancellationToken.None)
+                .ConfigureAwait(false);
+            Assert.That(ServiceResult.IsGood(retry.ServiceResult), Is.True);
         }
 
         [Test]
@@ -1654,7 +1985,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
-            ServiceResult result = await m_configNode.ApplyChanges.OnCallMethod2Async(
+            ServiceResult result = await m_configNode.ApplyChanges!.OnCallMethod2Async!(
                 context,
                 m_configNode.ApplyChanges,
                 m_configNode.NodeId,
@@ -1675,7 +2006,7 @@ namespace Opc.Ua.Server.Tests
             m_configManager.ApplyChangesGracePeriod = TimeSpan.FromMilliseconds(250);
             ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
-            ServiceResult result = await m_configNode.ApplyChanges.OnCallMethod2Async(
+            ServiceResult result = await m_configNode.ApplyChanges!.OnCallMethod2Async!(
                 context,
                 m_configNode.ApplyChanges,
                 m_configNode.NodeId,
@@ -1722,7 +2053,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
-            ServiceResult result = await m_configNode.ApplyChanges.OnCallMethod2Async(
+            ServiceResult result = await m_configNode.ApplyChanges!.OnCallMethod2Async!(
                 context,
                 m_configNode.ApplyChanges,
                 m_configNode.NodeId,
@@ -1741,7 +2072,7 @@ namespace Opc.Ua.Server.Tests
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.ApplyChanges.OnCallMethod2Async(
+                await m_configNode.ApplyChanges!.OnCallMethod2Async!(
                     context,
                     m_configNode.ApplyChanges,
                     m_configNode.NodeId,
@@ -1768,7 +2099,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
-                        null,
+                        null!,
                         issuerCertificates,
                         m_fixture.Config.SecurityConfiguration,
                         s_telemetry,
@@ -1785,7 +2116,7 @@ namespace Opc.Ua.Server.Tests
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
                 await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
                         certificate,
-                        null,
+                        null!,
                         m_fixture.Config.SecurityConfiguration,
                         s_telemetry,
                         CancellationToken.None)
@@ -1803,7 +2134,7 @@ namespace Opc.Ua.Server.Tests
                 await ConfigurationNodeManager.ValidatePushCertificateAndIssuerChainAsync(
                         certificate,
                         issuerCertificates,
-                        null,
+                        null!,
                         s_telemetry,
                         CancellationToken.None)
                     .ConfigureAwait(false));
@@ -1821,7 +2152,7 @@ namespace Opc.Ua.Server.Tests
                         certificate,
                         issuerCertificates,
                         m_fixture.Config.SecurityConfiguration,
-                        null,
+                        null!,
                         CancellationToken.None)
                     .ConfigureAwait(false));
         }
@@ -1832,7 +2163,7 @@ namespace Opc.Ua.Server.Tests
             Assert.DoesNotThrow(() => m_configManager.StartAlarmMonitoring(TimeSpan.FromMilliseconds(50)));
             // Second call must hit the early-return branch (timer already running).
             Assert.DoesNotThrow(() => m_configManager.StartAlarmMonitoring(TimeSpan.FromMilliseconds(50)));
-            Assert.DoesNotThrow(() => m_configManager.StopAlarmMonitoring());
+            Assert.DoesNotThrow(m_configManager.StopAlarmMonitoring);
             // Stopping again must be a no-op.
             Assert.DoesNotThrow(m_configManager.StopAlarmMonitoring);
         }
@@ -1840,9 +2171,9 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public async Task GetNamespaceMetadataStateWithNullUriReturnsNullAsync()
         {
-            NamespaceMetadataState result = await m_configManager
-                .GetNamespaceMetadataStateAsync(null)
-                .ConfigureAwait(false);
+            NamespaceMetadataState result = (await m_configManager
+                .GetNamespaceMetadataStateAsync(null!)
+                .ConfigureAwait(false))!;
 
             Assert.That(result, Is.Null);
         }
@@ -1854,23 +2185,23 @@ namespace Opc.Ua.Server.Tests
             // in the NamespaceUris table with a stable index), since
             // CreateNamespaceMetadataStateAsync does not itself register a brand
             // new namespace URI in that table.
-            string namespaceUri = m_server.CurrentInstance.NamespaceUris.GetString(1);
+            string namespaceUri = m_server.CurrentInstance.NamespaceUris.GetString(1)!;
             NamespaceMetadataState created = await m_configManager
-                .CreateNamespaceMetadataStateAsync(namespaceUri)
+                .CreateNamespaceMetadataStateAsync(namespaceUri!)
                 .ConfigureAwait(false);
             Assert.That(created, Is.Not.Null);
 
             ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(namespaceUri);
 
-            NamespaceMetadataState byIndex = await m_configManager
+            NamespaceMetadataState byIndex = (await m_configManager
                 .GetNamespaceMetadataStateAsync(namespaceIndex)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(byIndex, Is.SameAs(created));
 
             // Second call must hit the cache branch.
-            NamespaceMetadataState byIndexCached = await m_configManager
+            NamespaceMetadataState byIndexCached = (await m_configManager
                 .GetNamespaceMetadataStateAsync(namespaceIndex)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(byIndexCached, Is.SameAs(created));
         }
 
@@ -1882,12 +2213,12 @@ namespace Opc.Ua.Server.Tests
                 .CreateNamespaceMetadataStateAsync(namespaceUri)
                 .ConfigureAwait(false);
 
-            NamespaceMetadataState first = await m_configManager
+            NamespaceMetadataState first = (await m_configManager
                 .GetNamespaceMetadataStateAsync(namespaceUri)
-                .ConfigureAwait(false);
-            NamespaceMetadataState second = await m_configManager
+                .ConfigureAwait(false))!;
+            NamespaceMetadataState second = (await m_configManager
                 .GetNamespaceMetadataStateAsync(namespaceUri)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(first, Is.SameAs(created));
             Assert.That(second, Is.SameAs(created));
@@ -1897,7 +2228,7 @@ namespace Opc.Ua.Server.Tests
         public void BindKeyCredentialPushWithNullSubjectThrowsArgumentNullException()
         {
             Assert.ThrowsAsync<ArgumentNullException>(async () =>
-                await m_configManager.BindKeyCredentialPushAsync(null, CancellationToken.None)
+                await m_configManager.BindKeyCredentialPushAsync(null!, CancellationToken.None)
                     .ConfigureAwait(false));
         }
 
@@ -1911,11 +2242,11 @@ namespace Opc.Ua.Server.Tests
                 await m_configManager.BindKeyCredentialPushAsync(subject, CancellationToken.None)
                     .ConfigureAwait(false));
 
-            NodeState node = await m_server.CurrentInstance.NodeManager
+            NodeState node = (await m_server.CurrentInstance.NodeManager
                 .FindNodeInAddressSpaceAsync(
                     KeyCredentialPushSubject.StandardConfigurationFolderNodeId,
                     CancellationToken.None)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(node, Is.TypeOf<KeyCredentialConfigurationFolderState>());
         }
 
@@ -1926,10 +2257,10 @@ namespace Opc.Ua.Server.Tests
             ApplicationConfiguration configuration = m_fixture.Config;
             SecurityConfiguration security = configuration.SecurityConfiguration;
 
-            CertificateTrustList originalUserIssuer = security.UserIssuerCertificates;
-            CertificateTrustList originalTrustedUser = security.TrustedUserCertificates;
-            CertificateTrustList originalHttpsIssuer = security.HttpsIssuerCertificates;
-            CertificateTrustList originalTrustedHttps = security.TrustedHttpsCertificates;
+            CertificateTrustList originalUserIssuer = security.UserIssuerCertificates!;
+            CertificateTrustList originalTrustedUser = security.TrustedUserCertificates!;
+            CertificateTrustList originalHttpsIssuer = security.HttpsIssuerCertificates!;
+            CertificateTrustList originalTrustedHttps = security.TrustedHttpsCertificates!;
             ArrayOf<CertificateIdentifier> originalAppCertificates = security.ApplicationCertificates;
 
             try
@@ -2039,18 +2370,18 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(m_configNode.TransactionDiagnostics.StartTime.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
-                    Assert.That(m_configNode.TransactionDiagnostics.EndTime.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
-                    Assert.That(m_configNode.TransactionDiagnostics.Result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
-                    Assert.That(m_configNode.TransactionDiagnostics.AffectedTrustLists.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
-                    Assert.That(m_configNode.TransactionDiagnostics.AffectedCertificateGroups.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
-                    Assert.That(m_configNode.TransactionDiagnostics.Errors.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.BadOutOfService));
+                    Assert.That(m_configNode.TransactionDiagnostics!.StartTime!.StatusCode,
+                        Is.EqualTo(StatusCodes.BadOutOfService));
+                    Assert.That(m_configNode.TransactionDiagnostics.EndTime!.StatusCode,
+                        Is.EqualTo(StatusCodes.BadOutOfService));
+                    Assert.That(m_configNode.TransactionDiagnostics.Result!.StatusCode,
+                        Is.EqualTo(StatusCodes.BadOutOfService));
+                    Assert.That(m_configNode.TransactionDiagnostics.AffectedTrustLists!.StatusCode,
+                        Is.EqualTo(StatusCodes.BadOutOfService));
+                    Assert.That(m_configNode.TransactionDiagnostics.AffectedCertificateGroups!.StatusCode,
+                        Is.EqualTo(StatusCodes.BadOutOfService));
+                    Assert.That(m_configNode.TransactionDiagnostics.Errors!.StatusCode,
+                        Is.EqualTo(StatusCodes.BadOutOfService));
                 });
             }
             finally
@@ -2070,14 +2401,14 @@ namespace Opc.Ua.Server.Tests
 
             Assert.Multiple(() =>
             {
-                Assert.That(m_configNode.TransactionDiagnostics.Result.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.BadInvalidState));
-                Assert.That(m_configNode.TransactionDiagnostics.StartTime.StatusCode,
-                    Is.EqualTo((StatusCode)StatusCodes.Good));
+                Assert.That(m_configNode.TransactionDiagnostics!.Result!.StatusCode,
+                    Is.EqualTo(StatusCodes.BadInvalidState));
+                Assert.That(m_configNode.TransactionDiagnostics.StartTime!.StatusCode,
+                    Is.EqualTo(StatusCodes.Good));
                 // §7.10.17: EndTime is DateTime.MinValue until the transaction
                 // completes. The UA DateTime encoding clamps MinValue to the
                 // 1601 epoch, so compare against the same round-tripped value.
-                Assert.That((DateTime)m_configNode.TransactionDiagnostics.EndTime.Value,
+                Assert.That((DateTime)m_configNode.TransactionDiagnostics.EndTime!.Value,
                     Is.EqualTo((DateTime)(DateTimeUtc)DateTime.MinValue));
             });
 
@@ -2108,15 +2439,15 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.Multiple(() =>
                 {
-                    Assert.That(m_configNode.TransactionDiagnostics.Result.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.Good));
+                    Assert.That(m_configNode.TransactionDiagnostics!.Result!.StatusCode,
+                        Is.EqualTo(StatusCodes.Good));
                     Assert.That(m_configNode.TransactionDiagnostics.Result.Value,
-                        Is.EqualTo((StatusCode)StatusCodes.Good));
-                    Assert.That((DateTime)m_configNode.TransactionDiagnostics.EndTime.Value,
+                        Is.EqualTo(StatusCodes.Good));
+                    Assert.That((DateTime)m_configNode.TransactionDiagnostics.EndTime!.Value,
                         Is.GreaterThan(DateTime.MinValue));
                     Assert.That(m_configNode.TransactionDiagnostics.EndTime.StatusCode,
-                        Is.EqualTo((StatusCode)StatusCodes.Good));
-                    Assert.That(m_configNode.TransactionDiagnostics.AffectedCertificateGroups.Value.Contains(group),
+                        Is.EqualTo(StatusCodes.Good));
+                    Assert.That(m_configNode.TransactionDiagnostics.AffectedCertificateGroups!.Value.Contains(group),
                         Is.True);
                 });
             }
@@ -2128,12 +2459,12 @@ namespace Opc.Ua.Server.Tests
 
         private async Task InvokeCancelChangesAsync()
         {
-            await m_configNode.CancelChanges.OnCallMethod2Async(
+            await m_configNode.CancelChanges!.OnCallMethod2Async!(
                 CreateAdminContext(),
                 m_configNode.CancelChanges,
                 m_configNode.NodeId,
-                ArrayOf<Variant>.Empty,
-                new System.Collections.Generic.List<Variant>(),
+                [],
+                [],
                 CancellationToken.None).ConfigureAwait(false);
         }
 
@@ -2231,7 +2562,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.DeleteCertificate.OnCallAsync(
+                await m_configNode.DeleteCertificate!.OnCallAsync!(
                         context,
                         m_configNode.DeleteCertificate,
                         m_configNode.NodeId,
@@ -2249,7 +2580,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAnonymousContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.DeleteCertificate.OnCallAsync(
+                await m_configNode.DeleteCertificate!.OnCallAsync!(
                         context,
                         m_configNode.DeleteCertificate,
                         m_configNode.NodeId,
@@ -2274,14 +2605,14 @@ namespace Opc.Ua.Server.Tests
             // cancelled so the shared server certificate is untouched.
             // Isolated fixture keeps the staged transaction off m_configManager.
             var fixture = new ServerFixture<StandardServer>(t => new ReferenceServer(t));
-            StandardServer server = null;
+            StandardServer? server = null;
 
             try
             {
                 server = await fixture.StartAsync().ConfigureAwait(false);
-                NodeState node = await server.CurrentInstance.NodeManager
+                NodeState node = (await server.CurrentInstance.NodeManager
                     .FindNodeInAddressSpaceAsync(ObjectIds.ServerConfiguration)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 var configNode = node as ServerConfigurationState;
                 Assert.That(configNode, Is.Not.Null);
                 var configManager = server.CurrentInstance.ConfigurationNodeManager as ConfigurationNodeManager;
@@ -2290,7 +2621,7 @@ namespace Opc.Ua.Server.Tests
                 ISystemContext context = CreateAdminContext();
 
                 DeleteCertificateMethodStateResult firstDeleteResult = await configNode
-                    .DeleteCertificate.OnCallAsync(
+                    .DeleteCertificate!.OnCallAsync!(
                         context,
                         configNode.DeleteCertificate,
                         configNode.NodeId,
@@ -2312,9 +2643,9 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
 
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                await configNode.CancelChanges.OnCallMethod2Async(
+                await configNode.CancelChanges!.OnCallMethod2Async!(
                     context,
                     configNode.CancelChanges,
                     configNode.NodeId,
@@ -2349,7 +2680,7 @@ namespace Opc.Ua.Server.Tests
 
             ArrayOf<NodeId> certificateTypeIds = default;
             ArrayOf<ByteString> certificates = default;
-            ServiceResult getResult = m_configNode.GetCertificates.OnCall(
+            ServiceResult getResult = m_configNode.GetCertificates!.OnCall!(
                 context,
                 m_configNode.GetCertificates,
                 m_configNode.NodeId,
@@ -2369,7 +2700,7 @@ namespace Opc.Ua.Server.Tests
                 for (int i = 0; i < types.Count - 1; i++)
                 {
                     DeleteCertificateMethodStateResult deleteResult = await m_configNode
-                        .DeleteCertificate.OnCallAsync(
+                        .DeleteCertificate!.OnCallAsync!(
                             context,
                             m_configNode.DeleteCertificate,
                             m_configNode.NodeId,
@@ -2383,9 +2714,9 @@ namespace Opc.Ua.Server.Tests
                         $"Deleting type #{i} should succeed while another type remains occupied.");
                 }
 
-                NodeId lastType = types[types.Count - 1];
+                NodeId lastType = types[^1];
                 ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                    await m_configNode.DeleteCertificate.OnCallAsync(
+                    await m_configNode.DeleteCertificate!.OnCallAsync!(
                             context,
                             m_configNode.DeleteCertificate,
                             m_configNode.NodeId,
@@ -2401,9 +2732,9 @@ namespace Opc.Ua.Server.Tests
                 // Discard every staged delete without applying it so the
                 // shared fixture's real certificate stores remain
                 // untouched for the other tests in this file.
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                await m_configNode.CancelChanges.OnCallMethod2Async(
+                await m_configNode.CancelChanges!.OnCallMethod2Async!(
                     context,
                     m_configNode.CancelChanges,
                     m_configNode.NodeId,
@@ -2509,6 +2840,7 @@ namespace Opc.Ua.Server.Tests
         /// method for this test (no issuer chain is supplied), so reusing
         /// the shared fixture's own first configured group is sufficient.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static async Task InvokeApplyCertificateSlotChangeAsync(
             ConfigurationNodeManager manager,
             CertificateIdentifier existingCertIdentifier,
@@ -2551,6 +2883,7 @@ namespace Opc.Ua.Server.Tests
         /// be verified without reproducing an entire
         /// <c>UpdateCertificate</c> request end-to-end.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static Task<ArrayOf<string>> InvokeApplyCertificateSlotChangeForIssuersAsync(
             ConfigurationNodeManager manager,
             object certificateGroup,
@@ -2581,6 +2914,7 @@ namespace Opc.Ua.Server.Tests
         /// <c>RollbackAsync</c> would when compensating a completed
         /// issuer import.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static async Task InvokeRemoveIssuerCertificatesAsync(
             ConfigurationNodeManager manager,
             object certificateGroup,
@@ -2604,10 +2938,8 @@ namespace Opc.Ua.Server.Tests
             // ApplyCertificateSlotChangeAsync must report exactly the
             // thumbprints it newly added (excluding any pre-existing
             // issuer that also happened to be part of the submitted
-            // chain), so a later rollback/self-compensation - exercised
-            // end-to-end in
-            // UpdateCertificateRollbackAfterLaterOperationFailureRestoresAppCertAndRemovesNewIssuerAsync -
-            // removes only the issuers it actually introduced.
+            // chain), so a later rollback/self-compensation removes only
+            // the issuers it actually introduced.
             Type managerType = typeof(ConfigurationNodeManager);
             FieldInfo groupsField = managerType.GetField(
                 "m_certificateGroups",
@@ -2660,7 +2992,7 @@ namespace Opc.Ua.Server.Tests
 
                 Assert.That(
                     newlyAdded.ToList(),
-                    Is.EquivalentTo(new[] { newIssuer.Thumbprint }),
+                    Is.EquivalentTo([newIssuer.Thumbprint]),
                     "only the issuer that was not already present must be reported as newly added");
 
                 using (ICertificateStore verifyStore = issuerStoreIdentifier.OpenStore(s_telemetry))
@@ -2713,6 +3045,7 @@ namespace Opc.Ua.Server.Tests
         /// swap can be verified without reproducing an entire failing
         /// <c>UpdateCertificate</c> request end-to-end.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static Task<ArrayOf<string>> InvokeApplyCertificateSlotChangeFullAsync(
             ConfigurationNodeManager manager,
             object certificateGroup,
@@ -2740,8 +3073,11 @@ namespace Opc.Ua.Server.Tests
                 ])!;
         }
 
-        [Test]
-        public async Task ApplyCertificateSlotChangeSelfCompensatesWhenIssuerImportFailsAfterAppCertSwapAsync()
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ApplyCertificateSlotChangeSelfCompensatesWhenIssuerImportFailsAfterAppCertSwapAsync(
+            bool useScopedStores, bool failOpeningIssuerStore)
         {
             // Issue: once ApplyCertificateSlotChangeAsync has fully
             // swapped the application-certificate slot (the previous
@@ -2759,15 +3095,35 @@ namespace Opc.Ua.Server.Tests
             // not the ArgumentException the loop already tolerates for a
             // duplicate thumbprint.
             string tempAppPki = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 "cnm-selfcompensate-issuer-app",
                 Guid.NewGuid().ToString("N")[..8]);
             string tempIssuerPki = Path.Combine(
-                TestContext.CurrentContext.WorkDirectory,
+                Path.GetTempPath(),
                 "cnm-selfcompensate-issuer-store",
                 Guid.NewGuid().ToString("N")[..8]);
+            ICertificateManager originalManager = m_fixture.Config.CertificateManager;
+            const string ownStoreType = "ScopedCompensationOwn";
+            const string issuerStoreType = "ScopedCompensationIssuer";
+            var ownProvider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            ownProvider.SetupGet(provider => provider.StoreTypeName).Returns(ownStoreType);
+            ownProvider.Setup(provider => provider.SupportsStorePath(It.IsAny<string>())).Returns(false);
+            ownProvider.Setup(provider => provider.CreateStore(It.IsAny<ITelemetryContext>()))
+                .Returns((ITelemetryContext telemetry) => new DirectoryCertificateStore(false, telemetry));
+            var issuerProvider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            issuerProvider.SetupGet(provider => provider.StoreTypeName).Returns(issuerStoreType);
+            issuerProvider.Setup(provider => provider.SupportsStorePath(It.IsAny<string>())).Returns(false);
+            issuerProvider.Setup(provider => provider.CreateStore(It.IsAny<ITelemetryContext>()))
+                .Returns((ITelemetryContext telemetry) => failOpeningIssuerStore
+                    ? throw new UnauthorizedAccessException("Issuer store is unavailable.")
+                    : new DirectoryCertificateStore(false, telemetry));
+            using var scopedManager = new CertificateManager(s_telemetry, [ownProvider.Object, issuerProvider.Object]);
             try
             {
+                if (useScopedStores)
+                {
+                    m_fixture.Config.CertificateManager = scopedManager;
+                }
                 var appStoreIdentifier = new CertificateStoreIdentifier(
                     tempAppPki,
                     CertificateStoreType.Directory,
@@ -2789,7 +3145,7 @@ namespace Opc.Ua.Server.Tests
                 var existingCertIdentifier = new CertificateIdentifier
                 {
                     StorePath = tempAppPki,
-                    StoreType = CertificateStoreType.Directory,
+                    StoreType = useScopedStores ? ownStoreType : CertificateStoreType.Directory,
                     CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType,
                     Thumbprint = oldCertificate.Thumbprint
                 };
@@ -2827,7 +3183,7 @@ namespace Opc.Ua.Server.Tests
                     "GetFileName",
                     BindingFlags.NonPublic | BindingFlags.Static)
                     ?? throw new InvalidOperationException("Method GetFileName not found.");
-                var poisonedFileName = (string)getFileNameMethod.Invoke(null, [poisonedIssuer])!;
+                string poisonedFileName = (string)getFileNameMethod.Invoke(null, [poisonedIssuer])!;
                 string poisonedFilePath = Path.Combine(tempIssuerPki, "certs", poisonedFileName + ".der");
                 Directory.CreateDirectory(poisonedFilePath);
 
@@ -2847,6 +3203,10 @@ namespace Opc.Ua.Server.Tests
                 PropertyInfo issuerStoreProperty = certificateGroup.GetType().GetProperty("IssuerStore")
                     ?? throw new InvalidOperationException("Property IssuerStore not found.");
                 object originalIssuerStore = issuerStoreProperty.GetValue(certificateGroup)!;
+                if (useScopedStores)
+                {
+                    issuerStoreIdentifier.StoreType = issuerStoreType;
+                }
                 issuerStoreProperty.SetValue(certificateGroup, issuerStoreIdentifier);
 
                 try
@@ -2890,7 +3250,16 @@ namespace Opc.Ua.Server.Tests
                         "self-compensation must remove the new application certificate already " +
                         "swapped in before the issuer import failed");
 
-                    using ICertificateStore verifyIssuerStore = issuerStoreIdentifier.OpenStore(s_telemetry);
+                    if (useScopedStores)
+                    {
+                        ownProvider.Verify(provider => provider.CreateStore(It.IsAny<ITelemetryContext>()),
+                            Times.Exactly(2));
+                        issuerProvider.Verify(provider => provider.CreateStore(It.IsAny<ITelemetryContext>()),
+                            failOpeningIssuerStore ? Times.Once() : Times.Exactly(2));
+                    }
+
+                    using ICertificateStore verifyIssuerStore =
+                        new CertificateStoreIdentifier(tempIssuerPki).OpenStore(s_telemetry);
                     using CertificateCollection preExistingAfter = await verifyIssuerStore
                         .FindByThumbprintAsync(preExistingIssuer.Thumbprint)
                         .ConfigureAwait(false);
@@ -2923,6 +3292,7 @@ namespace Opc.Ua.Server.Tests
             }
             finally
             {
+                m_fixture.Config.CertificateManager = originalManager;
                 if (Directory.Exists(tempAppPki))
                 {
                     Directory.Delete(tempAppPki, true);
@@ -2936,22 +3306,22 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public async Task UpdateCertificateRollbackAfterLaterOperationFailureRestoresAppCertAndRemovesNewIssuerAsync()
+        public async Task UpdateCertificateRollbackAfterLaterOperationFailureRestoresAppCertAndLeavesIssuerStoreAsync()
         {
-            // Issue: UpdateCertificate's commit imports the staged issuer
-            // chain into the group's issuer store, but its RollbackAsync
-            // only ever restored the application certificate. Any issuer
-            // newly imported by a successful UpdateCertificate therefore
-            // stayed behind forever once a LATER operation in the same
-            // transaction failed to commit and the coordinator reverse-
-            // compensated this already-successful UpdateCertificate.
-            // Verify that after such a later-operation failure, both the
-            // application certificate AND the issuer store are fully
-            // restored.
+            // When a LATER operation in the same transaction fails to
+            // commit, the coordinator reverse-compensates this already-
+            // successful UpdateCertificate: the application certificate
+            // must be fully restored. For the ApplicationCertificate-
+            // purpose group the supplied issuer list is ignored (OPC
+            // 10000-12 §7.10.5), so the issuer store must also end up
+            // without the supplied CA. Removal of issuers that a commit
+            // did import is covered directly by
+            // ApplyCertificateSlotChangeTracksNewlyAddedIssuersAndPreservesPreExistingOnesAsync,
+            // which also exercises RemoveIssuerCertificatesAsync.
             ISystemContext context = CreateAdminContext();
             ByteString originalCertificateBytes = GetCurrentRsaCertificate(context);
-            using Certificate original = Certificate.FromRawData(originalCertificateBytes);
-            string[] domainNames = X509Utils.GetDomainsFromCertificate(original).ToArray();
+            using var original = Certificate.FromRawData(originalCertificateBytes);
+            string[] domainNames = X509Utils.GetDomainsFromCertificate(original).ToArray()!;
 
             using Certificate issuerCa = CertificateBuilder
                 .Create("CN=UpdateRollback Issuer CA " + Guid.NewGuid().ToString("N")[..8])
@@ -2959,9 +3329,9 @@ namespace Opc.Ua.Server.Tests
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
             using Certificate newCertificate = CertificateBuilder.Create(original.Subject)
-                .AddExtension(new global::Opc.Ua.Security.Certificates.X509SubjectAltNameExtension(
-                    m_fixture.Config.ApplicationUri,
-                    domainNames))
+                .AddExtension(new X509SubjectAltNameExtension(
+                    m_fixture.Config.ApplicationUri!,
+                    domainNames!))
                 .SetIssuer(issuerCa)
                 .SetRSAKeySize(2048)
                 .CreateForRSA();
@@ -2979,9 +3349,14 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(beforeMatches, Has.Count.EqualTo(0), "the fresh issuer CA must not already be trusted");
             }
 
+            // OPC 10000-12 §7.10.5: the issuer must already be in the
+            // group's TrustList; install it as a trusted (not issuer)
+            // certificate so the issuer-store assertion stays meaningful.
+            await AddTrustedCertificateAsync(issuerCa).ConfigureAwait(false);
+
             try
             {
-                UpdateCertificateMethodStateResult updateResult = await m_configNode.UpdateCertificate.OnCallAsync(
+                UpdateCertificateMethodStateResult updateResult = await m_configNode.UpdateCertificate!.OnCallAsync!(
                         context,
                         m_configNode.UpdateCertificate,
                         m_configNode.NodeId,
@@ -3013,9 +3388,9 @@ namespace Opc.Ua.Server.Tests
                     CommitAsync = _ => throw new InvalidOperationException("Induced failure for test.")
                 });
 
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                ServiceResult applyResult = await m_configNode.ApplyChanges.OnCallMethod2Async(
+                ServiceResult applyResult = await m_configNode.ApplyChanges!.OnCallMethod2Async!(
                     context,
                     m_configNode.ApplyChanges,
                     m_configNode.NodeId,
@@ -3028,7 +3403,7 @@ namespace Opc.Ua.Server.Tests
                     "the induced later-operation failure must fail ApplyChanges");
 
                 ByteString restoredCertificateBytes = GetCurrentRsaCertificate(context);
-                using Certificate restored = Certificate.FromRawData(restoredCertificateBytes);
+                using var restored = Certificate.FromRawData(restoredCertificateBytes);
                 Assert.That(
                     restored.Thumbprint,
                     Is.EqualTo(original.Thumbprint),
@@ -3040,7 +3415,7 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(
                     afterMatches,
                     Has.Count.EqualTo(0),
-                    "the newly imported issuer certificate must be removed once the transaction rolls back");
+                    "the supplied issuer certificate must never be in the issuer store after the rollback");
             }
             finally
             {
@@ -3049,9 +3424,9 @@ namespace Opc.Ua.Server.Tests
                 // on the expected path; it only guards against the
                 // transaction somehow being left active if an assertion
                 // above fails first.
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                await m_configNode.CancelChanges.OnCallMethod2Async(
+                await m_configNode.CancelChanges!.OnCallMethod2Async!(
                     context,
                     m_configNode.CancelChanges,
                     m_configNode.NodeId,
@@ -3061,6 +3436,7 @@ namespace Opc.Ua.Server.Tests
 
                 using ICertificateStore cleanupStore = issuerStoreIdentifier.OpenStore(s_telemetry);
                 await cleanupStore.DeleteAsync(issuerCa.Thumbprint).ConfigureAwait(false);
+                await RemoveTrustedCertificateAsync(issuerCa.Thumbprint).ConfigureAwait(false);
             }
         }
 
@@ -3172,6 +3548,7 @@ namespace Opc.Ua.Server.Tests
         /// deterministically without needing two concurrent OPC UA Method
         /// Call requests.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static async Task<ServiceResult> InvokeApplyChangesAsync(
             ConfigurationNodeManager manager,
             ISystemContext context)
@@ -3200,6 +3577,7 @@ namespace Opc.Ua.Server.Tests
         /// staged commit would, without needing a full certificate-store
         /// round trip.
         /// </summary>
+        /// <exception cref="InvalidOperationException"></exception>
         private static void InvokeRegisterPendingRotation(
             ConfigurationNodeManager manager,
             NodeId certificateType,
@@ -3216,10 +3594,10 @@ namespace Opc.Ua.Server.Tests
         public async Task CancelChangesWithNoActiveTransactionReturnsBadNothingToDoAsync()
         {
             ISystemContext context = CreateAdminContext();
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
-            ServiceResult result = await m_configNode.CancelChanges.OnCallMethod2Async(
+            ServiceResult result = await m_configNode.CancelChanges!.OnCallMethod2Async!(
                 context,
                 m_configNode.CancelChanges,
                 m_configNode.NodeId,
@@ -3234,11 +3612,11 @@ namespace Opc.Ua.Server.Tests
         public void CancelChangesNonAdminThrowsBadUserAccessDenied()
         {
             ISystemContext context = CreateAnonymousContext();
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CancelChanges.OnCallMethod2Async(
+                await m_configNode.CancelChanges!.OnCallMethod2Async!(
                     context,
                     m_configNode.CancelChanges,
                     m_configNode.NodeId,
@@ -3257,9 +3635,9 @@ namespace Opc.Ua.Server.Tests
 
             await UpdateCertificateWithPfxPrivateKeyStagesCertificateAsync().ConfigureAwait(false);
 
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
-            ServiceResult cancelResult = await m_configNode.CancelChanges.OnCallMethod2Async(
+            ServiceResult cancelResult = await m_configNode.CancelChanges!.OnCallMethod2Async!(
                 context,
                 m_configNode.CancelChanges,
                 m_configNode.NodeId,
@@ -3293,9 +3671,9 @@ namespace Opc.Ua.Server.Tests
 
             await UpdateCertificateWithPfxPrivateKeyStagesCertificateAsync().ConfigureAwait(false);
 
-            var inputArguments = ArrayOf<Variant>.Empty;
+            ArrayOf<Variant> inputArguments = [];
             var outputArguments = new System.Collections.Generic.List<Variant>();
-            ServiceResult cancelResult = await m_configNode.CancelChanges.OnCallMethod2Async(
+            ServiceResult cancelResult = await m_configNode.CancelChanges!.OnCallMethod2Async!(
                 context,
                 m_configNode.CancelChanges,
                 m_configNode.NodeId,
@@ -3305,14 +3683,14 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(ServiceResult.IsGood(cancelResult), Is.True);
             Assert.That(
-                m_configNode.TransactionDiagnostics.Result.Value,
+                m_configNode.TransactionDiagnostics!.Result!.Value,
                 Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
             // §7.10.17: a completed transaction reports the outcome as the
             // Result value with a Good DataValue status (only an in-flight
             // transaction reads Bad_InvalidState).
             Assert.That(
                 m_configNode.TransactionDiagnostics.Result.StatusCode,
-                Is.EqualTo((StatusCode)StatusCodes.Good));
+                Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -3321,12 +3699,12 @@ namespace Opc.Ua.Server.Tests
             ISystemContext ownerContext = CreateAdminContextForSession(new NodeId(Guid.NewGuid(), 1));
             ISystemContext otherContext = CreateAdminContextForSession(new NodeId(Guid.NewGuid(), 1));
             ByteString currentCertificate = GetCurrentRsaCertificate(ownerContext);
-            using Certificate current = Certificate.FromRawData(currentCertificate);
-            string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray();
+            using var current = Certificate.FromRawData(currentCertificate);
+            string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray()!;
             using Certificate newCertificate = DefaultCertificateFactory.Instance
                 .CreateApplicationCertificate(
-                    m_fixture.Config.ApplicationUri,
-                    m_fixture.Config.ApplicationName,
+                    m_fixture.Config.ApplicationUri!,
+                    m_fixture.Config.ApplicationName!,
                     current.Subject,
                     domainNames)
                 .CreateForRSA();
@@ -3334,7 +3712,7 @@ namespace Opc.Ua.Server.Tests
 
             try
             {
-                UpdateCertificateMethodStateResult ownerResult = await m_configNode.UpdateCertificate.OnCallAsync(
+                UpdateCertificateMethodStateResult ownerResult = await m_configNode.UpdateCertificate!.OnCallAsync!(
                         ownerContext,
                         m_configNode.UpdateCertificate,
                         m_configNode.NodeId,
@@ -3366,9 +3744,9 @@ namespace Opc.Ua.Server.Tests
                 // ApplyChanges/CancelChanges from the non-owning Session
                 // must also be rejected without disturbing the owner's
                 // staged transaction.
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                ServiceResult applyFromOtherResult = await m_configNode.ApplyChanges.OnCallMethod2Async(
+                ServiceResult applyFromOtherResult = await m_configNode.ApplyChanges!.OnCallMethod2Async!(
                     otherContext,
                     m_configNode.ApplyChanges,
                     m_configNode.NodeId,
@@ -3377,7 +3755,7 @@ namespace Opc.Ua.Server.Tests
                     CancellationToken.None).ConfigureAwait(false);
                 Assert.That(applyFromOtherResult.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
 
-                ServiceResult cancelFromOtherResult = await m_configNode.CancelChanges.OnCallMethod2Async(
+                ServiceResult cancelFromOtherResult = await m_configNode.CancelChanges!.OnCallMethod2Async!(
                     otherContext,
                     m_configNode.CancelChanges,
                     m_configNode.NodeId,
@@ -3393,9 +3771,9 @@ namespace Opc.Ua.Server.Tests
                 // [TearDown] uses CreateAdminContext(), whose NodeId.Null
                 // Session does not own this transaction and would
                 // otherwise get BadSessionIdInvalid).
-                var inputArguments = ArrayOf<Variant>.Empty;
+                ArrayOf<Variant> inputArguments = [];
                 var outputArguments = new System.Collections.Generic.List<Variant>();
-                await m_configNode.CancelChanges.OnCallMethod2Async(
+                await m_configNode.CancelChanges!.OnCallMethod2Async!(
                     ownerContext,
                     m_configNode.CancelChanges,
                     m_configNode.NodeId,
@@ -3405,16 +3783,19 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-
-
         private ByteString GetCurrentRsaCertificate(ISystemContext context)
+        {
+            return GetCurrentRsaCertificate(context, m_configNode);
+        }
+
+        private static ByteString GetCurrentRsaCertificate(ISystemContext context, ServerConfigurationState configNode)
         {
             ArrayOf<NodeId> certificateTypeIds = default;
             ArrayOf<ByteString> certificates = default;
-            ServiceResult getResult = m_configNode.GetCertificates.OnCall(
+            ServiceResult getResult = configNode.GetCertificates!.OnCall!(
                 context,
-                m_configNode.GetCertificates,
-                m_configNode.NodeId,
+                configNode.GetCertificates,
+                configNode.NodeId,
                 ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                 ref certificateTypeIds,
                 ref certificates);
@@ -3423,6 +3804,109 @@ namespace Opc.Ua.Server.Tests
                 .FindIndex(t => t == ObjectTypeIds.RsaSha256ApplicationCertificateType);
             Assert.That(index, Is.GreaterThanOrEqualTo(0));
             return certificates[index];
+        }
+
+        private static Certificate CreateTestCa(string subjectPrefix)
+        {
+            return CertificateBuilder
+                .Create(subjectPrefix + Guid.NewGuid().ToString("N")[..8])
+                .SetCAConstraint(0)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+        }
+
+        private Certificate CreateCaSignedReplacement(ISystemContext context, Certificate issuer, string applicationUri)
+        {
+            return CreateCaSignedReplacement(context, m_configNode, issuer, applicationUri);
+        }
+
+        /// <summary>
+        /// Creates a replacement for the current RSA application certificate
+        /// (same subject and domains) with a new key pair, signed by
+        /// <paramref name="issuer"/>.
+        /// </summary>
+        private static Certificate CreateCaSignedReplacement(
+            ISystemContext context,
+            ServerConfigurationState configNode,
+            Certificate issuer,
+            string applicationUri)
+        {
+            using var current = Certificate.FromRawData(GetCurrentRsaCertificate(context, configNode));
+            string[] domainNames = X509Utils.GetDomainsFromCertificate(current).ToArray()!;
+            return CertificateBuilder.Create(current.Subject)
+                .AddExtension(new X509SubjectAltNameExtension(applicationUri, domainNames!))
+                .SetNotBefore(DateTime.UtcNow.Date.AddDays(-1))
+                .SetLifeTime(12)
+                .SetIssuer(issuer)
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+        }
+
+        private static ArrayOf<ByteString> CreateIssuerArgument(string issuerCase, Certificate unrelatedCa)
+        {
+            switch (issuerCase)
+            {
+                case "null":
+                    return default;
+                case "empty":
+                    return [];
+                case "unrelated":
+                    return [unrelatedCa.RawData.ToByteString()];
+                case "malformed":
+                    return [ByteString.From([0xba, 0xd0, 0xbe, 0xef, 3])];
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(issuerCase), issuerCase, "Unknown issuer case.");
+            }
+        }
+
+        private async Task AddTrustedCertificateAsync(Certificate certificate)
+        {
+            using ICertificateStore store = m_fixture.Config.SecurityConfiguration.TrustedPeerCertificates
+                .OpenStore(s_telemetry);
+            await store.AddAsync(certificate).ConfigureAwait(false);
+        }
+
+        private async Task RemoveTrustedCertificateAsync(string thumbprint)
+        {
+            using ICertificateStore store = m_fixture.Config.SecurityConfiguration.TrustedPeerCertificates
+                .OpenStore(s_telemetry);
+            await store.DeleteAsync(thumbprint).ConfigureAwait(false);
+        }
+
+        private static async Task<(string[] Trusted, string[] Issuers)> ReadTrustListThumbprintsAsync(
+            ApplicationConfiguration configuration)
+        {
+            SecurityConfiguration security = configuration.SecurityConfiguration;
+            using ICertificateStore trustedStore = security.TrustedPeerCertificates.OpenStore(s_telemetry);
+            using ICertificateStore issuerStore = security.TrustedIssuerCertificates.OpenStore(s_telemetry);
+            using CertificateCollection trusted = await trustedStore.EnumerateAsync().ConfigureAwait(false);
+            using CertificateCollection issuers = await issuerStore.EnumerateAsync().ConfigureAwait(false);
+            return (
+                trusted.Select(c => c.Thumbprint).ToArray(),
+                issuers.Select(c => c.Thumbprint).ToArray());
+        }
+
+        private async Task CancelChangesAsync(ISystemContext context)
+        {
+            await m_configNode.CancelChanges!.OnCallMethod2Async!(
+                context,
+                m_configNode.CancelChanges,
+                m_configNode.NodeId,
+                [],
+                [],
+                CancellationToken.None).ConfigureAwait(false);
+        }
+
+        private static bool ContainsStatusCode(ServiceResult result, StatusCode statusCode)
+        {
+            for (ServiceResult current = result; current != null; current = current.InnerResult!)
+            {
+                if (current.StatusCode == statusCode)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         [Test]
@@ -3435,13 +3919,13 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.WellKnownRole_SecurityAdmin);
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSigningRequest.OnCallAsync(
+                await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
                         m_configNode.NodeId,
                         ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                         ObjectTypeIds.RsaSha256ApplicationCertificateType,
-                        null,
+                        null!,
                         false,
                         ByteString.Empty,
                         CancellationToken.None)
@@ -3463,7 +3947,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<NodeId> certificateTypeIds = default;
             ArrayOf<ByteString> certificates = default;
 
-            ServiceResult result = m_configNode.GetCertificates.OnCall(
+            ServiceResult result = m_configNode.GetCertificates!.OnCall!(
                 context,
                 m_configNode.GetCertificates,
                 m_configNode.NodeId,
@@ -3484,7 +3968,7 @@ namespace Opc.Ua.Server.Tests
             ArrayOf<ByteString> certificates = default;
 
             ServiceResultException exception = Assert.Throws<ServiceResultException>(() =>
-                m_configNode.GetRejectedList.OnCall(
+                m_configNode.GetRejectedList!.OnCall!(
                     context,
                     m_configNode.GetRejectedList,
                     m_configNode.NodeId,
@@ -3502,7 +3986,7 @@ namespace Opc.Ua.Server.Tests
                 ObjectIds.WellKnownRole_SecurityAdmin);
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSelfSignedCertificate.OnCallAsync(
+                await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
                         m_configNode.NodeId,
@@ -3511,8 +3995,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=Test",
                         ["localhost"],
                         [],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -3528,7 +4012,7 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateContext(UserTokenType.Anonymous, MessageSecurityMode.Sign);
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSelfSignedCertificate.OnCallAsync(
+                await m_configNode.CreateSelfSignedCertificate!.OnCallAsync!(
                         context,
                         m_configNode.CreateSelfSignedCertificate,
                         m_configNode.NodeId,
@@ -3537,8 +4021,8 @@ namespace Opc.Ua.Server.Tests
                         "CN=Test",
                         ["localhost"],
                         [],
-                        (ushort)0,
-                        (ushort)2048,
+                        0,
+                        2048,
                         CancellationToken.None)
                     .ConfigureAwait(false));
 
@@ -3553,13 +4037,13 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(async () =>
-                await m_configNode.CreateSigningRequest.OnCallAsync(
+                await m_configNode.CreateSigningRequest!.OnCallAsync!(
                         context,
                         m_configNode.CreateSigningRequest,
                         m_configNode.NodeId,
                         ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                         ObjectTypeIds.RsaSha256ApplicationCertificateType,
-                        null,
+                        null!,
                         true,
                         ByteString.From(new byte[31]),
                         CancellationToken.None)
@@ -3576,13 +4060,13 @@ namespace Opc.Ua.Server.Tests
             ISystemContext context = CreateAdminContext();
 
             CreateSigningRequestMethodStateResult result = await m_configNode
-                .CreateSigningRequest.OnCallAsync(
+                .CreateSigningRequest!.OnCallAsync!(
                     context,
                     m_configNode.CreateSigningRequest,
                     m_configNode.NodeId,
                     ObjectIds.ServerConfiguration_CertificateGroups_DefaultApplicationGroup,
                     ObjectTypeIds.RsaSha256ApplicationCertificateType,
-                    null,
+                    null!,
                     false,
                     ByteString.Empty,
                     CancellationToken.None)
@@ -3628,6 +4112,7 @@ namespace Opc.Ua.Server.Tests
                 ServerUris = new StringTable()
             };
         }
+
         /// <summary>
         /// Creates an admin context bound to a specific, deterministic
         /// Session NodeId (unlike <see cref="CreateAdminContext"/>, which

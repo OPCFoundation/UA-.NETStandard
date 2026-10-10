@@ -104,25 +104,32 @@ namespace Opc.Ua.Server
             // get the regions.
             List<SubRegion>? regions = GetRegionsInValueSet(values, false, true);
 
+            // Part 13 §5.4.3.31/32: the status of the first region is the status of the raw
+            // value at or before the start of the interval (Bad if there is none), not the
+            // status of the interpolated simple bound.
+            if (regions!.Count > 0)
+            {
+                regions[0].StatusCode = TryGetRawValueAtOrBefore(slice.StartTime, out DataValue firstPoint)
+                    ? firstPoint.StatusCode
+                    : StatusCodes.BadNoData;
+            }
+
             double duration = 0;
             double total = 0;
 
+            // Part 13 §5.4.3.31-34: a region is Good if its data point is Good and Bad if it is Bad;
+            // an Uncertain region counts for neither, and TreatUncertainAsBad does not apply
+            // (Mantis 11425 ~0025847). The region status of GetRegionsInValueSet already applies
+            // TreatUncertainAsBad, so the status of the raw data point is used after the first region.
             for (int ii = 0; ii < regions!.Count; ii++)
             {
                 total += regions[ii].Duration;
 
-                if (isBad)
-                {
-                    if (StatusCode.IsBad(regions[ii].StatusCode) ||
-                        (Configuration.TreatUncertainAsBad &&
-                            StatusCode.IsUncertain(regions[ii].StatusCode)))
-                    {
-                        duration += regions[ii].Duration;
-                    }
-                }
-                else if (StatusCode.IsGood(regions[ii].StatusCode) ||
-                    (!Configuration.TreatUncertainAsBad &&
-                        StatusCode.IsUncertain(regions[ii].StatusCode)))
+                StatusCode status = ii == 0
+                    ? regions[ii].StatusCode
+                    : regions[ii].DataPoint.StatusCode;
+
+                if (isBad ? StatusCode.IsBad(status) : StatusCode.IsGood(status))
                 {
                     duration += regions[ii].Duration;
                 }
@@ -152,23 +159,18 @@ namespace Opc.Ua.Server
             // get the values in the slice.
             List<DataValue>? values = GetValues(slice);
 
+            // Part 13 §5.4.2.2: a backward interval is calculated like the forward interval
+            // covering the same time range, so the start bound is always taken at the early
+            // time of the slice and the values are evaluated in chronological order.
             if (includeBounds && values != null)
             {
-                DateTimeUtc startTime = GetTimestamp(slice);
+                DateTimeUtc startTime = slice.StartTime;
                 DataValue startBound = GetSimpleBound(startTime, slice);
-                int startIndex = TimeFlowsBackward ? values.Count - 1 : 0;
 
                 if (!startBound.IsNull &&
-                    (values.Count == 0 || values[startIndex].SourceTimestamp != startTime))
+                    (values.Count == 0 || values[0].SourceTimestamp != startTime))
                 {
-                    if (TimeFlowsBackward)
-                    {
-                        values.Add(startBound);
-                    }
-                    else
-                    {
-                        values.Insert(0, startBound);
-                    }
+                    values.Insert(0, startBound);
                 }
             }
 
@@ -181,15 +183,13 @@ namespace Opc.Ua.Server
             // get the regions.
             _ = GetRegionsInValueSet(values, false, true);
 
-            int firstIndex = TimeFlowsBackward ? values.Count - 1 : 0;
-            StatusCode worstQuality = values[firstIndex].StatusCode.CodeBits;
+            StatusCode worstQuality = values[0].StatusCode.CodeBits;
             int badQualityCount = 0;
             int uncertainQualityCount = 0;
             int goodQualityCount = 0;
 
-            for (int index = 0; index < values.Count; index++)
+            for (int ii = 0; ii < values.Count; ii++)
             {
-                int ii = TimeFlowsBackward ? values.Count - 1 - index : index;
                 StatusCode quality = values[ii].StatusCode;
 
                 if (StatusCode.IsBad(quality))

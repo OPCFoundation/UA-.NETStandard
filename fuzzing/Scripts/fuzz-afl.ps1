@@ -11,34 +11,32 @@ param (
 )
 
 Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$aflFuzz = (Get-Command 'afl-fuzz' -ErrorAction Stop).Source
+$command = (Get-Command $command -ErrorAction Stop).Source
 
-$outputDir = "bin"
-$findingsDir = "findings"
-
-if (Test-Path $outputDir) { 
-    Remove-Item -Recurse -Force $outputDir 
-}
-
-if (Test-Path $findingsDir) {
-    Remove-Item -Recurse -Force $findingsDir 
-}
-
-dotnet publish $project --force -c release -o $outputDir
+$project = (Resolve-Path -LiteralPath $project).Path
+$i = (Resolve-Path -LiteralPath $i).Path
+if ($x) { $x = (Resolve-Path -LiteralPath $x).Path }
+if (@(Get-ChildItem -LiteralPath $i -File).Count -eq 0) { throw "Required corpus is empty: $i" }
+$work = Join-Path ([IO.Path]::GetTempPath()) ("opcua-afl-" + [guid]::NewGuid().ToString('N'))
+$outputDir = Join-Path $work 'publish'
+$findingsDir = Join-Path $work 'findings'
+$null = New-Item -ItemType Directory -Path $work
+$env:CustomTestTarget = 'net10.0'
+dotnet publish $project --no-restore -m:1 -p:FuzzCoverage=true -c Release -f net10.0 -o $outputDir
+if ($LASTEXITCODE -ne 0) { throw "Publication failed ($LASTEXITCODE)." }
 
 $projectName = (Get-Item $project).BaseName
 $projectDll = "$projectName.dll"
 $project = Join-Path $outputDir $projectDll
-
-$exclusions = @(
-    "dnlib.dll",
-    "SharpFuzz.dll",
-    "SharpFuzz.Common.dll",
-    $projectDll
-)
+$available = @(& dotnet $project --list)
+if ($LASTEXITCODE -ne 0 -or $fuzztarget -notin $available -or $fuzztarget -notlike 'Aflfuzz*') {
+    throw "Unknown AFL callback: $fuzztarget"
+}
 
 $fuzzingTargets = Get-ChildItem $outputDir -Filter *.dll `
-| Where-Object { $_.Name -notin $exclusions } `
-| Where-Object { $_.Name -notlike "System.*.dll" }
+| Where-Object { $_.Name -like "Opc.Ua.*.dll" -and $_.Name -ne $projectDll }
 
 if (($fuzzingTargets | Measure-Object).Count -eq 0) {
     Write-Error "No fuzzing targets found"
@@ -47,7 +45,7 @@ if (($fuzzingTargets | Measure-Object).Count -eq 0) {
 
 foreach ($fuzzingTarget in $fuzzingTargets) {
     Write-Output "Instrumenting $fuzzingTarget"
-    & $command $fuzzingTarget
+    & $command $fuzzingTarget.FullName
     
     if ($LastExitCode -ne 0) {
         Write-Error "An error occurred while instrumenting $fuzzingTarget"
@@ -56,12 +54,14 @@ foreach ($fuzzingTarget in $fuzzingTargets) {
 }
 
 $env:AFL_SKIP_BIN_CHECK = 1
+Write-Output "Retained campaign artifacts: $work"
 
 if ($x) {
     Write-Output "afl-fuzz -i $i -o $findingsDir -t $t -m none -x $x dotnet $project $fuzztarget"
-    afl-fuzz -i $i -o $findingsDir -t $t -m none -x $x dotnet $project $fuzztarget
+    & $aflFuzz -i $i -o $findingsDir -t $t -m none -x $x dotnet $project $fuzztarget
 }
 else {
     Write-Output "afl-fuzz -i $i -o $findingsDir -t $t -m none dotnet $project $fuzztarget"
-    afl-fuzz -i $i -o $findingsDir -t $t -m none dotnet $project $fuzztarget
+    & $aflFuzz -i $i -o $findingsDir -t $t -m none dotnet $project $fuzztarget
 }
+if ($LASTEXITCODE -ne 0) { throw "Fuzz campaign failed ($LASTEXITCODE). Artifacts: $work" }

@@ -29,6 +29,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -274,8 +275,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(m_initialStartupHost.AddCalls, Is.EqualTo(1));
             Assert.That(m_coordinator.Generation, Is.EqualTo(1),
                 "Initial readiness must run once, not again for a changed manager snapshot.");
-            Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(1),
-                "The static registry is not a runtime registration; only its real projection is.");
+            NodeManagerRegistration registryRegistration = FindStartupRegistryRegistration();
+            NodeManagerRegistration projectionRegistration = FindStartupSensorRegistration();
+            Assert.That(registryRegistration.Generation, Is.EqualTo(1));
+            Assert.That(projectionRegistration.Generation, Is.EqualTo(1));
+            Assert.That(projectionRegistration.Id, Is.Not.EqualTo(registryRegistration.Id),
+                "The stored sensor must have its own committed generation beside the adopted registry.");
             Assert.That(StartupResource().LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
             await AssertStartupSensorAsync(readable: true).ConfigureAwait(false);
         }
@@ -291,8 +296,11 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             try
             {
                 await readiness.Entered.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
-                Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(1),
+                NodeManagerRegistration projectionRegistration = FindStartupSensorRegistration();
+                Assert.That(projectionRegistration.Generation, Is.EqualTo(1),
                     "The real sensor projection must be committed before initial startup fails.");
+                Assert.That(projectionRegistration.NodeManager, Is.Not.InstanceOf<WotRegistryNodeManager>(),
+                    "The published sensor generation must be a dependency, not the initial registry manager.");
                 Assert.That(StartupResource().LoadState, Is.EqualTo(WoTLoadStateEnum.Active));
                 if (cancel)
                 {
@@ -314,6 +322,16 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             {
                 cancellation.Cancel();
                 readiness.Release.TrySetResult(true);
+                try
+                {
+                    await startup.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+                {
+                }
+                catch (InvalidOperationException failure) when (ReferenceEquals(failure, readiness.Failure))
+                {
+                }
             }
 
             Assert.That(m_initialStartupHost.DeadlineExpired, Is.False);
@@ -427,6 +445,12 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
         {
             return m_registry.Current.FindResource(WotRegistryGroups.ThingDescriptions, "sensor") ??
                 throw new InvalidOperationException("The persisted sensor resource is missing.");
+        }
+
+        private NodeManagerRegistration FindStartupSensorRegistration()
+        {
+            return m_server.NodeManagerLifecycle.Registrations.ToList()
+                .Single(registration => registration.NamespaceUris.Contains(kModelNamespaceUri));
         }
 
         private async Task AssertStartupSensorAsync(bool readable)

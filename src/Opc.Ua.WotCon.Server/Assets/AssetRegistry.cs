@@ -1151,11 +1151,12 @@ namespace Opc.Ua.WotCon.Server.Assets
                 eventType.AddChild(property);
             }
 
-            // The asset object notifies the event, so a client subscribing to
-            // the asset (or to the Server object) receives it.
-            entry.Asset.AddReference(
-                Ua.ReferenceTypeIds.GeneratesEvent, isInverse: false, eventTypeId);
-
+            // No GeneratesEvent reference from the asset: OPC 10000-3 §7.15
+            // restricts its source to ObjectTypes, VariableTypes and Methods,
+            // and the asset is a plain BaseObjectType instance. The asset's
+            // EventNotifier bit and its root-notifier registration are what
+            // let a client subscribing to the asset (or to the Server object)
+            // receive the event.
             m_manager.AddEventTypeNode(eventType);
 
             JsonElement? form = evt.Forms?.Count > 0 ? evt.Forms[0] : null;
@@ -1270,15 +1271,13 @@ namespace Opc.Ua.WotCon.Server.Assets
 
         /// <summary>
         /// Drops the EventTypes materialised for an asset's previous TD
-        /// generation, including the asset's <c>GeneratesEvent</c> references
-        /// to them, so a re-applied TD does not accumulate stale event types.
+        /// generation, so a re-applied TD does not accumulate stale event
+        /// types.
         /// </summary>
         private void RemoveEventTypes(AssetEntry entry)
         {
             foreach (KeyValuePair<NodeId, (BaseObjectTypeState _, WotEventTag Tag)> kv in entry.Events)
             {
-                entry.Asset.RemoveReference(
-                    Ua.ReferenceTypeIds.GeneratesEvent, isInverse: false, kv.Key);
                 m_manager.RemoveEventTypeNode(kv.Key);
             }
         }

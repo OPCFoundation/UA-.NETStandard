@@ -91,6 +91,18 @@ namespace Opc.Ua.Sample
         }
 
         /// <summary>
+        /// Mints NodeIds for nodes this NodeManager creates at runtime.
+        /// </summary>
+        /// <remarks>
+        /// This sample base predates <see cref="AsyncCustomNodeManager"/> and
+        /// so carries the factory itself. A subclass selects its identifier
+        /// style by assigning this rather than by overriding
+        /// <see cref="New"/>.
+        /// </remarks>
+        public IRebasableNodeIdFactory NodeIdFactory { get; set; }
+            = new DefaultNodeIdFactory(NodeIdAssignmentMode.String);
+
+        /// <summary>
         /// Creates the NodeId for the specified node.
         /// </summary>
         /// <param name="context">The context.</param>
@@ -98,7 +110,7 @@ namespace Opc.Ua.Sample
         /// <returns>The new NodeId.</returns>
         public virtual NodeId New(ISystemContext context, NodeState node)
         {
-            return node.NodeId;
+            return NodeIdFactory.New(context, node);
         }
 
         /// <summary>
@@ -306,6 +318,18 @@ namespace Opc.Ua.Sample
                 {
                     m_namespaceIndexes[ii] = Server.NamespaceUris
                         .GetIndexOrAppend(m_namespaceUris[ii]);
+                }
+
+                // A factory still pointing at namespace 0 adopts the first
+                // namespace this manager owns. Namespace 0 is the OPC UA
+                // namespace, so minting there would hand out identifiers in
+                // a namespace no NodeManager owns. A subclass that wants a
+                // different one of its namespaces rebases the factory itself,
+                // as BoilerNodeManager and MemoryBufferNodeManager do.
+                if (NodeIdFactory.DefaultNamespaceIndex == 0 && m_namespaceIndexes.Length > 0)
+                {
+                    NodeIdFactory = NodeIdFactory
+                        .WithDefaultNamespaceIndex(m_namespaceIndexes[0]);
                 }
 
                 LoadPredefinedNodes(SystemContext, externalReferences);
@@ -752,6 +776,48 @@ namespace Opc.Ua.Sample
             }
 
             return null;
+        }
+
+        /// <summary>
+        /// Resolves a Method declaration found in the ObjectType hierarchy to the
+        /// Method of the Object with the same BrowseName.
+        /// Per OPC UA spec Part 4 section 5.12.2.2 the RolePermissions are always
+        /// verified with the Method that is the target of a HasComponent from the
+        /// Object, independent of the methodId of the call.
+        /// </summary>
+        /// <param name="context">The system context.</param>
+        /// <param name="source">The Object the method is called on.</param>
+        /// <param name="declaration">The Method declaration of the ObjectType.</param>
+        /// <returns>The Method of the Object, or the declaration if the Object has none.</returns>
+        private MethodState FindObjectMethodForDeclaration(
+            ISystemContext context,
+            NodeState source,
+            MethodState declaration)
+        {
+            if (source.FindChildWithQualifiedName(context, declaration.BrowseName) is MethodState child)
+            {
+                return child;
+            }
+
+            // check for loose coupling via a HasComponent reference of the Object.
+            var references = new List<IReference>();
+            source.GetReferences(context, references, ReferenceTypeIds.HasComponent, false);
+            foreach (IReference reference in references)
+            {
+                if (reference.TargetId.IsNull || reference.TargetId.IsAbsolute)
+                {
+                    continue;
+                }
+
+                MethodState? method = FindPredefinedNode<MethodState>(
+                    ExpandedNodeId.ToNodeId(reference.TargetId, Server.NamespaceUris));
+                if (method != null && method.BrowseName == declaration.BrowseName)
+                {
+                    return method;
+                }
+            }
+
+            return declaration;
         }
 
         /// <summary>
@@ -1846,6 +1912,10 @@ namespace Opc.Ua.Sample
                         if (method == null && source is BaseInstanceState instanceState)
                         {
                             method = FindMethodInTypeHierarchy(systemContext, instanceState.TypeDefinitionId, methodToCall.MethodId);
+                            if (method != null)
+                            {
+                                method = FindObjectMethodForDeclaration(systemContext, source, method);
+                            }
                         }
 
                         if (method == null)

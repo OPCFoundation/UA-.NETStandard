@@ -1059,7 +1059,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 cancellationToken.ThrowIfCancellationRequested();
                 Interlocked.Increment(ref m_requests);
                 return new ValueTask<WotResolverResult>(
-                    m_documents.TryGetValue(reference, out string json)
+                    m_documents.TryGetValue(reference, out string? json)
                         ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(json))
                         : WotResolverResult.NotFound);
             }

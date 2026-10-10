@@ -68,12 +68,12 @@ namespace Opc.Ua.Di.Tests
                         global::Opc.Ua.Di.Objects.DeviceSet,
                         global::Opc.Ua.Di.Namespaces.OpcUaDi,
                         server.CurrentInstance.NamespaceUris));
+                // the manager reports the identifiers it actually minted, so
+                // the test does not restate the factory's identifier format.
                 PumpState pump1 = manager.FindPredefinedNode<PumpState>(
-                    new NodeId(
-                        "5001_Pump_1",
-                        manager.InstanceNamespaceIndex));
+                    manager.PumpNodeIds[0]);
                 PumpState pump = manager.FindPredefinedNode<PumpState>(
-                    new NodeId("5001_Pump_2", manager.InstanceNamespaceIndex));
+                    manager.PumpNodeIds[1]);
                 IReadOnlyList<ReferenceDescription> deviceSetReferences =
                     await BrowseForwardAsync(manager, deviceSet.NodeId)
                         .ConfigureAwait(false);

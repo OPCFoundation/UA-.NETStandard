@@ -37,8 +37,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Fluent
 {
     /// <summary>
@@ -285,6 +283,179 @@ namespace Opc.Ua.Server.Tests.Fluent
             await harness.DeleteAsync(slowItem!).ConfigureAwait(false);
             await DrainAsync().ConfigureAwait(false);
             Assert.That(lastSubscribers, Is.EqualTo(2));
+        }
+
+        [Test]
+        public async Task AcquireWhileMonitoredReleasesOnLastSubscriberAsync()
+        {
+            int acquired = 0;
+            int released = 0;
+
+            using var harness = await MonitoredItemHarness.CreateAsync(builder =>
+            {
+                builder.Variable<int>("Value")
+                    .AcquireWhileMonitored((context, node, cancellationToken) =>
+                    {
+                        acquired++;
+                        return new ValueTask<IAsyncDisposable>(
+                            new ReleaseTracker(() => released++));
+                    });
+            }).ConfigureAwait(false);
+
+            Assert.That(acquired, Is.Zero);
+
+            (_, IMonitoredItem? item) = await harness
+                .CreateAsync(CreateRequest())
+                .ConfigureAwait(false);
+            await DrainAsync().ConfigureAwait(false);
+            Assert.Multiple(() =>
+            {
+                Assert.That(acquired, Is.EqualTo(1));
+                Assert.That(released, Is.Zero);
+            });
+
+            await harness.DeleteAsync(item!).ConfigureAwait(false);
+            await DrainAsync().ConfigureAwait(false);
+            Assert.That(released, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task AcquireWhileMonitoredReleasesAtShutdownWithALiveSubscriptionAsync()
+        {
+            int released = 0;
+
+            using var harness = await MonitoredItemHarness.CreateAsync(builder =>
+            {
+                builder.Variable<int>("Value")
+                    .AcquireWhileMonitored((context, node, cancellationToken) =>
+                        new ValueTask<IAsyncDisposable>(
+                            new ReleaseTracker(() => released++)));
+            }).ConfigureAwait(false);
+
+            await harness.CreateAsync(CreateRequest()).ConfigureAwait(false);
+            await DrainAsync().ConfigureAwait(false);
+            Assert.That(released, Is.Zero);
+
+            // Shutdown never deletes the monitored item, so the reconcile path's
+            // Deactivate arm never runs. Release has to come from teardown itself.
+            await harness.Manager.ReleaseAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(
+                released,
+                Is.EqualTo(1),
+                "a resource held by a live subscription must be released at shutdown");
+        }
+
+        [Test]
+        public async Task RawLastSubscriberReceivesUsableShutdownTokenAsync()
+        {
+            int acquired = 0;
+            int released = 0;
+            using MonitoredItemHarness harness = await MonitoredItemHarness.CreateAsync(builder =>
+                builder.Variable<int>("Value")
+                    .OnFirstSubscriber((_, _, _) =>
+                    {
+                        acquired++;
+                        return default;
+                    })
+                    .OnLastSubscriber((_, _, ct) =>
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        released++;
+                        return default;
+                    })).ConfigureAwait(false);
+            await harness.CreateAsync(CreateRequest()).ConfigureAwait(false);
+            Assert.That(acquired, Is.EqualTo(1));
+
+            await harness.Manager.ReleaseAddressSpaceAsync().ConfigureAwait(false);
+
+            Assert.That(released, Is.EqualTo(1));
+        }
+
+        /// <summary>
+        /// Verifies that a new subscriber retains the shared source while an older poller finishes its final sample.
+        /// </summary>
+        [Test]
+        public async Task ReactivationDuringOldPollerDrainKeepsItsSourceResourceAliveAsync()
+        {
+            int acquired = 0;
+            int released = 0;
+            int samples = 0;
+            bool resourceAlive = false;
+            var sampleEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var releaseSample = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var harness = await MonitoredItemHarness.CreateAsync(builder =>
+            {
+                builder.Variable<int>("Value")
+                    .AcquireWhileMonitored((_, _, _) =>
+                    {
+                        acquired++;
+                        resourceAlive = true;
+                        return new ValueTask<IAsyncDisposable>(new ReleaseTracker(() =>
+                        {
+                            released++;
+                            resourceAlive = false;
+                        }));
+                    })
+                    .PollWhileMonitored(TimeSpan.FromMilliseconds(50), async (_, _) =>
+                    {
+                        int sample = Interlocked.Increment(ref samples);
+                        if (sample == 2)
+                        {
+                            sampleEntered.TrySetResult(true);
+                            await releaseSample.Task.ConfigureAwait(false);
+                        }
+                        return resourceAlive ? sample : -1;
+                    });
+            }).ConfigureAwait(false);
+            (_, IMonitoredItem? first) = await harness.CreateAsync(CreateRequest(samplingInterval: 100))
+                .ConfigureAwait(false);
+            harness.Time.Advance(TimeSpan.FromMilliseconds(100));
+            await sampleEntered.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Task<ServiceResult> stopping = harness.SetModeAsync(first!, MonitoringMode.Disabled).AsTask();
+            IMonitoredItem? second = null;
+            Task<(ServiceResult Error, IMonitoredItem? Item)>? creating = null;
+            try
+            {
+                Assert.That(stopping.IsCompleted, Is.False);
+                creating = harness.CreateAsync(CreateRequest(samplingInterval: 100)).AsTask();
+                (_, second) = await creating.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+            finally
+            {
+                releaseSample.TrySetResult(true);
+                await stopping.ConfigureAwait(false);
+                if (creating != null)
+                {
+                    (_, second) = await creating.ConfigureAwait(false);
+                }
+            }
+            Assert.Multiple(() =>
+            {
+                Assert.That(resourceAlive, Is.True);
+                Assert.That(acquired, Is.EqualTo(1));
+                Assert.That(released, Is.Zero);
+                Assert.That(samples, Is.GreaterThanOrEqualTo(3));
+            });
+            await harness.DeleteAsync(first!).ConfigureAwait(false);
+            await harness.DeleteAsync(second!).ConfigureAwait(false);
+            Assert.That(released, Is.EqualTo(1));
+        }
+
+        private sealed class ReleaseTracker : IAsyncDisposable
+        {
+            public ReleaseTracker(Action onRelease)
+            {
+                m_onRelease = onRelease;
+            }
+
+            public ValueTask DisposeAsync()
+            {
+                m_onRelease();
+                return default;
+            }
+
+            private readonly Action m_onRelease;
         }
 
         [Test]
@@ -856,7 +1027,16 @@ namespace Opc.Ua.Server.Tests.Fluent
 
                 NodeManagerBuilder builder = CreateFluentBuilder(namespaceIndex);
                 configure(builder);
-                builder.Seal();
+
+                // Same order the generated managers use: activate behaviors after
+                // Configure and before sealing.
+                await ActivateNodeBehaviorsAsync().ConfigureAwait(false);
+                await builder.SealAsync().ConfigureAwait(false);
+            }
+
+            public ValueTask ReleaseAddressSpaceAsync()
+            {
+                return DeleteAddressSpaceAsync();
             }
 
             private static ApplicationConfiguration CreateConfiguration()

@@ -79,10 +79,18 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="frame">Raw frame.</param>
         /// <param name="context">Decoder context.</param>
         /// <returns>Decoded message or <see langword="null"/>.</returns>
-        private static PubSubNetworkMessage? DecodeCore(
+        internal static PubSubNetworkMessage? DecodeCore(
             ReadOnlyMemory<byte> frame,
             PubSubNetworkMessageContext context)
         {
+            int maxMessageSize = context.MessageContext.MaxMessageSize;
+            if (maxMessageSize > 0 && frame.Length > maxMessageSize)
+            {
+                // Refuse oversized frames before any parsing allocation.
+                context.Diagnostics.Increment(
+                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                return null;
+            }
             JsonDocument? document;
             try
             {
@@ -96,62 +104,87 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             using (document)
             {
-                JsonElement root = document.RootElement;
-                if (root.ValueKind == JsonValueKind.Array)
+                try
                 {
-                    context.Diagnostics.Increment(
-                        PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
-                    return DecodeDataWithoutNetworkHeader(root, context);
-                }
-                if (root.ValueKind != JsonValueKind.Object)
-                {
-                    context.Diagnostics.Increment(
-                        PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
-                    return null;
-                }
-                if (!root.TryGetProperty("MessageType", out JsonElement typeElement) ||
-                    typeElement.ValueKind != JsonValueKind.String)
-                {
-                    if (root.TryGetProperty("MessageId", out _) ||
-                        root.TryGetProperty("PublisherId", out _) ||
-                        root.TryGetProperty("Messages", out _))
+                    JsonElement root = document.RootElement;
+                    if (root.ValueKind == JsonValueKind.Array)
+                    {
+                        context.Diagnostics.Increment(
+                            PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
+                        return DecodeDataWithoutNetworkHeader(root, context);
+                    }
+                    if (root.ValueKind != JsonValueKind.Object)
                     {
                         context.Diagnostics.Increment(
                             PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                         return null;
                     }
+                    bool hasMessageType = root.TryGetProperty("MessageType", out JsonElement typeElement) &&
+                        typeElement.ValueKind == JsonValueKind.String;
+                    string messageType = hasMessageType
+                        ? typeElement.GetString() ?? string.Empty
+                        : string.Empty;
+                    // Without a NetworkMessage header the root is a single
+                    // DataSetMessage, which may carry its own PublisherId and a
+                    // DataSetMessage MessageType (Part 14 §7.2.5.4.1 Table 185).
+                    if (!hasMessageType || JsonDataSetMessageType.TryParse(messageType, out _))
+                    {
+                        if (root.TryGetProperty("MessageId", out _) ||
+                            root.TryGetProperty("Messages", out _))
+                        {
+                            context.Diagnostics.Increment(
+                                PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                            return null;
+                        }
+                        context.Diagnostics.Increment(
+                            PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
+                        return DecodeDataWithoutNetworkHeader(root, context);
+                    }
                     context.Diagnostics.Increment(
                         PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
-                    return DecodeDataWithoutNetworkHeader(root, context);
+                    return messageType switch
+                    {
+                        JsonNetworkMessage.MessageTypeData
+                            => DecodeData(root, context),
+                        JsonNetworkMessage.MessageTypeMetaData
+                            => DecodeMetaData(root, context),
+                        JsonDiscoveryMessage.MessageTypeApplication
+                            => DecodeApplicationDiscovery(root, context),
+                        JsonDiscoveryMessage.MessageTypeEndpoints
+                            => DecodeEndpointsDiscovery(root, context),
+                        JsonDiscoveryMessage.MessageTypeStatus
+                            => DecodeStatusDiscovery(root, context),
+                        JsonDiscoveryMessage.MessageTypeConnection
+                            => DecodeConnectionDiscovery(root, context),
+                        JsonActionNetworkMessage.MessageTypeActionRequest
+                            => DecodeAction(root, context, isResponse: false),
+                        JsonActionNetworkMessage.MessageTypeActionResponse
+                            => DecodeAction(root, context, isResponse: true),
+                        JsonActionNetworkMessage.MessageTypeActionMetaData
+                            => DecodeActionMetaData(root, context),
+                        JsonActionNetworkMessage.MessageTypeActionResponder
+                            => DecodeActionResponder(root, context),
+                        _ => DecodeUnknown(context, messageType)
+                    };
                 }
-                string messageType = typeElement.GetString() ?? string.Empty;
-                context.Diagnostics.Increment(
-                    PubSubDiagnosticsCounterKind.ReceivedNetworkMessages);
-                return messageType switch
+                catch (Exception ex) when (IsMalformedInput(ex))
                 {
-                    JsonNetworkMessage.MessageTypeData
-                        => DecodeData(root, context),
-                    JsonNetworkMessage.MessageTypeMetaData
-                        => DecodeMetaData(root, context),
-                    JsonDiscoveryMessage.MessageTypeApplication
-                        => DecodeDiscovery(root, context, UadpDiscoveryType.ApplicationInformation),
-                    JsonDiscoveryMessage.MessageTypeEndpoints
-                        => DecodeDiscovery(root, context, UadpDiscoveryType.PublisherEndpoints),
-                    JsonDiscoveryMessage.MessageTypeStatus
-                        => DecodeDiscovery(root, context, UadpDiscoveryType.None),
-                    JsonDiscoveryMessage.MessageTypeConnection
-                        => DecodeDiscovery(root, context, UadpDiscoveryType.PubSubConnection),
-                    JsonActionNetworkMessage.MessageTypeActionRequest
-                        => DecodeAction(root, context),
-                    JsonActionNetworkMessage.MessageTypeActionResponse
-                        => DecodeAction(root, context),
-                    JsonActionNetworkMessage.MessageTypeActionMetaData
-                        => DecodeActionMetaData(root, context),
-                    JsonActionNetworkMessage.MessageTypeActionResponder
-                        => DecodeActionResponder(root, context),
-                    _ => DecodeUnknown(context, messageType)
-                };
+                    // Malformed or hostile input surfaces as an invalid
+                    // NetworkMessage, never as an exception.
+                    context.Diagnostics.Increment(
+                        PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
+                    return null;
+                }
             }
+        }
+
+        private static bool IsMalformedInput(Exception exception)
+        {
+            return exception is ServiceResultException
+                or InvalidOperationException
+                or FormatException
+                or ArgumentException
+                or JsonException;
         }
 
         private static JsonNetworkMessage? DecodeDataWithoutNetworkHeader(
@@ -176,6 +209,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             else
             {
+                _ = CheckArrayLength(root, context);
                 foreach (JsonElement entry in root.EnumerateArray())
                 {
                     if (entry.ValueKind != JsonValueKind.Object)
@@ -209,6 +243,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             return new JsonNetworkMessage
             {
+                // A header-less single DataSetMessage names its Publisher itself.
+                PublisherId = singleMessage
+                    ? ((JsonDataSetMessage)dataSetMessages[0]).PublisherId
+                    : PublisherId.Null,
                 ContentMask = singleMessage
                     ? JsonNetworkMessageContentMask.SingleDataSetMessage
                     : JsonNetworkMessageContentMask.None,
@@ -229,11 +267,11 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            string messageId = ReadOptionalString(root, "MessageId");
-            PublisherId envelopePublisherId = ReadPublisherId(root);
+            string messageId = ReadOptionalString(root, "MessageId", context);
+            PublisherId envelopePublisherId = ReadPublisherId(root, context);
             Uuid envelopeDataSetClassId = ReadUuid(root, "DataSetClassId");
-            string writerGroupName = ReadOptionalString(root, "WriterGroupName");
-            ArrayOf<string> replyTo = ReadStringArray(root, "ReplyTo");
+            string writerGroupName = ReadOptionalString(root, "WriterGroupName", context);
+            ArrayOf<string> replyTo = ReadStringArray(root, "ReplyTo", context);
             bool flatLayout = !root.TryGetProperty("Messages", out JsonElement messagesElement) ||
                 messagesElement.ValueKind == JsonValueKind.Object;
             var dataSetMessages = new List<PubSubDataSetMessage>();
@@ -267,6 +305,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                     return null;
                 }
+                _ = CheckArrayLength(messagesElement, context);
                 foreach (JsonElement entry in messagesElement.EnumerateArray())
                 {
                     if (entry.ValueKind != JsonValueKind.Object)
@@ -311,8 +350,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
-        /// Decodes a <c>ua-metadata</c> envelope into a
-        /// <see cref="JsonMetaDataMessage"/>.
+        /// Decodes a <c>ua-metadata</c> envelope (Part 14 §7.2.5.5.2
+        /// Table 188) into a <see cref="JsonMetaDataMessage"/>.
         /// </summary>
         /// <param name="root">Root element.</param>
         /// <param name="context">Decoder context.</param>
@@ -322,10 +361,12 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement root,
             PubSubNetworkMessageContext context)
         {
-            string messageId = ReadOptionalString(root, "MessageId");
-            PublisherId publisherId = ReadPublisherId(root);
+            string messageId = ReadOptionalString(root, "MessageId", context);
+            PublisherId publisherId = ReadPublisherId(root, context);
             ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
-            Uuid dataSetClassId = ReadUuid(root, "DataSetClassId");
+            string writerGroupName = ReadOptionalString(root, "WriterGroupName", context);
+            string writerName = ReadOptionalString(root, "DataSetWriterName", context);
+            DateTimeUtc timestamp = ReadOptionalTimestamp(root, "Timestamp");
             if (!root.TryGetProperty("MetaData", out JsonElement metaElement) ||
                 metaElement.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined)
             {
@@ -343,126 +384,155 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 MessageId = messageId,
                 PublisherId = publisherId,
                 DataSetWriterId = writerId,
-                DataSetClassId = dataSetClassId,
+                WriterGroupName = writerGroupName,
+                DataSetWriterName = writerName,
+                Timestamp = timestamp,
                 MetaDataPayload = metaData,
                 MetaData = metaData
             };
         }
 
         /// <summary>
-        /// Decodes a <c>ua-discovery</c> envelope into a
-        /// <see cref="JsonDiscoveryMessage"/> per
-        /// <see href="https://reference.opcfoundation.org/Core/Part14/v105/docs/7.2.5.5">
-        /// Part 14 §7.2.5.5</see>.
+        /// Decodes a <c>ua-application</c> message (Part 14 §7.2.5.5.3
+        /// Table 189).
         /// </summary>
         /// <param name="root">Root element.</param>
         /// <param name="context">Decoder context.</param>
-        /// <param name="forcedType">Discovery type implied by the JSON
-        /// MessageType, when the spec-specific envelope is used.</param>
         /// <returns>Decoded discovery message or
         /// <see langword="null"/>.</returns>
-        private static JsonDiscoveryMessage? DecodeDiscovery(
+        private static JsonDiscoveryMessage? DecodeApplicationDiscovery(
             JsonElement root,
-            PubSubNetworkMessageContext context,
-            UadpDiscoveryType? forcedType = null)
+            PubSubNetworkMessageContext context)
         {
-            string messageId = ReadOptionalString(root, "MessageId");
-            PublisherId publisherId = ReadPublisherId(root);
-            uint typeCode = ReadOptionalUInt32(root, "DiscoveryType");
-            ushort writerId = ReadOptionalUInt16(root, "DataSetWriterId");
-            uint statusCode = ReadOptionalUInt32(root, "Status");
-            UadpDiscoveryType discoveryType = forcedType ?? (UadpDiscoveryType)typeCode;
-            if (discoveryType == UadpDiscoveryType.None &&
-                root.TryGetProperty("WriterConfiguration", out _))
+            ApplicationDescription? description = null;
+            if (root.TryGetProperty("Description", out JsonElement descriptionElement) &&
+                descriptionElement.ValueKind == JsonValueKind.Object)
             {
-                discoveryType = UadpDiscoveryType.DataSetWriterConfiguration;
+                description = DecodeEncodeable<ApplicationDescription>(descriptionElement, context);
+                if (description is null)
+                {
+                    return null;
+                }
             }
-            var msg = new JsonDiscoveryMessage
+            description ??= new ApplicationDescription();
+            return new JsonDiscoveryMessage
             {
-                MessageId = messageId,
-                PublisherId = publisherId,
-                DiscoveryType = discoveryType,
-                DataSetWriterId = writerId,
-                Status = new StatusCode(statusCode)
+                MessageId = ReadOptionalString(root, "MessageId", context),
+                PublisherId = ReadPublisherId(root, context),
+                Timestamp = ReadOptionalTimestamp(root, "Timestamp"),
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                Description = description,
+                ApplicationInformation = new UadpApplicationInformation
+                {
+                    ApplicationName = description.ApplicationName,
+                    ApplicationUri = description.ApplicationUri ?? string.Empty,
+                    ProductUri = description.ProductUri ?? string.Empty,
+                    ApplicationType = description.ApplicationType,
+                    Capabilities = ReadStringArray(root, "ServerCapabilities", context)
+                }
             };
-            switch (discoveryType)
+        }
+
+        /// <summary>
+        /// Decodes a <c>ua-endpoints</c> message (Part 14 §7.2.5.5.4
+        /// Table 190).
+        /// </summary>
+        /// <param name="root">Root element.</param>
+        /// <param name="context">Decoder context.</param>
+        /// <returns>Decoded discovery message.</returns>
+        private static JsonDiscoveryMessage DecodeEndpointsDiscovery(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            EndpointDescription[] endpoints = [];
+            if (root.TryGetProperty("Endpoints", out JsonElement endpointsElement) &&
+                endpointsElement.ValueKind == JsonValueKind.Array)
             {
-                case UadpDiscoveryType.ApplicationInformation:
-                    if (root.TryGetProperty("ApplicationInformation",
-                            out JsonElement appElement) &&
-                        appElement.ValueKind == JsonValueKind.Object)
-                    {
-                        msg = msg with
-                        {
-                            ApplicationInformation = ReadApplicationInformation(appElement)
-                        };
-                    }
-                    break;
-                case UadpDiscoveryType.PubSubConnection:
-                    if (root.TryGetProperty("Connection", out JsonElement connElement) &&
-                        connElement.ValueKind == JsonValueKind.Object)
-                    {
-                        msg = msg with
-                        {
-                            Connection = DecodeEncodeable<PubSubConnectionDataType>(
-                                "Connection", connElement, context)
-                        };
-                    }
-                    break;
-                case UadpDiscoveryType.DataSetMetaData:
-                    if (root.TryGetProperty("MetaData", out JsonElement metaElement) &&
-                        metaElement.ValueKind == JsonValueKind.Object)
-                    {
-                        DataSetMetaDataType? meta = DecodeMetaDataPayload(
-                            metaElement, context);
-                        msg = msg with { MetaData = meta };
-                    }
-                    break;
-                case UadpDiscoveryType.DataSetWriterConfiguration:
-                    msg = msg with
-                    {
-                        DataSetWriterIds = ReadUInt16Array(root, "DataSetWriterIds")
-                    };
-                    if (root.TryGetProperty("WriterConfiguration",
-                            out JsonElement cfgElement) &&
-                        cfgElement.ValueKind == JsonValueKind.Object)
-                    {
-                        msg = msg with
-                        {
-                            WriterConfiguration = DecodeEncodeable<WriterGroupDataType>(
-                                "WriterConfiguration", cfgElement, context)
-                        };
-                    }
-                    break;
-                case UadpDiscoveryType.PublisherEndpoints:
-                    if (root.TryGetProperty("PublisherEndpoints",
-                            out JsonElement epsElement) &&
-                        epsElement.ValueKind == JsonValueKind.Array)
-                    {
-                        msg = msg with
-                        {
-                            PublisherEndpoints = ReadEndpointArray(epsElement, context)
-                        };
-                    }
-                    break;
+                endpoints = ReadEndpointArray(endpointsElement, context);
             }
-            return msg;
+            return new JsonDiscoveryMessage
+            {
+                MessageId = ReadOptionalString(root, "MessageId", context),
+                PublisherId = ReadPublisherId(root, context),
+                Timestamp = ReadOptionalTimestamp(root, "Timestamp"),
+                DiscoveryType = UadpDiscoveryType.PublisherEndpoints,
+                PublisherEndpoints = endpoints
+            };
+        }
+
+        /// <summary>
+        /// Decodes a <c>ua-status</c> message (Part 14 §7.2.5.5.5
+        /// Table 191) into an application status discovery message.
+        /// </summary>
+        /// <param name="root">Root element.</param>
+        /// <param name="context">Decoder context.</param>
+        /// <returns>Decoded discovery message.</returns>
+        private static JsonDiscoveryMessage DecodeStatusDiscovery(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            bool isCyclic = root.TryGetProperty("IsCyclic", out JsonElement cyclicElement) &&
+                cyclicElement.ValueKind == JsonValueKind.True;
+            DateTimeUtc timestamp = ReadOptionalTimestamp(root, "Timestamp");
+            return new JsonDiscoveryMessage
+            {
+                MessageId = ReadOptionalString(root, "MessageId", context),
+                PublisherId = ReadPublisherId(root, context),
+                Timestamp = timestamp,
+                DiscoveryType = UadpDiscoveryType.ApplicationInformation,
+                ApplicationStatus = new UadpApplicationStatus
+                {
+                    IsCyclic = isCyclic,
+                    Status = (PubSubState)ReadOptionalUInt32(root, "Status"),
+                    Timestamp = timestamp,
+                    NextReportTime = ReadOptionalTimestamp(root, "NextReportTime")
+                }
+            };
+        }
+
+        /// <summary>
+        /// Decodes a <c>ua-connection</c> message (Part 14 §7.2.5.5.6
+        /// Table 192).
+        /// </summary>
+        /// <param name="root">Root element.</param>
+        /// <param name="context">Decoder context.</param>
+        /// <returns>Decoded discovery message or
+        /// <see langword="null"/>.</returns>
+        private static JsonDiscoveryMessage? DecodeConnectionDiscovery(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
+        {
+            PubSubConnectionDataType? connection = null;
+            if (root.TryGetProperty("Connection", out JsonElement connElement) &&
+                connElement.ValueKind == JsonValueKind.Object)
+            {
+                connection = DecodeEncodeable<PubSubConnectionDataType>(connElement, context);
+                if (connection is null)
+                {
+                    return null;
+                }
+            }
+            return new JsonDiscoveryMessage
+            {
+                MessageId = ReadOptionalString(root, "MessageId", context),
+                PublisherId = ReadPublisherId(root, context),
+                Timestamp = ReadOptionalTimestamp(root, "Timestamp"),
+                DiscoveryType = UadpDiscoveryType.PubSubConnection,
+                Connection = connection
+            };
         }
 
         private static T? DecodeEncodeable<T>(
-            string propertyName,
             JsonElement element,
             PubSubNetworkMessageContext context)
             where T : class, IEncodeable, new()
         {
             try
             {
-                string wrapped = string.Concat(
-                    "{\"", propertyName, "\":",
-                    element.GetRawText(),
-                    "}");
-                using Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
-                return decoder.ReadEncodeable<T>(propertyName);
+                return JsonVariantDecoder.DecodeSpliced(
+                    element,
+                    context.MessageContext,
+                    static decoder => decoder.ReadEncodeable<T>(JsonVariantDecoder.SpliceFieldName));
             }
             catch (ServiceResultException)
             {
@@ -482,7 +552,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement array,
             PubSubNetworkMessageContext context)
         {
-            var list = new List<EndpointDescription>();
+            var list = new List<EndpointDescription>(CheckArrayLength(array, context));
             foreach (JsonElement entry in array.EnumerateArray())
             {
                 if (entry.ValueKind != JsonValueKind.Object)
@@ -490,68 +560,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     continue;
                 }
                 EndpointDescription? ep =
-                    DecodeEncodeable<EndpointDescription>("Endpoint", entry, context);
+                    DecodeEncodeable<EndpointDescription>(entry, context);
                 if (ep is not null)
                 {
                     list.Add(ep);
-                }
-            }
-            return [.. list];
-        }
-
-        private static ushort[] ReadUInt16Array(JsonElement root, string name)
-        {
-            if (!root.TryGetProperty(name, out JsonElement array) ||
-                array.ValueKind != JsonValueKind.Array)
-            {
-                return [];
-            }
-            var list = new List<ushort>();
-            foreach (JsonElement entry in array.EnumerateArray())
-            {
-                if (entry.TryGetUInt16(out ushort v))
-                {
-                    list.Add(v);
-                }
-            }
-            return [.. list];
-        }
-
-        private static UadpApplicationInformation ReadApplicationInformation(
-            JsonElement element)
-        {
-            string text = ReadOptionalString(element, "ApplicationName");
-            string locale = ReadOptionalString(element, "ApplicationLocale");
-            string appUri = ReadOptionalString(element, "ApplicationUri");
-            string productUri = ReadOptionalString(element, "ProductUri");
-            uint appType = ReadOptionalUInt32(element, "ApplicationType");
-            return new UadpApplicationInformation
-            {
-                ApplicationName = new LocalizedText(locale, text),
-                ApplicationUri = appUri,
-                ProductUri = productUri,
-                ApplicationType = (ApplicationType)appType,
-                Capabilities = ReadStringList(element, "Capabilities"),
-                SupportedTransportProfiles =
-                    ReadStringList(element, "SupportedTransportProfiles"),
-                SupportedSecurityPolicies =
-                    ReadStringList(element, "SupportedSecurityPolicies")
-            };
-        }
-
-        private static string[] ReadStringList(JsonElement root, string name)
-        {
-            if (!root.TryGetProperty(name, out JsonElement array) ||
-                array.ValueKind != JsonValueKind.Array)
-            {
-                return [];
-            }
-            var list = new List<string>();
-            foreach (JsonElement entry in array.EnumerateArray())
-            {
-                if (entry.ValueKind == JsonValueKind.String)
-                {
-                    list.Add(entry.GetString() ?? string.Empty);
                 }
             }
             return [.. list];
@@ -565,33 +577,47 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </summary>
         /// <param name="root">Root element.</param>
         /// <param name="context">Decoder context.</param>
+        /// <param name="isResponse">Whether the envelope MessageType is
+        /// <c>ua-action-response</c>; it selects the body type of every
+        /// entry in <c>Messages</c>.</param>
         /// <returns>Decoded action message or
         /// <see langword="null"/>.</returns>
         private static JsonActionNetworkMessage? DecodeAction(
             JsonElement root,
-            PubSubNetworkMessageContext context)
+            PubSubNetworkMessageContext context,
+            bool isResponse)
         {
-            Ua.JsonActionNetworkMessage? network =
-                DecodeEncodeable<Ua.JsonActionNetworkMessage>(
-                    "ActionNetworkMessage",
+            // The envelope is decoded without Messages, which are decoded
+            // once below as the body type the MessageType selects.
+            Ua.JsonActionNetworkMessage? network;
+            try
+            {
+                network = JsonVariantDecoder.DecodeSpliced(
                     root,
-                    context);
-            if (network is null || network.Messages.Count == 0)
+                    context.MessageContext,
+                    static decoder => decoder.ReadEncodeable<Ua.JsonActionNetworkMessage>(
+                        JsonVariantDecoder.SpliceFieldName),
+                    excludedProperty: "Messages");
+            }
+            catch (ServiceResultException)
+            {
+                network = null;
+            }
+            ArrayOf<ExtensionObject> messages = network is null
+                ? []
+                : DecodeActionMessageBodies(root, isResponse, context);
+            if (network is null || messages.Count == 0)
             {
                 context.Diagnostics.Increment(
                     PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
                 return null;
             }
-            ArrayOf<ExtensionObject> messages = DecodeActionMessageBodies(
-                root,
-                network.Messages,
-                context);
             network.Messages = messages;
             return new JsonActionNetworkMessage
             {
                 NetworkMessage = network,
                 MessageId = network.MessageId ?? string.Empty,
-                PublisherId = ReadPublisherId(root),
+                PublisherId = ReadPublisherId(root, context),
                 ResponseAddress = network.ResponseAddress ?? string.Empty,
                 CorrelationData = network.CorrelationData,
                 RequestorId = network.RequestorId ?? string.Empty,
@@ -600,40 +626,45 @@ namespace Opc.Ua.PubSub.Encoding.Json
             };
         }
 
+        /// <summary>
+        /// Decodes the <c>Messages</c> of an action NetworkMessage. A
+        /// NetworkMessage carries either ActionRequest or ActionResponse
+        /// messages (Part 14 §7.2.5.6): every entry is decoded as the type
+        /// selected by the envelope MessageType, and a request envelope
+        /// with a response entry (one carrying <c>Status</c>) is rejected.
+        /// </summary>
+        /// <returns>The decoded bodies; empty when the envelope is
+        /// invalid.</returns>
         private static ArrayOf<ExtensionObject> DecodeActionMessageBodies(
             JsonElement root,
-            ArrayOf<ExtensionObject> fallback,
+            bool isResponse,
             PubSubNetworkMessageContext context)
         {
             if (!root.TryGetProperty("Messages", out JsonElement messagesElement) ||
                 messagesElement.ValueKind != JsonValueKind.Array)
             {
-                return fallback;
+                return [];
             }
-            var messages = new List<ExtensionObject>();
+            var messages = new List<ExtensionObject>(CheckArrayLength(messagesElement, context));
             foreach (JsonElement entry in messagesElement.EnumerateArray())
             {
                 if (entry.ValueKind != JsonValueKind.Object)
                 {
                     continue;
                 }
-                IEncodeable? body = entry.TryGetProperty("Status", out _)
-                    ? DecodeEncodeable<Opc.Ua.JsonActionResponseMessage>(
-                        "ActionResponse",
-                        entry,
-                        context)
-                    : DecodeEncodeable<Opc.Ua.JsonActionRequestMessage>(
-                        "ActionRequest",
-                        entry,
-                        context);
+                if (!isResponse && entry.TryGetProperty("Status", out _))
+                {
+                    return [];
+                }
+                IEncodeable? body = isResponse
+                    ? DecodeEncodeable<Opc.Ua.JsonActionResponseMessage>(entry, context)
+                    : DecodeEncodeable<Opc.Ua.JsonActionRequestMessage>(entry, context);
                 if (body is not null)
                 {
                     messages.Add(new ExtensionObject(body));
                 }
             }
-            return messages.Count == 0
-                ? fallback
-                : new ArrayOf<ExtensionObject>(messages.ToArray());
+            return new ArrayOf<ExtensionObject>(messages.ToArray());
         }
 
         private static JsonActionNetworkMessage? DecodeActionMetaData(
@@ -641,10 +672,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PubSubNetworkMessageContext context)
         {
             JsonActionMetaDataMessage? metaData =
-                DecodeEncodeable<JsonActionMetaDataMessage>(
-                    "ActionMetaData",
-                    root,
-                    context);
+                DecodeEncodeable<JsonActionMetaDataMessage>(root, context);
             if (metaData is null)
             {
                 return null;
@@ -653,7 +681,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 MetaDataMessage = metaData,
                 MessageId = metaData.MessageId ?? string.Empty,
-                PublisherId = ReadPublisherId(root)
+                PublisherId = ReadPublisherId(root, context)
             };
         }
 
@@ -662,10 +690,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             PubSubNetworkMessageContext context)
         {
             JsonActionResponderMessage? responder =
-                DecodeEncodeable<JsonActionResponderMessage>(
-                    "ActionResponder",
-                    root,
-                    context);
+                DecodeEncodeable<JsonActionResponderMessage>(root, context);
             if (responder is null)
             {
                 return null;
@@ -674,7 +699,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 ResponderMessage = responder,
                 MessageId = responder.MessageId ?? string.Empty,
-                PublisherId = ReadPublisherId(root)
+                PublisherId = ReadPublisherId(root, context)
             };
         }
 
@@ -704,7 +729,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             identityConflict = false;
             if (entry.TryGetProperty("PublisherId", out JsonElement entryPub))
             {
-                PublisherId nested = ParsePublisherId(entryPub);
+                PublisherId nested = ParsePublisherId(entryPub, context);
                 if (!nested.IsNull &&
                     !envelopePublisherId.IsNull &&
                     !PublisherIdEquals(envelopePublisherId, nested))
@@ -729,22 +754,25 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 }
             }
             ushort writerId = ReadOptionalUInt16(entry, "DataSetWriterId");
-            string writerName = ReadOptionalString(entry, "DataSetWriterName");
+            string writerName = ReadOptionalString(entry, "DataSetWriterName", context);
             PublisherId messagePublisherId = entry.TryGetProperty("PublisherId", out JsonElement pubElement)
-                ? ParsePublisherId(pubElement)
+                ? ParsePublisherId(pubElement, context)
                 : PublisherId.Null;
-            string writerGroupName = ReadOptionalString(entry, "WriterGroupName");
+            string writerGroupName = ReadOptionalString(entry, "WriterGroupName", context);
             uint sequenceNumber = ReadOptionalUInt32(entry, "SequenceNumber");
-            ConfigurationVersionDataType metaVersion = ReadMetaVersion(entry);
+            ConfigurationVersionDataType metaVersion = ReadMetaVersion(entry, out bool hasMajorVersion);
             uint minorVersion = ReadOptionalUInt32(entry, "MinorVersion");
             if (minorVersion != 0)
             {
                 metaVersion.MinorVersion = minorVersion;
             }
             DateTimeUtc timestamp = ReadOptionalTimestamp(entry, "Timestamp");
-            StatusCode status = ReadOptionalStatus(entry, "Status");
+            if (!TryReadOptionalStatus(entry, "Status", out StatusCode status))
+            {
+                return null;
+            }
             PubSubDataSetMessageType messageType = ReadMessageType(
-                entry, out string messageTypeName);
+                entry, context, out string messageTypeName);
             JsonDataSetMessageContentMask mask = DeriveMask(entry);
             bool hasPayloadWrapper = entry.TryGetProperty("Payload", out JsonElement payload);
             bool hasDataSetHeader = HasDataSetMessageHeader(entry);
@@ -753,9 +781,15 @@ namespace Opc.Ua.PubSub.Encoding.Json
                 envelopeClassId,
                 writerId,
                 metaVersion,
+                hasMajorVersion,
                 context);
             JsonEncodingMode detectedMode = DetectMode(entry);
-            if (!JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode) && metaData is null)
+            // A header-only DataSetMessage (e.g. ua-keepalive) has no
+            // fields to type, so it does not need metadata.
+            bool hasFields = hasPayloadWrapper || !hasDataSetHeader;
+            if (hasFields &&
+                !JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode) &&
+                metaData is null)
             {
                 context.Diagnostics.Increment(
                     PubSubDiagnosticsCounterKind.ResolverErrors);
@@ -764,19 +798,29 @@ namespace Opc.Ua.PubSub.Encoding.Json
             ArrayOf<DataSetField> fields = [];
             if (hasPayloadWrapper)
             {
-                fields = JsonFieldDecoder.DecodeFields(
+                if (!JsonFieldDecoder.TryDecodeFields(
                     payload,
                     metaData,
                     detectedMode,
-                    context.MessageContext);
+                    context.MessageContext,
+                    out ArrayOf<DataSetField> decodedFields))
+                {
+                    return null;
+                }
+                fields = decodedFields;
             }
             else if (!hasDataSetHeader)
             {
-                fields = JsonFieldDecoder.DecodeFields(
+                if (!JsonFieldDecoder.TryDecodeFields(
                     entry,
                     metaData,
                     detectedMode,
-                    context.MessageContext);
+                    context.MessageContext,
+                    out ArrayOf<DataSetField> decodedFields))
+                {
+                    return null;
+                }
+                fields = decodedFields;
             }
             return new JsonDataSetMessage
             {
@@ -799,6 +843,9 @@ namespace Opc.Ua.PubSub.Encoding.Json
         {
             return entry.TryGetProperty("DataSetWriterId", out _) ||
                 entry.TryGetProperty("DataSetWriterName", out _) ||
+                entry.TryGetProperty("PublisherId", out _) ||
+                entry.TryGetProperty("WriterGroupName", out _) ||
+                entry.TryGetProperty("MinorVersion", out _) ||
                 entry.TryGetProperty("SequenceNumber", out _) ||
                 entry.TryGetProperty("MetaDataVersion", out _) ||
                 entry.TryGetProperty("Timestamp", out _) ||
@@ -818,27 +865,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonElement element,
             PubSubNetworkMessageContext context)
         {
-            try
-            {
-                string wrapped = string.Concat(
-                    "{\"MetaData\":",
-                    element.GetRawText(),
-                    "}");
-                using Ua.JsonDecoder decoder = new(wrapped, context.MessageContext);
-                return decoder.ReadEncodeable<DataSetMetaDataType>("MetaData");
-            }
-            catch (ServiceResultException)
-            {
-                context.Diagnostics.Increment(
-                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
-                return null;
-            }
-            catch (JsonException)
-            {
-                context.Diagnostics.Increment(
-                    PubSubDiagnosticsCounterKind.ReceivedInvalidNetworkMessages);
-                return null;
-            }
+            return DecodeEncodeable<DataSetMetaDataType>(element, context);
         }
 
         /// <summary>
@@ -846,15 +873,100 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </summary>
         /// <param name="root">Source object.</param>
         /// <param name="name">Property name.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
         /// <returns>Property value or empty string.</returns>
-        private static string ReadOptionalString(JsonElement root, string name)
+        private static string ReadOptionalString(
+            JsonElement root,
+            string name,
+            PubSubNetworkMessageContext context)
         {
             if (root.TryGetProperty(name, out JsonElement value) &&
                 value.ValueKind == JsonValueKind.String)
             {
-                return value.GetString() ?? string.Empty;
+                return CheckStringLength(value.GetString() ?? string.Empty, context);
             }
             return string.Empty;
+        }
+
+        /// <summary>
+        /// Enforces <see cref="IServiceMessageContext.MaxStringLength"/>
+        /// on an envelope string.
+        /// </summary>
+        /// <param name="value">Decoded string.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
+        /// <returns>The unchanged <paramref name="value"/>.</returns>
+        /// <exception cref="ServiceResultException">The string exceeds the
+        /// limit.</exception>
+        private static string CheckStringLength(
+            string value,
+            PubSubNetworkMessageContext context)
+        {
+            // MaxStringLength counts the UTF-8 bytes of a string, as in every
+            // other codec; a UTF-16 code unit takes at most three of them.
+            int maxStringLength = context.MessageContext.MaxStringLength;
+            if (maxStringLength > 0 && value.Length > maxStringLength / 3)
+            {
+                int byteLength = System.Text.Encoding.UTF8.GetByteCount(value);
+                if (byteLength > maxStringLength)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingLimitsExceeded,
+                        "MaxStringLength {0} < {1}.",
+                        maxStringLength,
+                        byteLength);
+                }
+            }
+            return value;
+        }
+
+        /// <summary>
+        /// Enforces <see cref="IServiceMessageContext.MaxArrayLength"/>
+        /// on an envelope array or object member count.
+        /// </summary>
+        /// <param name="element">JSON array or object.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
+        /// <returns>The number of entries or members.</returns>
+        /// <exception cref="ServiceResultException">The element has more
+        /// entries than the limit.</exception>
+        internal static int CheckArrayLength(
+            JsonElement element,
+            PubSubNetworkMessageContext context)
+        {
+            return CheckArrayLength(element, context.MessageContext);
+        }
+
+        /// <inheritdoc cref="CheckArrayLength(JsonElement, PubSubNetworkMessageContext)"/>
+        internal static int CheckArrayLength(
+            JsonElement element,
+            IServiceMessageContext context)
+        {
+            int maxArrayLength = context.MaxArrayLength;
+            int count;
+            if (element.ValueKind == JsonValueKind.Array)
+            {
+                count = element.GetArrayLength();
+            }
+            else
+            {
+                count = 0;
+                foreach (JsonProperty _ in element.EnumerateObject())
+                {
+                    // Stop counting as soon as the limit is exceeded.
+                    if (++count > maxArrayLength && maxArrayLength > 0)
+                    {
+                        break;
+                    }
+                }
+            }
+            if (maxArrayLength > 0 && count > maxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} < {1}.",
+                    maxArrayLength,
+                    count);
+            }
+            return count;
         }
 
         /// <summary>
@@ -900,51 +1012,80 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <see cref="DateTimeUtc.MinValue"/>.</returns>
         private static DateTimeUtc ReadOptionalTimestamp(JsonElement root, string name)
         {
+            // JsonElement.TryGetDateTime accepts only the ISO 8601-1 extended
+            // profile required by Part 6 §5.4.2.6. Values are UTC on the wire,
+            // so a value without an offset is UTC rather than host local time.
             if (root.TryGetProperty(name, out JsonElement value) &&
                 value.ValueKind == JsonValueKind.String &&
-                DateTime.TryParse(
-                    value.GetString(),
-                    CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind,
-                    out DateTime parsed))
+                value.TryGetDateTime(out DateTime parsed))
             {
-                return (DateTimeUtc)parsed.ToUniversalTime();
+                return (DateTimeUtc)(parsed.Kind == DateTimeKind.Unspecified
+                    ? DateTime.SpecifyKind(parsed, DateTimeKind.Utc)
+                    : parsed.ToUniversalTime());
             }
             return DateTimeUtc.MinValue;
         }
 
         /// <summary>
-        /// Reads an optional <see cref="StatusCode"/> property.
+        /// Reads an optional <see cref="StatusCode"/> property encoded as
+        /// the Part 6 §5.4.2.12 <c>{ "Code", "Symbol" }</c> object (an
+        /// absent <c>Code</c> means Good) or as the legacy bare number.
         /// </summary>
         /// <param name="root">Source object.</param>
         /// <param name="name">Property name.</param>
-        /// <returns>Status code or zero.</returns>
-        private static StatusCode ReadOptionalStatus(JsonElement root, string name)
+        /// <param name="status">Status code, Good when absent.</param>
+        /// <returns><see langword="false"/> when the property is present
+        /// but is not a valid StatusCode object.</returns>
+        private static bool TryReadOptionalStatus(
+            JsonElement root,
+            string name,
+            out StatusCode status)
         {
-            if (root.TryGetProperty(name, out JsonElement value))
+            status = StatusCodes.Good;
+            if (!root.TryGetProperty(name, out JsonElement value))
             {
-                if (value.ValueKind == JsonValueKind.Number &&
-                    value.TryGetUInt32(out uint v))
-                {
-                    return new StatusCode(v);
-                }
-                if (value.ValueKind == JsonValueKind.Object &&
-                    value.TryGetProperty("Code", out JsonElement codeElement) &&
-                    codeElement.TryGetUInt32(out uint codeValue))
-                {
-                    return new StatusCode(codeValue);
-                }
+                return true;
             }
-            return StatusCodes.Good;
+            if (value.ValueKind == JsonValueKind.Number)
+            {
+                // 1.04 and deprecated ReversibleFieldEncoding Publishers
+                // (Part 14 §6.3.2.3.1 Table 112) write the bare code.
+                if (!value.TryGetUInt32(out uint legacyCode))
+                {
+                    return false;
+                }
+                status = new StatusCode(legacyCode);
+                return true;
+            }
+            if (value.ValueKind != JsonValueKind.Object)
+            {
+                return false;
+            }
+            if (!value.TryGetProperty("Code", out JsonElement codeElement))
+            {
+                return true;
+            }
+            if (codeElement.ValueKind != JsonValueKind.Number ||
+                !codeElement.TryGetUInt32(out uint codeValue))
+            {
+                return false;
+            }
+            status = new StatusCode(codeValue);
+            return true;
         }
 
         /// <summary>
         /// Reads the <c>MetaDataVersion</c> property.
         /// </summary>
         /// <param name="root">Source object.</param>
+        /// <param name="hasMajorVersion">On return, whether a numeric
+        /// <c>MajorVersion</c> was present.</param>
         /// <returns>Configuration version (zeroed when absent).</returns>
-        private static ConfigurationVersionDataType ReadMetaVersion(JsonElement root)
+        private static ConfigurationVersionDataType ReadMetaVersion(
+            JsonElement root,
+            out bool hasMajorVersion)
         {
+            hasMajorVersion = false;
             if (!root.TryGetProperty("MetaDataVersion", out JsonElement value) ||
                 value.ValueKind != JsonValueKind.Object)
             {
@@ -952,11 +1093,13 @@ namespace Opc.Ua.PubSub.Encoding.Json
             }
             uint major = 0;
             uint minor = 0;
-            if (value.TryGetProperty("MajorVersion", out JsonElement majorElement))
+            if (value.TryGetProperty("MajorVersion", out JsonElement majorElement) &&
+                majorElement.ValueKind == JsonValueKind.Number)
             {
-                majorElement.TryGetUInt32(out major);
+                hasMajorVersion = majorElement.TryGetUInt32(out major);
             }
-            if (value.TryGetProperty("MinorVersion", out JsonElement minorElement))
+            if (value.TryGetProperty("MinorVersion", out JsonElement minorElement) &&
+                minorElement.ValueKind == JsonValueKind.Number)
             {
                 minorElement.TryGetUInt32(out minor);
             }
@@ -972,18 +1115,20 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <see cref="PubSubDataSetMessageType"/>.
         /// </summary>
         /// <param name="root">Source object.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
         /// <param name="wireName">On return, the wire form when one
         /// was supplied; otherwise empty.</param>
         /// <returns>Resolved enum value.</returns>
         private static PubSubDataSetMessageType ReadMessageType(
             JsonElement root,
+            PubSubNetworkMessageContext context,
             out string wireName)
         {
             wireName = string.Empty;
             if (root.TryGetProperty("MessageType", out JsonElement value) &&
                 value.ValueKind == JsonValueKind.String)
             {
-                string raw = value.GetString() ?? string.Empty;
+                string raw = CheckStringLength(value.GetString() ?? string.Empty, context);
                 wireName = raw;
                 if (JsonDataSetMessageType.TryParse(raw, out PubSubDataSetMessageType parsed))
                 {
@@ -1077,13 +1222,17 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
-        /// Detects the encoding mode of the supplied DataSetMessage by
-        /// inspecting the first non-trivial entry in its <c>Payload</c>.
+        /// Detects the encoding mode of the supplied DataSetMessage from
+        /// the entries in its <c>Payload</c>.
         /// </summary>
         /// <param name="root">Source DataSetMessage object.</param>
         /// <returns>
-        /// <see cref="JsonEncodingMode.Verbose"/> when the payload uses
-        /// the Part 6 §5.4.1 <c>{ "Type", "Body" }</c> Variant envelope;
+        /// <see cref="JsonEncodingMode.Verbose"/> when any payload entry
+        /// is a Part 6 §5.4.2.17 <c>{ "UaType", "Value" }</c> Variant or a
+        /// deprecated ReversibleFieldEncoding <c>{ "Type", "Body" }</c>
+        /// Variant (top-level Variants with a concrete FieldMetaData type are
+        /// collapsed to bare values, Part 14 §7.2.5.4.2) or the first
+        /// entry is a DataValue object;
         /// <see cref="JsonEncodingMode.RawData"/> when bodies are bare.
         /// </returns>
         private static JsonEncodingMode DetectMode(JsonElement root)
@@ -1097,25 +1246,21 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return JsonEncodingMode.Verbose;
             }
+            JsonEncodingMode? firstMode = null;
             foreach (JsonProperty member in payload.EnumerateObject())
             {
                 JsonElement value = member.Value;
-                if (value.ValueKind != JsonValueKind.Object)
-                {
-                    return JsonEncodingMode.RawData;
-                }
-                if (value.TryGetProperty("Type", out _) &&
-                    value.TryGetProperty("Body", out _))
+                if (JsonVariantDecoder.IsVariantEnvelope(value) ||
+                    JsonVariantDecoder.IsLegacyVariantEnvelope(value))
                 {
                     return JsonEncodingMode.Verbose;
                 }
-                if (value.TryGetProperty("Value", out _))
-                {
-                    return JsonEncodingMode.Verbose;
-                }
-                return JsonEncodingMode.RawData;
+                firstMode ??= value.ValueKind == JsonValueKind.Object &&
+                    value.TryGetProperty("Value", out _)
+                    ? JsonEncodingMode.Verbose
+                    : JsonEncodingMode.RawData;
             }
-            return JsonEncodingMode.Verbose;
+            return firstMode ?? JsonEncodingMode.Verbose;
         }
 
         /// <summary>
@@ -1126,6 +1271,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="dataSetClassId">DataSetClassId.</param>
         /// <param name="writerId">DataSetWriterId.</param>
         /// <param name="metaVersion">Configuration version.</param>
+        /// <param name="hasMajorVersion">Whether the DataSetMessage carried a
+        /// MajorVersion. Without one (only <c>MinorVersion</c>, or no version at
+        /// all) the metadata registered for the identity is used unless its
+        /// MajorVersion is newer than the message MinorVersion.</param>
         /// <param name="context">Decoder context.</param>
         /// <returns>Resolved metadata or
         /// <see langword="null"/>.</returns>
@@ -1134,6 +1283,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             Uuid dataSetClassId,
             ushort writerId,
             ConfigurationVersionDataType metaVersion,
+            bool hasMajorVersion,
             PubSubNetworkMessageContext context)
         {
             DataSetMetaDataKey key = new(
@@ -1145,8 +1295,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
             MetaDataMatchResult result = context.MetaDataRegistry.TryGet(
                 in key,
                 out DataSetMetaDataType? metaData);
-            if (result is MetaDataMatchResult.Match
-                or MetaDataMatchResult.MinorVersionMismatch)
+            if (IsUsableMatch(result, metaData, metaVersion, hasMajorVersion))
             {
                 return metaData;
             }
@@ -1162,8 +1311,7 @@ namespace Opc.Ua.PubSub.Encoding.Json
                         dataSetClassId,
                         metaVersion?.MajorVersion ?? 0);
                     result = context.MetaDataRegistry.TryGet(in key, out metaData);
-                    if (result is MetaDataMatchResult.Match
-                        or MetaDataMatchResult.MinorVersionMismatch)
+                    if (IsUsableMatch(result, metaData, metaVersion, hasMajorVersion))
                     {
                         return metaData;
                     }
@@ -1173,18 +1321,57 @@ namespace Opc.Ua.PubSub.Encoding.Json
         }
 
         /// <summary>
+        /// Whether a registry lookup result can be used to decode the
+        /// DataSetMessage. MetaDataVersion and MinorVersion are both
+        /// optional (Part 14 §7.2.5.4.1 Table 185); without a MajorVersion
+        /// the registered description for the identity applies unless the
+        /// message MinorVersion proves it predates that description's
+        /// MajorVersion.
+        /// </summary>
+        /// <param name="result">Registry lookup result.</param>
+        /// <param name="metaData">Registered metadata for the identity.</param>
+        /// <param name="metaVersion">Version carried by the message.</param>
+        /// <param name="hasMajorVersion">Whether the message carried a
+        /// MajorVersion.</param>
+        private static bool IsUsableMatch(
+            MetaDataMatchResult result,
+            DataSetMetaDataType? metaData,
+            ConfigurationVersionDataType? metaVersion,
+            bool hasMajorVersion)
+        {
+            if (result is MetaDataMatchResult.Match or MetaDataMatchResult.MinorVersionMismatch)
+            {
+                return true;
+            }
+            if (hasMajorVersion || result != MetaDataMatchResult.MajorVersionMismatch)
+            {
+                return false;
+            }
+            // Part 14 §6.2.3.2.6 Table 11: a MajorVersion change sets the
+            // MinorVersion to the same value, and versions only increase, so
+            // a message MinorVersion below the registered MajorVersion was
+            // produced with an older, incompatible layout.
+            uint minorVersion = metaVersion?.MinorVersion ?? 0;
+            uint registeredMajor = metaData?.ConfigurationVersion?.MajorVersion ?? 0;
+            return minorVersion == 0 || registeredMajor <= minorVersion;
+        }
+
+        /// <summary>
         /// Reads the envelope <c>PublisherId</c> property and converts
         /// it to a <see cref="PublisherId"/>.
         /// </summary>
         /// <param name="root">Source object.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
         /// <returns>Decoded publisher id.</returns>
-        private static PublisherId ReadPublisherId(JsonElement root)
+        private static PublisherId ReadPublisherId(
+            JsonElement root,
+            PubSubNetworkMessageContext context)
         {
             if (!root.TryGetProperty("PublisherId", out JsonElement value))
             {
                 return PublisherId.Null;
             }
-            return ParsePublisherId(value);
+            return ParsePublisherId(value, context);
         }
 
         /// <summary>
@@ -1192,8 +1379,11 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <see cref="PublisherId"/>.
         /// </summary>
         /// <param name="value">Source element.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
         /// <returns>Decoded publisher id.</returns>
-        private static PublisherId ParsePublisherId(JsonElement value)
+        private static PublisherId ParsePublisherId(
+            JsonElement value,
+            PubSubNetworkMessageContext context)
         {
             switch (value.ValueKind)
             {
@@ -1216,11 +1406,10 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     }
                     return PublisherId.Null;
                 case JsonValueKind.String:
-                    string raw = value.GetString() ?? string.Empty;
-                    if (Guid.TryParseExact(raw, "D", out Guid g))
-                    {
-                        return PublisherId.From(new Variant(new Uuid(g)));
-                    }
+                    // JSON PublisherId is a String (Part 14 §7.2.5.4.1 Table 185);
+                    // valid PublisherId DataTypes are UInteger and String
+                    // (§7.2.4.4.2), so a GUID-shaped value stays a String.
+                    string raw = CheckStringLength(value.GetString() ?? string.Empty, context);
                     return PublisherId.From(new Variant(raw));
                 default:
                     return PublisherId.Null;
@@ -1263,20 +1452,24 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// </summary>
         /// <param name="root">Source object.</param>
         /// <param name="name">Property name.</param>
+        /// <param name="context">Decoder context providing the limits.</param>
         /// <returns>Decoded array (never null).</returns>
-        private static string[] ReadStringArray(JsonElement root, string name)
+        private static string[] ReadStringArray(
+            JsonElement root,
+            string name,
+            PubSubNetworkMessageContext context)
         {
             if (!root.TryGetProperty(name, out JsonElement value) ||
                 value.ValueKind != JsonValueKind.Array)
             {
                 return [];
             }
-            var list = new List<string>(value.GetArrayLength());
+            var list = new List<string>(CheckArrayLength(value, context));
             foreach (JsonElement entry in value.EnumerateArray())
             {
                 if (entry.ValueKind == JsonValueKind.String)
                 {
-                    list.Add(entry.GetString() ?? string.Empty);
+                    list.Add(CheckStringLength(entry.GetString() ?? string.Empty, context));
                 }
             }
             return [.. list];

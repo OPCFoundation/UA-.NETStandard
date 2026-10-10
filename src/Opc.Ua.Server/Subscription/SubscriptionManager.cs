@@ -81,11 +81,16 @@ namespace Opc.Ua.Server
                 .DurableSubscriptionsEnabled;
             m_minSubscriptionLifetime = (uint)configuration.ServerConfiguration
                 .MinSubscriptionLifetime;
-            m_maxMessageCount = (uint)configuration.ServerConfiguration.MaxMessageQueueSize;
+            m_maxMessageCount = Math.Max(
+                1u,
+                (uint)configuration.ServerConfiguration.MaxMessageQueueSize);
             m_maxNotificationsPerPublish = (uint)configuration.ServerConfiguration
                 .MaxNotificationsPerPublish;
             m_maxPublishRequestCount = configuration.ServerConfiguration.MaxPublishRequestCount;
             m_maxSubscriptionCount = configuration.ServerConfiguration.MaxSubscriptionCount;
+            m_maxMonitoredItemCount = configuration.ServerConfiguration.MaxMonitoredItemCount;
+            m_maxMonitoredItemsPerSubscription = configuration.ServerConfiguration
+                .MaxMonitoredItemsPerSubscription;
 
             m_subscriptionStore = server.SubscriptionStore;
 
@@ -270,6 +275,17 @@ namespace Opc.Ua.Server
 
                 m_shutdownEvent.Reset();
 
+                // ShutdownAsync drains and disposes the expiry cleanup scope. A
+                // disposed scope refuses new work, so a restarted manager needs a
+                // fresh one or expired subscriptions would never be deleted.
+                if (m_backgroundWorkStopped)
+                {
+                    m_backgroundWork = new BackgroundTaskScope(
+                        nameof(SubscriptionManager),
+                        m_server.Telemetry);
+                    m_backgroundWorkStopped = false;
+                }
+
                 // Recreated on every startup: a token source cannot be reset once
                 // ShutdownAsync has cancelled it, and the manager supports restart.
                 m_workerCts?.Dispose();
@@ -289,37 +305,38 @@ namespace Opc.Ua.Server
         /// </summary>
         public virtual async ValueTask ShutdownAsync(CancellationToken cancellationToken = default)
         {
+            // Stop and drain workers before taking the manager semaphore.
+            // Expiration claims performed by a publish sweep take the same
+            // semaphore synchronously.
+            SignalConditionRefreshWorkerShutdown();
+            m_workerCts?.Cancel();
+
+            Task? publishWorkerTask = m_publishWorkerTask;
+            if (publishWorkerTask is not null)
+            {
+                await publishWorkerTask.ConfigureAwait(false);
+                m_publishWorkerTask = null;
+            }
+
+            Task? conditionRefreshWorkerTask = m_conditionRefreshWorkerTask;
+            if (conditionRefreshWorkerTask is not null)
+            {
+                await conditionRefreshWorkerTask.ConfigureAwait(false);
+                m_conditionRefreshWorkerTask = null;
+            }
+
+            // Expired-subscription cleanups scheduled by the publish sweep still
+            // delete subscriptions through the server and take the manager
+            // semaphore without honouring cancellation (a claimed expiry must
+            // not be dropped), so drain them before taking the semaphore.
+            m_backgroundWorkStopped = true;
+            await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
+
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
             {
-                // stop the publishing thread and trigger the condition refresh thread.
-                SignalConditionRefreshWorkerShutdown();
-
-                // Cancel so the publish loop's inter-cycle delay is abandoned
-                // immediately instead of running to the end of its resolution.
-                m_workerCts?.Cancel();
-
-                Task? publishWorkerTask = m_publishWorkerTask;
-                if (publishWorkerTask is not null)
-                {
-                    await publishWorkerTask.ConfigureAwait(false);
-                    m_publishWorkerTask = null;
-                }
-
-                Task? conditionRefreshWorkerTask = m_conditionRefreshWorkerTask;
-                if (conditionRefreshWorkerTask is not null)
-                {
-                    await conditionRefreshWorkerTask.ConfigureAwait(false);
-                    m_conditionRefreshWorkerTask = null;
-                }
-
                 m_workerCts?.Dispose();
                 m_workerCts = null;
-
-                // Expired-subscription cleanups scheduled by the publish sweep
-                // still delete subscriptions through the server, so drain them
-                // before the queues and subscriptions go away.
-                await m_backgroundWork.DisposeAsync().ConfigureAwait(false);
 
                 // dispose of publish queues.
                 foreach (SessionPublishQueue queue in m_publishQueues.Values)
@@ -364,6 +381,13 @@ namespace Opc.Ua.Server
             {
                 // only store durable subscriptions
                 if (!subscription.IsDurable)
+                {
+                    continue;
+                }
+
+                // an expired subscription whose cleanup did not run before the
+                // shutdown is closed (Part 4 5.14.1.1) and must not be resurrected.
+                if (m_expiringSubscriptions.ContainsKey(subscription.Id))
                 {
                     continue;
                 }
@@ -471,8 +495,9 @@ namespace Opc.Ua.Server
             }
 
             // calculate publishing interval.
-            storedSubscription.PublishingInterval = CalculatePublishingInterval(
-                storedSubscription.PublishingInterval);
+            storedSubscription.PublishingInterval = LimitPublishingIntervalToLifetime(
+                CalculatePublishingInterval(storedSubscription.PublishingInterval),
+                storedSubscription.IsDurable);
 
             // calculate the keep alive count.
             storedSubscription.MaxKeepaliveCount = CalculateKeepAliveCount(
@@ -502,6 +527,9 @@ namespace Opc.Ua.Server
             {
                 throw new ServiceResultException(StatusCodes.BadInternalError, "Failed to create subscription in Server");
             }
+
+            // Restored subscriptions have no Session until transfer and must still advance their lifetime.
+            m_abandonedSubscriptions[subscription.Id] = subscription;
 
             // get the count for the diagnostics.
             publishingIntervalCount = GetPublishingIntervalCount();
@@ -630,7 +658,9 @@ namespace Opc.Ua.Server
             ServiceResultException? serviceResultException = null;
             lock (m_conditionRefreshLock)
             {
-                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask))
+                // a refresh taken off the queue is still in progress until it completes,
+                // including the window before the subscription queues its RefreshStartEvent.
+                if (!IsConditionRefreshInProgress(subscription.Id))
                 {
                     m_conditionRefreshQueue.Enqueue(conditionRefreshTask);
                 }
@@ -673,7 +703,9 @@ namespace Opc.Ua.Server
 
             lock (m_conditionRefreshLock)
             {
-                if (!m_conditionRefreshQueue.Contains(conditionRefreshTask))
+                // a refresh taken off the queue is still in progress until it completes,
+                // including the window before the subscription queues its RefreshStartEvent.
+                if (!IsConditionRefreshInProgress(subscription.Id))
                 {
                     m_conditionRefreshQueue.Enqueue(conditionRefreshTask);
                 }
@@ -733,6 +765,7 @@ namespace Opc.Ua.Server
         public async ValueTask<StatusCode> DeleteSubscriptionAsync(OperationContext context, uint subscriptionId, CancellationToken cancellationToken = default)
         {
             ISubscriptionPublishPipeline? subscription = null;
+            ISession? ownerSession = null;
 
             await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
             try
@@ -742,19 +775,20 @@ namespace Opc.Ua.Server
                 {
                     NodeId sessionId = subscription.SessionId;
 
-                    if (!sessionId.IsNull)
-                    {
-                        // check that the subscription is the owner.
-                        if (context != null &&
-                            !ReferenceEquals(context.Session, subscription.Session))
-                        {
-                            throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
-                        }
+                    // The owner, not the caller, loses the subscription. The expiry
+                    // cleanup deletes without a context while the owner is still open.
+                    ownerSession = subscription.Session;
 
-                        if (m_publishQueues.TryGetValue(sessionId, out SessionPublishQueue? queue))
-                        {
-                            queue.Remove(subscription, true);
-                        }
+                    if (context != null &&
+                        !ReferenceEquals(context.Session, subscription.Session))
+                    {
+                        throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
+                    }
+
+                    if (!sessionId.IsNull &&
+                        m_publishQueues.TryGetValue(sessionId, out SessionPublishQueue? queue))
+                    {
+                        queue.Remove(subscription, true);
                     }
                 }
 
@@ -764,7 +798,7 @@ namespace Opc.Ua.Server
                     m_logger.SubscriptionDELETEDABANDONEDIdSubscriptionId(subscriptionId);
                 }
 
-                m_expiringSubscriptions.Remove(subscriptionId);
+                m_expiringSubscriptions.TryRemove(subscriptionId, out _);
 
                 // remove subscription.
                 m_subscriptions.TryRemove(subscriptionId, out _);
@@ -801,9 +835,9 @@ namespace Opc.Ua.Server
                     diagnostics.PublishingIntervalCount = publishingIntervalCount;
                 });
 
-                if (context != null && context.Session != null)
+                if (ownerSession != null)
                 {
-                    context.Session.UpdateDiagnostics(diagnostics =>
+                    ownerSession.UpdateDiagnostics(diagnostics =>
                     {
                         diagnostics.CurrentSubscriptionsCount--;
                         UpdateCurrentMonitoredItemsCount(diagnostics, -monitoredItemCount);
@@ -895,7 +929,9 @@ namespace Opc.Ua.Server
             subscriptionId = Utils.IncrementIdentifier(ref m_lastSubscriptionId);
 
             // calculate publishing interval.
-            revisedPublishingInterval = CalculatePublishingInterval(requestedPublishingInterval);
+            revisedPublishingInterval = LimitPublishingIntervalToLifetime(
+                CalculatePublishingInterval(requestedPublishingInterval),
+                isDurableSubscription: false);
 
             // calculate the keep alive count.
             revisedMaxKeepAliveCount = CalculateKeepAliveCount(
@@ -936,53 +972,34 @@ namespace Opc.Ua.Server
                     "Subscription (see docs/migrate/2.0.x/sessions-subscriptions.md).");
             }
 
-            await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            StatusCode rejected;
             try
             {
-                // save subscription.
-                if (!m_subscriptions.TryAdd(subscriptionId, subscription))
-                {
-                    throw new ServiceResultException(StatusCodes.BadInternalError, "Failed to create subscription in Server");
-                }
+                await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                await DiscardRejectedSubscriptionAsync(context, subscription).ConfigureAwait(false);
+                throw;
+            }
 
-                // create/update publish queue.
-                m_publishQueues.AddOrUpdate(
-                    session.Id,
-                    (key) =>
-                    {
-                        var queue = new SessionPublishQueue(
-                            m_server,
-                            session,
-                            m_maxPublishRequestCount,
-                            m_timeProvider);
-
-                        queue.Add(subscription);
-                        return queue;
-                    },
-                    (key, queue) =>
-                        {
-                            queue.Add(subscription);
-                            return queue;
-                        }
-                );
+            try
+            {
+                rejected = RegisterCreatedSubscriptionNoLock(session, subscription);
             }
             finally
             {
                 m_semaphoreSlim.Release();
             }
 
+            if (rejected != StatusCodes.Good)
+            {
+                await DiscardRejectedSubscriptionAsync(context, subscription).ConfigureAwait(false);
+                throw new ServiceResultException(rejected);
+            }
+
             // get the count for the diagnostics.
             publishingIntervalCount = GetPublishingIntervalCount();
-
-            lock (m_statusMessagesLock)
-            {
-                if (!m_statusMessages.TryGetValue(
-                    session.Id,
-                    out Queue<StatusMessage>? messagesQueue))
-                {
-                    m_statusMessages[session.Id] = new Queue<StatusMessage>();
-                }
-            }
 
             m_server.UpdateServerDiagnostics(diagnostics =>
             {
@@ -991,11 +1008,8 @@ namespace Opc.Ua.Server
                 diagnostics.PublishingIntervalCount = publishingIntervalCount;
             });
 
-            if (context.Session != null)
-            {
-                context.Session.UpdateDiagnostics(
+            context.Session?.UpdateDiagnostics(
                     diagnostics => diagnostics.CurrentSubscriptionsCount++);
-            }
 
             // raise subscription event.
             RaiseSubscriptionEvent(subscription, false);
@@ -1007,6 +1021,90 @@ namespace Opc.Ua.Server
                 RevisedLifetimeCount = revisedLifetimeCount,
                 RevisedMaxKeepAliveCount = revisedMaxKeepAliveCount
             };
+        }
+
+        /// <summary>
+        /// Adds a newly created subscription to the manager, its session's publish
+        /// queue and status queue. Must be called while holding the manager semaphore.
+        /// </summary>
+        /// <returns>Good, or the status code the creation is rejected with.</returns>
+        private StatusCode RegisterCreatedSubscriptionNoLock(
+            ISession session,
+            ISubscriptionPublishPipeline subscription)
+        {
+            // Re-check under the semaphore: SessionClosingAsync removes the session's
+            // publish and status queues under the same semaphore, after the session
+            // was marked closing. A Create that passed the first check must not
+            // re-create them for the closed session.
+            if (session.IsClosing)
+            {
+                return StatusCodes.BadSessionClosed;
+            }
+
+            // The check at the start of the service is not atomic with the add, so
+            // parallel requests could otherwise all pass it and exceed the limit.
+            if (m_subscriptions.Count >= m_maxSubscriptionCount)
+            {
+                return StatusCodes.BadTooManySubscriptions;
+            }
+
+            // save subscription.
+            if (!m_subscriptions.TryAdd(subscription.Id, subscription))
+            {
+                return StatusCodes.BadInternalError;
+            }
+
+            // create/update publish queue.
+            m_publishQueues.AddOrUpdate(
+                session.Id,
+                (key) =>
+                {
+                    var queue = new SessionPublishQueue(
+                        m_server,
+                        session,
+                        m_maxPublishRequestCount,
+                        m_timeProvider);
+
+                    queue.Add(subscription);
+                    return queue;
+                },
+                (key, queue) =>
+                    {
+                        queue.Add(subscription);
+                        return queue;
+                    }
+            );
+
+            lock (m_statusMessagesLock)
+            {
+                if (!m_statusMessages.ContainsKey(session.Id))
+                {
+                    m_statusMessages[session.Id] = new Queue<StatusMessage>();
+                }
+            }
+
+            return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Releases a created subscription that was never registered with the manager.
+        /// </summary>
+        private async ValueTask DiscardRejectedSubscriptionAsync(
+            OperationContext context,
+            ISubscription subscription)
+        {
+            try
+            {
+                await subscription.DeleteAsync(context, CancellationToken.None).ConfigureAwait(false);
+            }
+            catch (Exception e)
+            {
+                m_logger.ServerCleanupSubscriptionsTaskHaltedUnexpectedly(e);
+            }
+            finally
+            {
+                subscription.Dispose();
+            }
         }
 
         /// <summary>
@@ -1118,13 +1216,13 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                m_expiringSubscriptions.Add(subscription.Id, subscription);
+                m_expiringSubscriptions[subscription.Id] = subscription;
                 if (sourceQueue.TryRemoveForExpiration(queuedSubscription))
                 {
                     return true;
                 }
 
-                m_expiringSubscriptions.Remove(subscription.Id);
+                m_expiringSubscriptions.TryRemove(subscription.Id, out _);
                 return false;
             }
             finally
@@ -1148,13 +1246,13 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
-                m_expiringSubscriptions.Add(subscription.Id, subscription);
+                m_expiringSubscriptions[subscription.Id] = subscription;
                 if (TryRemoveAbandonedSubscription(subscription))
                 {
                     return true;
                 }
 
-                m_expiringSubscriptions.Remove(subscription.Id);
+                m_expiringSubscriptions.TryRemove(subscription.Id, out _);
                 return false;
             }
             finally
@@ -1195,12 +1293,9 @@ namespace Opc.Ua.Server
             // get publish queue for session.
             if (!m_publishQueues.TryGetValue(context.Session.Id, out SessionPublishQueue? queue))
             {
-                if (m_subscriptions.IsEmpty)
-                {
-                    throw new ServiceResultException(StatusCodes.BadNoSubscription);
-                }
-
-                throw new ServiceResultException(StatusCodes.BadSessionClosed);
+                throw new ServiceResultException(context.Session.IsClosing
+                    ? StatusCodes.BadSessionClosed
+                    : StatusCodes.BadNoSubscription);
             }
 
             // acknowledge previous messages.
@@ -1211,11 +1306,8 @@ namespace Opc.Ua.Server
                 out ArrayOf<DiagnosticInfo> acknowledgeDiagnosticInfos);
 
             // update diagnostics.
-            if (context.Session != null)
-            {
-                context.Session.UpdateDiagnostics(
+            context.Session?.UpdateDiagnostics(
                     diagnostics => diagnostics.CurrentPublishRequestsInQueue++);
-            }
 
             try
             {
@@ -1314,11 +1406,8 @@ namespace Opc.Ua.Server
             finally
             {
                 // update diagnostics.
-                if (context.Session != null)
-                {
-                    context.Session.UpdateDiagnostics(
+                context.Session?.UpdateDiagnostics(
                         diagnostics => diagnostics.CurrentPublishRequestsInQueue--);
-                }
             }
         }
 
@@ -1352,7 +1441,9 @@ namespace Opc.Ua.Server
             _ = subscription.PublishingInterval;
 
             // calculate publishing interval.
-            revisedPublishingInterval = CalculatePublishingInterval(requestedPublishingInterval);
+            revisedPublishingInterval = LimitPublishingIntervalToLifetime(
+                CalculatePublishingInterval(requestedPublishingInterval),
+                subscription.IsDurable);
 
             // calculate the keep alive count.
             revisedMaxKeepAliveCount = CalculateKeepAliveCount(
@@ -1383,10 +1474,7 @@ namespace Opc.Ua.Server
             // get the count for the diagnostics.
             uint publishingIntervalCount = GetPublishingIntervalCount();
 
-            m_server.UpdateServerDiagnostics(diagnostics =>
-            {
-                diagnostics.PublishingIntervalCount = publishingIntervalCount;
-            });
+            m_server.UpdateServerDiagnostics(diagnostics => diagnostics.PublishingIntervalCount = publishingIntervalCount);
         }
 
         /// <summary>
@@ -1430,12 +1518,13 @@ namespace Opc.Ua.Server
                 revisedLifetimeInHours = m_maxDurableSubscriptionLifetimeInHours;
             }
 
-            const uint hoursInSeconds = 3_600_000;
-            long lifetimeInSeconds = revisedLifetimeInHours * hoursInSeconds;
-            uint requestedLifeTimeCount = (uint)(lifetimeInSeconds /
+            const long millisecondsInHour = 3_600_000L;
+            long lifetimeInMilliseconds = revisedLifetimeInHours * millisecondsInHour;
+            ulong requestedLifetimeCount = (ulong)(lifetimeInMilliseconds /
                 subscription.PublishingInterval);
 
-            return subscription.SetSubscriptionDurable(requestedLifeTimeCount);
+            return subscription.SetSubscriptionDurable(
+                (uint)Math.Min(requestedLifetimeCount, uint.MaxValue));
         }
 
         /// <summary>
@@ -1500,11 +1589,10 @@ namespace Opc.Ua.Server
                         diagnosticsExist = true;
                     }
                 }
-
-                if (!diagnosticsExist)
-                {
-                    diagnosticInfoList.Clear();
-                }
+            }
+            if (!diagnosticsExist)
+            {
+                diagnosticInfoList.Clear();
             }
             results = resultList;
             diagnosticInfos = diagnosticInfoList;
@@ -1513,6 +1601,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Attaches a groups of subscriptions to a different session.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        /// <exception cref="AggregateException"></exception>
         public async ValueTask<TransferSubscriptionsResponse> TransferSubscriptionsAsync(
             OperationContext context,
             ArrayOf<uint> subscriptionIds,
@@ -1561,6 +1651,7 @@ namespace Opc.Ua.Server
                     Subscription.PreparedSessionTransfer? preparedTransfer = null;
                     SessionPublishQueue? destinationPublishQueue = null;
                     bool destinationAdded = false;
+                    string? sourceApplicationUri = null;
                     await m_semaphoreSlim.WaitAsync(cancellationToken).ConfigureAwait(false);
                     try
                     {
@@ -1577,6 +1668,14 @@ namespace Opc.Ua.Server
                                 diagnosticInfos.Add(null!);
                             }
                             continue;
+                        }
+
+                        // Re-check under the semaphore: SessionClosingAsync of the
+                        // destination removes its publish and status queues under the
+                        // same semaphore, so a closing destination must not get them back.
+                        if (context.Session.IsClosing)
+                        {
+                            throw new ServiceResultException(StatusCodes.BadSessionClosed);
                         }
 
                         // check if new and old sessions are different
@@ -1622,6 +1721,10 @@ namespace Opc.Ua.Server
                             }
                             continue;
                         }
+
+                        // the owner is replaced by the transfer, so capture the source client now.
+                        sourceApplicationUri = (subscription as Subscription)?.OwnerClientApplicationUri
+                            ?? ownerSession?.ClientApplicationUri;
 
                         // Claim the exact current source before any fallible monitored-item
                         // callback can run. Lock order is manager semaphore, then queue lock,
@@ -1743,6 +1846,30 @@ namespace Opc.Ua.Server
                                 sourcePublishQueue!.CompleteTransferClaim(sourceQueueClaim);
                             }
                             preparedTransfer?.Complete();
+
+                            // Create the destination status queue under the semaphore,
+                            // ordered with SessionClosingAsync removing it.
+                            lock (m_statusMessagesLock)
+                            {
+                                var processedQueue = new Queue<StatusMessage>();
+                                if (m_statusMessages.TryGetValue(
+                                        context.SessionId,
+                                        out Queue<StatusMessage>? messagesQueue) &&
+                                    messagesQueue != null)
+                                {
+                                    // There must not be any messages left from
+                                    // the transferred subscription
+                                    foreach (StatusMessage statusMessage in messagesQueue)
+                                    {
+                                        if (statusMessage.SubscriptionId == subscription.Id)
+                                        {
+                                            continue;
+                                        }
+                                        processedQueue.Enqueue(statusMessage);
+                                    }
+                                }
+                                m_statusMessages[context.SessionId] = processedQueue;
+                            }
                         }
                         catch (Exception transferError)
                         {
@@ -1775,6 +1902,15 @@ namespace Opc.Ua.Server
                                         "Subscription ownership could not be restored."));
                             }
 
+                            // Release the transfer reservation before the source queue entry
+                            // is restored: restoring the claim can hand the subscription to a
+                            // parked Publish whose continuation would otherwise still see the
+                            // transfer in progress and fault with Bad_SubscriptionIdInvalid.
+                            if (transferStarted)
+                            {
+                                subscription.AbortTransfer(ownerSession);
+                            }
+
                             if (sourceQueueClaim != null &&
                                 !sourcePublishQueue!.RestoreTransferClaim(sourceQueueClaim))
                             {
@@ -1789,7 +1925,8 @@ namespace Opc.Ua.Server
                             {
                                 sourcePublishQueue.Add(subscription);
                             }
-                            else if (sourceRemoved && sourceIsAbandoned &&
+                            else if (sourceRemoved &&
+                                sourceIsAbandoned &&
                                 !m_abandonedSubscriptions.TryAdd(
                                     subscription.Id,
                                     subscription))
@@ -1798,11 +1935,6 @@ namespace Opc.Ua.Server
                                     new ServiceResultException(
                                         StatusCodes.BadSubscriptionIdInvalid,
                                         "Abandoned subscription source could not be restored."));
-                            }
-
-                            if (transferStarted)
-                            {
-                                subscription.AbortTransfer(ownerSession);
                             }
 
                             if (rollbackErrors.Count > 0)
@@ -1818,33 +1950,14 @@ namespace Opc.Ua.Server
                         m_semaphoreSlim.Release();
                     }
 
-                    lock (m_statusMessagesLock)
-                    {
-                        var processedQueue = new Queue<StatusMessage>();
-                        if (m_statusMessages.TryGetValue(
-                                context.SessionId,
-                                out Queue<StatusMessage>? messagesQueue) &&
-                            messagesQueue != null)
+                    // the monitored items move with the subscription (Part 5 12.13).
+                    int monitoredItemCount = subscription.MonitoredItemCount;
+                    context.Session?.UpdateDiagnostics(
+                        diagnostics =>
                         {
-                            // There must not be any messages left from
-                            // the transferred subscription
-                            foreach (StatusMessage statusMessage in messagesQueue)
-                            {
-                                if (statusMessage.SubscriptionId == subscription.Id)
-                                {
-                                    continue;
-                                }
-                                processedQueue.Enqueue(statusMessage);
-                            }
-                        }
-                        m_statusMessages[context.SessionId] = processedQueue;
-                    }
-
-                    if (context.Session != null)
-                    {
-                        context.Session.UpdateDiagnostics(
-                            diagnostics => diagnostics.CurrentSubscriptionsCount++);
-                    }
+                            diagnostics.CurrentSubscriptionsCount++;
+                            UpdateCurrentMonitoredItemsCount(diagnostics, monitoredItemCount);
+                        });
 
                     // raise subscription event.
                     RaiseSubscriptionEvent(subscription, false);
@@ -1854,7 +1967,11 @@ namespace Opc.Ua.Server
                     if (ownerSession != null)
                     {
                         ownerSession.UpdateDiagnostics(
-                            diagnostics => diagnostics.CurrentSubscriptionsCount--);
+                            diagnostics =>
+                            {
+                                diagnostics.CurrentSubscriptionsCount--;
+                                UpdateCurrentMonitoredItemsCount(diagnostics, -monitoredItemCount);
+                            });
 
                         // queue the Good_SubscriptionTransferred message
                         bool statusQueued = false;
@@ -1911,8 +2028,24 @@ namespace Opc.Ua.Server
                     result.AvailableSequenceNumbers = subscription
                         .AvailableSequenceNumbersForRetransmission();
 
+                    // Part 5 12.15: a transfer to a session of another client
+                    // application counts as a transfer to an alternate client.
+                    bool sameClient = string.Equals(
+                        sourceApplicationUri,
+                        context.Session!.ClientApplicationUri,
+                        StringComparison.Ordinal);
                     subscription.UpdateDiagnostics(
-                        diagnostics => diagnostics.TransferredToSameClientCount++);
+                        diagnostics =>
+                        {
+                            if (sameClient)
+                            {
+                                diagnostics.TransferredToSameClientCount++;
+                            }
+                            else
+                            {
+                                diagnostics.TransferredToAltClientCount++;
+                            }
+                        });
 
                     // save results.
                     results.Add(result);
@@ -1925,7 +2058,9 @@ namespace Opc.Ua.Server
                 }
                 catch (Exception e)
                 {
-                    result.StatusCode = StatusCodes.Bad;
+                    result.StatusCode = e is ServiceResultException serviceResultException
+                        ? serviceResultException.StatusCode
+                        : StatusCodes.BadUnexpectedError;
                     if (results.Count == ii)
                     {
                         results.Add(result);
@@ -1934,18 +2069,22 @@ namespace Opc.Ua.Server
                         diagnosticInfos.Count == ii)
                     {
                         diagnosticInfos.Add(
-                            new DiagnosticInfo(e, context.DiagnosticsMask, false, null!, m_logger));
+                            new DiagnosticInfo(
+                                e,
+                                context.DiagnosticsMask,
+                                false,
+                                context.StringTable,
+                                m_logger));
                     }
                 }
-
-                for (int i = 0; i < results.Count; i++)
-                {
-                    m_server.ReportAuditTransferSubscriptionEvent(
-                        context.AuditEntryId,
-                        context.Session,
-                        results[i].StatusCode,
-                        m_logger);
-                }
+            }
+            for (int i = 0; i < results.Count; i++)
+            {
+                m_server.ReportAuditTransferSubscriptionEvent(
+                    context.AuditEntryId,
+                    context.Session,
+                    results[i].StatusCode,
+                    m_logger);
             }
             return new TransferSubscriptionsResponse
             {
@@ -2023,27 +2162,238 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            int currentMonitoredItemCount = subscription.MonitoredItemCount;
-
-            // create the items.
-            CreateMonitoredItemsResponse response = await subscription.CreateMonitoredItemsAsync(
-                context,
-                timestampsToReturn,
-                itemsToCreate,
-                cancellationToken).ConfigureAwait(false);
-
-            int monitoredItemCountIncrement = subscription.MonitoredItemCount -
-                currentMonitoredItemCount;
-
-            // update diagnostics.
-            if (context.Session != null)
+            // reserve room for the items within the configured monitored item limits.
+            var added = new MonitoredItemCountChange();
+            MonitoredItemReservation? reservation = ReserveMonitoredItems(
+                subscription,
+                itemsToCreate.Count,
+                added);
+            int allowed = reservation?.Reserved ?? itemsToCreate.Count;
+            CreateMonitoredItemsResponse response;
+            try
             {
-                context.Session.UpdateDiagnostics(
-                    diagnostics => UpdateCurrentMonitoredItemsCount(
-                        diagnostics, monitoredItemCountIncrement));
+                // create the items.
+                if (allowed >= itemsToCreate.Count)
+                {
+                    response = await subscription.CreateMonitoredItemsAsync(
+                        context,
+                        timestampsToReturn,
+                        itemsToCreate,
+                        added,
+                        cancellationToken).ConfigureAwait(false);
+                }
+                else
+                {
+                    response = await CreateMonitoredItemsWithinLimitAsync(
+                        context,
+                        subscription,
+                        timestampsToReturn,
+                        itemsToCreate,
+                        allowed,
+                        added,
+                        cancellationToken).ConfigureAwait(false);
+                }
+            }
+            finally
+            {
+                ReleaseMonitoredItems(reservation);
             }
 
+            // count the items this request added to the subscription; sampling
+            // MonitoredItemCount before and after the await also counts concurrent
+            // create/delete calls, and an item can be added with a Bad create result.
+            int monitoredItemCountIncrement = added.Count;
+
+            // update diagnostics.
+            context.Session?.UpdateDiagnostics(
+                    diagnostics => UpdateCurrentMonitoredItemsCount(
+                        diagnostics, monitoredItemCountIncrement));
+
             return response;
+        }
+
+        /// <summary>
+        /// Creates the first <paramref name="allowed"/> items and rejects the rest with
+        /// Bad_TooManyMonitoredItems (Part 4 §5.13.2.4).
+        /// </summary>
+        private async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsWithinLimitAsync(
+            OperationContext context,
+            ISubscriptionPublishPipeline subscription,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            int allowed,
+            MonitoredItemCountChange added,
+            CancellationToken cancellationToken)
+        {
+            var itemsWithinLimit = new MonitoredItemCreateRequest[allowed];
+            for (int ii = 0; ii < allowed; ii++)
+            {
+                itemsWithinLimit[ii] = itemsToCreate[ii];
+            }
+
+            // always call the subscription so the session ownership and lifetime are
+            // handled as for any other CreateMonitoredItems request.
+            CreateMonitoredItemsResponse created = await subscription.CreateMonitoredItemsAsync(
+                context,
+                timestampsToReturn,
+                itemsWithinLimit.ToArrayOf(),
+                added,
+                cancellationToken).ConfigureAwait(false);
+
+            int count = itemsToCreate.Count;
+            var results = new List<MonitoredItemCreateResult>(count);
+            foreach (MonitoredItemCreateResult result in created.Results)
+            {
+                results.Add(result);
+            }
+
+            bool returnDiagnostics = (context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0;
+            var diagnosticInfos = new List<DiagnosticInfo>(count);
+            bool diagnosticsExist = false;
+            if (returnDiagnostics)
+            {
+                // the subscription returns an empty list when none of its items has a diagnostic.
+                bool hasCreatedDiagnostics = created.DiagnosticInfos.Count == created.Results.Count &&
+                    created.DiagnosticInfos.Count > 0;
+                for (int ii = 0; ii < created.Results.Count; ii++)
+                {
+                    diagnosticInfos.Add(hasCreatedDiagnostics ? created.DiagnosticInfos[ii] : null!);
+                }
+                diagnosticsExist = hasCreatedDiagnostics;
+            }
+
+            for (int ii = allowed; ii < count; ii++)
+            {
+                results.Add(new MonitoredItemCreateResult
+                {
+                    StatusCode = StatusCodes.BadTooManyMonitoredItems
+                });
+
+                if (returnDiagnostics)
+                {
+                    diagnosticInfos.Add(ServerUtils.CreateDiagnosticInfo(
+                        m_server,
+                        context,
+                        new ServiceResult(StatusCodes.BadTooManyMonitoredItems),
+                        m_logger)!);
+                    diagnosticsExist = true;
+                }
+            }
+
+            created.Results = results;
+            if (!diagnosticsExist)
+            {
+                diagnosticInfos.Clear();
+            }
+            created.DiagnosticInfos = diagnosticInfos;
+            return created;
+        }
+
+        /// <summary>
+        /// Reserves room for up to <paramref name="requested"/> new monitored items within
+        /// the configured server-wide and per-subscription limits. Returns <c>null</c> when
+        /// no limit is configured; otherwise the reservation holds how many items may be
+        /// created and must be released with <see cref="ReleaseMonitoredItems"/>.
+        /// </summary>
+        /// <remarks>
+        /// The subscription records each item it adds in <paramref name="added"/> in the
+        /// same step that makes the item part of <see cref="ISubscription.MonitoredItemCount"/>,
+        /// so an in-flight reservation only counts the items that are not yet added and a
+        /// concurrent create does not count the same item twice.
+        /// </remarks>
+        private MonitoredItemReservation? ReserveMonitoredItems(
+            ISubscriptionPublishPipeline subscription,
+            int requested,
+            MonitoredItemCountChange added)
+        {
+            int maxPerSubscription = m_maxMonitoredItemsPerSubscription;
+            int maxTotal = m_maxMonitoredItemCount;
+            if (maxPerSubscription <= 0 && maxTotal <= 0)
+            {
+                return null;
+            }
+
+            lock (m_monitoredItemReservationLock)
+            {
+                // read the outstanding reservations before the item counts: an item added
+                // in between is then counted twice for a moment, never not at all.
+                long outstandingForSubscription = 0;
+                long outstandingTotal = 0;
+                foreach (MonitoredItemReservation active in m_monitoredItemReservations)
+                {
+                    int outstanding = active.Outstanding;
+                    outstandingTotal += outstanding;
+                    if (active.SubscriptionId == subscription.Id)
+                    {
+                        outstandingForSubscription += outstanding;
+                    }
+                }
+
+                int allowed = requested;
+                if (maxPerSubscription > 0)
+                {
+                    long inUse = subscription.MonitoredItemCount + outstandingForSubscription;
+                    allowed = (int)Math.Max(0, Math.Min(allowed, maxPerSubscription - inUse));
+                }
+
+                if (maxTotal > 0)
+                {
+                    long inUse = outstandingTotal;
+                    foreach (ISubscriptionPublishPipeline existing in m_subscriptions.Values)
+                    {
+                        inUse += existing.MonitoredItemCount;
+                    }
+
+                    allowed = (int)Math.Max(0, Math.Min(allowed, maxTotal - inUse));
+                }
+
+                var reservation = new MonitoredItemReservation(subscription.Id, allowed, added);
+                m_monitoredItemReservations.Add(reservation);
+                return reservation;
+            }
+        }
+
+        /// <summary>
+        /// Releases a reservation made by <see cref="ReserveMonitoredItems"/>.
+        /// </summary>
+        private void ReleaseMonitoredItems(MonitoredItemReservation? reservation)
+        {
+            if (reservation == null)
+            {
+                return;
+            }
+
+            lock (m_monitoredItemReservationLock)
+            {
+                m_monitoredItemReservations.Remove(reservation);
+            }
+        }
+
+        /// <summary>
+        /// Room reserved for the monitored items of one CreateMonitoredItems call.
+        /// </summary>
+        private sealed class MonitoredItemReservation
+        {
+            public MonitoredItemReservation(
+                uint subscriptionId,
+                int reserved,
+                MonitoredItemCountChange added)
+            {
+                SubscriptionId = subscriptionId;
+                Reserved = reserved;
+                m_added = added;
+            }
+
+            public uint SubscriptionId { get; }
+
+            public int Reserved { get; }
+
+            /// <summary>
+            /// The reserved items that are not yet part of the subscription.
+            /// </summary>
+            public int Outstanding => Math.Max(0, Reserved - m_added.Count);
+
+            private readonly MonitoredItemCountChange m_added;
         }
 
         /// <summary>
@@ -2087,24 +2437,24 @@ namespace Opc.Ua.Server
                 throw new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid);
             }
 
-            int currentMonitoredItemCount = subscription.MonitoredItemCount;
-
-            // create the items.
+            // delete the items.
+            var removed = new MonitoredItemCountChange();
             DeleteMonitoredItemsResponse response = await subscription.DeleteMonitoredItemsAsync(
                 context,
                 monitoredItemIds,
+                removed,
                 cancellationToken).ConfigureAwait(false);
 
-            int monitoredItemCountIncrement = subscription.MonitoredItemCount -
-                currentMonitoredItemCount;
+            // count the items this request removed from the subscription; sampling
+            // MonitoredItemCount before and after the await also counts concurrent
+            // create/delete calls, and the result of a removed item can still be
+            // Bad_MonitoredItemIdInvalid when its NodeManager no longer tracked it.
+            int monitoredItemCountIncrement = removed.Count;
 
             // update diagnostics.
-            if (context.Session != null)
-            {
-                context.Session.UpdateDiagnostics(
+            context.Session?.UpdateDiagnostics(
                     diagnostics => UpdateCurrentMonitoredItemsCount(
                         diagnostics, monitoredItemCountIncrement));
-            }
 
             return response;
         }
@@ -2202,9 +2552,13 @@ namespace Opc.Ua.Server
         {
             double samplingInterval = requestedSamplingInterval;
 
-            if (samplingInterval < 0)
+            if (double.IsNaN(samplingInterval) || samplingInterval < 0)
             {
                 samplingInterval = defaultSamplingInterval;
+            }
+            if (double.IsNaN(samplingInterval) || samplingInterval < 0)
+            {
+                samplingInterval = 0;
             }
 
             // items that report by exception are not bound by a sampling interval.
@@ -2220,13 +2574,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // put a large upper limit on sampling.
-            if (samplingInterval == double.MaxValue)
-            {
-                samplingInterval = 365 * 24 * 3600 * 1000.0;
-            }
-
-            return samplingInterval;
+            return Math.Min(samplingInterval, int.MaxValue);
         }
 
         /// <summary>
@@ -2304,6 +2652,31 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Revises the publishing interval down so that three publishing intervals fit in
+        /// the maximum subscription lifetime. The lifetime is at least three keep-alive
+        /// intervals (Part 4 5.14.2.2) and a keep-alive interval at least one publishing
+        /// interval, so a longer publishing interval would make the revised lifetime exceed
+        /// the configured maximum.
+        /// </summary>
+        private double LimitPublishingIntervalToLifetime(
+            double publishingInterval,
+            bool isDurableSubscription)
+        {
+            double maxPublishingInterval =
+                GetMaximumLifetimeMilliseconds(isDurableSubscription) / 3.0;
+            if (publishingInterval <= maxPublishingInterval)
+            {
+                return publishingInterval;
+            }
+
+            // round down to the resolution; a configuration that leaves no valid interval
+            // keeps the smallest one the other limits allow.
+            double limited = Math.Floor(maxPublishingInterval / m_publishingResolution) *
+                m_publishingResolution;
+            return Math.Max(limited, Math.Max(m_minPublishingInterval, m_publishingResolution));
+        }
+
+        /// <summary>
         /// Calculates the keep alive count.
         /// </summary>
         protected virtual uint CalculateKeepAliveCount(
@@ -2317,23 +2690,17 @@ namespace Opc.Ua.Server
                 keepAliveCount = 3;
             }
 
-            ulong maxSubscriptionLifetime = isDurableSubscription
-                ? m_maxDurableSubscriptionLifetimeInHours
-                : m_maxSubscriptionLifetime;
+            ulong maxSubscriptionLifetime = GetMaximumLifetimeMilliseconds(isDurableSubscription);
 
             double keepAliveInterval = keepAliveCount * publishingInterval;
 
-            // keep alive interval cannot be longer than the max subscription lifetime.
-            if (keepAliveInterval > maxSubscriptionLifetime)
+            // The lifetime is raised to at least three keep-alive intervals (Part 4
+            // 5.14.2.2), so the keep-alive interval cannot be longer than a third of
+            // the max subscription lifetime or the revised lifetime would exceed it.
+            ulong maxKeepAliveInterval = maxSubscriptionLifetime / 3;
+            if (keepAliveInterval > maxKeepAliveInterval)
             {
-                keepAliveCount = (uint)(maxSubscriptionLifetime / publishingInterval);
-
-                if (keepAliveCount < uint.MaxValue &&
-                    maxSubscriptionLifetime % publishingInterval != 0)
-                {
-                    keepAliveCount++;
-                }
-
+                keepAliveCount = Math.Max(1u, (uint)(maxKeepAliveInterval / publishingInterval));
                 keepAliveInterval = keepAliveCount * publishingInterval;
             }
 
@@ -2361,24 +2728,15 @@ namespace Opc.Ua.Server
             uint lifetimeCount,
             bool isDurableSubscription = false)
         {
-            const int kMillisecondsToHours = 3_600_000;
-
-            ulong maxSubscriptionLifetime = isDurableSubscription
-                ? m_maxDurableSubscriptionLifetimeInHours * kMillisecondsToHours
-                : m_maxSubscriptionLifetime;
+            ulong maxSubscriptionLifetime = GetMaximumLifetimeMilliseconds(isDurableSubscription);
 
             double lifetimeInterval = lifetimeCount * publishingInterval;
 
-            // lifetime cannot be longer than the max subscription lifetime.
+            // lifetime cannot be longer than the max subscription lifetime: round down
+            // so that the revised lifetime does not overshoot it.
             if (lifetimeInterval > maxSubscriptionLifetime)
             {
-                lifetimeCount = (uint)(maxSubscriptionLifetime / publishingInterval);
-
-                if (lifetimeCount < uint.MaxValue &&
-                    maxSubscriptionLifetime % publishingInterval != 0)
-                {
-                    lifetimeCount++;
-                }
+                lifetimeCount = Math.Max(1u, (uint)(maxSubscriptionLifetime / publishingInterval));
             }
 
             // the lifetime must be greater than the keepalive.
@@ -2585,7 +2943,7 @@ namespace Opc.Ua.Server
                 m_logger.SubscriptionAbandonedSubscriptionIdSubscriptionId(subscription.Id);
             }
 
-            CleanupSubscriptions(m_server, subscriptionsToDelete, m_logger, m_backgroundWork);
+            CleanupSubscriptions(subscriptionsToDelete);
         }
 
         /// <summary>
@@ -2607,6 +2965,7 @@ namespace Opc.Ua.Server
                         if (m_conditionRefreshQueue.Count > 0)
                         {
                             conditionRefreshTask = m_conditionRefreshQueue.Dequeue();
+                            m_runningConditionRefresh = conditionRefreshTask;
                         }
                         else if (m_shutdownEvent.WaitOne(0))
                         {
@@ -2628,17 +2987,30 @@ namespace Opc.Ua.Server
                     {
                         m_conditionRefreshEvent.WaitOne();
                     }
-                    else if (conditionRefreshTask.MonitoredItemId == 0)
-                    {
-                        await DoConditionRefreshAsync(conditionRefreshTask.Subscription)
-                            .ConfigureAwait(false);
-                    }
                     else
                     {
-                        await DoConditionRefresh2Async(
-                            conditionRefreshTask.Subscription,
-                            conditionRefreshTask.MonitoredItemId)
-                            .ConfigureAwait(false);
+                        try
+                        {
+                            if (conditionRefreshTask.MonitoredItemId == 0)
+                            {
+                                await DoConditionRefreshAsync(conditionRefreshTask.Subscription)
+                                    .ConfigureAwait(false);
+                            }
+                            else
+                            {
+                                await DoConditionRefresh2Async(
+                                    conditionRefreshTask.Subscription,
+                                    conditionRefreshTask.MonitoredItemId)
+                                    .ConfigureAwait(false);
+                            }
+                        }
+                        finally
+                        {
+                            lock (m_conditionRefreshLock)
+                            {
+                                m_runningConditionRefresh = null;
+                            }
+                        }
                     }
 
                     // use shutdown event to end loop
@@ -2660,60 +3032,89 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Cleanups the subscriptions.
+        /// Schedules the deletion of subscriptions whose expiration was claimed.
         /// </summary>
-        /// <param name="server">The server.</param>
+        /// <remarks>
+        /// The deletion runs on the manager's scope, not on the scope of the session
+        /// publish queue that detected the expiry: a claimed subscription is no longer
+        /// in any publish queue or in the abandoned set, so a cleanup cancelled by a
+        /// closing session would leak it until restart.
+        /// </remarks>
         /// <param name="subscriptionsToDelete">The subscriptions to delete.</param>
-        /// <param name="logger">A contextual logger to log to</param>
-        /// <param name="backgroundWork">Owns the deletion so it is drained
-        /// before the caller that scheduled it goes away.</param>
-        internal static void CleanupSubscriptions(
-            IServerInternal server,
-            IList<ISubscriptionPublishPipeline> subscriptionsToDelete,
-            ILogger logger,
-            BackgroundTaskScope backgroundWork)
+        internal void CleanupSubscriptions(IList<ISubscriptionPublishPipeline> subscriptionsToDelete)
         {
             if (subscriptionsToDelete != null && subscriptionsToDelete.Count > 0)
             {
-                logger.ServerCountSubscriptionsScheduledForDelete(subscriptionsToDelete.Count);
+                m_logger.ServerCountSubscriptionsScheduledForDelete(subscriptionsToDelete.Count);
 
-                backgroundWork.Run(
+                IServerInternal server = m_server;
+                ILogger logger = m_logger;
+                m_backgroundWork.Run(
                     nameof(CleanupSubscriptionsCoreAsync),
-                    async ct => await CleanupSubscriptionsCoreAsync(
-                        server, subscriptionsToDelete, logger, ct).ConfigureAwait(false));
+                    async _ => await CleanupSubscriptionsCoreAsync(
+                        server, subscriptionsToDelete, logger).ConfigureAwait(false));
             }
         }
 
         /// <summary>
         /// Deletes any expired subscriptions.
         /// </summary>
+        /// <remarks>
+        /// Each deletion runs without a cancellation token and in its own try block:
+        /// the expiry is already claimed, so nothing else would delete the subscription.
+        /// </remarks>
         private static async ValueTask CleanupSubscriptionsCoreAsync(
             IServerInternal server,
             IList<ISubscriptionPublishPipeline> subscriptionsToDelete,
-            ILogger logger,
-            CancellationToken cancellationToken = default)
+            ILogger logger)
         {
-            try
-            {
-                logger.ServerCleanupSubscriptionsTaskStarted();
+            logger.ServerCleanupSubscriptionsTaskStarted();
 
-                foreach (ISubscriptionPublishPipeline subscription in subscriptionsToDelete)
+            foreach (ISubscriptionPublishPipeline subscription in subscriptionsToDelete)
+            {
+                try
                 {
-                    await server.DeleteSubscriptionAsync(subscription.Id, cancellationToken).ConfigureAwait(false);
+                    await server.DeleteSubscriptionAsync(subscription.Id, CancellationToken.None)
+                        .ConfigureAwait(false);
                 }
+                catch (Exception e)
+                {
+                    logger.ServerCleanupSubscriptionsTaskHaltedUnexpectedly(e);
+                }
+            }
 
-                logger.ServerCleanupSubscriptionsTaskCompleted();
-            }
-            catch (Exception e)
-            {
-                logger.ServerCleanupSubscriptionsTaskHaltedUnexpectedly(e);
-            }
+            logger.ServerCleanupSubscriptionsTaskCompleted();
         }
 
         private class StatusMessage
         {
             public uint SubscriptionId;
             public NotificationMessage? Message;
+        }
+
+        private ConditionRefreshTask? m_runningConditionRefresh;
+
+        /// <summary>
+        /// Returns whether a ConditionRefresh or ConditionRefresh2 of the subscription is
+        /// queued or running. The subscription allows one refresh at a time whatever the
+        /// monitored item (Part 9 5.5.7/5.5.8 Bad_RefreshInProgress), so the check is keyed
+        /// by the subscription only. Must be called under m_conditionRefreshLock.
+        /// </summary>
+        private bool IsConditionRefreshInProgress(uint subscriptionId)
+        {
+            if (m_runningConditionRefresh?.Subscription.Id == subscriptionId)
+            {
+                return true;
+            }
+
+            foreach (ConditionRefreshTask queued in m_conditionRefreshQueue)
+            {
+                if (queued.Subscription.Id == subscriptionId)
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         private class ConditionRefreshTask
@@ -2739,6 +3140,16 @@ namespace Opc.Ua.Server
             {
                 return HashCode.Combine(Subscription.Id, MonitoredItemId);
             }
+        }
+
+        /// <summary>
+        /// Returns the configured ordinary or durable subscription lifetime limit in milliseconds.
+        /// </summary>
+        private ulong GetMaximumLifetimeMilliseconds(bool isDurableSubscription)
+        {
+            return isDurableSubscription
+                ? (ulong)m_maxDurableSubscriptionLifetimeInHours * 3_600_000
+                : m_maxSubscriptionLifetime;
         }
 
         /// <summary>
@@ -2768,10 +3179,17 @@ namespace Opc.Ua.Server
         private readonly uint m_maxNotificationsPerPublish;
         private readonly int m_maxPublishRequestCount;
         private readonly int m_maxSubscriptionCount;
+        private readonly int m_maxMonitoredItemCount;
+        private readonly int m_maxMonitoredItemsPerSubscription;
+        private readonly Lock m_monitoredItemReservationLock = new();
+        private readonly HashSet<MonitoredItemReservation> m_monitoredItemReservations = [];
         private readonly bool m_durableSubscriptionsEnabled;
         private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_subscriptions;
         private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_abandonedSubscriptions;
-        private readonly Dictionary<uint, ISubscriptionPublishPipeline> m_expiringSubscriptions;
+        // Mutated under m_semaphoreSlim (the expiry claim must be atomic with the
+        // queue removal); concurrent so that StoreSubscriptionsAsync, which a host
+        // may call without the semaphore, can read it safely.
+        private readonly ConcurrentDictionary<uint, ISubscriptionPublishPipeline> m_expiringSubscriptions;
         private readonly NodeIdDictionary<Queue<StatusMessage>> m_statusMessages;
         private readonly NodeIdDictionary<SessionPublishQueue> m_publishQueues;
         private readonly ManualResetEvent m_shutdownEvent;
@@ -2779,7 +3197,8 @@ namespace Opc.Ua.Server
         private readonly ManualResetEvent m_conditionRefreshEvent;
         private readonly ISubscriptionStore m_subscriptionStore;
         private Task? m_conditionRefreshWorkerTask;
-        private readonly BackgroundTaskScope m_backgroundWork;
+        private BackgroundTaskScope m_backgroundWork;
+        private bool m_backgroundWorkStopped;
         private Task? m_publishWorkerTask;
         private CancellationTokenSource? m_workerCts;
 
@@ -3019,5 +3438,4 @@ namespace Opc.Ua.Server
             Message = "Server - CleanupSubscriptions Task Halted Unexpectedly")]
         public static partial void ServerCleanupSubscriptionsTaskHaltedUnexpectedly(this ILogger logger, Exception ex);
     }
-
 }

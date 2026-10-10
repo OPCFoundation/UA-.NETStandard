@@ -67,6 +67,9 @@ namespace Opc.Ua.Server
         /// that need to retain the instance itself (rather than exporting
         /// its bytes) must call <c>AddRef()</c> on it.
         /// </remarks>
+        /// <param name="context">The certificate group, type, and storage context for the pending key.</param>
+        /// <param name="certificateWithPrivateKey">The caller-owned certificate and private key to persist.</param>
+        /// <param name="cancellationToken">The token used to cancel persistence.</param>
         /// <returns>
         /// <see langword="true"/> when the key was durably persisted;
         /// <see langword="false"/> when this store cannot durably persist
@@ -84,6 +87,9 @@ namespace Opc.Ua.Server
         /// <see langword="null"/> when none is present. The caller owns
         /// and must dispose the returned <see cref="Certificate"/>.
         /// </summary>
+        /// <param name="context">The pending-key scope to consume.</param>
+        /// <param name="cancellationToken">The token used to cancel retrieval.</param>
+        /// <returns>The consumed, caller-owned certificate, or null when no pending key is available.</returns>
         ValueTask<Certificate?> TryTakeAsync(
             PendingCertificateKeyContext context,
             CancellationToken cancellationToken = default);
@@ -95,8 +101,67 @@ namespace Opc.Ua.Server
         /// <c>DeleteCertificate</c>, or a successful activation makes the
         /// pending key obsolete.
         /// </summary>
+        /// <param name="context">The pending-key scope to clear.</param>
+        /// <param name="cancellationToken">The token used to cancel removal.</param>
+        /// <returns>A task that completes when the pending key has been removed or none exists.</returns>
         ValueTask RemoveAsync(
             PendingCertificateKeyContext context,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Supports validated, atomic consumption and failure compensation for pending signing keys.
+    /// </summary>
+    public interface IMatchingPendingCertificateKeyStore : IPendingCertificateKeyStore
+    {
+        /// <summary>
+        /// Consumes the pending key only if it matches the supplied certificate.
+        /// A mismatch leaves the pending key untouched. The caller owns the returned handle.
+        /// </summary>
+        /// <remarks>
+        /// The supplied upload must already have been validated for the scope's certificate type and usage.
+        /// </remarks>
+        /// <param name="context">The pending-key scope to claim.</param>
+        /// <param name="certificate">The validated certificate whose public key must match the pending key.</param>
+        /// <param name="cancellationToken">The token used to cancel the claim.</param>
+        /// <returns>The consumed, caller-owned certificate, or null when no matching key could be claimed.</returns>
+        ValueTask<Certificate?> TryTakeMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
+            CancellationToken cancellationToken = default);
+
+        /// <summary>
+        /// Restores a consumed key after a claim or transaction fails, only if its scope is still empty.
+        /// Returns false rather than replacing a newer signing request. The caller retains the input handle.
+        /// </summary>
+        /// <param name="context">The pending-key scope to restore if it is still empty.</param>
+        /// <param name="certificateWithPrivateKey">The caller-owned certificate containing the consumed key.</param>
+        /// <param name="cancellationToken">The token used to cancel restoration.</param>
+        /// <returns>True when the key was restored; false when restoration could not claim the empty scope.</returns>
+        ValueTask<bool> TryRestoreAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificateWithPrivateKey,
+            CancellationToken cancellationToken = default);
+    }
+
+    /// <summary>
+    /// Supports non-consuming validation before a transaction claims a pending signing key.
+    /// </summary>
+    public interface IPeekablePendingCertificateKeyStore : IMatchingPendingCertificateKeyStore
+    {
+        /// <summary>
+        /// Returns an independently owned handle only when the pending key matches the certificate.
+        /// The pending entry remains available after the caller disposes the returned handle.
+        /// Commit must still use <see cref="IMatchingPendingCertificateKeyStore.TryTakeMatchingAsync"/>
+        /// because a later signing request may replace the entry after this read.
+        /// </summary>
+        /// <param name="context">The pending-key scope to inspect without consuming it.</param>
+        /// <param name="certificate">The validated certificate whose public key must match the pending key.</param>
+        /// <param name="cancellationToken">The token used to cancel the lookup.</param>
+        /// <returns>A caller-owned matching certificate handle, or null when no match is available.</returns>
+        ValueTask<Certificate?> TryPeekMatchingAsync(
+            PendingCertificateKeyContext context,
+            Certificate certificate,
             CancellationToken cancellationToken = default);
     }
 

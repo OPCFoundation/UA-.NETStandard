@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
@@ -39,13 +40,60 @@ namespace Opc.Ua.Server.FileSystem
     /// </summary>
     internal static class FileSystemDirectoryOperations
     {
+        /// <summary>
+        /// Resolves provider-specific aliases before indexing file-handle ownership.
+        /// </summary>
+        internal static string GetPathIdentity(IFileSystemProvider provider, string path)
+        {
+            return provider is IFileSystemPathIdentityProvider identities ? identities.GetPathIdentity(path) : path;
+        }
+
+        /// <summary>
+        /// Opens a file through canonical handle state and releases failed or retired bags.
+        /// </summary>
+        internal static async ValueTask<(ServiceResult Result, uint Handle)> OpenFileAsync(
+            IFileSystemHost host,
+            NodeId nodeId,
+            string providerPath,
+            NodeId sessionId,
+            byte mode,
+            CancellationToken cancellationToken)
+        {
+            while (true)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                FileHandle? handle = host.GetOrCreateHandle(nodeId, providerPath);
+                if (handle == null)
+                {
+                    return (ServiceResult.Create(StatusCodes.BadInvalidState, "File handle unavailable."), 0);
+                }
+                try
+                {
+                    (ServiceResult result, uint id) = await handle.OpenAsync(sessionId, mode, cancellationToken)
+                        .ConfigureAwait(false);
+                    if (result.StatusCode != StatusCodes.BadShutdown)
+                    {
+                        return (result, id);
+                    }
+                }
+                finally
+                {
+                    host.ReleaseHandle(handle);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Validates a directory name, applies its creation through the host and returns the new node identifier.
+        /// </summary>
         public static async ValueTask<CreateDirectoryMethodStateResult> CreateDirectoryAsync(
             IFileSystemHost host,
+            ISystemContext context,
             string providerPath,
             string directoryName,
             CancellationToken cancellationToken)
         {
-            if (!CanCreate(host, out ServiceResult accessResult))
+            if (!CanCreate(host, context, out ServiceResult accessResult))
             {
                 return new CreateDirectoryMethodStateResult { ServiceResult = accessResult };
             }
@@ -64,8 +112,17 @@ namespace Opc.Ua.Server.FileSystem
             string newPath = host.CombineProviderPath(providerPath, directoryName);
             try
             {
-                await host.Provider.CreateDirectoryAsync(newPath, cancellationToken).ConfigureAwait(false);
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                if (await host.Provider.GetEntryAsync(newPath, cancellationToken).ConfigureAwait(false) != null)
+                {
+                    return new CreateDirectoryMethodStateResult
+                    {
+                        ServiceResult = ServiceResult.Create(StatusCodes.BadBrowseNameDuplicated,
+                            "Directory or file with same name exists.")
+                    };
+                }
+                await host.ApplyMutationAsync(
+                    FileSystemMutationKind.CreateDirectory, newPath, string.Empty, NodeId.Null, cancellationToken)
+                    .ConfigureAwait(false);
                 return new CreateDirectoryMethodStateResult
                 {
                     ServiceResult = ServiceResult.Good,
@@ -98,6 +155,9 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Creates a file through the host and optionally opens it for the requesting session.
+        /// </summary>
         public static async ValueTask<CreateFileMethodStateResult> CreateFileAsync(
             IFileSystemHost host,
             ISystemContext context,
@@ -106,7 +166,7 @@ namespace Opc.Ua.Server.FileSystem
             bool requestFileOpen,
             CancellationToken cancellationToken)
         {
-            if (!CanCreate(host, out ServiceResult accessResult))
+            if (!CanCreate(host, context, out ServiceResult accessResult))
             {
                 return new CreateFileMethodStateResult { ServiceResult = accessResult };
             }
@@ -133,8 +193,9 @@ namespace Opc.Ua.Server.FileSystem
             NodeId fileNodeId = host.BuildFileNodeId(newPath);
             try
             {
-                await host.Provider.CreateFileAsync(newPath, cancellationToken).ConfigureAwait(false);
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                await host.ApplyMutationAsync(
+                    FileSystemMutationKind.CreateFile, newPath, string.Empty, NodeId.Null, cancellationToken)
+                    .ConfigureAwait(false);
                 if (!requestFileOpen)
                 {
                     return new CreateFileMethodStateResult
@@ -145,17 +206,8 @@ namespace Opc.Ua.Server.FileSystem
                     };
                 }
 
-                FileHandle? handle = host.GetOrCreateHandle(fileNodeId, newPath);
-                if (handle == null)
-                {
-                    return new CreateFileMethodStateResult
-                    {
-                        ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidState,
-                            "Failed to obtain file handle.")
-                    };
-                }
-
-                ServiceResult openResult = handle.Open(sessionId, 0x6, out uint fileHandle);
+                (ServiceResult openResult, uint fileHandle) = await OpenFileAsync(
+                    host, fileNodeId, newPath, sessionId, 0x6, cancellationToken).ConfigureAwait(false);
                 return new CreateFileMethodStateResult
                 {
                     ServiceResult = openResult,
@@ -189,12 +241,18 @@ namespace Opc.Ua.Server.FileSystem
             }
         }
 
+        /// <summary>
+        /// Deletes a hosted file or directory organized by the called directory while rejecting
+        /// attempts to delete the mount root or an open file.
+        /// </summary>
         public static async ValueTask<DeleteFileMethodStateResult> DeleteAsync(
             IFileSystemHost host,
+            ISystemContext context,
+            string directoryPath,
             NodeId objectToDelete,
             CancellationToken cancellationToken)
         {
-            if (!host.Provider.IsWritable || !host.AllowDelete)
+            if (!host.Provider.IsWritable || !host.AllowDelete || !host.CanUserWrite(context))
             {
                 return new DeleteFileMethodStateResult
                 {
@@ -202,15 +260,16 @@ namespace Opc.Ua.Server.FileSystem
                         "Deleting file-system objects is not allowed.")
                 };
             }
-            if (!host.TryGetProviderPath(objectToDelete, out string providerPath, out _, out bool isRoot))
+            if (!host.TryGetProviderPath(objectToDelete, out string providerPath, out bool isDirectory,
+                    out bool isRoot))
             {
                 return new DeleteFileMethodStateResult
                 {
-                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidState,
-                        "Not a file-system object.")
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadNotFound,
+                        "Not a file-system object organized by this directory.")
                 };
             }
-            if (isRoot)
+            if (isRoot || string.IsNullOrEmpty(providerPath))
             {
                 return new DeleteFileMethodStateResult
                 {
@@ -218,12 +277,40 @@ namespace Opc.Ua.Server.FileSystem
                         "Cannot delete the file-system root.")
                 };
             }
+            // Part 20 4.3.5: only objects organized by the called directory can be deleted.
+            if (!IsOrganizedBy(host.Provider, directoryPath, providerPath))
+            {
+                return new DeleteFileMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadNotFound,
+                        "The file-system object is not organized by this directory.")
+                };
+            }
+            // A file-typed NodeId naming a directory (or the reverse) does not identify an
+            // object organized by this directory (Part 20 4.3.5 Bad_NotFound), so it must not
+            // recursively delete the directory.
+            ServiceResult kindResult = await CheckEntryKindAsync(
+                host.Provider, providerPath, isDirectory, cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(kindResult))
+            {
+                return new DeleteFileMethodStateResult { ServiceResult = kindResult };
+            }
+            // Checking for open files and blocking new opens is one step, so an open
+            // cannot slip in between the lock check and the provider delete.
+            if (!host.TryBeginMutation(providerPath))
+            {
+                return new DeleteFileMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "The file or directory is locked and thus cannot be deleted.")
+                };
+            }
 
             try
             {
-                await host.Provider.DeleteAsync(providerPath, cancellationToken).ConfigureAwait(false);
-                host.ForgetHandle(objectToDelete);
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                await host.ApplyMutationAsync(
+                    FileSystemMutationKind.Delete, providerPath, string.Empty, objectToDelete, cancellationToken)
+                    .ConfigureAwait(false);
                 return new DeleteFileMethodStateResult { ServiceResult = ServiceResult.Good };
             }
             catch (FileNotFoundException ex)
@@ -258,17 +345,26 @@ namespace Opc.Ua.Server.FileSystem
                         "Failed to delete file-system object.")
                 };
             }
+            finally
+            {
+                host.EndMutation(providerPath);
+            }
         }
 
+        /// <summary>
+        /// Validates and applies a hosted move or copy and returns the destination node identifier.
+        /// </summary>
         public static async ValueTask<MoveOrCopyMethodStateResult> MoveOrCopyAsync(
             IFileSystemHost host,
+            ISystemContext context,
+            string directoryPath,
             NodeId objectToMoveOrCopy,
             NodeId targetDirectory,
             bool createCopy,
             string newName,
             CancellationToken cancellationToken)
         {
-            if (!host.Provider.IsWritable || !host.AllowMoveOrCopy)
+            if (!host.Provider.IsWritable || !host.AllowMoveOrCopy || !host.CanUserWrite(context))
             {
                 return new MoveOrCopyMethodStateResult
                 {
@@ -278,12 +374,22 @@ namespace Opc.Ua.Server.FileSystem
             }
             if (!host.TryGetProviderPath(objectToMoveOrCopy, out string sourcePath, out bool sourceIsDirectory,
                     out bool sourceIsRoot) ||
-                sourceIsRoot)
+                sourceIsRoot ||
+                string.IsNullOrEmpty(sourcePath))
             {
                 return new MoveOrCopyMethodStateResult
                 {
                     ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidArgument,
                         "Source is not a directory or file.")
+                };
+            }
+            // Part 20 4.3.6: only objects organized by the called directory can be moved or copied.
+            if (!IsOrganizedBy(host.Provider, directoryPath, sourcePath))
+            {
+                return new MoveOrCopyMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadNotFound,
+                        "The file-system object is not organized by this directory.")
                 };
             }
             if (!host.TryGetProviderPath(targetDirectory, out string targetDirectoryPath, out bool targetIsDirectory,
@@ -297,6 +403,14 @@ namespace Opc.Ua.Server.FileSystem
                 };
             }
 
+            // The NodeId kind is chosen by the client: take directory-ness from the provider
+            // so a file-typed NodeId for a directory cannot skip the subtree guard below.
+            ServiceResult sourceKindResult = await CheckEntryKindAsync(
+                host.Provider, sourcePath, sourceIsDirectory, cancellationToken).ConfigureAwait(false);
+            if (ServiceResult.IsBad(sourceKindResult))
+            {
+                return new MoveOrCopyMethodStateResult { ServiceResult = sourceKindResult };
+            }
             string sourceName = ProviderPathName(sourcePath);
             string finalName = !string.IsNullOrEmpty(newName) ? newName : sourceName;
             if (!IsValidEntryName(finalName, out ServiceResult newNameResult))
@@ -304,20 +418,31 @@ namespace Opc.Ua.Server.FileSystem
                 return new MoveOrCopyMethodStateResult { ServiceResult = newNameResult };
             }
             string targetPath = host.CombineProviderPath(targetDirectoryPath, finalName);
+            if (sourceIsDirectory &&
+                IsSameOrDescendant(host.Provider, targetPath, GetPathIdentity(host.Provider, sourcePath)))
+            {
+                return new MoveOrCopyMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidArgument,
+                        "A directory cannot be moved or copied into itself.")
+                };
+            }
+            // A move checks for open files and blocks new opens in one step, so an
+            // open cannot slip in between the lock check and the provider move.
+            if (!createCopy && !host.TryBeginMutation(sourcePath))
+            {
+                return new MoveOrCopyMethodStateResult
+                {
+                    ServiceResult = ServiceResult.Create(StatusCodes.BadInvalidState,
+                        "The file or directory is locked and thus cannot be moved.")
+                };
+            }
 
             try
             {
-                if (createCopy)
-                {
-                    await host.Provider.CopyAsync(sourcePath, targetPath, cancellationToken).ConfigureAwait(false);
-                }
-                else
-                {
-                    await host.Provider.MoveAsync(sourcePath, targetPath, cancellationToken).ConfigureAwait(false);
-                    host.ForgetHandle(objectToMoveOrCopy);
-                }
-
-                await host.OnProviderChangedAsync(cancellationToken).ConfigureAwait(false);
+                await host.ApplyMutationAsync(
+                    createCopy ? FileSystemMutationKind.Copy : FileSystemMutationKind.Move,
+                    sourcePath, targetPath, objectToMoveOrCopy, cancellationToken).ConfigureAwait(false);
                 NodeId newNodeId = sourceIsDirectory
                     ? host.BuildDirectoryNodeId(targetPath)
                     : host.BuildFileNodeId(targetPath);
@@ -359,11 +484,84 @@ namespace Opc.Ua.Server.FileSystem
                         "Failed to move or copy.")
                 };
             }
+            finally
+            {
+                if (!createCopy)
+                {
+                    host.EndMutation(sourcePath);
+                }
+            }
         }
 
-        private static bool CanCreate(IFileSystemHost host, out ServiceResult result)
+        /// <summary>
+        /// Dispatches an admitted mutation to the provider and retires source handles after deletion or movement.
+        /// </summary>
+        /// <exception cref="ArgumentOutOfRangeException"></exception>
+        public static async ValueTask ApplyProviderMutationAsync(
+            IFileSystemHost host,
+            FileSystemMutationKind kind,
+            string path,
+            string targetPath,
+            NodeId sourceNodeId,
+            CancellationToken cancellationToken)
         {
-            if (!host.Provider.IsWritable || !host.AllowCreate)
+            switch (kind)
+            {
+                case FileSystemMutationKind.CreateFile:
+                    await host.Provider.CreateFileAsync(path, cancellationToken).ConfigureAwait(false);
+                    break;
+                case FileSystemMutationKind.CreateDirectory:
+                    await host.Provider.CreateDirectoryAsync(path, cancellationToken).ConfigureAwait(false);
+                    break;
+                case FileSystemMutationKind.Delete:
+                    await host.Provider.DeleteAsync(path, cancellationToken).ConfigureAwait(false);
+                    host.ForgetHandle(sourceNodeId);
+                    break;
+                case FileSystemMutationKind.Move:
+                    await host.Provider.MoveAsync(path, targetPath, cancellationToken).ConfigureAwait(false);
+                    host.ForgetHandle(sourceNodeId);
+                    break;
+                case FileSystemMutationKind.Copy:
+                    await host.Provider.CopyAsync(path, targetPath, cancellationToken).ConfigureAwait(false);
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(kind));
+            }
+        }
+
+        /// <summary>
+        /// Confirms with the provider that an existing entry is a directory exactly when
+        /// the caller's NodeId says so. A missing entry is left to the provider mutation,
+        /// which reports it as not found.
+        /// </summary>
+        private static async ValueTask<ServiceResult> CheckEntryKindAsync(
+            IFileSystemProvider provider,
+            string providerPath,
+            bool expectDirectory,
+            CancellationToken cancellationToken)
+        {
+            FileSystemEntry? entry;
+            try
+            {
+                entry = await provider.GetEntryAsync(providerPath, cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or NotSupportedException)
+            {
+                return ServiceResult.Create(ex, StatusCodes.BadNotFound, "Source not found.");
+            }
+            if (entry != null && entry.Value.IsDirectory != expectDirectory)
+            {
+                // Part 20 4.3.5/4.3.6: a NodeId of the wrong kind names no object organized
+                // by the directory.
+                return ServiceResult.Create(StatusCodes.BadNotFound,
+                    "Source NodeId does not match the kind of the file-system object.");
+            }
+            return ServiceResult.Good;
+        }
+
+        private static bool CanCreate(IFileSystemHost host, ISystemContext context, out ServiceResult result)
+        {
+            if (!host.Provider.IsWritable || !host.AllowCreate || !host.CanUserWrite(context))
             {
                 result = ServiceResult.Create(StatusCodes.BadUserAccessDenied,
                     "Creating file-system objects is not allowed.");
@@ -372,6 +570,133 @@ namespace Opc.Ua.Server.FileSystem
 
             result = ServiceResult.Good;
             return true;
+        }
+
+        /// <summary>
+        /// Whether the context does not belong to an anonymous user. Internal
+        /// server operations carry no user identity and are not restricted.
+        /// </summary>
+        internal static bool IsNonAnonymousOrInternal(ISystemContext context)
+        {
+            return context is not ISessionSystemContext { UserIdentity: { } identity } ||
+                identity.TokenType != UserTokenType.Anonymous;
+        }
+
+        /// <summary>
+        /// Blocks new opens of every handle at, or below, the provider path and records
+        /// the mutation so handles created while it runs start blocked. Fails, leaving
+        /// nothing blocked, when one of those files is open or has an open pending.
+        /// The caller holds the host lock that guards <paramref name="handles"/> and
+        /// <paramref name="mutations"/>.
+        /// </summary>
+        internal static bool TryBeginMutation(
+            IFileSystemProvider provider,
+            IEnumerable<FileHandle> handles,
+            List<string> mutations,
+            string providerPath)
+        {
+            string identity = GetPathIdentity(provider, providerPath);
+            var blocked = new List<FileHandle>();
+            foreach (FileHandle handle in handles)
+            {
+                if (!IsSameOrDescendant(provider, handle.ProviderPath, identity))
+                {
+                    continue;
+                }
+                if (!handle.TryBlockOpens())
+                {
+                    foreach (FileHandle blockedHandle in blocked)
+                    {
+                        blockedHandle.UnblockOpens();
+                    }
+                    return false;
+                }
+                blocked.Add(handle);
+            }
+            mutations.Add(identity);
+            return true;
+        }
+
+        /// <summary>
+        /// Ends a mutation started by <see cref="TryBeginMutation"/> and unblocks the
+        /// handles at, or below, its path. The caller holds the host lock.
+        /// </summary>
+        internal static void EndMutation(
+            IFileSystemProvider provider,
+            IEnumerable<FileHandle> handles,
+            List<string> mutations,
+            string providerPath)
+        {
+            string identity = GetPathIdentity(provider, providerPath);
+            if (!mutations.Remove(identity))
+            {
+                return;
+            }
+            foreach (FileHandle handle in handles)
+            {
+                if (IsSameOrDescendant(provider, handle.ProviderPath, identity))
+                {
+                    handle.UnblockOpens();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Blocks a newly created handle once for every running mutation of its path
+        /// or of an ancestor directory. The caller holds the host lock.
+        /// </summary>
+        internal static void BlockForRunningMutations(
+            IFileSystemProvider provider,
+            List<string> mutations,
+            FileHandle handle)
+        {
+            foreach (string identity in mutations)
+            {
+                if (IsSameOrDescendant(provider, handle.ProviderPath, identity))
+                {
+                    handle.BlockOpens();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Whether the provider path, or one of its ancestors, has the given path identity.
+        /// </summary>
+        private static bool IsSameOrDescendant(IFileSystemProvider provider, string providerPath, string ancestorIdentity)
+        {
+            string current = providerPath.TrimEnd('/');
+            while (!string.IsNullOrEmpty(current))
+            {
+                if (string.Equals(GetPathIdentity(provider, current), ancestorIdentity, StringComparison.Ordinal))
+                {
+                    return true;
+                }
+                current = GetParentPath(current);
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Whether the entry at the provider path is a direct child of the directory.
+        /// </summary>
+        private static bool IsOrganizedBy(IFileSystemProvider provider, string directoryPath, string providerPath)
+        {
+            string parent = GetParentPath(providerPath.TrimEnd('/'));
+            string directory = directoryPath.TrimEnd('/');
+            if (string.IsNullOrEmpty(parent) || string.IsNullOrEmpty(directory))
+            {
+                return string.IsNullOrEmpty(parent) && string.IsNullOrEmpty(directory);
+            }
+            return string.Equals(
+                GetPathIdentity(provider, parent),
+                GetPathIdentity(provider, directory),
+                StringComparison.Ordinal);
+        }
+
+        private static string GetParentPath(string providerPath)
+        {
+            int slash = providerPath.LastIndexOf('/');
+            return slash < 0 ? string.Empty : providerPath[..slash];
         }
 
         /// <summary>
@@ -389,7 +714,7 @@ namespace Opc.Ua.Server.FileSystem
         /// still be escaped on Windows by a name such as
         /// <c>"..\..\Windows\System32\evil"</c>, which contains no
         /// slash-delimited <c>".."</c> segment yet is resolved as traversal by
-        /// <see cref="System.IO.Path"/>.
+        /// <see cref="Path"/>.
         /// </para>
         /// <para>
         /// This is deliberately a defence in depth: providers remain
@@ -402,7 +727,8 @@ namespace Opc.Ua.Server.FileSystem
         private static bool IsValidEntryName(string name, out ServiceResult result)
         {
             if (string.IsNullOrWhiteSpace(name) ||
-                name.IndexOfAny(kEntryNameSeparators) >= 0 ||
+                name.AsSpan().IndexOf('/') >= 0 ||
+                (Path.DirectorySeparatorChar == '\\' && name.IndexOfAny(kEntryNameSeparators) >= 0) ||
                 name == "." ||
                 name == "..")
             {
@@ -418,7 +744,7 @@ namespace Opc.Ua.Server.FileSystem
             return true;
         }
 
-        private static readonly char[] kEntryNameSeparators = ['/', '\\', ':'];
+        private static readonly char[] kEntryNameSeparators = ['\\', ':'];
 
         private static DeleteFileMethodStateResult CreateNotFoundDeleteResult(Exception ex)
         {

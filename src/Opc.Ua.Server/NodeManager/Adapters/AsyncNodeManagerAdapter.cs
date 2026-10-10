@@ -64,6 +64,7 @@ namespace Opc.Ua.Server
     public class AsyncNodeManagerAdapter :
         IAsyncNodeManager,
         IDisposable,
+        IAsyncDisposable,
         INodeManagerMonitoredItemLifecycle,
         INodeManagerReadinessParticipant
     {
@@ -79,6 +80,38 @@ namespace Opc.Ua.Server
 
         /// <inheritdoc/>
         public IEnumerable<string> NamespaceUris => SyncNodeManager.NamespaceUris;
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Delegates to the wrapped NodeManager when it mints NodeIds of its
+        /// own. A plain <see cref="INodeManager"/> does not, and keeping the
+        /// node's own NodeId is what <c>CustomNodeManager2</c> has always
+        /// done, so that is the answer here too.
+        /// </remarks>
+        public NodeId New(ISystemContext context, NodeState node)
+        {
+            return SyncNodeManager is INodeIdFactory factory
+                ? factory.New(context, node)
+                : node.NodeId;
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// A synchronous NodeManager exposes no registration entry point, so
+        /// a graph built against this adapter is registered by whatever
+        /// created it.
+        /// </remarks>
+        public void AddNode(NodeState node)
+        {
+        }
+
+        /// <inheritdoc/>
+        /// <remarks>
+        /// See <see cref="AddNode"/>.
+        /// </remarks>
+        public void AddRootNotifier(NodeState notifier)
+        {
+        }
 
         /// <inheritdoc/>
         public INodeManager SyncNodeManager { get; }
@@ -907,6 +940,22 @@ namespace Opc.Ua.Server
         public void Dispose()
         {
             Dispose(true);
+            GC.SuppressFinalize(this);
+        }
+
+        /// <summary>
+        /// Initiates disposal and awaits the wrapped manager's asynchronous cleanup when supported.
+        /// </summary>
+        public async ValueTask DisposeAsync()
+        {
+            if (SyncNodeManager is IAsyncDisposable asynchronous)
+            {
+                await asynchronous.DisposeAsync().ConfigureAwait(false);
+            }
+            else
+            {
+                Dispose();
+            }
             GC.SuppressFinalize(this);
         }
 

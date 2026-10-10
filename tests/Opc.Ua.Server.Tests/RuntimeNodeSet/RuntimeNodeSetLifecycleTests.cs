@@ -90,6 +90,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         private RequestHeader m_requestHeader;
         private SecureChannelContext m_secureChannelContext;
         private ILogger m_logger;
+        private HashSet<Guid> m_startupRegistrationIds;
 
         /// <summary>
         /// Starts a fresh <see cref="ReferenceServer"/> and activates a session for the test.
@@ -111,6 +112,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
 
             m_server = await m_fixture.StartAsync(m_pkiRoot).ConfigureAwait(false);
             m_logger = NUnitTelemetryContext.Create().CreateLogger<RuntimeNodeSetLifecycleTests>();
+            m_startupRegistrationIds = [];
+            m_server.NodeManagerLifecycle.Registrations.ForEach(
+                registration => m_startupRegistrationIds.Add(registration.Id));
 
             (m_requestHeader, m_secureChannelContext) = await m_server
                 .CreateAndActivateSessionAsync(TestContext.CurrentContext.Test.Name)
@@ -143,6 +147,70 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             {
                 Directory.Delete(m_pkiRoot, recursive: true);
             }
+        }
+
+        [TestCase(true, false)]
+        [TestCase(false, false)]
+        [TestCase(true, true)]
+        [TestCase(false, true)]
+        public async Task RuntimeMethodCallsUseAuthoredArgumentsAsync(
+            bool includeParentHints,
+            bool useNamespaceUriTargets)
+        {
+            NodeManagerRegistration registration = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(
+                    StartupRuntimeNodeSetServer.CreatePrimaryOptions(1, includeParentHints, useNamespaceUriTargets),
+                    null)
+                .ConfigureAwait(false);
+            ushort namespaceIndex = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(
+                StartupRuntimeNodeSetServer.PrimaryNamespaceUri);
+            var rootId = new NodeId(StartupRuntimeNodeSetServer.PrimaryRootNodeId, namespaceIndex);
+            var methodId = new NodeId(StartupRuntimeNodeSetServer.LoadMethodNodeId, namespaceIndex);
+            ArrayOf<CallMethodRequest> calls =
+            [
+                new CallMethodRequest
+                {
+                    ObjectId = rootId,
+                    MethodId = methodId,
+                    InputArguments = [Variant.From("Rev1")]
+                },
+                new CallMethodRequest { ObjectId = rootId, MethodId = methodId },
+                new CallMethodRequest
+                {
+                    ObjectId = rootId,
+                    MethodId = methodId,
+                    InputArguments = [Variant.From("Rev1"), Variant.From("Rev2")]
+                },
+                new CallMethodRequest
+                {
+                    ObjectId = rootId,
+                    MethodId = methodId,
+                    InputArguments = [Variant.From(42)]
+                }
+            ];
+
+            m_requestHeader.Timestamp = DateTimeUtc.Now;
+            CallResponse response = await m_server.CallAsync(
+                m_secureChannelContext,
+                m_requestHeader,
+                calls,
+                RequestLifetime.None).ConfigureAwait(false);
+
+            Assert.That(response.ResponseHeader.ServiceResult, Is.EqualTo(StatusCodes.Good));
+            Assert.That(response.Results, Has.Count.EqualTo(4));
+            Assert.Multiple(() =>
+            {
+                Assert.That(response.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
+                Assert.That(response.Results[0].OutputArguments, Has.Count.EqualTo(1));
+                Assert.That(response.Results[0].OutputArguments[0].GetBoolean(), Is.True);
+                Assert.That(response.Results[1].StatusCode, Is.EqualTo(StatusCodes.BadArgumentsMissing));
+                Assert.That(response.Results[2].StatusCode, Is.EqualTo(StatusCodes.BadTooManyArguments));
+                Assert.That(response.Results[3].StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+                Assert.That(response.Results[3].InputArgumentResults, Has.Count.EqualTo(1));
+                Assert.That(response.Results[3].InputArgumentResults[0], Is.EqualTo(StatusCodes.BadTypeMismatch));
+            });
+
+            await m_server.NodeManagerLifecycle.RemoveAsync(registration, null).ConfigureAwait(false);
         }
 
         /// <summary>
@@ -377,12 +445,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             var valueNodeId = new NodeId(kValueNodeId, ns);
 
             // Direct find.
-            NodeState rootNode = await server.NodeManager
+            NodeState rootNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(rootNodeId)
-                .ConfigureAwait(false);
-            NodeState valueNode = await server.NodeManager
+                .ConfigureAwait(false))!;
+            NodeState valueNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(valueNodeId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
 
             Assert.That(rootNode, Is.Not.Null);
             Assert.That(rootNode.BrowseName.Name, Is.EqualTo(kRootBrowseName));
@@ -667,9 +735,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(
                 registration.NamespaceUris[0],
                 Is.EqualTo(RuntimeNodeSetTestServer.NamespaceUri));
-            NodeState pointValue = await server.NodeManager
+            NodeState pointValue = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(pointValueId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(pointValue, Is.Not.Null);
 
             DataValue browseName = await ReadValueAsync(pointValueId, Attributes.BrowseName)
@@ -700,15 +768,15 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         .ConfigureAwait(false));
 
             Assert.That(exception.Message, Does.Contain("Duplicate NodeId"));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
             Assert.That(master.AsyncNodeManagers, Has.Count.EqualTo(managerCountBefore));
 
             int namespaceIndex = server.NamespaceUris.GetIndex(kModelNamespaceUri);
             Assert.That(namespaceIndex, Is.GreaterThan(0));
-            NodeState duplicateNode = await server.NodeManager
+            NodeState duplicateNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(
                     new NodeId(DuplicateNodeId, (ushort)namespaceIndex))
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(duplicateNode, Is.Null);
         }
 
@@ -736,16 +804,16 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         .ConfigureAwait(false));
 
             Assert.That(exception.Message, Does.Contain("not owned"));
-            Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+            Assert.That(GetNonStartupRegistrations(), Is.Empty);
             Assert.That(master.AsyncNodeManagers, Has.Count.EqualTo(managerCountBefore));
 
             int externalNamespaceIndex =
                 server.NamespaceUris.GetIndex(ExternalNamespaceUri);
             Assert.That(externalNamespaceIndex, Is.GreaterThan(0));
-            NodeState externalNode = await server.NodeManager
+            NodeState externalNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(
                     new NodeId(ExternalNodeId, (ushort)externalNamespaceIndex))
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(externalNode, Is.Null);
         }
 
@@ -789,6 +857,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             string expectedMessage =
                 $"DataType '{testPointId}' has an incompatible definition. " +
                 "Runtime DataType definitions are immutable for the server lifetime.";
+            // TestPoint3D inherits the TestPoint fields (Part 3 8.48), so its
+            // definition changes with them and may be the one reported first.
+            string expectedSubtypeMessage =
+                $"DataType '{new NodeId(15030, ns)}' has an incompatible definition. " +
+                "Runtime DataType definitions are immutable for the server lifetime.";
             await Assert.ThatAsync(
                 () => m_server.NodeManagerLifecycle
                     .ReloadRuntimeNodeSetAsync(
@@ -797,10 +870,11 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                         null)
                     .AsTask(),
                 Throws.TypeOf<InvalidOperationException>()
-                    .With.Message.EqualTo(expectedMessage)).ConfigureAwait(false);
+                    .With.Message.EqualTo(expectedMessage)
+                    .Or.Message.EqualTo(expectedSubtypeMessage)).ConfigureAwait(false);
 
             ArrayOf<NodeManagerRegistration> registrations =
-                m_server.NodeManagerLifecycle.Registrations;
+                GetNonStartupRegistrations();
             Assert.That(registrations, Has.Count.EqualTo(1));
             NodeManagerRegistration current = registrations[0];
             Assert.That(current, Is.SameAs(original));
@@ -818,15 +892,15 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(routes[namespaceIndex], Has.Count.EqualTo(1));
             Assert.That(routes[namespaceIndex][0], Is.SameAs(originalNodeManager));
 
-            NodeState testPoint = await server.NodeManager
+            NodeState testPoint = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(testPointId)
-                .ConfigureAwait(false);
-            NodeState binaryEncoding = await server.NodeManager
+                .ConfigureAwait(false))!;
+            NodeState binaryEncoding = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(binaryEncodingId)
-                .ConfigureAwait(false);
-            NodeState pointValue = await server.NodeManager
+                .ConfigureAwait(false))!;
+            NodeState pointValue = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(pointValueId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(testPoint, Is.Not.Null);
             Assert.That(binaryEncoding, Is.Not.Null);
             Assert.That(pointValue, Is.Not.Null);
@@ -850,6 +924,36 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(
                 server.Factory.TryGetEncodeableType(expandedTestPointId, out _),
                 Is.False);
+        }
+
+        [TestCase(false, false)]
+        [TestCase(false, true)]
+        [TestCase(true, false)]
+        [TestCase(true, true)]
+        public async Task ReloadRuntimeDefinitionChecksCompatibilityWithAndWithoutCodecsAsync(
+            bool loadComplexTypes,
+            bool incompatibleDefinition)
+        {
+            m_server.LoadComplexTypes = loadComplexTypes;
+            NodeManagerRegistration original = await m_server.NodeManagerLifecycle
+                .AddRuntimeNodeSetAsync(CreateComplexTypeOptions(incompatibleDefinition: false), null)
+                .ConfigureAwait(false);
+
+            if (incompatibleDefinition)
+            {
+                await Assert.ThatAsync(() => m_server.NodeManagerLifecycle.ReloadRuntimeNodeSetAsync(
+                    original, CreateComplexTypeOptions(incompatibleDefinition: true), null).AsTask(),
+                    Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
+                Assert.That(GetNonStartupRegistrations(), Has.Count.EqualTo(1));
+                Assert.That(GetNonStartupRegistrations()[0], Is.SameAs(original));
+            }
+            else
+            {
+                NodeManagerRegistration reloaded = await m_server.NodeManagerLifecycle.ReloadRuntimeNodeSetAsync(
+                    original, CreateComplexTypeOptions(incompatibleDefinition: false), null).ConfigureAwait(false);
+                Assert.That(reloaded.Id, Is.EqualTo(original.Id));
+                Assert.That(reloaded.Generation, Is.EqualTo(original.Generation + 1));
+            }
         }
 
         /// <summary>
@@ -880,9 +984,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 binaryEncodingId,
                 server.NamespaceUris);
             IAsyncNodeManager originalNodeManager = original.NodeManager;
-            NodeState originalTestPoint = await server.NodeManager
+            NodeState originalTestPoint = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(testPointId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(originalTestPoint, Is.InstanceOf<DataTypeState>());
             Assert.That(
                 server.TypeTree.FindSuperType(testPointId),
@@ -926,9 +1030,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(routes[namespaceIndex], Has.Count.EqualTo(1));
             Assert.That(routes[namespaceIndex][0], Is.SameAs(reloaded.NodeManager));
 
-            NodeState reloadedTestPoint = await server.NodeManager
+            NodeState reloadedTestPoint = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(testPointId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(reloadedTestPoint, Is.InstanceOf<DataTypeState>());
             Assert.That(reloadedTestPoint, Is.Not.SameAs(originalTestPoint));
 
@@ -1017,18 +1121,18 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(valueAfterReload.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(valueAfterReload.WrappedValue.GetInt32(), Is.EqualTo(kGeneration2Value));
 
-            NodeState replacementNode = await server.NodeManager
+            NodeState replacementNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(replacementOnlyNodeId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(replacementNode, Is.Not.Null);
             Assert.That(replacementNode.BrowseName.Name, Is.EqualTo(kReplacementOnlyBrowseName));
             DataValue replacementValue = await ReadValueAsync(replacementOnlyNodeId).ConfigureAwait(false);
             Assert.That(replacementValue.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(replacementValue.WrappedValue.GetInt32(), Is.EqualTo(kReplacementOnlyValue));
 
-            NodeState originalOnlyNode = await server.NodeManager
+            NodeState originalOnlyNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(originalOnlyNodeId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(originalOnlyNode, Is.Null);
             DataValue originalOnlyValue = await ReadValueAsync(originalOnlyNodeId).ConfigureAwait(false);
             Assert.That(originalOnlyValue.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
@@ -1108,9 +1212,9 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                     rootReferences.Contains(
                         r => r.BrowseName.Equals(new QualifiedName(kOriginalOnlyBrowseName, ns))),
                     Is.False);
-                NodeState replacementNode = await server.NodeManager
+                NodeState replacementNode = (await server.NodeManager
                     .FindNodeInAddressSpaceAsync(replacementOnlyNodeId)
-                    .ConfigureAwait(false);
+                    .ConfigureAwait(false))!;
                 Assert.That(replacementNode, Is.Not.Null);
 
                 // The retired generation's own node must still be present and unaffected.
@@ -1207,12 +1311,12 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             Assert.That(routesAfterRemove.ContainsKey(namespaceIndex), Is.False);
 
             // Direct lookup must no longer find the removed nodes.
-            NodeState rootNode = await server.NodeManager
+            NodeState rootNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(rootNodeId)
-                .ConfigureAwait(false);
-            NodeState valueNode = await server.NodeManager
+                .ConfigureAwait(false))!;
+            NodeState valueNode = (await server.NodeManager
                 .FindNodeInAddressSpaceAsync(valueNodeId)
-                .ConfigureAwait(false);
+                .ConfigureAwait(false))!;
             Assert.That(rootNode, Is.Null);
             Assert.That(valueNode, Is.Null);
 
@@ -1564,7 +1668,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
         {
             DataValue value = await ReadValueAsync(VariableIds.Server_NamespaceArray).ConfigureAwait(false);
             Assert.That(value.StatusCode, Is.EqualTo(StatusCodes.Good));
-            return value.WrappedValue.GetStringArray().ToArray();
+            return value.WrappedValue.GetStringArray().ToArray()!;
         }
 
         /// <summary>
@@ -1669,7 +1773,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 {
                     foreach (ExtensionObject notificationData in message.NotificationData)
                     {
-                        if (notificationData.TryGetValue(out DataChangeNotification dcn))
+                        if (notificationData.TryGetValue(out DataChangeNotification? dcn))
                         {
                             foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                             {
@@ -1712,7 +1816,7 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTimeUtc.Now;
             BrowseResponse response = await services
-                .BrowseAsync(requestHeader, view: null, requestedMaxReferencesPerNode: 0, nodesToBrowse)
+                .BrowseAsync(requestHeader, view: null!, requestedMaxReferencesPerNode: 0, nodesToBrowse)
                 .ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(response.ResponseHeader, response.Results, nodesToBrowse);
@@ -1723,6 +1827,19 @@ namespace Opc.Ua.Server.Tests.RuntimeNodeSet
                 m_logger);
 
             return response;
+        }
+
+        private ArrayOf<NodeManagerRegistration> GetNonStartupRegistrations()
+        {
+            var registrations = new List<NodeManagerRegistration>();
+            m_server.NodeManagerLifecycle.Registrations.ForEach(registration =>
+            {
+                if (!m_startupRegistrationIds.Contains(registration.Id))
+                {
+                    registrations.Add(registration);
+                }
+            });
+            return new ArrayOf<NodeManagerRegistration>(registrations.ToArray());
         }
 
         /// <summary>

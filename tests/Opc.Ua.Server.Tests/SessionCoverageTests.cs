@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Threading;
 using System.Threading.Tasks;
@@ -124,32 +122,6 @@ namespace Opc.Ua.Server.Tests
                 60_000,
                 10,
                 10);
-        }
-
-        private static string GetSupportedEphemeralKeyPolicy()
-        {
-            foreach (string policyUri in new[]
-                     {
-                         SecurityPolicies.ECC_nistP256,
-                         SecurityPolicies.ECC_nistP384,
-                         SecurityPolicies.ECC_brainpoolP256r1,
-                         SecurityPolicies.ECC_brainpoolP384r1,
-                         SecurityPolicies.ECC_curve25519,
-                         SecurityPolicies.ECC_curve448,
-                         SecurityPolicies.Aes128_Sha256_RsaOaep,
-                         SecurityPolicies.Aes256_Sha256_RsaPss,
-                         SecurityPolicies.Basic256Sha256
-                     })
-            {
-                SecurityPolicyInfo? info = SecurityPolicies.Default.GetInfo(policyUri);
-                if (info?.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
-                {
-                    return policyUri;
-                }
-            }
-
-            Assert.Fail("No security policy with an ephemeral key algorithm is registered.");
-            return SecurityPolicies.None;
         }
 
         [Test]
@@ -248,6 +220,39 @@ namespace Opc.Ua.Server.Tests
             Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(s_preferredLocales)), Is.True);
             Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(s_preferredLocales)), Is.False);
             Assert.That(session.PreferredLocales, Is.EqualTo(s_preferredLocales));
+        }
+
+        [Test]
+        public void UpdateLocaleIdsDropsNullLocaleIds()
+        {
+            using ServerSession session = CreateSession(CreateEndpoint());
+
+            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(new string[] { null!, "de-DE" })), Is.True);
+            Assert.That(session.PreferredLocales, Has.Length.EqualTo(1));
+            Assert.That(session.PreferredLocales[0], Is.EqualTo("de-DE"));
+        }
+
+        /// <summary>
+        /// SessionDiagnostics.LocaleIds reports the LocaleIds as specified by the client,
+        /// null entries included (Part 5 12.11); only PreferredLocales is filtered.
+        /// </summary>
+        [Test]
+        public void UpdateLocaleIdsKeepsClientLocaleIdsInDiagnostics()
+        {
+            using ServerSession session = CreateSession(CreateEndpoint());
+
+            string[] first = [null!, "de-DE"];
+            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(first)), Is.True);
+            string[] diagnostics = [.. session.SessionDiagnostics.LocaleIds];
+            Assert.That(diagnostics, Is.EqualTo(first));
+
+            // a change of the null entries alone still reaches the diagnostics.
+            string[] second = ["de-DE", null!];
+            Assert.That(session.UpdateLocaleIds(new ArrayOf<string>(second)), Is.False);
+            diagnostics = [.. session.SessionDiagnostics.LocaleIds];
+            Assert.That(diagnostics, Is.EqualTo(second));
+            Assert.That(session.PreferredLocales, Has.Length.EqualTo(1));
+            Assert.That(session.PreferredLocales[0], Is.EqualTo("de-DE"));
         }
 
         [Test]
@@ -596,6 +601,43 @@ namespace Opc.Ua.Server.Tests
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
         }
 
+        /// <summary>
+        /// PR review 4166517637: a stale prepared replacement nonce that the
+        /// activation detaches is disposed even when the channel check throws.
+        /// </summary>
+        [Test]
+        public void ValidateBeforeActivateFailureDisposesStalePreparedNonce()
+        {
+            if (SecurityPolicies.Default.GetInfo(SecurityPolicies.ECC_nistP256) == null)
+            {
+                Assert.Ignore("ECC_nistP256 is not supported on this platform.");
+            }
+
+            using ServerSession session = CreateSession(CreateEndpoint(SecurityPolicies.None));
+            OperationContext context = CreateContext(
+                CreateEndpoint(SecurityPolicies.Basic256Sha256, MessageSecurityMode.Sign));
+
+            Nonce stale = Nonce.CreateNonce(SecurityPolicies.ECC_nistP256);
+            System.Reflection.FieldInfo ecdhField = typeof(Nonce).GetField(
+                "m_ecdh",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
+            Assert.That(ecdhField.GetValue(stale), Is.Not.Null);
+            typeof(ServerSession).GetField(
+                    "m_preparedUserTokenNonce",
+                    System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!
+                .SetValue(session, stale);
+
+            ServiceResultException? ex = Assert.ThrowsAsync<ServiceResultException>(
+                async () => await session.ValidateBeforeActivateAsync(
+                    context,
+                    new SignatureData(),
+                    default,
+                    new SignatureData(),
+                    CancellationToken.None).ConfigureAwait(false));
+            Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            Assert.That(ecdhField.GetValue(stale), Is.Null, "The stale prepared nonce was not disposed.");
+        }
+
         [Test]
         public void ValidateBeforeActivateWithWrongChannelThrows()
         {
@@ -806,7 +848,48 @@ namespace Opc.Ua.Server.Tests
         public void ProcessCreateSessionAdditionalParametersCreatesEcdhKeyForSupportedPolicy()
         {
             var key = new EphemeralKeyType();
-            string policyUri = GetSupportedEphemeralKeyPolicy();
+            const string policyUri = SecurityPolicies.ECC_nistP256;
+            var policies = new Mock<ISecurityPolicyRegistry>();
+            policies.Setup(p => p.GetInfo(policyUri)).Returns(SecurityPolicyInfo.ECC_nistP256);
+            var session = new Mock<ISession>();
+            session.Setup(s => s.GetNewEphemeralKey()).Returns(key);
+            var input = new AdditionalParametersType
+            {
+                Parameters =
+                [
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = Variant.From(policyUri)
+                    }
+                ]
+            };
+
+            AdditionalParametersType? result =
+                SessionSecurityPolicyHelper.ProcessCreateSessionAdditionalParameters(
+                    session.Object,
+                    input,
+                    NullLogger<SessionCoverageTests>.Instance,
+                    policies.Object);
+
+            Assert.That(result, Is.Not.Null);
+            Assert.That(result!.Parameters, Has.Count.EqualTo(1));
+            Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
+            Variant value = result.Parameters[0].Value;
+            Assert.That(value.TypeInfo, Is.EqualTo(TypeInfo.Scalars.ExtensionObject));
+            Assert.That(
+                value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey),
+                Is.True);
+            Assert.That(actualKey, Is.SameAs(key));
+            session.Verify(s => s.SetUserTokenSecurityPolicy(policyUri), Times.Once);
+            session.Verify(s => s.GetNewEphemeralKey(), Times.Once);
+        }
+
+        [Test]
+        public void ProcessCreateSessionAdditionalParametersHonorsRawEcdhPlatformSupport()
+        {
+            const string policyUri = SecurityPolicies.ECC_nistP256;
+            var key = new EphemeralKeyType();
             var session = new Mock<ISession>();
             session.Setup(s => s.GetNewEphemeralKey()).Returns(key);
             var input = new AdditionalParametersType
@@ -831,17 +914,20 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result!.Parameters, Has.Count.EqualTo(1));
             Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
             Variant value = result.Parameters[0].Value;
+            Assert.That(SecurityPolicies.Default.GetInfo(policyUri), Is.Not.Null);
             Assert.That(value.TypeInfo, Is.EqualTo(TypeInfo.Scalars.ExtensionObject));
-            Assert.That(
-                value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey),
-                Is.True);
+            Assert.That(value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey), Is.True);
             Assert.That(actualKey, Is.SameAs(key));
             session.Verify(s => s.SetUserTokenSecurityPolicy(policyUri), Times.Once);
             session.Verify(s => s.GetNewEphemeralKey(), Times.Once);
         }
 
+        /// <summary>
+        /// The response carries only the parameters the server produces; request
+        /// parameters such as "Existing" are not echoed back (OPC 10000-6 6.8.2).
+        /// </summary>
         [Test]
-        public void ProcessActivateSessionAdditionalParametersAppendsKeyWhenAvailable()
+        public void ProcessActivateSessionAdditionalParametersReturnsOnlyTheNewKey()
         {
             var key = new EphemeralKeyType();
             var session = new Mock<ISession>();
@@ -864,9 +950,9 @@ namespace Opc.Ua.Server.Tests
                     input);
 
             Assert.That(result, Is.Not.SameAs(input));
-            Assert.That(result.Parameters, Has.Count.EqualTo(2));
-            Assert.That(result.Parameters[1].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
-            Variant value = result.Parameters[1].Value;
+            Assert.That(result.Parameters, Has.Count.EqualTo(1));
+            Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
+            Variant value = result.Parameters[0].Value;
             Assert.That(value.TypeInfo, Is.EqualTo(TypeInfo.Scalars.ExtensionObject));
             Assert.That(
                 value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey),
@@ -876,7 +962,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void ProcessActivateSessionAdditionalParametersReturnsInputWhenNoKeyAvailable()
+        public void ProcessActivateSessionAdditionalParametersReturnsNoParametersWhenNoKeyAvailable()
         {
             var session = new Mock<ISession>();
             session.Setup(s => s.GetNewEphemeralKey()).Returns((EphemeralKeyType?)null);
@@ -887,7 +973,107 @@ namespace Opc.Ua.Server.Tests
                     session.Object,
                     input);
 
-            Assert.That(result, Is.SameAs(input));
+            Assert.That(result.Parameters.IsEmpty, Is.True);
+        }
+
+        /// <summary>
+        /// A client that omits the additional header still receives a new key once
+        /// the session uses an ECC user token policy (OPC 10000-6 6.8.2).
+        /// </summary>
+        [Test]
+        public void ProcessActivateSessionAdditionalParametersRotatesKeyWithoutRequestParameters()
+        {
+            var key = new EphemeralKeyType();
+            var session = new Mock<ISession>();
+            session.Setup(s => s.GetNewEphemeralKey()).Returns(key);
+
+            AdditionalParametersType result =
+                SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                    session.Object,
+                    null);
+
+            Assert.That(result.Parameters, Has.Count.EqualTo(1));
+            Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
+            Assert.That(
+                result.Parameters[0].Value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey),
+                Is.True);
+            Assert.That(actualKey, Is.SameAs(key));
+        }
+
+        /// <summary>
+        /// A valid ECDHPolicyUri in ActivateSession selects the policy of the returned
+        /// key (OPC 10000-6 6.8.2).
+        /// </summary>
+        [Test]
+        public void ProcessActivateSessionAdditionalParametersHonorsEcdhPolicyUri()
+        {
+            const string policyUri = SecurityPolicies.ECC_nistP256;
+            var key = new EphemeralKeyType();
+            var policies = new Mock<ISecurityPolicyRegistry>();
+            policies.Setup(p => p.GetInfo(policyUri)).Returns(SecurityPolicyInfo.ECC_nistP256);
+            var session = new Mock<ISession>();
+            session.Setup(s => s.GetNewEphemeralKey()).Returns(key);
+            var input = new AdditionalParametersType
+            {
+                Parameters =
+                [
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = Variant.From(policyUri)
+                    }
+                ]
+            };
+
+            AdditionalParametersType result =
+                SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                    session.Object,
+                    input,
+                    NullLogger<SessionCoverageTests>.Instance,
+                    policies.Object);
+
+            Assert.That(result.Parameters, Has.Count.EqualTo(1));
+            Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
+            Assert.That(
+                result.Parameters[0].Value.TryGetStructure<EphemeralKeyType>(out EphemeralKeyType? actualKey),
+                Is.True);
+            Assert.That(actualKey, Is.SameAs(key));
+            session.Verify(s => s.SetUserTokenSecurityPolicy(policyUri), Times.Once);
+            session.Verify(s => s.GetNewEphemeralKey(), Times.Once);
+        }
+
+        /// <summary>
+        /// An unsupported ECDHPolicyUri in ActivateSession is answered with
+        /// Bad_SecurityPolicyRejected and leaves the session's policy alone.
+        /// </summary>
+        [Test]
+        public void ProcessActivateSessionAdditionalParametersRejectsUnsupportedEcdhPolicy()
+        {
+            var session = new Mock<ISession>();
+            var input = new AdditionalParametersType
+            {
+                Parameters =
+                [
+                    new KeyValuePair
+                    {
+                        Key = QualifiedName.From(AdditionalParameterNames.ECDHPolicyUri),
+                        Value = Variant.From(SecurityPolicies.None)
+                    }
+                ]
+            };
+
+            AdditionalParametersType result =
+                SessionSecurityPolicyHelper.ProcessActivateSessionAdditionalParameters(
+                    session.Object,
+                    input,
+                    NullLogger<SessionCoverageTests>.Instance);
+
+            Assert.That(result.Parameters, Has.Count.EqualTo(1));
+            Assert.That(result.Parameters[0].Key, Is.EqualTo(QualifiedName.From(AdditionalParameterNames.ECDHKey)));
+            Assert.That(result.Parameters[0].Value.TryGetValue(out StatusCode status), Is.True);
+            Assert.That(status.Code, Is.EqualTo(StatusCodes.BadSecurityPolicyRejected));
+            session.Verify(s => s.SetUserTokenSecurityPolicy(It.IsAny<string>()), Times.Never);
+            session.Verify(s => s.GetNewEphemeralKey(), Times.Never);
         }
     }
 }

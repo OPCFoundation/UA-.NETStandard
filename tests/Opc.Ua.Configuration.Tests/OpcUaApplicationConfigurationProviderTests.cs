@@ -311,10 +311,13 @@ namespace Opc.Ua.Configuration.Tests
 
             try
             {
-                string expectedPkiSegment = Path.Combine("OPC Foundation", provider.Application.ApplicationName);
+                string expectedPkiSegment = Path.Combine("OPC Foundation", provider.Application.ApplicationName!);
                 Assert.That(
                     provider.Configuration.SecurityConfiguration.ApplicationCertificates[0].StorePath,
                     Does.Contain(expectedPkiSegment));
+                Assert.That(
+                    provider.Configuration.SecurityConfiguration.ApplicationCertificates[0].StorePath,
+                    Does.Not.StartWith(Path.GetTempPath()));
                 Assert.That(
                     provider.Configuration.SecurityConfiguration.ApplicationCertificates[0].SubjectName,
                     Does.Contain("CN=" + provider.Application.ApplicationName));
@@ -322,10 +325,9 @@ namespace Opc.Ua.Configuration.Tests
             finally
             {
                 provider.DisposeAsync().AsTask().GetAwaiter().GetResult();
-                DeletePkiRoot(Path.Combine(
-                    Path.GetTempPath(),
-                    "OPC Foundation",
-                    provider.Application.ApplicationName));
+                DeletePkiRoot(Path.GetDirectoryName(
+                    DefaultPkiRoot.Get(
+                        provider.Application.ApplicationName!))!);
             }
         }
 

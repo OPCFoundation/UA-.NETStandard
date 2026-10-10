@@ -94,6 +94,9 @@ namespace Opc.Ua.Bindings
             StartReceiveLoopWithBody(ReadReverseHelloOnceAsync);
         }
 
+        /// <summary>
+        /// Reads one ReverseHello chunk and leaves the transport ready for handoff without another pending receive.
+        /// </summary>
         private async Task ReadReverseHelloOnceAsync(
             IUaSCByteTransport transport,
             CancellationToken ct)
@@ -109,20 +112,33 @@ namespace Opc.Ua.Bindings
             }
             catch (ServiceResultException sre)
             {
-                OnTransportError(sre.Result);
+                OnTransportError(transport, sre.Result, ct);
                 return;
             }
             catch (Exception ex)
             {
-                OnTransportError(ServiceResult.Create(
+                OnTransportError(transport, ServiceResult.Create(
                     ex,
                     StatusCodes.BadTcpInternalError,
-                    ex.Message));
+                    ex.Message), ct);
                 return;
             }
 
+            if (ct.IsCancellationRequested || !ReferenceEquals(Transport, transport))
+            {
+                BufferManager.ReturnBuffer(chunk.Array, nameof(ReadReverseHelloOnceAsync));
+                return;
+            }
             await OnChunkReceivedAsync(chunk, ct).ConfigureAwait(false);
         }
+
+        /// <summary>
+        /// A connection that has not sent its ReverseHello yet may be closed to make
+        /// room for another one when the listener is at its channel limit, so silent
+        /// connections cannot hold every slot until the handshake deadline and lock
+        /// out real servers. Once the ReverseHello arrived the connection is kept.
+        /// </summary>
+        private protected override bool IsReclaimableWhileConnecting => !m_messageReceived;
 
         /// <summary>
         /// Processes an incoming message.
@@ -135,6 +151,7 @@ namespace Opc.Ua.Bindings
         {
             using (await Gate.EnterAsync(ct).ConfigureAwait(false))
             {
+                m_messageReceived = true;
                 SetResponseRequired(true);
 
                 try
@@ -183,10 +200,38 @@ namespace Opc.Ua.Bindings
                     TcpMessageType.ReverseHello,
                     messageChunk.Count);
 
-                // read peer information.
-                string? serverUri = decoder.ReadString(null);
-                string? endpointUrlString = decoder.ReadString(null);
-                var endpointUri = new Uri(endpointUrlString!);
+                // read peer information. OPC 10000-6 §7.1.2.6: both are less
+                // than 4096 bytes, and the Client returns Bad_TcpEndpointUrlInvalid
+                // and closes the connection if they are longer.
+                string? serverUri;
+                string? endpointUrlString;
+                try
+                {
+                    serverUri = decoder.ReadString(null, TcpMessageLimits.MaxEndpointUrlLength);
+                    endpointUrlString = decoder.ReadString(null, TcpMessageLimits.MaxEndpointUrlLength);
+                }
+                catch (ServiceResultException e) when (e.StatusCode == StatusCodes.BadEncodingLimitsExceeded)
+                {
+                    ForceChannelFaultCore(
+                        StatusCodes.BadTcpEndpointUrlInvalid,
+                        "The ServerUri or EndpointUrl of the ReverseHello exceeds {0} bytes.",
+                        TcpMessageLimits.MaxEndpointUrlLength);
+                    return false;
+                }
+
+                // OPC 10000-6 §7.1.2.6: the ServerUri is the Server's
+                // ApplicationUri and the EndpointUrl an absolute URL; an empty
+                // or whitespace ServerUri, or a missing or relative EndpointUrl,
+                // is not valid and must not reach TransferListenerChannelAsync.
+                if (string.IsNullOrWhiteSpace(serverUri) ||
+                    endpointUrlString == null ||
+                    !Uri.TryCreate(endpointUrlString, UriKind.Absolute, out Uri? endpointUri))
+                {
+                    ForceChannelFaultCore(
+                        StatusCodes.BadTcpEndpointUrlInvalid,
+                        "The ReverseHello has no valid ServerUri or EndpointUrl.");
+                    return false;
+                }
 
                 State = TcpChannelState.Connecting;
 
@@ -195,7 +240,7 @@ namespace Opc.Ua.Bindings
                     try
                     {
                         if (!await Listener
-                                .TransferListenerChannelAsync(Id, serverUri!, endpointUri)
+                                .TransferListenerChannelAsync(Id, serverUri, endpointUri)
                                 .ConfigureAwait(false))
                         {
                             SetResponseRequired(true);
@@ -225,6 +270,11 @@ namespace Opc.Ua.Bindings
         }
 
         private readonly ILogger m_logger;
+
+        /// <summary>
+        /// Set under the gate once the first complete message arrived.
+        /// </summary>
+        private bool m_messageReceived;
     }
 
     /// <summary>

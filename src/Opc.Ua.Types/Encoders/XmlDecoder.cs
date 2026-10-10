@@ -144,7 +144,8 @@ namespace Opc.Ua
 
                 while (Peek(elementName))
                 {
-                    string namespaceUri = ReadString(elementName)!;
+                    // table entries are URIs (xs:anyURI collapses whitespace).
+                    string namespaceUri = ReadString(elementName)?.Trim()!;
                     stringTable.Append(namespaceUri);
                 }
 
@@ -301,6 +302,18 @@ namespace Opc.Ua
         /// </summary>
         internal bool AllowOpaqueValues { get; set; }
 
+        /// <summary>
+        /// Reads a String element that holds only whitespace as an empty string.
+        /// </summary>
+        /// <remarks>
+        /// xs:string preserves whitespace (Part 6 5.3.1.5), so by default such an
+        /// element decodes to its whitespace. Hand-edited, pretty-printed documents
+        /// such as NodeSets write empty values as an element with only layout
+        /// whitespace (e.g. an empty Locale); importers of such documents enable
+        /// this option to read them as empty strings.
+        /// </remarks>
+        public bool TreatWhitespaceOnlyStringsAsEmpty { get; set; }
+
         /// <inheritdoc/>
         public void PushNamespace(string namespaceUri)
         {
@@ -331,13 +344,36 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Adopts already resolved mapping tables and the current nesting depth
+        /// from an outer decoder. Used when an ExtensionObject with an XML body
+        /// is decoded from inside another decoder - the nested body is part of
+        /// the same message and must share both.
+        /// </summary>
+        internal void InheritDecodingState(
+            ushort[]? namespaceMappings,
+            ushort[]? serverMappings,
+            uint nestingLevel)
+        {
+            m_namespaceMappings = namespaceMappings;
+            m_serverMappings = serverMappings;
+            m_nestingLevel = nestingLevel;
+        }
+
         /// <inheritdoc/>
         public T DecodeMessage<T>() where T : IEncodeable
         {
             XmlQualifiedName? typeName = Peek(XmlNodeType.Element);
-            if (typeName == null ||
-                !Context.Factory.TryGetType(typeName, out IType? type) ||
-                type is not IEncodeableType activator)
+            IType? type = null;
+            if (typeName != null &&
+                !Context.Factory.TryGetType(typeName, out type) &&
+                typeName.Namespace == Namespaces.OpcUaXsd)
+            {
+                // Standard message wrappers use the Types schema; generated types
+                // may be registered under the corresponding UA model namespace.
+                Context.Factory.TryGetType(new XmlQualifiedName(typeName.Name, Namespaces.OpcUa), out type);
+            }
+            if (typeName == null || type is not IEncodeableType activator)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
@@ -356,7 +392,16 @@ namespace Opc.Ua
             PushNamespace(typeName.Namespace);
 
             // read the message.
-            T encodeable = ReadEncodeable(name, (T)activator.CreateInstance());
+            if (activator.CreateInstance() is not T instance)
+            {
+                // The type name comes from the document and need not name a T.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Type '{0}' is not a {1}.",
+                    typeName,
+                    typeof(T).Name);
+            }
+            T encodeable = ReadEncodeable(name, instance);
 
             PopNamespace();
 
@@ -372,7 +417,8 @@ namespace Opc.Ua
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    bool value = SafeXmlConvert(fieldName, XmlConvert.ToBoolean, xml!.ToLowerInvariant());
+                    // xs:boolean is true, false, 1 or 0 - case sensitive.
+                    bool value = SafeXmlConvert(fieldName, XmlConvert.ToBoolean, xml!);
                     EndField(fieldName);
                     return value;
                 }
@@ -564,20 +610,38 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public string? ReadString(string? fieldName)
         {
-            if (BeginField(fieldName, true, out bool isNil))
+            if (BeginField(
+                fieldName,
+                true,
+                out bool isNil,
+                true,
+                out string? whitespace))
             {
+                // xs:string has whiteSpace=preserve (Part 6 5.3.1.5): do not trim,
+                // and keep leading whitespace split off by a comment.
                 string? value = SafeReadString();
-
-                if (value != null && !RequireCompleteValue)
+                if (whitespace != null)
                 {
-                    value = value.Trim();
+                    value = whitespace + value;
+                    EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
                 }
-
                 EndField(fieldName);
                 return value;
             }
 
-            return !isNil ? string.Empty : null;
+            if (isNil)
+            {
+                return null;
+            }
+
+            // an element holding only whitespace keeps it (Part 6 5.3.1.5).
+            if (whitespace != null && !TreatWhitespaceOnlyStringsAsEmpty)
+            {
+                EncodingLimits.CheckStringLength(Context.MaxStringLength, whitespace);
+                return whitespace;
+            }
+
+            return string.Empty;
         }
 
         /// <inheritdoc/>
@@ -588,27 +652,142 @@ namespace Opc.Ua
                 string? xml = SafeReadString();
 
                 // check the length.
-                if (Context.MaxStringLength > 0 && Context.MaxStringLength < xml!.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
+                EncodingLimits.CheckStringLength(Context.MaxStringLength, xml);
 
                 if (!string.IsNullOrEmpty(xml))
                 {
-                    try
-                    {
-                        var value = XmlConvert.ToDateTime(xml, XmlDateTimeSerializationMode.Utc);
-                        EndField(fieldName);
-                        return value;
-                    }
-                    catch (FormatException fe)
-                    {
-                        throw CreateBadDecodingError(fieldName, fe, value: xml);
-                    }
+                    DateTimeUtc value = ParseDateTime(fieldName, xml!);
+                    EndField(fieldName);
+                    return value;
                 }
             }
 
             return DateTimeUtc.MinValue;
+        }
+
+        /// <summary>
+        /// Parses an xs:dateTime value (Part 6 5.3.1.6). XmlConvert also takes
+        /// the other XSD date and time types (time, gYear, gMonthDay...) and
+        /// decodes them to a surprising instant (a time takes today's date, a
+        /// gMonthDay the year 1904); those are rejected. Years beyond 9999
+        /// decode as the latest and years before 0001 as the earliest
+        /// date/time value.
+        /// </summary>
+        /// <remarks>
+        /// Part 6 requires encoders to write the time and a time zone. A value
+        /// without a zone is still read as UTC, and a date without a time
+        /// (xs:date) as midnight UTC, because published model files (the
+        /// standard type and DI designs) contain such values.
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static DateTimeUtc ParseDateTime(
+            string? fieldName,
+            string xml,
+            [CallerMemberName] string? functionName = null)
+        {
+            // xs:dateTime collapses whitespace.
+            string text = xml.Trim();
+
+            // '-'? yyyy '-' mm '-' dd ('T' hh ':' mm ':' ss ('.' s+)?)? zone?
+            int index = 0;
+            bool negative = text.Length > 0 && text[0] == '-';
+            if (negative)
+            {
+                index++;
+            }
+
+            int yearStart = index;
+            while (index < text.Length && IsDigit(text[index]))
+            {
+                index++;
+            }
+
+            int yearDigits = index - yearStart;
+            bool valid =
+                (yearDigits == 4 || (yearDigits > 4 && text[yearStart] != '0')) &&
+                MatchesPattern(text, index, "-dd-dd");
+            index += 6;
+
+            // the time may be left out (xs:date): published model files use
+            // such values, which decode as midnight of that date.
+            if (valid && index < text.Length && text[index] == 'T')
+            {
+                valid = MatchesPattern(text, index, "Tdd:dd:dd");
+                index += 9;
+
+                if (valid && index < text.Length && text[index] == '.')
+                {
+                    int fractionStart = ++index;
+                    while (index < text.Length && IsDigit(text[index]))
+                    {
+                        index++;
+                    }
+                    valid = index > fractionStart;
+                }
+            }
+
+            if (valid && index < text.Length && text[index] == 'Z')
+            {
+                index++;
+            }
+            else if (valid &&
+                index < text.Length &&
+                (text[index] is '+' or '-') &&
+                MatchesPattern(text, index + 1, "dd:dd"))
+            {
+                index += 6;
+            }
+
+            if (!valid || index != text.Length)
+            {
+                throw CreateBadDecodingError(
+                    fieldName,
+                    new FormatException("The value is not an xs:dateTime."),
+                    functionName,
+                    xml);
+            }
+
+            if (negative ||
+                (yearDigits == 4 && string.CompareOrdinal(text, yearStart, "0000", 0, 4) == 0))
+            {
+                return DateTimeUtc.MinValue;
+            }
+
+            if (yearDigits > 4)
+            {
+                return DateTimeUtc.MaxValue;
+            }
+
+            try
+            {
+                return XmlConvert.ToDateTime(text, XmlDateTimeSerializationMode.Utc);
+            }
+            catch (FormatException fe)
+            {
+                throw CreateBadDecodingError(fieldName, fe, functionName, xml);
+            }
+
+            static bool IsDigit(char c)
+            {
+                return c is >= '0' and <= '9';
+            }
+
+            static bool MatchesPattern(string value, int start, string pattern)
+            {
+                if (start + pattern.Length > value.Length)
+                {
+                    return false;
+                }
+                for (int ii = 0; ii < pattern.Length; ii++)
+                {
+                    char c = value[start + ii];
+                    if (pattern[ii] == 'd' ? !IsDigit(c) : c != pattern[ii])
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
         }
 
         /// <inheritdoc/>
@@ -622,19 +801,39 @@ namespace Opc.Ua
                 string? guidString = ReadString("String");
                 PopNamespace();
 
-                try
-                {
-                    value = Uuid.Parse(guidString ?? string.Empty);
-                }
-                catch (FormatException fe)
-                {
-                    throw CreateBadDecodingError(fieldName, fe, value: guidString);
-                }
+                value = ParseGuid(fieldName, guidString);
 
                 EndField(fieldName);
             }
 
             return value;
+        }
+
+        /// <summary>
+        /// Parses the String of an XML Guid, which has the form of Part 6 5.1.3
+        /// (the "D" format: 8-4-4-4-12 hex digits, no braces or parentheses).
+        /// Guid.Parse also takes the N, B, P and X formats.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static Uuid ParseGuid(
+            string? fieldName,
+            string? guidString,
+            [CallerMemberName] string? functionName = null)
+        {
+            // the String element keeps layout whitespace (xs:string).
+            if (!Guid.TryParseExact(
+                (guidString ?? string.Empty).Trim(),
+                "D",
+                out Guid guid))
+            {
+                throw CreateBadDecodingError(
+                    fieldName,
+                    new FormatException("The value is not a Guid in the form of Part 6 5.1.3."),
+                    functionName,
+                    guidString);
+            }
+
+            return new Uuid(guid);
         }
 
         /// <inheritdoc/>
@@ -649,6 +848,8 @@ namespace Opc.Ua
 
                     if (!string.IsNullOrEmpty(xml))
                     {
+                        // check the length before the bytes are allocated.
+                        EncodingLimits.CheckBase64Length(Context.MaxByteStringLength, xml);
                         value = ByteString.From(SafeConvertFromBase64String(xml));
                     }
                     else
@@ -663,12 +864,6 @@ namespace Opc.Ua
                 catch (InvalidOperationException ioe)
                 {
                     throw CreateBadDecodingError(fieldName, ioe);
-                }
-
-                // check the length.
-                if (Context.MaxByteStringLength > 0 && Context.MaxByteStringLength < value.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 EndField(fieldName);
@@ -688,29 +883,9 @@ namespace Opc.Ua
                     throw new ServiceResultException(
                         StatusCodes.BadNotSupported, "An opaque XmlElement cannot be namespace-rebased.");
                 }
-                var document = new XmlDocument();
-                System.Xml.XmlElement value = document.CreateElement(
-                    m_reader.Prefix,
-                    m_reader.LocalName,
-                    m_reader.NamespaceURI);
-                document.AppendChild(value);
-
-                if (m_reader.MoveToFirstAttribute())
-                {
-                    do
-                    {
-                        XmlAttribute attribute = document.CreateAttribute(m_reader.Name);
-                        attribute.Value = m_reader.Value;
-                        value.Attributes.Append(attribute);
-                    } while (m_reader.MoveToNextAttribute());
-
-                    m_reader.MoveToContent();
-                }
-
-                value.InnerXml = m_reader.ReadInnerXml();
-
+                XmlElement value = XmlElement.From(ReadXmlElementContent(fieldName, Context.MaxStringLength));
                 EndField(fieldName);
-                return (XmlElement)value;
+                return value;
             }
 
             return default;
@@ -722,7 +897,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? identifierText = ReadString("Identifier");
+                string? identifierText = TrimNodeIdText(ReadString("Identifier"));
                 PopNamespace();
 
                 NodeId value;
@@ -761,7 +936,7 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? identifierText = ReadString("Identifier");
+                string? identifierText = TrimNodeIdText(ReadString("Identifier"));
                 PopNamespace();
 
                 ExpandedNodeId value;
@@ -792,7 +967,10 @@ namespace Opc.Ua
                     throw new ServiceResultException(
                         StatusCodes.BadDecodingError, "An ExpandedNodeId uses an undeclared server index.");
                 }
+                // Part 6 5.2.2.10: an ExpandedNodeId with a NamespaceUri has no
+                // NamespaceIndex to map, and WithNamespaceIndex would drop the uri.
                 if (m_namespaceMappings != null &&
+                    string.IsNullOrEmpty(value.NamespaceUri) &&
                     m_namespaceMappings.Length > value.NamespaceIndex &&
                     !value.IsNull)
                 {
@@ -865,17 +1043,7 @@ namespace Opc.Ua
                     EndField("NamespaceIndex");
                 }
 
-                string? name = null;
-
-                if (BeginField("Name", true, out bool isNil))
-                {
-                    name = ReadString(null);
-                    EndField("Name");
-                }
-                else if (!isNil)
-                {
-                    name = string.Empty;
-                }
+                string? name = ReadString("Name");
 
                 PopNamespace();
                 EndField(fieldName);
@@ -898,28 +1066,8 @@ namespace Opc.Ua
             if (BeginField(fieldName, true))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
-                string? text = null;
-                string? locale = null;
-
-                if (BeginField("Locale", true, out bool isNil))
-                {
-                    locale = ReadString(null);
-                    EndField("Locale");
-                }
-                else if (!isNil)
-                {
-                    locale = string.Empty;
-                }
-
-                if (BeginField("Text", true, out isNil))
-                {
-                    text = ReadString(null);
-                    EndField("Text");
-                }
-                else if (!isNil)
-                {
-                    text = string.Empty;
-                }
+                string? locale = ReadString("Locale");
+                string? text = ReadString("Text");
 
                 var value = new LocalizedText(locale ?? string.Empty, text ?? string.Empty);
 
@@ -951,10 +1099,18 @@ namespace Opc.Ua
                         {
                             value = ReadVariantValue();
                         }
-                        catch (Exception ex) when (ex is not ServiceResultException && !RequireCompleteValue)
+                        catch (Exception ex) when (
+                            ex is not ServiceResultException and not OutOfMemoryException && !RequireCompleteValue)
                         {
+                            // a malformed value fails the decode: returning a
+                            // BadDecodingError value left the reader at an
+                            // arbitrary position inside the Value element.
                             m_logger.ErrorReadingVariant(ex);
-                            value = new Variant(StatusCodes.BadDecodingError);
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                ex,
+                                "Error reading variant value: {0}",
+                                ex.Message);
                         }
                         EndField("Value");
                     }
@@ -1029,9 +1185,11 @@ namespace Opc.Ua
             // read body.
             if (!BeginField("Body", true))
             {
-                // read end of extension object.
-                EndField(fieldName);
+                // read end of extension object. The field element is in the
+                // namespace of the enclosing structure, not in Types.xsd, so
+                // the namespace pushed for TypeId/Body is popped first.
                 PopNamespace();
+                EndField(fieldName);
 
                 return new ExtensionObject(absoluteId);
             }
@@ -1069,7 +1227,15 @@ namespace Opc.Ua
                     encodeableTypeId);
             }
 
-            var value = (T)activator.CreateInstance();
+            if (activator.CreateInstance() is not T value)
+            {
+                // The type id comes from the wire and need not name a T at all.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Type '{0}' is not a {1}.",
+                    encodeableTypeId,
+                    typeof(T).Name);
+            }
             return ReadEncodeable(fieldName, value);
         }
 
@@ -1111,7 +1277,7 @@ namespace Opc.Ua
                         }
                         else
                         {
-#if NETSTANDARD2_1_OR_GREATER || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
                             value = Enum.Parse<T>(xml!, false);
 #else
                             value = (T)Enum.Parse(typeof(T), xml!, false);
@@ -1189,13 +1355,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Boolean"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadBoolean("Boolean"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1217,13 +1378,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("SByte"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadSByte("SByte"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1245,13 +1401,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Byte"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadByte("Byte"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1273,13 +1424,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Int16"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadInt16("Int16"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1301,13 +1447,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("UInt16"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadUInt16("UInt16"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1329,13 +1470,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Int32"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadInt32("Int32"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1357,13 +1493,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("UInt32"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadUInt32("UInt32"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1385,13 +1516,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Int64"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadInt64("Int64"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1413,13 +1539,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("UInt64"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadUInt64("UInt64"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1441,13 +1562,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Float"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadFloat("Float"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1469,13 +1585,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Double"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDouble("Double"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1497,13 +1608,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("String"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadString("String"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1525,13 +1631,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("DateTime"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDateTime("DateTime"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1553,13 +1654,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Guid"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadGuid("Guid"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1581,13 +1677,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ByteString"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadByteString("ByteString"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1609,13 +1700,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("XmlElement"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadXmlElement("XmlElement"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1637,13 +1723,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("NodeId"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadNodeId("NodeId"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1665,13 +1746,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ExpandedNodeId"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadExpandedNodeId("ExpandedNodeId"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1693,13 +1769,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("StatusCode"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadStatusCode("StatusCode"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1721,13 +1792,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("DiagnosticInfo"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDiagnosticInfo("DiagnosticInfo"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1749,13 +1815,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("QualifiedName"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadQualifiedName("QualifiedName"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1777,13 +1838,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("LocalizedText"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadLocalizedText("LocalizedText"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1805,13 +1861,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("Variant"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadVariant("Variant"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1833,13 +1884,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("DataValue"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadDataValue("DataValue"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1861,13 +1907,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ExtensionObject"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadExtensionObject("ExtensionObject"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1890,13 +1931,8 @@ namespace Opc.Ua
 
                 while (MoveToElement("ExtensionObject"))
                 {
+                    CheckArrayLength(values.Count);
                     values.Add(ReadEncodeableAsExtensionObject<T>("ExtensionObject"));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < values.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1920,13 +1956,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(encodeables.Count);
                     encodeables.Add(ReadEncodeable<T>(xmlName.Name));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < encodeables.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1945,18 +1976,18 @@ namespace Opc.Ua
             if (BeginField(fieldName, true, out bool isNil))
             {
                 var encodeables = new List<T>();
-                XmlQualifiedName? xmlName = TypeInfo.GetXmlName(typeof(T));
-                PushNamespace(xmlName!.Namespace);
+                XmlQualifiedName? xmlName = Context.Factory.TryGetEncodeableType(
+                    encodeableTypeId, out IEncodeableType? encodeableType)
+                    ? encodeableType.XmlName
+                    : TypeInfo.GetXmlName(typeof(T));
+                PushNamespace(xmlName!.Namespace == Namespaces.OpcUa
+                    ? Namespaces.OpcUaXsd
+                    : xmlName.Namespace);
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(encodeables.Count);
                     encodeables.Add(ReadEncodeable<T>(xmlName.Name, encodeableTypeId));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < encodeables.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -1982,8 +2013,14 @@ namespace Opc.Ua
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
                     if (BeginField("Elements", true))
                     {
-                        value = ReadEncodeableArray<T>(null, encodeableTypeId).ToMatrix(dimensions);
+                        value = ToMatrixOrThrow(ReadEncodeableArray<T>(null, encodeableTypeId), dimensions);
                         EndField("Elements");
+                    }
+                    else if (dimensions.Length > 0)
+                    {
+                        // An empty matrix has no Elements content; keep it
+                        // empty (not null) when the dimensions allow it.
+                        value = ToMatrixOrThrow(ArrayOf.Empty<T>(), dimensions);
                     }
 
                     PopNamespace();
@@ -2013,8 +2050,14 @@ namespace Opc.Ua
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
                     if (BeginField("Elements", true))
                     {
-                        value = ReadEncodeableArray<T>(null).ToMatrix(dimensions);
+                        value = ToMatrixOrThrow(ReadEncodeableArray<T>(null), dimensions);
                         EndField("Elements");
+                    }
+                    else if (dimensions.Length > 0)
+                    {
+                        // An empty matrix has no Elements content; keep it
+                        // empty (not null) when the dimensions allow it.
+                        value = ToMatrixOrThrow(ArrayOf.Empty<T>(), dimensions);
                     }
 
                     PopNamespace();
@@ -2029,6 +2072,47 @@ namespace Opc.Ua
             return value;
         }
 
+        /// <summary>
+        /// Builds a matrix from decoded elements and wire supplied dimensions.
+        /// MatrixOf throws ArgumentException for invalid dimensions (negative,
+        /// zero rank, overflowing product, or a length mismatch), which must be
+        /// reported through the decoder rejection channel instead of escaping.
+        /// </summary>
+        /// <typeparam name="T">The element type of the matrix.</typeparam>
+        /// <exception cref="ServiceResultException"></exception>
+        private MatrixOf<T> ToMatrixOrThrow<T>(ArrayOf<T> elements, int[] dimensions)
+        {
+            // The inline matrix of a structure field has at least two
+            // dimensions (OPC 10000-6 5.2.5 Table 28, 5.3.4); a dimension
+            // <= 0 means no values, like in the binary encoding. Earlier
+            // versions wrote an empty matrix with the single dimension 0.
+            dimensions = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
+                dimensions,
+                elements.Count);
+            MatrixOf.NormalizeInlineMatrixDimensions(dimensions);
+            if (!MatrixOf.IsValidInlineMatrix(dimensions, elements.Count, Context.MaxArrayLength))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Encodeable matrix Dimensions [{0}] are inconsistent with {1} element(s).",
+                    string.Join(",", dimensions),
+                    elements.Count);
+            }
+            try
+            {
+                return elements.ToMatrix(dimensions);
+            }
+            catch (ArgumentException ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    ex,
+                    "Encodeable matrix Dimensions [{0}] are inconsistent with {1} element(s).",
+                    string.Join(",", dimensions),
+                    elements.Count);
+            }
+        }
+
         /// <inheritdoc/>
         public ArrayOf<T> ReadEnumeratedArray<T>(string? fieldName) where T : struct, Enum
         {
@@ -2040,13 +2124,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(enums.Count);
                     enums.Add(ReadEnumerated<T>(xmlName.Name));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -2074,13 +2153,8 @@ namespace Opc.Ua
 
                 while (MoveToElement(xmlName.Name))
                 {
+                    CheckArrayLength(enums.Count);
                     enums.Add(ReadEnumerated(xmlName.Name));
-                }
-
-                // check the length.
-                if (Context.MaxArrayLength > 0 && Context.MaxArrayLength < enums.Count)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
                 }
 
                 PopNamespace();
@@ -2112,17 +2186,49 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public Variant ReadVariantValue(string? fieldName, TypeInfo typeInfo)
         {
+            typeInfo = XmlDecoder.AsVariantIfAbstractNumber(typeInfo);
             CheckAndIncrementNestingLevel();
 
             try
             {
                 Variant value = Variant.Null;
 
+                if (fieldName != null && IsTypedFieldValue(typeInfo))
+                {
+                    // OPC 10000-6 5.3.1, 5.3.4, 5.3.5: the field is written
+                    // like the typed field of its type. The Variant body
+                    // earlier versions wrapped it in is still accepted.
+                    // A missing field is null, a nil array field a null array.
+                    bool isPresent = HasField(fieldName);
+                    if (!BeginField(fieldName, true, out bool isNil))
+                    {
+                        if (!isPresent)
+                        {
+                            return Variant.Null;
+                        }
+                        return isNil ? CreateNullFieldValue(typeInfo) : CreateEmptyFieldValue(typeInfo);
+                    }
+                    m_reader.MoveToContent();
+                    if (m_reader.NodeType != XmlNodeType.Element ||
+                        !IsVariantBodyElement(m_reader.LocalName, m_reader.NamespaceURI, typeInfo))
+                    {
+                        value = ReadTypedFieldValue(this, typeInfo);
+                        EndField(fieldName);
+                        return value;
+                    }
+                    PushNamespace(Namespaces.OpcUaXsd);
+                    value = ReadVariantValue(true, typeInfo.BuiltInType);
+                    CheckFieldValueType(value, typeInfo);
+                    PopNamespace();
+                    EndField(fieldName);
+                    return value;
+                }
+
                 if (BeginField(fieldName, true))
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
-                    value = ReadVariantValue();
+                    value = ReadVariantValue(true, typeInfo.BuiltInType);
 
                     // Allow reading with unknown type info
                     if (!typeInfo.IsUnknown && !value.IsNull)
@@ -2132,7 +2238,8 @@ namespace Opc.Ua
                             typeInfo = typeInfo.WithBuiltInType(BuiltInType.Int32);
                         }
 
-                        if (value.TypeInfo != typeInfo)
+                        if (value.TypeInfo != typeInfo &&
+                            !IsInlineMatrixOf(value, typeInfo))
                         {
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
@@ -2154,13 +2261,251 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Whether a decoded inline matrix matches the matrix type info of a
+        /// structure field. The rank of the decoded value follows its
+        /// dimensions, which for an empty matrix can be a single zero (or the
+        /// 0 x 0 shape an empty matrix of any declared rank is written with)
+        /// and which a null matrix does not have. A populated matrix must
+        /// have the declared rank.
+        /// </summary>
+        internal static bool IsInlineMatrixOf(in Variant value, TypeInfo typeInfo)
+        {
+            if (!typeInfo.IsMatrix ||
+                value.TypeInfo.BuiltInType != typeInfo.BuiltInType ||
+                !value.IsInlineMatrix(out bool isNull))
+            {
+                return false;
+            }
+            return isNull ||
+                value.TypeInfo.ValueRank == typeInfo.ValueRank ||
+                value.Raw is IMatrixOf { Count: 0 };
+        }
+
+        /// <summary>
+        /// OPC 10000-6 5.1.6: a Number, Integer or UInteger structure field is
+        /// encoded as a Variant, so an array or matrix field of such a type is
+        /// an array or matrix of Variant, which is what the encoder writes.
+        /// </summary>
+        internal static TypeInfo AsVariantIfAbstractNumber(TypeInfo typeInfo)
+        {
+            if (typeInfo.BuiltInType is BuiltInType.Number or
+                    BuiltInType.Integer or
+                    BuiltInType.UInteger &&
+                !typeInfo.IsScalar)
+            {
+                return typeInfo.WithBuiltInType(BuiltInType.Variant);
+            }
+            return typeInfo;
+        }
+
+        /// <summary>
+        /// Whether a structure field of the type is encoded with the typed
+        /// field encoding of a built-in scalar or one dimensional array
+        /// (OPC 10000-6 5.3.1, 5.3.4, 5.3.5), which the XmlEncoder writes for
+        /// a named <see cref="IEncoder.WriteVariantValue(string?, in Variant)"/>.
+        /// </summary>
+        internal static bool IsTypedFieldValue(TypeInfo typeInfo)
+        {
+            if (typeInfo.IsUnknown)
+            {
+                return false;
+            }
+            if (typeInfo.ValueRank == ValueRanks.Scalar)
+            {
+                return typeInfo.BuiltInType is
+                    (>= BuiltInType.Boolean and <= BuiltInType.DataValue) or
+                    BuiltInType.Enumeration;
+            }
+            return typeInfo.ValueRank == ValueRanks.OneDimension &&
+                typeInfo.BuiltInType is
+                    (>= BuiltInType.Boolean and <= BuiltInType.Variant) or
+                    BuiltInType.Enumeration;
+        }
+
+        /// <summary>
+        /// Whether the element in a field is the Variant body earlier versions
+        /// wrapped a structure field value in (e.g. <c>&lt;A&gt;&lt;Int32&gt;</c>,
+        /// <c>&lt;A&gt;&lt;ListOfInt32&gt;</c>) rather than the content of the
+        /// typed field.
+        /// </summary>
+        internal static bool IsVariantBodyElement(string localName, string namespaceUri, TypeInfo typeInfo)
+        {
+            if (namespaceUri != Namespaces.OpcUaXsd)
+            {
+                return false;
+            }
+            // The elements of an array are named by their type, a Variant
+            // body of an array is a ListOf (or a Null) element.
+            if (typeInfo.ValueRank != ValueRanks.Scalar)
+            {
+                return localName == "Null" ||
+                    localName.StartsWith("ListOf", StringComparison.Ordinal);
+            }
+            // A typed scalar field contains text or the fields of its type,
+            // which are not named like a built-in type - except the String
+            // of a Guid, the StatusCode of a DataValue and the element of an
+            // XmlElement. A Variant body of any other type is read as such,
+            // so that a type mismatch is reported.
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.XmlElement:
+                    return localName == nameof(BuiltInType.XmlElement);
+                case BuiltInType.Guid when localName == nameof(BuiltInType.String):
+                case BuiltInType.DataValue when localName == nameof(BuiltInType.StatusCode):
+                    return false;
+            }
+            return localName is "Null" or "Matrix" ||
+                (Enum.TryParse(localName, out BuiltInType builtInType) &&
+                builtInType is >= BuiltInType.Boolean and <= BuiltInType.DiagnosticInfo &&
+                localName == builtInType.ToString());
+        }
+
+        /// <summary>
+        /// The value of a nil or missing typed field: a null array of the
+        /// field type (what the typed array readers return), null otherwise.
+        /// </summary>
+        internal static Variant CreateNullFieldValue(TypeInfo typeInfo)
+        {
+            return typeInfo.ValueRank == ValueRanks.OneDimension
+                ? Variant.CreateDefault(typeInfo)
+                : Variant.Null;
+        }
+
+        /// <summary>
+        /// The value of a present but empty typed field: an empty array or an
+        /// empty string (what the typed readers return), null otherwise.
+        /// </summary>
+        internal static Variant CreateEmptyFieldValue(TypeInfo typeInfo)
+        {
+            if (typeInfo.ValueRank == ValueRanks.OneDimension)
+            {
+                return Variant.CreateDefault(typeInfo).ToEmptyArray();
+            }
+            return typeInfo.BuiltInType == BuiltInType.String
+                ? Variant.From(string.Empty)
+                : Variant.Null;
+        }
+
+        /// <summary>
+        /// Checks that a value read from a Variant body has the field type.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        internal static void CheckFieldValueType(in Variant value, TypeInfo typeInfo)
+        {
+            if (typeInfo.IsUnknown || value.IsNull)
+            {
+                return;
+            }
+            if (typeInfo.BuiltInType == BuiltInType.Enumeration)
+            {
+                typeInfo = typeInfo.WithBuiltInType(BuiltInType.Int32);
+            }
+            if (value.TypeInfo != typeInfo && !IsInlineMatrixOf(value, typeInfo))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Error reading value as variant. Type mismatch: Expected {0} != Actual {1}",
+                    typeInfo, value.TypeInfo);
+            }
+        }
+
+        /// <summary>
+        /// Reads the content of a typed field (the field element is already
+        /// entered) with the typed reader of its type.
+        /// </summary>
+        internal static Variant ReadTypedFieldValue(IDecoder decoder, TypeInfo typeInfo)
+        {
+            if (typeInfo.ValueRank == ValueRanks.Scalar)
+            {
+                return typeInfo.BuiltInType switch
+                {
+                    BuiltInType.Boolean => decoder.ReadBoolean(null),
+                    BuiltInType.SByte => decoder.ReadSByte(null),
+                    BuiltInType.Byte => decoder.ReadByte(null),
+                    BuiltInType.Int16 => decoder.ReadInt16(null),
+                    BuiltInType.UInt16 => decoder.ReadUInt16(null),
+                    BuiltInType.Int32 => decoder.ReadInt32(null),
+                    BuiltInType.UInt32 => decoder.ReadUInt32(null),
+                    BuiltInType.Int64 => decoder.ReadInt64(null),
+                    BuiltInType.UInt64 => decoder.ReadUInt64(null),
+                    BuiltInType.Float => decoder.ReadFloat(null),
+                    BuiltInType.Double => decoder.ReadDouble(null),
+                    BuiltInType.String => Variant.From(decoder.ReadString(null) ?? string.Empty),
+                    BuiltInType.DateTime => decoder.ReadDateTime(null),
+                    BuiltInType.Guid => decoder.ReadGuid(null),
+                    BuiltInType.ByteString => decoder.ReadByteString(null),
+                    BuiltInType.XmlElement => decoder.ReadXmlElement(null),
+                    BuiltInType.NodeId => decoder.ReadNodeId(null),
+                    BuiltInType.ExpandedNodeId => decoder.ReadExpandedNodeId(null),
+                    BuiltInType.StatusCode => decoder.ReadStatusCode(null),
+                    BuiltInType.QualifiedName => decoder.ReadQualifiedName(null),
+                    BuiltInType.LocalizedText => decoder.ReadLocalizedText(null),
+                    BuiltInType.ExtensionObject => decoder.ReadExtensionObject(null),
+                    BuiltInType.DataValue => decoder.ReadDataValue(null),
+                    BuiltInType.Enumeration => decoder.ReadEnumerated(null),
+                    _ => Variant.Null
+                };
+            }
+            return typeInfo.BuiltInType switch
+            {
+                BuiltInType.Boolean => Variant.From(decoder.ReadBooleanArray(null)),
+                BuiltInType.SByte => Variant.From(decoder.ReadSByteArray(null)),
+                BuiltInType.Byte => Variant.From(decoder.ReadByteArray(null)),
+                BuiltInType.Int16 => Variant.From(decoder.ReadInt16Array(null)),
+                BuiltInType.UInt16 => Variant.From(decoder.ReadUInt16Array(null)),
+                BuiltInType.Int32 => Variant.From(decoder.ReadInt32Array(null)),
+                BuiltInType.UInt32 => Variant.From(decoder.ReadUInt32Array(null)),
+                BuiltInType.Int64 => Variant.From(decoder.ReadInt64Array(null)),
+                BuiltInType.UInt64 => Variant.From(decoder.ReadUInt64Array(null)),
+                BuiltInType.Float => Variant.From(decoder.ReadFloatArray(null)),
+                BuiltInType.Double => Variant.From(decoder.ReadDoubleArray(null)),
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
+                BuiltInType.String => Variant.From(decoder.ReadStringArray(null)),
+#pragma warning restore CS8620
+                BuiltInType.DateTime => Variant.From(decoder.ReadDateTimeArray(null)),
+                BuiltInType.Guid => Variant.From(decoder.ReadGuidArray(null)),
+                BuiltInType.ByteString => Variant.From(decoder.ReadByteStringArray(null)),
+                BuiltInType.XmlElement => Variant.From(decoder.ReadXmlElementArray(null)),
+                BuiltInType.NodeId => Variant.From(decoder.ReadNodeIdArray(null)),
+                BuiltInType.ExpandedNodeId => Variant.From(decoder.ReadExpandedNodeIdArray(null)),
+                BuiltInType.StatusCode => Variant.From(decoder.ReadStatusCodeArray(null)),
+                BuiltInType.QualifiedName => Variant.From(decoder.ReadQualifiedNameArray(null)),
+                BuiltInType.LocalizedText => Variant.From(decoder.ReadLocalizedTextArray(null)),
+                BuiltInType.ExtensionObject => Variant.From(decoder.ReadExtensionObjectArray(null)),
+#pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
+                BuiltInType.DataValue => Variant.From(decoder.ReadDataValueArray(null)),
+#pragma warning restore CS8620
+                BuiltInType.Variant => Variant.From(decoder.ReadVariantArray(null)),
+                BuiltInType.Enumeration => Variant.From(decoder.ReadEnumeratedArray(null)),
+                _ => Variant.Null
+            };
+        }
+
         /// <inheritdoc/>
         public Variant ReadVariantValue()
+        {
+            return ReadVariantValue(false, BuiltInType.Null);
+        }
+
+        /// <summary>
+        /// Reads the content of a Variant. A raw value is the value of a
+        /// structure field whose inline matrix may be empty.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private Variant ReadVariantValue(bool readRawValue, BuiltInType rawBuiltInType)
         {
             // skip whitespace.
             while (m_reader.NodeType != XmlNodeType.Element)
             {
-                m_reader.Read();
+                if (!m_reader.Read())
+                {
+                    // Read() returns false at the end of the document, leaving
+                    // NodeType at None - without this the loop never ends.
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Error reading variant value. No element found.");
+                }
             }
 
             try
@@ -2206,7 +2551,7 @@ namespace Opc.Ua
                             string? text = ReadString(typeName);
                             return text is null && RequireCompleteValue
                                 ? Variant.CreateDefault(TypeInfo.Scalars.String)
-                                : new Variant(text ?? string.Empty);
+                                : new Variant(text!);
                         case "DateTime":
                             return ReadDateTime(typeName);
                         case "Guid":
@@ -2230,7 +2575,14 @@ namespace Opc.Ua
                         case "DataValue":
                             return ReadDataValue(typeName);
                         case "Matrix":
-                            return ReadMatrix(typeName);
+                            // Earlier versions wrapped the inline matrix of a
+                            // structure field in a Matrix element.
+                            return ReadMatrix(typeName, readRawValue, rawBuiltInType);
+                        case "Dimensions" when readRawValue:
+                            // A matrix structure field is of the Matrix type
+                            // itself: the field element directly contains
+                            // Dimensions and Elements (OPC 10000-6 5.3.4).
+                            return ReadMatrix(null, readRawValue, rawBuiltInType);
                         default:
                             throw ServiceResultException.Create(
                                 StatusCodes.BadDecodingError,
@@ -2377,25 +2729,17 @@ namespace Opc.Ua
                     $"No semantic XML codec is registered for ExtensionObject '{typeId}'.");
             }
 
-            try
-            {
-                var xmlElement = XmlElement.From(m_reader.ReadOuterXml());
-                if (!xmlElement.IsValid)
-                {
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        "Invalid xml in extension object body: {0}",
-                        xmlElement);
-                }
-                return new ExtensionObject(typeId, xmlElement);
-            }
-            catch (Exception ae)
+            // an extension object body is structured XML, bounded by the message
+            // and the depth limit, not by MaxStringLength like an XmlElement value.
+            var xmlElement = XmlElement.From(ReadXmlElementContent(null, 0));
+            if (!xmlElement.IsValid)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
-                    "Failed to decode xml extension object body: {0}",
-                    ae.Message);
+                    "Invalid xml in extension object body: {0}",
+                    xmlElement);
             }
+            return new ExtensionObject(typeId, xmlElement);
         }
 
         private static ExpandedNodeId GetXmlEncodingIdOrTypeId(IEncodeable encodeable)
@@ -2422,7 +2766,7 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private DiagnosticInfo? ReadDiagnosticInfo(int depth)
         {
-            if (depth >= DiagnosticInfo.MaxInnerDepth)
+            if (depth > DiagnosticInfo.MaxInnerDepth)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadEncodingLimitsExceeded,
@@ -2492,7 +2836,10 @@ namespace Opc.Ua
         /// Reads a Matrix from the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
-        private Variant ReadMatrix(string? fieldName)
+        private Variant ReadMatrix(
+            string? fieldName,
+            bool readRawValue,
+            BuiltInType rawBuiltInType)
         {
             CheckAndIncrementNestingLevel();
 
@@ -2504,14 +2851,23 @@ namespace Opc.Ua
                     PushNamespace(Namespaces.OpcUaXsd);
 
                     int[] dimensions = ReadInt32Array("Dimensions").ToArray() ?? [];
+                    MatrixOf.ThrowIfRankNotSupported(dimensions.Length);
 
                     // A multi-dimensional Variant must carry Dimensions with at
                     // least two entries, each greater than zero (Part 6 5.2.2.16);
                     // the product-versus-length consistency is enforced by
                     // MatrixOf<T> below. Reject an absent, too-short, zero or
                     // negative dimension here so an empty matrix (which would
-                    // otherwise satisfy the product check) is rejected.
-                    if (!MatrixOf.IsValidMatrix(dimensions))
+                    // otherwise satisfy the product check) is rejected. The
+                    // inline matrix of a structure field may be empty (5.2.5):
+                    // a dimension <= 0 means no values, like in binary.
+                    if (readRawValue)
+                    {
+                        MatrixOf.NormalizeInlineMatrixDimensions(dimensions);
+                    }
+                    if (readRawValue
+                        ? !MatrixOf.IsValidInlineMatrix(dimensions, -1, Context.MaxArrayLength)
+                        : !MatrixOf.IsValidMatrix(dimensions))
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
@@ -2523,6 +2879,21 @@ namespace Opc.Ua
                         value = ReadMatrix(dimensions);
                         EndField("Elements");
                     }
+                    else if (readRawValue)
+                    {
+                        // An empty inline matrix has no element to take the type
+                        // from; it must have a zero dimension.
+                        if (!MatrixOf.IsValidInlineMatrix(dimensions, 0, Context.MaxArrayLength))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Variant matrix Dimensions [{0}] are inconsistent with 0 element(s).",
+                                string.Join(",", dimensions));
+                        }
+                        value = Variant.CreateEmptyMatrix(
+                            rawBuiltInType == BuiltInType.Enumeration ? BuiltInType.Int32 : rawBuiltInType,
+                            dimensions);
+                    }
 
                     PopNamespace();
 
@@ -2531,15 +2902,10 @@ namespace Opc.Ua
             }
             catch (ArgumentException ex)
             {
-                // MatrixOf<T>(values, dimensions) throws ArgumentException when
-                // the decoded dimensions are inconsistent with the value payload
-                // (a length mismatch or an Int32-overflowing product). Convert to
-                // the standard decoder rejection channel so callers treat it as
-                // malformed input.
                 throw ServiceResultException.Create(
                     StatusCodes.BadDecodingError,
                     ex,
-                    "Invalid variant matrix dimensions.");
+                    "Variant matrix Dimensions are inconsistent.");
             }
             finally
             {
@@ -2547,62 +2913,89 @@ namespace Opc.Ua
             }
             return value;
 
+            MatrixOf<T> ToMatrix<T>(ArrayOf<T> elements, int[] dimensions)
+            {
+                if (readRawValue
+                    ? !MatrixOf.IsValidInlineMatrix(dimensions, elements.Count, Context.MaxArrayLength)
+                    : !MatrixOf.IsValidMatrix(dimensions, elements.Count))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Variant matrix Dimensions [{0}] are inconsistent with {1} element(s).",
+                        string.Join(",", dimensions),
+                        elements.Count);
+                }
+
+                try
+                {
+                    return elements.ToMatrix(dimensions);
+                }
+                catch (ArgumentException)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Variant matrix Dimensions [{0}] are inconsistent with {1} element(s).",
+                        string.Join(",", dimensions),
+                        elements.Count);
+                }
+            }
+
             Variant ReadMatrix(int[] dimensions)
             {
                 switch (m_reader.LocalName)
                 {
                     case "Boolean":
-                        return Variant.From(ReadBooleanArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadBooleanArray(null), dimensions));
                     case "SByte":
-                        return Variant.From(ReadSByteArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadSByteArray(null), dimensions));
                     case "Byte":
-                        return Variant.From(ReadByteArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadByteArray(null), dimensions));
                     case "Int16":
-                        return Variant.From(ReadInt16Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadInt16Array(null), dimensions));
                     case "UInt16":
-                        return Variant.From(ReadUInt16Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadUInt16Array(null), dimensions));
                     case "Int32":
-                        return Variant.From(ReadInt32Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadInt32Array(null), dimensions));
                     case "UInt32":
-                        return Variant.From(ReadUInt32Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadUInt32Array(null), dimensions));
                     case "Int64":
-                        return Variant.From(ReadInt64Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadInt64Array(null), dimensions));
                     case "UInt64":
-                        return Variant.From(ReadUInt64Array(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadUInt64Array(null), dimensions));
                     case "Float":
-                        return Variant.From(ReadFloatArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadFloatArray(null), dimensions));
                     case "Double":
-                        return Variant.From(ReadDoubleArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadDoubleArray(null), dimensions));
                     case "String":
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ReadStringArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadStringArray(null), dimensions));
 #pragma warning restore CS8620
                     case "DateTime":
-                        return Variant.From(ReadDateTimeArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadDateTimeArray(null), dimensions));
                     case "Guid":
-                        return Variant.From(ReadGuidArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadGuidArray(null), dimensions));
                     case "ByteString":
-                        return Variant.From(ReadByteStringArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadByteStringArray(null), dimensions));
                     case "XmlElement":
-                        return Variant.From(ReadXmlElementArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadXmlElementArray(null), dimensions));
                     case "NodeId":
-                        return Variant.From(ReadNodeIdArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadNodeIdArray(null), dimensions));
                     case "ExpandedNodeId":
-                        return Variant.From(ReadExpandedNodeIdArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadExpandedNodeIdArray(null), dimensions));
                     case "StatusCode":
-                        return Variant.From(ReadStatusCodeArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadStatusCodeArray(null), dimensions));
                     case "QualifiedName":
-                        return Variant.From(ReadQualifiedNameArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadQualifiedNameArray(null), dimensions));
                     case "LocalizedText":
-                        return Variant.From(ReadLocalizedTextArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadLocalizedTextArray(null), dimensions));
                     case "ExtensionObject":
-                        return Variant.From(ReadExtensionObjectArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadExtensionObjectArray(null), dimensions));
                     case "DataValue":
 #pragma warning disable CS8620 // Argument cannot be used due to differences in nullability
-                        return Variant.From(ReadDataValueArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadDataValueArray(null), dimensions));
 #pragma warning restore CS8620
                     case "Variant":
-                        return Variant.From(ReadVariantArray(null).ToMatrix(dimensions));
+                        return Variant.From(ToMatrix(ReadVariantArray(null), dimensions));
                     default:
                         throw ServiceResultException.Create(
                             StatusCodes.BadDecodingError,
@@ -2674,6 +3067,64 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Removes the layout whitespace around the Identifier text of an
+        /// XML NodeId/ExpandedNodeId. ReadString keeps whitespace (xs:string),
+        /// but the parsers accept none. Leading whitespace is never part of
+        /// the id. Trailing spaces are kept for string ids ("s="), but String
+        /// identifiers shall not contain Unicode control characters (Part 3
+        /// 8.2.4), so trailing layout (newline, tab, other C0/C1) is removed.
+        /// </summary>
+        internal static string? TrimNodeIdText(string? text)
+        {
+            if (string.IsNullOrEmpty(text))
+            {
+                return text;
+            }
+
+            string trimmed = text!.TrimStart();
+
+            // skip the svr=/svu=/nsu=/ns= prefixes to find the id type.
+            int start = 0;
+            while (HasPrefixAt(trimmed, start, "svr=") ||
+                HasPrefixAt(trimmed, start, "svu=") ||
+                HasPrefixAt(trimmed, start, "nsu=") ||
+                HasPrefixAt(trimmed, start, "ns="))
+            {
+                int separator = trimmed.IndexOf(';', start);
+                if (separator < 0)
+                {
+                    break;
+                }
+                start = separator + 1;
+            }
+
+            if (HasPrefixAt(trimmed, start, "s="))
+            {
+                // cut the trailing whitespace run at its first control character,
+                // e.g. "s=Tag \n  " -> "s=Tag ".
+                int end = trimmed.Length;
+                int cut = end;
+                while (end > start + 2 &&
+                    (char.IsWhiteSpace(trimmed[end - 1]) || char.IsControl(trimmed[end - 1])))
+                {
+                    end--;
+                    if (char.IsControl(trimmed[end]))
+                    {
+                        cut = end;
+                    }
+                }
+                return cut == trimmed.Length ? trimmed : trimmed[..cut];
+            }
+
+            return trimmed.TrimEnd();
+
+            static bool HasPrefixAt(string value, int index, string prefix)
+            {
+                return string.CompareOrdinal(value, index, prefix, 0, prefix.Length) == 0;
+            }
+        }
+
+        /// <summary>
         /// Reads a string from the stream.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -2685,15 +3136,16 @@ namespace Opc.Ua
                 string value = m_reader.ReadContentAsString();
 
                 // check the length.
-                if (value != null &&
-                    Context.MaxStringLength > 0 &&
-                    Context.MaxStringLength < value.Length)
+                if (EncodingLimits.StringExceedsLimit(
+                    Context.MaxStringLength,
+                    value,
+                    out int byteLength))
                 {
                     throw ServiceResultException.Create(
                         StatusCodes.BadEncodingLimitsExceeded,
                         "ReadString in {0} exceeds MaxStringLength: {1} > {2}",
                         functionName ?? string.Empty,
-                        value.Length,
+                        byteLength,
                         Context.MaxStringLength);
                 }
 
@@ -2712,6 +3164,37 @@ namespace Opc.Ua
                 "Unable to read string of {0}: {1}",
                 functionName ?? string.Empty,
                 message);
+        }
+
+        /// <summary>
+        /// Reads the element the reader is positioned on as raw XML, bounded by
+        /// maxStringLength (0 for none) and by the XML element depth limit.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private string ReadXmlElementContent(
+            string? fieldName,
+            int maxStringLength,
+            [CallerMemberName] string? functionName = null)
+        {
+            try
+            {
+                return EncodingLimits.ReadXmlElementContent(
+                    m_reader,
+                    EncodingLimits.GetMaxXmlElementDepth(Context, m_nestingLevel),
+                    maxStringLength);
+            }
+            catch (XmlException xe)
+            {
+                throw CreateBadDecodingError(fieldName, xe, functionName);
+            }
+            catch (InvalidOperationException ioe)
+            {
+                throw CreateBadDecodingError(fieldName, ioe, functionName);
+            }
+            catch (ArgumentException ae)
+            {
+                throw CreateBadDecodingError(fieldName, ae, functionName);
+            }
         }
 
         private static byte[] SafeConvertFromBase64String(string s)
@@ -2743,6 +3226,26 @@ namespace Opc.Ua
         /// <exception cref="ServiceResultException"></exception>
         private bool BeginField(string? fieldName, bool isOptional, out bool isNil)
         {
+            return BeginField(fieldName, isOptional, out isNil, false, out _);
+        }
+
+        /// <summary>
+        /// Reads the start of field. With <paramref name="captureWhitespace"/> the
+        /// whitespace of an element that holds nothing else is returned in
+        /// <paramref name="whitespace"/> (the method returns false for it). When
+        /// the method returns true it holds the leading whitespace that was
+        /// read before the content (split off by a comment or processing
+        /// instruction), which the caller prepends.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool BeginField(
+            string? fieldName,
+            bool isOptional,
+            out bool isNil,
+            bool captureWhitespace,
+            out string? whitespace)
+        {
+            whitespace = null;
             try
             {
                 isNil = false;
@@ -2798,6 +3301,28 @@ namespace Opc.Ua
 
                 if (!isEmpty)
                 {
+                    string? content = null;
+                    if (captureWhitespace)
+                    {
+                        // MoveToContent skips whitespace nodes, keep them for
+                        // xs:string - also past comments and processing
+                        // instructions, which are not part of the value.
+                        while (m_reader.NodeType is
+                            XmlNodeType.Whitespace or
+                            XmlNodeType.SignificantWhitespace or
+                            XmlNodeType.Comment or
+                            XmlNodeType.ProcessingInstruction)
+                        {
+                            if (m_reader.NodeType is
+                                XmlNodeType.Whitespace or
+                                XmlNodeType.SignificantWhitespace)
+                            {
+                                content = content == null ? m_reader.Value : content + m_reader.Value;
+                            }
+                            m_reader.Read();
+                        }
+                    }
+
                     m_reader.MoveToContent();
 
                     // check for an element with no children but not empty (due to whitespace).
@@ -2806,8 +3331,23 @@ namespace Opc.Ua
                         m_reader.NamespaceURI == m_namespaces.Peek())
                     {
                         m_reader.ReadEndElement();
+                        whitespace = content;
                         return false;
                     }
+
+                    // a nilled element shall have no content (XML Schema Part 1,
+                    // Element Locally Valid); callers do not read it, which
+                    // left the reader inside it and dropped the next fields.
+                    if (isNil)
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Element '{0}' is nil but has content.",
+                            fieldName!);
+                    }
+
+                    // the leading whitespace of content that follows.
+                    whitespace = content;
                 }
 
                 // caller must read contents of element.
@@ -2934,6 +3474,23 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Checks MaxArrayLength before one more element is added to an array
+        /// holding <paramref name="count"/> elements, so the list never grows
+        /// beyond the limit.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckArrayLength(int count)
+        {
+            if (Context.MaxArrayLength > 0 && count >= Context.MaxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} exceeded.",
+                    Context.MaxArrayLength);
+            }
+        }
+
+        /// <summary>
         /// Test and increment the nesting level.
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
@@ -2947,6 +3504,7 @@ namespace Opc.Ua
                     Context.MaxEncodingNestingLevels,
                     functionName ?? string.Empty);
             }
+            EncodingLimits.EnsureSufficientStack();
             m_nestingLevel++;
         }
 

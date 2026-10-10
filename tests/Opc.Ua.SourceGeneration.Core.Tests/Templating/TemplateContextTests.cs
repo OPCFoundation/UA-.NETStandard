@@ -81,7 +81,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             TemplateString templateString = "testTemplate";
 
             // Act
-            var context = new TemplateContext(null, token, templateString);
+            var context = new TemplateContext(null!, token, templateString);
 
             // Assert
             Assert.That(context.Out, Is.Null);
@@ -104,7 +104,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             TemplateString templateString = "testTemplate";
 
             // Act
-            var context = new TemplateContext(writer, null, templateString);
+            var context = new TemplateContext(writer, null!, templateString);
 
             // Assert
             Assert.That(context.Out, Is.SameAs(writer));
@@ -175,7 +175,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             const string token = "testToken";
 
             // Act
-            var context = new TemplateContext(writer, token, null);
+            var context = new TemplateContext(writer, token, null!);
 
             // Assert
             Assert.That(context.Out, Is.SameAs(writer));
@@ -242,7 +242,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void Constructor_AllNullParameters_InitializesWithNulls()
         {
             // Act
-            var context = new TemplateContext(null, null, null);
+            var context = new TemplateContext(null!, null!, null!);
 
             // Assert
             Assert.That(context.Out, Is.Null);

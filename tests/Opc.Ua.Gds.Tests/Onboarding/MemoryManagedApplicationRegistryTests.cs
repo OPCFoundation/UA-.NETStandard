@@ -33,8 +33,6 @@ using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Gds.Server.Onboarding;
 
-#nullable enable
-
 namespace Opc.Ua.Gds.Tests.Onboarding
 {
     /// <summary>

@@ -1,13 +1,14 @@
 # OPC UA Robotics
 
-The Robotics libraries implement the OPC UA Robotics companion specification
-([OPC 40010-1](https://reference.opcfoundation.org/Robotics/v102/docs/), version
-1.02). Robotics builds on Industrial Automation
-([OPC 10000-200](https://reference.opcfoundation.org/IA/v400/docs/)), which in turn
-builds on Device Integration
-([OPC 10000-100](https://reference.opcfoundation.org/DI/v104/docs/)); all three
-models are source-generated from their released NodeSets and loaded in
-dependency order.
+The Robotics libraries implement version 1.02 of the OPC UA Robotics
+companion specification
+([OPC 40010-1](https://reference.opcfoundation.org/Robotics/v102/docs/)).
+Robotics builds on Industrial Automation
+([OPC 10000-200](https://reference.opcfoundation.org/IA/v400/docs/)),
+which builds on Device Integration
+([OPC 10000-100](https://reference.opcfoundation.org/DI/v104/docs/)).
+The stack generates all three models from their released NodeSets and loads
+them in dependency order.
 
 > **Status: draft companion model.** The namespace
 > `http://opcfoundation.org/UA/RobotIntent/` and every NodeId in it are
@@ -29,8 +30,61 @@ Robot Intent supplies the verbs, and only the verbs, so the two compose rather t
 * [`Opc.Ua.Robotics.Client`](../src/Opc.Ua.Robotics.Client) carries discovery, the awaitable operation
   handle, command authority, missions and the fluent intent builders.
 
-The NodeSet declares exactly one `RequiredModel` — the base OPC UA namespace — so a server can adopt
-Robot Intent without pulling in OPC 40010, OPC 10000-100 DI, or anything else.
+The NodeSet declares exactly one `RequiredModel`: the base OPC UA namespace.
+A server can therefore adopt Robot Intent without depending on OPC 40010,
+OPC 10000-100 Device Integration, or another companion model.
+
+## Contents
+
+- [Packages](#packages)
+- [Minimal hosted server](#minimal-hosted-server)
+- [Hosting API](#hosting-api)
+  - [Class-based code-behind](#class-based-code-behind)
+  - [Model providers](#model-providers)
+- [Build context](#build-context)
+- [Topology builders](#topology-builders)
+- [Custom node managers and non-DI hosting](#custom-node-managers-and-non-di-hosting)
+- [Vendor extensions](#vendor-extensions)
+- [Layering](#layering)
+- [Common contracts](#common-contracts)
+- [Client](#client)
+  - [Registration](#registration)
+  - [API](#api)
+  - [Walking a cell](#walking-a-cell)
+  - [Classifying a discovered node](#classifying-a-discovered-node)
+  - [Invoking robot operations](#invoking-robot-operations)
+  - [Standard operations](#standard-operations)
+  - [Programs](#programs)
+  - [Observing telemetry](#observing-telemetry)
+- [Operation conventions](#operation-conventions)
+- [Sample](#sample)
+- [URML primitive mapping](#urml-primitive-mapping)
+- [Robot Intent](#robot-intent)
+  - [Hosting a controller](#hosting-a-controller)
+  - [Declaring a robot](#declaring-a-robot)
+  - [Writing an executor](#writing-an-executor)
+  - [Client: submit and await](#client-submit-and-await)
+  - [Client: missions](#client-missions)
+  - [Client: cancellation, pause and retry](#client-cancellation-pause-and-retry)
+  - [Pose maths](#pose-maths)
+  - [Handling refusal](#handling-refusal)
+  - [Monitoring and direct control for agents](#monitoring-and-direct-control-for-agents)
+  - [MCP tools for Robot Intent](#mcp-tools-for-robot-intent)
+  - [Facets in code](#facets-in-code)
+  - [Limitations](#limitations)
+  - [Why a submission is not a method call](#why-a-submission-is-not-a-method-call)
+  - [The intent hierarchy](#the-intent-hierarchy)
+  - [Poses, frames and units](#poses-frames-and-units)
+  - [The lifecycle](#the-lifecycle)
+  - [Missions](#missions)
+  - [Command authority](#command-authority)
+  - [Safety and the boundary](#safety-and-the-boundary-that-is-never-crossed)
+  - [What this interface carries and what it brokers](#what-this-interface-carries-and-what-it-brokers)
+  - [NodeIds in intents are untrusted input](#nodeids-in-intents-are-untrusted-input)
+  - [Interoperating with OPC 40010](#interoperating-with-opc-40010)
+  - [Facets](#facets)
+  - [Profile and facet URI publication](#profile-and-facet-uri-publication)
+- [See also](#see-also)
 
 ## Packages
 
@@ -581,6 +635,89 @@ fallback.
 | `RoboticsClient.DiscoverMotionDeviceSystemsAsync(session, root, ct)` (static) | Session-only discovery for callers that do not hold a client instance. |
 | `RoboticsClient.TryGetRoboticsTypeName(typeDefinition, namespaceUris, out name)` (static) | Offline exact-match classification with no server round-trip. |
 
+The snapshot reads follow the OPC 40010-1 layout, with the namespace indices of
+the session:
+
+- Identification properties (`Manufacturer`, `SerialNumber`, …) are read
+  directly below the component, with DI browse names.
+- Process values (`ActualPosition`, `EmergencyStop`, `TaskProgramName`,
+  `SpeedOverride`, …) are read below the DI `ParameterSet`, with Robotics
+  browse names.
+- Other members (`MotionProfile`, `MotionDeviceCategory`, `Pitch`, `Mass`, the
+  names of safety functions and task modules, …) are read directly below their
+  object, with Robotics browse names.
+- Motors and gears are placeholders with instance-specific names; a power
+  train's motors and gears are found by type definition (`MotorType`,
+  `GearType`, subtypes included). A motor's drives are found through its
+  `IsDrivenBy` references; a drive that drives several motors is listed once.
+
+The values a client typically shows or follows come with the NodeId of the
+variable they were read from (`AxisStateSnapshot.ActualPositionId`,
+`MotionDeviceSnapshot.SpeedOverrideId`, `SafetyStateSnapshot.EmergencyStopId`,
+`TaskControlSnapshot.TaskProgramNameId`, `MotorSnapshot.MotorTemperatureId`,
+`LoadSnapshot.MassId`, `GearSnapshot.PitchId`, …), or `NodeId.Null` when the
+server does not publish the variable. A client can subscribe to such a value
+without resolving the browse paths again. Not every value in a snapshot has an
+id: `LoadSnapshot.CenterOfMass` and `Inertia`, `AxisSnapshot.MotionProfile`,
+`MotionDeviceSnapshot.Category`, `GearSnapshot.GearRatio` and the engineering
+units and ranges (`AxisSnapshot.Engineering`, `LoadSnapshot.MassEngineering`,
+`MotorSnapshot.MotorTemperatureEngineering`) are read once and carry no
+NodeId.
+
+`ControllerSnapshot` and `TaskControlSnapshot` also carry the state of their
+operation state machine: `CurrentStateId` is the `CurrentState` variable of the
+`SystemOperationStateMachine` or `TaskControlStateMachine`, and `CurrentState`
+is the `RoboticsOperationState` it named when read. The state is told by the
+NodeId in `CurrentState/Id`, so it does not depend on the language the server
+localizes the state name to. The Id is matched against the `Idle`, `Ready` and
+`Executing` states the Robotics model declares on
+`SystemOperationStateMachineType` and `TaskControlStateMachineType` (the
+NodeIds a server publishes when it does not instantiate the states, mapped to
+the session's index of the Robotics namespace), and against state objects a
+server instantiates below the machine. The state name is used only when
+`CurrentState` has no `Id` property. `CurrentState` is `null` when the state
+machine is absent, the read of `CurrentState` failed, its `Id` cannot be read
+or names a state other than `Idle`, `Ready` or `Executing`, or, without an
+`Id`, the name is another state's; the rest of the snapshot is still
+returned. `ControllerSnapshot.SystemOperationId` is the SystemOperation object.
+
+`RoboticsComponentIdentification` includes the DI `HardwareRevision`,
+`SoftwareRevision`, `ManufacturerUri` and `ProductInstanceUri`, and
+`MotorSnapshot` the motor's `MotorTemperature` (with its `EngineeringUnits`
+and `EURange` in `MotorTemperatureEngineering`), `BrakeReleased` and
+`EffectiveLoadRate`, all read below the motor's DI `ParameterSet`.
+
+The engineering metadata of the AnalogUnitType values is read with them:
+`AxisSnapshot.Engineering` carries the `EngineeringUnits` of `ActualPosition`,
+`ActualSpeed` and `ActualAcceleration` (`PositionUnit`, `SpeedUnit`,
+`AccelerationUnit`) and their `EURange` (`Limits.Position`, `Limits.Speed`,
+`Limits.Acceleration`), and `LoadSnapshot.MassEngineering` those of the load's
+`Mass`. `GearSnapshot.GearRatio` is the gear's `GearRatio` as a
+`RationalNumber`. A property the server does not publish, whose read fails or
+whose value has a bad status stays `null`; the rest of the snapshot is still
+returned. `Mass` is read in
+one request with its properties and `Pitch` with the `GearRatio`, so a failed
+`Mass` or `Pitch` read keeps the server's status in the `DataValue`, like the
+axis values and `MotorTemperature`, instead of failing the snapshot.
+
+```csharp
+AxisSnapshot axis = await robots.ReadAxisAsync(axisNodeId, ct);
+if (!axis.State.ActualPositionId.IsNull)
+{
+    await foreach (DataValueChange change in streaming.SubscribeDataChangesAsync(
+        axis.State.ActualPositionId, null, ct))
+    {
+        // The ActualPosition value as it changes.
+    }
+}
+
+TaskControlSnapshot task = await robots.ReadTaskControlAsync(taskControlNodeId, ct);
+if (task.CurrentState == RoboticsOperationState.Ready)
+{
+    // A program is loaded; subscribe to task.CurrentStateId to follow the state.
+}
+```
+
 Every discovery method returns `ArrayOf<NodeId>` and uses `ManagedBrowseAsync`,
 so a server that caps references per node cannot silently truncate the result.
 When the server does not expose the Robotics namespace, discovery returns an
@@ -735,9 +872,10 @@ Every primitive has a route through this SDK:
 
 URML's Layer-1 capability manifest is derived live from
 `ReadSystemAsync`, rather than hand-declared: motion devices give arm count,
-`AxisSnapshot.Limits` and `AxisEngineeringOptions` give joint limits and
-velocities, `MotionDeviceCategory` gives mobility, `SafetyStateSnapshot` gives
-the safety envelope, `ProgramsAsync` gives the declared programs, and
+`AxisSnapshot.Engineering` (an `AxisEngineeringOptions` with its `Limits`) gives
+joint limits and velocities, `MotionDeviceCategory` gives mobility,
+`SafetyStateSnapshot` gives the safety envelope, `ProgramsAsync` gives the
+declared programs, and
 `RoboticsRelationshipSnapshot` gives the kinematic structure. Robot Intent
 types and application-owned methods are resolved from the live address space, so
 no per-deployment NodeId mapping file is required.
@@ -813,6 +951,14 @@ namespace, a machine can expose Robot Intent without OPC 40010, DI or the Roboti
 server that already owns an OPC 40010 node manager can instead use `ConfigureRobotIntentFor<TNodeManager>`
 and then link a `MotionDeviceSystem` to the intent controller with `HasIntentController`. That inverse
 reference is the structural evidence used to derive **RI-Interop-40010**.
+
+`RobotIntentNodeManager.DisposeAsync` waits for every controller host and the base
+node-manager cleanup, including work deferred after `ExecutorShutdownTimeoutMs`
+expires. That host-level timeout does not permit shared server resources to be
+released while an executor is still running. Executors must therefore honor
+shutdown cancellation for asynchronous server teardown to complete. Synchronous
+`Dispose` remains nonblocking when host cleanup is deferred; subsequent or
+concurrent `DisposeAsync` calls join that cleanup and observe any failure.
 
 ### Declaring a robot
 

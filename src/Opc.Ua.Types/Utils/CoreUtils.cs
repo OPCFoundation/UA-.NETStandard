@@ -137,9 +137,82 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Decodes the percent-encoded NamespaceUri or ServerUri of the string
+        /// form of a NodeId, ExpandedNodeId or QualifiedName. Part 6 5.1.12
+        /// uses the RFC 3986 percent-encoding, so the escaped octets are UTF-8.
+        /// A malformed escape or an invalid UTF-8 sequence fails the decode
+        /// instead of being kept verbatim, so that every parser resolves the
+        /// same text to the same URI.
+        /// </summary>
+        internal static bool TryUnescapeUri(
+            ReadOnlySpan<char> uri,
+            [NotNullWhen(true)] out string? result)
+        {
+            int first = uri.IndexOf('%');
+            if (first < 0)
+            {
+                result = uri.ToString();
+                return true;
+            }
+
+            var buffer = new StringBuilder(uri.Length);
+            byte[] octets = new byte[uri.Length / 3];
+            int ii = 0;
+            while (ii < uri.Length)
+            {
+                if (uri[ii] != '%')
+                {
+                    buffer.Append(uri[ii++]);
+                    continue;
+                }
+
+                // Collect a run of escapes, a multi-byte character spans several.
+                int count = 0;
+                while (ii < uri.Length && uri[ii] == '%')
+                {
+                    int high = ii + 2 < uri.Length ? HexDigitValue(uri[ii + 1]) : -1;
+                    int low = high >= 0 ? HexDigitValue(uri[ii + 2]) : -1;
+                    if (low < 0)
+                    {
+                        result = null;
+                        return false;
+                    }
+                    octets[count++] = (byte)((high << 4) | low);
+                    ii += 3;
+                }
+
+                try
+                {
+                    buffer.Append(s_strictUtf8.GetString(octets, 0, count));
+                }
+                catch (DecoderFallbackException)
+                {
+                    result = null;
+                    return false;
+                }
+            }
+
+            result = buffer.ToString();
+            return true;
+
+            static int HexDigitValue(char ch)
+            {
+                return ch switch
+                {
+                    >= '0' and <= '9' => ch - '0',
+                    >= 'A' and <= 'F' => ch - 'A' + 10,
+                    >= 'a' and <= 'f' => ch - 'a' + 10,
+                    _ => -1
+                };
+            }
+        }
+
+        private static readonly UTF8Encoding s_strictUtf8 = new(false, true);
+
+        /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
             if (buffer == null || buffer.Length == 0)
@@ -264,7 +337,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats a message using the invariant locale.
         /// </summary>
-        public static string Format(string text, params object[] args)
+        public static string Format(string text, params object?[] args)
         {
             return string.Format(CultureInfo.InvariantCulture, text, args);
         }
@@ -575,6 +648,14 @@ namespace Opc.Ua
             {
                 return IsEqual(timeu1, (DateTimeUtc)value2);
             }
+
+            // strings are equal only if ordinally equal; string.CompareTo is a
+            // culture-sensitive comparison that skips ignorable characters.
+            if (value1 is string string1)
+            {
+                return string.Equals(string1, (string)value2, StringComparison.Ordinal);
+            }
+
             // check for compareable objects.
             if (value1 is IComparable comparable1)
             {
@@ -764,22 +845,39 @@ namespace Opc.Ua
                             return false;
                         }
 
-                        // check if end of pattern and still string data left.
-                        if (pIndex >= pattern.Length && tIndex < target.Length - 1)
+                        tIndex++;
+
+                        // check if end of pattern and still string data left. The
+                        // bound used to be target.Length - 1, which let one
+                        // unmatched trailing character through. The check has to
+                        // come after the character is consumed, as it does in
+                        // the exact char case below, or a pattern ending in '?'
+                        // never matches.
+                        if (pIndex >= pattern.Length && tIndex < target.Length)
                         {
                             return false;
                         }
 
-                        tIndex++;
                         break;
                     // match char set
                     case '[':
-                        c = ConvertCase(target[tIndex++], caseSensitive);
-
-                        if (tIndex > target.Length)
+                        // An unterminated '[' must not read past the pattern.
+                        if (pIndex >= pattern.Length)
                         {
                             return false; // syntax
                         }
+
+                        // A character set has to be closed. Without this the
+                        // scanner below runs off the end of the pattern and then
+                        // leaves the switch as though the set had matched, so
+                        // "[a" matched "a" while the empty "[" was already
+                        // rejected as a syntax error.
+                        if (pattern.IndexOf(']', pIndex) < 0)
+                        {
+                            return false; // syntax
+                        }
+
+                        c = ConvertCase(target[tIndex++], caseSensitive);
 
                         l = '\0';
 
@@ -787,6 +885,13 @@ namespace Opc.Ua
                         if (pattern[pIndex] == '!')
                         {
                             ++pIndex;
+
+                            // A negated set with nothing after the '!' is a
+                            // syntax error, not a read past the pattern.
+                            if (pIndex >= pattern.Length)
+                            {
+                                return false; // syntax
+                            }
 
                             p = ConvertCase(pattern[pIndex++], caseSensitive);
 
@@ -799,11 +904,16 @@ namespace Opc.Ua
 
                                 if (p == '-')
                                 {
+                                    // get high limit of range
+                                    if (pIndex >= pattern.Length)
+                                    {
+                                        return false; // syntax
+                                    }
+
                                     // check a range of chars?
                                     p = ConvertCase(pattern[pIndex], caseSensitive);
 
-                                    // get high limit of range
-                                    if (pIndex > pattern.Length || p == ']')
+                                    if (p == ']')
                                     {
                                         return false; // syntax
                                     }
@@ -827,6 +937,8 @@ namespace Opc.Ua
                         // match if char is in set []
                         else
                         {
+                            bool matchedInSet = false;
+
                             p = ConvertCase(pattern[pIndex++], caseSensitive);
 
                             while (pIndex < pattern.Length)
@@ -838,17 +950,23 @@ namespace Opc.Ua
 
                                 if (p == '-')
                                 {
+                                    // get high limit of range
+                                    if (pIndex >= pattern.Length)
+                                    {
+                                        return false; // syntax
+                                    }
+
                                     // check a range of chars?
                                     p = ConvertCase(pattern[pIndex], caseSensitive);
 
-                                    // get high limit of range
-                                    if (pIndex > pattern.Length || p == ']')
+                                    if (p == ']')
                                     {
                                         return false; // syntax
                                     }
 
                                     if (c >= l && c <= p)
                                     {
+                                        matchedInSet = true;
                                         break; // if in range, move on
                                     }
                                 }
@@ -857,10 +975,21 @@ namespace Opc.Ua
 
                                 if (c == p) // if char matches this element move on
                                 {
+                                    matchedInSet = true;
                                     break;
                                 }
 
                                 p = ConvertCase(pattern[pIndex++], caseSensitive);
+                            }
+
+                            // The loop above also ends when the pattern runs out,
+                            // which is what happens for the last element of a set
+                            // that closes the pattern. Leaving the switch then
+                            // treated the set as matched, so "[a]" matched every
+                            // character instead of only 'a'.
+                            if (!matchedInSet)
+                            {
+                                return false;
                             }
 
                             while (pIndex < pattern.Length && p != ']') // got a match in char set skip to end of set
@@ -890,7 +1019,7 @@ namespace Opc.Ua
                         }
 
                         // check if end of pattern and still string data left.
-                        if (pIndex >= pattern.Length && tIndex < target.Length - 1)
+                        if (pIndex >= pattern.Length && tIndex < target.Length)
                         {
                             return false;
                         }
@@ -901,10 +1030,18 @@ namespace Opc.Ua
 
             if (tIndex >= target.Length)
             {
+                // A trailing run of '*' matches the empty remainder, so "a"
+                // has to match "a*".
+                while (pIndex < pattern.Length && pattern[pIndex] == '*')
+                {
+                    pIndex++;
+                }
+
                 return pIndex >= pattern.Length; // if end of pattern true
             }
 
-            return true;
+            // The pattern is exhausted but the target still has characters.
+            return false;
         }
 
         /// <summary>

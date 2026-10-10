@@ -1,0 +1,87 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <!--
+    Interop tests between this (2.0) stack and the released 1.5.378 stack:
+      - 2.0 client  -> 1.5.378 server
+      - 1.5.378 client -> 2.0 server
+    The 1.5.378 side lives in ..\Opc.Ua.Interop.LegacyPeer, built from the NuGet
+    packages and started as a separate process. It is built and copied to
+    $(OutDir)legacy-peer by the BuildLegacyInteropPeer target below.
+  -->
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
+    <RootNamespace>Opc.Ua.Interop.Tests</RootNamespace>
+    <GenerateProgramFile>false</GenerateProgramFile>
+    <NoWarn>$(NoWarn);RCS0056;RCS1166;RCS1174;RCS1229;RCS1047;RCS1077;NUnit2023;NUnit2010;NUnit2045</NoWarn>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
+    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" />
+    <PackageReference Include="NUnit" />
+    <PackageReference Include="NUnit.Console" />
+    <PackageReference Include="NUnit.Analyzers">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="NUnit3TestAdapter">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers</IncludeAssets>
+    </PackageReference>
+    <PackageReference Include="coverlet.collector">
+      <PrivateAssets>all</PrivateAssets>
+      <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
+    </PackageReference>
+  </ItemGroup>
+  <ItemGroup>
+    <Compile Include="..\Common\Main.cs" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\Opc.Ua.Client\Opc.Ua.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Configuration\Opc.Ua.Configuration.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Server\Opc.Ua.Server.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Client.ComplexTypes\Opc.Ua.Client.ComplexTypes.csproj" />
+    <ProjectReference Include="..\..\samples\Quickstarts.Servers\Quickstarts.Servers.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Sessions.Tests\Opc.Ua.Sessions.Tests.csproj" />
+    <ProjectReference Include="..\Opc.Ua.Test.Common\Opc.Ua.Test.Common.csproj" />
+  </ItemGroup>
+
+  <!--
+    Builds the 1.5.378 peer and copies it next to the tests. The peer does not
+    import the repository build settings (see its Directory.Build.props), so it
+    is built with only the properties given here: the global properties of this
+    build (TargetFramework, CustomTestTarget, ...) are removed. The MSBuild task
+    builds a project once per distinct property set, so the inner builds of a
+    multi-targeted build share one peer restore and build instead of racing on its
+    obj folder. The restore runs with an extra property so the build evaluates the
+    project again and sees the restored package imports.
+    Override the stack version with -p:LegacyStackVersion=<version>.
+  -->
+  <PropertyGroup>
+    <LegacyPeerProject>$(MSBuildThisFileDirectory)..\Opc.Ua.Interop.LegacyPeer\Opc.Ua.Interop.LegacyPeer.csproj</LegacyPeerProject>
+    <LegacyPeerProperties>Configuration=$(Configuration)</LegacyPeerProperties>
+    <LegacyPeerProperties Condition="'$(LegacyStackVersion)' != ''">$(LegacyPeerProperties);LegacyStackVersion=$(LegacyStackVersion)</LegacyPeerProperties>
+    <LegacyPeerRemovedProperties>TargetFramework;TargetFrameworks;CustomTestTarget;RuntimeIdentifier;OutDir;OutputPath;CollectCoverage</LegacyPeerRemovedProperties>
+  </PropertyGroup>
+  <Target Name="BuildLegacyInteropPeer" AfterTargets="Build" Condition="'$(TargetFramework)' != ''">
+    <MSBuild Projects="$(LegacyPeerProject)"
+             Targets="Restore"
+             Properties="$(LegacyPeerProperties);_LegacyPeerRestore=true"
+             RemoveProperties="$(LegacyPeerRemovedProperties)" />
+    <MSBuild Projects="$(LegacyPeerProject)"
+             Targets="Build"
+             Properties="$(LegacyPeerProperties)"
+             RemoveProperties="$(LegacyPeerRemovedProperties)">
+      <Output TaskParameter="TargetOutputs" ItemName="_LegacyPeerAssembly" />
+    </MSBuild>
+    <ItemGroup>
+      <_LegacyPeerFile Include="%(_LegacyPeerAssembly.RootDir)%(_LegacyPeerAssembly.Directory)**\*" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_LegacyPeerFile)"
+          DestinationFiles="@(_LegacyPeerFile->'$(OutDir)legacy-peer\%(RecursiveDir)%(Filename)%(Extension)')"
+          SkipUnchangedFiles="true" />
+  </Target>
+</Project>

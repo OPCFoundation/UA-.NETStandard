@@ -38,21 +38,78 @@ using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Gds.Server.Database;
 using Opc.Ua.Gds.Server.Diagnostics;
+using Opc.Ua.Gds.Server.Identity;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.Gds.Server
 {
     /// <summary>
     /// A node manager for a global discovery server
     /// </summary>
-    public class ApplicationsNodeManager : AsyncCustomNodeManager
+    /// <remarks>
+    /// <para>
+    /// The GDS companion model, its loader and the fluent plumbing are
+    /// source-generated from the <c>[NodeManager]</c> attribute below. The
+    /// design stays owned by <c>Opc.Ua.Gds</c>, which emits the model
+    /// types; this assembly only binds a manager to it. What is written by
+    /// hand is the behaviour, and it all arrives in one pass:
+    /// <see cref="ConfigureAsync"/> starts the certificate authorities —
+    /// real I/O — and binds them, then wires everything else against the
+    /// loaded model. That hook can await and carries the builder, so the
+    /// I/O and the address-space work no longer need separate passes.
+    /// </para>
+    /// <para>
+    /// The manager owns two namespaces in the order the attribute below
+    /// declares them: the companion model's, which every node it loads
+    /// lives in, and the application-record namespace, which the
+    /// application database, the certificate-request store and every
+    /// other server-owned instance mint into. The constructor points the
+    /// NodeId factory at the second one, so which of them comes first is
+    /// no longer part of the NodeIds this manager hands out.
+    /// </para>
+    /// <para>
+    /// The model ships its <c>AuthorizationServices</c> and
+    /// <c>KeyCredentialManagement</c> folders empty. The GDS fills the
+    /// first with a <c>Default</c> service, created and wired together in
+    /// the <c>Configure</c> pass through the builder's node-creation
+    /// surface. A host that adds further services later wires each through
+    /// <see cref="ConfigureAuthorizationService"/> or
+    /// <see cref="ConfigureKeyCredentialServiceAsync"/>;
+    /// that is a direct call rather than an
+    /// <c>AddBehaviourToPredefinedNodeAsync</c> override, because the
+    /// fluent lifecycle hooks are keyed by NodeId and cannot name a node
+    /// that does not exist yet.
+    /// </para>
+    /// </remarks>
+    [NodeManager(
+        NamespaceUri = Namespaces.OpcUaGds,
+        AdditionalNamespaceUris = [ApplicationsNamespaceUri],
+        GenerateFactory = false,
+        GenerateDefaultConstructor = false)]
+    public partial class ApplicationsNodeManager
     {
+        /// <summary>
+        /// Namespace the GDS mints application records, certificate
+        /// requests and other server-owned instance NodeIds in.
+        /// </summary>
+        public const string ApplicationsNamespaceUri =
+            "http://opcfoundation.org/UA/GDS/applications/";
+
+        /// <summary>
+        /// Browse name of the authorization service the GDS materialises
+        /// under the model's <c>AuthorizationServices</c> folder, which
+        /// the companion model itself ships empty.
+        /// </summary>
+        public const string DefaultAuthorizationServiceName = "Default";
+
         /// <summary>
         /// Gets or sets the trust-list manager for named store access.
         /// </summary>
         public ICertificateTrustListManager? TrustListManager { get; set; }
 
+        private readonly NodeId m_directoryId;
         private readonly NodeId m_defaultApplicationGroupId;
         private readonly NodeId m_defaultHttpsGroupId;
         private readonly NodeId m_defaultUserTokenGroupId;
@@ -67,20 +124,28 @@ namespace Opc.Ua.Gds.Server
             ICertificateRequest request,
             ICertificateGroup certificateGroupFactory,
             bool autoApprove = false)
-            : base(
-                  server,
-                  configuration,
-                  server.Telemetry.CreateLogger<ApplicationsNodeManager>())
+            // null adopts DefaultNamespaceUris(): the companion model's
+            // namespace, then the application-record one.
+            : this(server, configuration, namespaceUris: null)
         {
-            NamespaceUris = ["http://opcfoundation.org/UA/GDS/applications/", Namespaces.OpcUaGds];
-
-            SystemContext.NodeIdFactory = this;
+            // Application records, certificate requests and the certificate
+            // groups a deployment adds are the server's own instances, so
+            // they are minted into the application-record namespace rather
+            // than into the model's, which is this manager's first one.
+            // Counter identifiers because those instances are registered and
+            // unregistered under repeating names, and Counter is the only
+            // mode that stays unique when a browse path repeats.
+            NodeIdFactory = NodeIdFactory
+                .WithMode(NodeIdAssignmentMode.Counter)
+                .WithDefaultNamespaceIndex(ApplicationsNamespaceIndex);
 
             m_configuration = configuration;
             // get the configuration for the node manager.
             m_globalDiscoveryServerConfiguration =
                 configuration.ParseExtension<GlobalDiscoveryServerConfiguration>()
                 ?? new GlobalDiscoveryServerConfiguration();
+            AliasNameAggregationEnabled =
+                m_globalDiscoveryServerConfiguration.EnableAliasNameAggregation;
 
             // use suitable defaults if no configuration exists.
 
@@ -92,6 +157,7 @@ namespace Opc.Ua.Gds.Server
                     "," + defaultSubjectNameContext;
             }
 
+            m_directoryId = ExpandedNodeId.ToNodeId(ObjectIds.Directory, Server.NamespaceUris);
             m_defaultApplicationGroupId = ExpandedNodeId.ToNodeId(
                 ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
                 Server.NamespaceUris);
@@ -106,6 +172,7 @@ namespace Opc.Ua.Gds.Server
             m_database = database;
             m_request = request;
             m_certificateGroupFactory = certificateGroupFactory;
+            m_ownedCertificateGroups = [];
             m_certificateGroups = [];
 
             try
@@ -147,19 +214,520 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
+        // --- Fluent wiring of the GDS companion model -------------
+        // Everything the Directory object, its certificate groups and
+        // the authorization service need is resolved against the
+        // loaded address space here, once, from the source-generated
+        // CreateAddressSpaceAsync.
+
         /// <summary>
-        /// Creates the NodeId for the specified node.
+        /// Brings the GDS up and binds its handlers to the loaded model.
         /// </summary>
-        public override NodeId New(ISystemContext context, NodeState node)
+        /// <remarks>
+        /// <para>
+        /// One pass. The certificate authorities are real I/O — opening
+        /// stores, creating CA certificates — and everything else resolves
+        /// against the address space, but both can live here because this
+        /// hook can await and carries the builder.
+        /// </para>
+        /// <para>
+        /// Every lookup resolves eagerly and throws
+        /// <see cref="ServiceResultException"/> when it fails, so a model
+        /// that no longer matches the code is reported at startup rather
+        /// than as a <c>Bad_NotImplemented</c> on the first call.
+        /// </para>
+        /// <para>
+        /// Subclasses that add their own wiring should override this and
+        /// await <c>base.ConfigureAsync(builder, cancellationToken)</c>
+        /// first; the builder is sealed once the generated
+        /// <c>CreateAddressSpaceAsync</c> finishes.
+        /// </para>
+        /// </remarks>
+        /// <param name="builder">The active fluent builder.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected override async ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
+            CancellationToken cancellationToken)
         {
-            // generate a numeric node id if the node has a parent and no node id assigned.
-            if (node is BaseInstanceState instance && instance.Parent != null)
+            if (builder == null)
             {
-                return GenerateNodeId();
+                throw new ArgumentNullException(nameof(builder));
             }
 
-            return node.NodeId;
+            m_certTypeMap = CreateCertificateTypeMap();
+            m_database.NamespaceIndex = ApplicationsNamespaceIndex;
+            m_request.NamespaceIndex = ApplicationsNamespaceIndex;
+
+            await InitializeCertificateGroupsAsync(builder).ConfigureAwait(false);
+
+            INodeBuilder<CertificateDirectoryState> directory =
+                builder.Node<CertificateDirectoryState>(m_directoryId);
+
+            ConfigureDirectoryServices(directory);
+            ConfigureCertificateGroups(directory);
+
+            // Created and wired in one place: the builder's Add surface
+            // stages the node, finalises its NodeIds before handing it back,
+            // and registers it once this pass returns.
+            ConfigureAuthorizationService(EnsureDefaultAuthorizationService(builder));
+
+            InitializeAliasNameAggregation();
         }
+
+        /// <summary>
+        /// Wires the methods of the <c>Directory</c> object
+        /// (OPC 10000-12 §7.5 - §7.8).
+        /// </summary>
+        private void ConfigureDirectoryServices(
+            INodeBuilder<CertificateDirectoryState> directory)
+        {
+            // Services without a self-administration grant: these carry
+            // no application id a caller could own, so the handlers apply
+            // the plain role checks themselves.
+            Method<QueryServersMethodState>(directory, BrowseNames.QueryServers)
+                .OnCall = OnQueryServers;
+            Method<QueryApplicationsMethodState>(directory, BrowseNames.QueryApplications)
+                .OnCall = OnQueryApplications;
+            Method<RegisterApplicationMethodState>(directory, BrowseNames.RegisterApplication)
+                .OnCallAsync = OnRegisterApplicationAsync;
+            Method<RevokeCertificateMethodState>(directory, BrowseNames.RevokeCertificate)
+                .OnCallAsync = OnRevokeCertificateAsync;
+            Method<CheckRevocationStatusMethodState>(directory, BrowseNames.CheckRevocationStatus)
+                .OnCallAsync = OnCheckRevocationStatusAsync;
+
+            // Services an application may invoke for its own record. The
+            // permission hooks add the SelfAdmin role while the method's
+            // RolePermissions are read, so the stack's access check lets
+            // the owning application through before the handler runs.
+            SelfAdministered<UpdateApplicationMethodState>(
+                    directory, BrowseNames.UpdateApplication)
+                .OnCall = OnUpdateApplication;
+            SelfAdministered<UnregisterApplicationMethodState>(
+                    directory, BrowseNames.UnregisterApplication)
+                .OnCallAsync = OnUnregisterApplicationAsync;
+            SelfAdministered<FindApplicationsMethodState>(
+                    directory, BrowseNames.FindApplications)
+                .OnCall = OnFindApplications;
+            SelfAdministered<GetApplicationMethodState>(
+                    directory, BrowseNames.GetApplication)
+                .OnCall = OnGetApplication;
+            SelfAdministered<StartNewKeyPairRequestMethodState>(
+                    directory, BrowseNames.StartNewKeyPairRequest)
+                .OnCall = OnStartNewKeyPairRequest;
+            SelfAdministered<StartSigningRequestMethodState>(
+                    directory, BrowseNames.StartSigningRequest)
+                .OnCallAsync = OnStartSigningRequestAsync;
+            SelfAdministered<FinishRequestMethodState>(
+                    directory, BrowseNames.FinishRequest)
+                .OnCallAsync = OnFinishRequestAsync;
+            SelfAdministered<GetCertificateGroupsMethodState>(
+                    directory, BrowseNames.GetCertificateGroups)
+                .OnCall = OnGetCertificateGroups;
+            SelfAdministered<GetTrustListMethodState>(
+                    directory, BrowseNames.GetTrustList)
+                .OnCall = OnGetTrustList;
+            SelfAdministered<GetCertificateStatusMethodState>(
+                    directory, BrowseNames.GetCertificateStatus)
+                .OnCall = OnGetCertificateStatus;
+            SelfAdministered<GetCertificatesMethodState>(
+                    directory, BrowseNames.GetCertificates)
+                .OnCall = OnGetCertificates;
+        }
+
+        /// <summary>
+        /// Publishes the state of the three certificate groups the model
+        /// declares. The groups are already bound to their nodes by
+        /// <see cref="InitializeCertificateGroupsAsync"/>, which is what
+        /// gives them the ids this pass looks them up by.
+        /// </summary>
+        /// <param name="directory">The <c>Directory</c> object.</param>
+        private void ConfigureCertificateGroups(
+            INodeBuilder<CertificateDirectoryState> directory)
+        {
+            INodeBuilder<CertificateGroupFolderState> groups =
+                directory.Child<CertificateGroupFolderState>(
+                    GdsName(BrowseNames.CertificateGroups));
+
+            ConfigureCertificateGroup(
+                groups,
+                Ua.BrowseNames.DefaultApplicationGroup,
+                m_defaultApplicationGroupId,
+                Ua.ObjectTypeIds.ApplicationCertificateType);
+            ConfigureCertificateGroup(
+                groups,
+                Ua.BrowseNames.DefaultHttpsGroup,
+                m_defaultHttpsGroupId,
+                Ua.ObjectTypeIds.HttpsCertificateType);
+            ConfigureCertificateGroup(
+                groups,
+                Ua.BrowseNames.DefaultUserTokenGroup,
+                m_defaultUserTokenGroupId,
+                Ua.ObjectTypeIds.UserCertificateType);
+        }
+
+        /// <summary>
+        /// Publishes one predefined certificate group's certificate types
+        /// and marks its trust list writeable.
+        /// </summary>
+        /// <param name="groups">The <c>CertificateGroups</c> folder.</param>
+        /// <param name="browseName">Browse name of the group node.</param>
+        /// <param name="groupId">
+        /// NodeId the configured group registers itself under.
+        /// </param>
+        /// <param name="fallbackCertificateType">
+        /// Concrete certificate type to advertise when the deployment
+        /// does not configure this group at all.
+        /// </param>
+        private void ConfigureCertificateGroup(
+            INodeBuilder<CertificateGroupFolderState> groups,
+            string browseName,
+            NodeId groupId,
+            NodeId fallbackCertificateType)
+        {
+            INodeBuilder<CertificateGroupState> group =
+                groups.Child<CertificateGroupState>(new QualifiedName(browseName));
+
+            // OPC 10000-12 §7.8.2 requires CertificateTypes to list the
+            // concrete types that can be requested through the group,
+            // while the model declares the abstract base type. The
+            // configured group knows what it can actually issue; without
+            // one, fall back to the concrete type of this group.
+            ArrayOf<NodeId> certificateTypes;
+            if (m_certificateGroups.TryGetValue(
+                groupId,
+                out ICertificateGroup? certificateGroup))
+            {
+                certificateTypes = [.. certificateGroup.CertificateTypes];
+            }
+            else
+            {
+                certificateTypes = [fallbackCertificateType];
+            }
+            group.Node.CertificateTypes!.Value = certificateTypes;
+
+            // OPC 10000-12 §7.8.2.1: a TrustList that supports
+            // CloseAndUpdate / AddCertificate / RemoveCertificate is
+            // writeable; Writable / UserWritable advertise the capability
+            // while the role-based access on the individual methods
+            // enforces who may actually mutate the trust list.
+            TrustListState trustList = group
+                .Child<TrustListState>(new QualifiedName(Ua.BrowseNames.TrustList))
+                .Node;
+            trustList.LastUpdateTime!.Value = DateTime.UtcNow;
+            trustList.Writable!.Value = true;
+            trustList.UserWritable!.Value = true;
+        }
+
+        /// <summary>
+        /// Binds an initialized certificate group to the address space:
+        /// its group node, its trust list, and the trust-list handler that
+        /// serves the group's certificate stores. Creates the group node
+        /// first for a group the model does not predefine.
+        /// </summary>
+        /// <remarks>
+        /// This is where a group learns the NodeId it is addressed by, which
+        /// is why it runs in the <c>Configure</c> pass rather than alongside
+        /// the group's own startup: for a group the model does not predefine
+        /// the id does not exist until the node is staged.
+        /// </remarks>
+        /// <param name="builder">The active fluent builder.</param>
+        /// <param name="certificateGroup">The group to bind.</param>
+        protected void SetCertificateGroupNodes(
+            INodeManagerBuilder builder,
+            ICertificateGroup certificateGroup)
+        {
+            certificateGroup.DefaultTrustList = null!;
+            string groupId = certificateGroup.Configuration.Id!;
+
+            if (string.Equals(groupId, "DefaultHttpsGroup", StringComparison.OrdinalIgnoreCase))
+            {
+                certificateGroup.Id = m_defaultHttpsGroupId;
+                certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
+                    ExpandedNodeId.ToNodeId(
+                        ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup_TrustList,
+                        Server.NamespaceUris
+                    ))!;
+            }
+            else if (string.Equals(groupId, "DefaultUserTokenGroup", StringComparison.OrdinalIgnoreCase))
+            {
+                certificateGroup.Id = m_defaultUserTokenGroupId;
+                certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
+                    ExpandedNodeId.ToNodeId(
+                        ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList,
+                        Server.NamespaceUris
+                    ))!;
+            }
+            else if (string.Equals(groupId, "Default", StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(groupId, "DefaultApplicationGroup", StringComparison.OrdinalIgnoreCase))
+            {
+                certificateGroup.Id = m_defaultApplicationGroupId;
+                certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
+                    ExpandedNodeId.ToNodeId(
+                        ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup_TrustList,
+                        Server.NamespaceUris
+                    ))!;
+            }
+            else
+            {
+                // Create a new custom certificate group node in the address space
+                // for any group whose Id does not match one of the three predefined groups.
+                var customGroupNode = new CertificateGroupState(null);
+                customGroupNode.Create(
+                    SystemContext,
+                    NodeId.Null,
+                    new QualifiedName(groupId, ApplicationsNamespaceIndex),
+                    new LocalizedText(groupId),
+                    assignNodeIds: false);
+
+                customGroupNode.CertificateTypes?.Value = [.. certificateGroup.CertificateTypes];
+
+                // Staging the subtree through the builder attaches it to the
+                // folder, sheds the namespace-0 declaration ids the whole
+                // subtree still carries — Create ran with a null NodeId and
+                // assignNodeIds: false — for ids minted in the
+                // application-record namespace, and registers it once this
+                // pass returns. The ids are final by the time Add hands the
+                // node back, which is what lets the group key off one.
+                CertificateGroupState addedGroupNode = builder
+                    .Add(
+                        customGroupNode,
+                        ExpandedNodeId.ToNodeId(
+                            ObjectIds.Directory_CertificateGroups,
+                            Server.NamespaceUris))
+                    .Node;
+
+                certificateGroup.Id = addedGroupNode.NodeId;
+                certificateGroup.DefaultTrustList = addedGroupNode.TrustList!;
+
+                m_logger.CreatedCustomCertificateGroupNode(groupId, certificateGroup.Id);
+            }
+
+            if (certificateGroup.DefaultTrustList == null)
+            {
+                return;
+            }
+
+            var trustList = new TrustList(
+                certificateGroup.DefaultTrustList,
+                new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath!),
+                new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath!),
+                new TrustList.SecureAccess(HasTrustListAccess),
+                // the group trust list is shared by all applications of
+                // the group: SelfAdmin / ApplicationAdmin may only read it.
+                new TrustList.SecureAccess(
+                    (context, _) => AuthorizationHelper.HasTrustListWriteAccess(context)),
+                Server.Telemetry);
+            if (!string.Equals(groupId, "DefaultHttpsGroup", StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals(groupId, "DefaultUserTokenGroup", StringComparison.OrdinalIgnoreCase))
+            {
+                // OPC 10000-12 §7.8.2.5/§7.8.2.6: certificates written to an
+                // ApplicationCertificateType TrustList are validated with the
+                // OPC 10000-4 process. Issuers and CRLs come from the group's
+                // own TrustList content; the GDS security configuration only
+                // supplies the validation rules.
+                trustList.SetCertificateValidation(m_configuration.SecurityConfiguration);
+            }
+            trustList.SetAuditEventServer(Server);
+            certificateGroup.DefaultTrustList.Handle = trustList;
+        }
+
+        /// <summary>
+        /// Materialises the <c>Default</c> authorization service the model's
+        /// <c>AuthorizationServices</c> folder ships empty, and hands it back
+        /// for wiring.
+        /// </summary>
+        /// <remarks>
+        /// Creating it through the builder rather than registering it by hand
+        /// is what lets creation and wiring live together in <c>Configure</c>:
+        /// the node is staged, its NodeIds are final by the time the builder
+        /// returns, and it is registered after the pass. The declaration ids
+        /// its children carry — <c>Create</c> is called with
+        /// <c>assignNodeIds: false</c> — are rebased by the same staging pass.
+        /// </remarks>
+        /// <param name="builder">The active fluent builder.</param>
+        /// <returns>The service to wire, existing or newly created.</returns>
+        private AuthorizationServiceState EnsureDefaultAuthorizationService(
+            INodeManagerBuilder builder)
+        {
+            ushort namespaceIndex = NamespaceIndex;
+            var folderId = new NodeId(Objects.AuthorizationServices, namespaceIndex);
+            var browseName = new QualifiedName(DefaultAuthorizationServiceName, namespaceIndex);
+
+            // A deployment may have contributed its own Default already.
+            if (FindPredefinedNode<BaseObjectState>(folderId)?
+                    .FindChild(SystemContext, browseName) is AuthorizationServiceState existing)
+            {
+                return existing;
+            }
+
+            AuthorizationServiceState service = CreateDefaultAuthorizationService(
+                null,
+                SystemContext,
+                namespaceIndex,
+                browseName);
+
+            return builder.Add(service, folderId).Node;
+        }
+
+        private AuthorizationServiceState CreateDefaultAuthorizationService(
+            NodeState? folder,
+            ISystemContext context,
+            ushort namespaceIndex,
+            QualifiedName browseName)
+        {
+            var service = new AuthorizationServiceState(folder);
+
+            service.Create(
+                context,
+                new NodeId("AuthorizationServices/Default", namespaceIndex),
+                browseName,
+                new LocalizedText("Default"),
+                false);
+
+            // ServiceUri, ServiceCertificate and the mandatory GetServiceDescription method
+            // are created automatically by the source-generated AuthorizationServiceState.
+            // The Optional method children must be added explicitly using the generated
+            // Add* helpers; the Configure pass wires their OnCall handlers afterwards.
+            service
+                .AddRequestAccessToken(context)
+                .AddStartRequestToken(context)
+                .AddFinishRequestToken(context)
+                .AddRefreshToken(context);
+
+            service.ServiceUri!.Value = m_configuration.ApplicationUri ?? string.Empty;
+            service.ServiceCertificate!.Value = ByteString.Empty;
+            service.UserTokenPolicies?.Value = m_configuration.ServerConfiguration?.UserTokenPolicies ?? default;
+
+            return service;
+        }
+
+        /// <summary>
+        /// Wires an <c>AuthorizationService</c> object (OPC 10000-12 §7.10).
+        /// The GDS calls this from its <c>Configure</c> pass for the
+        /// <c>Default</c> service it materialises itself; a host that adds
+        /// further services to the folder at runtime calls it for each.
+        /// </summary>
+        /// <param name="authServiceNode">The service object to wire.</param>
+        protected void ConfigureAuthorizationService(AuthorizationServiceState authServiceNode)
+        {
+            if (authServiceNode == null)
+            {
+                throw new ArgumentNullException(nameof(authServiceNode));
+            }
+
+            authServiceNode.GetServiceDescription!.OnCall = OnGetServiceDescription;
+            authServiceNode.RequestAccessToken?.OnCallAsync = OnRequestAccessTokenAsync;
+            authServiceNode.StartRequestToken?.OnCallAsync = OnStartRequestTokenAsync;
+            authServiceNode.FinishRequestToken?.OnCallAsync = OnFinishRequestTokenAsync;
+            authServiceNode.RefreshToken?.OnCallAsync = OnRefreshTokenAsync;
+        }
+
+        /// <summary>
+        /// Wires a <c>KeyCredentialService</c> object contributed by the
+        /// host (OPC 10000-12 §7.9). Unlike the <c>Directory</c>, these
+        /// instances are not part of the companion model, so they are
+        /// wired as they are registered rather than from
+        /// <see cref="ConfigureAsync"/>.
+        /// </summary>
+        /// <param name="service">The service object to wire.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected async ValueTask ConfigureKeyCredentialServiceAsync(
+            KeyCredentialServiceState service,
+            CancellationToken cancellationToken = default)
+        {
+            if (service == null)
+            {
+                throw new ArgumentNullException(nameof(service));
+            }
+
+            NodeManagerBuilder builder = CreateFluentBuilder(NamespaceIndex);
+            ConfigureKeyCredentialService(builder, service);
+            await builder.SealAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private void ConfigureKeyCredentialService(
+            INodeManagerBuilder builder,
+            KeyCredentialServiceState service)
+        {
+            // As on the Directory, the self-administration grant is what
+            // lets an application manage its own credentials.
+            SelfAdministered(builder.Node(service.StartRequest!))
+                .OnCallAsync = OnKeyCredentialStartRequestAsync;
+            SelfAdministered(builder.Node(service.FinishRequest!))
+                .OnCallAsync = OnKeyCredentialFinishRequestAsync;
+
+            // Revoke is an optional child of KeyCredentialServiceType.
+            if (service.Revoke != null)
+            {
+                SelfAdministered(builder.Node(service.Revoke))
+                    .OnCallAsync = OnKeyCredentialRevokeAsync;
+            }
+        }
+
+        /// <summary>
+        /// Resolves a method of the <c>Directory</c> object by browse name.
+        /// </summary>
+        /// <typeparam name="TMethod">
+        /// The generated method state the child must be assignable to.
+        /// </typeparam>
+        private TMethod Method<TMethod>(
+            INodeBuilder<CertificateDirectoryState> directory,
+            string browseName)
+            where TMethod : MethodState
+        {
+            return directory.Child<TMethod>(GdsName(browseName)).Node;
+        }
+
+        /// <summary>
+        /// As <see cref="Method{TMethod}"/>, and additionally grants the
+        /// SelfAdmin role on the resolved method so an application can
+        /// invoke it for its own record.
+        /// </summary>
+        /// <typeparam name="TMethod">
+        /// The generated method state the child must be assignable to.
+        /// </typeparam>
+        private TMethod SelfAdministered<TMethod>(
+            INodeBuilder<CertificateDirectoryState> directory,
+            string browseName)
+            where TMethod : MethodState
+        {
+            return SelfAdministered(directory.Child<TMethod>(GdsName(browseName)));
+        }
+
+        /// <summary>
+        /// Grants the SelfAdmin role on an already-resolved method.
+        /// </summary>
+        /// <typeparam name="TMethod">The method's state type.</typeparam>
+        private TMethod SelfAdministered<TMethod>(INodeBuilder<TMethod> method)
+            where TMethod : MethodState
+        {
+            return method
+                .OnReadRolePermissions(OnAddSelfAdminRolePermissions)
+                .OnReadUserRolePermissions(OnAddSelfAdminUserRolePermissions)
+                .Node;
+        }
+
+        /// <summary>
+        /// Qualifies a browse name of the GDS companion model.
+        /// </summary>
+        private QualifiedName GdsName(string browseName)
+        {
+            return new QualifiedName(browseName, NamespaceIndex);
+        }
+
+        /// <summary>
+        /// The index of the namespace the GDS mints its own instances in
+        /// (<see cref="ApplicationsNamespaceUri"/>), as opposed to
+        /// <see cref="AsyncCustomNodeManager.NamespaceIndex"/>, which every node
+        /// of the loaded companion model lives in.
+        /// </summary>
+        /// <remarks>
+        /// Resolved through the namespace table rather than read off a fixed
+        /// position in <c>NamespaceIndexes</c>, so that a subclass owning
+        /// further namespaces can order them as it likes.
+        /// </remarks>
+        public ushort ApplicationsNamespaceIndex
+            => (ushort)Server.NamespaceUris.GetIndex(ApplicationsNamespaceUri);
 
         private NodeId GetTrustListId(NodeId certificateGroupId)
         {
@@ -343,6 +911,19 @@ namespace Opc.Ua.Gds.Server
             return [.. issuerChain];
         }
 
+        /// <summary>
+        /// Brings up one configured certificate authority: creates the group
+        /// and opens the certificate stores it serves from.
+        /// </summary>
+        /// <remarks>
+        /// Only the I/O belongs here. Binding the group to its address-space
+        /// nodes is synchronous work that happens in the <c>Configure</c>
+        /// pass; see <see cref="SetCertificateGroupNodes"/>.
+        /// </remarks>
+        /// <param name="certificateGroupConfiguration">
+        /// The configured group to bring up.
+        /// </param>
+        /// <returns>The initialized group, already owned by this manager.</returns>
         protected async Task<ICertificateGroup> InitializeCertificateGroupAsync(
             CertificateGroupConfiguration certificateGroupConfiguration)
         {
@@ -364,28 +945,24 @@ namespace Opc.Ua.Gds.Server
                 m_globalDiscoveryServerConfiguration.AuthoritiesStorePath!,
                 certificateGroupConfiguration,
                 m_configuration.SecurityConfiguration.TrustedIssuerCertificates.StorePath);
-            await certificateGroup.InitAsync().ConfigureAwait(false);
 
-            await SetCertificateGroupNodesAsync(certificateGroup).ConfigureAwait(false);
+            // Take ownership before the first call that can throw: InitAsync
+            // opens certificate stores, so a group that fails half way through
+            // still has to reach Dispose.
+            m_ownedCertificateGroups.Add(certificateGroup);
+
+            await certificateGroup.InitAsync().ConfigureAwait(false);
 
             return certificateGroup;
         }
 
         /// <summary>
-        /// Does any initialization required before the address space can be used.
+        /// The certificate types this GDS understands, by NodeId
+        /// (OPC 10000-12 V1.04).
         /// </summary>
-        /// <remarks>
-        /// The externalReferences is an out parameter that allows the node manager to link to nodes
-        /// in other node managers. For example, the 'Objects' node is managed by the CoreNodeManager and
-        /// should have a reference to the root folder node(s) exposed by this node manager.
-        /// </remarks>
-        public override async ValueTask CreateAddressSpaceAsync(
-            IDictionary<NodeId, IList<IReference>> externalReferences,
-            CancellationToken cancellationToken = default)
+        private static Dictionary<NodeId, string> CreateCertificateTypeMap()
         {
-            await base.CreateAddressSpaceAsync(externalReferences, cancellationToken).ConfigureAwait(false);
-
-            m_certTypeMap = new Dictionary<NodeId, string>
+            return new Dictionary<NodeId, string>
             {
                 // list of supported cert type mappings (V1.04)
                 {
@@ -439,12 +1016,21 @@ namespace Opc.Ua.Gds.Server
 #endif
                 }
             };
+        }
 
-            m_database.NamespaceIndex = NamespaceIndexes[0];
-            m_request.NamespaceIndex = NamespaceIndexes[0];
-
-            await EnsureDefaultAuthorizationServiceAsync(cancellationToken: cancellationToken).ConfigureAwait(false);
-
+        /// <summary>
+        /// Brings up every configured certificate authority and binds it to
+        /// its nodes, in one pass per group.
+        /// </summary>
+        /// <remarks>
+        /// Acquisition is I/O and binding is address-space work, but a group
+        /// only learns the NodeId it is addressed by when it is bound, so
+        /// doing both here is what lets <see cref="m_certificateGroups"/> be
+        /// keyed correctly before anything looks a group up.
+        /// </remarks>
+        /// <param name="builder">The active fluent builder.</param>
+        private async ValueTask InitializeCertificateGroupsAsync(INodeManagerBuilder builder)
+        {
             foreach (
                 CertificateGroupConfiguration certificateGroupConfiguration in m_globalDiscoveryServerConfiguration
                     .CertificateGroups.ToList())
@@ -454,6 +1040,8 @@ namespace Opc.Ua.Gds.Server
                     ICertificateGroup certificateGroup = await InitializeCertificateGroupAsync(
                             certificateGroupConfiguration)
                         .ConfigureAwait(false);
+
+                    SetCertificateGroupNodes(builder, certificateGroup);
                     m_certificateGroups[certificateGroup.Id] = certificateGroup;
                 }
                 catch (Exception e)
@@ -463,288 +1051,6 @@ namespace Opc.Ua.Gds.Server
                     throw;
                 }
             }
-        }
-
-        /// <summary>
-        /// Loads a node set from a file or resource and adds them to the set of predefined nodes.
-        /// </summary>
-        protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(ISystemContext context,
-            CancellationToken cancellationToken = default)
-        {
-            return new ValueTask<NodeStateCollection>(new NodeStateCollection().AddOpcUaGds(context));
-        }
-
-        private async ValueTask EnsureDefaultAuthorizationServiceAsync(
-            BaseObjectState? folder = null,
-            CancellationToken cancellationToken = default)
-        {
-            ushort namespaceIndex = NamespaceIndexes[1];
-            if (folder == null)
-            {
-                var folderId = new NodeId(Objects.AuthorizationServices, namespaceIndex);
-                folder = FindPredefinedNode<BaseObjectState>(folderId);
-            }
-
-            var browseName = new QualifiedName("Default", namespaceIndex);
-            if (folder?.FindChild(SystemContext, browseName) != null)
-            {
-                return;
-            }
-
-            AuthorizationServiceState service = CreateDefaultAuthorizationService(
-                folder,
-                SystemContext,
-                namespaceIndex,
-                browseName);
-            folder?.AddChild(service);
-            await AddPredefinedNodeAsync(SystemContext, service, cancellationToken).ConfigureAwait(false);
-        }
-
-        private AuthorizationServiceState CreateDefaultAuthorizationService(
-            NodeState? folder,
-            ISystemContext context,
-            ushort namespaceIndex,
-            QualifiedName browseName)
-        {
-            var service = new AuthorizationServiceState(folder);
-
-            service.Create(
-                context,
-                new NodeId("AuthorizationServices/Default", namespaceIndex),
-                browseName,
-                new LocalizedText("Default"),
-                false);
-
-            // ServiceUri, ServiceCertificate and the mandatory GetServiceDescription method
-            // are created automatically by the source-generated AuthorizationServiceState.
-            // The Optional method children must be added explicitly using the generated
-            // Add* helpers before ConfigureAuthorizationServiceNode wires the OnCall handlers.
-            service
-                .AddRequestAccessToken(context)
-                .AddStartRequestToken(context)
-                .AddFinishRequestToken(context)
-                .AddRefreshToken(context);
-
-            service.ServiceUri!.Value = m_configuration.ApplicationUri ?? string.Empty;
-            service.ServiceCertificate!.Value = ByteString.Empty;
-            service.UserTokenPolicies?.Value = m_configuration.ServerConfiguration?.UserTokenPolicies ?? default;
-            ConfigureAuthorizationServiceNode(service);
-
-            return service;
-        }
-
-        /// <summary>
-        /// Replaces the generic node with a node specific to the model.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        protected override async ValueTask<NodeState> AddBehaviourToPredefinedNodeAsync(
-            ISystemContext context,
-            NodeState predefinedNode,
-            CancellationToken cancellationToken = default)
-        {
-            if (predefinedNode is not BaseObjectState passiveNode)
-            {
-                return predefinedNode;
-            }
-
-            if (IsNodeIdInNamespace(passiveNode.NodeId) &&
-                passiveNode.NodeId.TryGetValue(out uint nodeNumericId) &&
-                nodeNumericId == Objects.AuthorizationServices)
-            {
-                await EnsureDefaultAuthorizationServiceAsync(passiveNode, cancellationToken).ConfigureAwait(false);
-            }
-
-            NodeId typeId = passiveNode.TypeDefinitionId;
-
-            if (!IsNodeIdInNamespace(typeId) || !typeId.TryGetValue(out uint numericId))
-            {
-                return predefinedNode;
-            }
-
-            switch (numericId)
-            {
-                case ObjectTypes.CertificateDirectoryType:
-                    if (passiveNode is not CertificateDirectoryState activeNode)
-                    {
-                        activeNode = new CertificateDirectoryState(passiveNode.Parent)
-                        {
-                            RevokeCertificate = new RevokeCertificateMethodState(passiveNode),
-                            CheckRevocationStatus = new CheckRevocationStatusMethodState(passiveNode),
-                            GetCertificates = new GetCertificatesMethodState(passiveNode)
-                        };
-
-                        activeNode.Create(context, passiveNode);
-                        // replace the node in the parent.
-                        passiveNode.Parent?.ReplaceChild(context, activeNode);
-                    }
-
-                    activeNode.QueryServers!.OnCall = OnQueryServers;
-                    activeNode.QueryApplications!.OnCall = OnQueryApplications;
-                    activeNode.RegisterApplication!.OnCall = OnRegisterApplication;
-                    activeNode.UpdateApplication!.OnCall = OnUpdateApplication;
-                    activeNode.UpdateApplication.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    activeNode.UpdateApplication.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    activeNode.GetApplication!.OnCall = OnGetApplication;
-
-                    // These also add self admin role permissions (call)
-                    activeNode.UnregisterApplication!.OnCallAsync = OnUnregisterApplicationAsync;
-                    activeNode.UnregisterApplication.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    activeNode.UnregisterApplication.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    activeNode.FindApplications!.OnCall = OnFindApplications;
-                    activeNode.FindApplications.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    activeNode.FindApplications.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    activeNode.StartNewKeyPairRequest!.OnCall = OnStartNewKeyPairRequest;
-                    activeNode.StartNewKeyPairRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    activeNode.StartNewKeyPairRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    activeNode.FinishRequest!.OnCallAsync = OnFinishRequestAsync;
-                    activeNode.FinishRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    activeNode.FinishRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    activeNode.GetCertificateGroups!.OnCall = OnGetCertificateGroups;
-                    activeNode.GetCertificateGroups.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    activeNode.GetCertificateGroups.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    activeNode.GetTrustList!.OnCall = OnGetTrustList;
-                    activeNode.GetTrustList.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    activeNode.GetTrustList.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    activeNode.GetCertificateStatus!.OnCall = OnGetCertificateStatus;
-                    activeNode.GetCertificateStatus.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    activeNode.GetCertificateStatus.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    activeNode.StartSigningRequest!.OnCallAsync = OnStartSigningRequestAsync;
-                    activeNode.StartSigningRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    activeNode.StartSigningRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    activeNode.GetCertificates!.OnCall = OnGetCertificates;
-                    activeNode.GetCertificates.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    activeNode.GetCertificates.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-
-                    activeNode.RevokeCertificate!.OnCallAsync = OnRevokeCertificateAsync;
-                    activeNode.CheckRevocationStatus!.OnCallAsync = OnCheckRevocationStatusAsync;
-
-                    PropertyState<ArrayOf<NodeId>> defaultApplicationCertificateTypes = activeNode.CertificateGroups!
-                        .DefaultApplicationGroup!.CertificateTypes!;
-                    if (m_certificateGroups.TryGetValue(
-                            m_defaultApplicationGroupId,
-                            out ICertificateGroup? applicationCertificateGroup))
-                    {
-                        defaultApplicationCertificateTypes.Value =
-                        [
-                            .. applicationCertificateGroup.CertificateTypes
-                        ];
-                    }
-                    else
-                    {
-                        defaultApplicationCertificateTypes.Value =
-                        [
-                            Ua.ObjectTypeIds.ApplicationCertificateType
-                        ];
-                    }
-                    // OPC 10000-12 §7.8.2.1: a TrustList that supports
-                    // CloseAndUpdate / AddCertificate / RemoveCertificate
-                    // is writeable; Writable / UserWritable advertise the
-                    // capability while the role-based access on the
-                    // individual methods enforces who may actually mutate
-                    // the trust list.
-                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList!.LastUpdateTime!.Value =
-                        DateTime.UtcNow;
-                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.Writable!.Value =
-                        true;
-                    activeNode.CertificateGroups.DefaultApplicationGroup.TrustList.UserWritable!.Value =
-                        true;
-
-                    PropertyState<ArrayOf<NodeId>> defaultHttpsCertificateTypes = activeNode.CertificateGroups
-                        .DefaultHttpsGroup!.CertificateTypes!;
-                    if (m_certificateGroups.TryGetValue(
-                            m_defaultHttpsGroupId,
-                            out ICertificateGroup? httpsCertificateGroup))
-                    {
-                        defaultHttpsCertificateTypes.Value =
-                        [
-                            .. httpsCertificateGroup.CertificateTypes
-                        ];
-                    }
-                    else
-                    {
-                        defaultHttpsCertificateTypes.Value =
-                        [
-                            Ua.ObjectTypeIds.HttpsCertificateType
-                        ];
-                    }
-                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList!.LastUpdateTime!.Value =
-                        DateTime.UtcNow;
-                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.Writable!.Value =
-                        true;
-                    activeNode.CertificateGroups.DefaultHttpsGroup.TrustList.UserWritable!.Value =
-                        true;
-
-                    PropertyState<ArrayOf<NodeId>> defaultUserTokenCertificateTypes = activeNode.CertificateGroups
-                        .DefaultUserTokenGroup!.CertificateTypes!;
-                    if (m_certificateGroups.TryGetValue(
-                            m_defaultUserTokenGroupId,
-                            out ICertificateGroup? userTokenCertificateGroup))
-                    {
-                        defaultUserTokenCertificateTypes.Value =
-                        [
-                            .. userTokenCertificateGroup.CertificateTypes
-                        ];
-                    }
-                    else
-                    {
-                        defaultUserTokenCertificateTypes.Value =
-                        [
-                            Ua.ObjectTypeIds.UserCertificateType
-                        ];
-                    }
-                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList!.LastUpdateTime!.Value =
-                        DateTime.UtcNow;
-                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.Writable!.Value =
-                        true;
-                    activeNode.CertificateGroups.DefaultUserTokenGroup.TrustList.UserWritable!.Value =
-                        true;
-
-                    return activeNode;
-                case ObjectTypes.KeyCredentialServiceType:
-                    if (passiveNode is not KeyCredentialServiceState keyCredNode)
-                    {
-                        keyCredNode = new KeyCredentialServiceState(passiveNode.Parent);
-                        keyCredNode.Create(context, passiveNode);
-                        passiveNode.Parent?.ReplaceChild(context, keyCredNode);
-                    }
-
-                    keyCredNode.StartRequest!.OnCallAsync = OnKeyCredentialStartRequestAsync;
-                    keyCredNode.StartRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    keyCredNode.StartRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    keyCredNode.FinishRequest!.OnCallAsync = OnKeyCredentialFinishRequestAsync;
-                    keyCredNode.FinishRequest.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                    keyCredNode.FinishRequest.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    keyCredNode.Revoke?.OnCallAsync = OnKeyCredentialRevokeAsync;
-                    if (keyCredNode.Revoke != null)
-                    {
-                        keyCredNode.Revoke.OnReadRolePermissions = OnAddSelfAdminRolePermissions;
-                        keyCredNode.Revoke.OnReadUserRolePermissions = OnAddSelfAdminUserRolePermissions;
-                    }
-
-                    return keyCredNode;
-                case ObjectTypes.AuthorizationServiceType:
-                    if (passiveNode is not AuthorizationServiceState authServiceNode)
-                    {
-                        authServiceNode = new AuthorizationServiceState(passiveNode.Parent);
-                        authServiceNode.Create(context, passiveNode);
-                        passiveNode.Parent?.ReplaceChild(context, authServiceNode);
-                    }
-
-                    ConfigureAuthorizationServiceNode(authServiceNode);
-
-                    return authServiceNode;
-            }
-
-            return predefinedNode;
-        }
-
-        private void ConfigureAuthorizationServiceNode(AuthorizationServiceState authServiceNode)
-        {
-            authServiceNode.GetServiceDescription!.OnCall = OnGetServiceDescription;
-            authServiceNode.RequestAccessToken?.OnCallAsync = OnRequestAccessTokenAsync;
-            authServiceNode.StartRequestToken?.OnCallAsync = OnStartRequestTokenAsync;
-            authServiceNode.FinishRequestToken?.OnCallAsync = OnFinishRequestTokenAsync;
-            authServiceNode.RefreshToken?.OnCallAsync = OnRefreshTokenAsync;
         }
 
         private ServiceResult OnAddSelfAdminRolePermissions(
@@ -852,13 +1158,14 @@ namespace Opc.Ua.Gds.Server
             return ServiceResult.Good;
         }
 
-        private ServiceResult OnRegisterApplication(
+        private async ValueTask<RegisterApplicationMethodStateResult> OnRegisterApplicationAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
             ApplicationRecordDataType application,
-            ref NodeId applicationId)
+            CancellationToken cancellationToken)
         {
+            NodeId applicationId;
             AuthorizationHelper.HasAuthorization(
                 context,
                 AuthorizationHelper.DiscoveryAdminOrAppAdmin);
@@ -883,9 +1190,18 @@ namespace Opc.Ua.Gds.Server
                     method,
                     inputArguments,
                     m_logger);
+
+                // GDS AliasName Server facet (OPC 10000-17 Annex C.2): merge
+                // the AliasNames of the registering Server before returning.
+                await OnAliasNameSourceRegisteredAsync(applicationId, application, cancellationToken)
+                    .ConfigureAwait(false);
             }
 
-            return ServiceResult.Good;
+            return new RegisterApplicationMethodStateResult
+            {
+                ServiceResult = ServiceResult.Good,
+                ApplicationId = applicationId
+            };
         }
 
         private ServiceResult OnUpdateApplication(
@@ -926,6 +1242,13 @@ namespace Opc.Ua.Gds.Server
                 method,
                 inputArguments,
                 m_logger);
+
+            // The record may have gained or lost the ALIAS capability or
+            // changed its DiscoveryUrls; read it again in the background.
+            if (AliasNameAggregator != null)
+            {
+                _ = RefreshAliasNameSourceInBackground(application.ApplicationId);
+            }
 
             return ServiceResult.Good;
         }
@@ -979,6 +1302,11 @@ namespace Opc.Ua.Gds.Server
             }
 
             m_database.UnregisterApplication(applicationId);
+
+            // OPC 10000-17 Annex C.3. The record is gone, so the cleanup must
+            // not be cancelled with the request.
+            await OnAliasNameSourceUnregisteredAsync(applicationId, CancellationToken.None)
+                .ConfigureAwait(false);
 
             ArrayOf<Variant> inputArguments = [applicationId];
             Server.ReportApplicationRegistrationChangedAuditEvent(
@@ -1092,8 +1420,25 @@ namespace Opc.Ua.Gds.Server
             string applicationUri,
             ref ArrayOf<ApplicationRecordDataType> applications)
         {
-            AuthorizationHelper.HasAuthorization(context, AuthorizationHelper.AuthenticatedUser);
+            // OPC 10000-12 §6.5.3: FindApplications "can be called by any
+            // Client", and §6.5.4 names no Role. It is also the only way a
+            // pull client (§7.6, Anonymous + ApplicationSelfAdmin) learns
+            // the ApplicationId of its own record, so no role check here.
             m_logger.OnFindApplications(applicationUri);
+
+            // OPC 10000-12 §6.5.4: the result holds at most the one application
+            // with this ApplicationUri, so an empty ApplicationUri is not a
+            // wildcard; it is rejected with Bad_InvalidArgument. Any other string
+            // that is not a registered ApplicationUri returns an empty array
+            // ("the GDS does not have an entry"), which the CTT GDS Application
+            // Directory 003.js/005.js string length tests expect.
+            if (string.IsNullOrWhiteSpace(applicationUri))
+            {
+                return new ServiceResult(
+                    StatusCodes.BadInvalidArgument,
+                    LocalizedText.From("The ApplicationUri is empty."));
+            }
+
             applications = m_database.FindApplications(applicationUri) ?? [];
             return ServiceResult.Good;
         }
@@ -1145,109 +1490,222 @@ namespace Opc.Ua.Gds.Server
             // re-check immediately.
             DateTime computedValidityTime = DateTime.MinValue;
 
+            Certificate x509;
             try
             {
-                //create chain to validate Certificate against it
-                using var chain = new X509Chain();
-                chain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
-                chain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
+                x509 = Certificate.FromRawData(certificate);
+            }
+            catch (Exception ex) when (ex is CryptographicException or ArgumentException)
+            {
+                // OPC 10000-12 §7.9.11: a Certificate that cannot be parsed
+                // (and so its signature not checked) is invalid, not revoked.
+                result.CertificateStatus = StatusCodes.BadCertificateInvalid;
+                return result;
+            }
 
+            // Caller-owned X509Certificate2 copies of the issuer store for the
+            // chains' ExtraStore; X509Chain does not dispose them.
+            X509Certificate2Collection? extraCerts = null;
+            try
+            {
                 //add GDS Issuer Cert Store Certificates to the Chain validation for consistent behaviour on all Platforms
                 using ICertificateStore store = m_configuration.SecurityConfiguration
                     .TrustedIssuerCertificates
                     .OpenStore(Server.Telemetry);
+                using CertificateCollection issuerCerts = await EnumerateCertificatesAsync(
+                    store,
+                    cancellationToken).ConfigureAwait(false);
                 if (store != null)
                 {
-                    try
+                    X509CRLCollection crls = await store
+                        .EnumerateCRLsAsync(cancellationToken)
+                        .ConfigureAwait(false);
+                    DateTime nextUpdate = DateTime.MaxValue;
+                    foreach (X509CRL crl in crls)
                     {
-                        using CertificateCollection issuerCerts = await store
-                            .EnumerateAsync(cancellationToken)
-                            .ConfigureAwait(false);
-                        chain.ChainPolicy.ExtraStore
-                            .AddRange(issuerCerts.AsX509Certificate2Collection());
-
-                        X509CRLCollection crls = await store
-                            .EnumerateCRLsAsync(cancellationToken)
-                            .ConfigureAwait(false);
-                        DateTime nextUpdate = DateTime.MaxValue;
-                        foreach (X509CRL crl in crls)
+                        if (crl.NextUpdate != DateTime.MinValue &&
+                            crl.NextUpdate < nextUpdate)
                         {
-                            if (crl.NextUpdate != DateTime.MinValue &&
-                                crl.NextUpdate < nextUpdate)
-                            {
-                                nextUpdate = crl.NextUpdate;
-                            }
-                        }
-                        if (nextUpdate != DateTime.MaxValue)
-                        {
-                            computedValidityTime = nextUpdate;
+                            nextUpdate = crl.NextUpdate;
                         }
                     }
-                    finally
+                    if (nextUpdate != DateTime.MaxValue)
                     {
-                        store.Close();
+                        computedValidityTime = nextUpdate;
                     }
                 }
 
-                using var x509 = Certificate.FromRawData(certificate);
                 using X509Certificate2 x509Cert = x509.AsX509Certificate2();
-                if (chain.Build(x509Cert))
+                extraCerts = issuerCerts.AsX509Certificate2Collection();
+
+                // A certificate issued by a CA of this GDS is checked offline
+                // against the CRLs the GDS publishes in its issuer store: the
+                // GDS CA is normally not in the OS root store, so a platform
+                // chain reports UntrustedRoot for a good certificate and does
+                // not know the GDS CRLs.
+                using var chain = new X509Chain();
+                chain.ChainPolicy.RevocationMode = X509RevocationMode.NoCheck;
+                chain.ChainPolicy.VerificationFlags = X509VerificationFlags.AllowUnknownCertificateAuthority;
+                chain.ChainPolicy.ExtraStore.AddRange(extraCerts);
+                chain.Build(x509Cert);
+
+                if (store != null &&
+                    chain.ChainElements.Count > 1 &&
+                    IsKnownIssuer(issuerCerts, chain.ChainElements[chain.ChainElements.Count - 1].Certificate))
+                {
+                    StatusCode chainStatus = GetFirstChainError(chain, ignoreUntrustedRoot: true);
+                    if (StatusCode.IsBad(chainStatus))
+                    {
+                        result.CertificateStatus = chainStatus;
+                        return result;
+                    }
+
+                    result.CertificateStatus = await CheckRevocationWithGdsCrlsAsync(
+                        store,
+                        chain,
+                        cancellationToken).ConfigureAwait(false);
+                    if (StatusCode.IsGood(result.CertificateStatus))
+                    {
+                        result.ValidityTime = computedValidityTime;
+                    }
+                    return result;
+                }
+
+                // A certificate of another CA: validate against the platform
+                // trust with online revocation (CRL distribution point / OCSP).
+                using var onlineChain = new X509Chain();
+                onlineChain.ChainPolicy.RevocationMode = X509RevocationMode.Online;
+                onlineChain.ChainPolicy.RevocationFlag = X509RevocationFlag.EntireChain;
+                onlineChain.ChainPolicy.ExtraStore.AddRange(extraCerts);
+                if (onlineChain.Build(x509Cert))
                 {
                     result.CertificateStatus = StatusCodes.Good;
                     result.ValidityTime = computedValidityTime;
                     return result;
                 }
 
-                // Assessing certificateStatus for invalid chain
-                X509ChainStatusFlags status = chain.ChainStatus.FirstOrDefault().Status;
-                if ((status & X509ChainStatusFlags.NotTimeValid) ==
-                    X509ChainStatusFlags.NotTimeValid)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateTimeInvalid;
-                }
-                else if ((status & X509ChainStatusFlags.Revoked) ==
-                    X509ChainStatusFlags.Revoked)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateRevoked;
-                }
-                else if ((status & X509ChainStatusFlags.NotSignatureValid) ==
-                    X509ChainStatusFlags.NotSignatureValid)
+                // CertificateStatus is the first error encountered.
+                result.CertificateStatus = GetFirstChainError(onlineChain, ignoreUntrustedRoot: false);
+                if (StatusCode.IsGood(result.CertificateStatus))
                 {
                     result.CertificateStatus = StatusCodes.BadCertificateInvalid;
-                }
-                else if ((status & X509ChainStatusFlags.NotValidForUsage) ==
-                    X509ChainStatusFlags.NotValidForUsage)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateUseNotAllowed;
-                }
-                else if ((status & X509ChainStatusFlags.RevocationStatusUnknown) ==
-                    X509ChainStatusFlags.RevocationStatusUnknown)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateRevocationUnknown;
-                }
-                else if ((status & X509ChainStatusFlags.PartialChain) ==
-                    X509ChainStatusFlags.PartialChain)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateChainIncomplete;
-                }
-                else if ((status & X509ChainStatusFlags.ExplicitDistrust) ==
-                    X509ChainStatusFlags.ExplicitDistrust)
-                {
-                    result.CertificateStatus = StatusCodes.BadCertificateUntrusted;
-                }
-                else
-                {
-                    // If no matching found use StatusCodes.BadCertificateRevoked
-                    // Even though this is a no error = 0 case, the chain is invalid
-                    result.CertificateStatus = StatusCodes.BadCertificateRevoked;
                 }
             }
             catch (CryptographicException)
             {
-                result.CertificateStatus = StatusCodes.BadCertificateRevoked;
+                result.CertificateStatus = StatusCodes.BadCertificateInvalid;
+            }
+            finally
+            {
+                if (extraCerts != null)
+                {
+                    foreach (X509Certificate2 extraCert in extraCerts)
+                    {
+                        extraCert.Dispose();
+                    }
+                }
+                x509.Dispose();
             }
 
             return result;
+        }
+
+        private static async Task<CertificateCollection> EnumerateCertificatesAsync(
+            ICertificateStore? store,
+            CancellationToken cancellationToken)
+        {
+            if (store == null)
+            {
+                return new CertificateCollection();
+            }
+            return await store.EnumerateAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private static bool IsKnownIssuer(CertificateCollection issuerCerts, X509Certificate2 root)
+        {
+            foreach (Certificate issuer in issuerCerts)
+            {
+                if (string.Equals(issuer.Thumbprint, root.Thumbprint, StringComparison.OrdinalIgnoreCase))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Checks every certificate of the chain against the CRL of its issuer
+        /// in the GDS issuer store.
+        /// </summary>
+        private static async Task<StatusCode> CheckRevocationWithGdsCrlsAsync(
+            ICertificateStore store,
+            X509Chain chain,
+            CancellationToken cancellationToken)
+        {
+            for (int ii = 0; ii < chain.ChainElements.Count - 1; ii++)
+            {
+                using var subject = Certificate.FromRawData(chain.ChainElements[ii].Certificate.RawData);
+                using var issuer = Certificate.FromRawData(chain.ChainElements[ii + 1].Certificate.RawData);
+                StatusCode status = await store
+                    .IsRevokedAsync(issuer, subject, cancellationToken)
+                    .ConfigureAwait(false);
+                if (status == StatusCodes.BadCertificateRevoked)
+                {
+                    return ii == 0 ? StatusCodes.BadCertificateRevoked : StatusCodes.BadCertificateIssuerRevoked;
+                }
+                if (StatusCode.IsBad(status))
+                {
+                    return ii == 0
+                        ? StatusCodes.BadCertificateRevocationUnknown
+                        : StatusCodes.BadCertificateIssuerRevocationUnknown;
+                }
+            }
+            return StatusCodes.Good;
+        }
+
+        /// <summary>
+        /// Maps the first chain error to a StatusCode, or returns Good.
+        /// </summary>
+        private static StatusCode GetFirstChainError(X509Chain chain, bool ignoreUntrustedRoot)
+        {
+            foreach (X509ChainStatus chainStatus in chain.ChainStatus)
+            {
+                X509ChainStatusFlags status = chainStatus.Status;
+                if (status == X509ChainStatusFlags.NoError ||
+                    (ignoreUntrustedRoot && status == X509ChainStatusFlags.UntrustedRoot))
+                {
+                    continue;
+                }
+
+                if ((status & X509ChainStatusFlags.NotTimeValid) != 0)
+                {
+                    return StatusCodes.BadCertificateTimeInvalid;
+                }
+                if ((status & X509ChainStatusFlags.Revoked) != 0)
+                {
+                    return StatusCodes.BadCertificateRevoked;
+                }
+                if ((status & X509ChainStatusFlags.NotValidForUsage) != 0)
+                {
+                    return StatusCodes.BadCertificateUseNotAllowed;
+                }
+                if ((status & (X509ChainStatusFlags.RevocationStatusUnknown |
+                    X509ChainStatusFlags.OfflineRevocation)) != 0)
+                {
+                    return StatusCodes.BadCertificateRevocationUnknown;
+                }
+                if ((status & X509ChainStatusFlags.PartialChain) != 0)
+                {
+                    return StatusCodes.BadCertificateChainIncomplete;
+                }
+                if ((status & (X509ChainStatusFlags.ExplicitDistrust |
+                    X509ChainStatusFlags.UntrustedRoot)) != 0)
+                {
+                    return StatusCodes.BadCertificateUntrusted;
+                }
+                return StatusCodes.BadCertificateInvalid;
+            }
+            return StatusCodes.Good;
         }
 
         private ServiceResult OnGetCertificates(
@@ -1467,7 +1925,7 @@ namespace Opc.Ua.Gds.Server
             return [.. names];
         }
 
-        private ServiceResult OnStartNewKeyPairRequest(
+        internal ServiceResult OnStartNewKeyPairRequest(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -1491,6 +1949,9 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
+                // OPC 10000-12 §7.9.4: the private key password is an input
+                // and the private key an output, so the channel must be encrypted.
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
@@ -1523,8 +1984,10 @@ namespace Opc.Ua.Gds.Server
 
                 if (!resolvedTypeId.IsNull)
                 {
+                    // Only a concrete type of the group can be issued; an abstract
+                    // supertype (e.g. ApplicationCertificateType) is not valid.
                     if (!certificateGroup.CertificateTypes.Contains(certificateType =>
-                            Server.TypeTree.IsTypeOf(certificateType, resolvedTypeId)))
+                            certificateType == resolvedTypeId))
                     {
                         return result = new ServiceResult(
                             StatusCodes.BadInvalidArgument,
@@ -1654,7 +2117,7 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private async ValueTask<StartSigningRequestMethodStateResult> OnStartSigningRequestAsync(
+        internal async ValueTask<StartSigningRequestMethodStateResult> OnStartSigningRequestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -1674,6 +2137,8 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
+                // OPC 10000-12 §7.9.3: shall be called from an encrypted SecureChannel.
+                AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
                 AuthorizationHelper.HasAuthorization(
                     context,
                     AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
@@ -1708,8 +2173,10 @@ namespace Opc.Ua.Gds.Server
 
                 if (!resolvedTypeId.IsNull)
                 {
+                    // Only a concrete type of the group can be issued; an abstract
+                    // supertype (e.g. ApplicationCertificateType) is not valid.
                     if (!certificateGroup.CertificateTypes.Contains(certificateType =>
-                            Server.TypeTree.IsTypeOf(certificateType, resolvedTypeId)))
+                            certificateType == resolvedTypeId))
                     {
                         result.ServiceResult = new ServiceResult(
                             StatusCodes.BadInvalidArgument,
@@ -1730,8 +2197,13 @@ namespace Opc.Ua.Gds.Server
                     return result;
                 }
 
-                // verify the CSR integrity for the application
-                await certificateGroup.VerifySigningRequestAsync(application, certificateRequest, cancellationToken).ConfigureAwait(false);
+                // verify the CSR integrity for the application and, per
+                // OPC 10000-12 §7.9.3, that its key fits the requested type
+                await certificateGroup.VerifySigningRequestAsync(
+                    application,
+                    resolvedTypeId,
+                    certificateRequest,
+                    cancellationToken).ConfigureAwait(false);
 
                 // store request in the queue for approval
                 IUserIdentity? userIdentity = (context as ISessionSystemContext)?.UserIdentity;
@@ -1790,7 +2262,37 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
-        private async ValueTask<FinishRequestMethodStateResult> OnFinishRequestAsync(
+        /// <summary>
+        /// Builds the FinishRequest result for a certificate the group failed
+        /// to issue.
+        /// </summary>
+        /// <remarks>
+        /// OPC 10000-12 §7.9.5 has no Bad_ConfigurationError: the status of a
+        /// <see cref="ServiceResultException"/> is kept (e.g.
+        /// Bad_InvalidArgument for a CSR the group cannot sign), any other
+        /// failure maps to Bad_RequestNotAllowed, and the text indicates the
+        /// exact reason. The exception stays attached to the result.
+        /// </remarks>
+        internal static ServiceResult CreateIssueFailureResult(
+            Exception exception,
+            string what,
+            NodeId applicationId,
+            ApplicationRecordDataType application)
+        {
+            return ServiceResult.Create(
+                exception,
+                StatusCodes.BadRequestNotAllowed,
+                "Error Generating {0}={1}\nApplicationId={2}\nApplicationUri={3}\nApplicationName={4}",
+                what,
+                exception.Message,
+                applicationId.ToString(),
+                application.ApplicationUri ?? string.Empty,
+                application.ApplicationNames.IsEmpty
+                    ? string.Empty
+                    : application.ApplicationNames[0].Text ?? string.Empty);
+        }
+
+        internal async ValueTask<FinishRequestMethodStateResult> OnFinishRequestAsync(
             ISystemContext context,
             MethodState method,
             NodeId objectId,
@@ -1798,6 +2300,9 @@ namespace Opc.Ua.Gds.Server
             NodeId requestId,
             CancellationToken cancellationToken)
         {
+            // OPC 10000-12 §7.9.5: the private key is returned, so the
+            // channel must be encrypted (Bad_SecurityModeInsufficient).
+            AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
             AuthorizationHelper.HasAuthorization(
                 context,
                 AuthorizationHelper.CertificateAuthorityAdminOrSelfAdminOrAppAdmin,
@@ -1906,13 +2411,12 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        result.ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadConfigurationError,
-                            "Error Generating Certificate={0}\nApplicationId={1}\nApplicationUri={2}\nApplicationName={3}",
-                            e.Message,
-                            applicationId.ToString(),
-                            application.ApplicationUri!,
-                            application.ApplicationNames[0].Text!);
+                        m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
+                        result.ServiceResult = CreateIssueFailureResult(
+                            e,
+                            "Certificate",
+                            applicationId,
+                            application);
                         return result;
                     }
                 }
@@ -1932,12 +2436,12 @@ namespace Opc.Ua.Gds.Server
                     }
                     catch (Exception e)
                     {
-                        result.ServiceResult = ServiceResult.Create(
-                            StatusCodes.BadConfigurationError,
-                            "Error Generating New Key Pair Certificate={0}\nApplicationId={1}\nApplicationUri={2}",
-                            e.Message,
-                            applicationId.ToString(),
-                            application.ApplicationUri!);
+                        m_logger.FinishRequestIssueFailed(e, requestId, application.ApplicationUri);
+                        result.ServiceResult = CreateIssueFailureResult(
+                            e,
+                            "New Key Pair Certificate",
+                            applicationId,
+                            application);
                         return result;
                     }
 
@@ -2126,212 +2630,6 @@ namespace Opc.Ua.Gds.Server
             return ServiceResult.Good;
         }
 
-        /// <summary>
-        /// Frees any resources allocated for the address space.
-        /// </summary>
-        public override ValueTask DeleteAddressSpaceAsync(CancellationToken cancellationToken = default)
-        {
-            // TBD
-            return base.DeleteAddressSpaceAsync(cancellationToken);
-        }
-
-        /// <summary>
-        /// Returns a unique handle for the node.
-        /// </summary>
-        protected override ValueTask<NodeHandle> GetManagerHandleAsync(
-            ServerSystemContext context,
-            NodeId nodeId,
-            IDictionary<NodeId, NodeState> cache,
-            CancellationToken cancellationToken = default)
-        {
-            // quickly exclude nodes that are not in the namespace.
-            if (!IsNodeIdInNamespace(nodeId))
-            {
-                return new ValueTask<NodeHandle>();
-            }
-
-            // check cache (the cache is used because the same node id can appear many times in a single request).
-            if (cache != null && cache.TryGetValue(nodeId, out NodeState? node))
-            {
-                return new ValueTask<NodeHandle>(new NodeHandle(nodeId, node));
-            }
-
-            // look up predefined node.
-            if (PredefinedNodes.TryGetValue(nodeId, out node))
-            {
-                var handle = new NodeHandle(nodeId, node);
-
-                cache?.Add(nodeId, node);
-
-                return new ValueTask<NodeHandle>(handle);
-            }
-
-            // node not found.
-            return new ValueTask<NodeHandle>();
-        }
-
-        /// <summary>
-        /// Verifies that the specified node exists.
-        /// </summary>
-        protected override async ValueTask<NodeState> ValidateNodeAsync(
-            ServerSystemContext context,
-            NodeHandle handle,
-            IDictionary<NodeId, NodeState> cache,
-            CancellationToken cancellationToken = default)
-        {
-            // not valid if no root.
-            if (handle == null)
-            {
-                return null!;
-            }
-
-            // check if previously validated.
-            if (handle.Validated)
-            {
-                return handle.Node;
-            }
-
-            // lookup in operation cache.
-            NodeState? target = await FindNodeInCacheAsync(context, handle, cache, cancellationToken).ConfigureAwait(false);
-
-            if (target != null)
-            {
-                handle.Node = target;
-                handle.Validated = true;
-                return handle.Node;
-            }
-
-            // put root into operation cache.
-            cache?[handle.NodeId] = target!;
-
-            handle.Node = target!;
-            handle.Validated = true;
-            return handle.Node;
-        }
-
-        /// <summary>
-        /// Generates a new node id.
-        /// </summary>
-        private NodeId GenerateNodeId()
-        {
-            return new NodeId(++m_nextNodeId, NamespaceIndex);
-        }
-
-        protected async ValueTask SetCertificateGroupNodesAsync(ICertificateGroup certificateGroup)
-        {
-            certificateGroup.DefaultTrustList = null!;
-            string groupId = certificateGroup.Configuration.Id!;
-
-            if (string.Equals(groupId, "DefaultHttpsGroup", StringComparison.OrdinalIgnoreCase))
-            {
-                certificateGroup.Id = m_defaultHttpsGroupId;
-                certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
-                    ExpandedNodeId.ToNodeId(
-                        ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup_TrustList,
-                        Server.NamespaceUris
-                    ))!;
-                SetPredefinedCertificateTypes(
-                    certificateGroup,
-                    ObjectIds.Directory_CertificateGroups_DefaultHttpsGroup);
-            }
-            else if (string.Equals(groupId, "DefaultUserTokenGroup", StringComparison.OrdinalIgnoreCase))
-            {
-                certificateGroup.Id = m_defaultUserTokenGroupId;
-                certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
-                    ExpandedNodeId.ToNodeId(
-                        ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup_TrustList,
-                        Server.NamespaceUris
-                    ))!;
-                SetPredefinedCertificateTypes(
-                    certificateGroup,
-                    ObjectIds.Directory_CertificateGroups_DefaultUserTokenGroup);
-            }
-            else if (string.Equals(groupId, "Default", StringComparison.OrdinalIgnoreCase) ||
-                string.Equals(groupId, "DefaultApplicationGroup", StringComparison.OrdinalIgnoreCase))
-            {
-                certificateGroup.Id = m_defaultApplicationGroupId;
-                certificateGroup.DefaultTrustList = FindPredefinedNode<TrustListState>(
-                    ExpandedNodeId.ToNodeId(
-                        ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup_TrustList,
-                        Server.NamespaceUris
-                    ))!;
-                SetPredefinedCertificateTypes(
-                    certificateGroup,
-                    ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup);
-            }
-            else
-            {
-                // Create a new custom certificate group node in the address space
-                // for any group whose Id does not match one of the three predefined groups.
-                CertificateGroupFolderState certGroupsFolder = FindPredefinedNode<CertificateGroupFolderState>(
-                    ExpandedNodeId.ToNodeId(ObjectIds.Directory_CertificateGroups, Server.NamespaceUris)) ??
-                    throw new ServiceResultException(
-                        StatusCodes.BadInternalError,
-                        "CertificateGroups folder node was not found in the address space.");
-
-                var customGroupNode = new CertificateGroupState(certGroupsFolder);
-                customGroupNode.Create(
-                    SystemContext,
-                    NodeId.Null,
-                    new QualifiedName(groupId, NamespaceIndex),
-                    new LocalizedText(groupId),
-                    true);
-
-                // Read back the NodeId assigned by Create (assignNodeIds: true reassigns the root id).
-                certificateGroup.Id = customGroupNode.NodeId;
-
-                customGroupNode.CertificateTypes?.Value = [.. certificateGroup.CertificateTypes];
-
-                certGroupsFolder.AddChild(customGroupNode);
-                await AddPredefinedNodeAsync(SystemContext, customGroupNode).ConfigureAwait(false);
-
-                certificateGroup.DefaultTrustList = customGroupNode.TrustList!;
-
-                m_logger.CreatedCustomCertificateGroupNode(groupId, certificateGroup.Id);
-            }
-
-            certificateGroup.DefaultTrustList?.Handle = new TrustList(
-                    certificateGroup.DefaultTrustList,
-                    new CertificateStoreIdentifier(certificateGroup.Configuration.TrustedListPath!),
-                    new CertificateStoreIdentifier(certificateGroup.Configuration.IssuerListPath!),
-                    new TrustList.SecureAccess(HasTrustListAccess),
-                    new TrustList.SecureAccess(HasTrustListAccess),
-                    Server.Telemetry);
-        }
-
-        /// <summary>
-        /// Publishes the concrete certificate types of a configured certificate group on the
-        /// CertificateTypes property of the corresponding predefined certificate group node.
-        /// </summary>
-        /// <remarks>
-        /// The predefined nodes are loaded before the configured certificate groups are created,
-        /// so the property initially carries the fallback type of the group. OPC 10000-12 requires
-        /// the property to list the concrete types which can be requested through the group.
-        /// </remarks>
-        private void SetPredefinedCertificateTypes(
-            ICertificateGroup certificateGroup,
-            ExpandedNodeId certificateGroupNodeId)
-        {
-            CertificateGroupState certificateGroupNode = FindPredefinedNode<CertificateGroupState>(
-                ExpandedNodeId.ToNodeId(certificateGroupNodeId, Server.NamespaceUris))
-                ?? throw new ServiceResultException(
-                    StatusCodes.BadNodeIdUnknown,
-                    Utils.Format(
-                        "The predefined CertificateGroup node {0} could not be found in the address space.",
-                        certificateGroupNodeId));
-
-            if (certificateGroupNode.CertificateTypes == null)
-            {
-                throw new ServiceResultException(
-                    StatusCodes.BadNodeIdUnknown,
-                    Utils.Format(
-                        "The predefined CertificateGroup node {0} does not expose a CertificateTypes property.",
-                        certificateGroupNodeId));
-            }
-
-            certificateGroupNode.CertificateTypes.Value = [.. certificateGroup.CertificateTypes];
-        }
-
         private void HasTrustListAccess(
             ISystemContext context,
             CertificateStoreIdentifier trustedStore)
@@ -2436,7 +2734,11 @@ namespace Opc.Ua.Gds.Server
 
             var result = new RequestAccessTokenMethodStateResult();
 
-            ArrayOf<Variant> auditInputs = [Variant.FromStructure(identityToken), resourceId];
+            ArrayOf<Variant> auditInputs =
+            [
+                Diagnostics.AuditEvents.RedactUserIdentityToken(identityToken),
+                resourceId
+            ];
             IAccessTokenProvider provider = GetAccessTokenProvider(
                 context,
                 objectId,
@@ -2446,9 +2748,15 @@ namespace Opc.Ua.Gds.Server
 
             try
             {
+                // Bind the request to the session identity so the configured
+                // access control applies and the token subject is the caller.
+                IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
 #pragma warning disable CS0618 // Legacy wire method is intentionally kept functional.
-                result.AccessToken = await provider.RequestAccessTokenAsync(
-                    identityToken, resourceId, cancellationToken).ConfigureAwait(false);
+                result.AccessToken = provider is ICallerIdentityAccessTokenProvider callerAware
+                    ? await callerAware.RequestAccessTokenAsync(
+                        identityToken, resourceId, callerIdentity, cancellationToken).ConfigureAwait(false)
+                    : await provider.RequestAccessTokenAsync(
+                        identityToken, resourceId, cancellationToken).ConfigureAwait(false);
 #pragma warning restore CS0618
             }
             catch (Exception ex)
@@ -2490,8 +2798,8 @@ namespace Opc.Ua.Gds.Server
             {
                 IUserIdentity? callerIdentity = (context as ISessionSystemContext)?.UserIdentity;
 
-                (ByteString serviceData, Guid requestId) = provider is AuthorizationServiceManager manager
-                    ? await manager.StartRequestTokenAsync(
+                (ByteString serviceData, Guid requestId) = provider is ICallerIdentityAccessTokenProvider callerAware
+                    ? await callerAware.StartRequestTokenAsync(
                         resourceId,
                         policyId,
                         requestorData,
@@ -2537,8 +2845,10 @@ namespace Opc.Ua.Gds.Server
             [
                 requestId,
                 requestedRoles,
-                Variant.FromStructure(userIdentityToken),
-                Variant.FromStructure(userTokenSignature)
+                // The token secret and the proof-of-possession signature must
+                // not be published to audit subscribers.
+                Diagnostics.AuditEvents.RedactUserIdentityToken(userIdentityToken),
+                Variant.Null
             ];
 
             IAccessTokenProvider provider = GetAccessTokenProvider(
@@ -2651,6 +2961,32 @@ namespace Opc.Ua.Gds.Server
             try
             {
                 AuthorizationHelper.HasAuthenticatedSecureChannel(context, requireEncryption: true);
+                if (!string.IsNullOrEmpty(securityPolicyUri) && publicKey.IsEmpty)
+                {
+                    // OPC 10000-12 §8.5.5: if the SecurityPolicyUri is provided
+                    // the PublicKey shall be provided.
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "A PublicKey is required when a SecurityPolicyUri is provided.");
+                }
+                if (!publicKey.IsEmpty && string.IsNullOrEmpty(securityPolicyUri))
+                {
+                    // OPC 10000-12 §8.5.5: if the PublicKey is provided the
+                    // SecurityPolicyUri shall be provided.
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        "A SecurityPolicyUri is required when a PublicKey is provided.");
+                }
+                if (!publicKey.IsEmpty)
+                {
+                    // OPC 10000-12 §8.5.5 / §8.5.6: a PublicKey asks for the secret
+                    // encrypted with it (RsaEncryptedSecret/EccEncryptedSecret).
+                    // Encrypting the secret is not implemented, so reject the
+                    // request instead of returning the secret in plain text.
+                    throw new ServiceResultException(
+                        StatusCodes.BadSecurityPolicyRejected,
+                        "Encrypting the KeyCredential secret with a PublicKey is not supported.");
+                }
                 ByteString clientCertificateFingerprint =
                     AuthorizationHelper.GetClientCertificateFingerprint(context);
                 NodeId applicationId = ResolveKeyCredentialApplicationId(m_database, applicationUri);
@@ -2871,11 +3207,24 @@ namespace Opc.Ua.Gds.Server
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// Resource ownership rather than address-space plumbing: the
+        /// certificate groups and the certificate stores their trust-list
+        /// handlers hold open are acquired while the address space comes up
+        /// and have to be released deterministically. The fluent registries
+        /// (events, simulation, monitored sources) are torn down by the base
+        /// class.
+        /// </remarks>
         protected override void Dispose(bool disposing)
         {
             if (disposing)
             {
-                foreach (ICertificateGroup certificateGroup in m_certificateGroups.Values)
+                DisposeAliasNameAggregation();
+
+                // Every group this manager created is in the owning list, so
+                // a startup that failed before Configure could bind and index
+                // the groups still releases them.
+                foreach (ICertificateGroup certificateGroup in m_ownedCertificateGroups)
                 {
                     // The TrustList handler holds its store instances open
                     // for reuse across operations; the node manager owns the
@@ -2884,6 +3233,7 @@ namespace Opc.Ua.Gds.Server
                     certificateGroup.Dispose();
                 }
 
+                m_ownedCertificateGroups.Clear();
                 m_certificateGroups.Clear();
             }
 
@@ -2891,12 +3241,21 @@ namespace Opc.Ua.Gds.Server
         }
 
         private readonly bool m_autoApprove;
-        private uint m_nextNodeId;
+
         private readonly ApplicationConfiguration m_configuration;
         private readonly GlobalDiscoveryServerConfiguration m_globalDiscoveryServerConfiguration;
         private readonly IApplicationsDatabase m_database;
         private readonly ICertificateRequest m_request;
         private readonly ICertificateGroup m_certificateGroupFactory;
+
+        // The certificate authorities this manager brought up and therefore
+        // owns, in configuration order. Filled while the address space comes
+        // up; Dispose releases them from here.
+        private readonly List<ICertificateGroup> m_ownedCertificateGroups;
+
+        // The same groups indexed by the NodeId of the certificate group node
+        // each is bound to. A group only learns that id in the Configure
+        // pass, so this index stays empty until then.
         private readonly Dictionary<NodeId, ICertificateGroup> m_certificateGroups;
         private Dictionary<NodeId, string> m_certTypeMap = [];
         private IKeyCredentialRequestStore? m_keyCredentialStore;
@@ -2918,6 +3277,7 @@ namespace Opc.Ua.Gds.Server
         /// built-in handlers return <c>Bad_NotSupported</c>.
         /// </summary>
         public IAccessTokenProvider? AccessTokenProvider { get; set; }
+
     }
 
     internal static partial class ApplicationsNodeManagerLog
@@ -3015,5 +3375,13 @@ namespace Opc.Ua.Gds.Server
         [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 20, Level = LogLevel.Information,
             Message = "OnKeyCredentialRevoke: {CredentialId}")]
         public static partial void OnKeyCredentialRevoke(this ILogger logger, string credentialId);
+
+        [LoggerMessage(EventId = GdsServerCommonEventIds.ApplicationsNodeManager + 21, Level = LogLevel.Warning,
+            Message = "FinishRequest {RequestId} for {ApplicationUri} failed to issue the certificate.")]
+        public static partial void FinishRequestIssueFailed(
+            this ILogger logger,
+            Exception exception,
+            NodeId requestId,
+            string? applicationUri);
     }
 }

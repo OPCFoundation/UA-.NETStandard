@@ -193,7 +193,7 @@ namespace Opc.Ua.Security.Certificates
             try
             {
                 var x509Reader = new AsnReader(blob, AsnEncodingRules.DER);
-                ReadOnlyMemory<byte> peekBlob = blob[..(x509Reader.PeekContentBytes().Length + 4)];
+                ReadOnlyMemory<byte> peekBlob = x509Reader.PeekEncodedValue();
                 AsnReader seqReader = x509Reader.ReadSequence(Asn1Tag.Sequence);
                 if (seqReader != null)
                 {

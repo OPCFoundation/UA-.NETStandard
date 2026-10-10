@@ -36,12 +36,11 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
-
-#nullable enable
 
 namespace Opc.Ua.Server.Tests.Historian
 {
@@ -59,6 +58,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DispatchRawReadAsync null-arg guards ────────────────────────────
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects a null provider.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenProviderIsNull()
         {
@@ -75,6 +77,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     CancellationToken.None).AsTask(), Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects a null node.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenNodeIsNull()
         {
@@ -90,6 +95,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     CancellationToken.None).AsTask(), Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects a null node-read request.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenNodeToReadIsNull()
         {
@@ -105,6 +113,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     CancellationToken.None).AsTask(), Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects null read details.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenDetailsIsNull()
         {
@@ -121,6 +132,9 @@ namespace Opc.Ua.Server.Tests.Historian
                     CancellationToken.None).AsTask(), Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects a null result destination.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenResultIsNull()
         {
@@ -139,6 +153,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── Modified data read (IsReadModified = true) ──────────────────────
 
+        /// <summary>
+        /// Verifies that raw-history dispatch returns modified data when IsReadModified is set.
+        /// </summary>
         [Test]
         public async Task DispatchRawReadAsyncWithIsReadModifiedReturnsModifiedDataAsync()
         {
@@ -183,6 +200,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── AtTime read – interpolation branches ────────────────────────────
 
+        /// <summary>
+        /// Verifies that at-time dispatch returns the exact raw value for a matching timestamp.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadAsyncWithExactMatchReturnsExactValueAsync()
         {
@@ -218,8 +238,14 @@ namespace Opc.Ua.Server.Tests.Historian
             DataValue[]? values = hd!.DataValues.ToArray();
             Assert.That(values, Has.Length.EqualTo(1));
             Assert.That(StatusCode.IsGood(values[0].StatusCode), Is.True);
+            Assert.That(
+                values[0].StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Raw));
         }
 
+        /// <summary>
+        /// Verifies that at-time dispatch reports a no-data status when no samples exist.
+        /// </summary>
         [Test]
         public async Task DispatchAtTimeReadAsyncWithNoDataReturnsNoDataStatusAsync()
         {
@@ -252,8 +278,537 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.BadNoData));
         }
 
+        /// <summary>
+        /// Verifies that at-time fallback dispatch follows the shared interpolation rules.
+        /// </summary>
         [Test]
-        public async Task DispatchAtTimeReadAsyncWithSimpleBoundsAndOnlyAfterValueReturnsLastUsableValueAsync()
+        public async Task DispatchAtTimeReadFallbackUsesSharedInterpolationRulesAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId($"at-fallback-{Guid.NewGuid():N}", 1);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    nodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly with
+                    {
+                        Stepped = false
+                    }));
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.ReadRawAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianRawReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
+                    new HistorianPage<HistoricalDataValue>(
+                    [
+                        new HistoricalDataValue(new DataValue(
+                            Variant.From(0),
+                            StatusCodes.Good,
+                            BaseTime,
+                            DateTimeUtc.MinValue)),
+                        new HistoricalDataValue(new DataValue(
+                            Variant.From(10),
+                            StatusCodes.Good,
+                            BaseTime.AddSeconds(10),
+                            DateTimeUtc.MinValue))
+                    ])));
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
+                h.SystemContext,
+                provider.Object,
+                node,
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadAtTimeDetails
+                {
+                    ReqTimes = [BaseTime.AddSeconds(5)],
+                    UseSimpleBounds = true
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? history), Is.True);
+            Assert.That(history!.DataValues, Has.Count.EqualTo(1));
+            Assert.That(history.DataValues[0].WrappedValue.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(5));
+            Assert.That(
+                history.DataValues[0].StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Interpolated));
+        }
+
+        /// <summary>
+        /// Review A3-4: the at-time fallback reads only the bounding values of each
+        /// requested time, so a small request over dense history succeeds, and every
+        /// open-ended read it issues carries a MaxValues bound.
+        /// </summary>
+        [Test]
+        public async Task DispatchAtTimeReadFallbackOverDenseHistoryReadsOnlyBoundsAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId($"at-fallback-dense-{Guid.NewGuid():N}", 1);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    nodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly with
+                    {
+                        Stepped = false
+                    }));
+            int count = HistorianDispatcher.kMaxProcessedBufferedOutputs * 3 / 2;
+            var samples = new DataValue[count];
+            for (int i = 0; i < count; i++)
+            {
+                samples[i] = new DataValue(
+                    Variant.From(i * 2.0),
+                    StatusCodes.Good,
+                    BaseTime.AddMilliseconds(i * 2),
+                    DateTimeUtc.MinValue);
+            }
+            int returned = 0;
+            bool unboundedOpenEndedRead = false;
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.ReadRawAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianRawReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<HistorianOperationContext, HistorianRawReadRequest, HistorianResumeToken, CancellationToken>(
+                    (_, request, _, _) =>
+                    {
+                        bool exact = request.StartTime == request.EndTime;
+                        if (!exact && request.MaxValues == 0)
+                        {
+                            unboundedOpenEndedRead = true;
+                        }
+                        var page = new List<HistoricalDataValue>();
+                        for (int n = 0; n < count; n++)
+                        {
+                            DataValue sample = samples[request.IsForward ? n : count - 1 - n];
+                            bool inRange = exact
+                                ? sample.SourceTimestamp == request.StartTime
+                                : sample.SourceTimestamp >= request.StartTime &&
+                                    sample.SourceTimestamp < request.EndTime;
+                            if (inRange)
+                            {
+                                page.Add(new HistoricalDataValue(sample));
+                                if (request.MaxValues > 0 && page.Count >= request.MaxValues)
+                                {
+                                    break;
+                                }
+                            }
+                        }
+                        returned += page.Count;
+                        return new ValueTask<HistorianPage<HistoricalDataValue>>(
+                            new HistorianPage<HistoricalDataValue>([.. page]));
+                    });
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
+                h.SystemContext,
+                provider.Object,
+                node,
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadAtTimeDetails
+                {
+                    ReqTimes = [BaseTime.AddMilliseconds(1), BaseTime.AddMilliseconds((count * 2) - 3)],
+                    UseSimpleBounds = false
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True, error.ToString());
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? history), Is.True);
+            Assert.That(history!.DataValues, Has.Count.EqualTo(2));
+            Assert.That(history.DataValues[0].WrappedValue.TryGetValue(out double first), Is.True);
+            Assert.That(history.DataValues[1].WrappedValue.TryGetValue(out double last), Is.True);
+            Assert.That(first, Is.EqualTo(1.0));
+            Assert.That(last, Is.EqualTo((count * 2) - 3.0));
+            Assert.That(unboundedOpenEndedRead, Is.False);
+            Assert.That(returned, Is.LessThan(HistorianDispatcher.kMaxProcessedBufferedOutputs));
+        }
+
+        /// <summary>
+        /// Verifies that the at-time fallback stops scanning an unbounded number of raw
+        /// values for a bound, even when the provider ignores the MaxValues bound of the
+        /// request, and reports Bad_BoundNotSupported for the affected requested time
+        /// (Part 11 4.6 / Table 25) instead of failing the whole operation.
+        /// </summary>
+        [Test]
+        public async Task DispatchAtTimeReadFallbackCapsBufferedRawValuesAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId($"at-fallback-cap-{Guid.NewGuid():N}", 1);
+            var provider = new Mock<IHistorianProvider>();
+            provider
+                .Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<bool>(true));
+            provider
+                .Setup(value => value.GetCapabilitiesAsync(
+                    nodeId,
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianNodeCapabilities>(
+                    HistorianNodeCapabilities.ReadOnly));
+            var samples = new HistoricalDataValue[HistorianDispatcher.kMaxProcessedBufferedOutputs + 1];
+            for (int i = 0; i < samples.Length; i++)
+            {
+                samples[i] = new HistoricalDataValue(new DataValue(
+                    Variant.From(i),
+                    StatusCodes.Good,
+                    BaseTime.AddMilliseconds(i),
+                    DateTimeUtc.MinValue));
+            }
+            provider.As<IHistorianDataProvider>()
+                .Setup(value => value.ReadRawAsync(
+                    It.IsAny<HistorianOperationContext>(),
+                    It.IsAny<HistorianRawReadRequest>(),
+                    It.IsAny<HistorianResumeToken>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns(new ValueTask<HistorianPage<HistoricalDataValue>>(
+                    new HistorianPage<HistoricalDataValue>([.. samples])));
+            BaseDataVariableState node = CreateVariable(nodeId);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
+                h.SystemContext,
+                provider.Object,
+                node,
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadAtTimeDetails
+                {
+                    ReqTimes = [BaseTime, BaseTime.AddMilliseconds(samples.Length)],
+                    UseSimpleBounds = true
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True, error.ToString());
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? history), Is.True);
+            Assert.That(history!.DataValues, Has.Count.EqualTo(2));
+            Assert.That(
+                history.DataValues.ToList().Exists(v => v.StatusCode == StatusCodes.BadBoundNotSupported),
+                Is.True);
+            Assert.That(
+                history.DataValues.ToList().TrueForAll(
+                    v => v.StatusCode != StatusCodes.BadBoundNotSupported ||
+                        v.SourceTimestamp == BaseTime ||
+                        v.SourceTimestamp == BaseTime.AddMilliseconds(samples.Length)),
+                Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that interpolated at-time bounds search beyond bad-quality values.
+        /// </summary>
+        [Test]
+        public async Task DispatchAtTimeReadInterpolatedBoundsSearchPastBadValuesAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId($"at-bad-bounds-{Guid.NewGuid():N}", 1);
+            h.Provider.Register(nodeId);
+            HistorianOperationContext context =
+                HarnessFixture.CreateContext(h.SystemContext);
+            await h.Provider.InsertAsync(
+                context,
+                nodeId,
+                [
+                    new DataValue(
+                        Variant.From(0),
+                        StatusCodes.Good,
+                        BaseTime,
+                        DateTimeUtc.MinValue),
+                    new DataValue(
+                        Variant.From(4),
+                        StatusCodes.BadNoData,
+                        BaseTime.AddSeconds(4),
+                        DateTimeUtc.MinValue),
+                    new DataValue(
+                        Variant.From(6),
+                        StatusCodes.BadNoData,
+                        BaseTime.AddSeconds(6),
+                        DateTimeUtc.MinValue),
+                    new DataValue(
+                        Variant.From(10),
+                        StatusCodes.Good,
+                        BaseTime.AddSeconds(10),
+                        DateTimeUtc.MinValue)
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
+                h.SystemContext,
+                h.Provider,
+                CreateVariable(nodeId),
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadAtTimeDetails
+                {
+                    ReqTimes = [BaseTime.AddSeconds(5)],
+                    UseSimpleBounds = false
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? history), Is.True);
+            Assert.That(history!.DataValues, Has.Count.EqualTo(1));
+            Assert.That(history.DataValues[0].WrappedValue.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(5));
+            Assert.That(StatusCode.IsUncertain(history.DataValues[0].StatusCode), Is.True);
+            Assert.That(
+                history.DataValues[0].StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Interpolated));
+        }
+
+        /// <summary>
+        /// Verifies that sloped at-time extrapolation loads two raw values.
+        /// </summary>
+        [Test]
+        public async Task DispatchAtTimeReadFallbackLoadsTwoValuesForSlopedExtrapolationAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            var nodeId = new NodeId($"at-extrapolate-{Guid.NewGuid():N}", 1);
+            h.Provider.Register(nodeId);
+            HistorianOperationContext context =
+                HarnessFixture.CreateContext(h.SystemContext);
+            await h.Provider.InsertAsync(
+                context,
+                nodeId,
+                [
+                    new DataValue(
+                        Variant.From(0),
+                        StatusCodes.Good,
+                        BaseTime,
+                        DateTimeUtc.MinValue),
+                    new DataValue(
+                        Variant.From(10),
+                        StatusCodes.Good,
+                        BaseTime.AddSeconds(10),
+                        DateTimeUtc.MinValue)
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
+                h.SystemContext,
+                h.Provider,
+                CreateVariable(nodeId),
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadAtTimeDetails
+                {
+                    ReqTimes = [BaseTime.AddSeconds(20)],
+                    UseSimpleBounds = false
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? history), Is.True);
+            Assert.That(history!.DataValues, Has.Count.EqualTo(1));
+            Assert.That(history.DataValues[0].WrappedValue.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(20));
+            Assert.That(StatusCode.IsUncertain(history.DataValues[0].StatusCode), Is.True);
+            Assert.That(
+                history.DataValues[0].StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Interpolated));
+        }
+
+        /// <summary>
+        /// Verifies that interpolated at-time bounds include the maximum representable timestamp.
+        /// </summary>
+        [Test]
+        public async Task DispatchAtTimeReadInterpolatedBoundsIncludeMaximumTimestampAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions
+                {
+                    RawDataRetentionPeriod = TimeSpan.Zero
+                });
+            var nodeId = new NodeId(
+                $"at-maximum-{Guid.NewGuid():N}",
+                1);
+            provider.Register(nodeId);
+            var maximum = DateTimeUtc.MaxValue.ToDateTime();
+            DateTime first = maximum.AddMilliseconds(-10);
+            DateTime bad = maximum.AddMilliseconds(-2);
+            DateTime last = maximum;
+            DateTime requested = maximum.AddMilliseconds(-3);
+            HistorianOperationContext context =
+                HarnessFixture.CreateContext(h.SystemContext);
+            HistorianUpdateOutcome<DataValue> inserted =
+                await provider.InsertAsync(
+                context,
+                nodeId,
+                [
+                    new DataValue(
+                        Variant.From(0),
+                        StatusCodes.Good,
+                        first,
+                        DateTimeUtc.MinValue),
+                    new DataValue(
+                        Variant.From(8),
+                        StatusCodes.BadNoData,
+                        bad,
+                        DateTimeUtc.MinValue),
+                    new DataValue(
+                        Variant.From(10),
+                        StatusCodes.Good,
+                        last,
+                        DateTimeUtc.MinValue)
+                ],
+                CancellationToken.None).ConfigureAwait(false);
+            foreach (StatusCode operationResult in inserted.OperationResults)
+            {
+                Assert.That(StatusCode.IsGood(operationResult), Is.True);
+            }
+            HistorianPage<HistoricalDataValue> exact =
+                await provider.ReadRawAsync(
+                    context,
+                    new HistorianRawReadRequest
+                    {
+                        NodeId = nodeId,
+                        StartTime = DateTimeUtc.MaxValue,
+                        EndTime = DateTimeUtc.MaxValue,
+                        IsForward = true
+                    },
+                    default,
+                    CancellationToken.None).ConfigureAwait(false);
+            Assert.That(exact.Values, Has.Count.EqualTo(1));
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
+                h.SystemContext,
+                provider,
+                CreateVariable(nodeId),
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadAtTimeDetails
+                {
+                    ReqTimes = [(DateTimeUtc)requested],
+                    UseSimpleBounds = false
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? history), Is.True);
+            Assert.That(history!.DataValues, Has.Count.EqualTo(1));
+            Assert.That(history.DataValues[0].WrappedValue.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(7));
+            Assert.That(StatusCode.IsUncertain(history.DataValues[0].StatusCode), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that a batched at-time read returns an exact value at the maximum timestamp.
+        /// </summary>
+        [Test]
+        public async Task DispatchAtTimeReadBatchReturnsExactMaximumTimestampAsync()
+        {
+            HarnessFixture h = CreateHarness();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions
+                {
+                    RawDataRetentionPeriod = TimeSpan.Zero
+                });
+            var nodeId = new NodeId($"at-batch-maximum-{Guid.NewGuid():N}", 1);
+            provider.Register(nodeId);
+            HistorianOperationContext context =
+                HarnessFixture.CreateContext(h.SystemContext);
+            var maximum = DateTimeUtc.MaxValue.ToDateTime();
+            DateTime earlier = maximum.AddMilliseconds(-10);
+            HistorianUpdateOutcome<DataValue> inserted =
+                await provider.InsertAsync(
+                    context,
+                    nodeId,
+                    [
+                        new DataValue(
+                            Variant.From(1),
+                            StatusCodes.Good,
+                            earlier,
+                            DateTimeUtc.MinValue),
+                        new DataValue(
+                            Variant.From(2),
+                            StatusCodes.Good,
+                            maximum,
+                            DateTimeUtc.MinValue)
+                    ],
+                    CancellationToken.None).ConfigureAwait(false);
+            foreach (StatusCode operationResult in inserted.OperationResults)
+            {
+                Assert.That(StatusCode.IsGood(operationResult), Is.True);
+            }
+            var result = new HistoryReadResult();
+
+            ServiceResult error = await HistorianDispatcher.DispatchAtTimeReadAsync(
+                h.SystemContext,
+                provider,
+                CreateVariable(nodeId),
+                new HistoryReadValueId
+                {
+                    NodeId = nodeId
+                },
+                new ReadAtTimeDetails
+                {
+                    ReqTimes = [earlier, DateTimeUtc.MaxValue],
+                    UseSimpleBounds = false
+                },
+                TimestampsToReturn.Source,
+                result,
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(ServiceResult.IsGood(error), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? history), Is.True);
+            Assert.That(history!.DataValues, Has.Count.EqualTo(2));
+            Assert.That(history.DataValues[1].WrappedValue.TryGetValue(out int value), Is.True);
+            Assert.That(value, Is.EqualTo(2));
+            Assert.That(
+                history.DataValues[1].StatusCode.AggregateBits,
+                Is.EqualTo(AggregateBits.Raw));
+        }
+
+        /// <summary>
+        /// Verifies that simple-bound at-time reads return BadNoData when only a later value exists.
+        /// </summary>
+        [Test]
+        public async Task DispatchAtTimeReadAsyncWithSimpleBoundsAndOnlyAfterValueReturnsBadNoDataAsync()
         {
             HarnessFixture h = CreateHarness();
             var nodeId = new NodeId($"at-simpbound-{Guid.NewGuid():N}", 1);
@@ -287,12 +842,14 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
             DataValue[]? values = hd!.DataValues.ToArray();
             Assert.That(values, Has.Length.EqualTo(1));
-            Assert.That(values[0].StatusCode,
-                Is.EqualTo(StatusCodes.UncertainNoCommunicationLastUsableValue));
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.BadNoData));
         }
 
+        /// <summary>
+        /// Verifies that unsupported nonnumeric at-time interpolation returns BadTypeMismatch.
+        /// </summary>
         [Test]
-        public async Task DispatchAtTimeReadAsyncWithNonNumericValueFallsBackToLastUsableValueAsync()
+        public async Task DispatchAtTimeReadAsyncWithNonNumericValueReturnsBadTypeMismatchAsync()
         {
             HarnessFixture h = CreateHarness();
             var nodeId = new NodeId($"at-nonnum-{Guid.NewGuid():N}", 1);
@@ -330,8 +887,7 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result.HistoryData.TryGetValue(out HistoryData? hd), Is.True);
             DataValue[]? values = hd!.DataValues.ToArray();
             Assert.That(values, Has.Length.EqualTo(1));
-            Assert.That(values[0].StatusCode,
-                Is.EqualTo(StatusCodes.UncertainNoCommunicationLastUsableValue));
+            Assert.That(values[0].StatusCode, Is.EqualTo(StatusCodes.BadTypeMismatch));
         }
 
         // ─── Helpers ─────────────────────────────────────────────────────────
@@ -343,6 +899,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DispatchRawReadAsync null systemContext guard ───────────────────
 
+        /// <summary>
+        /// Verifies that raw-history dispatch rejects a null system context.
+        /// </summary>
         [Test]
         public void DispatchRawReadAsyncThrowsWhenSystemContextIsNull()
         {
@@ -361,6 +920,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── ReleaseContinuationPoint null-arg guards ────────────────────────
 
+        /// <summary>
+        /// Verifies that continuation release rejects a null system context.
+        /// </summary>
         [Test]
         public void ReleaseContinuationPointThrowsWhenSystemContextIsNull()
         {
@@ -371,6 +933,9 @@ namespace Opc.Ua.Server.Tests.Historian
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that continuation release rejects a null node-read request.
+        /// </summary>
         [Test]
         public void ReleaseContinuationPointThrowsWhenNodeToReadIsNull()
         {
@@ -384,6 +949,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── TimestampsToReturn.Neither clears sourceTimestamp ───────────────
 
+        /// <summary>
+        /// Verifies that raw-history dispatch clears both timestamps when neither is requested.
+        /// </summary>
         [Test]
         public async Task DispatchRawReadAsyncWithTimestampsNeitherClearsTimestampsAsync()
         {
@@ -425,6 +993,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
         // ─── DataEncoding unsupported path ───────────────────────────────────
 
+        /// <summary>
+        /// Verifies that raw-history dispatch reports an encoding error for an unsupported data encoding.
+        /// </summary>
         [Test]
         public async Task DispatchRawReadAsyncWithDataEncodingReturnsBadEncodingAsync()
         {
@@ -487,7 +1058,9 @@ namespace Opc.Ua.Server.Tests.Historian
 
             public HarnessFixture()
             {
-                Provider = new InMemoryHistorianProvider();
+                Provider = new InMemoryHistorianProvider(
+                    new InMemoryHistorianOptions(),
+                    new FakeTimeProvider(BaseTime));
 
                 var mockTelemetry = new Mock<ITelemetryContext>();
                 var continuationStore = new Dictionary<Guid, IHistoryContinuationPoint>();
@@ -499,7 +1072,6 @@ namespace Opc.Ua.Server.Tests.Historian
                 var continuationPoints = new SessionContinuationPoints(
                     () => NodeId.Null, maxBrowse: 10, maxHistory: 10, store: null);
                 mockSession.Setup(s => s.ContinuationPoints).Returns(continuationPoints);
-
 
                 var mockServer = new Mock<IServerInternal>();
                 mockServer.Setup(s => s.NamespaceUris).Returns(new NamespaceTable());

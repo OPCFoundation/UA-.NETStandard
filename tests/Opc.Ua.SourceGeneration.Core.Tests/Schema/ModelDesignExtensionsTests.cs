@@ -52,6 +52,22 @@ namespace Opc.Ua.Schema.Model.Tests
     [Parallelizable]
     public class ModelDesignExtensionsTests
     {
+        [TestCase(null)]
+        [TestCase("")]
+        [TestCase("Identifier")]
+        public void SetIdentifierPreservesStringIdentifier(string? identifier)
+        {
+            var node = new ObjectDesign();
+
+            node.SetIdentifier(identifier!);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(node.GetIdentifier(), Is.EqualTo(identifier));
+                Assert.That(node.HasIdentifier(), Is.EqualTo(identifier != null));
+            });
+        }
+
         [Test]
         public void AssignMethodArgumentCodeNamesAllocatesInputsBeforeOutputs()
         {
@@ -332,10 +348,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void DetermineBasicDataType_NullDataType_ReturnsBaseDataType()
         {
             // Arrange
-            DataTypeDesign dataType = null;
+            DataTypeDesign? dataType = null;
 
             // Act
-            BasicDataType result = dataType.DetermineBasicDataType();
+            BasicDataType result = dataType!.DetermineBasicDataType();
 
             // Assert
             Assert.That(result, Is.EqualTo(BasicDataType.BaseDataType));
@@ -507,7 +523,7 @@ namespace Opc.Ua.Schema.Model.Tests
             {
                 IsOptionSet = false,
                 SymbolicName = new XmlQualifiedName("CustomType", "http://custom.org/UA/"),
-                BaseTypeNode = null
+                BaseTypeNode = null!
             };
 
             // Act
@@ -752,10 +768,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetNodeClassString_NullNode_ReturnsNode()
         {
             // Arrange
-            NodeDesign node = null;
+            NodeDesign? node = null;
 
             // Act
-            string result = node.GetNodeClassAsString();
+            string result = node!.GetNodeClassAsString();
 
             // Assert
             Assert.That(result, Is.EqualTo("Node"));
@@ -779,8 +795,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Array,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -807,8 +823,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Array,
-                null,
-                null,
+                null!,
+                null!,
                 true,
                 "TestNamespace",
                 namespaces,
@@ -836,8 +852,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -868,8 +884,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 valueRank,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -956,7 +972,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 true,
                 false,
                 "TestNamespace",
@@ -985,7 +1001,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 false,
                 false,
                 "TestNamespace",
@@ -1017,7 +1033,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 "TestNamespace",
@@ -1046,7 +1062,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 "not a sbyte",
                 false,
                 "TestNamespace",
@@ -1077,7 +1093,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 "TestNamespace",
@@ -1108,7 +1124,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 "TestNamespace",
@@ -1139,7 +1155,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 "TestNamespace",
@@ -1170,7 +1186,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 "TestNamespace",
@@ -1200,7 +1216,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 "TestNamespace",
@@ -1231,7 +1247,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 "TestNamespace",
@@ -1260,7 +1276,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 (long)12345,
                 false,
                 "TestNamespace",
@@ -1290,7 +1306,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 "TestNamespace",
@@ -1319,7 +1335,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 (ulong)12345,
                 false,
                 "TestNamespace",
@@ -1350,7 +1366,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 "TestNamespace",
@@ -1379,7 +1395,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 "not a float",
                 false,
                 "TestNamespace",
@@ -1410,7 +1426,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 value,
                 false,
                 "TestNamespace",
@@ -1439,7 +1455,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 123.456,
                 false,
                 "TestNamespace",
@@ -1468,7 +1484,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 string.Empty,
                 false,
                 "TestNamespace",
@@ -1497,7 +1513,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 "Hello World",
                 false,
                 "TestNamespace",
@@ -1526,7 +1542,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 123,
                 false,
                 "TestNamespace",
@@ -1555,7 +1571,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 DateTime.MinValue,
                 false,
                 "TestNamespace",
@@ -1585,7 +1601,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testDate,
                 false,
                 "TestNamespace",
@@ -1615,7 +1631,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 "not a datetime",
                 false,
                 "TestNamespace",
@@ -1644,7 +1660,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 Guid.Empty,
                 false,
                 "TestNamespace",
@@ -1674,7 +1690,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testGuid,
                 false,
                 "TestNamespace",
@@ -1706,7 +1722,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testUuid,
                 false,
                 "TestNamespace",
@@ -1736,8 +1752,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -1766,7 +1782,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testBytes,
                 false,
                 "TestNamespace",
@@ -1796,8 +1812,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -1825,7 +1841,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 NodeId.Null,
                 false,
                 "TestNamespace",
@@ -1855,7 +1871,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testNodeId,
                 false,
                 "TestNamespace",
@@ -1867,11 +1883,12 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests GetDefaultDotNetValue with NodeId type and valid namespace.
-        /// Expected: Returns ExpandedNodeId.Parse format.
+        /// Tests GetDefaultDotNetValue with NodeId type and a non-zero namespace
+        /// index but no namespace table in scope.
+        /// Expected: Returns the literal NodeId.Parse form.
         /// </summary>
         [Test]
-        public void GetDefaultDotNetValue_NodeIdWithValidNamespace_ReturnsExpandedNodeIdParse()
+        public void GetDefaultDotNetValueNodeIdWithNamespaceWithoutNamespaceTableReturnsNodeIdParse()
         {
             // Arrange
             var mockDataType = new DataTypeDesign
@@ -1889,16 +1906,17 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testNodeId,
                 false,
                 "TestNamespace",
                 namespaces,
                 mockContext.Object);
 
-            // Assert
-            Assert.That(result, Does.StartWith("ExpandedNodeId.Parse("));
-            Assert.That(result, Does.Contain("context.NamespaceUris"));
+            // Assert: without a namespace table in scope the id is emitted
+            // literally; it used to reference a "context" local that a structure
+            // field initializer does not have. See DefaultValueCodeTests.
+            Assert.That(result, Is.EqualTo("global::Opc.Ua.NodeId.Parse(\"ns=1;i=123\")"));
         }
 
         /// <summary>
@@ -1919,7 +1937,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 ExpandedNodeId.Null,
                 false,
                 "TestNamespace",
@@ -1949,7 +1967,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testExpandedNodeId,
                 false,
                 "TestNamespace",
@@ -1978,7 +1996,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 QualifiedName.Null,
                 false,
                 "TestNamespace",
@@ -2008,7 +2026,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testQName,
                 false,
                 "TestNamespace",
@@ -2038,7 +2056,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testLocalizedText,
                 false,
                 "TestNamespace",
@@ -2070,7 +2088,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testStatusCode,
                 false,
                 "TestNamespace",
@@ -2100,7 +2118,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
+                null!,
                 testStatusCode,
                 false,
                 "TestNamespace",
@@ -2108,7 +2126,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 mockContext.Object);
 
             // Assert
-            Assert.That(result, Does.StartWith("(global::Opc.Ua.StatusCode.StatusCode)"));
+            Assert.That(result, Is.EqualTo("new global::Opc.Ua.StatusCode(0x80000000u)"));
         }
 
         /// <summary>
@@ -2130,8 +2148,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -2165,8 +2183,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -2199,8 +2217,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -2240,8 +2258,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -2269,8 +2287,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -2303,8 +2321,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 true,
                 "TestNamespace",
                 namespaces,
@@ -2334,8 +2352,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -2363,8 +2381,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetValueAsCode(
                 ValueRank.Scalar,
-                null,
-                null,
+                null!,
+                null!,
                 false,
                 "TestNamespace",
                 namespaces,
@@ -2707,7 +2725,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string targetNamespace = "http://test.org/";
 
             // Act
-            string result = mockDataType.GetBinaryDataType(targetNamespace, null);
+            string result = mockDataType.GetBinaryDataType(targetNamespace, null!);
 
             // Assert
             Assert.That(result, Is.EqualTo("opc:Int32"));
@@ -2750,7 +2768,7 @@ namespace Opc.Ua.Schema.Model.Tests
             Namespace[] namespaces = [];
 
             // Act
-            string result = mockDataType.GetBinaryDataType(null, namespaces);
+            string result = mockDataType.GetBinaryDataType(null!, namespaces);
 
             // Assert
             Assert.That(result, Is.EqualTo("opc:Boolean"));
@@ -2793,7 +2811,7 @@ namespace Opc.Ua.Schema.Model.Tests
             Namespace[] namespaces = [];
 
             // Act
-            string result = mockDataType.GetBinaryDataType(null, namespaces);
+            string result = mockDataType.GetBinaryDataType(null!, namespaces);
 
             // Assert
             Assert.That(result, Is.EqualTo("ua:CustomType"));
@@ -3041,6 +3059,53 @@ namespace Opc.Ua.Schema.Model.Tests
 
             // Assert
             Assert.That(result, Is.EqualTo("TestMethodState"));
+        }
+
+        /// <summary>
+        /// Tests GetClassName with a child method that declares its arguments inline.
+        /// Input: MethodDesign child of an ObjectType, no TypeDefinition, with arguments.
+        /// Expected: References use the base MethodState because no typed class is
+        /// generated; the declaration name keeps the typed class name.
+        /// </summary>
+        [Test]
+        public void GetClassName_InlineMethodWithArguments_ReferencesBaseMethodState()
+        {
+            // Arrange
+            var mockMethod = new MethodDesign
+            {
+                SymbolicId = new XmlQualifiedName("ThermostatType_Boost", "http://test.org"),
+                SymbolicName = new XmlQualifiedName("Boost", "http://test.org"),
+                TypeDefinition = null,
+                HasArguments = true,
+                InputArguments =
+                [
+                    new Parameter
+                    {
+                        Name = "Degrees",
+                        DataType = new XmlQualifiedName("Double", "http://opcfoundation.org/UA/")
+                    }
+                ]
+            };
+            Namespace[] namespaces = [];
+
+            // Act
+            string reference = mockMethod.GetNodeStateClassName("http://test.org", namespaces);
+            string factory = mockMethod.GetNodeStateClassName(
+                "http://test.org",
+                namespaces,
+                asFactory: true);
+            string declaration = mockMethod.GetNodeStateClassName(
+                "http://test.org",
+                namespaces,
+                applyStandardFallback: false);
+
+            // Assert
+            Assert.Multiple(() =>
+            {
+                Assert.That(reference, Is.EqualTo("global::Opc.Ua.MethodState"));
+                Assert.That(factory, Is.EqualTo("new global::Opc.Ua.MethodState"));
+                Assert.That(declaration, Is.EqualTo("BoostMethodState"));
+            });
         }
 
         /// <summary>
@@ -3442,7 +3507,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = mockMethod.GetNodeStateClassName("http://test.org", null);
+            string result = mockMethod.GetNodeStateClassName("http://test.org", null!);
 
             // Assert
             Assert.That(result, Is.EqualTo("global::Opc.Ua.MethodState"));
@@ -3604,10 +3669,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const ValueRank valueRank = ValueRank.Array;
-            const string arrayDimensions = null;
+            const string? arrayDimensions = null;
 
             // Act
-            string result = valueRank.GetValueRankAsCode(arrayDimensions);
+            string result = valueRank.GetValueRankAsCode(arrayDimensions!);
 
             // Assert
             Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.OneDimension"));
@@ -3622,10 +3687,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const ValueRank valueRank = ValueRank.Scalar;
-            const string arrayDimensions = null;
+            const string? arrayDimensions = null;
 
             // Act
-            string result = valueRank.GetValueRankAsCode(arrayDimensions);
+            string result = valueRank.GetValueRankAsCode(arrayDimensions!);
 
             // Assert
             Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.Scalar"));
@@ -3640,10 +3705,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const ValueRank valueRank = ValueRank.Any;
-            const string arrayDimensions = null;
+            const string? arrayDimensions = null;
 
             // Act
-            string result = valueRank.GetValueRankAsCode(arrayDimensions);
+            string result = valueRank.GetValueRankAsCode(arrayDimensions!);
 
             // Assert
             Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.Any"));
@@ -3658,10 +3723,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const ValueRank valueRank = ValueRank.ScalarOrArray;
-            const string arrayDimensions = null;
+            const string? arrayDimensions = null;
 
             // Act
-            string result = valueRank.GetValueRankAsCode(arrayDimensions);
+            string result = valueRank.GetValueRankAsCode(arrayDimensions!);
 
             // Assert
             Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.Any"));
@@ -3676,10 +3741,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const ValueRank valueRank = ValueRank.ScalarOrOneDimension;
-            const string arrayDimensions = null;
+            const string? arrayDimensions = null;
 
             // Act
-            string result = valueRank.GetValueRankAsCode(arrayDimensions);
+            string result = valueRank.GetValueRankAsCode(arrayDimensions!);
 
             // Assert
             Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.ScalarOrOneDimension"));
@@ -3694,10 +3759,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const ValueRank valueRank = ValueRank.OneOrMoreDimensions;
-            const string arrayDimensions = null;
+            const string? arrayDimensions = null;
 
             // Act
-            string result = valueRank.GetValueRankAsCode(arrayDimensions);
+            string result = valueRank.GetValueRankAsCode(arrayDimensions!);
 
             // Assert
             Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.OneOrMoreDimensions"));
@@ -3874,10 +3939,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const ValueRank valueRank = (ValueRank)999;
-            const string arrayDimensions = null;
+            const string? arrayDimensions = null;
 
             // Act
-            string result = valueRank.GetValueRankAsCode(arrayDimensions);
+            string result = valueRank.GetValueRankAsCode(arrayDimensions!);
 
             // Assert
             Assert.That(result, Is.EqualTo("global::Opc.Ua.ValueRanks.Any"));
@@ -4023,11 +4088,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetPrefixedName_NullQName_ReturnsEmptyString()
         {
             // Arrange
-            XmlQualifiedName qname = null;
+            XmlQualifiedName? qname = null;
             var namespaceUris = new List<string> { "http://example.com/ns1" };
 
             // Act
-            string result = qname.GetPrefixedName(namespaceUris);
+            string result = qname!.GetPrefixedName(namespaceUris);
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -4221,10 +4286,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             var qname = new XmlQualifiedName("MyType", "http://example.com");
-            List<string> namespaceUris = null;
+            List<string>? namespaceUris = null;
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => qname.GetPrefixedName(namespaceUris));
+            Assert.Throws<ArgumentNullException>(() => qname.GetPrefixedName(namespaceUris!));
         }
 
         /// <summary>
@@ -4422,11 +4487,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetBaseClassName_NullType_ThrowsArgumentNullException()
         {
             // Arrange
-            TypeDesign type = null;
+            TypeDesign? type = null;
             Namespace[] namespaces = [];
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => type.GetBaseClassName(namespaces));
+            Assert.Throws<ArgumentNullException>(() => type!.GetBaseClassName(namespaces));
         }
 
         /// <summary>
@@ -4465,7 +4530,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var mockType = new TypeDesign
             {
-                BaseTypeNode = null
+                BaseTypeNode = null!
             };
             Namespace[] namespaces = [];
 
@@ -4585,10 +4650,10 @@ namespace Opc.Ua.Schema.Model.Tests
             mockBaseDataType.SymbolicId = symbolicId;
             mockDataType.BaseTypeNode = mockBaseDataType;
 
-            Namespace[] namespaces = null;
+            Namespace[]? namespaces = null;
 
             // Act
-            string result = mockDataType.GetBaseClassName(namespaces);
+            string result = mockDataType.GetBaseClassName(namespaces!);
 
             // Assert
             Assert.That(result, Is.EqualTo("BaseTypeName"));
@@ -4746,10 +4811,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetNodeStateClassName_NullNode_ThrowsArgumentNullException()
         {
             // Arrange
-            TypeDesign node = null;
+            TypeDesign? node = null;
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => node.GetClassName([]));
+            Assert.Throws<ArgumentNullException>(() => node!.GetClassName([]));
         }
 
         /// <summary>
@@ -5161,10 +5226,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void IsOverridden_NullInstance_ThrowsArgumentNullException()
         {
             // Arrange
-            InstanceDesign instance = null;
+            InstanceDesign? instance = null;
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => instance.IsOverridden());
+            Assert.Throws<ArgumentNullException>(() => instance!.IsOverridden());
         }
 
         /// <summary>
@@ -5184,7 +5249,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var instance = new InstanceDesign
             {
-                OveriddenNode = null,
+                OveriddenNode = null!,
                 ModellingRule = modellingRule
             };
 
@@ -5254,11 +5319,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetNamespace_NullNamespacesArray_ReturnsNull()
         {
             // Arrange
-            Namespace[] namespaces = null;
+            Namespace[]? namespaces = null;
             const string namespaceUri = "http://example.com/namespace";
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace? result = namespaces!.GetNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -5275,7 +5340,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/namespace";
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace? result = namespaces.GetNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -5293,7 +5358,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/namespace";
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace result = namespaces.GetNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -5316,7 +5381,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/nonexistent";
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace? result = namespaces.GetNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -5341,7 +5406,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/namespace";
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace result = namespaces.GetNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -5361,10 +5426,10 @@ namespace Opc.Ua.Schema.Model.Tests
                 new Namespace { Value = "http://example.com/namespace" },
                 namespaceWithNull
             ];
-            const string namespaceUri = null;
+            const string? namespaceUri = null;
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace result = namespaces.GetNamespace(namespaceUri!)!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -5383,10 +5448,10 @@ namespace Opc.Ua.Schema.Model.Tests
                 new Namespace { Value = "http://example.com/namespace1" },
                 new Namespace { Value = "http://example.com/namespace2" }
             ];
-            const string namespaceUri = null;
+            const string? namespaceUri = null;
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace? result = namespaces.GetNamespace(namespaceUri!);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -5408,7 +5473,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string namespaceUri = string.Empty;
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace result = namespaces.GetNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -5431,7 +5496,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "   ";
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace result = namespaces.GetNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -5452,7 +5517,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/namespace";
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace? result = namespaces.GetNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -5474,7 +5539,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            Namespace result = namespaces.GetNamespace(specialUri);
+            Namespace result = namespaces.GetNamespace(specialUri)!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -5497,7 +5562,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            Namespace result = namespaces.GetNamespace(longUri);
+            Namespace result = namespaces.GetNamespace(longUri)!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -5520,7 +5585,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            Namespace result = namespaces.GetNamespace(unicodeUri);
+            Namespace result = namespaces.GetNamespace(unicodeUri)!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -5550,7 +5615,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/target";
 
             // Act
-            Namespace result = namespaces.GetNamespace(namespaceUri);
+            Namespace result = namespaces.GetNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -5564,10 +5629,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void IsDerivedDataType_NullType_ThrowsArgumentNullException()
         {
             // Arrange
-            TypeDesign type = null;
+            TypeDesign? type = null;
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => type.IsDerivedDataType());
+            Assert.Throws<ArgumentNullException>(() => type!.IsDerivedDataType());
         }
 
         /// <summary>
@@ -5597,7 +5662,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var type = new DataTypeDesign
             {
-                BaseTypeNode = null
+                BaseTypeNode = null!
             };
 
             // Act
@@ -5743,10 +5808,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetChildFieldName_NullParameter_ReturnsEmptyString()
         {
             // Arrange
-            Parameter field = null;
+            Parameter? field = null;
 
             // Act
-            string result = field.GetChildFieldName();
+            string result = field!.GetChildFieldName();
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -5793,7 +5858,9 @@ namespace Opc.Ua.Schema.Model.Tests
         [TestCase("Z", "m_z")]
         [TestCase("a", "m_a")]
         [TestCase("z", "m_z")]
-        [TestCase("0", "m_0")]
+        // A name that is only a digit gets the sanitizer's leading underscore
+        // before the "m_" prefix is applied.
+        [TestCase("0", "m__0")]
         [TestCase("_", "m__")]
         public void GetChildFieldName_SingleCharacterName_ReturnsCorrectFieldName(string name, string expected)
         {
@@ -5845,12 +5912,15 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests that GetChildFieldName handles names with special characters correctly.
+        /// Tests that GetChildFieldName handles names with special characters
+        /// correctly. A BrowseName may contain characters that are not legal in
+        /// a C# identifier, and the backing field has to be one: these used to
+        /// come out as "m_$Value" / "m_name-With-Dash", which do not compile.
         /// </summary>
         [TestCase("_Property", "m__Property")]
-        [TestCase("$Value", "m_$Value")]
-        [TestCase("Name-With-Dash", "m_name-With-Dash")]
-        [TestCase("Name.With.Dot", "m_name.With.Dot")]
+        [TestCase("$Value", "m__Value")]
+        [TestCase("Name-With-Dash", "m_name_With_Dash")]
+        [TestCase("Name.With.Dot", "m_name_With_Dot")]
         public void GetChildFieldName_SpecialCharacters_ReturnsCorrectFieldName(string name, string expected)
         {
             // Arrange
@@ -5868,8 +5938,10 @@ namespace Opc.Ua.Schema.Model.Tests
         /// </summary>
         [TestCase("Property123", "m_property123")]
         [TestCase("Property1", "m_property1")]
-        [TestCase("1Property", "m_1Property")]
-        [TestCase("123", "m_123")]
+        // An identifier may not start with a digit, so the sanitizer prefixes
+        // one - "m_1Property" and "m_123" did not compile.
+        [TestCase("1Property", "m__1Property")]
+        [TestCase("123", "m__123")]
         public void GetChildFieldName_NamesWithNumbers_ReturnsCorrectFieldName(string name, string expected)
         {
             // Arrange
@@ -5956,23 +6028,37 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests that GetArrayDimensionsAsCode returns "null" when valueRank is not OneOrMoreDimensions.
+        /// Array ranks keep their declared ArrayDimensions.
         /// </summary>
-        [TestCase(ValueRank.Scalar)]
         [TestCase(ValueRank.Array)]
-        [TestCase(ValueRank.ScalarOrArray)]
-        [TestCase(ValueRank.ScalarOrOneDimension)]
-        [TestCase(ValueRank.Any)]
-        public void GetArrayDimensionsAsCode_ValueRankNotOneOrMoreDimensions_ReturnsNull(ValueRank valueRank)
+        [TestCase(ValueRank.OneOrMoreDimensions)]
+        public void GetArrayDimensionsAsCodeArrayValueRankReturnsDimensions(ValueRank valueRank)
         {
             // Arrange
             const string arrayDimensions = "1,2,3";
 
             // Act
-            string result = valueRank.GetArrayDimensionsAsCode(arrayDimensions);
+            string result = valueRank.GetArrayDimensionsAsCode(arrayDimensions)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("new uint[] { 1, 2, 3 }"));
+        }
+
+        /// <summary>
+        /// Regression: the "not an array" guard compared the ModelDesign ValueRank
+        /// enum (Scalar = 0 ... Any = 5) against zero as if it were the numeric OPC
+        /// UA rank, so it never fired and a scalar with ArrayDimensions="0" (as
+        /// NodeSet exporters write it) was emitted with ArrayDimensions {0}.
+        /// Part 3 5.6.2: ArrayDimensions is null for ValueRank &lt;= 0.
+        /// </summary>
+        [TestCase(ValueRank.Scalar)]
+        [TestCase(ValueRank.ScalarOrArray)]
+        [TestCase(ValueRank.ScalarOrOneDimension)]
+        [TestCase(ValueRank.Any)]
+        public void GetArrayDimensionsAsCodeNonArrayValueRankReturnsNull(ValueRank valueRank)
+        {
+            Assert.That(valueRank.GetArrayDimensionsAsCode("1,2,3"), Is.Null);
+            Assert.That(valueRank.GetArrayDimensionsAsCode("0"), Is.Null);
         }
 
         /// <summary>
@@ -5986,7 +6072,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string arrayDimensions = string.Empty;
 
             // Act
-            string result = valueRank.GetArrayDimensionsAsCode(arrayDimensions);
+            string? result = valueRank.GetArrayDimensionsAsCode(arrayDimensions);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -6000,10 +6086,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const ValueRank valueRank = ValueRank.OneOrMoreDimensions;
-            const string arrayDimensions = null;
+            const string? arrayDimensions = null;
 
             // Act
-            string result = valueRank.GetArrayDimensionsAsCode(arrayDimensions);
+            string? result = valueRank.GetArrayDimensionsAsCode(arrayDimensions!);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -6020,7 +6106,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string arrayDimensions = new('1', 10000);
 
             // Act
-            string result = valueRank.GetArrayDimensionsAsCode(arrayDimensions);
+            string result = valueRank.GetArrayDimensionsAsCode(arrayDimensions)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("new uint[] { 0 }"));
@@ -6037,7 +6123,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string arrayDimensions = "1,    2,    3";
 
             // Act
-            string result = valueRank.GetArrayDimensionsAsCode(arrayDimensions);
+            string result = valueRank.GetArrayDimensionsAsCode(arrayDimensions)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("new uint[] { 1, 2, 3 }"));
@@ -6051,10 +6137,10 @@ namespace Opc.Ua.Schema.Model.Tests
         {
             // Arrange
             const ValueRank valueRank = ValueRank.Scalar;
-            const string arrayDimensions = null;
+            const string? arrayDimensions = null;
 
             // Act
-            string result = valueRank.GetArrayDimensionsAsCode(arrayDimensions);
+            string? result = valueRank.GetArrayDimensionsAsCode(arrayDimensions!);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -6205,11 +6291,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void SupportsMatrixOf_NullDataType_Throws()
         {
             // Arrange
-            DataTypeDesign nullDataType = null;
+            DataTypeDesign? nullDataType = null;
 
             // Act & Assert
             Assert.That(
-                nullDataType.SupportsMatrixOf,
+                nullDataType!.SupportsMatrixOf,
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -6513,7 +6599,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Act
             string result = mockDataType.GetDotNetTypeName(
                 ValueRank.Array,
-                null,
+                null!,
                 namespaces,
                 NullableAnnotation.NonNullable);
 
@@ -6562,7 +6648,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = mockDataType.GetDotNetTypeName(
                 ValueRank.Array,
                 targetNamespace,
-                null,
+                null!,
                 NullableAnnotation.NonNullable);
 
             // Assert
@@ -6698,11 +6784,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetConstantForXmlNamespace_NullNamespacesArray_ReturnsNull()
         {
             // Arrange
-            Namespace[] namespaces = null;
+            Namespace[]? namespaces = null;
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string? result = namespaces!.GetConstantForXmlNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -6719,7 +6805,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string? result = namespaces.GetConstantForXmlNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -6736,10 +6822,10 @@ namespace Opc.Ua.Schema.Model.Tests
             [
                 new Namespace { Name = "TestName", Prefix = "TestPrefix", Value = "http://example.com/test" }
             ];
-            const string namespaceUri = null;
+            const string? namespaceUri = null;
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string? result = namespaces.GetConstantForXmlNamespace(namespaceUri!);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -6759,7 +6845,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string namespaceUri = string.Empty;
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string? result = namespaces.GetConstantForXmlNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -6779,7 +6865,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "   ";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string? result = namespaces.GetConstantForXmlNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -6799,7 +6885,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/notfound";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string? result = namespaces.GetConstantForXmlNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -6825,7 +6911,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix.Namespaces.TestNameXsd"));
@@ -6850,7 +6936,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix.Namespaces.TestName"));
@@ -6876,7 +6962,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix.Namespaces.TestName"));
@@ -6902,7 +6988,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix.Namespaces.TestNameXsd"));
@@ -6927,7 +7013,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix.Namespaces.Test_Name-123"));
@@ -6952,7 +7038,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Test_Prefix-123.Namespaces.TestName"));
@@ -6990,7 +7076,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/second";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("SecondPrefix.Namespaces.SecondNameXsd"));
@@ -7015,7 +7101,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix.Namespaces."));
@@ -7040,7 +7126,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(".Namespaces.TestName"));
@@ -7065,7 +7151,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix.Namespaces."));
@@ -7090,7 +7176,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string result = namespaces.GetConstantForXmlNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(".Namespaces.TestName"));
@@ -7115,7 +7201,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(longUri);
+            string result = namespaces.GetConstantForXmlNamespace(longUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix.Namespaces.TestName"));
@@ -7140,7 +7226,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(specialUri);
+            string result = namespaces.GetConstantForXmlNamespace(specialUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix.Namespaces.TestName"));
@@ -7165,7 +7251,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.com/test";
 
             // Act
-            string result = namespaces.GetConstantForXmlNamespace(namespaceUri);
+            string? result = namespaces.GetConstantForXmlNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -7180,11 +7266,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetNamespacePrefix_NullNamespacesArray_ReturnsNull()
         {
             // Arrange
-            Namespace[] namespaces = null;
+            Namespace[]? namespaces = null;
             const string namespaceUri = "http://example.org/test";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string? result = namespaces!.GetNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -7203,7 +7289,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.org/test";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string? result = namespaces.GetNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -7225,7 +7311,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.org/test";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string result = namespaces.GetNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix"));
@@ -7247,7 +7333,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.org/test";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string? result = namespaces.GetNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -7271,7 +7357,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.org/test";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string result = namespaces.GetNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestPrefix"));
@@ -7294,7 +7380,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.org/test";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string result = namespaces.GetNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("FirstPrefix"));
@@ -7313,10 +7399,10 @@ namespace Opc.Ua.Schema.Model.Tests
             [
                 new Namespace { Value = "http://example.org/test", Prefix = "TestPrefix" }
             ];
-            const string namespaceUri = null;
+            const string? namespaceUri = null;
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string? result = namespaces.GetNamespacePrefix(namespaceUri!);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -7338,7 +7424,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string namespaceUri = string.Empty;
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string? result = namespaces.GetNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -7360,7 +7446,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string namespaceUri = string.Empty;
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string result = namespaces.GetNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("EmptyPrefix"));
@@ -7382,7 +7468,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.org/test";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string? result = namespaces.GetNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -7404,7 +7490,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.org/test";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string? result = namespaces.GetNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -7423,10 +7509,10 @@ namespace Opc.Ua.Schema.Model.Tests
             [
                 new Namespace { Value = null, Prefix = "NullPrefix" }
             ];
-            const string namespaceUri = null;
+            const string? namespaceUri = null;
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string result = namespaces.GetNamespacePrefix(namespaceUri!)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("NullPrefix"));
@@ -7448,7 +7534,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "   ";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string result = namespaces.GetNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("WhitespacePrefix"));
@@ -7471,7 +7557,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string namespaceUri = longUri;
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string result = namespaces.GetNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("LongPrefix"));
@@ -7493,7 +7579,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            string result = namespaces.GetNamespacePrefix(specialUri);
+            string result = namespaces.GetNamespacePrefix(specialUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("SpecialPrefix"));
@@ -7515,7 +7601,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.org/test";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string result = namespaces.GetNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -7537,7 +7623,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://example.org/test";
 
             // Act
-            string result = namespaces.GetNamespacePrefix(namespaceUri);
+            string result = namespaces.GetNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -7551,10 +7637,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetChildFieldName_NullInstance_ReturnsEmptyString()
         {
             // Arrange
-            InstanceDesign instance = null;
+            InstanceDesign? instance = null;
 
             // Act
-            string result = instance.GetChildFieldName();
+            string result = instance!.GetChildFieldName();
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -8893,10 +8979,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void IsPartOfOpcUaTypesLibrary_NullDataType_ReturnsFalse()
         {
             // Arrange
-            DataTypeDesign dataType = null;
+            DataTypeDesign? dataType = null;
 
             // Act
-            bool result = dataType.IsPartOfOpcUaTypesLibrary();
+            bool result = dataType!.IsPartOfOpcUaTypesLibrary();
 
             // Assert
             Assert.That(result, Is.False);
@@ -9130,13 +9216,13 @@ namespace Opc.Ua.Schema.Model.Tests
         public void IsOverriddenWithSameClass_NullInstance_ThrowsArgumentNullException()
         {
             // Arrange
-            InstanceDesign instance = null;
+            InstanceDesign? instance = null;
             const string targetNamespace = "http://test.org/UA/";
             Namespace[] namespaces = [];
 
             // Act & Assert
             Assert.Throws<ArgumentNullException>(() =>
-                instance.IsOverriddenWithSameClass(targetNamespace, namespaces));
+                instance!.IsOverriddenWithSameClass(targetNamespace, namespaces));
         }
 
         /// <summary>
@@ -9150,7 +9236,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var mockInstance = new InstanceDesign
             {
-                OveriddenNode = null,
+                OveriddenNode = null!,
                 ModellingRule = ModellingRule.Mandatory
             };
             const string targetNamespace = "http://test.org/UA/";
@@ -9260,14 +9346,16 @@ namespace Opc.Ua.Schema.Model.Tests
         }
 
         /// <summary>
-        /// Tests that IsOverriddenWithSameClass returns true when both class names start with BaseDataVariableState with different generic parameters.
-        /// Input: Merged instance class name is "BaseDataVariableState&lt;int&gt;", overridden node class name is "BaseDataVariableState&lt;string&gt;".
-        /// Expected: Returns true because both start with "BaseDataVariableState&lt;".
+        /// Two BaseDataVariableState classes with different generic arguments are
+        /// different classes: the override refines the value type and has to be
+        /// redeclared. A special case used to treat them as the same class, but
+        /// it matched only unqualified names like these - generated class names
+        /// are always "global::" qualified, so in generated code it never fired.
         /// </summary>
-        [TestCase("BaseDataVariableState<int>", "BaseDataVariableState<string>", true)]
-        [TestCase("BaseDataVariableState<double>", "BaseDataVariableState<bool>", true)]
-        [TestCase("BaseDataVariableState<CustomType>", "BaseDataVariableState<AnotherType>", true)]
-        public void IsOverriddenWithSameClass_BothBaseDataVariableState_ReturnsTrue(
+        [TestCase("BaseDataVariableState<int>", "BaseDataVariableState<string>", false)]
+        [TestCase("BaseDataVariableState<double>", "BaseDataVariableState<bool>", false)]
+        [TestCase("BaseDataVariableState<CustomType>", "BaseDataVariableState<AnotherType>", false)]
+        public void IsOverriddenWithSameClassBothBaseDataVariableStateWithDifferentArgumentsReturnsFalse(
             string mergedClassName, string overriddenClassName, bool expected)
         {
             // Arrange
@@ -10553,7 +10641,7 @@ namespace Opc.Ua.Schema.Model.Tests
             Namespace[] namespaces = [];
 
             // Act
-            string result = mockDataType.GetXmlDataType(ValueRank.Scalar, null, namespaces);
+            string result = mockDataType.GetXmlDataType(ValueRank.Scalar, null!, namespaces);
 
             // Assert
             Assert.That(result, Is.EqualTo("tns:CustomType"));
@@ -10572,7 +10660,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = mockDataType.GetXmlDataType(ValueRank.Scalar, "http://test.org", null);
+            string result = mockDataType.GetXmlDataType(ValueRank.Scalar, "http://test.org", null!);
 
             // Assert
             Assert.That(result, Is.EqualTo("xs:int"));
@@ -10591,7 +10679,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = mockDataType.GetXmlDataType(ValueRank.Array, "http://test.org", null);
+            string result = mockDataType.GetXmlDataType(ValueRank.Array, "http://test.org", null!);
 
             // Assert
             Assert.That(result, Is.EqualTo("ua:ListOfInt32"));
@@ -10694,10 +10782,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void EnsureUniqueEnumName_NullTarget_ReturnsNull()
         {
             // Arrange
-            Parameter target = null;
+            Parameter? target = null;
 
             // Act
-            string result = target.EnsureUniqueEnumName();
+            string? result = target!.EnsureUniqueEnumName();
 
             // Assert
             Assert.That(result, Is.Null);
@@ -10713,7 +10801,7 @@ namespace Opc.Ua.Schema.Model.Tests
             var target = new Parameter { Name = "TestField", Identifier = 1 };
 
             // Act
-            string result = target.EnsureUniqueEnumName();
+            string result = target.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestField"));
@@ -10734,7 +10822,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = target.EnsureUniqueEnumName();
+            string result = target.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestField"));
@@ -10755,7 +10843,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = target.EnsureUniqueEnumName();
+            string result = target.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestField"));
@@ -10776,7 +10864,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = target.EnsureUniqueEnumName();
+            string result = target.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestField"));
@@ -10797,7 +10885,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = target.EnsureUniqueEnumName();
+            string result = target.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("TestField"));
@@ -10825,7 +10913,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field3.Parent = parent;
 
             // Act
-            string result = field2.EnsureUniqueEnumName();
+            string result = field2.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Field2"));
@@ -10851,7 +10939,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field2.Parent = parent;
 
             // Act
-            string result = field2.EnsureUniqueEnumName();
+            string result = field2.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Field_2"));
@@ -10880,7 +10968,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field3.Parent = parent;
 
             // Act
-            string result = field3.EnsureUniqueEnumName();
+            string result = field3.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Field_3"));
@@ -10910,7 +10998,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field4.Parent = parent;
 
             // Act
-            string result = field4.EnsureUniqueEnumName();
+            string result = field4.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Field_2"));
@@ -10936,7 +11024,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field2.Parent = parent;
 
             // Act
-            string result = field1.EnsureUniqueEnumName();
+            string result = field1.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("FirstField"));
@@ -10962,7 +11050,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field2.Parent = parent;
 
             // Act
-            string result = field2.EnsureUniqueEnumName();
+            string result = field2.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("LastField"));
@@ -10990,9 +11078,9 @@ namespace Opc.Ua.Schema.Model.Tests
             field3.Parent = parent;
 
             // Act
-            string result1 = field1.EnsureUniqueEnumName();
-            string result2 = field2.EnsureUniqueEnumName();
-            string result3 = field3.EnsureUniqueEnumName();
+            string result1 = field1.EnsureUniqueEnumName()!;
+            string result2 = field2.EnsureUniqueEnumName()!;
+            string result3 = field3.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result1, Is.EqualTo("Field"));
@@ -11010,7 +11098,7 @@ namespace Opc.Ua.Schema.Model.Tests
             var target = new Parameter { Name = null, Identifier = 1 };
 
             // Act
-            string result = target.EnsureUniqueEnumName();
+            string? result = target.EnsureUniqueEnumName();
 
             // Assert
             Assert.That(result, Is.Null);
@@ -11026,7 +11114,7 @@ namespace Opc.Ua.Schema.Model.Tests
             var target = new Parameter { Name = string.Empty, Identifier = 1 };
 
             // Act
-            string result = target.EnsureUniqueEnumName();
+            string result = target.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -11042,7 +11130,7 @@ namespace Opc.Ua.Schema.Model.Tests
             var target = new Parameter { Name = "   ", Identifier = 1 };
 
             // Act
-            string result = target.EnsureUniqueEnumName();
+            string result = target.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("   "));
@@ -11068,7 +11156,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field2.Parent = parent;
 
             // Act
-            string result = field2.EnsureUniqueEnumName();
+            string result = field2.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Field@#$_2"));
@@ -11094,7 +11182,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field2.Parent = parent;
 
             // Act
-            string result = field2.EnsureUniqueEnumName();
+            string result = field2.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Field_2.5"));
@@ -11120,7 +11208,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field2.Parent = parent;
 
             // Act
-            string result = field2.EnsureUniqueEnumName();
+            string result = field2.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Field_1"));
@@ -11146,7 +11234,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field2.Parent = parent;
 
             // Act
-            string result = field2.EnsureUniqueEnumName();
+            string result = field2.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Field_-2"));
@@ -11172,7 +11260,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field2.Parent = parent;
 
             // Act
-            string result = field2.EnsureUniqueEnumName();
+            string result = field2.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"Field_{decimal.MaxValue - 1}"));
@@ -11199,7 +11287,7 @@ namespace Opc.Ua.Schema.Model.Tests
             field2.Parent = parent;
 
             // Act
-            string result = field2.EnsureUniqueEnumName();
+            string result = field2.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"{longName}_2"));
@@ -11221,7 +11309,7 @@ namespace Opc.Ua.Schema.Model.Tests
             };
 
             // Act
-            string result = field1.EnsureUniqueEnumName();
+            string result = field1.EnsureUniqueEnumName()!;
 
             // Assert
             Assert.That(result, Is.EqualTo("OnlyField"));
@@ -11274,7 +11362,7 @@ namespace Opc.Ua.Schema.Model.Tests
         [Test]
         public void GetWriteMaskAsCodeWithNullNodeReturnsNone()
         {
-            string result = ((NodeDesign)null).GetWriteMaskAsCode();
+            string result = ((NodeDesign)null!).GetWriteMaskAsCode();
 
             Assert.That(result, Is.EqualTo("global::Opc.Ua.AttributeWriteMask.None"));
         }
@@ -11365,7 +11453,7 @@ namespace Opc.Ua.Schema.Model.Tests
                 dataTypeMock,
                 ValueRank.Scalar,
                 targetNamespace,
-                null,
+                null!,
                 false);
 
             // Assert
@@ -11423,7 +11511,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string result = getDotNetTypeNameMock.GetMethodArgumentDotNetTypeWrapper(
                 dataTypeMock,
                 ValueRank.Scalar,
-                null,
+                null!,
                 namespaces,
                 false);
 
@@ -11519,10 +11607,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void IsMethodTypeNode_NullNode_ReturnsFalse()
         {
             // Arrange
-            NodeDesign node = null;
+            NodeDesign? node = null;
 
             // Act
-            bool result = node.IsMethodTypeDesign();
+            bool result = node!.IsMethodTypeDesign();
 
             // Assert
             Assert.That(result, Is.False);
@@ -11693,11 +11781,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetConstantSymbolForNamespace_NullNamespacesArray_ThrowsArgumentNullException()
         {
             // Arrange
-            Namespace[] namespaces = null;
+            Namespace[]? namespaces = null;
             const string namespaceUri = "http://opcfoundation.org/Test";
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => namespaces.GetConstantSymbolForNamespace(namespaceUri));
+            Assert.Throws<ArgumentNullException>(() => namespaces!.GetConstantSymbolForNamespace(namespaceUri));
         }
 
         /// <summary>
@@ -11714,7 +11802,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(null);
+            string? result = namespaces.GetConstantSymbolForNamespace(null!);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -11734,7 +11822,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(string.Empty);
+            string? result = namespaces.GetConstantSymbolForNamespace(string.Empty);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -11754,7 +11842,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace("   ");
+            string? result = namespaces.GetConstantSymbolForNamespace("   ");
 
             // Assert
             Assert.That(result, Is.Null);
@@ -11772,7 +11860,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/Test";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string? result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -11793,7 +11881,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/NotFound";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string? result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -11814,7 +11902,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/Test";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("global::TestPrefix.Namespaces.TestName"));
@@ -11837,7 +11925,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/First";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("global::PrefixFirst.Namespaces.First"));
@@ -11860,7 +11948,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/Second";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("global::PrefixSecond.Namespaces.Second"));
@@ -11883,7 +11971,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/Third";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("global::PrefixThird.Namespaces.Third"));
@@ -11921,7 +12009,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/Test";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Namespaces.TestName"));
@@ -11976,7 +12064,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/Test";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("Namespaces.TestName"));
@@ -11997,7 +12085,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/Test";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("global::Prefix$Special.Namespaces.Test-Name_123"));
@@ -12020,7 +12108,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/Test";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo($"global::{longPrefix}.Namespaces.{longName}"));
@@ -12041,7 +12129,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/Test";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("global::TestPrefix.Namespaces.TestName"));
@@ -12062,7 +12150,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://opcfoundation.org/TEST";
 
             // Act
-            string result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
+            string? result = namespaces.GetConstantSymbolForNamespace(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -12141,10 +12229,10 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetEventNotifierString_NullObjectType_ThrowsArgumentNullException()
         {
             // Arrange
-            ObjectTypeDesign objectType = null;
+            ObjectTypeDesign? objectType = null;
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => objectType.GetEventNotifierAsCode());
+            Assert.Throws<ArgumentNullException>(() => objectType!.GetEventNotifierAsCode());
         }
 
         [Test]
@@ -12245,11 +12333,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void IsDotNetReferenceType_NullDataType_ThrowsArgumentNullException()
         {
             // Arrange
-            DataTypeDesign dataType = null;
+            DataTypeDesign? dataType = null;
             const ValueRank valueRank = ValueRank.Scalar;
 
             // Act & Assert
-            Assert.Throws<ArgumentNullException>(() => dataType.IsDotNetReferenceType(valueRank));
+            Assert.Throws<ArgumentNullException>(() => dataType!.IsDotNetReferenceType(valueRank));
         }
 
         [Test]
@@ -12327,7 +12415,7 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var mockInstance = new InstanceDesign
             {
-                Parent = null
+                Parent = null!
             };
 
             // Act
@@ -12343,8 +12431,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var mockGrandParent = new NodeDesign
             {
-                Parent = null,
-                Hierarchy = null
+                Parent = null!,
+                Hierarchy = null!
             };
 
             var mockParent = new NodeDesign
@@ -12370,8 +12458,8 @@ namespace Opc.Ua.Schema.Model.Tests
             // Arrange
             var mockParent = new NodeDesign
             {
-                Parent = null,
-                Hierarchy = null
+                Parent = null!,
+                Hierarchy = null!
             };
 
             var symbolicId = new XmlQualifiedName("TestName", "http://test.com");
@@ -12399,7 +12487,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12428,7 +12516,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12457,7 +12545,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12487,7 +12575,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12512,13 +12600,13 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetMergedInstance_HierarchyNodeInstanceIsNull_ReturnsOriginalInstance()
         {
             // Arrange
-            var hierarchyNode = new HierarchyNode { Instance = null };
+            var hierarchyNode = new HierarchyNode { Instance = null! };
             var mockHierarchy = new Hierarchy();
             mockHierarchy.Nodes.Add("TestName", hierarchyNode);
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12551,7 +12639,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12584,7 +12672,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12614,7 +12702,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12643,7 +12731,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12676,7 +12764,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12709,14 +12797,14 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockGrandParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
             var mockParent = new NodeDesign
             {
                 Parent = mockGrandParent,
-                Hierarchy = null
+                Hierarchy = null!
             };
 
             var symbolicId = new XmlQualifiedName("Prefix_TestName", "http://test.com");
@@ -12748,7 +12836,7 @@ namespace Opc.Ua.Schema.Model.Tests
 
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12776,7 +12864,7 @@ namespace Opc.Ua.Schema.Model.Tests
             var mockHierarchy = new Hierarchy();
             var mockParent = new NodeDesign
             {
-                Parent = null,
+                Parent = null!,
                 Hierarchy = mockHierarchy
             };
 
@@ -12808,7 +12896,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(null);
+            string? result = namespaces.GetXmlNamespacePrefix(null!);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -12822,11 +12910,11 @@ namespace Opc.Ua.Schema.Model.Tests
         public void GetXmlNamespacePrefix_NullNamespaces_ReturnsNull()
         {
             // Arrange
-            Namespace[] namespaces = null;
+            Namespace[]? namespaces = null;
             const string namespaceUri = "http://test.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string? result = namespaces!.GetXmlNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -12844,7 +12932,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://test.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string? result = namespaces.GetXmlNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -12867,7 +12955,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://test.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("test"));
@@ -12890,7 +12978,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://test.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("s1"));
@@ -12913,7 +13001,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://test.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("s1"));
@@ -12943,7 +13031,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string namespaceUri = $"http://namespace{index}.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(expected));
@@ -12966,7 +13054,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://notfound.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string? result = namespaces.GetXmlNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -12988,7 +13076,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string namespaceUri = string.Empty;
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("empty"));
@@ -13009,7 +13097,7 @@ namespace Opc.Ua.Schema.Model.Tests
             string namespaceUri = string.Empty;
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string? result = namespaces.GetXmlNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -13031,7 +13119,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "   ";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("whitespace"));
@@ -13054,7 +13142,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://first.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("first"));
@@ -13077,7 +13165,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://third.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("third"));
@@ -13098,7 +13186,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://test.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("test"));
@@ -13119,7 +13207,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://test.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("s0"));
@@ -13140,7 +13228,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://TEST.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string? result = namespaces.GetXmlNamespacePrefix(namespaceUri);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -13161,7 +13249,7 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://test.org/UA/special!@#$%";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("special"));
@@ -13182,7 +13270,7 @@ namespace Opc.Ua.Schema.Model.Tests
             ];
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(longUri);
+            string result = namespaces.GetXmlNamespacePrefix(longUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo("long"));
@@ -13203,10 +13291,553 @@ namespace Opc.Ua.Schema.Model.Tests
             const string namespaceUri = "http://test.org/UA/";
 
             // Act
-            string result = namespaces.GetXmlNamespacePrefix(namespaceUri);
+            string result = namespaces.GetXmlNamespacePrefix(namespaceUri)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(" test "));
+        }
+
+        /// <summary>
+        /// Regression: structure field names are authored data and were used
+        /// verbatim as the generated property's identifier, so a field named
+        /// after a C# keyword or after one of the members every generated data
+        /// type carries produced source that does not compile.
+        /// </summary>
+        [TestCase("Value", "Value")]
+        [TestCase("event", "@event")]
+        [TestCase("Some Name", "SomeName")]
+        [TestCase("Some-Name", "Some_Name")]
+        [TestCase("TypeId", "TypeIdField")]
+        [TestCase("EncodingMask", "EncodingMaskField")]
+        [TestCase("SwitchField", "SwitchFieldField")]
+        [TestCase("Encode", "EncodeField")]
+        [TestCase("Clone", "CloneField")]
+        public void GetPropertyName_ReservedOrIllegalNames_AreMadeLegal(
+            string fieldName,
+            string expected)
+        {
+            var field = new Parameter { Name = fieldName };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// A field named after its own structure cannot be a member of it.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_FieldNamedAfterItsStructure_IsRenamed()
+        {
+            var field = new Parameter { Name = "SomeType" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.EqualTo("SomeTypeField"));
+        }
+
+        /// <summary>
+        /// The disambiguated name must not collide with a sibling either.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_DisambiguatedNameCollidingWithSibling_GetsSuffixed()
+        {
+            var colliding = new Parameter { Name = "TypeId" };
+            var sibling = new Parameter { Name = "TypeIdField" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [colliding, sibling]
+            };
+            colliding.Parent = dataType;
+            sibling.Parent = dataType;
+
+            // Declaration order decides: the reserved "TypeId" is renamed first
+            // and takes "TypeIdField", so the sibling that was already spelled
+            // that way has to move.
+            Assert.That(colliding.GetPropertyName(), Is.EqualTo("TypeIdField"));
+            Assert.That(sibling.GetPropertyName(), Is.EqualTo("TypeIdFieldField"));
+            Assert.That(
+                colliding.GetPropertyName(),
+                Is.Not.EqualTo(sibling.GetPropertyName()));
+        }
+
+        /// <summary>
+        /// Regression: the sibling scan compared the candidate against the raw
+        /// authored names, so a sibling that only sanitizes onto the candidate
+        /// ("Encode Field" loses its space) was not seen and both fields were
+        /// given the same property, which does not compile.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_DisambiguatedNameCollidingWithSanitizedSibling_GetsSuffixed()
+        {
+            var colliding = new Parameter { Name = "Encode" };
+            var sibling = new Parameter { Name = "Encode Field" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [colliding, sibling]
+            };
+            colliding.Parent = dataType;
+            sibling.Parent = dataType;
+
+            Assert.Multiple(() =>
+            {
+                // Names are handed out in declaration order: "Encode" is
+                // reserved so it takes "EncodeField" first, and "Encode Field"
+                // - which sanitizes onto the same name - has to move.
+                Assert.That(colliding.GetPropertyName(), Is.EqualTo("EncodeField"));
+                Assert.That(sibling.GetPropertyName(), Is.EqualTo("EncodeFieldField"));
+                Assert.That(
+                    colliding.GetPropertyName(),
+                    Is.Not.EqualTo(sibling.GetPropertyName()));
+            });
+        }
+
+        /// <summary>
+        /// Regression: the disambiguated name was never re-checked against the
+        /// reserved members, so appending "Field" could land straight on one of
+        /// them - "Switch" becomes "SwitchField", the member a generated union
+        /// already declares.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_DisambiguatedNameThatIsItselfReserved_GetsSuffixed()
+        {
+            // "Switch" is the enclosing type's name, so it has to be renamed -
+            // and the obvious candidate, "SwitchField", is itself reserved.
+            var field = new Parameter { Name = "Switch" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Switch", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.EqualTo("SwitchField_"));
+        }
+
+        /// <summary>
+        /// Regression: disambiguation only ran for reserved names, so two
+        /// siblings whose authored names differ only in characters the
+        /// sanitizer drops both kept the same identifier and the generated type
+        /// declared the member twice (CS0102).
+        /// </summary>
+        [Test]
+        public void GetPropertyName_SiblingsThatSanitizeAlike_AreMadeUnique()
+        {
+            var first = new Parameter { Name = "Value Id" };
+            var second = new Parameter { Name = "ValueId" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    first.GetPropertyName(),
+                    Is.EqualTo("ValueId"),
+                    "the first field declared keeps the plain name");
+                Assert.That(
+                    second.GetPropertyName(),
+                    Is.EqualTo("ValueIdField"),
+                    "the later one has to move");
+                Assert.That(
+                    first.GetPropertyName(),
+                    Is.Not.EqualTo(second.GetPropertyName()));
+            });
+        }
+
+        /// <summary>
+        /// Regression: the collision check compared generated property names
+        /// only. A field "Value" is stored in the backing field "m_value", so a
+        /// sibling literally named "m_value" declared a property of that name
+        /// next to it (CS0102).
+        /// </summary>
+        [Test]
+        public void GetPropertyName_CollidingWithASiblingBackingField_IsMadeUnique()
+        {
+            var first = new Parameter { Name = "Value" };
+            var second = new Parameter { Name = "m_value" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(first.GetChildFieldName(), Is.EqualTo("m_value"));
+                Assert.That(
+                    second.GetPropertyName(),
+                    Is.Not.EqualTo("m_value"),
+                    "the property would collide with the sibling's backing field");
+                Assert.That(
+                    second.GetPropertyName(),
+                    Is.Not.EqualTo(second.GetChildFieldName()));
+            });
+        }
+
+        /// <summary>
+        /// The templates declare their own backing fields, which a generated
+        /// property cannot be named after either.
+        /// </summary>
+        [TestCase("m_FieldNames")]
+        [TestCase("m_pooledSentinel")]
+        public void GetPropertyName_CollidingWithATemplateBackingField_IsMadeUnique(
+            string fieldName)
+        {
+            var field = new Parameter { Name = fieldName };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.Not.EqualTo(fieldName));
+        }
+
+        /// <summary>
+        /// Regression: disambiguating the properties was not enough. The backing
+        /// field mapping is lossier than the property mapping, so "Value Id" and
+        /// "ValueId" both landed on "m_valueId" and the generated class declared
+        /// the field twice (CS0102) even though the properties differed.
+        /// </summary>
+        [Test]
+        public void GetChildFieldName_SiblingsThatSanitizeAlike_AreMadeUnique()
+        {
+            var first = new Parameter { Name = "Value Id" };
+            var second = new Parameter { Name = "ValueId" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.That(
+                first.GetChildFieldName(),
+                Is.Not.EqualTo(second.GetChildFieldName()));
+        }
+
+        /// <summary>
+        /// Two properties that differ only in the case of their first letter
+        /// would share one backing field, since the mapping lower-cases it.
+        /// </summary>
+        [Test]
+        public void GetChildFieldName_SiblingsDifferingOnlyByCase_AreMadeUnique()
+        {
+            var first = new Parameter { Name = "Value" };
+            var second = new Parameter { Name = "value" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.That(
+                first.GetChildFieldName(),
+                Is.Not.EqualTo(second.GetChildFieldName()));
+        }
+
+        /// <summary>
+        /// Regression: deciding one field at a time only ever saw the siblings'
+        /// pre-disambiguation names, so with three authored names that sanitize
+        /// alike the first kept the plain name and the other two both picked the
+        /// same replacement (CS0102). The mapping is computed for the whole
+        /// field list in one pass.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_ThreeSiblingsThatSanitizeAlike_AreAllUnique()
+        {
+            var first = new Parameter { Name = "A-" };
+            var second = new Parameter { Name = "A?" };
+            var third = new Parameter { Name = "A!" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second, third]
+            };
+            foreach (Parameter field in dataType.Fields)
+            {
+                field.Parent = dataType;
+            }
+
+            string[] names =
+            [
+                first.GetPropertyName(),
+                second.GetPropertyName(),
+                third.GetPropertyName()
+            ];
+
+            Assert.That(names, Is.Unique);
+            Assert.That(
+                new[]
+                {
+                    first.GetFieldsEnumMemberName(),
+                    second.GetFieldsEnumMemberName(),
+                    third.GetFieldsEnumMemberName()
+                },
+                Is.Unique);
+            Assert.That(
+                new[]
+                {
+                    first.GetChildFieldName(),
+                    second.GetChildFieldName(),
+                    third.GetChildFieldName()
+                },
+                Is.Unique);
+        }
+
+        /// <summary>
+        /// Regression: the check only looked at fields declared on the type, so
+        /// a derived field could sanitize onto an inherited property's name and
+        /// the generated class redeclared it without new/override (CS0108).
+        /// </summary>
+        [Test]
+        public void GetPropertyName_CollidingWithAnInheritedProperty_IsMadeUnique()
+        {
+            var baseField = new Parameter { Name = "Value Id" };
+            var baseType = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                Fields = [baseField]
+            };
+            baseField.Parent = baseType;
+
+            var derivedField = new Parameter { Name = "ValueId" };
+            var derived = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                BaseTypeNode = baseType,
+                Fields = [derivedField]
+            };
+            derivedField.Parent = derived;
+
+            Assert.That(baseField.GetPropertyName(), Is.EqualTo("ValueId"));
+            Assert.That(
+                derivedField.GetPropertyName(),
+                Is.Not.EqualTo("ValueId"),
+                "redeclaring the inherited name without override is CS0108");
+        }
+
+        /// <summary>
+        /// A derived field carrying the *same* wire name as an inherited one is
+        /// a deliberate redeclaration - the generator emits it as an override
+        /// (HistoryUpdateDetails.NodeId) - so it has to keep the name.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_RedeclaringAnInheritedFieldKeepsTheName()
+        {
+            var baseField = new Parameter { Name = "NodeId" };
+            var baseType = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("BaseType", "http://test.org/UA/"),
+                Fields = [baseField]
+            };
+            baseField.Parent = baseType;
+
+            var derivedField = new Parameter { Name = "NodeId" };
+            var derived = new DataTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                SymbolicName = new XmlQualifiedName("Derived", "http://test.org/UA/"),
+                BaseTypeNode = baseType,
+                Fields = [derivedField]
+            };
+            derivedField.Parent = derived;
+
+            Assert.That(derivedField.GetPropertyName(), Is.EqualTo("NodeId"));
+        }
+
+        /// <summary>
+        /// Same hole in the Fields enumeration member names.
+        /// </summary>
+        [Test]
+        public void GetFieldsEnumMemberName_SiblingsThatSanitizeAlike_AreMadeUnique()
+        {
+            var first = new Parameter { Name = "Value Id" };
+            var second = new Parameter { Name = "ValueId" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [first, second]
+            };
+            first.Parent = dataType;
+            second.Parent = dataType;
+
+            Assert.That(
+                first.GetFieldsEnumMemberName(),
+                Is.Not.EqualTo(second.GetFieldsEnumMemberName()));
+        }
+
+        /// <summary>
+        /// Regression: the reserved set was a hand-transcribed snapshot of the
+        /// data type templates and left out members they declare, so a field
+        /// with one of those names still produced CS0102.
+        /// </summary>
+        [TestCase("EncodingMaskFieldNames", "EncodingMaskFieldNamesField")]
+        [TestCase("Reuse", "ReuseField")]
+        public void GetPropertyName_TemplateDeclaredMembers_AreReserved(
+            string fieldName,
+            string expected)
+        {
+            var field = new Parameter { Name = fieldName };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetPropertyName(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// The field being renamed must not block its own candidate: it is
+        /// excluded from the sibling scan.
+        /// </summary>
+        [Test]
+        public void GetPropertyName_FieldDoesNotCollideWithItself()
+        {
+            var field = new Parameter { Name = "TypeIdField" };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("TypeIdField", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            // Named after its structure, so it renames to "TypeIdFieldField" -
+            // not "TypeIdFieldField_", which a self-match would have produced.
+            Assert.That(field.GetPropertyName(), Is.EqualTo("TypeIdFieldField"));
+        }
+
+        /// <summary>
+        /// The generated <c>{ClassName}Fields</c> enumeration already declares
+        /// None, so a field of that name has to be renamed there.
+        /// </summary>
+        [TestCase("First", "First")]
+        [TestCase("None", "NoneField")]
+        [TestCase("event", "@event")]
+        [TestCase("Some Name", "SomeName")]
+        public void GetFieldsEnumMemberName_ReservedNames_AreMadeLegal(
+            string fieldName,
+            string expected)
+        {
+            var field = new Parameter { Name = fieldName };
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("SomeType", "http://test.org/UA/"),
+                Fields = [field]
+            };
+            field.Parent = dataType;
+
+            Assert.That(field.GetFieldsEnumMemberName(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Regression: NaN and the infinities have no C# literal form. They used
+        /// to be emitted as "(double)NaN" / "(double)Infinity", which the
+        /// compiler rejects.
+        /// </summary>
+        [TestCase(double.NaN, "double.NaN")]
+        [TestCase(double.PositiveInfinity, "double.PositiveInfinity")]
+        [TestCase(double.NegativeInfinity, "double.NegativeInfinity")]
+        [TestCase(1.5, "(double)1.5")]
+        public void GetScalarValueAsCode_NonFiniteDouble_EmitsTheNamedConstant(
+            double value,
+            string expected)
+        {
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Double", Namespaces.OpcUa),
+                BasicDataType = BasicDataType.Double
+            };
+
+            Assert.That(
+                dataType.GetScalarValueAsCode(
+                    null!, value, default, false, "http://test.org/UA/", []),
+                Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Same for Float.
+        /// </summary>
+        [TestCase(float.NaN, "float.NaN")]
+        [TestCase(float.PositiveInfinity, "float.PositiveInfinity")]
+        [TestCase(float.NegativeInfinity, "float.NegativeInfinity")]
+        [TestCase(1.5f, "(float)1.5")]
+        public void GetScalarValueAsCode_NonFiniteFloat_EmitsTheNamedConstant(
+            float value,
+            string expected)
+        {
+            var dataType = new DataTypeDesign
+            {
+                SymbolicName = new XmlQualifiedName("Float", Namespaces.OpcUa),
+                BasicDataType = BasicDataType.Float
+            };
+
+            Assert.That(
+                dataType.GetScalarValueAsCode(
+                    null!, value, default, false, "http://test.org/UA/", []),
+                Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Regression: the relative path into the root's hierarchy was taken by
+        /// cutting at the first underscore, which mangles the path when the root
+        /// type's own name contains one.
+        /// </summary>
+        [Test]
+        public void GetMergedInstance_RootNameWithUnderscore_ResolvesTheChild()
+        {
+            const string uri = "http://test.org/UA/";
+            var merged = new PropertyDesign
+            {
+                SymbolicId = new XmlQualifiedName("My_Type_Child", uri),
+                SymbolicName = new XmlQualifiedName("Child", uri)
+            };
+            var root = new ObjectTypeDesign
+            {
+                SymbolicId = new XmlQualifiedName("My_Type", uri),
+                SymbolicName = new XmlQualifiedName("My_Type", uri),
+                Hierarchy = new Hierarchy()
+            };
+            root.Hierarchy.Nodes["Child"] = new HierarchyNode
+            {
+                RelativePath = "Child",
+                Instance = merged
+            };
+
+            var instance = new PropertyDesign
+            {
+                SymbolicId = new XmlQualifiedName("My_Type_Child", uri),
+                SymbolicName = new XmlQualifiedName("Child", uri),
+                Parent = root
+            };
+
+            Assert.That(instance.GetMergedInstance(), Is.SameAs(merged));
         }
     }
 }

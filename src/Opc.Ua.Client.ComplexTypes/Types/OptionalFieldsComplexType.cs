@@ -124,6 +124,31 @@ namespace Opc.Ua.Client.ComplexTypes
                 EncodingMask = decoder.ReadEncodingMask(masks);
             }
 
+            // Binary decoders shall report an error if bits not assigned to
+            // an optional field are set (OPC 10000-6 5.2.7); XML decoders
+            // shall ignore them (5.3.6), and so does the JSON decoder.
+            uint assignedBits = 0;
+            foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
+            {
+                if (property.IsOptional)
+                {
+                    assignedBits |= property.OptionalFieldMask;
+                }
+            }
+            if ((EncodingMask & ~assignedBits) != 0)
+            {
+                if (decoder.EncodingType == EncodingType.Binary)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "EncodingMask 0x{0:X8} has bits set that are not assigned " +
+                        "to an optional field (0x{1:X8}).",
+                        EncodingMask,
+                        assignedBits);
+                }
+                EncodingMask &= assignedBits;
+            }
+
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 if (property.IsOptional && (property.OptionalFieldMask & EncodingMask) == 0)
@@ -285,11 +310,20 @@ namespace Opc.Ua.Client.ComplexTypes
 
             // build optional field mask attribute
             uint optionalFieldMask = 1;
+            int optionalFields = 0;
             foreach (ComplexTypePropertyInfo property in GetPropertyEnumerator())
             {
                 property.OptionalFieldMask = 0;
                 if (property.IsOptional)
                 {
+                    // OPC 10000-6 5.2.7: one bit of the 32-bit EncodingMask per
+                    // optional field; ComplexTypeBuilder rejects larger types.
+                    if (++optionalFields > Encoders.StructureWithOptionalFields.MaxOptionalFields)
+                    {
+                        throw new InvalidOperationException(
+                            $"The structure has more than " +
+                            $"{Encoders.StructureWithOptionalFields.MaxOptionalFields} optional fields.");
+                    }
                     property.OptionalFieldMask = optionalFieldMask;
                     optionalFieldMask <<= 1;
                 }

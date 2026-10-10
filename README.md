@@ -2,9 +2,9 @@
 
 [![Release](https://img.shields.io/github/v/release/OPCFoundation/UA-.NETStandard?style=flat)](https://github.com/OPCFoundation/UA-.NETStandard/releases)
 [![NuGet Downloads](https://img.shields.io/nuget/dt/OPCFoundation.NetStandard.Opc.Ua)](https://www.nuget.org/packages/OPCFoundation.NetStandard.Opc.Ua/)
-[![Build](https://opcfoundation.visualstudio.com/opcua-netstandard/_apis/build/status/OPCFoundation.UA-.NETStandard?branchName=master)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
-[![Tests](https://img.shields.io/azure-devops/tests/opcfoundation/opcua-netstandard/14/master?style=plastic&label=Tests)](https://opcfoundation.visualstudio.com/opcua-netstandard/_test/analytics?definitionId=14&contextType=build)
-[![Coverage](https://img.shields.io/azure-devops/coverage/opcfoundation/opcua-netstandard/14/master?style=plastic&label=Coverage)](https://opcfoundation.visualstudio.com/opcua-netstandard/_build/latest?definitionId=14&branchName=master)
+[![CI](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml/badge.svg?branch=master)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/buildandtest.yml?query=branch%3Amaster)
+[![CodeQL](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/codeql-analysis.yml/badge.svg?branch=master)](https://github.com/OPCFoundation/UA-.NETStandard/actions/workflows/codeql-analysis.yml?query=branch%3Amaster)
+[![Coverage](https://codecov.io/gh/OPCFoundation/UA-.NETStandard/branch/master/graph/badge.svg)](https://codecov.io/gh/OPCFoundation/UA-.NETStandard)
 
 > 🆕 **This is version 2.0 of the OPC UA .NET Standard Stack (current `master`).**
 >
@@ -25,7 +25,7 @@ across industrial control, manufacturing, energy, and IoT systems.
   PubSub / GDS / LDS / Complex Types / Device Integration / Positioning libraries
   built on .NET, with UA-TCP and HTTPS transports.
 - **Cross-platform** — runs on .NET 10, .NET 9, .NET 8 (LTS),
-  .NET Framework 4.8, and .NET Standard 2.1; ships
+  .NET Framework 4.8; ships
   Native-AOT-friendly assemblies.
 - **Certified for compliance** — the reference server has been
   certified through an OPC Foundation Certification Test Lab and is
@@ -34,12 +34,16 @@ across industrial control, manufacturing, energy, and IoT systems.
 - **Companion-spec coverage** — Part 9 (Alarms & Conditions), Part 11
   (Historical Access), Part 13 (Aggregates), Part 16 (State Machines),
   Part 17 (Alias Names), Part 18 (Role Management), Part 20 (File
-  Transfer), Part 100 (Device Integration), Parts 210/211 (Relative
+  Transfer), Part 100 (Device Integration), Part 110 (Asset Management
+  Basics), Parts 210/211 (Relative
   Spatial Location and Global Positioning), OPC-10030 (ISA-95 Common
   Model) with OPC-10031-4 Job Control V1/V2, OPC 30270 / OPC UA for Asset
   Administration Shell V2 and V3, OPC 10100-1
-  (WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
-  (Robotics).
+  (WoT Connectivity), Part 200 (Industrial Automation), OPC 40001-1/-2/-3/-4/-101
+  (Machinery with Process Values, Job Management, Energy and Result
+  Transfer), OPC 34100 (Energy Consumption Management), OPC 30081
+  (PA-DIM), OPC 40010-1 (Robotics), OPC 40223 (Pumps and Vacuum Pumps),
+  OPC 40200 (Weighing Technology) with OPC 30050 (PackML).
 - **Modern developer surface** — first-class `Microsoft.Extensions.DependencyInjection`
   hosting (`services.AddOpcUa()`), fluent server + client builders,
   source-generated NodeManagers and DataTypes, and an MCP server so
@@ -50,6 +54,11 @@ For the full feature breakdown see
 **[What's New in 2.0](docs/WhatsNewIn2.0.md)** tour.
 
 ## 🚀 Getting started
+
+To run a first OPC UA client and server, from NuGet packages or from the
+samples in this repository, follow **[Getting started](docs/GettingStarted.md)**.
+The **[documentation index](docs/README.md)** then leads from the core concepts
+to advanced and experimental features.
 
 You need the [.NET 10 SDK](https://dotnet.microsoft.com/download/dotnet/10.0)
 to build the repo. From the repository root:
@@ -68,15 +77,23 @@ pulls in everything, or reference individual packages directly, e.g.
 `OPCFoundation.NetStandard.Opc.Ua.Client` for clients or
 `OPCFoundation.NetStandard.Opc.Ua.Server` for servers. Preview builds from
 every successful `master` build are available from the
-[GitHub Packages NuGet feed](https://nuget.pkg.github.com/OPCFoundation/index.json).
-Official public 2.0 preview releases are also on nuget.org. Enable prerelease
-packages and use `2.0.0-preview.*` to float to the latest published
-`2.0.0-preview.N` release.
+[GitHub Packages NuGet feed](https://nuget.pkg.github.com/OPCFoundation/index.json),
+which is the only feed they are published to. nuget.org receives a version
+only through a manually approved promotion from a `release/<major>.<minor>`
+branch — that is where the `2.0.0-preview.N` packages already on nuget.org
+came from, via the earlier `release/2.0.0` line. To use those, enable
+prerelease packages and float with `2.0.0-preview.*` until `2.0.0` is
+released. The XRegistry, WoT Connectivity, Vision, Robotics,
+Redundancy, Positioning, OpenUSD, ISA95, AI, and DI package families remain
+preview packages when the root version is promoted to a stable version, and
+keep their own `-preview.N` versions on nuget.org. See
+[docs/ReleaseProcess.md](docs/ReleaseProcess.md) for how and when stable
+versions are released.
 
 ### Samples
 
 The stack also includes a large collection of
-[platform-independent sample applications](docs/samples.md) that turn its
+[platform-independent sample applications](docs/Samples.md) that turn its
 core services and companion models into runnable client/server workflows.
 More applications, including platform-specific examples, are available in
 the companion

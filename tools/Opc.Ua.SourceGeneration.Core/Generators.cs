@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Opc.Ua.Schema.Model;
 
 namespace Opc.Ua.SourceGeneration
@@ -60,13 +61,13 @@ namespace Opc.Ua.SourceGeneration
             IFileSystem fileSystem,
             string outputDir,
             ITelemetryContext telemetry,
-            GeneratorOptions options = null,
+            GeneratorOptions? options = null,
             bool useAllowSubtypes = false,
-            List<string> identifierFiles = null,
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
-            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
-            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
-            HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
+            List<string>? identifierFiles = null,
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels = null,
+            IReadOnlyList<NodeManagerAttributeBinding>? nodeManagerBindings = null,
+            Action<NodeManagerAttributeBinding, string>? reportBindingDiagnostic = null,
+            HashSet<NodeManagerAttributeBinding>? sharedUsedBindings = null,
             int bindingModelCount = 0)
         {
             GenerateCode(
@@ -76,10 +77,10 @@ namespace Opc.Ua.SourceGeneration
                 telemetry,
                 options,
                 useAllowSubtypes,
-                identifierFiles,
+                identifierFiles!,
                 referencedModels,
                 nodeManagerBindings,
-                reportBindingDiagnostic,
+                reportBindingDiagnostic!,
                 sharedUsedBindings,
                 bindingModelCount,
                 null,
@@ -147,17 +148,17 @@ namespace Opc.Ua.SourceGeneration
             IFileSystem fileSystem,
             string outputDir,
             ITelemetryContext telemetry,
-            GeneratorOptions options,
+            GeneratorOptions? options,
             bool useAllowSubtypes,
             List<string> identifierFiles,
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels,
-            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings,
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels,
+            IReadOnlyList<NodeManagerAttributeBinding>? nodeManagerBindings,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic,
-            HashSet<NodeManagerAttributeBinding> sharedUsedBindings,
+            HashSet<NodeManagerAttributeBinding>? sharedUsedBindings,
             int bindingModelCount,
-            Action<string, string, string, string> reportFluentAccessorsOnlyDiagnostic,
-            IReadOnlyList<ModelDependencyReference> referencedModelProviders,
-            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders)
+            Action<string, string, string, string>? reportFluentAccessorsOnlyDiagnostic,
+            IReadOnlyList<ModelDependencyReference>? referencedModelProviders,
+            IReadOnlyList<ModelFluentAccessorProviderReference>? referencedAccessorProviders)
         {
             if (designFiles.Targets == null || designFiles.Targets.Count == 0)
             {
@@ -180,7 +181,7 @@ namespace Opc.Ua.SourceGeneration
                 .AsFileSystem("Opc.Ua.SourceGeneration.Design")
                 .WithFallback(fileSystem);
 
-            HashSet<NodeManagerAttributeBinding> usedBindings = sharedUsedBindings
+            HashSet<NodeManagerAttributeBinding>? usedBindings = sharedUsedBindings
                 ?? (nodeManagerBindings is { Count: > 0 } ? [] : null);
             bool deferBindingDiagnostics = sharedUsedBindings != null;
 
@@ -190,6 +191,7 @@ namespace Opc.Ua.SourceGeneration
 
             foreach (DesignFileCollection model in designFiles.Group(identifierFiles))
             {
+                options.Cancellation.ThrowIfCancellationRequested();
                 IModelDesign modelDesign = fileSystem.OpenModelDesign(
                     model,
                     options.Exclusions,
@@ -207,7 +209,23 @@ namespace Opc.Ua.SourceGeneration
                         out ModelDependencyReference referenced) &&
                     string.Equals(referenced.Prefix, target.Prefix,
                         StringComparison.Ordinal);
-                if (targetProvidedByReference && !options.FluentAccessorsOnly)
+
+                DesignFileOptions? effectiveOptions = ApplyNodeManagerBinding(
+                    model,
+                    modelDesign,
+                    nodeManagerBindings!,
+                    usedBindings,
+                    totalDesigns,
+                    out bool boundToNodeManager);
+
+                // A [NodeManager] bound to a model that a reference already
+                // supplies is the one reason to keep processing such a
+                // design: the manager and its fluent surface are emitted
+                // here while the model types keep coming from the
+                // reference, exactly as in fluent-accessors-only mode.
+                bool accessorsOnly = options.FluentAccessorsOnly ||
+                    (targetProvidedByReference && boundToNodeManager);
+                if (targetProvidedByReference && !accessorsOnly)
                 {
                     continue;
                 }
@@ -222,33 +240,30 @@ namespace Opc.Ua.SourceGeneration
                 OverrideDependencyPrefixes(modelDesign, referencedModels);
                 EnsureUniqueTargetNamespaceName(modelDesign);
 
-                DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
-                    model,
-                    modelDesign,
-                    nodeManagerBindings,
-                    usedBindings,
-                    totalDesigns);
                 string modelPath = model.Targets.Count > 0
                     ? model.Targets[0]
                     : string.Empty;
 
-                if (options.FluentAccessorsOnly &&
-                    (!ValidateFluentAccessorsOnlyTarget(
-                        target?.Value,
-                        target?.Prefix,
-                        modelPath,
-                        referencedModelProviders,
-                        referencedAccessorProviders,
-                        reportFluentAccessorsOnlyDiagnostic) ||
-                    !ValidateFluentAccessorsOnlyOptions(
-                        target?.Value,
-                        target?.Prefix,
+                bool emitFluentAccessors = true;
+                if (accessorsOnly &&
+                    !CanEmitFluentAccessorsOnly(
+                        (target?.Value)!,
+                        (target?.Prefix)!,
                         modelPath,
                         options,
-                        effectiveOptions,
-                        reportFluentAccessorsOnlyDiagnostic)))
+                        effectiveOptions!,
+                        referencedModelProviders,
+                        referencedAccessorProviders,
+                        reportFluentAccessorsOnlyDiagnostic!))
                 {
-                    continue;
+                    // The [NodeManager] binding asked for the manager, which
+                    // does not depend on (re-)emitting the accessors: emit it
+                    // without them instead of dropping the whole binding.
+                    if (!(targetProvidedByReference && boundToNodeManager))
+                    {
+                        continue;
+                    }
+                    emitFluentAccessors = false;
                 }
 
                 var context = new GeneratorContext
@@ -263,12 +278,14 @@ namespace Opc.Ua.SourceGeneration
                 Generate(
                 context,
                 validateSchemas: false,
-                designOptions: effectiveOptions);
-                // In fluent-accessors-only mode the model itself is already
-                // supplied by a referenced assembly, which carries its event
-                // records too. Emitting them again here would duplicate every
-                // record type the reference already exports (CS0436).
-                if (!options.OmitEventRecords && !options.FluentAccessorsOnly)
+                designOptions: effectiveOptions,
+                accessorsOnly: accessorsOnly,
+                emitFluentAccessors: emitFluentAccessors);
+                // When the model itself is supplied by a referenced
+                // assembly, that assembly carries its event records too.
+                // Emitting them again here would duplicate every record
+                // type the reference already exports (CS0436).
+                if (!options.OmitEventRecords && !accessorsOnly)
                 {
                     new EventRecordGenerator(context).Emit();
                 }
@@ -312,7 +329,7 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
 
-            string targetUri = modelDesign.TargetNamespace?.Value;
+            string? targetUri = modelDesign.TargetNamespace?.Value;
             foreach (Namespace ns in modelDesign.Namespaces)
             {
                 if (ns == null || string.IsNullOrEmpty(ns.Value))
@@ -345,11 +362,11 @@ namespace Opc.Ua.SourceGeneration
 
         internal static void EnsureUniqueTargetNamespaceName(IModelDesign modelDesign)
         {
-            Namespace target = modelDesign?.TargetNamespace;
+            Namespace? target = modelDesign?.TargetNamespace;
             if (target == null ||
                 string.IsNullOrEmpty(target.Value) ||
                 string.IsNullOrEmpty(target.Name) ||
-                modelDesign.Namespaces == null)
+                modelDesign!.Namespaces == null)
             {
                 return;
             }
@@ -363,7 +380,7 @@ namespace Opc.Ua.SourceGeneration
                 return;
             }
 
-            string candidate = CreateNamespaceConstantName(target.Prefix);
+            string? candidate = CreateNamespaceConstantName(target.Prefix);
             if (string.IsNullOrEmpty(candidate) ||
                 string.Equals(candidate, target.Name, StringComparison.Ordinal))
             {
@@ -391,15 +408,21 @@ namespace Opc.Ua.SourceGeneration
             }
         }
 
-        private static string CreateNamespaceConstantName(string prefix)
+        private static string? CreateNamespaceConstantName(string prefix)
         {
             if (string.IsNullOrEmpty(prefix))
             {
                 return null;
             }
 
+            // The parts are concatenated into one identifier, so a part must
+            // not keep the '@' ToSafeSymbolName escapes a keyword with - it
+            // would land mid-identifier ("Acme@base"). Upper-casing the first
+            // letter already takes every part out of the (lower case) keywords.
             string[] parts = prefix.Split(['.', '-', '_', '/', ':'], StringSplitOptions.RemoveEmptyEntries);
-            return string.Concat(parts.Select(part => part.ToSafeSymbolName().ToUpperCamelCase()));
+            string name = string.Concat(parts.Select(part =>
+                part.ToSafeSymbolName().TrimStart('@').ToUpperCamelCase()));
+            return string.IsNullOrEmpty(name) ? null : name.ToCSharpIdentifierPreserveCase();
         }
 
         /// <summary>
@@ -431,7 +454,7 @@ namespace Opc.Ua.SourceGeneration
             string path,
             IReadOnlyList<ModelDependencyReference> referencedModelProviders,
             IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders,
-            Action<string, string, string, string> reportDiagnostic)
+            Action<string, string, string, string>? reportDiagnostic)
         {
             if (string.IsNullOrEmpty(modelUri))
             {
@@ -467,7 +490,7 @@ namespace Opc.Ua.SourceGeneration
                     reference.IsValid &&
                     string.Equals(reference.ModelUri, modelUri, StringComparison.Ordinal)))
             {
-                Dependency.ModelDependencyV1 dependency = reference.GetDependency();
+                Dependency.ModelDependencyV1? dependency = reference.GetDependency();
                 if (string.Equals(reference.Prefix, prefix, StringComparison.Ordinal) &&
                     !string.IsNullOrEmpty(reference.Payload) &&
                     (dependency == null ||
@@ -534,6 +557,48 @@ namespace Opc.Ua.SourceGeneration
             return true;
         }
 
+        /// <summary>
+        /// Whether the fluent accessors of a model supplied by a reference may be
+        /// emitted here. Diagnostics are only reported when fluent-accessors-only
+        /// mode was requested explicitly; a run that exists only because of a
+        /// <c>[NodeManager]</c> binding silently emits the manager without them.
+        /// </summary>
+        private static bool CanEmitFluentAccessorsOnly(
+            string modelUri,
+            string prefix,
+            string path,
+            GeneratorOptions options,
+            DesignFileOptions designOptions,
+            IReadOnlyList<ModelDependencyReference> referencedModelProviders,
+            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders,
+            Action<string, string, string, string> reportDiagnostic)
+        {
+            if (!options.FluentAccessorsOnly)
+            {
+                return ValidateFluentAccessorsOnlyTarget(
+                    modelUri,
+                    prefix,
+                    path,
+                    referencedModelProviders,
+                    referencedAccessorProviders,
+                    null);
+            }
+            return ValidateFluentAccessorsOnlyTarget(
+                    modelUri,
+                    prefix,
+                    path,
+                    referencedModelProviders,
+                    referencedAccessorProviders,
+                    reportDiagnostic) &&
+                ValidateFluentAccessorsOnlyOptions(
+                    modelUri,
+                    prefix,
+                    path,
+                    options,
+                    designOptions,
+                    reportDiagnostic);
+        }
+
         private static bool ValidateFluentAccessorsOnlyOptions(
             string modelUri,
             string prefix,
@@ -542,11 +607,14 @@ namespace Opc.Ua.SourceGeneration
             DesignFileOptions designOptions,
             Action<string, string, string, string> reportDiagnostic)
         {
-            string reason = options.OmitFluentApi
+            // NodeManager generation is deliberately *not* rejected here:
+            // a manager and its fluent surface emit no model types, so they
+            // compose with a model that a referenced assembly supplies.
+            // OmitFluentApi still is — it asks for the opposite of what
+            // this mode exists to produce.
+            string? reason = options.OmitFluentApi
                 ? "OmitFluentApi is also enabled."
-                : designOptions?.GenerateNodeManager == true
-                    ? "NodeManager generation is also enabled."
-                    : null;
+                : null;
             if (reason == null)
             {
                 return true;
@@ -560,50 +628,88 @@ namespace Opc.Ua.SourceGeneration
         }
 
         /// <summary>
-        /// Resolve the effective per-design options by overlaying any
-        /// matching <c>[NodeManager]</c> attribute binding on top of the
-        /// existing <see cref="DesignFileCollection.Options"/>.
+        /// The design-file selector a <c>[NodeManager]</c> binding may
+        /// name: the single input's file name without extension, or
+        /// <c>null</c> when the model is composed from several files and
+        /// no one name identifies it.
         /// </summary>
-        private static DesignFileOptions ApplyNodeManagerBinding(
-            DesignFileCollection model,
-            IModelDesign modelDesign,
-            IReadOnlyList<NodeManagerAttributeBinding> bindings,
-            HashSet<NodeManagerAttributeBinding> usedBindings,
+        private static string? DesignNameOf(IReadOnlyList<string> targets)
+        {
+            return targets != null && targets.Count == 1
+                ? System.IO.Path.GetFileNameWithoutExtension(targets[0])
+                : null;
+        }
+
+        /// <summary>
+        /// Finds the <c>[NodeManager]</c> binding that claims a model, by
+        /// namespace URI, then by design file name, then — for a project
+        /// with exactly one model and one selector-less binding — by
+        /// fallback. Shared so a caller can learn a design is claimed
+        /// before it has opened it.
+        /// </summary>
+        /// <returns>The matching binding, or <c>null</c>.</returns>
+        private static NodeManagerAttributeBinding? MatchNodeManagerBinding(
+            string? uri,
+            string? designName,
+            IReadOnlyList<NodeManagerAttributeBinding>? bindings,
             int totalDesigns)
         {
-            DesignFileOptions effective = model.Options;
             if (bindings == null || bindings.Count == 0)
             {
-                return effective;
+                return null;
             }
-            string uri = modelDesign?.TargetNamespace?.Value;
-            string designName = model.Targets.Count == 1
-                ? System.IO.Path.GetFileNameWithoutExtension(model.Targets[0])
-                : null;
-
-            NodeManagerAttributeBinding match = null;
             // 1) exact URI match
             if (!string.IsNullOrEmpty(uri))
             {
-                match = bindings.FirstOrDefault(b =>
+                NodeManagerAttributeBinding? byUri = bindings.FirstOrDefault(b =>
                     string.Equals(b.NamespaceUri, uri, StringComparison.Ordinal));
+                if (byUri != null)
+                {
+                    return byUri;
+                }
             }
             // 2) design file name match
-            if (match == null && !string.IsNullOrEmpty(designName))
+            if (!string.IsNullOrEmpty(designName))
             {
-                match = bindings.FirstOrDefault(b =>
+                NodeManagerAttributeBinding? byName = bindings.FirstOrDefault(b =>
                     !string.IsNullOrEmpty(b.Design) &&
                     string.Equals(b.Design, designName, StringComparison.OrdinalIgnoreCase));
+                if (byName != null)
+                {
+                    return byName;
+                }
             }
             // 3) single-design / single-binding fallback
-            if (match == null &&
-                totalDesigns == 1 &&
+            if (totalDesigns == 1 &&
                 bindings.Count == 1 &&
                 string.IsNullOrEmpty(bindings[0].NamespaceUri) &&
                 string.IsNullOrEmpty(bindings[0].Design))
             {
-                match = bindings[0];
+                return bindings[0];
             }
+            return null;
+        }
+
+        /// <summary>
+        /// Resolve the effective per-design options by overlaying any
+        /// matching <c>[NodeManager]</c> attribute binding on top of the
+        /// existing <see cref="DesignFileCollection.Options"/>.
+        /// </summary>
+        private static DesignFileOptions? ApplyNodeManagerBinding(
+            DesignFileCollection model,
+            IModelDesign modelDesign,
+            IReadOnlyList<NodeManagerAttributeBinding> bindings,
+            HashSet<NodeManagerAttributeBinding>? usedBindings,
+            int totalDesigns,
+            out bool bound)
+        {
+            bound = false;
+            DesignFileOptions? effective = model.Options;
+            NodeManagerAttributeBinding? match = MatchNodeManagerBinding(
+                modelDesign?.TargetNamespace?.Value,
+                DesignNameOf(model.Targets),
+                bindings,
+                totalDesigns);
 
             if (match == null)
             {
@@ -611,6 +717,7 @@ namespace Opc.Ua.SourceGeneration
             }
 
             usedBindings?.Add(match);
+            bound = true;
 
             return (effective ?? new DesignFileOptions()) with
             {
@@ -618,6 +725,7 @@ namespace Opc.Ua.SourceGeneration
                 NodeManagerNamespace = match.TargetNamespace,
                 NodeManagerClassName = match.TargetClassName,
                 EmitNodeManagerFactory = match.GenerateFactory,
+                EmitNodeManagerDefaultConstructor = match.GenerateDefaultConstructor,
                 NodeManagerAdditionalNamespaceUris = match.AdditionalNamespaceUris
             };
         }
@@ -647,8 +755,8 @@ namespace Opc.Ua.SourceGeneration
         /// Callback invoked for each unmatched or ambiguous binding.
         /// </param>
         public static void ReportUnmatchedNodeManagerBindings(
-            IReadOnlyList<NodeManagerAttributeBinding> bindings,
-            ICollection<NodeManagerAttributeBinding> usedBindings,
+            IReadOnlyList<NodeManagerAttributeBinding>? bindings,
+            ICollection<NodeManagerAttributeBinding>? usedBindings,
             int totalModelCount,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic)
         {
@@ -716,13 +824,13 @@ namespace Opc.Ua.SourceGeneration
             IFileSystem fileSystem,
             string outputDir,
             ITelemetryContext telemetry,
-            GeneratorOptions options = null,
+            GeneratorOptions? options = null,
             bool useAllowSubtypes = false,
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels = null,
-            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings = null,
-            Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic = null,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies = null,
-            HashSet<NodeManagerAttributeBinding> sharedUsedBindings = null,
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels = null,
+            IReadOnlyList<NodeManagerAttributeBinding>? nodeManagerBindings = null,
+            Action<NodeManagerAttributeBinding, string>? reportBindingDiagnostic = null,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1>? referencedDependencies = null,
+            HashSet<NodeManagerAttributeBinding>? sharedUsedBindings = null,
             int bindingModelCount = 0)
         {
             GenerateCode(
@@ -734,7 +842,7 @@ namespace Opc.Ua.SourceGeneration
                 useAllowSubtypes,
                 referencedModels,
                 nodeManagerBindings,
-                reportBindingDiagnostic,
+                reportBindingDiagnostic!,
                 referencedDependencies,
                 sharedUsedBindings,
                 bindingModelCount,
@@ -812,17 +920,17 @@ namespace Opc.Ua.SourceGeneration
             IFileSystem fileSystem,
             string outputDir,
             ITelemetryContext telemetry,
-            GeneratorOptions options,
+            GeneratorOptions? options,
             bool useAllowSubtypes,
-            IReadOnlyDictionary<string, ModelDependencyReference> referencedModels,
-            IReadOnlyList<NodeManagerAttributeBinding> nodeManagerBindings,
+            IReadOnlyDictionary<string, ModelDependencyReference>? referencedModels,
+            IReadOnlyList<NodeManagerAttributeBinding>? nodeManagerBindings,
             Action<NodeManagerAttributeBinding, string> reportBindingDiagnostic,
-            IReadOnlyDictionary<string, Dependency.ModelDependencyV1> referencedDependencies,
-            HashSet<NodeManagerAttributeBinding> sharedUsedBindings,
+            IReadOnlyDictionary<string, Dependency.ModelDependencyV1>? referencedDependencies,
+            HashSet<NodeManagerAttributeBinding>? sharedUsedBindings,
             int bindingModelCount,
-            Action<string, string, string, string> reportFluentAccessorsOnlyDiagnostic,
-            IReadOnlyList<ModelDependencyReference> referencedModelProviders,
-            IReadOnlyList<ModelFluentAccessorProviderReference> referencedAccessorProviders)
+            Action<string, string, string, string>? reportFluentAccessorsOnlyDiagnostic,
+            IReadOnlyList<ModelDependencyReference>? referencedModelProviders,
+            IReadOnlyList<ModelFluentAccessorProviderReference>? referencedAccessorProviders)
         {
             if (nodesets.Files.Count == 0)
             {
@@ -843,7 +951,7 @@ namespace Opc.Ua.SourceGeneration
                 .AsFileSystem("Opc.Ua.SourceGeneration.Design")
                 .WithFallback(fileSystem);
 
-            HashSet<NodeManagerAttributeBinding> usedBindings = sharedUsedBindings
+            HashSet<NodeManagerAttributeBinding>? usedBindings = sharedUsedBindings
                 ?? (nodeManagerBindings is { Count: > 0 } ? [] : null);
             bool deferBindingDiagnostics = sharedUsedBindings != null;
 
@@ -853,12 +961,13 @@ namespace Opc.Ua.SourceGeneration
 
             foreach (string modelUri in nodesets.ModelUris)
             {
-                List<string> designFilesForModel =
+                options.Cancellation.ThrowIfCancellationRequested();
+                List<string>? designFilesForModel =
                     nodesets.GetDesignFileListForModel(
                         modelUri,
                         out NodesetFile nodeset,
                         referencedModels);
-                if (designFilesForModel == null || nodeset.Info.Ignore)
+                if (designFilesForModel == null || nodeset.Info!.Ignore)
                 {
                     continue;
                 }
@@ -869,7 +978,21 @@ namespace Opc.Ua.SourceGeneration
                         out ModelDependencyReference referenced) &&
                     string.Equals(referenced.Prefix, nodeset.Info.Prefix,
                         StringComparison.Ordinal);
-                if (targetProvidedByReference && !options.FluentAccessorsOnly)
+
+                // A [NodeManager] bound to a model that a reference already
+                // supplies is the one reason to keep processing such an
+                // input: the manager and its fluent surface are emitted
+                // here while the model types keep coming from the
+                // reference. Matching before the model is opened, because
+                // the answer decides how to open it.
+                bool boundToNodeManager = MatchNodeManagerBinding(
+                    modelUri,
+                    DesignNameOf(designFilesForModel),
+                    nodeManagerBindings,
+                    totalDesigns) != null;
+                bool accessorsOnly = options.FluentAccessorsOnly ||
+                    (targetProvidedByReference && boundToNodeManager);
+                if (targetProvidedByReference && !accessorsOnly)
                 {
                     continue;
                 }
@@ -880,7 +1003,7 @@ namespace Opc.Ua.SourceGeneration
                 };
                 IReadOnlyDictionary<string, Dependency.ModelDependencyV1>
                     validationDependencies = referencedDependencies;
-                if (options.FluentAccessorsOnly &&
+                if (accessorsOnly &&
                     referencedDependencies.ContainsKey(modelUri))
                 {
                     Dictionary<string, Dependency.ModelDependencyV1> dependenciesWithoutTarget =
@@ -906,30 +1029,32 @@ namespace Opc.Ua.SourceGeneration
                 OverrideDependencyPrefixes(modelDesign, referencedModels);
                 EnsureUniqueTargetNamespaceName(modelDesign);
 
-                DesignFileOptions effectiveOptions = ApplyNodeManagerBinding(
+                DesignFileOptions? effectiveOptions = ApplyNodeManagerBinding(
                     model,
                     modelDesign,
-                    nodeManagerBindings,
+                    nodeManagerBindings!,
                     usedBindings,
-                    totalDesigns);
+                    totalDesigns,
+                    out _);
 
-                if (options.FluentAccessorsOnly &&
-                    (!ValidateFluentAccessorsOnlyTarget(
+                bool emitFluentAccessors = true;
+                if (accessorsOnly &&
+                    !CanEmitFluentAccessorsOnly(
                         modelUri,
-                        nodeset.Info.Prefix,
-                        nodeset.FileName,
+                        nodeset.Info.Prefix!,
+                        nodeset.FileName!,
+                        options,
+                        effectiveOptions!,
                         referencedModelProviders,
                         referencedAccessorProviders,
-                        reportFluentAccessorsOnlyDiagnostic) ||
-                    !ValidateFluentAccessorsOnlyOptions(
-                        modelUri,
-                        nodeset.Info.Prefix,
-                        nodeset.FileName,
-                        options,
-                        effectiveOptions,
-                        reportFluentAccessorsOnlyDiagnostic)))
+                        reportFluentAccessorsOnlyDiagnostic!))
                 {
-                    continue;
+                    // See the design-file path: a bound manager is still emitted.
+                    if (!(targetProvidedByReference && boundToNodeManager))
+                    {
+                        continue;
+                    }
+                    emitFluentAccessors = false;
                 }
 
                 var context = new GeneratorContext
@@ -944,12 +1069,14 @@ namespace Opc.Ua.SourceGeneration
                 Generate(
                 context,
                 validateSchemas: false,
-                designOptions: effectiveOptions);
-                // In fluent-accessors-only mode the model itself is already
-                // supplied by a referenced assembly, which carries its event
-                // records too. Emitting them again here would duplicate every
-                // record type the reference already exports (CS0436).
-                if (!options.OmitEventRecords && !options.FluentAccessorsOnly)
+                designOptions: effectiveOptions,
+                accessorsOnly: accessorsOnly,
+                emitFluentAccessors: emitFluentAccessors);
+                // When the model itself is supplied by a referenced
+                // assembly, that assembly carries its event records too.
+                // Emitting them again here would duplicate every record
+                // type the reference already exports (CS0436).
+                if (!options.OmitEventRecords && !accessorsOnly)
                 {
                     new EventRecordGenerator(context).Emit();
                 }
@@ -984,7 +1111,7 @@ namespace Opc.Ua.SourceGeneration
                 StringComparer.Ordinal);
             foreach (KeyValuePair<string, ModelDependencyReference> entry in referencedModels)
             {
-                Dependency.ModelDependencyV1 decoded = entry.Value.GetDependency();
+                Dependency.ModelDependencyV1? decoded = entry.Value.GetDependency();
                 if (decoded == null ||
                     !string.Equals(decoded.ModelUri, entry.Key, StringComparison.Ordinal))
                 {
@@ -1008,9 +1135,10 @@ namespace Opc.Ua.SourceGeneration
             IFileSystem fileSystem,
             string outputDir,
             ITelemetryContext telemetry,
-            GeneratorOptions options = null)
+            GeneratorOptions? options = null)
         {
             options ??= new GeneratorOptions();
+            options.Cancellation.ThrowIfCancellationRequested();
             // Combine with embedded resources in this assembly.
             fileSystem = typeof(Generators).Assembly
                 .AsFileSystem("Opc.Ua.SourceGeneration.Design")
@@ -1049,10 +1177,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 var clientApiGenerator = new ClientApiGenerator(generatorContext);
                 clientApiGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var serverApiGenerator = new ServerApiGenerator(generatorContext);
                 serverApiGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var endpointsGenerator = new EndpointsGenerator(generatorContext);
                 endpointsGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 // Emit ObjectType client proxies for every standard UA
                 // ObjectType so downstream model proxies (e.g. GDS) can
                 // derive from them. Proxies are emitted into the model's
@@ -1077,6 +1208,7 @@ namespace Opc.Ua.SourceGeneration
                     };
                     var stackProxyGenerator = new ObjectTypeProxyGenerator(stackProxyContext);
                     stackProxyGenerator.Emit();
+                    options.Cancellation.ThrowIfCancellationRequested();
                 }
 
                 // Event records depend on EventRecord and decoder runtime
@@ -1107,10 +1239,13 @@ namespace Opc.Ua.SourceGeneration
             {
                 var attributesGenerator = new AttributesGenerator(generatorContext);
                 attributesGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var statusCodesGenerator = new StatusCodesGenerator(generatorContext);
                 statusCodesGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
                 var serverCapabilitiesGenerator = new ServerCapabilitiesGenerator(generatorContext);
                 serverCapabilitiesGenerator.Emit();
+                options.Cancellation.ThrowIfCancellationRequested();
 
                 Generate(generatorContext, !options.OptimizeForCompileSpeed);
             }
@@ -1119,17 +1254,67 @@ namespace Opc.Ua.SourceGeneration
         /// <summary>
         /// Generates all files
         /// </summary>
+        /// <summary>
+        /// Emits the bound <c>NodeManager</c> (and its factory) for a
+        /// design. Shared by the full-model and accessors-only paths so
+        /// both produce an identical manager.
+        /// </summary>
+        private static void EmitNodeManager(
+            GeneratorContext context,
+            DesignFileOptions designOptions)
+        {
+            new NodeManagerGenerator(context)
+            {
+                OverrideNamespace = designOptions.NodeManagerNamespace,
+                OverrideClassName = designOptions.NodeManagerClassName,
+                EmitFactory = designOptions.EmitNodeManagerFactory,
+                EmitDefaultConstructor = designOptions.EmitNodeManagerDefaultConstructor,
+                AdditionalNamespaceUris = designOptions.NodeManagerAdditionalNamespaceUris
+            }.Emit();
+        }
+
         private static void Generate(
             GeneratorContext context,
             bool validateSchemas = false,
-            DesignFileOptions designOptions = null)
+            DesignFileOptions? designOptions = null,
+            bool accessorsOnly = false,
+            bool emitFluentAccessors = true)
         {
-            if (context.Options?.FluentAccessorsOnly == true)
+            // Cancellation is observed between generators: each emitter is a
+            // bounded unit of work, and checking inside their node loops would
+            // put the check on the hot path for little gain.
+            CancellationToken ct = context.Options?.Cancellation ?? default;
+            ct.ThrowIfCancellationRequested();
+
+            // The model types live in a referenced assembly: emit the
+            // fluent surface over them, and the node manager when one was
+            // bound, but none of the model itself.
+            if (accessorsOnly || context.Options?.FluentAccessorsOnly == true)
             {
+                bool generateManager = designOptions?.GenerateNodeManager == true;
+                if (generateManager)
+                {
+                    // The manager wires NodeSet imports through the model's
+                    // import factory provider. That provider implements an
+                    // Opc.Ua.Server contract, so the model-only assembly that
+                    // owns the types cannot emit it; it is emitted here, into
+                    // the assembly that does reference Opc.Ua.Server, under
+                    // the model's own namespace so the manager resolves it.
+                    new NodeStateGenerator(context)
+                    {
+                        GenerateNodeSetImportSupport = true,
+                        ImportSupportOnly = true
+                    }.Emit();
+                    ct.ThrowIfCancellationRequested();
+                    EmitNodeManager(context, designOptions!);
+                    ct.ThrowIfCancellationRequested();
+                }
                 new FluentBuilderGenerator(context)
                 {
-                    GenerateManagerWrappers = false,
-                    EmitFluentAccessors = true
+                    OverrideManagerNamespace = designOptions?.NodeManagerNamespace,
+                    OverrideManagerClassName = designOptions?.NodeManagerClassName,
+                    GenerateManagerWrappers = generateManager,
+                    EmitFluentAccessors = emitFluentAccessors
                 }.Emit();
                 return;
             }
@@ -1140,6 +1325,7 @@ namespace Opc.Ua.SourceGeneration
                 ValidateOutput = validateSchemas
             };
             IEnumerable<Resource> xmlSchemaResource = xmlSchemaGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var binarySchemaGenerator = new BinarySchemaGenerator(context)
             {
                 ValidateOutput = validateSchemas
@@ -1151,12 +1337,15 @@ namespace Opc.Ua.SourceGeneration
                 "XmlSchemas",
                 false,
                 [.. binarySchemaResource, .. xmlSchemaResource]);
+            ct.ThrowIfCancellationRequested();
 
             // Must run after schema generation to initilize the dictionaries.
             var constantsGenerator = new ConstantsGenerator(context);
             constantsGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var nodeIdGenerator = new NodeIdGenerator(context);
             nodeIdGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var nodeStateCodeGenerator = new NodeStateGenerator(context)
             {
                 // The provider references Opc.Ua.Server contracts, so it is
@@ -1164,18 +1353,15 @@ namespace Opc.Ua.SourceGeneration
                 GenerateNodeSetImportSupport = designOptions?.GenerateNodeManager == true
             };
             nodeStateCodeGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
             var dataTypesGenerator = new DataTypeGenerator(context);
             dataTypesGenerator.Emit();
+            ct.ThrowIfCancellationRequested();
 
             if (designOptions?.GenerateNodeManager == true)
             {
-                new NodeManagerGenerator(context)
-                {
-                    OverrideNamespace = designOptions.NodeManagerNamespace,
-                    OverrideClassName = designOptions.NodeManagerClassName,
-                    EmitFactory = designOptions.EmitNodeManagerFactory,
-                    AdditionalNamespaceUris = designOptions.NodeManagerAdditionalNamespaceUris
-                }.Emit();
+                EmitNodeManager(context, designOptions);
+                ct.ThrowIfCancellationRequested();
             }
 
             // FluentBuilderGenerator emits per-ObjectType typed-accessor
@@ -1197,17 +1383,20 @@ namespace Opc.Ua.SourceGeneration
                     GenerateManagerWrappers = designOptions?.GenerateNodeManager == true,
                     EmitFluentAccessors = emitTypedAccessors
                 }.Emit();
+                ct.ThrowIfCancellationRequested();
             }
 
             if (context.Options?.OmitObjectTypeProxies != true)
             {
                 var objectTypeProxyGenerator = new ObjectTypeProxyGenerator(context);
                 objectTypeProxyGenerator.Emit();
+                ct.ThrowIfCancellationRequested();
             }
             if (context.Options?.OmitStateMachineIds != true)
             {
                 var stateMachineIdsGenerator = new StateMachineIdsGenerator(context);
                 stateMachineIdsGenerator.Emit();
+                ct.ThrowIfCancellationRequested();
             }
             if (context.Options?.EmitDependencyMetadata != false)
             {

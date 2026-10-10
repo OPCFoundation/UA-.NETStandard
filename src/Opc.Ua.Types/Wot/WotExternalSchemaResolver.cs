@@ -389,6 +389,7 @@ namespace Opc.Ua.Wot
             JsonDocument parsed;
             try
             {
+                WotDocument.ThrowIfNotUnicode(bytes, options?.MaxJsonDepth ?? 128);
                 parsed = JsonDocument.Parse(
                     bytes,
                     new JsonDocumentOptions

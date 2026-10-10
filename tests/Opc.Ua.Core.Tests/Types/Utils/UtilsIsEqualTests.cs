@@ -34,7 +34,7 @@ using System.Linq;
 using System.Runtime.InteropServices;
 using BenchmarkDotNet.Attributes;
 using NUnit.Framework;
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET7_0_OR_GREATER
 using System.Runtime.CompilerServices;
 #endif
 
@@ -48,12 +48,12 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
     [MemoryDiagnoser]
     [DisassemblyDiagnoser]
     public
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET7_0_OR_GREATER
     partial
 #endif
     class UtilsIsEqualTests
     {
-#if NET7_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET7_0_OR_GREATER
         [LibraryImport("msvcrt")]
         [UnmanagedCallConv(CallConvs = new[] { typeof(CallConvCdecl) })]
         [DefaultDllImportSearchPaths(DllImportSearchPath.System32)]
@@ -193,14 +193,14 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Utils.IsEqual(m_bufferA, m_bufferB),
                 Is.EqualTo(Utils.IsEqual(m_bufferA, (object)m_bufferB)));
             Assert.That(Utils.IsEqual(null, m_bufferB), Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
-            Assert.That(Utils.IsEqual(m_bufferA, null), Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
+            Assert.That(Utils.IsEqual(m_bufferA, null), Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null!)));
             Assert.That(Utils.IsEqual(null, null), Is.True);
 
             Assert.That(
                 Utils.IsEqual(m_bufferA, m_bufferB),
                 Is.EqualTo(Utils.IsEqual(m_bufferA, (object)m_bufferB)));
             Assert.That(Utils.IsEqual(null, m_bufferB), Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
-            Assert.That(Utils.IsEqual(m_bufferA, null), Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
+            Assert.That(Utils.IsEqual(m_bufferA, null), Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null!)));
 
             Assert.That(
                 Utils.IsEqual(m_bufferA, (IEnumerable)m_bufferB),
@@ -209,8 +209,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Utils.IsEqual(null, (IEnumerable)m_bufferB),
                 Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
             Assert.That(
-                Utils.IsEqual(m_bufferA, (IEnumerable)null),
-                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
+                Utils.IsEqual(m_bufferA, (IEnumerable)null!),
+                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null!)));
 
             Assert.That(
                 Utils.IsEqual(m_bufferA, (Array)m_bufferB),
@@ -219,8 +219,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 Utils.IsEqual(null, (Array)m_bufferB),
                 Is.EqualTo(Utils.IsEqual(null, (object)m_bufferB)));
             Assert.That(
-                Utils.IsEqual(m_bufferA, (Array)null),
-                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null)));
+                Utils.IsEqual(m_bufferA, (Array)null!),
+                Is.EqualTo(Utils.IsEqual(m_bufferA, (object)null!)));
         }
 
         [OneTimeSetUp]

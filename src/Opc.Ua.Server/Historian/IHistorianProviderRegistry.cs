@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
@@ -69,26 +67,35 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Adds a NodeId-scoped binding.
         /// </summary>
+        /// <param name="nodeId">The node whose existing binding is replaced.</param>
+        /// <param name="provider">The provider to resolve for that node.</param>
         void RegisterForNode(NodeId nodeId, IHistorianProvider provider);
 
         /// <summary>
         /// Adds a namespace-scoped binding.
         /// </summary>
+        /// <param name="namespaceUri">The namespace whose existing binding is replaced.</param>
+        /// <param name="provider">The provider to resolve for nodes in that namespace.</param>
         void RegisterForNamespace(string namespaceUri, IHistorianProvider provider);
 
         /// <summary>
         /// Sets the default fallback provider.
         /// </summary>
+        /// <param name="provider">The provider used when no node or namespace binding matches.</param>
         void RegisterDefault(IHistorianProvider provider);
 
         /// <summary>
         /// Removes the NodeId-scoped binding (no-op when absent).
         /// </summary>
+        /// <param name="nodeId">The node whose binding is removed.</param>
+        /// <returns>Whether a binding existed and was removed.</returns>
         bool UnregisterForNode(NodeId nodeId);
 
         /// <summary>
         /// Removes the namespace-scoped binding (no-op when absent).
         /// </summary>
+        /// <param name="namespaceUri">The namespace whose binding is removed.</param>
+        /// <returns>Whether a binding existed and was removed.</returns>
         bool UnregisterForNamespace(string namespaceUri);
 
         /// <summary>
@@ -100,6 +107,8 @@ namespace Opc.Ua.Server.Historian
         /// Resolves the provider for a node. Returns <c>null</c> when no
         /// binding matches.
         /// </summary>
+        /// <param name="nodeId">The node requiring a historian provider.</param>
+        /// <returns>The most specific matching provider, or <c>null</c> when no binding matches.</returns>
         IHistorianProvider? Resolve(NodeId nodeId);
 
         /// <summary>
@@ -107,7 +116,7 @@ namespace Opc.Ua.Server.Historian
         /// capability roll-up to compute the server-wide
         /// <c>HistoryServerCapabilities</c> flags.
         /// </summary>
-        IReadOnlyCollection<IHistorianProvider> Providers { get; }
+        ArrayOf<IHistorianProvider> Providers { get; }
     }
 
     /// <summary>

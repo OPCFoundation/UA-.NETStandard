@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading;
@@ -49,6 +47,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
         private static readonly ByteString s_valueA = new(new byte[] { 1, 2, 3 });
         private static readonly ByteString s_valueB = new(new byte[] { 4, 5, 6, 7 });
 
+        /// <summary>
+        /// Verifies that a missing key returns false and a null byte string.
+        /// </summary>
         [Test]
         public async Task TryGetReturnsFalseWhenKeyMissingAsync()
         {
@@ -60,6 +61,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(value.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that a value can be retrieved after it is stored.
+        /// </summary>
         [Test]
         public async Task SetThenTryGetReturnsStoredValueAsync()
         {
@@ -72,6 +76,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(s_valueA.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that setting an existing key replaces its stored value.
+        /// </summary>
         [Test]
         public async Task SetOverwritesExistingValueAsync()
         {
@@ -85,6 +92,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(s_valueB.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that reading a null key throws ArgumentNullException.
+        /// </summary>
         [Test]
         public void TryGetWithNullKeyThrows()
         {
@@ -93,6 +103,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(async () => await store.TryGetAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that setting a null key throws ArgumentNullException.
+        /// </summary>
         [Test]
         public void SetWithNullKeyThrows()
         {
@@ -101,6 +114,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(async () => await store.SetAsync(null!, s_valueA).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap inserts an absent key when the expected value is null.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapInsertsWhenAbsentAndExpectedNullAsync()
         {
@@ -114,6 +130,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(s_valueA.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap fails for an absent key when a non-null value is expected.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapFailsWhenAbsentButExpectedNonNullAsync()
         {
@@ -126,6 +145,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(found, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap fails for an existing key when absence is expected.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapFailsWhenPresentButExpectedNullAsync()
         {
@@ -139,6 +161,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(s_valueA.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap replaces a value only when the expected value matches.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapReplacesWhenExpectedMatchesAsync()
         {
@@ -152,6 +177,28 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(s_valueB.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap deletes a matching entry when the replacement is null.
+        /// </summary>
+        [Test]
+        public async Task CompareAndSwapDeletesWhenReplacementIsNullAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            await store.SetAsync("key", s_valueA).ConfigureAwait(false);
+
+            bool swapped = await store.CompareAndSwapAsync(
+                "key",
+                s_valueA,
+                default).ConfigureAwait(false);
+
+            Assert.That(swapped, Is.True);
+            (bool found, _) = await store.TryGetAsync("key").ConfigureAwait(false);
+            Assert.That(found, Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that compare-and-swap preserves an entry when the expected value differs.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapFailsWhenExpectedDiffersAsync()
         {
@@ -165,6 +212,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(s_valueA.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap rejects a null key.
+        /// </summary>
         [Test]
         public void CompareAndSwapWithNullKeyThrows()
         {
@@ -175,6 +225,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that deletion removes an existing key.
+        /// </summary>
         [Test]
         public async Task DeleteRemovesExistingKeyAsync()
         {
@@ -188,6 +241,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(found, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that deleting a missing key returns false.
+        /// </summary>
         [Test]
         public async Task DeleteReturnsFalseWhenKeyMissingAsync()
         {
@@ -198,6 +254,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(removed, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that deletion rejects a null key.
+        /// </summary>
         [Test]
         public void DeleteWithNullKeyThrows()
         {
@@ -206,6 +265,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(async () => await store.DeleteAsync(null!).ConfigureAwait(false), Throws.ArgumentNullException);
         }
 
+        /// <summary>
+        /// Verifies that scanning returns only entries whose keys match the requested prefix.
+        /// </summary>
         [Test]
         public async Task ScanReturnsOnlyEntriesMatchingPrefixAsync()
         {
@@ -226,6 +288,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(keys, Does.Not.Contain("b/1"));
         }
 
+        /// <summary>
+        /// Verifies that scanning with a null prefix returns all stored entries.
+        /// </summary>
         [Test]
         public async Task ScanWithNullPrefixReturnsAllEntriesAsync()
         {
@@ -242,6 +307,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             Assert.That(keys, Has.Count.EqualTo(2));
         }
 
+        /// <summary>
+        /// Verifies that scanning observes cancellation.
+        /// </summary>
         [Test]
         public async Task ScanHonorsCancellationAsync()
         {
@@ -260,6 +328,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
                 Throws.InstanceOf<OperationCanceledException>());
         }
 
+        /// <summary>
+        /// Verifies that a watcher receives both set and delete notifications.
+        /// </summary>
         [Test]
         public async Task WatchObservesSetAndDeleteChangesAsync()
         {
@@ -293,6 +364,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             }
         }
 
+        /// <summary>
+        /// Verifies that a watcher ignores changes outside its requested prefix.
+        /// </summary>
         [Test]
         public async Task WatchIgnoresChangesOutsidePrefixAsync()
         {
@@ -318,6 +392,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             }
         }
 
+        /// <summary>
+        /// Verifies that canceling a watch token stops its enumeration.
+        /// </summary>
         [Test]
         public async Task WatchStopsWhenTokenIsCanceledAsync()
         {
@@ -339,6 +416,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             }
         }
 
+        /// <summary>
+        /// Verifies that disposing the store completes outstanding watchers.
+        /// </summary>
         [Test]
         public async Task DisposeCompletesOutstandingWatchersAsync()
         {
@@ -359,6 +439,9 @@ namespace Opc.Ua.Core.Tests.Redundancy
             }
         }
 
+        /// <summary>
+        /// Verifies that disposing the store clears its stored data.
+        /// </summary>
         [Test]
         public async Task DisposeClearsStoredDataAsync()
         {

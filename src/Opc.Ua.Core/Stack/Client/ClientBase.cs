@@ -261,11 +261,20 @@ namespace Opc.Ua
         public bool Disposed { get; private set; }
 
         /// <summary>
-        /// Generates a unique request handle.
+        /// Generates a nonzero caller request handle from the shared client sequence.
         /// </summary>
+        /// <remarks>
+        /// The caller sequence can wrap. Transports that require non-reused wire identifiers,
+        /// such as WSS OpenAPI, allocate them independently for each connection.
+        /// </remarks>
         public uint NewRequestHandle()
         {
-            return (uint)Utils.IncrementIdentifier(ref m_nextRequestHandle);
+            return NewSharedRequestHandle();
+        }
+
+        internal static uint NewSharedRequestHandle()
+        {
+            return (uint)Utils.IncrementIdentifier(ref s_nextRequestHandle);
         }
 
         /// <summary>
@@ -411,8 +420,7 @@ namespace Opc.Ua
 
             if (request.RequestHeader.RequestHandle == 0)
             {
-                request.RequestHeader.RequestHandle = (uint)Utils.IncrementIdentifier(
-                    ref m_nextRequestHandle);
+                request.RequestHeader.RequestHandle = NewSharedRequestHandle();
             }
 
             if (request.RequestHeader.AuthenticationToken.IsNull)
@@ -606,7 +614,7 @@ namespace Opc.Ua
                         statusCode.CodeBits),
                     new KeyValuePair<string, object?>(
                         "server.address",
-                        Endpoint?.EndpointUrl),
+                        m_channel?.EndpointDescription?.EndpointUrl),
                     new KeyValuePair<string, object?>(
                         "opc.ua.request.timeout",
                         NullableTransportChannel?.OperationTimeout)));
@@ -901,7 +909,7 @@ namespace Opc.Ua
         private long m_channelGeneration;
         private NodeId m_authenticationToken;
         private readonly ConcurrentDictionary<string, Instrument<double>> m_instruments = [];
-        private int m_nextRequestHandle;
+        private static int s_nextRequestHandle;
         private int m_pendingRequestCount;
     }
 

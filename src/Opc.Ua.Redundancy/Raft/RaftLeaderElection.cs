@@ -63,7 +63,10 @@ namespace Opc.Ua.Redundancy
         /// <inheritdoc/>
         public async ValueTask<bool> TryAcquireOrRenewAsync(CancellationToken ct = default)
         {
-            await m_consensus.CampaignAsync(ct).ConfigureAwait(false);
+            // Native Raft elects and renews its leader through the protocol.
+            // Explicit campaigns from each initializing subsystem can disrupt
+            // a healthy election and discard proposals that are in flight.
+            await m_consensus.StartAsync(ct).ConfigureAwait(false);
             return m_consensus.IsLeader;
         }
 
@@ -119,6 +122,9 @@ namespace Opc.Ua.Redundancy
     /// </summary>
     internal static partial class RaftLeaderElectionLog
     {
+        /// <summary>
+        /// Logs a failure to start the Raft consensus replica used for leader election.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyEventIds.RaftLeaderElection + 0, Level = LogLevel.Error,
             Message = "Raft consensus replica failed to start for leader election.")]
         public static partial void RaftConsensusReplicaFailedToStart(this ILogger logger, Exception exception);

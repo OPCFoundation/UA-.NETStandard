@@ -65,17 +65,17 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(halfLoadedServiceLevel, Is.LessThan(255));
             Assert.That(halfLoadedServiceLevel, Is.GreaterThan(nearCapacityServiceLevel));
-            Assert.That(nearCapacityServiceLevel, Is.GreaterThan(1));
+            Assert.That(nearCapacityServiceLevel, Is.GreaterThanOrEqualTo(200));
         }
 
         /// <summary>
-        /// Verifies that a full server remains discoverable but advertises minimal headroom.
+        /// Verifies that a full server remains operational and stays in the healthy range.
         /// </summary>
         [Test]
         public void CalculateTargetReturnsFloorAtOrAboveCapacity()
         {
-            Assert.That(ServerServiceLevelCalculator.CalculateTarget(100, 100), Is.EqualTo(1));
-            Assert.That(ServerServiceLevelCalculator.CalculateTarget(101, 100), Is.EqualTo(1));
+            Assert.That(ServerServiceLevelCalculator.CalculateTarget(100, 100), Is.EqualTo(200));
+            Assert.That(ServerServiceLevelCalculator.CalculateTarget(101, 100), Is.EqualTo(200));
         }
 
         /// <summary>
@@ -89,13 +89,13 @@ namespace Opc.Ua.Server.Tests
         }
 
         /// <summary>
-        /// Verifies that hysteresis never delays returning to full or minimal ServiceLevel.
+        /// Verifies that hysteresis never delays returning to full or minimum healthy ServiceLevel.
         /// </summary>
         [Test]
         public void ShouldUpdateAlwaysPublishesExtrema()
         {
             Assert.That(ServerServiceLevelCalculator.ShouldUpdate(254, 255), Is.True);
-            Assert.That(ServerServiceLevelCalculator.ShouldUpdate(2, 1), Is.True);
+            Assert.That(ServerServiceLevelCalculator.ShouldUpdate(200, 200), Is.False);
             Assert.That(ServerServiceLevelCalculator.ShouldUpdate(255, 255), Is.False);
         }
     }

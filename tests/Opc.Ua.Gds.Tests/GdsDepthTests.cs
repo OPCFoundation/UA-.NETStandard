@@ -110,7 +110,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(record).ConfigureAwait(false);
             await UnregisterAppAsync(appId).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> results = await FindAppsAsync(record.ApplicationUri)
+            List<ApplicationRecordDataType> results = await FindAppsAsync(record.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(results, Has.Count.Zero);
         }
@@ -121,7 +121,7 @@ namespace Opc.Ua.Gds.Tests
             ApplicationRecordDataType record = CreateAppRecord("Alias003");
             NodeId appId = await RegisterAppAsync(record).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> found = await FindAppsAsync(record.ApplicationUri)
+            List<ApplicationRecordDataType> found = await FindAppsAsync(record.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(found, Is.Not.Empty);
             Assert.That(found[0].ApplicationUri,
@@ -136,7 +136,7 @@ namespace Opc.Ua.Gds.Tests
             ApplicationRecordDataType record = CreateAppRecord("Alias004", ApplicationType.Client);
             NodeId appId = await RegisterAppAsync(record).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> found = await FindAppsAsync(record.ApplicationUri)
+            List<ApplicationRecordDataType> found = await FindAppsAsync(record.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(found, Is.Not.Empty);
 
@@ -150,7 +150,7 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationType.ClientAndServer);
             NodeId appId = await RegisterAppAsync(record).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> found = await FindAppsAsync(record.ApplicationUri)
+            List<ApplicationRecordDataType> found = await FindAppsAsync(record.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(found, Is.Not.Empty);
 
@@ -187,7 +187,7 @@ namespace Opc.Ua.Gds.Tests
 
             await UnregisterAppAsync(id1).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> found2 = await FindAppsAsync(rec2.ApplicationUri)
+            List<ApplicationRecordDataType> found2 = await FindAppsAsync(rec2.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(found2, Is.Not.Empty);
 
@@ -242,7 +242,7 @@ namespace Opc.Ua.Gds.Tests
             rec.ProductUri = "urn:opcfoundation.org:tests:alias011:updated";
             await UpdateAppAsync(rec).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> found = await FindAppsAsync(rec.ApplicationUri)
+            List<ApplicationRecordDataType> found = await FindAppsAsync(rec.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(found, Is.Not.Empty);
 
@@ -271,7 +271,7 @@ namespace Opc.Ua.Gds.Tests
                 .ConfigureAwait(false);
 
             ReferenceDescription certGroups = children.FirstOrDefault(
-                r => r.BrowseName.Name == "CertificateGroups");
+                r => r.BrowseName.Name == "CertificateGroups")!;
             Assert.That(certGroups, Is.Not.Null,
                 "Directory.CertificateGroups should exist.");
         }
@@ -283,7 +283,7 @@ namespace Opc.Ua.Gds.Tests
                 ApplicationType.DiscoveryServer);
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> found = await FindAppsAsync(rec.ApplicationUri)
+            List<ApplicationRecordDataType> found = await FindAppsAsync(rec.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(found, Is.Not.Empty);
 
@@ -328,7 +328,7 @@ namespace Opc.Ua.Gds.Tests
             ApplicationRecordDataType rec = CreateAppRecord("Dir001");
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri)
+            List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(results, Is.Not.Empty);
             Assert.That(results.Any(
@@ -346,14 +346,44 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(results, Has.Count.Zero);
         }
 
-        [Test]
-        public async Task AppDirFindApplicationsEmptyUriAsync()
+        [TestCase("")]
+        [TestCase(" ")]
+        public async Task AppDirFindApplicationsEmptyUriAsync(string applicationUri)
         {
-            List<ApplicationRecordDataType> results = await FindAppsAsync(string.Empty)
-                .ConfigureAwait(false);
-            Assert.That(results, Is.Not.Null);
+            // OPC 10000-12 §6.5.4: an empty ApplicationUri is not a valid URI
+            // and must not return every registered application
+            // (CTT GDS Application Directory 004.js).
+            CallResponse response = await Session.CallAsync(
+                null,
+                new CallMethodRequest[] {
+                    new() {
+                        ObjectId = m_directoryNodeId,
+                        MethodId = ToNodeId(MethodIds.Directory_FindApplications),
+                        InputArguments = new Variant[] { new(applicationUri) }.ToArrayOf()
+                    }
+                }.ToArrayOf(),
+                CancellationToken.None).ConfigureAwait(false);
+
+            Assert.That(response.Results.Count, Is.EqualTo(1));
+            Assert.That(response.Results[0].StatusCode,
+                Is.EqualTo((StatusCode)StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// A string that is not a registered ApplicationUri, even one that is not
+        /// a URI, returns an empty result (CTT GDS Application Directory 003.js
+        /// calls FindApplications with 100 to MaxStringLength 'X' characters).
+        /// </summary>
+        [TestCase("not a URI")]
+        [TestCase(100)]
+        [TestCase(50000)]
+        public async Task AppDirFindApplicationsUnknownNonUriReturnsEmptyAsync(object value)
+        {
+            string applicationUri = value is int length ? new string('X', length) : (string)value;
+            List<ApplicationRecordDataType> results = await FindAppsAsync(applicationUri)
+                .ConfigureAwait(false);
+            Assert.That(results, Is.Empty);
+        }
         [Test]
         public async Task AppDirFindApplicationsAfterMultipleRegistrationsAsync()
         {
@@ -382,7 +412,7 @@ namespace Opc.Ua.Gds.Tests
             ApplicationRecordDataType rec = CreateAppRecord("Dir005", ApplicationType.Server);
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri)
+            List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(results, Is.Not.Empty);
             Assert.That(results[0].ApplicationType,
@@ -585,7 +615,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
             await UnregisterAppAsync(appId).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri)
+            List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(results, Has.Count.Zero);
         }
@@ -1020,7 +1050,7 @@ namespace Opc.Ua.Gds.Tests
         {
             ApplicationRecordDataType rec = CreateAppRecord("Dir039");
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
-            string originalUri = rec.ApplicationUri;
+            string originalUri = rec.ApplicationUri!;
 
             rec.ApplicationId = appId;
             rec.ProductUri = "urn:opcfoundation.org:tests:depth039:upd";
@@ -1202,7 +1232,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 10, null, null, 0, null, null).ConfigureAwait(false);
+                0, 10, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -1216,7 +1246,7 @@ namespace Opc.Ua.Gds.Tests
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, "Test Application DepthDir048",
-                null, 0, null, null).ConfigureAwait(false);
+                null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -1229,7 +1259,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, rec.ApplicationUri, 0, null, null)
+                0, 100, null!, rec.ApplicationUri!, 0, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
 
@@ -1243,7 +1273,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, (uint)ApplicationType.Server, null, null)
+                0, 100, null!, null!, (uint)ApplicationType.Server, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
 
@@ -1257,7 +1287,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, rec.ProductUri, null)
+                0, 100, null!, null!, 0, rec.ProductUri!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
@@ -1268,7 +1298,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirQueryServersZeroMaxRecordsAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 0, null, null, 0, null, null).ConfigureAwait(false);
+                0, 0, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
         }
 
@@ -1276,7 +1306,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirQueryServersReturnsPaginationAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint nextId) = await QueryAppsAsync(
-                0, 1, null, null, 0, null, null).ConfigureAwait(false);
+                0, 1, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
             Assert.That(nextId, Is.GreaterThanOrEqualTo((uint)0));
         }
@@ -1285,7 +1315,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirQueryServersReturnsLastCounterResetTimeAsync()
         {
             (List<ApplicationDescription> _, DateTime resetTime, uint _) = await QueryAppsAsync(
-                0, 10, null, null, 0, null, null).ConfigureAwait(false);
+                0, 10, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(resetTime, Is.Not.Default);
         }
 
@@ -1293,9 +1323,9 @@ namespace Opc.Ua.Gds.Tests
         public async Task AppDirQueryServersNoMatchReturnsEmptyAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null,
+                0, 100, null!,
                 "urn:opcfoundation.org:tests:depth:nonexistent:055",
-                0, null, null).ConfigureAwait(false);
+                0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Has.Count.Zero);
         }
 
@@ -1314,7 +1344,7 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
                 .ConfigureAwait(false);
             ReferenceDescription updateApp = children.FirstOrDefault(
-                r => r.BrowseName.Name == "UpdateApplication");
+                r => r.BrowseName.Name == "UpdateApplication")!;
             Assert.That(updateApp, Is.Not.Null);
             Assert.That(updateApp.NodeClass, Is.EqualTo(NodeClass.Method));
         }
@@ -1325,7 +1355,7 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
                 .ConfigureAwait(false);
             ReferenceDescription getApp = children.FirstOrDefault(
-                r => r.BrowseName.Name == "GetApplication");
+                r => r.BrowseName.Name == "GetApplication")!;
             Assert.That(getApp, Is.Not.Null);
             Assert.That(getApp.NodeClass, Is.EqualTo(NodeClass.Method));
         }
@@ -1336,7 +1366,7 @@ namespace Opc.Ua.Gds.Tests
             ReferenceDescription[] children = await BrowseChildrenAsync(m_directoryNodeId)
                 .ConfigureAwait(false);
             ReferenceDescription queryApps = children.FirstOrDefault(
-                r => r.BrowseName.Name == "QueryApplications");
+                r => r.BrowseName.Name == "QueryApplications")!;
             Assert.That(queryApps, Is.Not.Null);
             Assert.That(queryApps.NodeClass, Is.EqualTo(NodeClass.Method));
         }
@@ -1380,13 +1410,13 @@ namespace Opc.Ua.Gds.Tests
             ApplicationRecordDataType rec = CreateAppRecord("Dir062");
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> found = await FindAppsAsync(rec.ApplicationUri)
+            List<ApplicationRecordDataType> found = await FindAppsAsync(rec.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(found, Is.Not.Empty);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> afterUnreg = await FindAppsAsync(rec.ApplicationUri)
+            List<ApplicationRecordDataType> afterUnreg = await FindAppsAsync(rec.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(afterUnreg, Has.Count.Zero);
         }
@@ -1403,7 +1433,7 @@ namespace Opc.Ua.Gds.Tests
 
             await UnregisterAppAsync(id1).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> found2 = await FindAppsAsync(rec2.ApplicationUri)
+            List<ApplicationRecordDataType> found2 = await FindAppsAsync(rec2.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(found2, Is.Not.Empty);
 
@@ -1508,7 +1538,7 @@ namespace Opc.Ua.Gds.Tests
             ApplicationRecordDataType rec = CreateAppRecord("Dir070", ApplicationType.Client);
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri)
+            List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(results, Is.Not.Empty);
             Assert.That(results[0].ApplicationType,
@@ -1542,7 +1572,7 @@ namespace Opc.Ua.Gds.Tests
 
             ArrayOf<string> caps = s_stringValues2.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, null, caps).ConfigureAwait(false);
+                0, 100, null!, null!, 0, null!, caps).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -1571,7 +1601,7 @@ namespace Opc.Ua.Gds.Tests
             ApplicationRecordDataType rec = CreateAppRecord("Dir074");
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
-            List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri)
+            List<ApplicationRecordDataType> results = await FindAppsAsync(rec.ApplicationUri!)
                 .ConfigureAwait(false);
             Assert.That(results, Is.Not.Empty);
             Assert.That(results[0].ApplicationUri, Is.Not.Null.And.Not.Empty);
@@ -1590,7 +1620,7 @@ namespace Opc.Ua.Gds.Tests
 
             ArrayOf<string> caps = s_stringValues7.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, null, caps).ConfigureAwait(false);
+                0, 100, null!, null!, 0, null!, caps).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -1620,12 +1650,12 @@ namespace Opc.Ua.Gds.Tests
             }
 
             (List<ApplicationDescription> _, DateTime _, uint nextId) = await QueryAppsAsync(
-                0, 1, null, null, 0, null, null).ConfigureAwait(false);
+                0, 1, null!, null!, 0, null!, null).ConfigureAwait(false);
 
             if (nextId > 0)
             {
                 (List<ApplicationDescription> apps2, DateTime _, uint _) = await QueryAppsAsync(
-                    nextId, 10, null, null, 0, null, null)
+                    nextId, 10, null!, null!, 0, null!, null)
                     .ConfigureAwait(false);
                 Assert.That(apps2, Is.Not.Null);
             }
@@ -1671,7 +1701,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsBasicCallAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 10, null, null, 0, null, null).ConfigureAwait(false);
+                0, 10, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
         }
 
@@ -1682,7 +1712,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, rec.ApplicationUri, 0, null, null)
+                0, 100, null!, rec.ApplicationUri!, 0, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
             Assert.That(apps.Any(
@@ -1695,9 +1725,9 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsNoMatchReturnsEmptyAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null,
+                0, 100, null!,
                 "urn:opcfoundation.org:tests:depth:qa003:nonexistent",
-                0, null, null).ConfigureAwait(false);
+                0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Has.Count.Zero);
         }
 
@@ -1709,7 +1739,7 @@ namespace Opc.Ua.Gds.Tests
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100, "Test Application DepthQA004",
-                null, 0, null, null).ConfigureAwait(false);
+                null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -1722,7 +1752,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, rec.ApplicationUri, 0, null, null)
+                0, 100, null!, rec.ApplicationUri!, 0, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
 
@@ -1736,7 +1766,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, (uint)ApplicationType.Server, null, null)
+                0, 100, null!, null!, (uint)ApplicationType.Server, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
 
@@ -1750,7 +1780,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, (uint)ApplicationType.Client, null, null)
+                0, 100, null!, null!, (uint)ApplicationType.Client, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
@@ -1764,7 +1794,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, rec.ProductUri, null)
+                0, 100, null!, null!, 0, rec.ProductUri!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
@@ -1780,7 +1810,7 @@ namespace Opc.Ua.Gds.Tests
 
             ArrayOf<string> caps = s_stringValues2.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, null, caps).ConfigureAwait(false);
+                0, 100, null!, null!, 0, null!, caps).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -1793,7 +1823,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint nextId) = await QueryAppsAsync(
-                0, 1, null, null, 0, null, null).ConfigureAwait(false);
+                0, 1, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Has.Count.LessThanOrEqualTo(1));
             Assert.That(nextId, Is.GreaterThanOrEqualTo((uint)0));
 
@@ -1811,12 +1841,12 @@ namespace Opc.Ua.Gds.Tests
             }
 
             (List<ApplicationDescription> _, DateTime _, uint nextId) = await QueryAppsAsync(
-                0, 1, null, null, 0, null, null).ConfigureAwait(false);
+                0, 1, null!, null!, 0, null!, null).ConfigureAwait(false);
 
             if (nextId > 0)
             {
                 (List<ApplicationDescription> apps2, DateTime _, uint _) = await QueryAppsAsync(
-                    nextId, 10, null, null, 0, null, null)
+                    nextId, 10, null!, null!, 0, null!, null)
                     .ConfigureAwait(false);
                 Assert.That(apps2, Is.Not.Null);
             }
@@ -1831,7 +1861,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsZeroMaxRecordsAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 0, null, null, 0, null, null).ConfigureAwait(false);
+                0, 0, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
         }
 
@@ -1839,7 +1869,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsReturnsLastCounterResetTimeAsync()
         {
             (List<ApplicationDescription> _, DateTime resetTime, uint _) = await QueryAppsAsync(
-                0, 10, null, null, 0, null, null).ConfigureAwait(false);
+                0, 10, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(resetTime, Is.Not.Default);
         }
 
@@ -1847,7 +1877,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsReturnsNextRecordIdAsync()
         {
             (List<ApplicationDescription> _, DateTime _, uint nextId) = await QueryAppsAsync(
-                0, 10, null, null, 0, null, null).ConfigureAwait(false);
+                0, 10, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(nextId, Is.GreaterThanOrEqualTo((uint)0));
         }
 
@@ -1860,7 +1890,7 @@ namespace Opc.Ua.Gds.Tests
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100,
                 "Test Application DepthQA015",
-                rec.ApplicationUri, 0, null, null).ConfigureAwait(false);
+                rec.ApplicationUri!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -1873,8 +1903,8 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, rec.ApplicationUri,
-                (uint)ApplicationType.Server, null, null)
+                0, 100, null!, rec.ApplicationUri!,
+                (uint)ApplicationType.Server, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
 
@@ -1890,8 +1920,8 @@ namespace Opc.Ua.Gds.Tests
 
             ArrayOf<string> caps = s_stringValues2.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null,
-                (uint)ApplicationType.Server, null, caps)
+                0, 100, null!, null!,
+                (uint)ApplicationType.Server, null!, caps)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
@@ -1909,9 +1939,9 @@ namespace Opc.Ua.Gds.Tests
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100,
                 "Test Application DepthQA018",
-                rec.ApplicationUri,
+                rec.ApplicationUri!,
                 (uint)ApplicationType.Server,
-                rec.ProductUri, caps).ConfigureAwait(false);
+                rec.ProductUri!, caps).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -1925,7 +1955,7 @@ namespace Opc.Ua.Gds.Tests
             await UnregisterAppAsync(appId).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, rec.ApplicationUri, 0, null, null)
+                0, 100, null!, rec.ApplicationUri!, 0, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Has.Count.Zero);
         }
@@ -1941,7 +1971,7 @@ namespace Opc.Ua.Gds.Tests
             await UpdateAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, rec.ApplicationUri, 0, null, null)
+                0, 100, null!, rec.ApplicationUri!, 0, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
 
@@ -1959,7 +1989,7 @@ namespace Opc.Ua.Gds.Tests
             }
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, null, null).ConfigureAwait(false);
+                0, 100, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Has.Count.GreaterThanOrEqualTo(5));
 
             foreach (NodeId id in ids)
@@ -1972,7 +2002,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsEmptyNameFilterAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, string.Empty, null, 0, null, null)
+                0, 100, string.Empty, null!, 0, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
         }
@@ -1981,7 +2011,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsEmptyUriFilterAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, string.Empty, 0, null, null)
+                0, 100, null!, string.Empty, 0, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
         }
@@ -1990,7 +2020,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsEmptyProductUriFilterAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, string.Empty, null)
+                0, 100, null!, null!, 0, string.Empty, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
         }
@@ -2000,7 +2030,7 @@ namespace Opc.Ua.Gds.Tests
         {
             ArrayOf<string> emptyArr = Array.Empty<string>().ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, null, emptyArr)
+                0, 100, null!, null!, 0, null!, emptyArr)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
         }
@@ -2012,7 +2042,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, null, null).ConfigureAwait(false);
+                0, 100, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -2022,7 +2052,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsLargeMaxRecordsAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 10000, null, null, 0, null, null).ConfigureAwait(false);
+                0, 10000, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
         }
 
@@ -2030,7 +2060,7 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsHighStartingRecordIdAsync()
         {
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                999999, 10, null, null, 0, null, null)
+                999999, 10, null!, null!, 0, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Has.Count.Zero);
         }
@@ -2043,8 +2073,8 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null,
-                (uint)ApplicationType.DiscoveryServer, null, null)
+                0, 100, null!, null!,
+                (uint)ApplicationType.DiscoveryServer, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
@@ -2059,8 +2089,8 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null,
-                (uint)ApplicationType.ClientAndServer, null, null)
+                0, 100, null!, null!,
+                (uint)ApplicationType.ClientAndServer, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
@@ -2077,7 +2107,7 @@ namespace Opc.Ua.Gds.Tests
 
             ArrayOf<string> caps = s_stringValues3.ToArrayOf();
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, null, caps).ConfigureAwait(false);
+                0, 100, null!, null!, 0, null!, caps).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -2090,7 +2120,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, rec.ApplicationUri, 0, null, null)
+                0, 100, null!, rec.ApplicationUri!, 0, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
 
@@ -2121,7 +2151,7 @@ namespace Opc.Ua.Gds.Tests
             do
             {
                 (List<ApplicationDescription> batch, DateTime _, uint nextId) = await QueryAppsAsync(
-                    startId, 2, null, null, 0, null, null)
+                    startId, 2, null!, null!, 0, null!, null)
                     .ConfigureAwait(false);
                 allApps.AddRange(batch);
                 if (nextId == 0 || nextId == startId)
@@ -2148,7 +2178,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, "DepthQA034", null, 0, null, null)
+                0, 100, "DepthQA034", null!, 0, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
@@ -2162,7 +2192,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, rec.ProductUri, null)
+                0, 100, null!, null!, 0, rec.ProductUri!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
@@ -2173,9 +2203,9 @@ namespace Opc.Ua.Gds.Tests
         public async Task QueryAppsConsistentResetTimeAcrossCallsAsync()
         {
             (List<ApplicationDescription> _, DateTime resetTime1, uint _) = await QueryAppsAsync(
-                0, 10, null, null, 0, null, null).ConfigureAwait(false);
+                0, 10, null!, null!, 0, null!, null).ConfigureAwait(false);
             (List<ApplicationDescription> _, DateTime resetTime2, uint _) = await QueryAppsAsync(
-                0, 10, null, null, 0, null, null).ConfigureAwait(false);
+                0, 10, null!, null!, 0, null!, null).ConfigureAwait(false);
 
             Assert.That(resetTime1, Is.EqualTo(resetTime2));
         }
@@ -2191,12 +2221,12 @@ namespace Opc.Ua.Gds.Tests
             }
 
             (List<ApplicationDescription> _, DateTime _, uint nextId1) = await QueryAppsAsync(
-                0, 1, null, null, 0, null, null).ConfigureAwait(false);
+                0, 1, null!, null!, 0, null!, null).ConfigureAwait(false);
 
             if (nextId1 > 0)
             {
                 (List<ApplicationDescription> _, DateTime _, uint nextId2) = await QueryAppsAsync(
-                    nextId1, 1, null, null, 0, null, null)
+                    nextId1, 1, null!, null!, 0, null!, null)
                     .ConfigureAwait(false);
                 Assert.That(nextId2,
                     Is.GreaterThanOrEqualTo(nextId1).Or.Zero);
@@ -2215,7 +2245,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, null, 0, null, null).ConfigureAwait(false);
+                0, 100, null!, null!, 0, null!, null).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Empty);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -2228,8 +2258,8 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, "DepthQA039", null,
-                (uint)ApplicationType.Server, null, null)
+                0, 100, "DepthQA039", null!,
+                (uint)ApplicationType.Server, null!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
@@ -2243,7 +2273,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId appId = await RegisterAppAsync(rec).ConfigureAwait(false);
 
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
-                0, 100, null, rec.ApplicationUri, 0, rec.ProductUri, null)
+                0, 100, null!, rec.ApplicationUri!, 0, rec.ProductUri!, null)
                 .ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
@@ -2261,9 +2291,9 @@ namespace Opc.Ua.Gds.Tests
             (List<ApplicationDescription> apps, DateTime _, uint _) = await QueryAppsAsync(
                 0, 100,
                 "Test Application DepthQA041",
-                rec.ApplicationUri,
+                rec.ApplicationUri!,
                 (uint)ApplicationType.Server,
-                rec.ProductUri, caps).ConfigureAwait(false);
+                rec.ProductUri!, caps).ConfigureAwait(false);
             Assert.That(apps, Is.Not.Null);
 
             await UnregisterAppAsync(appId).ConfigureAwait(false);
@@ -2384,10 +2414,10 @@ namespace Opc.Ua.Gds.Tests
 
             Variant outputArg = response.Results[0].OutputArguments[0];
 
-            if (outputArg.TryGetStructure(
-                out ApplicationRecordDataType directResult))
+            if (outputArg.TryGetStructure<ApplicationRecordDataType>(
+                out ApplicationRecordDataType? directResult))
             {
-                return directResult;
+                return directResult!;
             }
 
             if (outputArg.TryGetValue(out ExtensionObject eo))
@@ -2399,7 +2429,7 @@ namespace Opc.Ua.Gds.Tests
                 }
 
                 if (eo.TryGetValue(
-                    out ApplicationRecordDataType eoResult,
+                    out ApplicationRecordDataType? eoResult,
                     Session.MessageContext))
                 {
                     return eoResult;
@@ -2414,7 +2444,7 @@ namespace Opc.Ua.Gds.Tests
             Assert.Fail(
                 "Failed to decode ApplicationRecordDataType. " +
                 $"Variant type: {outputArg.TypeInfo}");
-            return null;
+            return null!;
         }
 
         private async Task<List<ApplicationRecordDataType>> FindAppsAsync(
@@ -2453,7 +2483,7 @@ namespace Opc.Ua.Gds.Tests
                 foreach (ExtensionObject eo2 in eoArray)
                 {
                     if (eo2.TryGetValue(
-                        out ApplicationRecordDataType record,
+                        out ApplicationRecordDataType? record,
                         Session.MessageContext))
                     {
                         records.Add(record);
@@ -2518,9 +2548,9 @@ namespace Opc.Ua.Gds.Tests
                             new(applicationType),
                             new(productUri ?? string.Empty),
                             new(
-                                serverCapabilities.HasValue
+                                (serverCapabilities.HasValue
                                     ? serverCapabilities.Value.ToArray()
-                                    : [])
+                                    : [])!)
                         }.ToArrayOf()
                     }
                 }.ToArrayOf(),
@@ -2544,7 +2574,7 @@ namespace Opc.Ua.Gds.Tests
                 foreach (ExtensionObject eo in eoArray)
                 {
                     if (eo.TryGetValue(
-                        out ApplicationDescription appDesc,
+                        out ApplicationDescription? appDesc,
                         Session.MessageContext))
                     {
                         applicationsList.Add(appDesc);
@@ -2606,7 +2636,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId methodId,
             params Variant[] arguments)
         {
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await ConnectAsAsync(new UserIdentity()).ConfigureAwait(false);
@@ -2632,7 +2662,7 @@ namespace Opc.Ua.Gds.Tests
             NodeId methodId,
             params Variant[] arguments)
         {
-            ISession session = null;
+            ISession? session = null;
             try
             {
                 session = await ConnectAsAsync(

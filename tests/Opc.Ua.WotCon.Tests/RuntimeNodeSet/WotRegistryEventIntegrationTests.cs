@@ -48,8 +48,6 @@ using UaObjectTypeIds = global::Opc.Ua.ObjectTypeIds;
 using WotConModel = Opc.Ua.WotCon;
 using XRegistryModel = Opc.Ua.XRegistry;
 
-#nullable disable warnings
-
 namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 {
     /// <summary>
@@ -452,7 +450,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 filter,
                 XRegistryModel.BrowseNames.Changed);
             Assert.That(changedField.TryGetValue(out ArrayOf<string> changed), Is.True);
-            string[] changedNames = changed.ToArray();
+            string[] changedNames = changed.ToArray()!;
             Assert.Multiple(() =>
             {
                 Assert.That(changedNames, Is.EqualTo(s_placeholderDefaultSwitchChanged));
@@ -540,7 +538,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 resourceFilter,
                 XRegistryModel.BrowseNames.Changed);
             Assert.That(changedField.TryGetValue(out ArrayOf<string> changed), Is.True);
-            string[] changedNames = changed.ToArray();
+            string[] changedNames = changed.ToArray()!;
             WotResource current = m_registry.Current.FindResource(
                 WotRegistryGroups.ThingDescriptions,
                 "metadata-event")!;

@@ -101,7 +101,14 @@ namespace Opc.Ua.Client
 
                 for (int jj = 0; jj < servers[ii].DiscoveryUrls.Count; jj++)
                 {
-                    string discoveryUrl = servers[ii].DiscoveryUrls[jj];
+                    string? discoveryUrl = servers[ii].DiscoveryUrls[jj];
+
+                    // a null entry is encodable but meaningless; skip it
+                    // rather than failing the discovery of every server.
+                    if (string.IsNullOrEmpty(discoveryUrl))
+                    {
+                        continue;
+                    }
 
                     // Many servers will use the '/discovery' suffix for the discovery endpoint.
                     // The URL without this prefix should be the base URL for the server.
@@ -283,6 +290,12 @@ namespace Opc.Ua.Client
         /// <summary>
         /// Select the best supported endpoint using the specified security policies.
         /// </summary>
+        /// <returns>The best matching endpoint, or <c>null</c> if none matches.
+        /// With <paramref name="useSecurity"/> set, an endpoint without
+        /// message security is never returned, except an HTTPS endpoint with
+        /// SecurityMode None when the discovery URL is HTTPS (TLS protects it)
+        /// and no endpoint with message security matches. An endpoint of the
+        /// OpenAPI mapping (REST) is never returned.</returns>
         public static EndpointDescription? SelectEndpoint(
             ApplicationConfiguration configuration,
             Uri url,
@@ -299,6 +312,15 @@ namespace Opc.Ua.Client
             {
                 EndpointDescription endpoint = endpoints[ii];
 
+                // A Session cannot be created over the OpenAPI mapping (Part 6
+                // §G.3), a REST binding that shares the URL and the message
+                // security mode of the binary HTTPS endpoint. Select by
+                // TransportProfileUri (Part 4 §5.5.4) instead of by list order.
+                if (IsOpenApiEndpoint(endpoint))
+                {
+                    continue;
+                }
+
                 // check for a match on the URL scheme.
                 if (endpoint.EndpointUrl != null &&
                     endpoint.EndpointUrl.StartsWith(url.Scheme, StringComparison.Ordinal))
@@ -306,7 +328,7 @@ namespace Opc.Ua.Client
                     // check if security was requested.
                     if (useSecurity)
                     {
-                        if (endpoint.SecurityMode == MessageSecurityMode.None)
+                        if (!IsSecureMode(endpoint.SecurityMode))
                         {
                             continue;
                         }
@@ -360,15 +382,53 @@ namespace Opc.Ua.Client
                 }
             }
 
-            // pick the first available endpoint by default.
+            // pick the first available endpoint by default. When security was
+            // requested the fallback must never hand out a None endpoint over a
+            // transport without TLS: the endpoint list comes over an unsecured
+            // discovery channel, so doing so would let a rogue server silently
+            // downgrade the connection. HTTPS endpoints are the exception: the
+            // discovery ran over TLS and an HTTPS endpoint with SecurityMode None
+            // is still TLS protected (Part 6, 7.4.1).
             if (selectedEndpoint == null && endpoints.Count > 0)
             {
+                bool tlsDiscovery = IsHttpsScheme(url.Scheme);
                 selectedEndpoint = endpoints.Find(e =>
-                    e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true);
+                    !IsOpenApiEndpoint(e) &&
+                    e.EndpointUrl?.StartsWith(url.Scheme, StringComparison.Ordinal) == true &&
+                    (!useSecurity ||
+                        IsSecureMode(e.SecurityMode) ||
+                        (tlsDiscovery && Utils.IsUriHttpsScheme(e.EndpointUrl))));
             }
 
             // return the selected endpoint.
             return selectedEndpoint;
+        }
+
+        /// <summary>
+        /// Whether the mode signs (and possibly encrypts) messages.
+        /// </summary>
+        private static bool IsSecureMode(MessageSecurityMode mode)
+        {
+            return mode is MessageSecurityMode.Sign or MessageSecurityMode.SignAndEncrypt;
+        }
+
+        /// <summary>
+        /// Whether the endpoint uses the OpenAPI mapping (HTTPS or WSS)
+        /// rather than a transport a Session can be created over.
+        /// </summary>
+        private static bool IsOpenApiEndpoint(EndpointDescription endpoint)
+        {
+            return Profiles.IsHttpsOpenApi(endpoint.TransportProfileUri) ||
+                Profiles.IsWssOpenApi(endpoint.TransportProfileUri);
+        }
+
+        /// <summary>
+        /// Whether the URI scheme is carried over TLS (https or opc.https).
+        /// </summary>
+        private static bool IsHttpsScheme(string scheme)
+        {
+            return string.Equals(scheme, Utils.UriSchemeHttps, StringComparison.OrdinalIgnoreCase) ||
+                string.Equals(scheme, Utils.UriSchemeOpcHttps, StringComparison.OrdinalIgnoreCase);
         }
 
         /// <summary>

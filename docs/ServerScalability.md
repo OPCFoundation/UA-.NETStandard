@@ -2,6 +2,18 @@
 
 This document describes how the reference server scales to large numbers of concurrent client sessions on a single node, what bounds that scale, the built-in controls for degrading gracefully under load, and how to configure the server and scale out. For measured numbers see [Performance Benchmarks — Server session scalability](Benchmarks.md#server-session-scalability).
 
+## Contents
+
+- [How a session is established](#how-a-session-is-established)
+- [What bounds single-node scale](#what-bounds-single-node-scale)
+- [Admission control and rate limiting](#admission-control-and-rate-limiting)
+- [Held Publishes and the request-thread budget](#held-publishes-and-the-request-thread-budget)
+- [Session diagnostics cost](#session-diagnostics-cost)
+- [Garbage collector mode](#garbage-collector-mode)
+- [Configuration](#configuration)
+- [Scaling out](#scaling-out)
+- [See also](#see-also)
+
 ## How a session is established
 
 A client session is brought up in four stages:
@@ -27,6 +39,7 @@ The server can shed excess load deterministically rather than aborting work mid-
 
 - **Connection-admission rate limiting** at the TCP listener, bounding the rate of new secure-channel handshakes to what the host can absorb.
 - **Session-establishment admission**: `CreateSession` and `ActivateSession` requests beyond the configured concurrency are rejected with **`BadServerTooBusy`**, carrying a machine-readable retry-after hint, instead of queuing unboundedly.
+- **Incomplete-message capacity**: a shared reassembly budget bounds retained chunks across listeners, leaves headroom for activated sessions, and releases abandoned messages at a fixed assembly deadline.
 - **HTTPS/Kestrel rate limiting**: the HTTPS binding can attach an ASP.NET Core rate limiter through dependency injection.
 - **Client-side adaptive backoff**: the client honors a server's *busy* signal — and any retry-after hint — with bounded exponential backoff, so a well-behaved client ramps its connects instead of hammering.
 
@@ -34,13 +47,40 @@ Session establishment keeps the CPU-bound signature work outside the session-tab
 
 ## Held Publishes and the request-thread budget
 
-A steady-state session keeps one or more long-poll `Publish` requests outstanding, each waiting for the next notification. How many a client keeps outstanding depends on its publish-pipelining strategy — the classic subscription engine deliberately queues several per session to smooth delivery. The operating-system thread is released while each waits. With **`DecoupleHeldPublishRequests`** enabled (the default), each parked `Publish` also releases its request-processing worker at the point it parks — independently, so a session holding several parked Publishes releases a worker for each — so a small worker pool can hold many thousands of outstanding Publishes across sessions and **`MaxRequestThreadCount`** does not have to scale with the session or publish count.
+A steady-state session keeps one or more long-poll `Publish` requests
+outstanding. Each waits for the next notification. The number depends on the
+client's publish-pipelining strategy; the classic subscription engine queues
+several per session to smooth delivery.
 
-Setting `DecoupleHeldPublishRequests` to `false` restores the behavior where each held `Publish` occupies a worker for the duration of its wait; a server serving N sessions then needs `MaxRequestThreadCount` well above N to avoid starving other requests.
+The operating-system thread is released while a `Publish` waits. By default,
+`DecoupleHeldPublishRequests` also releases the request-processing worker when
+the request parks. Each parked request releases its worker, so a session with
+several outstanding Publishes releases several workers. A small pool can
+therefore support many thousands of parked Publishes without scaling
+`MaxRequestThreadCount` to the number of sessions or Publishes.
+
+Set `DecoupleHeldPublishRequests` to `false` to restore the legacy behavior.
+Each held `Publish` then occupies a worker for the duration of its wait. A
+server serving N sessions needs `MaxRequestThreadCount` well above N to avoid
+starving other requests.
 
 ## Session diagnostics cost
 
 Creating a session or subscription registers a diagnostics node and marks the live `SessionDiagnostics` and `SubscriptionDiagnostics` arrays for refresh. The arrays are rebuilt on demand when they are read or monitored, and the rebuild is throttled so that a burst of session creates does not trigger a rebuild per create. Servers that do not need the live session-diagnostics arrays can turn them off with the `DiagnosticsEnabled` server setting to remove the cost entirely.
+
+## Garbage collector mode
+
+A server allocates per request on many threads at once. With the default workstation garbage collector the heap's gen0 budget is a few megabytes, so a loaded server collects hundreds of times per second and every collection suspends all request threads. In a 20-session Read load (100 values per request, 24-core machine) the workstation collector paused the process for about half of the wall-clock time; enabling Server GC on the same build doubled the request rate (21k to 44k Reads per second) and cut the 90th-percentile latency from 2.1 ms to 0.6 ms, at the price of a larger working set (about 430 MB instead of 210 MB).
+
+Enable Server GC in the server's project file:
+
+```xml
+<PropertyGroup>
+  <ServerGarbageCollection>true</ServerGarbageCollection>
+</PropertyGroup>
+```
+
+or set `DOTNET_gcServer=1` in the environment. On .NET 8 and later, Server GC adapts its heap count to the load (DATAS), so idle servers stay small. The console reference server enables it.
 
 ## Configuration
 
@@ -49,6 +89,7 @@ The following settings size a single node for its hardware (see also the sizing 
 - **`MaxSessionCount`** caps concurrently open sessions. Size **`MaxChannelCount`** (one channel per session) and **`MaxSubscriptionCount`** at or above the target session count.
 - **`MaxRequestThreadCount`** caps concurrent request processing. With `DecoupleHeldPublishRequests` enabled it can be sized for the *active* (non-parked) request concurrency rather than the session count. **`MinRequestThreadCount`** pre-warms the pool so a connect burst is not throttled by thread-pool cold-start.
 - **`DecoupleHeldPublishRequests`** (default `true`) releases a held `Publish`'s request-processing worker while it waits, so a small worker pool can hold many outstanding long-polls.
+- **`MaxMonitoredItemCount`** and **`MaxMonitoredItemsPerSubscription`** (default `0`, no limit) cap the monitored items in the server and in one subscription. `CreateMonitoredItems` answers `Bad_TooManyMonitoredItems` for the items over the limit, and the values are published in `ServerCapabilities.MaxMonitoredItems` and `MaxMonitoredItemsPerSubscription`. Set them on servers reachable by untrusted clients; `MaxMonitoredItemsPerCall` only bounds a single request.
 - **`MaxFailedAuthenticationAttempts`** (default 5; `0` disables) is the per-certificate brute-force lockout. A single-certificate client that opens many sessions can trip it on transient handshake failures and then be rejected with `BadUserAccessDenied`; raise or disable it for bulk-connect clients.
 - **Stagger client connects.** Because establishment is CPU-bound but parallelizes across cores, throttling and staggering concurrent connects — rather than bursting them all at once — avoids self-inflicting a connect storm and is the most effective client-side measure.
 

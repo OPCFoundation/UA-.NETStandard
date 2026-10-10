@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Text;
 using System.Xml;
 
@@ -82,10 +83,25 @@ namespace Opc.Ua.SourceGeneration
             this string name,
             bool upperCamelCase = false)
         {
-            string source = name?.TrimStart('@');
+            return ToCSharpIdentifierCore(name, upperCamelCase);
+        }
+
+        /// <summary>
+        /// Converts an authored name to a valid C# identifier but leaves the casing
+        /// of the name untouched. Used where the identifier is part of the public
+        /// surface of generated code and must keep the name the model author wrote.
+        /// </summary>
+        public static string ToCSharpIdentifierPreserveCase(this string name)
+        {
+            return ToCSharpIdentifierCore(name, null);
+        }
+
+        private static string ToCSharpIdentifierCore(string name, bool? upperCamelCase)
+        {
+            string? source = name?.TrimStart('@');
             if (string.IsNullOrEmpty(source))
             {
-                return upperCamelCase ? "Value" : "value";
+                return upperCamelCase == false ? "value" : "Value";
             }
 
             var buffer = new StringBuilder(source.Length);
@@ -105,9 +121,9 @@ namespace Opc.Ua.SourceGeneration
                 {
                     buffer.Append('_');
                 }
-                if (applyCasing && char.IsLetter(identifierCharacter))
+                if (applyCasing && upperCamelCase.HasValue && char.IsLetter(identifierCharacter))
                 {
-                    identifierCharacter = upperCamelCase ?
+                    identifierCharacter = upperCamelCase.Value ?
                         char.ToUpperInvariant(identifierCharacter) :
                         char.ToLowerInvariant(identifierCharacter);
                     applyCasing = false;
@@ -117,7 +133,7 @@ namespace Opc.Ua.SourceGeneration
 
             if (buffer.Length == 0)
             {
-                return upperCamelCase ? "Value" : "value";
+                return upperCamelCase == false ? "value" : "Value";
             }
 
             string identifier = buffer.ToString();
@@ -131,7 +147,7 @@ namespace Opc.Ua.SourceGeneration
         public static string ToSafeSymbolName(
             this string name,
             bool toLowerCamelCase = false,
-            string prefix = null)
+            string? prefix = null)
         {
             if (string.IsNullOrEmpty(name))
             {
@@ -234,22 +250,69 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        public static string AsStringLiteral(this string value)
+        public static string AsStringLiteral(this string? value)
         {
             if (string.IsNullOrEmpty(value))
             {
                 return "string.Empty";
             }
-            value = value
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal)
-                .Replace("\n", "\\n", StringComparison.Ordinal)
-                .Replace("\r", "\\r", StringComparison.Ordinal)
-                .Replace("\t", "\\t", StringComparison.Ordinal)
-                .Replace("\u0085", "\\u0085", StringComparison.Ordinal)
-                .Replace("\u2028", "\\u2028", StringComparison.Ordinal)
-                .Replace("\u2029", "\\u2029", StringComparison.Ordinal);
-            return $"\"{value}\"";
+            return $"\"{Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value)}\"";
+        }
+
+        /// <summary>
+        /// Escapes a value so it can be written as XML character data. Used by the
+        /// schema generators, which write the BSD and XSD documents through plain
+        /// text templates rather than an <see cref="XmlWriter"/>.
+        /// </summary>
+        public static string AsXmlText(this string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value ?? string.Empty;
+            }
+            return value
+                .Replace("&", "&amp;", StringComparison.Ordinal)
+                .Replace("<", "&lt;", StringComparison.Ordinal)
+                .Replace(">", "&gt;", StringComparison.Ordinal);
+        }
+
+        /// <summary>
+        /// True when the value can be used as an XML element or attribute name -
+        /// an NCName. Escaping cannot rescue a name that is not one: an element
+        /// name is not character data, so "Read&amp;Write" has no legal spelling
+        /// at all, and both <c>xs:element/@name</c> in the generated XSD and the
+        /// element the XML encoder writes require this.
+        /// </summary>
+        public static bool IsValidXmlName([NotNullWhen(true)] this string? value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return false;
+            }
+            try
+            {
+                return string.Equals(
+                    XmlConvert.VerifyNCName(value), value, StringComparison.Ordinal);
+            }
+            catch (XmlException)
+            {
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Escapes a value so it can be written as the content of a double quoted
+        /// XML attribute.
+        /// </summary>
+        public static string AsXmlAttributeValue(this string value)
+        {
+            if (string.IsNullOrEmpty(value))
+            {
+                return value ?? string.Empty;
+            }
+            return value
+                .AsXmlText()
+                .Replace("\"", "&quot;", StringComparison.Ordinal);
         }
 
         /// <summary>
@@ -257,21 +320,17 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         /// <param name="value"></param>
         /// <returns></returns>
-        internal static string Escape(this string value)
+        internal static string Escape(this string? value)
         {
-            if (value == null)
-            {
-                return string.Empty;
-            }
-            return value
-                .Replace("\\", "\\\\", StringComparison.Ordinal)
-                .Replace("\"", "\\\"", StringComparison.Ordinal);
+            // Line-terminator characters (CR, LF, NEL, LS, PS) end a regular
+            // string literal (CS1010), so escape with the shared rule.
+            return Templating.StringLiteralEscaper.AsCSharpStringLiteralContent(value);
         }
 
         /// <summary>
         /// Checks for a null qualified name.
         /// </summary>
-        public static bool IsNull(this XmlQualifiedName qname)
+        public static bool IsNull([NotNullWhen(false)] this XmlQualifiedName? qname)
         {
             if (qname == null)
             {

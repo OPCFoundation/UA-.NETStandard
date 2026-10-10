@@ -9,14 +9,21 @@ The OPC UA .NET Standard Stack is a reference implementation that targets
 compliance through an OPC Foundation Certification Test Lab and is
 continuously tested for compliance using the latest Compliance Test Tool (CTT).
 
-Version 2.0 substantially extends companion-spec coverage over the
-previous 1.5.378 version. The stack now
-ships full server- and client-side support for: Part 9 (Alarms &
-Conditions), Part 11 (Historical Access) + Part 13 (Aggregates), Part 16
-(State Machines), Part 17 (Alias Names), Part 18 (Role Management), Part 20
-(File Transfer), Part 100 (Device Integration / Software Update), OPC 10100-1
-(WoT Connectivity), OPC 40001-1 (Industrial Automation), OPC 40010-1
-(Robotics), and the Local Discovery Server. See
+The stack ships server- and client-side support for:
+
+- Part 9 (Alarms & Conditions)
+- Part 11 (Historical Access) and Part 13 (Aggregates)
+- Part 16 (State Machines)
+- Part 17 (Alias Names)
+- Part 18 (Role Management)
+- Part 20 (File Transfer)
+- Part 100 (Device Integration / Software Update)
+- OPC 10100-1 (WoT Connectivity)
+- OPC 40001-1 (Industrial Automation)
+- OPC 40010-1 (Robotics)
+- The Local Discovery Server
+
+See
 [What's New in 2.0](WhatsNewIn2.0.md) for the broader change narrative.
 
 The canonical list of all OPC UA profile and facet URIs is maintained by the
@@ -25,6 +32,41 @@ hyperlinks a URI, that URI is the same string the reference server
 advertises in `ServerProfileArray`; URIs not yet present in a shipping
 config are referred to *by name* and the reader should consult the OPC
 Foundation registry for the canonical URI form.
+
+## Contents
+
+- [Overview](#overview)
+- [Server Profiles](#server-profiles)
+  - [Core Server Profiles](#core-server-profiles)
+  - [Functional Facets](#functional-facets)
+  - [Local Discovery Server (LDS) Profile](#local-discovery-server-lds-profile)
+  - [Additional facets supported by the implementation (beyond the default advertised set)](#additional-facets-supported-by-the-implementation-beyond-the-default-advertised-set)
+- [Client Profiles](#client-profiles)
+- [Transport Profiles](#transport-profiles)
+  - [Client and server transports](#client-and-server-transports)
+  - [PubSub transports](#pubsub-transports)
+- [Security Profiles](#security-profiles)
+  - [RSA-based security policies](#rsa-based-security-policies)
+  - [ECC-based security policies](#ecc-based-security-policies)
+    - [Traditional ECC curves](#traditional-ecc-curves)
+    - [Modern ECC curves (v2.0)](#modern-ecc-curves-v20)
+    - [AES-GCM and ChaCha20-Poly1305 variants (v2.0)](#aes-gcm-and-chacha20-poly1305-variants-v20)
+    - [RSA Diffie-Hellman (v2.0)](#rsa-diffie-hellman-v20)
+  - [Deprecated security policies](#deprecated-security-policies)
+  - [Security policy None](#security-policy-none)
+- [User Authentication](#user-authentication)
+- [Certificate Types](#certificate-types)
+  - [RSA certificates](#rsa-certificates)
+  - [ECC certificates](#ecc-certificates)
+- [Global Discovery Server (GDS)](#global-discovery-server-gds)
+- [Message Encoding](#message-encoding)
+- [Specification Compliance](#specification-compliance)
+- [Configuration](#configuration)
+  - [Server profile configuration](#server-profile-configuration)
+  - [Security policy configuration](#security-policy-configuration)
+- [Related Documentation](#related-documentation)
+  - [Core and companion spec related documentation](#core-and-companion-spec-related-documentation)
+- [References](#references)
 
 ## Server Profiles
 
@@ -49,8 +91,26 @@ following profiles in its `ServerProfileArray`:
 - **[Method Server Facet](http://opcfoundation.org/UA-Profile/Server/Methods)** — Method calls on objects in the address space.
 - **[Reverse Connect Facet](http://opcfoundation.org/UA-Profile/Server/ReverseConnect)** — Server-initiated connections to a client (see [Reverse Connect documentation](ReverseConnect.md)).
 - **[Client Redundancy Facet](http://opcfoundation.org/UA-Profile/Server/ClientRedundancy)** — Subscription transfer between sessions/servers; see [Transfer Subscriptions](TransferSubscription.md).
-- **[Historical Raw Data Server Facet (2022)](http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022)** — Historical read (and insert/replace/update/delete) of raw data values. The reference server historizes the full static scalar type set via `InMemoryHistorianProvider`; see [Historical Access](HistoricalAccess.md).
-- **[Historical Aggregate Server Facet (2022)](http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022)** — Aggregate (processed) history reads computed from the raw values by `AggregateManager`; see [Aggregates](Aggregates.md).
+- **Historical Access (15 released 2022 Server facets)** — the ReferenceServer
+  capability-gates and advertises:
+  - [Raw Data](http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022)
+  - [Modified Data](http://opcfoundation.org/UA-Profile/Server/HistoricalModifiedData2022)
+  - [AtTime](http://opcfoundation.org/UA-Profile/Server/HistoricalDataAtTime2022)
+  - [Aggregate](http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022)
+  - [Annotation](http://opcfoundation.org/UA-Profile/Server/HistoricalAnnotation2022)
+  - [Structured Data](http://opcfoundation.org/UA-Profile/Server/HistoricalStructuredData2022)
+  - [Raw Data Insert](http://opcfoundation.org/UA-Profile/Server/HistoricalDataInsert2022)
+  - [Raw Data Replace](http://opcfoundation.org/UA-Profile/Server/HistoricalDataReplace2022)
+  - [Raw Data Update](http://opcfoundation.org/UA-Profile/Server/HistoricalDataUpdate2022)
+  - [Raw Data Delete](http://opcfoundation.org/UA-Profile/Server/HistoricalDataDelete2022)
+  - [Event Read](http://opcfoundation.org/UA-Profile/Server/BaseHistoricalEvent2022)
+  - [Event Insert](http://opcfoundation.org/UA-Profile/Server/HistoricalEventInsert2022)
+  - [Event Replace](http://opcfoundation.org/UA-Profile/Server/HistoricalEventReplace2022)
+  - [Event Update](http://opcfoundation.org/UA-Profile/Server/HistoricalEventUpdate2022)
+  - [Event Delete](http://opcfoundation.org/UA-Profile/Server/HistoricalEventDelete2022)
+
+  See [Historical Access](HistoricalAccess.md) and
+  [Aggregates](Aggregates.md).
 
 ### Local Discovery Server (LDS) Profile
 
@@ -187,8 +247,9 @@ Client-side feature coverage:
   `AlarmStreamExtensions`; see
   [Alarms and Conditions](AlarmsAndConditions.md).
 - **Historical Access** — `HistoryClient` (`session.Historian()`) for
-  raw, modified, at-time, processed (aggregate), and annotation reads /
-  updates; see [Historical Access](HistoricalAccess.md).
+  raw, modified (including `ModificationInfo`), at-time, processed
+  (aggregate), annotation, and event history reads / updates; see
+  [Historical Access](HistoricalAccess.md).
 - **State Machines** — Streaming and read helpers
   (`GetCurrentFiniteStateAsync`, `ObserveFiniteTransitionsAsync`,
   `WaitForStateAsync`) on the source-generated `*TypeClient` proxies;
@@ -344,12 +405,16 @@ Modern AEAD cipher alternatives for traditional ECC curves:
 - **RSA_DH_AesGcm** — RSA Diffie-Hellman key agreement with AES-GCM
 - **RSA_DH_ChaChaPoly** — RSA Diffie-Hellman key agreement with ChaCha20-Poly1305
 
-**Platform requirements for ECC.** ECC support is available on .NET
-Framework 4.8, .NET Standard 2.1, and .NET 5.0 or later. Modern curves
-(Curve25519, Curve448) and AEAD ciphers (AES-GCM, ChaCha20-Poly1305)
-require .NET 8.0 or later (`AesGcm.IsSupported` /
-`ChaCha20Poly1305.IsSupported` guard the runtime registration). Not all
-curves are supported by every OS platform and .NET implementation.
+**Platform requirements for ECC.** Certificate creation, storage, and validation
+are distinct from ECC SecureChannel and user-token security policies. On .NET 8.0 or
+later those policies use the platform's raw ECDH agreement and authenticated ciphers;
+on .NET Framework the agreement and the AES-GCM and ChaCha20-Poly1305 ciphers run in
+the managed BouncyCastle implementation. Curve and cipher availability also depends on
+the OS and, on .NET 8+, the runtime probes
+(`AesGcm.IsSupported` / `ChaCha20Poly1305.IsSupported`). See the
+[ECC platform limitations](EccProfiles.md#known-limitations) for the certificate-operation
+and channel-policy boundaries. PubSub has its own
+[transport security limits](PubSub.md#security).
 
 ### Deprecated security policies
 
@@ -409,8 +474,8 @@ for storage, ref-counted lifetime, and the segregated-interface design.
 
 ## Global Discovery Server (GDS)
 
-The stack ships a Global Discovery Server implementation that is
-**full OPC UA Part 12 compliance**, including:
+The stack ships a Global Discovery Server implementation covering the following
+OPC UA Part 12 areas:
 
 - Application registration and discovery.
 - Pull and Push certificate-management models, including pushing to
@@ -425,8 +490,9 @@ The stack ships a Global Discovery Server implementation that is
   Credential issuance for non-OPC UA services such as MQTT brokers and
   REST APIs, backed by `IKeyCredentialRequestStore` / `ISecretStore`.
 
-See the [GDS Developer Guide](GDS.md) for the full feature breakdown and
-hosting integration. The Local Discovery Server is a separate library
+See the [GDS Developer Guide](GDS.md) for the implemented facets, provider-dependent
+features, partial support, and hosting integration. This is not a claim that every
+optional Part 12 function is implemented or certified. The Local Discovery Server is a separate library
 (`Opc.Ua.Lds.Server`) and reference application (`ConsoleLdsServer`) that
 advertises the
 [Local Discovery Server 2017](http://opcfoundation.org/UA-Profile/Server/LocalDiscovery2017)
@@ -452,10 +518,12 @@ server-defined types.
 ## Specification Compliance
 
 - **OPC UA Specification:** Version 1.05.07.
-- **Certification:** The reference server has been certified for
-  compliance through an OPC Foundation Certification Test Lab.
-- **Testing:** All releases are verified for compliance using the latest
-  Compliance Test Tool (CTT).
+- **Certification:** Historical reference-server certification does not establish
+  certification of the current release or of an application built with the SDK.
+  Verify the certificate and tested profile scope for the exact product version.
+- **Testing:** Automated repository tests provide implementation evidence, not a
+  substitute for certification. The [GDS conformance matrix](GDS.md)
+  explicitly distinguishes its test evidence from CTT results.
 - **Redundancy (Part 4 §6.6):** Server and client redundancy are implemented
   (opt-in) — `RedundancySupport`, `Server.ServiceLevel`, non-transparent
   (`ServerUriArray` / `RedundantServerArray`) and transparent (`CurrentServerId`)
@@ -492,6 +560,23 @@ Compliance Test Tool will exercise every claimed facet. Bringing the
 reference-server and CTT configs in line with the facets the stack
 actually implements is tracked in
 [#3875](https://github.com/OPCFoundation/UA-.NETStandard/issues/3875).
+
+### Contributed profiles and conformance units
+
+Node managers that implement `IConformanceContributor`, such as the
+companion node managers, contribute the facets and conformance units they
+actually wire. At startup the server registers them with the
+`ConformanceUnitsManager` and publishes the aggregate to
+`Server/ServerCapabilities/ConformanceUnits` and `ServerProfileArray`.
+
+The manager keeps the registered contributors and reads them again on every
+`PublishAsync`, because the ServerCapabilities describe the current
+configuration of the server (OPC 10000-5 §6.3.2). A contributor whose
+support changes at runtime calls `PublishAsync` afterwards (the manager is
+`ServerInternalData.ConformanceUnitsManager`); a unit or profile
+that no contributor reports any more is withdrawn. `Unregister` removes a
+contributor. The profiles from the `ServerProfileArray` configuration are
+always kept.
 
 ### Security policy configuration
 

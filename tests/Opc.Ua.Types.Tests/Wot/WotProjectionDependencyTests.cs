@@ -58,11 +58,11 @@ namespace Opc.Ua.Types.Tests.Wot
             string original = source.ToJsonString();
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string name = selectUnit ? "speedUnit" : "Unit";
-            Assert.That(view.Properties.Keys, Is.EquivalentTo(["speed", name]));
+            Assert.That(view.Required().Properties.Keys, Is.EquivalentTo(["speed", name]));
             Assert.That(view.Properties["speed"].GetProperty("uav:unitProperty").GetString(),
                 Is.EqualTo("/properties/" + name));
             Assert.That(view.Properties[name].GetProperty("const").GetString(), Is.EqualTo("rpm"));
@@ -88,10 +88,10 @@ namespace Opc.Ua.Types.Tests.Wot
             };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties, Has.Count.EqualTo(4));
+            Assert.That(view.Required().Properties, Has.Count.EqualTo(4));
             Assert.That(view.Properties["speed"].GetProperty("uav:unitProperty").GetString(),
                 Is.EqualTo("/properties/" + stem + ":1"));
             Assert.That(view.Properties[stem + ":1"].GetProperty("const").GetString(), Is.EqualTo("rpm"));
@@ -126,10 +126,10 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan,
                 new Dictionary<string, JsonObject> { [SourceHref] = first, [secondHref] = second }).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties["left"].GetProperty("uav:unitProperty").GetString(),
+            Assert.That(view.Required().Properties["left"].GetProperty("uav:unitProperty").GetString(),
                 Is.EqualTo("/properties/Unit"));
             Assert.That(view.Properties["right"].GetProperty("uav:unitProperty").GetString(),
                 Is.EqualTo("/properties/q:d:cQ:L3Byb3BlcnRpZXMvVW5pdA"));
@@ -164,7 +164,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(sources.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(!changed), string.Join("; ", result.Diagnostics));
             if (changed)
@@ -175,7 +175,7 @@ namespace Opc.Ua.Types.Tests.Wot
             }
             else
             {
-                Assert.That(view.Properties, Has.Count.EqualTo(4));
+                Assert.That(view.Required().Properties, Has.Count.EqualTo(4));
                 Assert.That(view.Properties["rightValue"].GetProperty("uav:unitProperty").GetString(),
                     Is.EqualTo("/properties/leftUnit"));
                 Assert.That(view.Properties["leftUnit"].GetProperty("const").GetString(), Is.EqualTo("C"));
@@ -198,11 +198,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string name = selected ? "selectedUnit" : "Unit";
-            Assert.That(view.Properties[name].GetProperty("uav:resolvedFrom").GetString(),
+            Assert.That(view.Required().Properties[name].GetProperty("uav:resolvedFrom").GetString(),
                 Is.EqualTo("https://origin.test/original.td.json#/properties/unit"));
         }
 
@@ -218,7 +218,7 @@ namespace Opc.Ua.Types.Tests.Wot
             plan["properties"] = new JsonObject { ["speed"] = Select("/properties/Value") };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -239,10 +239,10 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 plan, source, new WotNodeSetConverterOptions { MaxNodeCount = 3 }).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties.Keys, Is.EquivalentTo(s_recursiveUnitMembers));
+            Assert.That(view.Required().Properties.Keys, Is.EquivalentTo(s_recursiveUnitMembers));
             Assert.That(view.Properties["Unit"].GetProperty("uav:unitProperty").GetString(),
                 Is.EqualTo("/properties/Other"));
             Assert.That(view.Properties["Other"].GetProperty("uav:unitProperty").GetString(),
@@ -263,10 +263,11 @@ namespace Opc.Ua.Types.Tests.Wot
             plan["properties"] = new JsonObject { ["speed"] = Select("/properties/Value") };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties["speed"].GetProperty("uav:metadata").GetProperty("uav:unitProperty").GetString(),
+            Assert.That(view.Required().Properties["speed"].GetProperty("uav:metadata")
+                .GetProperty("uav:unitProperty").GetString(),
                 Is.EqualTo("/properties/Missing"));
             Assert.That(view.Properties["Unit"].GetProperty("const").GetString(), Is.EqualTo("/properties/Missing"));
             Assert.That(view.Properties, Has.Count.EqualTo(2));
@@ -285,10 +286,11 @@ namespace Opc.Ua.Types.Tests.Wot
             plan["properties"] = new JsonObject { ["speed"] = Select("/properties/Value") };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties["speed"].GetProperty("uav:unitProperty").GetString(), Is.EqualTo(pointer));
+            Assert.That(view.Required().Properties["speed"].GetProperty("uav:unitProperty").GetString(),
+                Is.EqualTo(pointer));
             Assert.That(view.Properties[name].GetProperty("const").GetString(), Is.EqualTo("rpm"));
         }
 
@@ -307,7 +309,7 @@ namespace Opc.Ua.Types.Tests.Wot
             plan["properties"] = new JsonObject { ["speed"] = Select("/properties/Value") };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -324,7 +326,7 @@ namespace Opc.Ua.Types.Tests.Wot
             plan["properties"] = new JsonObject { ["speed"] = Select("/properties/Value") };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -376,11 +378,11 @@ namespace Opc.Ua.Types.Tests.Wot
             }
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
             string eventName = selectEvent ? "pumpAlarm" : "alarm";
-            Assert.That(view.Actions.Keys, Is.EquivalentTo(s_selectedActions));
+            Assert.That(view.Required().Actions.Keys, Is.EquivalentTo(s_selectedActions));
             Assert.That(view.Events.Keys, Is.EquivalentTo([eventName]));
             Assert.That(view.Actions["enablePump"].GetProperty("uav:actsOn").GetString(), Is.EqualTo(eventName));
             Assert.That(view.Events[eventName].GetProperty("uav:conditionType").GetString(),
@@ -418,7 +420,7 @@ namespace Opc.Ua.Types.Tests.Wot
             plan["actions"] = new JsonObject { ["enablePump"] = Select("/actions/enable") };
 
             WotConversionResult<WotDocument> result = await ResolveAsync(plan, source).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -436,12 +438,12 @@ namespace Opc.Ua.Types.Tests.Wot
 
             WotConversionResult<WotDocument> result = await ResolveAsync(
                 plan, Source("rpm"), new WotNodeSetConverterOptions { MaxNodeCount = limit }).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(success), string.Join("; ", result.Diagnostics));
             if (success)
             {
-                Assert.That(view.Properties, Has.Count.EqualTo(2));
+                Assert.That(view.Required().Properties, Has.Count.EqualTo(2));
             }
             else
             {
@@ -452,13 +454,13 @@ namespace Opc.Ua.Types.Tests.Wot
         }
 
         private static Task<WotConversionResult<WotDocument>> ResolveAsync(
-            JsonObject plan, JsonObject source, WotNodeSetConverterOptions options = null)
+            JsonObject plan, JsonObject source, WotNodeSetConverterOptions? options = null)
         {
             return ResolveAsync(plan, new Dictionary<string, JsonObject> { [SourceHref] = source }, options);
         }
 
         private static async Task<WotConversionResult<WotDocument>> ResolveAsync(
-            JsonObject plan, Dictionary<string, JsonObject> sources, WotNodeSetConverterOptions options = null)
+            JsonObject plan, Dictionary<string, JsonObject> sources, WotNodeSetConverterOptions? options = null)
         {
             var documents = new Mock<IWotThingResolver>(MockBehavior.Strict);
             foreach (KeyValuePair<string, JsonObject> source in sources)

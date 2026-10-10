@@ -7,6 +7,35 @@ when requested, uses the structured `uav:nodes` projection when the
 readable vocabulary is not complete, and otherwise synthesizes NodeSet2
 from the readable WoT terms.
 
+## Contents
+
+- [Which specification revision this tracks](#which-specification-revision-this-tracks)
+- [Importable output](#importable-output)
+  - [Modelling rules and the two placeholder identifiers](#modelling-rules-and-the-two-placeholder-identifiers)
+- [WoT to NodeSet defaults](#wot-to-nodeset-defaults)
+- [Portable identity and preservation semantics](#portable-identity-and-preservation-semantics)
+  - [Verified linked document sets](#verified-linked-document-sets)
+  - [Generated NodeIds follow Annex G.1](#generated-nodeids-follow-annex-g1)
+  - [Preservation digests and the two things that can be measured](#preservation-digests-and-the-two-things-that-can-be-measured)
+  - [Unmapped reference vocabulary is residue](#unmapped-reference-vocabulary-is-residue)
+  - [Condition events derive from their ConditionType](#condition-events-derive-from-their-conditiontype)
+  - [Event fields come from the type, not only from the document](#event-fields-come-from-the-type-not-only-from-the-document)
+  - [Resolving a stated selection needs the asynchronous conversion](#resolving-a-stated-selection-needs-the-asynchronous-conversion)
+- [DataType definitions (Section 6.11)](#datatype-definitions-section-611)
+- [Model and platform vocabulary (Section 6)](#model-and-platform-vocabulary-section-6)
+- [Conformance claims and strict mode (Sections 4.1, 6.1, 6.6 and 11)](#conformance-claims-and-strict-mode-sections-41-61-66-and-11)
+  - [Authoring a claim and processing one are different acts](#authoring-a-claim-and-processing-one-are-different-acts)
+  - [The `uav:nodes` record grammar is not vocabulary](#the-uavnodes-record-grammar-is-not-vocabulary)
+  - [Generated documents state the revision they were generated against](#generated-documents-state-the-revision-they-were-generated-against)
+  - [NodeClass and ReferenceType vocabulary](#nodeclass-and-referencetype-vocabulary)
+- [Engineering units, ranges and scaling (Sections 6.4 and 6.4.1)](#engineering-units-ranges-and-scaling-sections-64-and-641)
+- [Localized text (Section 9.1.1)](#localized-text-section-911)
+- [ValueRank and ArrayDimensions (Sections 7 and 9.1)](#valuerank-and-arraydimensions-sections-7-and-91)
+- [Method arguments (Section 9.1)](#method-arguments-section-91)
+- [ReferenceTypes and relations (Sections 5.1.2, 5.3 and 6.2)](#referencetypes-and-relations-sections-512-53-and-62)
+  - [`uav:componentOf` and its `ua:ComponentOf` alias](#uavcomponentof-and-its-uacomponentof-alias)
+  - [Projection documents and the OPC 10100-1 v1.02 asset surface](#projection-documents-and-the-opc-10100-1-v102-asset-surface)
+
 ## Which specification revision this tracks
 
 This implementation tracks **WoT Binding revision 1.1**. The revision is
@@ -125,7 +154,7 @@ become the owning model merely because it occurs first.
 | Property affordance `uav:browseName` | **Default** / **Bound** | The affordance map key is used as the local name. For a bound instance, an unqualified member populates a uniquely named loaded declaration using that declaration's QName; ambiguous declarations fail. Otherwise the synthesized model namespace is used. Explicit qualified names are not replaced by local-name guesses. |
 | Property affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<propertyLocal>`. |
 | Property DataSchema `type` or an unrecognized `type` | **Default** | The canonical table of WoT Binding §6.11.4: `boolean` → `Boolean`, `integer` → the **abstract** `Integer` (`i=27`), `number` → the **abstract** `Number` (`i=26`), `string` → `String`, refined by `contentEncoding: base64` → `ByteString`, `format: date-time` → `DateTime`, `format: uuid` → `Guid`, `format: uri` → `UriString`. An explicit `uav:dataTypeId` or `uav:mapToType` outranks the inference. Anything unrecognized falls back to `BaseDataType` (`i=24`). A bare `integer` or `number` is deliberately abstract: the schema states only that the value is whole or numeric, and a concrete width is recovered from an annotation rather than guessed. |
-| Property `readOnly` and `writeOnly` | **Default** | Missing flags mean read/write access (`CurrentRead | CurrentWrite`, value `3`). If both flags are `true`, the zero-access result is coerced to `CurrentRead` (`1`); this is an arbitrary safety default and should be specified explicitly. |
+| Property `readOnly` and `writeOnly` | **Default** | Missing flags mean read/write access (`CurrentRead \| CurrentWrite`, value `3`). If both flags are `true`, the zero-access result is coerced to `CurrentRead` (`1`); this is an arbitrary safety default and should be specified explicitly. |
 | Property `title` | **Default** | No `DisplayName` field is materialized for the variable. A `titles` map materializes one `LocalizedText` per locale, the default locale's entry first (Section 9.1.1). |
 | Property `description` | **Default** | No `Description` field is materialized for the variable. A `descriptions` map materializes one `LocalizedText` per locale. |
 | Property `uav:valueRank` (Sections 7, 9.1) | **Default** / **Fails** | Absent: `ValueRank` `-1` (Scalar), which is what a NodeSet omits. Present: the stated rank, so `-3`, `-2`, `-1`, `0` and a fixed positive rank stay distinct. Not an integer literal, or below `-3`: `InvalidValueRank` error. |
@@ -138,7 +167,8 @@ become the owning model merely because it occurs first.
 | Event affordance `uav:browseName` | **Default** | The affordance map key is used as the local name and BrowseName `1:<key>`. |
 | Event affordance `uav:id` | **Default** | Deterministic NodeId by Annex G.1: `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<eventLocal>`. |
 | Event `title` | **Default** | No `DisplayName` field is materialized for the event type. |
-| Event type abstraction/supertype | **Default** | Event affordances materialize as non-abstract `UAObjectType` nodes with inverse `HasSubtype` to `BaseEventType` (`i=2041`) and a root `GeneratesEvent` reference, unless the affordance carries `uav:conditionType` or `uav:conditionTypeId`. A Condition event derives from the named ConditionType instead (WoT Binding Section 13.2). A `uav:conditionType` and a `uav:conditionTypeId` naming different types **fail** (`ConditionTypeConflict`). |
+| Event type abstraction/supertype | **Default** | Event affordances materialize as non-abstract `UAObjectType` nodes with inverse `HasSubtype` to `BaseEventType` (`i=2041`), unless the affordance carries `uav:conditionType` or `uav:conditionTypeId`. A Condition event derives from the named ConditionType instead (WoT Binding Section 13.2). A `uav:conditionType` and a `uav:conditionTypeId` naming different types **fail** (`ConditionTypeConflict`). |
+| Event source (OPC 10000-3 §7.15) | **Default** | A Thing Model's projected ObjectType or VariableType carries a forward `GeneratesEvent` reference to each event type. A Thing Description projects an Object or Variable, which cannot be the source of `GeneratesEvent`, so its events are declared by its type instead: an event the bound type already declares (matched by qualified BrowseName against the local context's declarations) needs nothing more, and every other one is declared by a synthesized non-abstract `<rootLocal>Type` (BrowseName `1:<rootLocal>Type`, NodeId by Annex G.1 from that name) that derives from the bound type, or from `BaseObjectType` / `BaseDataVariableType` when the document binds none, and becomes the instance's `HasTypeDefinition`. Going from a NodeSet, an instance's event affordances are the events its type definition and that type's supertypes generate; a forward `GeneratesEvent` on the instance itself is still read. A single readable document folds a type that only carries the instance's events back into the instance - its supertype becomes the type binding - while a document set gives it a Thing Model of its own. |
 | Event `data` (Section 13.3) | **Default** / **Fails** | Absent, or a member naming a field the projected type inherits: no Node is materialized, because `BaseEventType` and the ConditionTypes already declare those fields and `ConditionId` is the Condition's NodeId Attribute rather than a Variable. A member the type adds becomes a Property (`HasTypeDefinition` `PropertyType`, NodeId `ns=1;s=/nsu=<escaped model NamespaceUri>;<rootLocal>/nsu=<escaped model NamespaceUri>;<eventLocal>/nsu=<escaped model NamespaceUri>;<fieldLocal>` (Annex G.1)) whose DataType resolves by the property rules above, with `uav:valueRank` defaulting to `-1`, `uav:arrayDimensions` and `description` carried across, and `HasModellingRule` `Mandatory` when the schema lists the member in `required` and `Optional` otherwise. A member that is not a DataSchema, or that reaches a BrowseName another member already reached, **fails** (`EventFieldInvalid`) and is carried verbatim through residue. |
 | `uav:conditionAction` / `uav:actsOn` (Section 13.4) | **Default** / **Fails** | Absent: the Method is a component of the Thing with no `MethodDeclarationId`. Present and admitted by the ConditionType the target event projects: the Method takes the base-namespace BrowseName of the named Condition Method, carries the OPC 10000-9 declaration as its `MethodDeclarationId` (`Acknowledge` `i=9111`, `Confirm` `i=9113`, `AddComment` `i=9029`, `Enable` `i=9027`, `Disable` `i=9028`) and becomes a component of the EventType instead of the Thing. A Method the projected ConditionType does not declare — `Acknowledge` or `Confirm` against a plain `ua:ConditionType` — **fails** (`ConditionActionNotDeclared`). |
 | Unknown event member `uav:severity` | **Default** | WoT Binding 1.1 defines no such term. A document that carries one is consumed permissively: the member is ordinary unknown residue, nothing is materialized from it, and no `Severity` Property is synthesized. Strict authoring reports it as an unknown term. |
@@ -631,7 +661,7 @@ handles them in one direction with full round-trip fidelity:
   native projection preserves it losslessly, and any residue previously
   captured for a term is re-applied by JSON Pointer.
 - **Round-trip.** A document carrying these terms survives
-  WoT &rarr; NodeSet &rarr; WoT unchanged. Affordance-level terms
+  WoT → NodeSet → WoT unchanged. Affordance-level terms
   (`uav:scaleFactor`, `uav:decimalPlaces`, `uav:semanticId`) are
   preserved under the affordance's projected local name, so an affordance
   that also carries `uav:browseName` round-trips under that browse name's

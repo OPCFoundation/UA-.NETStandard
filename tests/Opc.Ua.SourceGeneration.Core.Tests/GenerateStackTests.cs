@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
@@ -102,6 +103,99 @@ namespace Opc.Ua.SourceGeneration.Api.Tests
             Assert.That(
                 encodedTicketInitializer,
                 Does.Contain("state.SuperTypeId = global::Opc.Ua.NodeId.Create(15u,"));
+        }
+
+        /// <summary>
+        /// The served DataTypeDictionary must describe the layout the generated
+        /// Encode/Decode actually produces. OPC 10000-6 §5.2.7 assigns the first
+        /// optional field bit '0', the second bit '1' and so on - counting
+        /// optional fields only - and pads the mask to 32 bits. LogRecord is the
+        /// standard model's structure with optional fields, and it interleaves
+        /// them with mandatory ones, so it pins the bit order on both sides.
+        /// </summary>
+        [Test]
+        public void OptionalFieldBitsAgreeBetweenBsdAndGeneratedEncoder()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create(logLevel: LogLevel.Error);
+            Dictionary<string, string> generatedText = GenerateStack(
+                StackGenerationType.All,
+                telemetry,
+                out Dictionary<string, string> nonSourceCode);
+
+            string bsd = nonSourceCode.Single(pair =>
+                pair.Key.EndsWith(".Types.bsd", StringComparison.Ordinal)).Value;
+            string dataTypes = generatedText.Single(pair =>
+                pair.Key.EndsWith("Opc.Ua.DataTypes.g.cs", StringComparison.Ordinal)).Value;
+
+            // The presence bits, in the order the binary schema declares them.
+            string logRecord = Between(
+                bsd,
+                "<opc:StructuredType Name=\"LogRecord\"",
+                "</opc:StructuredType>");
+            var bsdBits = new List<string>();
+            foreach (string line in logRecord.Split('\n'))
+            {
+                if (line.Contains("TypeName=\"opc:Bit\"", StringComparison.Ordinal) &&
+                    !line.Contains("Name=\"Reserved", StringComparison.Ordinal))
+                {
+                    bsdBits.Add(Between(line, "Name=\"", "\"").Replace(
+                        "Specified", string.Empty, StringComparison.Ordinal));
+                }
+            }
+
+            string[] expectedBits =
+            [
+                "EventType", "SourceNode", "SourceName", "TraceContext", "AdditionalData"
+            ];
+            Assert.That(
+                bsdBits,
+                Is.EqualTo(expectedBits),
+                "presence bits are the optional fields, in declaration order");
+
+            // The mask is padded out to the 32 bits the encoding uses.
+            Assert.That(
+                logRecord,
+                Does.Contain("<opc:Field Name=\"Reserved1\" TypeName=\"opc:Bit\" Length=\"27\" />"));
+
+            // Every optional data field selects on its own presence bit.
+            foreach (string name in bsdBits)
+            {
+                Assert.That(
+                    logRecord,
+                    Does.Contain($"SwitchField=\"{name}Specified\""),
+                    $"'{name}' must select on its presence bit");
+            }
+
+            // And the generated encoder assigns those same bits, in that order.
+            string maskEnum = Between(
+                dataTypes, "public enum LogRecordFields : uint", "}");
+            var encoderBits = new List<string>();
+            foreach (string line in maskEnum.Split('\n'))
+            {
+                int at = line.IndexOf(" = 0x", StringComparison.Ordinal);
+                if (at > 0)
+                {
+                    encoderBits.Add(line.Trim()[..line.Trim()
+                        .IndexOf(" = 0x", StringComparison.Ordinal)]);
+                }
+            }
+
+            Assert.That(
+                encoderBits,
+                Is.EqualTo(bsdBits),
+                "the dictionary and the generated encoder must agree on the bit order");
+            Assert.That(maskEnum, Does.Contain("EventType = 0x1"));
+            Assert.That(maskEnum, Does.Contain("AdditionalData = 0x10"));
+        }
+
+        private static string Between(string source, string start, string end)
+        {
+            int at = source.IndexOf(start, StringComparison.Ordinal);
+            Assert.That(at, Is.GreaterThanOrEqualTo(0), $"'{start}' not found");
+            at += start.Length;
+            int to = source.IndexOf(end, at, StringComparison.Ordinal);
+            Assert.That(to, Is.GreaterThanOrEqualTo(0), $"'{end}' not found");
+            return source[at..to];
         }
 
         [Theory]

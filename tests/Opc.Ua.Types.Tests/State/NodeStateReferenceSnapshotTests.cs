@@ -47,8 +47,8 @@ namespace Opc.Ua.Types.Tests.State
             var node = CreateNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
             node.AddReference(ReferenceTypeIds.HasComponent, true, new NodeId(300));
-            NodeState.ReferenceSnapshot selected = null;
-            NodeState.ReferenceSnapshot Select(NodeState _) => selected;
+            NodeState.ReferenceSnapshot? selected = null;
+            NodeState.ReferenceSnapshot? Select(NodeState _) => selected;
             using NodeState.ReferenceUpdate baseline = node.PrepareReferences(Select, [], []);
             baseline.Reserve();
             selected = baseline.Next;
@@ -96,8 +96,8 @@ namespace Opc.Ua.Types.Tests.State
             var node = CreateNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
             SystemContext context = CreateContext();
-            NodeState.ReferenceSnapshot selected = null;
-            NodeState.ReferenceSnapshot Select(NodeState _) => selected;
+            NodeState.ReferenceSnapshot? selected = null;
+            NodeState.ReferenceSnapshot? Select(NodeState _) => selected;
             using NodeState.ReferenceUpdate baseline = node.PrepareReferences(Select, [], []);
             baseline.Reserve();
             selected = baseline.Next;
@@ -180,8 +180,8 @@ namespace Opc.Ua.Types.Tests.State
         public void AbortedReferenceReservationReleasesWritesAndRejectsStalePublication()
         {
             var node = CreateNode();
-            NodeState.ReferenceSnapshot selected = null;
-            NodeState.ReferenceSnapshot Select(NodeState _) => selected;
+            NodeState.ReferenceSnapshot? selected = null;
+            NodeState.ReferenceSnapshot? Select(NodeState _) => selected;
             using NodeState.ReferenceUpdate stale = node.PrepareReferences(
                 Select, [new NodeStateReference(ReferenceTypeIds.Organizes, false, new NodeId(100))], []);
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(200));
@@ -203,8 +203,8 @@ namespace Opc.Ua.Types.Tests.State
         {
             var node = CreateNode();
             node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(100));
-            NodeState.ReferenceSnapshot selected = null;
-            NodeState.ReferenceSnapshot Select(NodeState _) => selected;
+            NodeState.ReferenceSnapshot? selected = null;
+            NodeState.ReferenceSnapshot? Select(NodeState _) => selected;
             var failures = new List<Exception>();
             var observed = new List<ExpandedNodeId>();
             node.OnReferenceRemoved = (_, _, _, target) =>
@@ -243,8 +243,8 @@ namespace Opc.Ua.Types.Tests.State
             var target = CreateNode();
             target.NodeId = new NodeId(200);
             node.AddReferences([new NodeStateReference(ReferenceTypeIds.Organizes, false, target)]);
-            NodeState.ReferenceSnapshot selected = null;
-            NodeState.ReferenceSnapshot Select(NodeState _) => selected;
+            NodeState.ReferenceSnapshot? selected = null;
+            NodeState.ReferenceSnapshot? Select(NodeState _) => selected;
             var mutable = new MutableReference
             {
                 ReferenceTypeId = ReferenceTypeIds.HasComponent,
@@ -332,7 +332,9 @@ namespace Opc.Ua.Types.Tests.State
                 new NodeId(target == 100 ? 200u : 100u)), Is.False);
             using INodeBrowser browser = node.CreateBrowser(
                 context, default, ReferenceTypeIds.Organizes, false, BrowseDirection.Forward, default, null, true);
-            Assert.That(browser.Next().TargetId, Is.EqualTo(expected));
+            IReference browsed = browser.Next() ??
+                throw new AssertionException("The selected reference image must contain its expected target.");
+            Assert.That(browsed.TargetId, Is.EqualTo(expected));
             Assert.That(browser.Next(), Is.Null);
             var hierarchy = new List<NodeStateHierarchyReference>();
             node.GetHierarchyReferences(context, "Owner", [], hierarchy);

@@ -83,7 +83,7 @@ namespace Opc.Ua.Types.Tests.Nodes
         [Test]
         public async Task SelectedTypeImageRoutesReadsAndMutationsAsync()
         {
-            TypeTable selected = m_typeTable.CaptureSnapshot(out _, out _);
+            TypeTable? selected = m_typeTable.CaptureSnapshot(out _, out _);
             m_typeTable.SetViewSelector(() => selected);
             NodeId child = new(5000);
             NodeId reference = new(5001);

@@ -48,10 +48,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IServerInternal server = m_server.CurrentInstance;
-            TrackingLifecycleNodeManager manager = null;
+            TrackingLifecycleNodeManager? manager = null;
             IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kFirstRegistrationValue, value => manager = value))], timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
             var failure = new IOException("The committed publication callback failed.");
             bool drainedWithoutDisposal;
             try
@@ -68,7 +69,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 if (failPublication)
                 {
                     Assert.That(result.CleanupFailure, Is.TypeOf<AggregateException>());
-                    Assert.That(((AggregateException)result.CleanupFailure).Flatten().InnerExceptions,
+                    Assert.That(RequireLifecycleValue(result.CleanupFailure as AggregateException)
+                        .Flatten().InnerExceptions,
                         Does.Contain(failure));
                 }
                 else
@@ -85,7 +87,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await prepared.DisposeAsync().ConfigureAwait(false);
                 await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(manager.DisposeCount, Is.Zero, "Disposing the committed owner must not undo publication.");
-                Assert.That(lifecycle.Registrations[0], Is.SameAs(result.Registrations[0]));
+                Assert.That(GetBranchRegistration(lifecycle, result.Registrations[0].Id),
+                    Is.SameAs(result.Registrations[0]));
             }
             finally
             {
@@ -107,10 +110,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IServerInternal server = m_server.CurrentInstance;
-            TrackingLifecycleNodeManager candidate = null;
+            TrackingLifecycleNodeManager? candidate = null;
             IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kFirstRegistrationValue, value => candidate = value))], timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(candidate);
             try
             {
                 if (rejectDecision)
@@ -129,7 +133,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await shutdown.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(candidate.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(candidate.DisposeCount, Is.EqualTo(1));
-                Assert.That(lifecycle.Registrations.IsEmpty, Is.True);
+                Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
             }
             finally
             {
@@ -146,13 +150,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ReadinessLifecycleNodeManager manager = null;
+            ReadinessLifecycleNodeManager? manager = null;
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(It.IsAny<IServerInternal>(),
                     It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
                 .Returns((IServerInternal server, ApplicationConfiguration configuration, CancellationToken _) =>
                 {
-                    manager = new ReadinessLifecycleNodeManager(server, configuration, m_logger, kFirstRegistrationValue)
+                    manager = new ReadinessLifecycleNodeManager(
+                        server, configuration, m_logger, kFirstRegistrationValue)
                     {
                         ReadinessCallback = async _ =>
                         {
@@ -165,9 +170,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (NodeManagerLifecycle)m_server.NodeManagerLifecycle;
             IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(factory.Object)], timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
-            Task disposal = null;
-            Task shutdown = null;
+            Task? disposal = null;
+            Task? shutdown = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);

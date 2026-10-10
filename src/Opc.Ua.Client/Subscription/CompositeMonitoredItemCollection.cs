@@ -424,15 +424,15 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 return m_partitions[0].MonitoredItems.TryRemove(clientHandle);
             }
             IManagedSubscription? owner = null;
+            string? name = null;
+            bool indexed = false;
             lock (m_partitionLock)
             {
                 if (m_byClientHandle.TryGetValue(clientHandle, out Entry entry))
                 {
                     owner = entry.Partition;
-                    string? name = entry.Item.Name;
-                    m_byClientHandle.Remove(clientHandle);
-                    m_byName.Remove(name);
-                    m_policy!.OnItemRemoved(owner);
+                    name = entry.Item.Name;
+                    indexed = true;
                 }
                 else
                 {
@@ -461,6 +461,18 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
             bool removed = owner.MonitoredItems.TryRemove(clientHandle);
             if (removed)
             {
+                lock (m_partitionLock)
+                {
+                    if (indexed)
+                    {
+                        m_byClientHandle.Remove(clientHandle);
+                        if (name != null)
+                        {
+                            m_byName.Remove(name);
+                        }
+                    }
+                    m_policy?.OnItemRemoved(owner);
+                }
                 MaybeArmIdleTimer(owner);
             }
             return removed;
@@ -665,9 +677,7 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
             // Diff against the current global view:
             //   * names in `state` not yet known → TryAdd
-            //   * names in `state` already known → leave in place
-            //     (per-item option updates are surfaced through the
-            //     item's own IOptionsMonitor by the caller)
+            //   * names in `state` already known → rebind to the new options
             //   * names absent from `state` → TryRemove
             var keep = new HashSet<string>(state.Count, StringComparer.Ordinal);
             var result = new List<IMonitoredItem>(state.Count);
@@ -677,6 +687,13 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 if (TryGetMonitoredItemByName(itemName, out IMonitoredItem? existing) &&
                     existing != null)
                 {
+                    // Same as the single-partition path in
+                    // MonitoredItemManager.Update: the target state carries the
+                    // options monitor the item is meant to follow from now on.
+                    if (existing is MonitoredItem item)
+                    {
+                        item.Options = itemOptions;
+                    }
                     result.Add(existing);
                     continue;
                 }
@@ -686,16 +703,19 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
                 }
             }
 
-            // Remove anything that fell out of the target state.
+            // Remove anything that fell out of the target state. Scan the
+            // partitions rather than the composite name index: loaded items
+            // (transfer restore) only ever live in their partition, so indexing
+            // m_byName alone would leave them behind.
             List<uint>? toRemove = null;
-            lock (m_partitionLock)
+            foreach (IManagedSubscription partition in SnapshotPartitionsLocked())
             {
-                foreach (KeyValuePair<string, Entry> entry in m_byName)
+                foreach (IMonitoredItem item in partition.MonitoredItems.Items)
                 {
-                    if (!keep.Contains(entry.Key))
+                    if (!keep.Contains(item.Name))
                     {
                         toRemove ??= [];
-                        toRemove.Add(entry.Value.Item.ClientHandle);
+                        toRemove.Add(item.ClientHandle);
                     }
                 }
             }
@@ -723,8 +743,10 @@ namespace Opc.Ua.Client.Subscriptions.MonitoredItems
 
         private readonly List<IManagedSubscription> m_partitions;
         private readonly Lock m_partitionLock;
+
         private readonly BackgroundTaskScope m_backgroundWork =
             new(nameof(CompositeMonitoredItemCollection), AmbientMessageContext.Telemetry);
+
         private readonly PartitionPlacementPolicy? m_policy;
         private readonly Func<IManagedSubscription>? m_partitionFactory;
         private readonly TimeProvider m_timeProvider;

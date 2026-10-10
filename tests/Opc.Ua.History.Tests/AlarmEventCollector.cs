@@ -33,7 +33,6 @@ using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Opc.Ua.Client;
-using Opc.Ua.Client.TestFramework;
 
 namespace Opc.Ua.History.Tests
 {
@@ -197,6 +196,11 @@ namespace Opc.Ua.History.Tests
             DateTime deadline = DateTime.UtcNow.Add(timeout);
             while (DateTime.UtcNow <= deadline)
             {
+                if (m_publishLoop.IsCompleted)
+                {
+                    await m_publishLoop.ConfigureAwait(false);
+                }
+
                 if (TryFindEvent(conditionId, predicate, out EventFieldList eventFields))
                 {
                     return eventFields;
@@ -211,7 +215,7 @@ namespace Opc.Ua.History.Tests
 
         public bool HasEvents(NodeId conditionId)
         {
-            return m_eventLog.TryGetValue(conditionId, out ConcurrentQueue<EventFieldList> queue) && !queue.IsEmpty;
+            return m_eventLog.TryGetValue(conditionId, out ConcurrentQueue<EventFieldList>? queue) && !queue.IsEmpty;
         }
 
         public async ValueTask DisposeAsync()
@@ -377,15 +381,19 @@ namespace Opc.Ua.History.Tests
 
         private async Task PublishLoopAsync()
         {
-            ArrayOf<SubscriptionAcknowledgement> acknowledgements = Array.Empty<SubscriptionAcknowledgement>().ToArrayOf();
+            ArrayOf<SubscriptionAcknowledgement> acknowledgements =
+                Array.Empty<SubscriptionAcknowledgement>().ToArrayOf();
             while (!m_shutdown.IsCancellationRequested)
             {
                 PublishResponse publishResponse;
                 try
                 {
-                    publishResponse = acknowledgements.Count == 0
-                        ? await m_session.PublishWithTimeoutAsync(1000).ConfigureAwait(false)
-                        : await m_session.PublishWithTimeoutAsync(acknowledgements, 1000).ConfigureAwait(false);
+                    // Client-only timeouts abandon Publish requests that can still consume the next event.
+                    // Let the server expire idle requests; collector shutdown still cancels the client wait.
+                    publishResponse = await m_session.PublishAsync(
+                        new RequestHeader { TimeoutHint = 1000 },
+                        acknowledgements,
+                        m_shutdown.Token).ConfigureAwait(false);
                     acknowledgements = Array.Empty<SubscriptionAcknowledgement>().ToArrayOf();
                 }
                 catch (OperationCanceledException) when (m_shutdown.IsCancellationRequested)
@@ -393,7 +401,9 @@ namespace Opc.Ua.History.Tests
                     // Cancelled by expected shutdown; exit the loop cleanly.
                     break;
                 }
-                catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadRequestTimeout)
+                catch (ServiceResultException ex) when (
+                    ex.StatusCode == StatusCodes.BadTimeout ||
+                    ex.StatusCode == StatusCodes.BadRequestTimeout)
                 {
                     // Normal publish poll timeout; try again.
                     continue;
@@ -429,7 +439,7 @@ namespace Opc.Ua.History.Tests
         {
             foreach (ExtensionObject notification in notificationMessage.NotificationData)
             {
-                if (!notification.TryGetValue(out EventNotificationList eventNotificationList))
+                if (!notification.TryGetValue(out EventNotificationList? eventNotificationList))
                 {
                     continue;
                 }
@@ -454,8 +464,8 @@ namespace Opc.Ua.History.Tests
             Func<EventFieldList, bool> predicate,
             out EventFieldList eventFields)
         {
-            eventFields = null;
-            if (!m_eventLog.TryGetValue(conditionId, out ConcurrentQueue<EventFieldList> queue))
+            eventFields = null!;
+            if (!m_eventLog.TryGetValue(conditionId, out ConcurrentQueue<EventFieldList>? queue))
             {
                 return false;
             }
@@ -515,7 +525,8 @@ namespace Opc.Ua.History.Tests
 
         private static bool IsShutdownStatus(StatusCode statusCode)
         {
-            return statusCode == StatusCodes.BadRequestTimeout ||
+            return statusCode == StatusCodes.BadTimeout ||
+                statusCode == StatusCodes.BadRequestTimeout ||
                 statusCode == StatusCodes.BadRequestInterrupted ||
                 statusCode == StatusCodes.BadSessionClosed ||
                 statusCode == StatusCodes.BadSessionIdInvalid ||
@@ -526,7 +537,7 @@ namespace Opc.Ua.History.Tests
         private readonly EventFilter m_eventFilter;
         private readonly ConcurrentDictionary<NodeId, ConcurrentQueue<EventFieldList>> m_eventLog = [];
         private readonly CancellationTokenSource m_shutdown;
-        private Task m_publishLoop;
+        private Task m_publishLoop = null!;
         private uint m_subscriptionId;
         private bool m_disposed;
     }

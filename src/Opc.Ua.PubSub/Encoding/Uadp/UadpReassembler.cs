@@ -56,6 +56,11 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         public const long DefaultMaxAggregatePendingBytes = 64L * 1024 * 1024;
 
         /// <summary>
+        /// Default maximum number of chunks of one reassembled message.
+        /// </summary>
+        public const int DefaultMaxChunksPerMessage = 16384;
+
+        /// <summary>
         /// Default maximum time a pending entry can wait for missing chunks.
         /// </summary>
         public static readonly TimeSpan DefaultChunkTimeout = TimeSpan.FromSeconds(5);
@@ -70,16 +75,27 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
         /// <summary>
         /// Maximum number of concurrent incomplete reassembly contexts.
+        /// When the limit is reached the oldest incomplete reassembly is
+        /// evicted to make room for a new one.
         /// </summary>
         public int MaxConcurrentReassemblies { get; set; } =
             DefaultMaxConcurrentReassemblies;
 
         /// <summary>
-        /// Maximum aggregate bytes reserved by incomplete reassemblies.
-        /// Defaults to 64 MiB.
+        /// Maximum aggregate bytes held by incomplete reassemblies (the
+        /// received chunk bytes plus a fixed bookkeeping charge per chunk).
+        /// When the limit is reached the oldest incomplete reassemblies are
+        /// evicted. Defaults to 64 MiB.
         /// </summary>
         public long MaxAggregatePendingBytes { get; set; } =
             DefaultMaxAggregatePendingBytes;
+
+        /// <summary>
+        /// Maximum number of chunks one message may be split into
+        /// (<c>ceiling(TotalSize / chunk size)</c>). Bounds the bookkeeping
+        /// an unauthenticated sender can create with tiny chunks.
+        /// </summary>
+        public int MaxChunksPerMessage { get; set; } = DefaultMaxChunksPerMessage;
 
         /// <summary>
         /// Maximum time a pending entry can wait for missing chunks before
@@ -89,27 +105,39 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
     }
 
     /// <summary>
-    /// Time-to-live bounded reassembler for UADP ChunkMessages. Tracks
-    /// in-flight chunk sets keyed by
-    /// <c>(PublisherId, WriterGroupId, MessageSequenceNumber)</c>.
+    /// Time-to-live bounded reassembler for UADP chunk NetworkMessages.
+    /// Tracks in-flight chunk sets keyed by
+    /// <c>(PublisherId, WriterGroupId, DataSetWriterId, MessageSequenceNumber)</c>.
     /// </summary>
     /// <remarks>
     /// Implements
     /// <see href="https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/7.2.4.4.4">
-    /// Part 14 §7.2.4.4.4 ChunkedNetworkMessage</see>. Duplicate
-    /// chunks are silently discarded; chunks whose
-    /// <c>TotalSize</c> conflicts with prior chunks of the same key
-    /// are rejected. Reassembly state expires according to the
-    /// configured <see cref="TimeSpan"/> measured against the
-    /// supplied <see cref="TimeProvider"/>.
+    /// Part 14 §7.2.4.4.4 UADP Chunk NetworkMessage</see>. All chunks
+    /// except the last one have the same size, so every chunk maps to one
+    /// slot and duplicate or overlapping chunks are detected in O(1).
+    /// Chunks violating that layout, duplicates and chunks whose
+    /// <c>TotalSize</c> conflicts with a pending reassembly are discarded
+    /// without touching the pending state. Memory is charged per received
+    /// chunk rather than per advertised <c>TotalSize</c>, and the oldest
+    /// incomplete reassemblies are evicted when a limit is reached, so
+    /// spoofed first chunks can neither pin large buffers nor starve
+    /// legitimate traffic. Reassembly state expires according to the
+    /// configured <see cref="TimeSpan"/> measured against the supplied
+    /// <see cref="TimeProvider"/>.
     /// </remarks>
     public sealed class UadpReassembler : IDisposable
     {
+        /// <summary>
+        /// Fixed bookkeeping charge per stored chunk, on top of its bytes.
+        /// </summary>
+        internal const int ChunkBookkeepingBytes = 64;
+
         private readonly TimeProvider m_timeProvider;
         private readonly TimeSpan m_chunkTimeout;
         private readonly int m_maxReassembledMessageSize;
         private readonly int m_maxConcurrentReassemblies;
         private readonly long m_maxAggregatePendingBytes;
+        private readonly int m_maxChunksPerMessage;
         private readonly Lock m_lock = new();
         private readonly Dictionary<ReassemblyKey, ReassemblyEntry> m_pending = [];
         private long m_pendingBytes;
@@ -154,6 +182,9 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             m_maxAggregatePendingBytes = NormalizePositive(
                 options.MaxAggregatePendingBytes,
                 UadpReassemblerOptions.DefaultMaxAggregatePendingBytes);
+            m_maxChunksPerMessage = NormalizePositive(
+                options.MaxChunksPerMessage,
+                UadpReassemblerOptions.DefaultMaxChunksPerMessage);
         }
 
         /// <summary>
@@ -186,25 +217,55 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         }
 
         /// <summary>
-        /// Adds a chunk to the reassembly buffer and returns the full
-        /// message bytes once all chunks have arrived.
+        /// Adds a chunk without a DataSetWriterId (for example a chunk of a
+        /// discovery announcement, which has no PayloadHeader) to the
+        /// reassembly buffer.
         /// </summary>
-        /// <param name="publisherId">PublisherId of the source
+        /// <param name="publisherId">PublisherId of the chunk
+        /// NetworkMessage.</param>
+        /// <param name="writerGroupId">WriterGroupId of the chunk
+        /// NetworkMessage (0 when the GroupHeader carried none).</param>
+        /// <param name="chunk">The chunk payload fields of Part 14
+        /// Table 159 (MessageSequenceNumber, ChunkOffset, TotalSize,
+        /// ChunkData).</param>
+        /// <param name="reassembled">When the method returns
+        /// <c>true</c> contains the reassembled payload; otherwise
+        /// <c>null</c>.</param>
+        /// <returns><c>true</c> when the chunk completed a payload.</returns>
+        public bool TryAddChunk(
+            PublisherId publisherId,
+            ushort writerGroupId,
+            ReadOnlyMemory<byte> chunk,
+            out ReadOnlyMemory<byte>? reassembled)
+        {
+            return TryAddChunk(publisherId, writerGroupId, null, chunk, out reassembled);
+        }
+
+        /// <summary>
+        /// Adds a chunk to the reassembly buffer and returns the complete
+        /// payload once all chunks have arrived.
+        /// </summary>
+        /// <param name="publisherId">PublisherId of the chunk
         /// NetworkMessage as decoded from the common header.</param>
-        /// <param name="writerGroupId">WriterGroupId of the source
+        /// <param name="writerGroupId">WriterGroupId of the chunk
         /// NetworkMessage as decoded from the group header. Use 0
         /// when the GroupHeader did not carry a WriterGroupId.</param>
-        /// <param name="chunk">The chunk frame including the 10-byte
-        /// chunk header.</param>
+        /// <param name="dataSetWriterId">DataSetWriterId of the chunk
+        /// PayloadHeader (Part 14 Table 158), <c>null</c> when the chunk
+        /// NetworkMessage has no PayloadHeader.</param>
+        /// <param name="chunk">The chunk payload fields of Part 14
+        /// Table 159 (MessageSequenceNumber, ChunkOffset, TotalSize,
+        /// ChunkData).</param>
         /// <param name="reassembled">When the method returns
-        /// <c>true</c> contains the reassembled bytes; otherwise
+        /// <c>true</c> contains the reassembled payload; otherwise
         /// <c>null</c>.</param>
-        /// <returns><c>true</c> when the chunk completed a message;
+        /// <returns><c>true</c> when the chunk completed a payload;
         /// <c>false</c> when more chunks are required, the chunk was
         /// a duplicate or the chunk was rejected.</returns>
         public bool TryAddChunk(
             PublisherId publisherId,
             ushort writerGroupId,
+            ushort? dataSetWriterId,
             ReadOnlyMemory<byte> chunk,
             out ReadOnlyMemory<byte>? reassembled)
         {
@@ -230,9 +291,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
                 return false;
             }
 
-            int chunkOffsetInt = (int)chunkOffset;
-            var key = new ReassemblyKey(publisherId, writerGroupId, sequenceNumber);
+            int offset = (int)chunkOffset;
+            bool isLast = offset + payload.Length == totalSizeInt;
+            var key = new ReassemblyKey(
+                publisherId, writerGroupId, dataSetWriterId, sequenceNumber);
             long nowTicks = m_timeProvider.GetUtcNow().UtcTicks;
+            long charge = (long)payload.Length + ChunkBookkeepingBytes;
 
             lock (m_lock)
             {
@@ -240,34 +304,38 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
                 if (!m_pending.TryGetValue(key, out ReassemblyEntry? entry))
                 {
-                    if (m_pending.Count >= m_maxConcurrentReassemblies ||
-                        m_pendingBytes + totalSizeInt > m_maxAggregatePendingBytes)
+                    if (offset == 0 && isLast)
+                    {
+                        // A payload that fits into one chunk needs no state.
+                        reassembled = payload.ToArray();
+                        return true;
+                    }
+                    entry = new ReassemblyEntry(totalSizeInt, nowTicks);
+                    if (!entry.CanAccept(offset, payload.Length, isLast, m_maxChunksPerMessage) ||
+                        !TryMakeRoom(charge, newEntry: true, exclude: null))
                     {
                         return false;
                     }
-
-                    entry = new ReassemblyEntry(totalSizeInt, nowTicks);
                     m_pending[key] = entry;
-                    m_pendingBytes += totalSizeInt;
                 }
-                else if (entry.Buffer.Length != totalSizeInt)
+                else if (entry.TotalSize != totalSizeInt ||
+                    !entry.CanAccept(offset, payload.Length, isLast, m_maxChunksPerMessage) ||
+                    !TryMakeRoom(charge, newEntry: false, exclude: entry))
                 {
-                    RemovePending(key, entry);
+                    // Conflicting TotalSize, layout violation, duplicate or
+                    // no room: the unauthenticated chunk is dropped and the
+                    // pending reassembly is left untouched.
                     return false;
                 }
 
-                if (entry.HasOverlap(chunkOffsetInt, payload.Length))
-                {
-                    return false;
-                }
-
-                payload.Span.CopyTo(entry.Buffer.AsSpan(chunkOffsetInt));
-                entry.MarkReceived(chunkOffsetInt, payload.Length);
+                entry.Store(offset, payload.Span, isLast);
+                entry.ChargedBytes += charge;
+                m_pendingBytes += charge;
 
                 if (entry.IsComplete)
                 {
                     RemovePending(key, entry);
-                    reassembled = entry.Buffer;
+                    reassembled = entry.Assemble();
                     return true;
                 }
             }
@@ -328,6 +396,40 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             return expired.Count;
         }
 
+        /// <summary>
+        /// Evicts the oldest incomplete reassemblies (other than
+        /// <paramref name="exclude"/>) until <paramref name="charge"/> more
+        /// bytes, and for a new entry one more context, fit the limits.
+        /// </summary>
+        private bool TryMakeRoom(long charge, bool newEntry, ReassemblyEntry? exclude)
+        {
+            if (charge > m_maxAggregatePendingBytes)
+            {
+                return false;
+            }
+            while ((newEntry && m_pending.Count >= m_maxConcurrentReassemblies) ||
+                m_pendingBytes > m_maxAggregatePendingBytes - charge)
+            {
+                ReassemblyKey oldestKey = default;
+                ReassemblyEntry? oldest = null;
+                foreach (KeyValuePair<ReassemblyKey, ReassemblyEntry> kvp in m_pending)
+                {
+                    if (!ReferenceEquals(kvp.Value, exclude) &&
+                        (oldest is null || kvp.Value.CreatedAtTicks < oldest.CreatedAtTicks))
+                    {
+                        oldestKey = kvp.Key;
+                        oldest = kvp.Value;
+                    }
+                }
+                if (oldest is null)
+                {
+                    return false;
+                }
+                RemovePending(oldestKey, oldest);
+            }
+            return true;
+        }
+
         private bool TryGetBoundedTotalSize(
             uint totalSize,
             int payloadLength,
@@ -349,7 +451,7 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         {
             if (m_pending.Remove(key))
             {
-                m_pendingBytes -= entry.Buffer.Length;
+                m_pendingBytes -= entry.ChargedBytes;
                 if (m_pendingBytes < 0)
                 {
                     m_pendingBytes = 0;
@@ -380,10 +482,12 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             public ReassemblyKey(
                 PublisherId publisherId,
                 ushort writerGroupId,
+                ushort? dataSetWriterId,
                 ushort sequenceNumber)
             {
                 PublisherId = publisherId;
                 WriterGroupId = writerGroupId;
+                DataSetWriterId = dataSetWriterId;
                 SequenceNumber = sequenceNumber;
             }
 
@@ -391,12 +495,15 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
 
             public ushort WriterGroupId { get; }
 
+            public ushort? DataSetWriterId { get; }
+
             public ushort SequenceNumber { get; }
 
             public bool Equals(ReassemblyKey other)
             {
                 return WriterGroupId == other.WriterGroupId &&
                     SequenceNumber == other.SequenceNumber &&
+                    DataSetWriterId == other.DataSetWriterId &&
                     PublisherId.Equals(other.PublisherId);
             }
 
@@ -408,46 +515,114 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
             public override int GetHashCode()
             {
                 return HashCode.Combine(
-                    PublisherId, WriterGroupId, SequenceNumber);
+                    PublisherId, WriterGroupId, DataSetWriterId, SequenceNumber);
             }
         }
 
+        /// <summary>
+        /// Incomplete payload. The size of the first non-last chunk fixes
+        /// the chunk size; a last chunk that arrives earlier is held until
+        /// then. Received chunks are stored per slot
+        /// (<c>ChunkOffset / chunk size</c>), so memory follows the bytes
+        /// actually received.
+        /// </summary>
         private sealed class ReassemblyEntry
         {
-            private readonly List<(int Offset, int Length)> m_chunks = [];
+            private readonly Dictionary<int, byte[]> m_chunks = [];
+            private int m_chunkSize;
+            private int m_lastIndex;
+            private int m_pendingLastOffset;
+            private byte[]? m_pendingLast;
 
             public ReassemblyEntry(int totalSize, long createdAtTicks)
             {
-                Buffer = new byte[totalSize];
+                TotalSize = totalSize;
                 CreatedAtTicks = createdAtTicks;
             }
 
-            public byte[] Buffer { get; }
+            public int TotalSize { get; }
 
             public long CreatedAtTicks { get; }
 
+            public long ChargedBytes { get; set; }
+
             public int Received { get; private set; }
 
-            public bool IsComplete => Received == Buffer.Length;
+            public bool IsComplete => Received == TotalSize;
 
-            public bool HasOverlap(int offset, int length)
+            /// <summary>
+            /// Checks the chunk against the Part 14 §7.2.4.4.4 layout ("All
+            /// chunks, except for the last one shall have the same size")
+            /// and rejects duplicates, without changing any state.
+            /// </summary>
+            public bool CanAccept(int offset, int length, bool isLast, int maxChunks)
             {
-                foreach ((int Offset, int Length) in m_chunks)
+                if (m_chunkSize == 0)
                 {
-                    int existingEnd = Offset + Length;
-                    int newEnd = offset + length;
-                    if (offset < existingEnd && Offset < newEnd)
+                    if (isLast)
                     {
-                        return true;
+                        return m_pendingLast is null;
                     }
+                    int chunkSize = length;
+                    if (offset % chunkSize != 0 ||
+                        ChunkCount(chunkSize) > maxChunks)
+                    {
+                        return false;
+                    }
+                    return m_pendingLast is null ||
+                        (m_pendingLastOffset % chunkSize == 0 &&
+                        m_pendingLastOffset / chunkSize == ChunkCount(chunkSize) - 1);
                 }
-                return false;
+
+                if (offset % m_chunkSize != 0)
+                {
+                    return false;
+                }
+                int index = offset / m_chunkSize;
+                if (isLast ? index != m_lastIndex : length != m_chunkSize)
+                {
+                    return false;
+                }
+                return !m_chunks.ContainsKey(index);
             }
 
-            public void MarkReceived(int offset, int length)
+            public void Store(int offset, ReadOnlySpan<byte> data, bool isLast)
             {
-                m_chunks.Add((offset, length));
-                Received += length;
+                if (m_chunkSize == 0)
+                {
+                    if (isLast)
+                    {
+                        m_pendingLastOffset = offset;
+                        m_pendingLast = data.ToArray();
+                        Received += data.Length;
+                        return;
+                    }
+                    m_chunkSize = data.Length;
+                    m_lastIndex = (int)(ChunkCount(m_chunkSize) - 1);
+                    if (m_pendingLast is not null)
+                    {
+                        m_chunks[m_lastIndex] = m_pendingLast;
+                        m_pendingLast = null;
+                    }
+                }
+                m_chunks[offset / m_chunkSize] = data.ToArray();
+                Received += data.Length;
+            }
+
+            public byte[] Assemble()
+            {
+                byte[] result = new byte[TotalSize];
+                foreach (KeyValuePair<int, byte[]> chunk in m_chunks)
+                {
+                    Buffer.BlockCopy(
+                        chunk.Value, 0, result, chunk.Key * m_chunkSize, chunk.Value.Length);
+                }
+                return result;
+            }
+
+            private long ChunkCount(int chunkSize)
+            {
+                return ((long)TotalSize + chunkSize - 1) / chunkSize;
             }
         }
     }

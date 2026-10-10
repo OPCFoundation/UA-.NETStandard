@@ -49,6 +49,30 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
+        public void WithSubscriptionEngineReturnsAConfiguredCopyAndLeavesTheOriginal()
+        {
+            var original = new ManagedSessionFactory(m_telemetry)
+            {
+                ReturnDiagnostics = DiagnosticsMasks.All
+            };
+            ISubscriptionEngineFactory engine = new Mock<ISubscriptionEngineFactory>().Object;
+
+            ISessionFactory copy = original.WithSubscriptionEngine(engine);
+
+            Assert.That(copy, Is.TypeOf<ManagedSessionFactory>());
+            Assert.That(copy, Is.Not.SameAs(original));
+            Assert.That(copy.SubscriptionEngineFactory, Is.SameAs(engine));
+            Assert.That(copy.ReturnDiagnostics, Is.EqualTo(DiagnosticsMasks.All));
+            Assert.That(original.SubscriptionEngineFactory, Is.Null);
+
+            copy.ReturnDiagnostics = DiagnosticsMasks.None;
+            Assert.That(
+                original.ReturnDiagnostics,
+                Is.EqualTo(DiagnosticsMasks.All),
+                "the copy must not share mutable state with the original");
+        }
+
+        [Test]
         public void DefaultSessionFactoryCreateReturnsManagedSession()
         {
             var factory = new ManagedSessionFactory(m_telemetry);
@@ -65,7 +89,7 @@ namespace Opc.Ua.Client.Tests
                 ClientConfiguration = new ClientConfiguration()
             };
 
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = MessageSecurityMode.None,
@@ -96,7 +120,7 @@ namespace Opc.Ua.Client.Tests
                 ClientConfiguration = new ClientConfiguration()
             };
 
-            var endpoint = new ConfiguredEndpoint(null, new EndpointDescription
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
             {
                 EndpointUrl = "opc.tcp://localhost:4840",
                 SecurityMode = MessageSecurityMode.None,

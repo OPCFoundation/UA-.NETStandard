@@ -718,8 +718,12 @@ namespace Opc.Ua.XRegistry.Server
                 }
             }
 
+#if NET5_0_OR_GREATER
+            return SHA256.HashData(buffer.ToArray());
+#else
             using var sha = SHA256.Create();
             return sha.ComputeHash(buffer.ToArray());
+#endif
         }
 
         private static void Append(MemoryStream buffer, byte[] value)

@@ -422,8 +422,9 @@ namespace Opc.Ua.Configuration
                 .CertificatePasswordProvider;
 
             Certificate? certificate = await CertificateIdentifierResolver
-                .LoadPrivateKeyAsync(
+                .LoadPrivateKeyWithStoreResolverAsync(
                     id,
+                    configuration.CertificateManager as ICertificateStoreResolver,
                     passwordProvider,
                     configuration.ApplicationUri,
                     m_telemetry,
@@ -460,7 +461,7 @@ namespace Opc.Ua.Configuration
                     certificate = await CertificateIdentifierResolver
                         .ResolveAsync(
                             id,
-                            registry: null,
+                            registry: configuration.CertificateManager,
                             needPrivateKey: false,
                             configuration.ApplicationUri,
                             m_telemetry,
@@ -486,8 +487,9 @@ namespace Opc.Ua.Configuration
                                 SubjectName = id.SubjectName
                             };
                             certificate = await CertificateIdentifierResolver
-                                .LoadPrivateKeyAsync(
+                                .LoadPrivateKeyWithStoreResolverAsync(
                                     id2,
+                                    configuration.CertificateManager as ICertificateStoreResolver,
                                     passwordProvider,
                                     configuration.ApplicationUri,
                                     m_telemetry,
@@ -752,13 +754,13 @@ namespace Opc.Ua.Configuration
                 }
             }
 
-            // check key size
-            int keySize = X509Utils.GetPublicKeySize(certificate);
-            if (minimumKeySize > keySize)
+            // RSA minimums are not comparable to EC curve sizes.
+            using RSA? rsaPublicKey = certificate.GetRSAPublicKey();
+            if (rsaPublicKey != null && minimumKeySize > rsaPublicKey.KeySize)
             {
                 string message = Utils.Format(
                     "The key size ({0}) in the certificate is less than the minimum provided ({1}). Use certificate anyway?",
-                    keySize,
+                    rsaPublicKey.KeySize,
                     minimumKeySize);
 
                 if (!await ApproveMessageAsync(message, silent).ConfigureAwait(false))
@@ -959,16 +961,26 @@ namespace Opc.Ua.Configuration
                     serverDomainNames.ToList())
                 .SetLifeTime(lifeTimeInMonths);
 
+            // MinimumCertificateKeySize is the smallest key accepted from a
+            // peer, not the size to create. Every RSA security policy except
+            // the deprecated Basic128Rsa15 and Basic256 rejects keys below
+            // 2048 bits (OPC 10000-6 6.1), so only an RsaMin certificate may
+            // be created smaller.
+            ushort keySize = minimumKeySize;
+            if (CertificateIdentifier.IsRsaCertificateType(id.CertificateType) &&
+                id.CertificateType != ObjectTypeIds.RsaMinApplicationCertificateType &&
+                keySize < CertificateFactory.DefaultKeySize)
+            {
+                keySize = CertificateFactory.DefaultKeySize;
+            }
+
             Certificate newCertificate = KeyPairGenerator.CreateCertificate(
-                builder, id.CertificateType, minimumKeySize);
-            if (id.CertificateType.IsNull ||
-                id.CertificateType == ObjectTypeIds.ApplicationCertificateType ||
-                id.CertificateType == ObjectTypeIds.RsaMinApplicationCertificateType ||
-                id.CertificateType == ObjectTypeIds.RsaSha256ApplicationCertificateType)
+                builder, id.CertificateType, keySize);
+            if (CertificateIdentifier.IsRsaCertificateType(id.CertificateType))
             {
                 m_logger.CertificateCreatedForRsa(
                     newCertificate,
-                    minimumKeySize == 0 ? CertificateFactory.DefaultKeySize : minimumKeySize);
+                    keySize == 0 ? CertificateFactory.DefaultKeySize : keySize);
             }
             else
             {
@@ -989,13 +1001,12 @@ namespace Opc.Ua.Configuration
             ICertificatePasswordProvider? passwordProvider = configuration
                 .SecurityConfiguration
                 .CertificatePasswordProvider;
-            await newCertificate.AddToStoreAsync(
-                    id.StoreType!,
-                    id.StorePath!,
-                    passwordProvider?.GetPassword(id),
-                    m_telemetry,
-                    ct)
-                .ConfigureAwait(false);
+            using (ICertificateStore store = CertificateIdentifierResolver.OpenStore(id, m_telemetry,
+                configuration.CertificateManager as ICertificateStoreResolver) ??
+                throw ServiceResultException.ConfigurationError("Application certificate store is not configured."))
+            {
+                await store.AddAsync(newCertificate, passwordProvider?.GetPassword(id), ct).ConfigureAwait(false);
+            }
 
             // ensure the certificate is trusted.
             if (configuration.SecurityConfiguration.AddAppCertToTrustedStore)
@@ -1008,8 +1019,9 @@ namespace Opc.Ua.Configuration
             // private-key handle (the in-memory cert from CreateForXxx is a
             // builder-produced ephemeral instance).
             Certificate? reloaded = await CertificateIdentifierResolver
-                .LoadPrivateKeyAsync(
+                .LoadPrivateKeyWithStoreResolverAsync(
                     id,
+                    configuration.CertificateManager as ICertificateStoreResolver,
                     passwordProvider,
                     configuration.ApplicationUri,
                     m_telemetry,
@@ -1061,7 +1073,7 @@ namespace Opc.Ua.Configuration
             Certificate? certificate = await CertificateIdentifierResolver
                 .ResolveAsync(
                     id,
-                    registry: null,
+                    registry: configuration.CertificateManager,
                     needPrivateKey: false,
                     configuration.ApplicationUri,
                     m_telemetry,
@@ -1075,7 +1087,8 @@ namespace Opc.Ua.Configuration
 
             // delete trusted peer certificate.
             if (configuration.SecurityConfiguration != null &&
-                configuration.SecurityConfiguration.TrustedPeerCertificates != null)
+                configuration.SecurityConfiguration.TrustedPeerCertificates != null &&
+                !string.IsNullOrEmpty(configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath))
             {
                 string? thumbprint = id.Thumbprint;
 
@@ -1086,9 +1099,11 @@ namespace Opc.Ua.Configuration
 
                 if (!string.IsNullOrEmpty(thumbprint))
                 {
-                    using ICertificateStore store = configuration.SecurityConfiguration
-                        .TrustedPeerCertificates
-                        .OpenStore(m_telemetry!);
+                    using ICertificateStore store = configuration.CertificateManager is ICertificateStoreResolver resolver
+                        ? resolver.OpenCertificateStore(
+                            configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath!,
+                            configuration.SecurityConfiguration.TrustedPeerCertificates.StoreType)
+                        : configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore(m_telemetry!);
                     if (store != null)
                     {
                         bool deleted = await store.DeleteAsync(thumbprint!, ct)
@@ -1105,7 +1120,7 @@ namespace Opc.Ua.Configuration
             if (certificate != null)
             {
                 using ICertificateStore? store = CertificateIdentifierResolver
-                    .OpenStore(id, m_telemetry);
+                    .OpenStore(id, m_telemetry, configuration.CertificateManager as ICertificateStoreResolver);
                 if (store != null)
                 {
                     bool deleted = await store.DeleteAsync(certificate.Thumbprint, ct)
@@ -1147,9 +1162,11 @@ namespace Opc.Ua.Configuration
 
             try
             {
-                using ICertificateStore? store = configuration.SecurityConfiguration
-                    .TrustedPeerCertificates
-                    .OpenStore(m_telemetry!);
+                using ICertificateStore? store = configuration.CertificateManager is ICertificateStoreResolver resolver
+                    ? resolver.OpenCertificateStore(
+                        configuration.SecurityConfiguration.TrustedPeerCertificates.StorePath!,
+                        configuration.SecurityConfiguration.TrustedPeerCertificates.StoreType)
+                    : configuration.SecurityConfiguration.TrustedPeerCertificates.OpenStore(m_telemetry!);
 
                 if (store == null)
                 {

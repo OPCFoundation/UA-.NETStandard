@@ -40,7 +40,8 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for UA endpoints.
     /// </summary>
-    public abstract partial class EndpointBase : IEndpointBase, ITransportListenerCallback
+    public abstract partial class EndpointBase :
+        IEndpointBase, ITransportListenerCallback, IResourceIsolationProviderSource, IRequestParkingPolicySource
     {
         /// <summary>
         /// Initializes the object when it is created by the WCF framework.
@@ -93,6 +94,14 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider =>
+            (m_server as IResourceIsolationProviderSource)?.ResourceIsolationProvider;
+
+        /// <inheritdoc/>
+        public IRequestParkingPolicy? RequestParkingPolicy =>
+            (m_server as IRequestParkingPolicySource)?.RequestParkingPolicy;
+
+        /// <inheritdoc/>
         public ValueTask<IServiceResponse> ProcessRequestAsync(
             SecureChannelContext secureChannelContext,
             IServiceRequest request,
@@ -108,7 +117,15 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(request));
             }
 
-            var incomingRequest = new EndpointIncomingRequest(this, secureChannelContext, request);
+            EndpointIncomingRequest incomingRequest;
+            try
+            {
+                incomingRequest = new EndpointIncomingRequest(this, secureChannelContext, request);
+            }
+            catch (Exception e)
+            {
+                return new ValueTask<IServiceResponse>(CreateFault(request, e));
+            }
             return incomingRequest.ProcessAsync(cancellationToken);
         }
 
@@ -409,19 +426,35 @@ namespace Opc.Ua
         /// <returns>A fault message.</returns>
         public static ServiceFault CreateFault(ILogger logger, IServiceRequest? request, Exception exception)
         {
+            return CreateFault(logger, request, exception, requestHandle: 0);
+        }
+
+        /// <summary>
+        /// Creates a fault message.
+        /// </summary>
+        /// <param name="logger">A contextual logger to log to</param>
+        /// <param name="request">The request, or <c>null</c> if it could not be decoded.</param>
+        /// <param name="exception">The exception.</param>
+        /// <param name="requestHandle">The RequestHandle to echo when <paramref name="request"/>
+        /// is <c>null</c>, for example as read by <see cref="RequestHandleReader"/> from a
+        /// message that could not be decoded (OPC 10000-4 §7.33); 0 if it is unknown.</param>
+        /// <returns>A fault message.</returns>
+        internal static ServiceFault CreateFault(
+            ILogger logger,
+            IServiceRequest? request,
+            Exception exception,
+            uint requestHandle)
+        {
             DiagnosticsMasks diagnosticsMask = DiagnosticsMasks.ServiceNoInnerStatus;
 
             var fault = new ServiceFault();
 
-            if (request != null)
-            {
-                fault.ResponseHeader.Timestamp = DateTime.UtcNow;
-                fault.ResponseHeader.RequestHandle = request.RequestHeader.RequestHandle;
+            fault.ResponseHeader.Timestamp = DateTime.UtcNow;
+            fault.ResponseHeader.RequestHandle = request?.RequestHeader?.RequestHandle ?? requestHandle;
 
-                if (request.RequestHeader != null)
-                {
-                    diagnosticsMask = (DiagnosticsMasks)request.RequestHeader.ReturnDiagnostics;
-                }
+            if (request?.RequestHeader != null)
+            {
+                diagnosticsMask = (DiagnosticsMasks)request.RequestHeader.ReturnDiagnostics;
             }
 
             ServiceResult result;
@@ -484,6 +517,26 @@ namespace Opc.Ua
         /// </summary>
         /// <value>The message context.</value>
         protected IServiceMessageContext MessageContext => m_server!.MessageContext;
+
+        /// <summary>
+        /// The activity source for incoming requests. Resolved once per telemetry
+        /// context: the GetActivitySource extension walks the stack to find the
+        /// calling assembly, which is too expensive to repeat for every request.
+        /// </summary>
+        private ActivitySource RequestActivitySource
+        {
+            get
+            {
+                ITelemetryContext telemetry = MessageContext.Telemetry;
+                Tuple<ITelemetryContext, ActivitySource>? cached = m_activitySource;
+                if (cached == null || !ReferenceEquals(cached.Item1, telemetry))
+                {
+                    cached = Tuple.Create(telemetry, telemetry.GetActivitySource());
+                    m_activitySource = cached;
+                }
+                return cached.Item2;
+            }
+        }
 
         /// <summary>
         /// Returns the description for the endpoint
@@ -551,6 +604,7 @@ namespace Opc.Ua
 
         private IServiceHostBase? m_host;
         private IServerBase? m_server;
+        private Tuple<ITelemetryContext, ActivitySource>? m_activitySource;
     }
 
     /// <summary>

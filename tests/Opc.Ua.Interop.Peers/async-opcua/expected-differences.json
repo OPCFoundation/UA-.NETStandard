@@ -1,0 +1,38 @@
+{
+  "ComplexTypes": {
+    "reason": "the async-opcua 0.19.0 client cannot decode the TestData ScalarStructureDataType (field of the abstract Structure DataType i=22: 'Dynamic type field missing from type tree') and closes the whole connection instead of reporting the one value",
+    "issue": "upstream issue to be filed at https://github.com/freeopcua/async-opcua/issues"
+  },
+  "SessionReconnect": {
+    "reason": "the async-opcua 0.19.0 client keeps the session's server nonce in the SecureChannel remote nonce, which the OpenSecureChannel of a new channel overwrites (async-opcua-client transport/state.rs:217 set_remote_nonce_from_byte_string(response.server_nonce)); ActivateSession on the new channel is then signed over the channel nonce instead of the last session nonce (session/services/session.rs:505-560, OPC 10000-4 5.6.3), the 2.0 server answers BadApplicationSignatureInvalid and the client silently falls back to a NEW session (session/connect.rs ensure_and_activate_session), so the session id changes",
+    "issue": "upstream issue to be filed at https://github.com/freeopcua/async-opcua/issues"
+  },
+  "X509UserToken": {
+    "reason": "the async-opcua 0.19.0 client treats an empty UserTokenPolicy.SecurityPolicyUri as SecurityPolicy None (async-opcua-client session/services/session.rs:405-406 '// Assume None') and sends the X509 token with an empty user token signature; OPC 10000-4 (UserTokenPolicy) says an empty SecurityPolicyUri means the policy of the SecureChannel, which the 2.0 server advertises for its Certificate policy on secure endpoints, so ActivateSession is rejected with BadUserSignatureInvalid",
+    "issue": "upstream issue to be filed at https://github.com/freeopcua/async-opcua/issues"
+  },
+  "EccInteropTests.LegacyClientToServerAsync*": {
+    "reason": "ECC security policies are not supported by async-opcua 0.19.0: SecurityPolicy (async-opcua-crypto security_policy.rs:53-68) only knows None, Basic128Rsa15, Basic256, Basic256Sha256, Aes128Sha256RsaOaep and Aes256Sha256RsaPss, so the client logs 'Specified security policy ... is not recognized' and finds no matching endpoint (BadTcpEndpointUrlInvalid); the server side is skipped because the peer server offers no ECC endpoint",
+    "issue": "not supported by async-opcua 0.19.0"
+  },
+  "EccInteropTests.LegacyClientToServerTokenRenewalAsync": {
+    "reason": "ECC security policies are not supported by async-opcua 0.19.0 (async-opcua-crypto security_policy.rs:53-68 has no ECC_nistP256), so the client finds no matching endpoint (BadTcpEndpointUrlInvalid)",
+    "issue": "not supported by async-opcua 0.19.0"
+  },
+  "LegacyServerInteropTests.BrowseWithContinuationPointsAsync": {
+    "reason": "the async-opcua 0.19.0 server pages a browse with RequestedMaxReferencesPerNode in an order inconsistent with the unpaged browse (to an asyncua client it returned the first page without a continuation point)",
+    "issue": "upstream issue to be filed at https://github.com/freeopcua/async-opcua/issues"
+  },
+  "LegacyServerInteropTests.WriteWithWrongTypeIsRejectedAsync": {
+    "reason": "the async-opcua 0.19.0 server (SimpleNodeManager) accepts a String written to an Int32 variable instead of answering Bad_TypeMismatch (OPC 10000-4 5.11.4)",
+    "issue": "upstream issue to be filed at https://github.com/freeopcua/async-opcua/issues"
+  },
+  "ServerFeatureInteropTests.ConditionRefreshDeliversRefreshEventsAsync": {
+    "reason": "ConditionRefresh is not supported by the async-opcua 0.19.0 server: the core node manager only implements the built-in methods Server_GetMonitoredItems and Server_ResendData and answers every other one, including ConditionType_ConditionRefresh (i=3875), with BadNotSupported (async-opcua-server node_manager/memory/core.rs call_builtin_method, line 585)",
+    "issue": "upstream issue to be filed at https://github.com/freeopcua/async-opcua/issues"
+  },
+  "ServerFeatureInteropTests.QueueOverflowSetsOverflowBitAsync": {
+    "reason": "the async-opcua 0.19.0 server sets the Overflow bit of a queue overflow without the InfoType DataValue bit (async-opcua-server subscriptions/monitored_item.rs:607 status().set_overflow(true), never set_info_type(DataValue)); the client receives 0x00000080, which OPC 10000-4 7.39.1 (and async-opcua's own StatusCode::validate, InvalidInfoBits) treats as invalid info bits, so the overflow is not recognized. The queue itself is right (the last 2 of 5 values, 4 and 5)",
+    "issue": "upstream issue to be filed at https://github.com/freeopcua/async-opcua/issues"
+  }
+}

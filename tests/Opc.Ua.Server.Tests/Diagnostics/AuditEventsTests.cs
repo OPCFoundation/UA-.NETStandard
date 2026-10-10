@@ -39,6 +39,9 @@ using Opc.Ua.Tests;
 
 namespace Opc.Ua.Server.Tests.Diagnostics
 {
+    /// <summary>
+    /// Verifies audit event emission, failure status, context handling, and private-key redaction.
+    /// </summary>
     [TestFixture]
     [Category("AuditEvents")]
     [Parallelizable]
@@ -49,12 +52,18 @@ namespace Opc.Ua.Server.Tests.Diagnostics
         private const string SessionUserDisplayName = "session-user";
         private static readonly ILogger s_logger = NullLogger.Instance;
 
+        /// <summary>
+        /// Verifies that a redacted private key is represented by an empty byte string.
+        /// </summary>
         [Test]
         public void RedactedPrivateKeyUsesEmptyByteString()
         {
             Assert.That(AuditEvents.RedactedPrivateKey, Is.EqualTo(ByteString.Empty));
         }
 
+        /// <summary>
+        /// Verifies that guarded reporting methods emit no audit events when auditing is disabled.
+        /// </summary>
         [Test]
         public void GuardedReportMethodsDoNotEmitWhenAuditingDisabled()
         {
@@ -68,6 +77,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(server.Events, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that certificate audit reporting emits no event when no exception is supplied.
+        /// </summary>
         [Test]
         public void ReportAuditCertificateEventWithoutExceptionDoesNotEmit()
         {
@@ -79,6 +91,58 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(server.Events, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that every validation error in a certificate error chain raises exactly one
+        /// audit event whose type and StatusCodeId both match that error.
+        /// </summary>
+        [Test]
+        public void ReportAuditCertificateEventReportsEachChainedErrorOnce()
+        {
+            using Certificate certificate = CreateCertificate();
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            // shape produced by the certificate validator: the first error wrapped in a copy of itself
+            var exception = new ServiceResultException(
+                new ServiceResult(
+                    StatusCodes.BadCertificateUntrusted,
+                    new ServiceResult(
+                        StatusCodes.BadCertificateUntrusted,
+                        new ServiceResult(StatusCodes.BadCertificateTimeInvalid))));
+
+            server.ReportAuditCertificateEvent(certificate, exception, s_logger);
+
+            Assert.That(server.Events, Has.Count.EqualTo(2));
+            Assert.That(server.Events[0], Is.TypeOf<AuditCertificateUntrustedEventState>());
+            Assert.That(
+                ((AuditCertificateEventState)server.Events[0]).StatusCodeId!.Value,
+                Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            Assert.That(server.Events[1], Is.TypeOf<AuditCertificateExpiredEventState>());
+            Assert.That(
+                ((AuditCertificateEventState)server.Events[1]).StatusCodeId!.Value,
+                Is.EqualTo(StatusCodes.BadCertificateTimeInvalid));
+        }
+
+        /// <summary>
+        /// Verifies that a single validation error without an inner result still raises an audit event.
+        /// </summary>
+        [Test]
+        public void ReportAuditCertificateEventWithSingleErrorEmits()
+        {
+            using Certificate certificate = CreateCertificate();
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditCertificateEvent(
+                certificate,
+                new ServiceResultException(StatusCodes.BadCertificateUntrusted),
+                s_logger);
+
+            var auditEvent = (AuditCertificateUntrustedEventState)server.Events.Single();
+            Assert.That(auditEvent.StatusCodeId!.Value, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+        }
+
+        /// <summary>
+        /// Verifies that write-update audit reporting emits no event without a session user.
+        /// </summary>
         [Test]
         public void ReportAuditWriteUpdateEventWithoutSessionUserDoesNotEmit()
         {
@@ -101,6 +165,9 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             Assert.That(server.Events, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that successful reporting emits exactly one audit event with the expected type, source, and status.
+        /// </summary>
         [Test]
         public void HappyReportMethodsEmitExpectedAuditEvents()
         {
@@ -120,13 +187,16 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             }
         }
 
+        /// <summary>
+        /// Verifies that a validated indexed write emits a successful Attribute/Write audit event.
+        /// </summary>
         [Test]
         public void ReportAuditWriteUpdateEventWithIndexRangeEmitsAuditEvent()
         {
             CapturingAuditEventServer server = CreateAuditServer();
             WriteValue writeValue = CreateWriteValue();
             writeValue.IndexRange = "1";
-            ServiceResult validationResult = WriteValue.Validate(writeValue);
+            ServiceResult validationResult = WriteValue.Validate(writeValue)!;
             int[] oldValues = [1, 2, 3];
             Variant oldValue = new(oldValues);
 
@@ -139,10 +209,13 @@ namespace Opc.Ua.Server.Tests.Diagnostics
 
             Assert.That(ServiceResult.IsGood(validationResult), Is.True);
             var auditEvent = (AuditWriteUpdateEventState)server.Events.Single();
-            Assert.That(auditEvent.SourceName.Value, Is.EqualTo("Attribute/Write"));
-            Assert.That(auditEvent.Status.Value, Is.True);
+            Assert.That(auditEvent.SourceName!.Value, Is.EqualTo("Attribute/Write"));
+            Assert.That(auditEvent.Status!.Value, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that secure-channel-open auditing uses the inner service-result status from an exception.
+        /// </summary>
         [Test]
         public void ReportAuditOpenSecureChannelEventWithServiceResultExceptionUsesInnerStatus()
         {
@@ -154,18 +227,43 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 "channel-2",
                 CreateEndpointDescription(),
                 CreateOpenSecureChannelRequest(),
-                null,
+                null!,
                 new InvalidOperationException("outer", exception),
                 s_logger);
 
             var auditEvent =
                 (AuditOpenSecureChannelEventState)server.Events.Single();
-            Assert.That(auditEvent.Status.Value, Is.False);
-            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            Assert.That(auditEvent.Status!.Value, Is.False);
+            Assert.That(auditEvent.StatusCodeId!.Value, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
         }
 
+        /// <summary>
+        /// Verifies that open-channel auditing reports a failed event when an exception has no service result.
+        /// </summary>
         [Test]
-        public void ReportAuditCloseSecureChannelEventWithServiceResultExceptionWithoutInnerResultUsesUncertainStatus()
+        public void ReportAuditOpenSecureChannelEventWithNonServiceResultExceptionReportsBadStatus()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditOpenSecureChannelEvent(
+                "channel-5",
+                CreateEndpointDescription(),
+                CreateOpenSecureChannelRequest(),
+                null!,
+                new System.Security.Cryptography.CryptographicException("decrypt failed"),
+                s_logger);
+
+            var auditEvent =
+                (AuditOpenSecureChannelEventState)server.Events.Single();
+            Assert.That(auditEvent.Status!.Value, Is.False);
+            Assert.That(auditEvent.StatusCodeId!.Value, Is.EqualTo(StatusCodes.Bad));
+        }
+
+        /// <summary>
+        /// Verifies that secure-channel-close auditing uses the service-result status when the exception has no inner result.
+        /// </summary>
+        [Test]
+        public void ReportAuditCloseSecureChannelEventWithServiceResultExceptionWithoutInnerResultUsesExceptionStatus()
         {
             CapturingAuditEventServer server = CreateAuditServer();
 
@@ -177,10 +275,31 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 s_logger);
 
             var auditEvent = (AuditChannelEventState)server.Events.Single();
-            Assert.That(auditEvent.Status.Value, Is.False);
-            Assert.That(auditEvent.StatusCodeId.Value, Is.EqualTo(StatusCodes.Uncertain));
+            Assert.That(auditEvent.Status!.Value, Is.False);
+            Assert.That(auditEvent.StatusCodeId!.Value, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
         }
 
+        /// <summary>
+        /// Verifies that close-channel auditing reports a failed event when an exception has no service result.
+        /// </summary>
+        [Test]
+        public void ReportAuditCloseSecureChannelEventWithNonServiceResultExceptionReportsBadStatus()
+        {
+            CapturingAuditEventServer server = CreateAuditServer();
+
+            server.ReportAuditCloseSecureChannelEvent(
+                "channel-4",
+                new InvalidOperationException("close failed"),
+                s_logger);
+
+            var auditEvent = (AuditChannelEventState)server.Events.Single();
+            Assert.That(auditEvent.Status!.Value, Is.False);
+            Assert.That(auditEvent.StatusCodeId!.Value, Is.EqualTo(StatusCodes.Bad));
+        }
+
+        /// <summary>
+        /// Verifies that session reporting methods emit failed audit events for exceptions.
+        /// </summary>
         [Test]
         public void ReportSessionMethodsWithExceptionsEmitFailedAuditEvents()
         {
@@ -201,11 +320,43 @@ namespace Opc.Ua.Server.Tests.Diagnostics
 
             Assert.That(server.Events, Has.Count.EqualTo(2));
             Assert.That(server.Events[0], Is.TypeOf<AuditCreateSessionEventState>());
-            Assert.That(server.Events[0].Status.Value, Is.False);
+            Assert.That(server.Events[0].Status!.Value, Is.False);
             Assert.That(server.Events[1], Is.TypeOf<AuditActivateSessionEventState>());
-            Assert.That(server.Events[1].Status.Value, Is.False);
+            Assert.That(server.Events[1].Status!.Value, Is.False);
         }
 
+        /// <summary>
+        /// Part 5 6.4.8: a CreateSession that fails before a session exists still
+        /// reports the SecureChannelId and the clientCertificate request parameter,
+        /// with the thumbprint of its leaf certificate.
+        /// </summary>
+        [Test]
+        public void ReportAuditCreateSessionEventWithoutSessionCarriesChannelAndCertificate()
+        {
+            using Certificate certificate = CreateCertificate();
+            CapturingAuditEventServer server = CreateAuditServer();
+            ByteString requestCertificate = certificate.RawData.ToByteString();
+
+            server.ReportAuditCreateSessionEvent(
+                AuditEntryId,
+                null,
+                "channel-7",
+                requestCertificate,
+                null,
+                0,
+                s_logger,
+                new ServiceResultException(StatusCodes.BadCertificateUntrusted));
+
+            var auditEvent = (AuditCreateSessionEventState)server.Events.Single();
+            Assert.That(auditEvent.Status!.Value, Is.False);
+            Assert.That(auditEvent.SecureChannelId!.Value, Is.EqualTo("channel-7"));
+            Assert.That(auditEvent.ClientCertificate!.Value, Is.EqualTo(requestCertificate));
+            Assert.That(auditEvent.ClientCertificateThumbprint!.Value, Is.EqualTo(certificate.Thumbprint));
+        }
+
+        /// <summary>
+        /// Verifies that certificate update reporting methods emit failed audit events for exceptions.
+        /// </summary>
         [Test]
         public void ReportCertificateUpdateMethodsWithExceptionsEmitFailedAuditEvents()
         {
@@ -233,11 +384,41 @@ namespace Opc.Ua.Server.Tests.Diagnostics
 
             Assert.That(server.Events, Has.Count.EqualTo(2));
             Assert.That(server.Events[0], Is.TypeOf<CertificateUpdatedAuditEventState>());
-            Assert.That(server.Events[0].Status.Value, Is.False);
+            Assert.That(server.Events[0].Status!.Value, Is.False);
             Assert.That(server.Events[1], Is.TypeOf<CertificateUpdateRequestedAuditEventState>());
-            Assert.That(server.Events[1].Status.Value, Is.False);
+            Assert.That(server.Events[1].Status!.Value, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that the AuditCancelEvent reported for a Cancel request carries the
+        /// ClientAuditEntryId and ClientUserId of that request (OPC 10000-5 6.4.3) even
+        /// though the server's default audit context has no operation context.
+        /// </summary>
+        [Test]
+        public void ReportAuditCancelEventWithContextSetsClientAuditEntryIdAndUserId()
+        {
+            var server = new CapturingAuditEventServer(CreateSystemContextWithoutOperation(), true);
+            ISession session = CreateSession();
+            var context = new OperationContext(
+                new RequestHeader { AuditEntryId = "op-42", RequestHandle = 5 },
+                null!,
+                RequestType.Cancel,
+                RequestLifetime.None,
+                session);
+
+            server.ReportAuditCancelEvent(context, 7, StatusCodes.Good, s_logger);
+
+            var auditEvent = (AuditCancelEventState)server.Events.Single();
+            Assert.That(auditEvent.ClientAuditEntryId!.Value, Is.EqualTo("op-42"));
+            Assert.That(auditEvent.ClientUserId!.Value, Is.EqualTo(SessionUserDisplayName));
+            Assert.That(auditEvent.SessionId!.Value, Is.EqualTo(session.Id));
+            Assert.That(auditEvent.RequestHandle!.Value, Is.EqualTo(7u));
+            Assert.That(auditEvent.SourceName!.Value, Is.EqualTo("Session/Cancel"));
+        }
+
+        /// <summary>
+        /// Verifies that trust-list audit reporting uses a valid system context.
+        /// </summary>
         [Test]
         public void ReportTrustListMethodsUseValidSystemContext()
         {
@@ -285,7 +466,14 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             yield return server => server.ReportAuditHistoryAnnotationUpdateEvent(
                 CreateSystemContext(RequestType.HistoryUpdate),
                 CreateUpdateStructureDataDetails(),
-                new[] { new DataValue(new Variant("old-annotation")) }.ToArrayOf(),
+                [
+                    new Annotation
+                    {
+                        AnnotationTime = DateTime.UtcNow,
+                        Message = "old-annotation",
+                        UserName = "operator"
+                    }
+                ],
                 StatusCodes.Good,
                 s_logger);
             yield return server => server.ReportAuditHistoryEventUpdateEvent(
@@ -309,15 +497,15 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             yield return server => server.ReportAuditHistoryEventDeleteEvent(
                 CreateSystemContext(RequestType.HistoryUpdate),
                 CreateDeleteEventDetails(),
-                [new DataValue(new Variant("old-event-delete"))],
+                CreateHistoryEventFieldList("old-event-delete"),
                 StatusCodes.Good,
                 s_logger);
             yield return server => server.ReportAuditCertificateEvent(
-                null,
+                null!,
                 CreateServiceResultException(StatusCodes.BadCertificateUntrusted),
                 s_logger);
             yield return server => server.ReportAuditCertificateDataMismatchEvent(
-                null,
+                null!,
                 "host",
                 "urn:invalid",
                 StatusCodes.BadCertificateUriInvalid,
@@ -386,7 +574,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 "channel-1",
                 CreateEndpointDescription(),
                 CreateOpenSecureChannelRequest(),
-                null,
+                null!,
                 null,
                 s_logger);
             yield return server => server.ReportAuditCloseSecureChannelEvent(
@@ -439,11 +627,29 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 "Attribute/HistoryValueUpdate",
                 true);
             yield return new AuditEventExpectation(
+                "ReportAuditHistoryStructuredValueUpdateEvent",
+                server => server.ReportAuditHistoryValueUpdateEvent(
+                    CreateSystemContext(RequestType.HistoryUpdate),
+                    CreateUpdateStructureDataDetails(),
+                    [new DataValue(new Variant("old-structured"))],
+                    StatusCodes.Good,
+                    s_logger),
+                typeof(AuditHistoryValueUpdateEventState),
+                "Attribute/HistoryValueUpdate",
+                true);
+            yield return new AuditEventExpectation(
                 "ReportAuditHistoryAnnotationUpdateEvent",
                 server => server.ReportAuditHistoryAnnotationUpdateEvent(
                     CreateSystemContext(RequestType.HistoryUpdate),
                     CreateUpdateStructureDataDetails(),
-                    new[] { new DataValue(new Variant("old-annotation")) }.ToArrayOf(),
+                    [
+                        new Annotation
+                        {
+                            AnnotationTime = DateTime.UtcNow,
+                            Message = "old-annotation",
+                            UserName = "operator"
+                        }
+                    ],
                     StatusCodes.BadHistoryOperationInvalid,
                     s_logger),
                 typeof(AuditHistoryAnnotationUpdateEventState),
@@ -487,7 +693,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
                 server => server.ReportAuditHistoryEventDeleteEvent(
                     CreateSystemContext(RequestType.HistoryUpdate),
                     CreateDeleteEventDetails(),
-                    [new DataValue(new Variant("old-event-delete"))],
+                    CreateHistoryEventFieldList("old-event-delete"),
                     StatusCodes.Good,
                     s_logger),
                 typeof(AuditHistoryEventDeleteEventState),
@@ -710,6 +916,18 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             return new ServerSystemContext(server.Object, CreateOperationContext(requestType));
         }
 
+        private static ServerSystemContext CreateSystemContextWithoutOperation()
+        {
+            NamespaceTable namespaceUris = new();
+            var server = new Mock<IServerInternal>();
+            server.Setup(s => s.NamespaceUris).Returns(namespaceUris);
+            server.Setup(s => s.ServerUris).Returns(new StringTable());
+            server.Setup(s => s.TypeTree).Returns(new TypeTable(namespaceUris));
+            server.Setup(s => s.Factory).Returns(EncodeableFactory.Create());
+            server.Setup(s => s.Telemetry).Returns(NUnitTelemetryContext.Create());
+            return new ServerSystemContext(server.Object);
+        }
+
         private static OperationContext CreateOperationContext(RequestType requestType)
         {
             var identity = new UserIdentity("audit-user", [])
@@ -744,7 +962,7 @@ namespace Opc.Ua.Server.Tests.Diagnostics
             session.Setup(s => s.IdentityToken).Returns(identity.TokenHandler);
             session.Setup(s => s.PreferredLocales).Returns([]);
             session.Setup(s => s.SecureChannelId).Returns("secure-channel");
-            session.Setup(s => s.ClientCertificate).Returns((Certificate)null);
+            session.Setup(s => s.ClientCertificate).Returns((Certificate)null!);
             return session.Object;
         }
 

@@ -34,23 +34,30 @@
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 
-#nullable enable
-
 namespace Opc.Ua.Server.Tests.Historian
 {
+    /// <summary>
+    /// Verifies atomic in-memory historian insertion and rollback of failed batches.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Parallelizable(ParallelScope.All)]
     public class InMemoryTransactionalProviderTests
     {
+        /// <summary>
+        /// Verifies that atomic insertion commits when every value is new.
+        /// </summary>
         [Test]
         public async Task InsertAtomicCommitsWhenAllValuesNewAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("tx.var", 1);
             provider.Register(nodeId);
 
@@ -62,20 +69,26 @@ namespace Opc.Ua.Server.Tests.Historian
                 MakeValue(BaseTime.AddSeconds(3), 3.0)
             };
 
-            IList<StatusCode> statuses = await provider.InsertAtomicAsync(
+            HistorianUpdateOutcome<DataValue> outcome = await provider.InsertAtomicAsync(
                 context, nodeId, values, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(statuses, Has.Count.EqualTo(3));
-            foreach (StatusCode sc in statuses)
+            Assert.That(outcome.OperationResults, Has.Count.EqualTo(3));
+            Assert.That(outcome.TransactionRolledBack, Is.False);
+            foreach (StatusCode sc in outcome.OperationResults)
             {
                 Assert.That(StatusCode.IsGood(sc), Is.True);
             }
         }
 
+        /// <summary>
+        /// Verifies that atomic insertion rolls back the batch on its first failure.
+        /// </summary>
         [Test]
         public async Task InsertAtomicRollsBackOnFirstFailureAsync()
         {
-            using var provider = new InMemoryHistorianProvider();
+            using var provider = new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
             var nodeId = new NodeId("tx.var", 1);
             provider.Register(nodeId);
 
@@ -92,14 +105,15 @@ namespace Opc.Ua.Server.Tests.Historian
                 MakeValue(BaseTime.AddSeconds(3), 3.0)
             };
 
-            IList<StatusCode> statuses = await provider.InsertAtomicAsync(
+            HistorianUpdateOutcome<DataValue> outcome = await provider.InsertAtomicAsync(
                 context, nodeId, batch, CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(statuses, Has.Count.EqualTo(3));
-            Assert.That(statuses[1].Code, Is.EqualTo(StatusCodes.BadEntryExists.Code));
+            Assert.That(outcome.OperationResults, Has.Count.EqualTo(3));
+            Assert.That(outcome.TransactionRolledBack, Is.True);
+            Assert.That(outcome.OperationResults[1].Code, Is.EqualTo(StatusCodes.BadEntryExists.Code));
             // Rollback markers on the other two slots.
-            Assert.That(statuses[0].Code, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported.Code));
-            Assert.That(statuses[2].Code, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported.Code));
+            Assert.That(outcome.OperationResults[0].Code, Is.EqualTo(StatusCodes.BadTransactionFailed.Code));
+            Assert.That(outcome.OperationResults[2].Code, Is.EqualTo(StatusCodes.BadTransactionFailed.Code));
 
             // Verify nothing else was inserted.
             HistorianPage<HistoricalDataValue> page = await provider.ReadRawAsync(

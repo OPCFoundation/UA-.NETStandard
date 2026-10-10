@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 // CA2000: test code; the hand-rolled managed-subscription stubs are
 // IAsyncDisposable and their ownership is transferred to the manager under
 // test (it disposes them on DisposeAsync). CA2000 cannot see through that
@@ -41,6 +39,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.Subscriptions;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
@@ -710,6 +709,10 @@ namespace Opc.Ua.Subscriptions.Tests
 
             public bool Created { get; init; }
 
+            public bool IsCreationInProgress { get; init; }
+
+            public bool IsIntentionallyDeleted { get; init; }
+
             public long MissingMessageCount { get; init; }
 
             public long RepublishMessageCount { get; init; }
@@ -732,7 +735,7 @@ namespace Opc.Ua.Subscriptions.Tests
 
             public uint CurrentMaxNotificationsPerPublish => 0;
 
-            public IMonitoredItemCollection MonitoredItems => null!;
+            public IMonitoredItemCollection MonitoredItems { get; } = Mock.Of<IMonitoredItemCollection>();
 
             public ValueTask ConditionRefreshAsync(CancellationToken ct = default)
             {

@@ -63,8 +63,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task DispatchesByTokenTypeAsync()
         {
-            var anonymous = new StubAuthenticator(UserTokenType.Anonymous, null);
-            var userName = new StubAuthenticator(UserTokenType.UserName, null);
+            var anonymous = new StubAuthenticator(UserTokenType.Anonymous, null!);
+            var userName = new StubAuthenticator(UserTokenType.UserName, null!);
             var registry = new ServerIdentityRegistry(anonymous, userName);
 
             AuthenticationContext anonCtx = MakeContext(new AnonymousIdentityTokenHandler());
@@ -78,8 +78,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task SkipsAuthenticatorsWithMismatchedTokenTypeAsync()
         {
-            var anonymous = new StubAuthenticator(UserTokenType.Anonymous, null);
-            var userName = new StubAuthenticator(UserTokenType.UserName, null);
+            var anonymous = new StubAuthenticator(UserTokenType.Anonymous, null!);
+            var userName = new StubAuthenticator(UserTokenType.UserName, null!);
             var registry = new ServerIdentityRegistry(anonymous, userName);
 
             var userNameToken = new UserNameIdentityTokenHandler("alice", [0x01]);
@@ -115,7 +115,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         {
             // Registering with a null profile URI is the "catch-all" for issued tokens
             // — used by adapters that bridge to legacy token-validator callbacks.
-            var catchAll = new StubAuthenticator(UserTokenType.IssuedToken, null);
+            var catchAll = new StubAuthenticator(UserTokenType.IssuedToken, null!);
             var registry = new ServerIdentityRegistry(catchAll);
 
             var jwtHandler = new IssuedIdentityTokenHandler(
@@ -132,7 +132,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task NotHandledFallsThroughToNextAuthenticatorAsync()
         {
-            var declining = new StubAuthenticator(UserTokenType.IssuedToken, null)
+            var declining = new StubAuthenticator(UserTokenType.IssuedToken, null!)
             {
                 ReturnOutcome = AuthenticationOutcome.NotHandled
             };
@@ -154,7 +154,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         [Test]
         public async Task RejectShortCircuitsRemainingAuthenticatorsAsync()
         {
-            var rejector = new StubAuthenticator(UserTokenType.IssuedToken, null)
+            var rejector = new StubAuthenticator(UserTokenType.IssuedToken, null!)
             {
                 ReturnOutcome = AuthenticationOutcome.Rejected
             };
@@ -171,25 +171,26 @@ namespace Opc.Ua.Core.Tests.Security.Identity
         }
 
         [Test]
-        public void RegisterReplacesEntryWithSameKey()
+        public void UnregisterRemovesOnlyTheSpecifiedAuthenticator()
         {
-            var first = new StubAuthenticator(UserTokenType.Anonymous, null);
-            var second = new StubAuthenticator(UserTokenType.Anonymous, null);
+            var first = new StubAuthenticator(UserTokenType.Anonymous, null!);
+            var second = new StubAuthenticator(UserTokenType.Anonymous, null!);
             var registry = new ServerIdentityRegistry(first);
 
             registry.Register(second);
 
-            // Old instance is removed from key dispatch; only one entry of type
-            // Anonymous remains accessible.
             Assert.That(registry.Unregister(first), Is.False);
             Assert.That(registry.Unregister(second), Is.True);
         }
 
         [Test]
-        public async Task RegisterReplacesExistingAuthenticatorWithSameTokenTypeAndProfile()
+        public async Task RegisterReplacesAuthenticatorWithSameTokenTypeAndProfileAsync()
         {
-            var first = new StubAuthenticator(UserTokenType.UserName, null);
-            var second = new StubAuthenticator(UserTokenType.UserName, null);
+            var first = new StubAuthenticator(UserTokenType.UserName, null!);
+            var second = new StubAuthenticator(UserTokenType.UserName, null!)
+            {
+                ReturnOutcome = AuthenticationOutcome.Rejected
+            };
             var registry = new ServerIdentityRegistry();
 
             registry.Register(first);
@@ -200,16 +201,82 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 .AuthenticateAsync(MakeContext(userNameToken))
                 .ConfigureAwait(false);
 
-            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
             Assert.That(first.CallCount, Is.Zero);
             Assert.That(second.CallCount, Is.EqualTo(1));
+        }
+
+        [Test]
+        public async Task RegisteringTheSameInstanceTwiceDoesNotDuplicateDispatchAsync()
+        {
+            var authenticator = new StubAuthenticator(UserTokenType.Anonymous, null!)
+            {
+                ReturnOutcome = AuthenticationOutcome.NotHandled
+            };
+            var registry = new ServerIdentityRegistry(authenticator);
+            registry.Register(authenticator);
+
+            AuthenticationResult result = await registry.AuthenticateAsync(
+                MakeContext(new AnonymousIdentityTokenHandler())).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.NotHandled));
+            Assert.That(authenticator.CallCount, Is.EqualTo(1));
+            Assert.That(registry.Unregister(authenticator), Is.True);
+            Assert.That(registry.Unregister(authenticator), Is.False);
+        }
+
+        [Test]
+        public async Task UnqualifiedRegistrationReplacesAllIssuersAsync()
+        {
+            var first = new StubAuthenticator(UserTokenType.IssuedToken, Profiles.JwtUserToken)
+            {
+                IssuerUri = "https://first.example"
+            };
+            var second = new StubAuthenticator(UserTokenType.IssuedToken, Profiles.JwtUserToken)
+            {
+                IssuerUri = "https://second.example"
+            };
+            var custom = new StubAuthenticator(UserTokenType.IssuedToken, Profiles.JwtUserToken)
+            {
+                ReturnOutcome = AuthenticationOutcome.Rejected
+            };
+            var registry = new ServerIdentityRegistry(first, second, custom);
+
+            AuthenticationResult result = await registry.AuthenticateAsync(MakeContext(
+                new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [1]))).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(first.CallCount, Is.Zero);
+            Assert.That(second.CallCount, Is.Zero);
+            Assert.That(custom.CallCount, Is.EqualTo(1));
+            Assert.That(registry.Unregister(first), Is.False);
+            Assert.That(registry.Unregister(second), Is.False);
+        }
+
+        [Test]
+        public async Task IssuerRegistrationReplacesAnUnqualifiedRegistrationAsync()
+        {
+            var unqualified = new StubAuthenticator(UserTokenType.IssuedToken, Profiles.JwtUserToken);
+            var issuer = new StubAuthenticator(UserTokenType.IssuedToken, Profiles.JwtUserToken)
+            {
+                IssuerUri = "https://issuer.example",
+                ReturnOutcome = AuthenticationOutcome.Rejected
+            };
+            var registry = new ServerIdentityRegistry(unqualified, issuer);
+
+            AuthenticationResult result = await registry.AuthenticateAsync(MakeContext(
+                new IssuedIdentityTokenHandler(Profiles.JwtUserToken, [1]))).ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(unqualified.CallCount, Is.Zero);
+            Assert.That(issuer.CallCount, Is.EqualTo(1));
         }
 
         [Test]
         public void UnregisterReturnsFalseWhenAuthenticatorIsNotRegistered()
         {
             var registry = new ServerIdentityRegistry();
-            var auth = new StubAuthenticator(UserTokenType.Anonymous, null);
+            var auth = new StubAuthenticator(UserTokenType.Anonymous, null!);
             Assert.That(registry.Unregister(auth), Is.False);
         }
 
@@ -248,7 +315,7 @@ namespace Opc.Ua.Core.Tests.Security.Identity
                 ServiceMessageContext.CreateEmpty(telemetry));
         }
 
-        private sealed class StubAuthenticator : IUserTokenAuthenticator
+        private sealed class StubAuthenticator : IIssuerTokenAuthenticator
         {
             public StubAuthenticator(UserTokenType tokenType, string profileUri)
             {
@@ -259,6 +326,8 @@ namespace Opc.Ua.Core.Tests.Security.Identity
             public UserTokenType TokenType { get; }
 
             public string IssuedTokenProfileUri { get; }
+
+            public string IssuerUri { get; set; } = null!;
 
             public AuthenticationOutcome ReturnOutcome { get; set; } = AuthenticationOutcome.Accepted;
 

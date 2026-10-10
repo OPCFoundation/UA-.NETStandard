@@ -315,14 +315,14 @@ namespace Opc.Ua.Security.Certificates.Tests
             IX509CRL ix509Crl;
             if (X509PfxUtils.IsECDsaSignature(m_issuerCert))
             {
-                using ECDsa ecdsa = m_issuerCert.GetECDsaPrivateKey();
-                var generator = X509SignatureGenerator.CreateForECDsa(ecdsa);
+                using ECDsa ecdsa = m_issuerCert.GetECDsaPrivateKey()!;
+                var generator = X509SignatureGenerator.CreateForECDsa(ecdsa!);
                 ix509Crl = crlBuilder.CreateSignature(generator);
             }
             else
             {
-                using RSA rsa = m_issuerCert.GetRSAPrivateKey();
-                var generator = X509SignatureGenerator.CreateForRSA(rsa, RSASignaturePadding.Pkcs1);
+                using RSA rsa = m_issuerCert.GetRSAPrivateKey()!;
+                var generator = X509SignatureGenerator.CreateForRSA(rsa!, RSASignaturePadding.Pkcs1);
                 ix509Crl = crlBuilder.CreateSignature(generator);
             }
             var x509Crl = new X509CRL(ix509Crl);
@@ -487,7 +487,7 @@ namespace Opc.Ua.Security.Certificates.Tests
             return crlBuilder.Encode(signatureAlgorithm);
         }
 
-        private Certificate m_issuerCert;
+        private Certificate m_issuerCert = null!;
         private readonly NodeId m_certificateType;
     }
 }

@@ -130,6 +130,42 @@ namespace Opc.Ua
         public IConnectionRateLimiter? ConnectionRateLimiter { get; set; }
 
         /// <summary>
+        /// The budget that bounds the memory the chunks of incomplete messages
+        /// hold across all the channels of the listener. Pass the same instance
+        /// to every listener of a server to bound them together.
+        /// </summary>
+        /// <remarks>
+        /// When <c>null</c> (the default) the listener creates a budget of its
+        /// own, sized by <see cref="ChunkReassemblyBudget.GetDefaultMaxBytes(int)"/>
+        /// from the maximum message size of its endpoint configuration. Honored
+        /// by the listeners that carry UA Secure Conversation: <c>opc.tcp</c> and
+        /// <c>opc.wss</c>.
+        /// </remarks>
+        public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
+
+        /// <summary>
+        /// Optional authoritative session membership and read-only classification provider.
+        /// Pass it to the quotas of every accepted UA Secure Conversation channel.
+        /// </summary>
+        /// <remarks>
+        /// A standalone host without a provider has only legacy response-count hints, which
+        /// cannot account for transfer, timeout or administrative closure.
+        /// </remarks>
+        public IServerSessionBindingProvider? SessionBindingProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the server-owned isolation policy shared across transport listeners.
+        /// </summary>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the fixed deadline from physical connection admission to handshake completion.
+        /// Must be positive and no greater than two minutes. Partial input does not extend it.
+        /// An accepted ReverseHello handoff completes startup admission, allowing the client to save the connection.
+        /// </summary>
+        public TimeSpan HandshakeTimeout { get; set; } = TimeSpan.FromMinutes(2);
+
+        /// <summary>
         /// Indicates if Http listener requires mutual TLS
         /// Handled only by HttpsTransportListener
         /// In case true, the client should provide it's own valid TLS certificate to the TLS layer for the connection to succeed.

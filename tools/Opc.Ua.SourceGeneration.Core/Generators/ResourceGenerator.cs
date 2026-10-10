@@ -144,7 +144,7 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_ResourceDeclaration(ILoadContext context)
+        private TemplateString? LoadTemplate_ResourceDeclaration(ILoadContext context)
         {
             if (context.Target is not Resource resource)
             {
@@ -170,50 +170,40 @@ namespace Opc.Ua.SourceGeneration
             }
             context.Template.AddReplacement(Tokens.ResourceName, resource.ResourceName);
 
+            if (context.Target is StringResource str && str.AsUtf16)
+            {
+                // A const string: the text is emitted as an escaped C# string
+                // literal directly, there is no nested template to render.
+                string text = str switch
+                {
+                    TextResource textResource => textResource.Text,
+                    TextReaderResource textReaderResource
+                        => textReaderResource.Reader.ReadToEnd(),
+                    _ => throw new NotSupportedException(
+                        $"Unable to read text of resource {str.GetType().Name}")
+                };
+                // AsStringLiteral renders an empty string as string.Empty,
+                // which is not a constant expression (CS0133 in a const).
+                context.Template.AddReplacement(
+                    Tokens.Resource,
+                    string.IsNullOrEmpty(text) ? "\"\"" : text.AsStringLiteral());
+                return context.Template.Render();
+            }
+
             context.Template.AddReplacement(
                 Tokens.Resource,
                 [context.Target],
                 LoadTemplate_Resource,
-                WriteTemplate_Resource);
+                static _ => true); // Already written by the load callback
 
             return context.Template.Render();
         }
 
-        private bool WriteTemplate_Resource(IWriteContext context)
-        {
-            if (context.Target is StringResource str && str.AsUtf16)
-            {
-                switch (str)
-                {
-                    case TextResource textResource:
-                        context.Template.AddReplacement(
-                            Tokens.Resource,
-                            textResource.Text);
-                        return context.Template.Render();
-                    case TextReaderResource textReaderResource:
-                        context.Template.AddReplacement(
-                            Tokens.Resource,
-                            textReaderResource.Reader.ReadToEnd());
-                        return context.Template.Render();
-                    default:
-                        // SHould not be here
-                        return false;
-                }
-            }
-            // Already written
-            return true;
-        }
-
-        private TemplateString LoadTemplate_Resource(ILoadContext context)
+        private TemplateString? LoadTemplate_Resource(ILoadContext context)
         {
             if (context.Target is not Resource resource)
             {
                 return null;
-            }
-
-            if (context.Target is StringResource str && str.AsUtf16)
-            {
-                return context.TemplateString;
             }
 
             bool writeAsBase64 =
@@ -313,7 +303,7 @@ namespace Opc.Ua.SourceGeneration
 
         private void WriteTextResource(ILoadContext context, Resource resource)
         {
-            TextReader reader = null;
+            TextReader? reader = null;
             try
             {
                 reader = GetResourceTextReader(context, out bool leaveOpen);
@@ -417,7 +407,7 @@ namespace Opc.Ua.SourceGeneration
 
             context.Out.Write("\"\"\"");
             bool firstLine = true;
-            for (string line = reader.ReadLine();
+            for (string? line = reader.ReadLine();
                 line != null;
                 line = reader.ReadLine())
             {
@@ -598,7 +588,7 @@ namespace Opc.Ua.SourceGeneration
         /// <param name="inputFile"></param>
         /// <param name="namespacePrefix"></param>
         /// <returns></returns>
-        public static string GetNameForFile(string inputFile, string namespacePrefix)
+        public static string GetNameForFile(string inputFile, string? namespacePrefix)
         {
             inputFile = Path.GetFileName(inputFile);
             if (namespacePrefix != null &&
@@ -725,7 +715,7 @@ namespace Opc.Ua.SourceGeneration
     {
         public static TextFileResource AsTextFileResource(
             this string fileName,
-            string namespacePrefix = null)
+            string? namespacePrefix = null)
         {
             return new TextFileResource(
                 Resource.GetNameForFile(fileName, namespacePrefix),
@@ -734,7 +724,7 @@ namespace Opc.Ua.SourceGeneration
 
         public static BinaryFileResource ToBinaryFileResource(
             this string fileName,
-            string namespacePrefix = null)
+            string? namespacePrefix = null)
         {
             return new BinaryFileResource(
                 Resource.GetNameForFile(fileName, namespacePrefix),

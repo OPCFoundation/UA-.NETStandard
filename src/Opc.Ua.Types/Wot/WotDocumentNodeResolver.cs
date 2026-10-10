@@ -418,7 +418,7 @@ namespace Opc.Ua.Wot
                 int separator = nodeId.IndexOf(';', StringComparison.Ordinal);
                 if (nodeId.StartsWith("nsu=", StringComparison.Ordinal) && separator > 4)
                 {
-                    m_namespaces.Add(nodeId[4..separator]);
+                    m_namespaces.Add(CoreUtils.UnescapeUri(nodeId.AsSpan(4, separator - 4)));
                 }
             }
             string? browseName = ReadString(element, "uav:browseName");

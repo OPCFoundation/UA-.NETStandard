@@ -156,8 +156,14 @@ namespace Opc.Ua.AI.Inference
                 };
             }
 
-            var options = new ChatOptions { ModelId = request.Model };
-            ApplyParameters(options, request.Parameters);
+            InferenceParameters parameters = InferenceParameters.Parse(request.Parameters);
+            var options = new ChatOptions
+            {
+                ModelId = request.Model,
+                Temperature = parameters.Temperature,
+                MaxOutputTokens = parameters.MaxTokens,
+                TopP = parameters.TopP
+            };
 
             using var timeout = request.Timeout > TimeSpan.Zero
                 ? new CancellationTokenSource(request.Timeout)
@@ -492,55 +498,6 @@ namespace Opc.Ua.AI.Inference
                 return ChatRole.Tool;
             }
             return ChatRole.User;
-        }
-
-        private static void ApplyParameters(
-            ChatOptions options,
-            IReadOnlyDictionary<string, string> parameters)
-        {
-            if (parameters == null)
-            {
-                return;
-            }
-            foreach (KeyValuePair<string, string> parameter in parameters)
-            {
-                if (string.Equals(parameter.Key, "temperature", StringComparison.OrdinalIgnoreCase) &&
-                    float.TryParse(
-                        parameter.Value,
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out float temperature))
-                {
-                    options.Temperature = temperature;
-                }
-                else if (string.Equals(parameter.Key, "max_tokens", StringComparison.OrdinalIgnoreCase) &&
-                    int.TryParse(
-                        parameter.Value,
-                        System.Globalization.NumberStyles.Integer,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out int maxTokens))
-                {
-                    options.MaxOutputTokens = maxTokens;
-                }
-                else if (string.Equals(parameter.Key, "top_p", StringComparison.OrdinalIgnoreCase) &&
-                    float.TryParse(
-                        parameter.Value,
-                        System.Globalization.NumberStyles.Float,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out float topP))
-                {
-                    options.TopP = topP;
-                }
-                else
-                {
-                    // A parameter the backend cannot honour is refused rather than
-                    // dropped: a caller whose parameter was silently ignored
-                    // believes it took effect and never finds out otherwise.
-                    throw new ArgumentException(
-                        "The backend does not support the call parameter '" + parameter.Key + "'.",
-                        nameof(parameters));
-                }
-            }
         }
 
         private static InferenceResult Project(ChatResponse response, string requested)

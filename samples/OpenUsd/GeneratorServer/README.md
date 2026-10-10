@@ -311,13 +311,17 @@ Prim names in that script are load-bearing. `OpenUsdBindings.cs` drives
 
 ## The model files
 
-`Model/` vendors the Generators nodeset plus a reduced Machinery nodeset. The
-reduction is not cosmetic: the full official Machinery nodeset does not survive the
-model source generator, and it drags in the IA namespace through a single optional
-`Stacklight` member that a generator set does not have.
-[`prepare_machinery_nodeset.py`](Model/prepare_machinery_nodeset.py) derives the
-reduced set from the official one by whitelist, so the provenance stays checkable
-and the whitelist is the only thing to edit when more types are needed.
+`Model/` vendors the Generators nodeset only. Machinery comes from the shared
+[`Opc.Ua.Machinery`](../../../src/Opc.Ua.Machinery) package, and IA from
+[`Opc.Ua.IA`](../../../src/Opc.Ua.IA).
+
+The sample used to vendor a reduced Machinery nodeset derived by a whitelist
+script, because the full official one did not survive the model source
+generator. That defect is fixed, so the reduction and the script are gone and
+the sample sees the same OPC 40001-1 1.04.1 model as every other consumer —
+including the `Stacklight` member that reaches into IA, which the reduction had
+stripped. `GeneratorNodeManager` therefore registers the IA namespace and loads
+the IA model alongside Machinery.
 
 ## Rendering it
 

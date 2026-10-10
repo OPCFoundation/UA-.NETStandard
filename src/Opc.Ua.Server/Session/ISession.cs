@@ -104,6 +104,7 @@ namespace Opc.Ua.Server
         /// </remarks>
         /// <typeparam name="TResult">The type of the value produced.</typeparam>
         /// <param name="read">The projection applied to the diagnostics.</param>
+        /// <returns>The value produced by the projection.</returns>
         TResult ReadDiagnostics<TResult>(Func<SessionDiagnosticsDataType, TResult> read);
 
         /// <summary>
@@ -117,20 +118,26 @@ namespace Opc.Ua.Server
         /// rules) and should be recomputed on the next request.
         /// </summary>
         /// <remarks>
-        /// The flag is set by <see cref="MarkIdentityStale"/> and cleared by
-        /// <see cref="RefreshEffectiveIdentity"/>. Per OPC UA Part 18 §4.4.1
+        /// A generation is advanced by <see cref="MarkIdentityStale"/> and
+        /// captured refreshes clear only their own generation. Per OPC UA Part 18 §4.4.1
         /// role grants must reflect the live RoleSet without forcing the
         /// client to re-activate.
         /// </remarks>
         bool IsIdentityStale { get; }
 
         /// <summary>
+        /// Captures the identity and generation used for a conditional role refresh.
+        /// </summary>
+        /// <returns>The identity and its current refresh generation.</returns>
+        IdentityRefreshSnapshot CaptureIdentityRefreshSnapshot();
+
+        /// <summary>
         /// Marks the session's <see cref="EffectiveIdentity"/> as stale so
         /// the next request triggers a re-evaluation of the role mapping.
         /// </summary>
         /// <remarks>
-        /// Safe to call from any thread. Multiple concurrent calls are
-        /// idempotent — the flag is sticky until a refresh clears it.
+        /// Safe to call from any thread. Multiple concurrent calls advance
+        /// the generation so no stale refresh can clear a newer change.
         /// </remarks>
         void MarkIdentityStale();
 
@@ -144,6 +151,18 @@ namespace Opc.Ua.Server
         /// on by mandatory-role assignment and the live RoleSet).
         /// </param>
         void RefreshEffectiveIdentity(IUserIdentity effectiveIdentity);
+
+        /// <summary>
+        /// Replaces the effective identity only when the captured identity generation is current.
+        /// </summary>
+        /// <param name="expectedIdentity">The identity captured before resolving the updated roles.</param>
+        /// <param name="expectedGeneration">The refresh generation captured with the identity.</param>
+        /// <param name="effectiveIdentity">The resolved identity to publish if the snapshot remains current.</param>
+        /// <returns>True when the identity was replaced; false when the snapshot was stale.</returns>
+        bool TryRefreshEffectiveIdentity(
+            IUserIdentity expectedIdentity,
+            long expectedGeneration,
+            IUserIdentity effectiveIdentity);
 
         /// <summary>
         /// Returns the session's endpoint
@@ -199,6 +218,7 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="context">The operation context of the create request.</param>
         /// <param name="cancellationToken">The cancellation token.</param>
+        /// <returns>A task that completes when the session's asynchronous initialization finishes.</returns>
         ValueTask InitializeAsync(
             OperationContext context,
             CancellationToken cancellationToken = default);
@@ -206,6 +226,13 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Activates the session and binds it to the current secure channel.
         /// </summary>
+        /// <param name="context">The activation request context, including the current secure channel.</param>
+        /// <param name="identityToken">The validated user identity token handler.</param>
+        /// <param name="identity">The authenticated user identity.</param>
+        /// <param name="effectiveIdentity">The identity after role mapping and augmentation.</param>
+        /// <param name="localeIds">The client's preferred locales.</param>
+        /// <param name="serverNonce">The server nonce assigned for the next activation.</param>
+        /// <returns>True when the user identity or preferred locales changed; otherwise, false.</returns>
         bool Activate(
             OperationContext context,
             IUserIdentityTokenHandler identityToken,
@@ -217,6 +244,8 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Closes a session and removes itself from the address space.
         /// </summary>
+        /// <param name="cancellationToken">The token used to cancel asynchronous closure.</param>
+        /// <returns>A task that completes when closure finishes.</returns>
         ValueTask CloseAsync(CancellationToken cancellationToken = default);
 
         /// <summary>
@@ -228,16 +257,20 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Checks if the secure channel is currently valid.
         /// </summary>
+        /// <param name="secureChannelId">The secure channel identifier to validate.</param>
+        /// <returns>True when the identifier matches the session's current secure channel; otherwise, false.</returns>
         bool IsSecureChannelValid(string secureChannelId);
 
         /// <summary>
         /// Set the ECC security policy URI
         /// </summary>
+        /// <param name="securityPolicyUri">The security policy selected for protecting the user token.</param>
         void SetUserTokenSecurityPolicy(string securityPolicyUri);
 
         /// <summary>
         /// Updates the requested locale ids.
         /// </summary>
+        /// <param name="localeIds">The new preferred locale identifiers.</param>
         /// <returns>true if the new locale ids are different from the old locale ids.</returns>
         bool UpdateLocaleIds(ArrayOf<string> localeIds);
 
@@ -262,11 +295,25 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Validate the diagnostic info.
         /// </summary>
+        /// <param name="requestHeader">The request header whose diagnostic flags must be validated.</param>
         void ValidateDiagnosticInfo(RequestHeader requestHeader);
 
         /// <summary>
         /// Validates the request.
         /// </summary>
-        void ValidateRequest(RequestHeader requestHeader, SecureChannelContext secureChannelContext, RequestType requestType);
+        /// <param name="requestHeader">The request header to validate.</param>
+        /// <param name="secureChannelContext">The secure channel that received the request.</param>
+        /// <param name="requestType">The requested service type.</param>
+        void ValidateRequest(
+            RequestHeader requestHeader,
+            SecureChannelContext secureChannelContext,
+            RequestType requestType);
     }
+
+    /// <summary>
+    /// An atomic snapshot of the identity state used for lazy role re-evaluation.
+    /// </summary>
+    public readonly record struct IdentityRefreshSnapshot(
+        IUserIdentity Identity,
+        long Generation);
 }

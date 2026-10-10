@@ -54,6 +54,21 @@ namespace Opc.Ua.Client.ModelChange
         private CancellationTokenSource? m_cts;
         private Task? m_pumpTask;
         private Task? m_startReadyTask;
+
+        /// <summary>
+        /// Incremented for every pump this tracker starts, so a pump that is
+        /// shutting down only clears <see cref="IsTracking"/> when it is still
+        /// the current one.
+        /// </summary>
+        private long m_trackingEpoch;
+
+        /// <summary>
+        /// Callers of <see cref="StartTrackingAsync"/> still waiting for the
+        /// current generation to become ready. The pump is torn down on an
+        /// abandoned start only when the last of them gives up, so one
+        /// caller's cancellation does not fail another that joined the start.
+        /// </summary>
+        private int m_startWaiters;
         private bool m_disposed;
 
         /// <inheritdoc/>
@@ -94,7 +109,7 @@ namespace Opc.Ua.Client.ModelChange
         {
             ct.ThrowIfCancellationRequested();
 
-            bool ownsStart = false;
+            long waitEpoch;
             Task readyTask;
 
             lock (m_stateLock)
@@ -108,55 +123,126 @@ namespace Opc.Ua.Client.ModelChange
                     var ready = new TaskCompletionSource<bool>(
                         TaskCreationOptions.RunContinuationsAsynchronously);
 
-                    m_cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+                    // Do NOT link to the caller's token: it bounds the wait for
+                    // the tracker to become ready, not the lifetime of the
+                    // pump. Linking it makes a per-request token silently kill
+                    // tracking as soon as that request completes.
+                    m_cts = new CancellationTokenSource();
                     // Capture the token before launching the pump task so a racing
                     // StopTrackingAsync (which nulls m_cts) cannot NRE the lambda.
                     CancellationToken pumpToken = m_cts.Token;
+                    long epoch = ++m_trackingEpoch;
+                    m_startWaiters = 0;
                     m_startReadyTask = ready.Task;
                     m_pumpTask = Task.Run(
-                        () => PumpAsync(ready, pumpToken),
+                        () => PumpAsync(ready, epoch, pumpToken),
                         CancellationToken.None);
                     IsTracking = true;
-                    ownsStart = true;
                     readyTask = ready.Task;
                 }
+
+                waitEpoch = m_trackingEpoch;
+                m_startWaiters++;
             }
 
             try
             {
-                await readyTask.ConfigureAwait(false);
+                // The caller's token bounds this wait; the catch below stops
+                // the pump when the last waiter abandons it.
+                await readyTask.WaitAsync(ct).ConfigureAwait(false);
             }
             catch
             {
-                if (ownsStart)
+                CancellationTokenSource? cts = null;
+                Task? pumpTask = null;
+                bool detached = false;
+                lock (m_stateLock)
                 {
-                    await StopTrackingAsync(CancellationToken.None).ConfigureAwait(false);
+                    // Only tear down the generation this call waited for: a
+                    // failing pump clears IsTracking from its own finally, so
+                    // a concurrent caller can have installed a replacement by
+                    // the time this cleanup runs, and stopping unconditionally
+                    // would cancel that replacement instead. A caller that
+                    // joined the start and is still waiting keeps it alive.
+                    // The last-waiter decision and the detach share this lock
+                    // so a caller cannot join a generation that is being torn
+                    // down.
+                    if (LeaveStartWaitLocked(waitEpoch))
+                    {
+                        detached = TryDetachLocked(out cts, out pumpTask);
+                    }
+                }
+                if (detached)
+                {
+                    await CompleteStopAsync(cts, pumpTask).ConfigureAwait(false);
                 }
                 throw;
             }
+            lock (m_stateLock)
+            {
+                LeaveStartWaitLocked(waitEpoch);
+            }
+        }
+
+        /// <summary>
+        /// Leaves the wait for <paramref name="epoch"/> to become ready.
+        /// Returns <c>true</c> when this was the last waiter of the current
+        /// generation. Must be called under <see cref="m_stateLock"/>.
+        /// </summary>
+        private bool LeaveStartWaitLocked(long epoch)
+        {
+            return m_trackingEpoch == epoch && --m_startWaiters == 0;
         }
 
         /// <inheritdoc/>
         public async ValueTask StopTrackingAsync(CancellationToken ct = default)
         {
-            Task? pumpTask;
             CancellationTokenSource? cts;
-
+            Task? pumpTask;
             lock (m_stateLock)
             {
-                if (!IsTracking)
+                if (!TryDetachLocked(out cts, out pumpTask))
                 {
                     return;
                 }
+            }
+            await CompleteStopAsync(cts, pumpTask).ConfigureAwait(false);
+        }
 
-                IsTracking = false;
-                cts = m_cts;
-                pumpTask = m_pumpTask;
-                m_cts = null;
-                m_pumpTask = null;
-                m_startReadyTask = null;
+        /// <summary>
+        /// Detaches the current generation so no later caller can join it.
+        /// Must be called under <see cref="m_stateLock"/>.
+        /// </summary>
+        private bool TryDetachLocked(out CancellationTokenSource? cts, out Task? pumpTask)
+        {
+            cts = null;
+            pumpTask = null;
+
+            // Not gated on IsTracking alone: a pump that ended or faulted
+            // on its own already cleared the flag while leaving its token
+            // source and task behind, and returning here would leak them -
+            // the next StartTrackingAsync would overwrite the fields.
+            if (!IsTracking && m_cts == null && m_pumpTask == null)
+            {
+                return false;
             }
 
+            IsTracking = false;
+            cts = m_cts;
+            pumpTask = m_pumpTask;
+            m_cts = null;
+            m_pumpTask = null;
+            m_startReadyTask = null;
+            return true;
+        }
+
+        /// <summary>
+        /// Cancels and awaits a detached generation.
+        /// </summary>
+        private static async ValueTask CompleteStopAsync(
+            CancellationTokenSource? cts,
+            Task? pumpTask)
+        {
             if (cts != null)
             {
                 try
@@ -195,7 +281,10 @@ namespace Opc.Ua.Client.ModelChange
             await StopTrackingAsync().ConfigureAwait(false);
         }
 
-        private async Task PumpAsync(TaskCompletionSource<bool> ready, CancellationToken ct)
+        private async Task PumpAsync(
+            TaskCompletionSource<bool> ready,
+            long epoch,
+            CancellationToken ct)
         {
             try
             {
@@ -223,6 +312,21 @@ namespace Opc.Ua.Client.ModelChange
             {
                 ready.TrySetException(ex);
                 m_logger.ModelChangeTrackerPumpFailed(ex);
+            }
+            finally
+            {
+                // The pump is gone, so nothing is tracking any more. Leaving
+                // IsTracking set would report a live tracker that never
+                // delivers another model change and would make
+                // StartTrackingAsync a no-op forever. The epoch check keeps a
+                // dying pump from clearing the flag of its replacement.
+                lock (m_stateLock)
+                {
+                    if (m_trackingEpoch == epoch)
+                    {
+                        IsTracking = false;
+                    }
+                }
             }
         }
 

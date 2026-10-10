@@ -40,6 +40,7 @@ using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Builders;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Generators;
+using Opc.Ua.IA;
 using Opc.Ua.Machinery;
 using Opc.Ua.OpenUsd;
 using Opc.Ua.Server;
@@ -142,12 +143,13 @@ namespace Generators
                   postSetupRunner,
                   Opc.Ua.Generators.Namespaces.Generators,
                   Opc.Ua.Machinery.Namespaces.Machinery,
+                  // OPC 40001-1 types MonitoringType/Status/Stacklight with the
+                  // OPC 10000-200 BasicStacklightType, so the full Machinery
+                  // model reaches into IA. The reduced Machinery copy this
+                  // sample used to carry had that edge stripped out.
+                  Opc.Ua.IA.Namespaces.IA,
                   Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
-            // The base constructor points SystemContext.NodeIdFactory at itself;
-            // the New() override below takes over so every instance child gets a
-            // NodeId derived from its parent rather than the type-level one.
-            SystemContext.NodeIdFactory = this;
             m_options = options?.Value ?? new GeneratorDeviceIntegrationOptions();
             if (m_options.GeneratorCount is < 1 or > 100)
             {
@@ -191,19 +193,6 @@ namespace Generators
         /// </summary>
         internal bool InjectFaults => m_options.InjectFaults;
 
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState { Parent: not null } instance)
-            {
-                string parentId = instance.Parent.NodeId.IdentifierAsString;
-                return new NodeId(
-                    $"{parentId}_{instance.SymbolicName}",
-                    InstanceNamespaceIndex);
-            }
-            return node.NodeId;
-        }
-
         /// <summary>
         /// Creates and registers a generator set organised by the DI
         /// <c>DeviceSet</c>, wired into the running simulation.
@@ -219,7 +208,7 @@ namespace Generators
                 browseName,
                 m_generatorSets.Count + 1,
                 cancellationToken,
-                RegisterGeneratorSimulation);
+                RegisterGeneratorSimulationAsync);
         }
 
         /// <inheritdoc/>
@@ -234,6 +223,10 @@ namespace Generators
             // [ModelDependencyAttribute], so a direct chain is sufficient.
             var nodes = new NodeStateCollection();
             nodes.AddOpcUaDi(context);
+            // IA before Machinery: OPC 40001-1's Stacklight is typed by the
+            // OPC 10000-200 BasicStacklightType, so the IA type nodes have to
+            // be in the address space for that type definition to resolve.
+            nodes.AddOpcUaIA(context);
             nodes.AddOpcUaMachinery(context);
             nodes.AddOpcUaGenerators(context);
             nodes.AddOpcUaOpenUsd(context);
@@ -241,7 +234,8 @@ namespace Generators
         }
 
         /// <inheritdoc/>
-        protected override async ValueTask OnAddressSpaceReadyAsync(
+        protected override async ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
             CancellationToken cancellationToken)
         {
             // Phase 1 (async): materialise the instances the fluent Configure pass
@@ -249,9 +243,8 @@ namespace Generators
             await ConfigureInstancesAsync(cancellationToken).ConfigureAwait(false);
 
             // Phase 2 (sync): wire the simulation, state machines and alarms.
-            CreateFluentBuilder(InstanceNamespaceIndex)
-                .Configure(Configure)
-                .Seal();
+            // The base DiNodeManager seals the builder once this returns.
+            Configure(builder);
 
             m_logger.GeneratorAddressSpaceReady(PredefinedNodes.Count, m_generatorSets.Count);
         }
@@ -292,7 +285,7 @@ namespace Generators
             QualifiedName browseName,
             int setNumber,
             CancellationToken cancellationToken,
-            Action<GeneratorSetState>? onRegistered = null)
+            Func<GeneratorSetState, CancellationToken, ValueTask>? onRegistered = null)
         {
             IDeviceBuilder<GeneratorSetState> builder = await CreateDeviceAsync(
                 browseName,
@@ -322,7 +315,10 @@ namespace Generators
             // browse but read BadNotReadable.
             WriteNameplate(builder, setNumber);
 
-            onRegistered?.Invoke(set);
+            if (onRegistered != null)
+            {
+                await onRegistered(set, cancellationToken).ConfigureAwait(false);
+            }
 
             // Variables hand-built onto the set (rather than materialised by the
             // generated factory) browse and read correctly, but a monitored item

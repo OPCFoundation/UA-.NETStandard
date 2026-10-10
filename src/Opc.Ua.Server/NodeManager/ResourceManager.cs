@@ -30,9 +30,10 @@
 using System;
 using System.Collections.Generic;
 using System.Globalization;
+using System.Text;
 using System.Threading;
 using System.Xml;
-#if !NETSTANDARD2_1_OR_GREATER && !NET6_0_OR_GREATER
+#if !NET6_0_OR_GREATER
 using System.Linq;
 #endif
 
@@ -47,12 +48,27 @@ namespace Opc.Ua.Server
         /// Initializes the resource manager with the server instance that owns it.
         /// </summary>
         public ResourceManager(ApplicationConfiguration configuration)
+            : this(configuration, static locale => new CultureInfo(locale))
+        {
+        }
+
+        /// <summary>
+        /// Initializes the resource manager with the factory that creates the
+        /// culture of a locale id.
+        /// </summary>
+        /// <param name="configuration">The configuration of the server.</param>
+        /// <param name="createCulture">Creates the culture of a locale id, or throws
+        /// <see cref="CultureNotFoundException"/> when the runtime cannot create it.</param>
+        internal ResourceManager(
+            ApplicationConfiguration configuration,
+            Func<string, CultureInfo> createCulture)
         {
             if (configuration == null)
             {
                 throw new ArgumentNullException(nameof(configuration));
             }
 
+            m_createCulture = createCulture ?? throw new ArgumentNullException(nameof(createCulture));
             m_translationTables = [];
         }
 
@@ -96,6 +112,46 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// Selects, for every <see cref="LocalizedText"/> held by the value (a scalar
+        /// or a one-dimensional array), the translation that is the most preferred
+        /// for the requested locales, or all translations when "mul" is requested
+        /// (OPC 10000-4 5.4, OPC 10000-3 8.5). Any other value is returned unchanged.
+        /// </summary>
+        /// <remarks>
+        /// The value is never modified in place, so a value stored in the address
+        /// space keeps all its translations. Nothing is selected when no locale is
+        /// requested, the stored value is returned as is.
+        /// </remarks>
+        /// <param name="preferredLocales">The locales of the session, most preferred first.</param>
+        /// <param name="value">The value to translate.</param>
+        /// <returns>The value with every localized text translated.</returns>
+        public virtual Variant TranslateValue(ArrayOf<string> preferredLocales, Variant value)
+        {
+            if (preferredLocales.Count == 0 || value.IsNull)
+            {
+                return value;
+            }
+
+            if (value.TryGetValue(out LocalizedText text))
+            {
+                return Translate(preferredLocales, text);
+            }
+
+            if (value.TryGetValue(out ArrayOf<LocalizedText> texts) && texts.Count > 0)
+            {
+                // copy, the array may be shared with the value stored in the node.
+                var translated = new LocalizedText[texts.Count];
+                for (int ii = 0; ii < translated.Length; ii++)
+                {
+                    translated[ii] = Translate(preferredLocales, texts[ii]);
+                }
+                return Variant.From(translated.ToArrayOf());
+            }
+
+            return value;
+        }
+
+        /// <summary>
         /// Translates a service result.
         /// </summary>
         public ServiceResult Translate(ArrayOf<string> preferredLocales, ServiceResult result)
@@ -127,6 +183,7 @@ namespace Opc.Ua.Server
                         preferredLocales,
                         result.SymbolicId!,
                         result.NamespaceUri!,
+                        result.StatusCode,
                         args!);
                 }
                 else
@@ -164,7 +221,7 @@ namespace Opc.Ua.Server
 
                 for (int ii = 0; ii < m_translationTables.Count; ii++)
                 {
-                    availableLocales[ii] = m_translationTables![ii].Locale!.Name;
+                    availableLocales[ii] = m_translationTables[ii].Locale;
                 }
 
                 return availableLocales;
@@ -193,9 +250,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(text));
             }
 
-            var culture = new CultureInfo(locale);
+            string localeId = GetLocaleId(locale, out bool isNeutral);
 
-            if (culture.IsNeutralCulture)
+            if (isNeutral)
             {
                 throw new ArgumentException(
                     "Cannot specify neutral locales for translation tables.",
@@ -204,8 +261,9 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                TranslationTable? table = GetTable(culture.Name);
-                table!.Translations[key] = text;
+                TranslationTable table = GetTable(localeId);
+                table.Translations[key] = text;
+                m_translationSnapshot = null;
             }
         }
 
@@ -226,9 +284,9 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(translations));
             }
 
-            var culture = new CultureInfo(locale);
+            string localeId = GetLocaleId(locale, out bool isNeutral);
 
-            if (culture.IsNeutralCulture)
+            if (isNeutral)
             {
                 throw new ArgumentException(
                     "Cannot specify neutral locales for translation tables.",
@@ -237,12 +295,13 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
-                TranslationTable? table = GetTable(culture.Name);
+                TranslationTable table = GetTable(localeId);
 
                 foreach (KeyValuePair<string, string> translation in translations)
                 {
-                    table!.Translations[translation.Key] = translation.Value;
+                    table.Translations[translation.Key] = translation.Value;
                 }
+                m_translationSnapshot = null;
             }
         }
 
@@ -308,6 +367,9 @@ namespace Opc.Ua.Server
             LocalizedText defaultText,
             TranslationInfo info)
         {
+            // a null LocaleId is legal wire input (Part 3 8.4) and means unknown.
+            preferredLocales = RemoveUnknownLocales(preferredLocales);
+
             // check for trivial case.
             if (string.IsNullOrEmpty(info.Text) && string.IsNullOrEmpty(info.Key))
             {
@@ -317,27 +379,30 @@ namespace Opc.Ua.Server
             defaultText = defaultText.WithTranslationInfo(info);
             bool isMultilanguageRequested =
                 preferredLocales.Count > 0 &&
-                preferredLocales[0].ToLowerInvariant() is "mul" or "qst";
+                preferredLocales[0]?.ToLowerInvariant() is "mul" or "qst";
 
             // check for exact match.
             if (preferredLocales.Count > 0)
             {
+                // locale ids are compared case-insensitively (RFC 5646).
                 if (!defaultText.IsNullOrEmpty &&
                     !isMultilanguageRequested &&
-                    preferredLocales[0] == defaultText.Locale)
+                    string.Equals(preferredLocales[0], defaultText.Locale, StringComparison.OrdinalIgnoreCase))
                 {
                     return defaultText;
                 }
 
-                // MultiLanguageText requested, specified numer of locales was found in the default text.
+                // MultiLanguageText requested and the default text holds exactly the
+                // requested locales.
                 if (isMultilanguageRequested &&
                     preferredLocales.Count > 1 &&
-                    defaultText.Translations?.Count == preferredLocales.Count - 1)
+                    defaultText.Translations?.Count == preferredLocales.Count - 1 &&
+                    ContainsAllLocales(defaultText.Translations, preferredLocales))
                 {
                     return defaultText.AsMultiLanguage();
                 }
 
-                if (preferredLocales[0] == info.Locale)
+                if (string.Equals(preferredLocales[0], info.Locale, StringComparison.OrdinalIgnoreCase))
                 {
                     return new LocalizedText(info);
                 }
@@ -346,7 +411,7 @@ namespace Opc.Ua.Server
             // get translation for multiLanguage request
             if (isMultilanguageRequested)
             {
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
                 Dictionary<string, string> translations =
                     defaultText.Translations != null
                         ? new Dictionary<string, string>(defaultText.Translations)
@@ -359,35 +424,34 @@ namespace Opc.Ua.Server
                         : [];
 #endif
                 // If only mul/qst is requested, return all available translations for the key.
+                TranslationTable[] tables = GetTranslationSnapshot();
                 if (preferredLocales.Count == 1)
                 {
-                    lock (m_lock)
+                    foreach (TranslationTable table in tables)
                     {
-                        foreach (TranslationTable table in m_translationTables)
+                        if (table.Translations
+                            .TryGetValue((info.Key ?? info.Text)!, out string? translation))
                         {
-                            if (table.Translations
-                                .TryGetValue((info.Key ?? info.Text)!, out string? translation))
-                            {
-                                translations[table!.Locale!.Name] = translation!;
-                            }
+                            translations[table.Locale] = translation!;
                         }
                     }
                 }
                 else
                 {
                     // mul/qst + specific locales: return only those translations
-                    lock (m_lock)
+                    for (int i = 1; i < preferredLocales.Count; i++)
                     {
-                        for (int i = 1; i < preferredLocales.Count; i++)
+                        string? translation = FindBestTranslation(
+                            tables,
+                            preferredLocales.Slice(i, 1),
+                            (info.Key ?? info.Text)!,
+                            out string locale);
+                        if (translation != null)
                         {
-                            string? translation = FindBestTranslation(
-                                preferredLocales.Slice(i, 1),
-                                (info.Key ?? info.Text)!,
-                                out CultureInfo culture);
-                            if (translation != null)
-                            {
-                                translations[preferredLocales[i]] = translation;
-                            }
+                            // label the text with the locale of the table it came
+                            // from, which may be another region of the requested
+                            // language.
+                            translations[locale] = translation;
                         }
                     }
                 }
@@ -400,41 +464,96 @@ namespace Opc.Ua.Server
             else
             {
                 // find the best translation.
-                string? translatedText = info.Text;
-                CultureInfo culture = CultureInfo.InvariantCulture;
+                string? translatedText;
+                string locale;
 
-                lock (m_lock)
+                translatedText = FindBestTranslation(
+                    GetTranslationSnapshot(),
+                    preferredLocales,
+                    (info.Key ?? info.Text)!,
+                    out locale);
+
+                // use the default if no translation available.
+                if (translatedText == null)
                 {
-                    translatedText = FindBestTranslation(
-                        preferredLocales,
-                        (info.Key ?? info.Text)!,
-                        out culture);
-
-                    // use the default if no translation available.
-                    if (translatedText == null)
-                    {
-                        return defaultText.FilterByPreferredLocales(preferredLocales);
-                    }
+                    return preferredLocales.Count > 0 && defaultText.Translations == null && info.Text != null
+                        ? new LocalizedText(info)
+                        : defaultText.FilterByPreferredLocales(preferredLocales);
                 }
 
                 // construct translated localized text.
-                return new LocalizedText(culture.Name, translatedText, info);
+                return new LocalizedText(locale, translatedText, info);
             }
         }
 
         /// <summary>
         /// Stores the translations for a locale.
         /// </summary>
-        private class TranslationTable
+        private sealed class TranslationTable
         {
-            public CultureInfo? Locale;
-            public SortedDictionary<string, string> Translations = [];
+            /// <summary>
+            /// Creates an empty table for a locale id.
+            /// </summary>
+            public TranslationTable(string locale)
+            {
+                Locale = locale;
+                Language = GetLanguage(locale);
+            }
+
+            /// <summary>
+            /// The locale id in the casing of its culture.
+            /// </summary>
+            public string Locale { get; }
+
+            /// <summary>
+            /// The language of the locale id, used to fall back to another region.
+            /// </summary>
+            public string Language { get; }
+
+            /// <summary>
+            /// The translations by key.
+            /// </summary>
+            public SortedDictionary<string, string> Translations { get; init; } = [];
+        }
+
+        /// <summary>
+        /// Returns an immutable copy of the translation tables. Translations are looked up
+        /// for every localized text a service returns (each DisplayName of a Browse), while
+        /// the tables are written almost only at startup, so readers share a snapshot instead
+        /// of serialising on the lock. The dictionaries are copied, never shared with a writer.
+        /// </summary>
+        private TranslationTable[] GetTranslationSnapshot()
+        {
+            TranslationTable[]? snapshot = Volatile.Read(ref m_translationSnapshot);
+            if (snapshot != null)
+            {
+                return snapshot;
+            }
+
+            lock (m_lock)
+            {
+                snapshot = m_translationSnapshot;
+                if (snapshot == null)
+                {
+                    snapshot = new TranslationTable[m_translationTables.Count];
+                    for (int ii = 0; ii < snapshot.Length; ii++)
+                    {
+                        TranslationTable table = m_translationTables[ii];
+                        snapshot[ii] = new TranslationTable(table.Locale)
+                        {
+                            Translations = new SortedDictionary<string, string>(table.Translations)
+                        };
+                    }
+                    Volatile.Write(ref m_translationSnapshot, snapshot);
+                }
+                return snapshot;
+            }
         }
 
         /// <summary>
         /// Finds the translation table for the locale. Creates a new table if it does not exist.
         /// </summary>
-        private TranslationTable? GetTable(string locale)
+        private TranslationTable GetTable(string locale)
         {
             lock (m_lock)
             {
@@ -443,29 +562,328 @@ namespace Opc.Ua.Server
                 {
                     TranslationTable translationTable = m_translationTables[ii];
 
-                    if (translationTable!.Locale!.Name == locale)
+                    if (translationTable.Locale == locale)
                     {
                         return translationTable;
                     }
                 }
 
                 // add table.
-                var table = new TranslationTable { Locale = new CultureInfo(locale) };
+                var table = new TranslationTable(locale);
                 m_translationTables.Add(table);
+                m_translationSnapshot = null;
 
                 return table;
             }
         }
 
         /// <summary>
+        /// Returns the locale id of a translation table in the casing of its culture,
+        /// and whether the locale id names a language without a region.
+        /// </summary>
+        /// <remarks>
+        /// When the runtime cannot create the culture, as in globalization-invariant
+        /// mode, where it creates no culture other than the invariant culture, a
+        /// well-formed locale id is parsed instead.
+        /// </remarks>
+        /// <exception cref="CultureNotFoundException">The locale id is malformed.</exception>
+        private string GetLocaleId(string locale, out bool isNeutral)
+        {
+            lock (m_lock)
+            {
+                if (m_localeIds.TryGetValue(locale, out (string LocaleId, bool IsNeutral) cached))
+                {
+                    isNeutral = cached.IsNeutral;
+                    return cached.LocaleId;
+                }
+
+                string localeId;
+                try
+                {
+                    CultureInfo culture = m_createCulture(locale);
+                    localeId = culture.Name;
+                    isNeutral = culture.IsNeutralCulture;
+                }
+                catch (CultureNotFoundException) when (TryParseLocaleId(locale, out localeId, out isNeutral))
+                {
+                    // the runtime cannot create the culture of a well-formed locale id.
+                }
+
+                m_localeIds[locale] = (localeId, isNeutral);
+                return localeId;
+            }
+        }
+
+        /// <summary>
+        /// Parses a well-formed locale id, a language tag that matches the grammar of
+        /// RFC 5646 section 2.1, into the recommended casing of its subtags, and returns
+        /// whether it names a language without a region.
+        /// </summary>
+        /// <remarks>
+        /// Grandfathered tags and tags that consist of a private use sequence only are
+        /// rejected. The subtags are not checked against the IANA registry.
+        /// </remarks>
+        private static bool TryParseLocaleId(string locale, out string localeId, out bool isNeutral)
+        {
+            localeId = string.Empty;
+            isNeutral = false;
+
+            string[] subtags = locale.Split('-');
+
+            // language = 2*3ALPHA ["-" extlang] / 4ALPHA / 5*8ALPHA
+            string language = subtags[0];
+            if (!IsLetterSubtag(language, 2, 8))
+            {
+                return false;
+            }
+
+            var builder = new StringBuilder(locale.Length);
+            builder.Append(language.ToLowerInvariant());
+            int index = 1;
+
+            // extlang = 3ALPHA *2("-" 3ALPHA), only after a language of two or three letters.
+            if (language.Length <= 3)
+            {
+                for (int count = 0;
+                    count < 3 && index < subtags.Length && IsLetterSubtag(subtags[index], 3, 3);
+                    count++)
+                {
+                    builder.Append('-').Append(subtags[index].ToLowerInvariant());
+                    index++;
+                }
+            }
+
+            // script = 4ALPHA
+            if (index < subtags.Length && IsLetterSubtag(subtags[index], 4, 4))
+            {
+                string script = subtags[index];
+                builder.Append('-')
+                    .Append(char.ToUpperInvariant(script[0]))
+                    .Append(script[1..].ToLowerInvariant());
+                index++;
+            }
+
+            // region = 2ALPHA / 3DIGIT
+            bool hasRegion = false;
+            if (index < subtags.Length &&
+                (IsLetterSubtag(subtags[index], 2, 2) ||
+                    (subtags[index].Length == 3 && IsAsciiDigits(subtags[index]))))
+            {
+                builder.Append('-').Append(subtags[index].ToUpperInvariant());
+                hasRegion = true;
+                index++;
+            }
+
+            // variant = 5*8alphanum / (DIGIT 3alphanum)
+            while (index < subtags.Length && IsVariant(subtags[index]))
+            {
+                builder.Append('-').Append(subtags[index].ToLowerInvariant());
+                index++;
+            }
+
+            // extension = singleton 1*("-" (2*8alphanum))
+            while (index < subtags.Length && IsExtensionSingleton(subtags[index]))
+            {
+                builder.Append('-').Append(subtags[index].ToLowerInvariant());
+                index++;
+                int payloadStart = index;
+                while (index < subtags.Length && IsAlphanumericSubtag(subtags[index], 2, 8))
+                {
+                    builder.Append('-').Append(subtags[index].ToLowerInvariant());
+                    index++;
+                }
+                if (index == payloadStart)
+                {
+                    return false;
+                }
+            }
+
+            // privateuse = "x" 1*("-" (1*8alphanum))
+            if (index < subtags.Length && subtags[index] is "x" or "X")
+            {
+                builder.Append("-x");
+                index++;
+                int payloadStart = index;
+                while (index < subtags.Length && IsAlphanumericSubtag(subtags[index], 1, 8))
+                {
+                    builder.Append('-').Append(subtags[index].ToLowerInvariant());
+                    index++;
+                }
+                if (index == payloadStart)
+                {
+                    return false;
+                }
+            }
+
+            // a subtag that matches no rule, or that follows a later part of the tag.
+            if (index != subtags.Length)
+            {
+                return false;
+            }
+
+            localeId = builder.ToString();
+            isNeutral = !hasRegion;
+            return true;
+        }
+
+        /// <summary>
+        /// Returns true if the subtag has a length in the range and contains only
+        /// ASCII letters.
+        /// </summary>
+        private static bool IsLetterSubtag(string subtag, int minLength, int maxLength)
+        {
+            return subtag.Length >= minLength && subtag.Length <= maxLength && IsAsciiLetters(subtag);
+        }
+
+        /// <summary>
+        /// Returns true if the subtag has a length in the range and contains only
+        /// ASCII letters and digits.
+        /// </summary>
+        private static bool IsAlphanumericSubtag(string subtag, int minLength, int maxLength)
+        {
+            return subtag.Length >= minLength && subtag.Length <= maxLength && IsAsciiLettersOrDigits(subtag);
+        }
+
+        /// <summary>
+        /// Returns true if the subtag is a variant: five to eight letters or digits, or
+        /// a digit followed by three letters or digits.
+        /// </summary>
+        private static bool IsVariant(string subtag)
+        {
+            return IsAlphanumericSubtag(subtag, 5, 8) ||
+                (subtag.Length == 4 && subtag[0] is >= '0' and <= '9' && IsAsciiLettersOrDigits(subtag));
+        }
+
+        /// <summary>
+        /// Returns true if the subtag is a singleton that starts an extension. The
+        /// singleton x starts the private use sequence instead.
+        /// </summary>
+        private static bool IsExtensionSingleton(string subtag)
+        {
+            return subtag.Length == 1 && IsAsciiLettersOrDigits(subtag) && subtag is not ("x" or "X");
+        }
+
+        /// <summary>
+        /// Returns the language subtag of a locale id.
+        /// </summary>
+        private static string GetLanguage(string locale)
+        {
+            int index = locale.IndexOf('-', StringComparison.Ordinal);
+            return index == -1 ? locale : locale[..index];
+        }
+
+        /// <summary>
+        /// Returns true if the value contains only ASCII letters.
+        /// </summary>
+        private static bool IsAsciiLetters(string value)
+        {
+            foreach (char c in value)
+            {
+                if (c is not ((>= 'a' and <= 'z') or (>= 'A' and <= 'Z')))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Returns true if the value contains only ASCII digits.
+        /// </summary>
+        private static bool IsAsciiDigits(string value)
+        {
+            foreach (char c in value)
+            {
+                if (c is not (>= '0' and <= '9'))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Returns true if the value contains only ASCII letters and digits.
+        /// </summary>
+        private static bool IsAsciiLettersOrDigits(string value)
+        {
+            foreach (char c in value)
+            {
+                if (c is not ((>= 'a' and <= 'z') or (>= 'A' and <= 'Z') or (>= '0' and <= '9')))
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Removes the null (unknown) entries from the requested locales.
+        /// </summary>
+        private static ArrayOf<string> RemoveUnknownLocales(ArrayOf<string> preferredLocales)
+        {
+            for (int ii = 0; ii < preferredLocales.Count; ii++)
+            {
+                if (preferredLocales[ii] != null)
+                {
+                    continue;
+                }
+
+                var locales = new List<string>(preferredLocales.Count);
+                for (int jj = 0; jj < preferredLocales.Count; jj++)
+                {
+                    if (preferredLocales[jj] != null)
+                    {
+                        locales.Add(preferredLocales[jj]);
+                    }
+                }
+                return locales.ToArrayOf();
+            }
+            return preferredLocales;
+        }
+
+        /// <summary>
+        /// Returns true if every locale requested after "mul" or "qst" has a
+        /// translation (compared case-insensitively).
+        /// </summary>
+        private static bool ContainsAllLocales(
+            IReadOnlyDictionary<string, string> translations,
+            ArrayOf<string> preferredLocales)
+        {
+            for (int ii = 1; ii < preferredLocales.Count; ii++)
+            {
+                string requested = preferredLocales[ii];
+                if (translations.ContainsKey(requested))
+                {
+                    continue;
+                }
+                bool found = false;
+                foreach (string locale in translations.Keys)
+                {
+                    if (string.Equals(locale, requested, StringComparison.OrdinalIgnoreCase))
+                    {
+                        found = true;
+                        break;
+                    }
+                }
+                if (!found)
+                {
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        /// <summary>
         /// Finds the best translation for the requested locales.
         /// </summary>
-        private string? FindBestTranslation(
+        private static string? FindBestTranslation(
+            TranslationTable[] tables,
             ArrayOf<string> preferredLocales,
             string key,
-            out CultureInfo culture)
+            out string locale)
         {
-            culture = null!;
+            locale = string.Empty;
             TranslationTable? match = null;
 
             if (preferredLocales.Count == 0)
@@ -493,24 +911,30 @@ namespace Opc.Ua.Server
                 // search for translation.
                 string? translatedText = null;
 
-                for (int ii = 0; ii < m_translationTables.Count; ii++)
+                for (int ii = 0; ii < tables.Length; ii++)
                 {
-                    TranslationTable translationTable = m_translationTables[ii];
+                    TranslationTable translationTable = tables[ii];
 
-                    // all done if exact match found.
-                    if (translationTable!.Locale!.Name == preferredLocales[jj] &&
-                        translationTable.Translations.TryGetValue(key, out translatedText))
+                    // all done if exact match found (locale ids are case-insensitive, RFC 5646).
+                    if (string.Equals(
+                            translationTable.Locale,
+                            preferredLocales[jj],
+                            StringComparison.OrdinalIgnoreCase) &&
+                        translationTable.Translations.TryGetValue(key, out string? exactMatch))
                     {
-                        culture = translationTable.Locale;
-                        return translatedText;
+                        locale = translationTable.Locale;
+                        return exactMatch;
                     }
 
                     // check for matching language but different region.
                     if (match == null &&
-                        translationTable.Locale.TwoLetterISOLanguageName == language &&
+                        string.Equals(
+                            translationTable.Language,
+                            language,
+                            StringComparison.OrdinalIgnoreCase) &&
                         translationTable.Translations.TryGetValue(key, out translatedText))
                     {
-                        culture = translationTable.Locale;
+                        locale = translationTable.Locale;
                         match = translationTable;
                     }
                 }
@@ -532,7 +956,8 @@ namespace Opc.Ua.Server
         private LocalizedText TranslateStatusCode(
             ArrayOf<string> preferredLocales,
             StatusCode statusCode,
-            object[] args)
+            object[] args,
+            string? symbolicId = null)
         {
             lock (m_lock)
             {
@@ -549,7 +974,7 @@ namespace Opc.Ua.Server
                 }
             }
 
-            return LocalizedText.From(Utils.Format("{0:X8}", statusCode.Code));
+            return LocalizedText.From(symbolicId ?? Utils.Format("{0:X8}", statusCode.Code));
         }
 
         /// <summary>
@@ -559,6 +984,7 @@ namespace Opc.Ua.Server
             ArrayOf<string> preferredLocales,
             string symbolicId,
             string namespaceUri,
+            StatusCode statusCode,
             object[] args)
         {
             lock (m_lock)
@@ -578,11 +1004,26 @@ namespace Opc.Ua.Server
                 }
             }
 
+            if ((string.IsNullOrEmpty(namespaceUri) || namespaceUri == Ua.Namespaces.OpcUa) &&
+                symbolicId == new StatusCode(statusCode.Code).SymbolicId)
+            {
+                return TranslateStatusCode(preferredLocales, statusCode, args, symbolicId);
+            }
+
             return LocalizedText.From(symbolicId);
         }
 
         private readonly Lock m_lock = new();
+        private readonly Func<string, CultureInfo> m_createCulture;
+        private readonly Dictionary<string, (string LocaleId, bool IsNeutral)> m_localeIds =
+            new(StringComparer.Ordinal);
         private readonly List<TranslationTable> m_translationTables;
+
+        /// <summary>
+        /// Immutable copy of <see cref="m_translationTables"/> read without the lock;
+        /// null after a change until the next translation rebuilds it.
+        /// </summary>
+        private TranslationTable[]? m_translationSnapshot;
         private Dictionary<StatusCode, TranslationInfo>? m_statusCodeMapping;
         private Dictionary<XmlQualifiedName, TranslationInfo>? m_symbolicIdMapping;
     }

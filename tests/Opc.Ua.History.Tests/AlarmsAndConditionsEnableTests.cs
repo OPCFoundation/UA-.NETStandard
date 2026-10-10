@@ -54,7 +54,7 @@ namespace Opc.Ua.History.Tests
             int count = result.References.Count;
             for (int i = 0; i < count; i++)
             {
-                string n = result.References[i].BrowseName.Name;
+                string n = result.References[i].BrowseName.Name!;
                 if (n == "Enable")
                 {
                     foundEnable = true;
@@ -180,6 +180,66 @@ namespace Opc.Ua.History.Tests
                     "Disable/Enable event did not arrive within the expected window " +
                     "(CI load flakiness): " +
                     ex.Message);
+            }
+        }
+
+        /// <summary>
+        /// Verifies an idle server-side Publish timeout does not lose a later condition transition.
+        /// </summary>
+        [Test]
+        public async Task ServerPublishTimeoutKeepsAlarmCollectorListeningAsync()
+        {
+            NodeId alarmId = RequireCttAlarm("AlarmConditionType");
+            await NormalizeAlarmAsync(alarmId).ConfigureAwait(false);
+            EventFilter filter = AlarmEventCollector.CreateCttEventFilter();
+            filter.WhereClause.Elements =
+            [
+                new ContentFilterElement
+                {
+                    FilterOperator = FilterOperator.Equals,
+                    FilterOperands =
+                    [
+                        new ExtensionObject(new SimpleAttributeOperand
+                        {
+                            TypeDefinitionId = ObjectTypeIds.ConditionType,
+                            AttributeId = Attributes.NodeId
+                        }),
+                        new ExtensionObject(new LiteralOperand { Value = new Variant(alarmId) })
+                    ]
+                }
+            ];
+            await using AlarmEventCollector collector =
+                await AlarmEventCollector.CreateAsync(Session, filter).ConfigureAwait(false);
+            try
+            {
+                CallMethodResult disable = await CallMethodOnAlarmAsync(
+                    alarmId, MethodIds.ConditionType_Disable).ConfigureAwait(false);
+                Assert.That(disable.StatusCode, Is.EqualTo(StatusCodes.Good));
+                await collector.WaitForEventAsync(
+                    alarmId,
+                    e => AlarmEventCollector.TryGetBoolean(
+                        e, AlarmEventCollector.FieldIndex.EnabledStateId, out bool enabled) &&
+                        !enabled,
+                    DefaultEventWaitTimeout).ConfigureAwait(false);
+
+                collector.Reset();
+                await Task.Delay(TimeSpan.FromSeconds(2)).ConfigureAwait(false);
+                Assert.That(collector.HasEvents(alarmId), Is.False);
+                CallMethodResult enable = await CallMethodOnAlarmAsync(
+                    alarmId, MethodIds.ConditionType_Enable).ConfigureAwait(false);
+                Assert.That(enable.StatusCode, Is.EqualTo(StatusCodes.Good));
+                EventFieldList enabledEvent = await collector.WaitForEventAsync(
+                    alarmId,
+                    e => AlarmEventCollector.TryGetBoolean(
+                        e, AlarmEventCollector.FieldIndex.EnabledStateId, out bool enabled) &&
+                        enabled,
+                    DefaultEventWaitTimeout).ConfigureAwait(false);
+                Assert.That(AlarmEventCollector.TryGetConditionId(enabledEvent, out NodeId conditionId), Is.True);
+                Assert.That(conditionId, Is.EqualTo(alarmId));
+            }
+            finally
+            {
+                await NormalizeAlarmAsync(alarmId).ConfigureAwait(false);
             }
         }
 

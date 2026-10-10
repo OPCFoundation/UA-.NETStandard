@@ -134,6 +134,8 @@ namespace Opc.Ua.WotCon.Server
         /// <summary>
         /// Reconciles only the browseable AddressSpace. Registry change
         /// transitions queued by the NodeManager remain the event authority.
+        /// Mutation handlers await this before returning so callers can read
+        /// the committed state without waiting for background reconciliation.
         /// </summary>
         public ValueTask ReconcileProjectionAsync(CancellationToken ct)
         {
@@ -565,6 +567,7 @@ namespace Opc.Ua.WotCon.Server
             WotRegistryMutationResult result = await m_manager.Coordinator
                 .SetEnabledAsync(groupId, resourceId, enabled, OptionalEpoch(input, 1), ct)
                 .ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return ToServiceResult(result);
         }
 
@@ -589,6 +592,7 @@ namespace Opc.Ua.WotCon.Server
             WotRegistryMutationResult result = await m_registry
                 .SetDefaultVersionAsync(groupId, resourceId, versionId!, OptionalEpoch(input, 1), ct)
                 .ConfigureAwait(false);
+            await ReconcileProjectionAsync(ct).ConfigureAwait(false);
             return ToServiceResult(result);
         }
 
@@ -634,6 +638,10 @@ namespace Opc.Ua.WotCon.Server
                 : versionId;
             WotResourceVersion? committedVersion =
                 committedResource?.FindVersion(committedVersionId);
+            if (ServiceResult.IsGood(serviceResult))
+            {
+                await ReconcileProjectionAsync(ct).ConfigureAwait(false);
+            }
             return new WotResourceCommitResult(serviceResult, committedVersion);
         }
 

@@ -159,7 +159,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private static bool IsEventType(TypeDesign type)
         {
-            for (TypeDesign current = type;
+            for (TypeDesign? current = type;
                 current != null;
                 current = current.BaseTypeNode)
             {
@@ -219,6 +219,22 @@ namespace Opc.Ua.SourceGeneration
                         typeName));
 
             List<FieldEntry> ownFields = CollectDeclaredFields(objectType);
+            if (string.Equals(
+                objectType.SymbolicName?.Name,
+                "ConditionType",
+                StringComparison.Ordinal))
+            {
+                ownFields.Add(new FieldEntry
+                {
+                    PropertyName = "ConditionId",
+                    DotNetType = "global::Opc.Ua.NodeId",
+                    Description = "The NodeId of the condition instance.",
+                    BrowseName = string.Empty,
+                    NamespaceUri = Namespaces.OpcUa,
+                    ReaderMethod = "GetNodeId",
+                    IsConditionId = true
+                });
+            }
             context.Template.AddReplacement(
                 Tokens.ListOfProperties,
                 EventRecordTemplates.FieldProperty,
@@ -229,17 +245,37 @@ namespace Opc.Ua.SourceGeneration
             // stable positions. Inherited fields come first, in
             // root-to-leaf order; own fields trail.
             List<FieldEntry> allFields = CollectAllFieldsInOrder(objectType);
+            if (IsConditionTypeOrSubtype(objectType) &&
+                !allFields.Exists(static field => field.IsConditionId))
+            {
+                allFields.Add(new FieldEntry
+                {
+                    PropertyName = "ConditionId",
+                    DotNetType = "global::Opc.Ua.NodeId",
+                    Description = "The NodeId of the condition instance.",
+                    BrowseName = string.Empty,
+                    NamespaceUri = Namespaces.OpcUa,
+                    ReaderMethod = "GetNodeId",
+                    IsConditionId = true
+                });
+            }
             // Assign stable positional indices for the decoder.
             for (int i = 0; i < allFields.Count; i++)
             {
                 allFields[i].FieldIndex = i;
             }
 
+            // A companion model declares browse names in its own
+            // namespace. Its records build the browse paths for a session
+            // namespace table; the standard model's paths are all in
+            // namespace 0 and stay a static table.
             context.Template.AddReplacement(
-                Tokens.ListOfFields,
-                EventRecordTemplates.StandardFieldEntry,
-                allFields,
-                WriteTemplate_StandardFieldEntry);
+                Tokens.FieldTable,
+                IsStandardModel()
+                    ? EventRecordTemplates.StaticFieldTable
+                    : EventRecordTemplates.NamespaceFieldTable,
+                [allFields],
+                WriteTemplate_FieldTable);
 
             // Skip fields without a known reader — Variant fallback
             // types have no helper, so the property defaults to its
@@ -261,31 +297,102 @@ namespace Opc.Ua.SourceGeneration
             return context.Template.Render();
         }
 
+        private bool IsStandardModel()
+        {
+            return string.Equals(
+                m_context.ModelDesign.TargetNamespace.Value,
+                Namespaces.OpcUa,
+                StringComparison.Ordinal);
+        }
+
+        private bool WriteTemplate_FieldTable(IWriteContext context)
+        {
+            if (context.Target is not List<FieldEntry> fields)
+            {
+                return false;
+            }
+            context.Template.AddReplacement(
+                Tokens.ListOfFields,
+                EventRecordTemplates.StandardFieldEntry,
+                fields,
+                WriteTemplate_StandardFieldEntry);
+            return context.Template.Render();
+        }
+
+        /// <summary>
+        /// The qualified name expression of a field's browse name. A browse
+        /// name of the standard namespace is in namespace 0; one declared
+        /// by a companion model is resolved against the session namespace
+        /// table (a select clause is matched including the namespace
+        /// index, OPC 10000-4 7.7.4).
+        /// </summary>
+        private string GetBrowseNameExpression(FieldEntry field)
+        {
+            // The name is taken from the constants class of the model that
+            // declares the node and its browse name: only the standard model
+            // and the target model are known to have one with this member (a
+            // field inherited from another companion model's event type is
+            // not in the target's BrowseNames, a target node with a browse
+            // name in namespace 0 not necessarily in Opc.Ua.BrowseNames), so
+            // any other name is a literal.
+            string? ns = field.BrowseNameNamespaceUri ?? field.NamespaceUri;
+            bool declaredByNamespaceModel = field.NamespaceUri == null ||
+                string.Equals(field.NamespaceUri, ns, StringComparison.Ordinal);
+            string name;
+            if (declaredByNamespaceModel &&
+                string.Equals(ns, Namespaces.OpcUa, StringComparison.Ordinal))
+            {
+                name = CoreUtils.Format("global::Opc.Ua.BrowseNames.{0}", field.BrowseName);
+            }
+            else if (string.IsNullOrEmpty(ns) ||
+                (declaredByNamespaceModel &&
+                    string.Equals(ns, m_context.ModelDesign.TargetNamespace.Value, StringComparison.Ordinal)))
+            {
+                name = CoreUtils.Format(
+                    "global::{0}.BrowseNames.{1}",
+                    m_context.ModelDesign.TargetNamespace.Prefix,
+                    field.BrowseName);
+            }
+            else
+            {
+                name = (field.BrowseNameText ?? field.BrowseName).AsStringLiteral();
+            }
+
+            if (IsStandardModel() ||
+                string.IsNullOrEmpty(ns) ||
+                string.Equals(ns, Namespaces.OpcUa, StringComparison.Ordinal))
+            {
+                return CoreUtils.Format("global::Opc.Ua.QualifiedName.From({0})", name);
+            }
+            return CoreUtils.Format(
+                "new global::Opc.Ua.QualifiedName({0}, GetNamespaceIndex(namespaceUris, {1}))",
+                name,
+                ns.AsStringLiteral());
+        }
+
         private bool WriteTemplate_StandardFieldEntry(IWriteContext context)
         {
             if (context.Target is not FieldEntry field)
             {
                 return false;
             }
-            string browseNames = string.Equals(
-                field.NamespaceUri,
-                Namespaces.OpcUa,
-                StringComparison.Ordinal)
-                ? "global::Opc.Ua.BrowseNames"
-                : CoreUtils.Format(
-                    "global::{0}.BrowseNames",
-                    m_context.ModelDesign.TargetNamespace.Prefix);
+            if (field.IsConditionId)
+            {
+                context.Template.AddReplacement(
+                    Tokens.ChildPath,
+                    "global::System.Array.Empty<global::Opc.Ua.QualifiedName>()");
+                return context.Template.Render();
+            }
+
+            string browseName = GetBrowseNameExpression(field);
             string path = field.IsTwoStateVariableId
                 ? CoreUtils.Format(
-                    "global::Opc.Ua.QualifiedName.From({0}.{1}), " +
-                    "global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.Id)",
-                    browseNames,
-                    field.BrowseName)
-                : CoreUtils.Format(
-                    "global::Opc.Ua.QualifiedName.From({0}.{1})",
-                    browseNames,
-                    field.BrowseName);
-            context.Template.AddReplacement(Tokens.ChildPath, path);
+                    "{0}, global::Opc.Ua.QualifiedName.From(global::Opc.Ua.BrowseNames.Id)",
+                    browseName)
+                : browseName;
+            context.Template.AddReplacement(
+                Tokens.ChildPath,
+                CoreUtils.Format("new global::Opc.Ua.QualifiedName[] {{ {0} }}", path));
             return context.Template.Render();
         }
 
@@ -328,7 +435,7 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.ListOfActivatorRegistrations,
                 EventRecordTemplates.DecoderRegistration,
-                reg.Types,
+                reg.Types!,
                 WriteTemplate_DecoderRegistration);
             return context.Template.Render();
         }
@@ -347,6 +454,11 @@ namespace Opc.Ua.SourceGeneration
             context.Template.AddReplacement(
                 Tokens.EventTypeId,
                 FormatEventTypeId(typeName));
+            context.Template.AddReplacement(
+                Tokens.FieldTable,
+                IsStandardModel()
+                    ? "StandardFields"
+                    : "GetStandardFields(namespaceUris)");
             return context.Template.Render();
         }
 
@@ -395,7 +507,7 @@ namespace Opc.Ua.SourceGeneration
             // Walk parent chain to the BaseEventType, collecting the
             // chain root-to-leaf.
             var chain = new List<ObjectTypeDesign>();
-            for (TypeDesign current = type;
+            for (TypeDesign? current = type;
                 current is ObjectTypeDesign cot;
                 current = current.BaseTypeNode)
             {
@@ -413,10 +525,27 @@ namespace Opc.Ua.SourceGeneration
                 foreach (FieldEntry field in CollectFieldsAtLevel(level, seen))
                 {
                     fields.Add(field);
-                    seen.Add(field.BrowseName);
+                    seen.Add(field.BrowseName!);
                 }
             }
             return fields;
+        }
+
+        private static bool IsConditionTypeOrSubtype(ObjectTypeDesign type)
+        {
+            for (TypeDesign? current = type;
+                current is ObjectTypeDesign objectType;
+                current = objectType.BaseTypeNode)
+            {
+                if (string.Equals(
+                    objectType.SymbolicName?.Name,
+                    "ConditionType",
+                    StringComparison.Ordinal))
+                {
+                    return true;
+                }
+            }
+            return false;
         }
 
         /// <summary>
@@ -430,7 +559,7 @@ namespace Opc.Ua.SourceGeneration
             HashSet<string> suppressed)
         {
             var fields = new List<FieldEntry>();
-            InstanceDesign[] children = type.Children?.Items;
+            InstanceDesign[]? children = type.Children?.Items;
             if (children == null)
             {
                 return fields;
@@ -447,7 +576,7 @@ namespace Opc.Ua.SourceGeneration
                 {
                     continue;
                 }
-                string browseName = child.SymbolicName?.Name;
+                string? browseName = child.SymbolicName?.Name;
                 if (string.IsNullOrEmpty(browseName))
                 {
                     continue;
@@ -475,7 +604,9 @@ namespace Opc.Ua.SourceGeneration
                             property.Description?.Value),
                         BrowseName = browseName,
                         NamespaceUri = child.SymbolicId?.Namespace,
-                        ReaderMethod = MapReaderMethod(property.DataTypeNode, dotnet),
+                        BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
+                        BrowseNameText = child.BrowseName,
+                        ReaderMethod = MapReaderMethod(property.DataTypeNode!, dotnet),
                         IsTwoStateVariableId = false
                     });
                     continue;
@@ -483,7 +614,7 @@ namespace Opc.Ua.SourceGeneration
 
                 if (child is VariableDesign variable)
                 {
-                    string typeId = variable.TypeDefinitionNode?.SymbolicId?.Name;
+                    string? typeId = variable.TypeDefinitionNode?.SymbolicId?.Name;
                     if (typeId == "TwoStateVariableType")
                     {
                         fields.Add(new FieldEntry
@@ -494,6 +625,8 @@ namespace Opc.Ua.SourceGeneration
                                 $"Id of the {browseName} TwoStateVariable."),
                             BrowseName = browseName,
                             NamespaceUri = child.SymbolicId?.Namespace,
+                            BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
+                            BrowseNameText = child.BrowseName,
                             ReaderMethod = "GetNullableBool",
                             IsTwoStateVariableId = true
                         });
@@ -513,7 +646,9 @@ namespace Opc.Ua.SourceGeneration
                             variable.Description?.Value),
                         BrowseName = browseName,
                         NamespaceUri = child.SymbolicId?.Namespace,
-                        ReaderMethod = MapReaderMethod(variable.DataTypeNode, dotnetVar),
+                        BrowseNameNamespaceUri = child.SymbolicName?.Namespace,
+                        BrowseNameText = child.BrowseName,
+                        ReaderMethod = MapReaderMethod(variable.DataTypeNode!, dotnetVar),
                         IsTwoStateVariableId = false
                     });
                 }
@@ -533,7 +668,7 @@ namespace Opc.Ua.SourceGeneration
         private HashSet<string> CollectInheritedFieldNames(ObjectTypeDesign type)
         {
             var names = new HashSet<string>(StringComparer.Ordinal);
-            for (TypeDesign current = type.BaseTypeNode;
+            for (TypeDesign? current = type.BaseTypeNode;
                 current is ObjectTypeDesign parent;
                 current = parent.BaseTypeNode)
             {
@@ -547,7 +682,7 @@ namespace Opc.Ua.SourceGeneration
                     {
                         continue;
                     }
-                    string name = child.SymbolicName?.Name;
+                    string? name = child.SymbolicName?.Name;
                     if (!string.IsNullOrEmpty(name))
                     {
                         names.Add(name);
@@ -569,7 +704,7 @@ namespace Opc.Ua.SourceGeneration
         /// in <c>Nullable&lt;Variant&gt;</c>.
         /// </summary>
         private string MapDataType(
-            DataTypeDesign dataType,
+            DataTypeDesign? dataType,
             ValueRank rank,
             ObjectTypeDesign declaringType,
             string fieldName)
@@ -583,12 +718,20 @@ namespace Opc.Ua.SourceGeneration
                 IsTypedXRegistrySourceUrl(declaringType, fieldName));
             if (rank == ValueRank.Array)
             {
+                // XmlElement keeps its element nullability: GetXmlElementArray
+                // cannot produce a non-null element for every slot, so the
+                // declared element type has to admit null.
+                if (string.Equals(
+                    baseType, "global::System.Xml.XmlElement?", StringComparison.Ordinal))
+                {
+                    return "global::System.Xml.XmlElement?[]?";
+                }
                 return CoreUtils.Format("{0}[]?", StripNullable(baseType));
             }
             return baseType;
         }
 
-        private static string StripNullable(string typeName)
+        private static string? StripNullable(string typeName)
         {
             if (typeName != null && typeName.EndsWith('?'))
             {
@@ -599,6 +742,25 @@ namespace Opc.Ua.SourceGeneration
 
         private string MapScalarDataType(DataTypeDesign dataType, bool typedUriString)
         {
+            if (!string.Equals(
+                dataType.SymbolicId?.Namespace,
+                Namespaces.OpcUa,
+                StringComparison.Ordinal))
+            {
+                // The names below are the standard data types; a companion
+                // model's own "Duration" is not the standard one. Only its
+                // structures, enumerations and OptionSets get a generated
+                // class - a simple subtype (e.g. Percent : Double) is
+                // represented by the built-in type it derives from.
+                if (dataType.BasicDataType is BasicDataType.UserDefined or
+                        BasicDataType.Enumeration ||
+                    dataType.IsOptionSet ||
+                    dataType.BaseTypeNode is not DataTypeDesign baseType)
+                {
+                    return ResolveCustomDataType(dataType);
+                }
+                return MapScalarDataType(baseType, typedUriString);
+            }
             switch (dataType.SymbolicId?.Name)
             {
                 case "Boolean":
@@ -640,8 +802,12 @@ namespace Opc.Ua.SourceGeneration
                 // type's own .IsNull instead of wrapping in Nullable<T>.
                 case "ByteString":
                     return "global::Opc.Ua.ByteString";
+                // Nullable, unlike its INullable-implementing siblings below:
+                // XmlElement has no null value of its own, so the reader hands
+                // back null for an absent or null field and the declared
+                // property has to say so.
                 case "XmlElement":
-                    return "global::System.Xml.XmlElement";
+                    return "global::System.Xml.XmlElement?";
                 case "NodeId":
                     return "global::Opc.Ua.NodeId";
                 case "ExpandedNodeId":
@@ -676,49 +842,126 @@ namespace Opc.Ua.SourceGeneration
         /// Maps the emitted .NET type to the corresponding
         /// <c>EventRecordFieldReaders</c> helper method name. Used
         /// by the decoder template to emit positional reads.
-        /// Returns <c>null</c> for types without a matching reader —
-        /// the generated decoder falls back to a no-op default for
-        /// those fields (and notably the <c>Variant</c> fallback for
-        /// unmapped data types is not populated).
+        /// Every type <see cref="MapScalarDataType"/> can produce has a reader,
+        /// including the <c>Variant</c> fallback for data types with no more
+        /// specific projection - a declared record property that the decoder
+        /// never populates would read as null for every event.
         /// </summary>
-        private string MapReaderMethod(DataTypeDesign dataType, string dotnetType)
+        private string? MapReaderMethod(DataTypeDesign dataType, string dotnetType)
         {
             switch (dotnetType)
             {
                 case "bool?":
                     return "GetNullableBool";
+                case "sbyte?":
+                    return "GetNullableSByte";
+                case "byte?":
+                    return "GetNullableByte";
+                case "short?":
+                    return "GetNullableInt16";
+                case "ushort?":
+                    return "GetNullableUInt16";
+                case "int?":
+                    return "GetNullableInt32";
+                case "uint?":
+                    return "GetNullableUInt32";
+                case "long?":
+                    return "GetNullableInt64";
+                case "ulong?":
+                    return "GetNullableUInt64";
+                case "float?":
+                    return "GetNullableFloat";
                 case "double?":
                     return "GetNullableDouble";
                 case "global::System.DateTime?":
                     return "GetNullableDateTime";
+                case "global::System.Guid?":
+                    return "GetNullableGuid";
                 case "string?":
                     return "GetString";
-                case "ushort?":
-                    return "GetUInt16";
-                case "uint?":
-                    return "GetNullableUInt32";
-                case "string[]?":
-                    return "GetStringArray";
+                case "global::System.Xml.XmlElement?":
+                    return "GetXmlElement";
                 case "global::Opc.Ua.ByteString":
                     return "GetByteString";
                 case "global::Opc.Ua.NodeId":
                     return "GetNodeId";
-                case "global::Opc.Ua.NodeId[]?":
-                    return "GetNodeIdArray";
+                case "global::Opc.Ua.ExpandedNodeId":
+                    return "GetExpandedNodeId";
+                case "global::Opc.Ua.QualifiedName":
+                    return "GetQualifiedName";
                 case "global::Opc.Ua.LocalizedText":
                     return "GetLocalizedText";
                 case "global::Opc.Ua.StatusCode":
                     return "GetStatusCode";
+                case "global::Opc.Ua.Variant":
+                    return "GetVariant";
+                case "bool[]?":
+                    return "GetBoolArray";
+                case "sbyte[]?":
+                    return "GetSByteArray";
+                case "byte[]?":
+                    return "GetByteArray";
+                case "short[]?":
+                    return "GetInt16Array";
+                case "ushort[]?":
+                    return "GetUInt16Array";
+                case "int[]?":
+                    return "GetInt32Array";
+                case "uint[]?":
+                    return "GetUInt32Array";
+                case "long[]?":
+                    return "GetInt64Array";
+                case "ulong[]?":
+                    return "GetUInt64Array";
+                case "float[]?":
+                    return "GetFloatArray";
+                case "double[]?":
+                    return "GetDoubleArray";
+                case "global::System.DateTime[]?":
+                    return "GetDateTimeArray";
+                case "global::System.Guid[]?":
+                    return "GetGuidArray";
+                case "string[]?":
+                    return "GetStringArray";
+                case "global::System.Xml.XmlElement?[]?":
+                    return "GetXmlElementArray";
+                case "global::Opc.Ua.ByteString[]?":
+                    return "GetByteStringArray";
+                case "global::Opc.Ua.NodeId[]?":
+                    return "GetNodeIdArray";
+                case "global::Opc.Ua.ExpandedNodeId[]?":
+                    return "GetExpandedNodeIdArray";
+                case "global::Opc.Ua.QualifiedName[]?":
+                    return "GetQualifiedNameArray";
                 case "global::Opc.Ua.LocalizedText[]?":
                     return "GetLocalizedTextArray";
+                case "global::Opc.Ua.StatusCode[]?":
+                    return "GetStatusCodeArray";
+                case "global::Opc.Ua.Variant[]?":
+                    return "GetVariantArray";
                 default:
-                    if (!dataType.IsStructure ||
-                        string.Equals(
+                    if (string.Equals(
                             dataType.SymbolicId?.Namespace,
                             Namespaces.OpcUa,
                             StringComparison.Ordinal) ||
-                        dotnetType == "global::Opc.Ua.Variant" ||
-                        dotnetType == "global::Opc.Ua.Variant[]?")
+                        dotnetType == null ||
+                        !dotnetType.StartsWith("global::", StringComparison.Ordinal))
+                    {
+                        return null;
+                    }
+
+                    // A model-local enumeration is transferred as its underlying
+                    // Int32. Without a reader the property is declared on the
+                    // record but dropped from the decoder, so every event reports
+                    // it as the enum's default rather than what the server sent.
+                    if (dataType.IsEnumeration)
+                    {
+                        return dotnetType.EndsWith("[]?", StringComparison.Ordinal)
+                            ? CoreUtils.Format("GetEnumArray<{0}>", dotnetType[..^3])
+                            : CoreUtils.Format("GetEnum<{0}>", dotnetType);
+                    }
+
+                    if (!dataType.IsStructure)
                     {
                         return null;
                     }
@@ -741,8 +984,8 @@ namespace Opc.Ua.SourceGeneration
 
         private string ResolveCustomDataType(DataTypeDesign dataType)
         {
-            string name = dataType.SymbolicId?.Name;
-            string uri = dataType.SymbolicId?.Namespace;
+            string? name = dataType.SymbolicId?.Name;
+            string? uri = dataType.SymbolicId?.Namespace;
             if (string.IsNullOrEmpty(name) || string.IsNullOrEmpty(uri))
             {
                 return "global::Opc.Ua.Variant";
@@ -764,7 +1007,7 @@ namespace Opc.Ua.SourceGeneration
                 foreach (Namespace ns in namespaces)
                 {
                     if (string.Equals(ns?.Value, uri, StringComparison.Ordinal) &&
-                        !string.IsNullOrWhiteSpace(ns.Prefix))
+                        !string.IsNullOrWhiteSpace(ns!.Prefix))
                     {
                         return CoreUtils.Format("global::{0}.{1}", ns.Prefix, name);
                     }
@@ -787,7 +1030,7 @@ namespace Opc.Ua.SourceGeneration
                     typeName);
         }
 
-        private static string SanitizeDescription(string description)
+        private static string SanitizeDescription(string? description)
         {
             if (string.IsNullOrEmpty(description))
             {
@@ -803,7 +1046,7 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string GetOutputNamespace()
         {
-            string @override = m_context.Options?.EventRecordNamespace;
+            string? @override = m_context.Options?.EventRecordNamespace;
             return string.IsNullOrWhiteSpace(@override)
                 ? m_context.ModelDesign.TargetNamespace.Prefix
                 : @override;
@@ -831,7 +1074,7 @@ namespace Opc.Ua.SourceGeneration
             {
                 return kRootBaseRecord;
             }
-            string parentName = parent.SymbolicName?.Name;
+            string? parentName = parent.SymbolicName?.Name;
             if (string.IsNullOrEmpty(parentName))
             {
                 return kRootBaseRecord;
@@ -855,8 +1098,8 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private string ResolveRecordNamespaceForType(TypeDesign type)
         {
-            string typeUri = type.SymbolicName?.Namespace;
-            string targetUri = m_context.ModelDesign.TargetNamespace?.Value;
+            string? typeUri = type.SymbolicName?.Namespace;
+            string? targetUri = m_context.ModelDesign.TargetNamespace?.Value;
 
             if (!string.IsNullOrEmpty(typeUri) &&
                 string.Equals(typeUri, targetUri, StringComparison.Ordinal))
@@ -866,10 +1109,10 @@ namespace Opc.Ua.SourceGeneration
 
             if (!string.IsNullOrEmpty(typeUri))
             {
-                IDictionary<string, string> overrides =
+                IDictionary<string, string>? overrides =
                     m_context.Options?.EventRecordExternalNamespaces;
                 if (overrides != null &&
-                    overrides.TryGetValue(typeUri, out string mapped) &&
+                    overrides.TryGetValue(typeUri, out string? mapped) &&
                     !string.IsNullOrWhiteSpace(mapped))
                 {
                     return mapped;
@@ -886,7 +1129,7 @@ namespace Opc.Ua.SourceGeneration
                     foreach (Namespace ns in namespaces)
                     {
                         if (string.Equals(ns?.Value, typeUri, StringComparison.Ordinal) &&
-                            !string.IsNullOrWhiteSpace(ns.Prefix))
+                            !string.IsNullOrWhiteSpace(ns!.Prefix))
                         {
                             return ns.Prefix;
                         }
@@ -903,13 +1146,16 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private sealed class FieldEntry
         {
-            public string PropertyName { get; set; }
-            public string DotNetType { get; set; }
-            public string Description { get; set; }
-            public string BrowseName { get; set; }
-            public string NamespaceUri { get; set; }
-            public string ReaderMethod { get; set; }
+            public string? PropertyName { get; set; }
+            public string? DotNetType { get; set; }
+            public string? Description { get; set; }
+            public string? BrowseName { get; set; }
+            public string? NamespaceUri { get; set; }
+            public string? BrowseNameNamespaceUri { get; set; }
+            public string? BrowseNameText { get; set; }
+            public string? ReaderMethod { get; set; }
             public bool IsTwoStateVariableId { get; set; }
+            public bool IsConditionId { get; set; }
             public int FieldIndex { get; set; }
         }
 
@@ -920,9 +1166,9 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         private sealed class RegistrationContext
         {
-            public List<ObjectTypeDesign> Types { get; set; }
-            public string ClassName { get; set; }
-            public string MethodName { get; set; }
+            public List<ObjectTypeDesign>? Types { get; set; }
+            public string? ClassName { get; set; }
+            public string? MethodName { get; set; }
         }
 
         private static readonly XmlQualifiedName kBaseEventTypeId =
@@ -930,8 +1176,10 @@ namespace Opc.Ua.SourceGeneration
 
         private const string kStandardUaNamespaceUri = "http://opcfoundation.org/UA/";
         private const string kStandardUaRecordNamespace = "Opc.Ua";
+
         private const string kXRegistryNamespaceUri =
             "http://opcfoundation.org/UA/xRegistry/";
+
         private const string kRootBaseRecord = "global::Opc.Ua.EventRecord";
 
         private readonly IGeneratorContext m_context;

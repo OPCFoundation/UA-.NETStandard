@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
+using System.Formats.Asn1;
 using System.Linq;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
@@ -351,10 +352,11 @@ namespace Opc.Ua.Gds.Server
                         "CSR signature invalid.");
                 }
 
+                // OPC 10000-12 §7.9.3: the ApplicationUri shall be specified
+                // in the CSR, so a CSR without a SubjectAltName URI is rejected.
                 X509SubjectAltNameExtension? altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
-                if (altNameExtension != null &&
-                    altNameExtension.Uris.Count > 0 &&
+                if (altNameExtension == null ||
                     !altNameExtension.Uris.Contains(application.ApplicationUri))
                 {
                     throw new ServiceResultException(
@@ -369,6 +371,129 @@ namespace Opc.Ua.Gds.Server
             }
         }
 
+        /// <inheritdoc/>
+        /// <remarks>
+        /// Runs <see cref="VerifySigningRequestKey"/> first, so a key the GDS
+        /// cannot verify or issue reports Bad_NotSupported rather than the
+        /// Bad_InvalidArgument signature verification would raise for it,
+        /// and then the checks of
+        /// <see cref="VerifySigningRequestAsync(ApplicationRecordDataType, ByteString, CancellationToken)"/>.
+        /// </remarks>
+        public virtual Task VerifySigningRequestAsync(
+            ApplicationRecordDataType application,
+            NodeId certificateType,
+            ByteString certificateRequest,
+            CancellationToken ct = default)
+        {
+            VerifySigningRequestKey(certificateType, certificateRequest);
+            return VerifySigningRequestAsync(application, certificateRequest, ct);
+        }
+
+        /// <summary>
+        /// Checks that the public key of a PKCS#10 signing request matches
+        /// the key algorithm, curve and size of a certificate type.
+        /// </summary>
+        /// <param name="certificateType">The requested certificate type.</param>
+        /// <param name="certificateRequest">The DER encoded PKCS#10 request.</param>
+        /// <exception cref="ServiceResultException">
+        /// Bad_InvalidArgument when the request cannot be parsed or its key
+        /// does not match the type; Bad_NotSupported when the key algorithm
+        /// or size cannot be issued for the type.
+        /// </exception>
+        public static void VerifySigningRequestKey(
+            NodeId certificateType,
+            ByteString certificateRequest)
+        {
+            string keyAlgorithm;
+            string? curve;
+            int rsaKeySize;
+            try
+            {
+                var request = new Pkcs10CertificationRequest(certificateRequest.ToArray());
+                (keyAlgorithm, curve, rsaKeySize) = ReadPublicKeyInfo(request.SubjectPublicKeyInfo);
+            }
+            catch (Exception ex) when (ex is CryptographicException or AsnContentException)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    "The CertificateRequest public key cannot be decoded: " + ex.Message);
+            }
+
+            // OPC 10000-12 §7.9.3: Bad_NotSupported for a public key
+            // algorithm the GDS does not support.
+            if (keyAlgorithm is not RsaEncryptionOid and not EcPublicKeyOid)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    CoreUtils.Format(
+                        "The CertificateRequest public key algorithm {0} is not supported.",
+                        keyAlgorithm));
+            }
+
+            if (IsRsaCertificateType(certificateType))
+            {
+                if (keyAlgorithm != RsaEncryptionOid)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidArgument,
+                        CoreUtils.Format(
+                            "The CertificateRequest has a {0} public key, but the CertificateTypeId {1} requires an RSA key.",
+                            DescribeKey(keyAlgorithm, curve),
+                            certificateType));
+                }
+
+                // OPC 10000-12 §7.8.4.8 / §7.8.4.9 key sizes.
+                (int minKeySize, int maxKeySize) =
+                    certificateType == Ua.ObjectTypeIds.RsaMinApplicationCertificateType
+                        ? (1024, 2048)
+                        : certificateType == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType
+                            ? (2048, 4096)
+                            : (0, int.MaxValue);
+                if (rsaKeySize < minKeySize || rsaKeySize > maxKeySize)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNotSupported,
+                        CoreUtils.Format(
+                            "The CertificateRequest has an RSA key of {0} bits, but the CertificateTypeId {1} requires {2} to {3} bits.",
+                            rsaKeySize,
+                            certificateType,
+                            minKeySize,
+                            maxKeySize));
+                }
+                return;
+            }
+
+            if (!TryGetEccCurveOids(certificateType, out string[]? curveOids))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNotSupported,
+                    CoreUtils.Format(
+                        "The CertificateTypeId {0} is not supported for signing requests.",
+                        certificateType));
+            }
+
+            if (keyAlgorithm != EcPublicKeyOid)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    CoreUtils.Format(
+                        "The CertificateRequest has a {0} public key, but the CertificateTypeId {1} requires an ECC key.",
+                        DescribeKey(keyAlgorithm, curve),
+                        certificateType));
+            }
+
+            if (curve == null || Array.IndexOf(curveOids!, curve) < 0)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument,
+                    CoreUtils.Format(
+                        "The CertificateRequest has a {0} public key, but the CertificateTypeId {1} requires the curve {2}.",
+                        DescribeKey(keyAlgorithm, curve),
+                        certificateType,
+                        string.Join(" or ", curveOids!.Select(DescribeCurve))));
+            }
+        }
+
         public virtual async Task<Certificate> SigningRequestAsync(
             ApplicationRecordDataType application,
             NodeId certificateType,
@@ -378,6 +503,11 @@ namespace Opc.Ua.Gds.Server
         {
             try
             {
+                // a request queued before the key check existed, or one a
+                // custom group verified without it, still fails here with the
+                // exact reason rather than a public key decoding error.
+                VerifySigningRequestKey(certificateType, certificateRequest);
+
                 var pkcs10CertificationRequest = new Pkcs10CertificationRequest(certificateRequest.ToArray());
 
                 if (!pkcs10CertificationRequest.Verify())
@@ -389,10 +519,16 @@ namespace Opc.Ua.Gds.Server
 
                 X509SubjectAltNameExtension? altNameExtension =
                     Pkcs10Utils.GetSubjectAltNameExtension(pkcs10CertificationRequest.Attributes);
-                if (altNameExtension != null)
+                if (altNameExtension == null)
                 {
-                    if (altNameExtension.Uris.Count > 0 &&
-                        !altNameExtension.Uris.Contains(application.ApplicationUri))
+                    // OPC 10000-12 §7.9.3: the ApplicationUri shall be specified in the CSR.
+                    throw new ServiceResultException(
+                        StatusCodes.BadCertificateUriInvalid,
+                        "CSR has no AltNameExtension with the ApplicationUri " + application.ApplicationUri);
+                }
+                else
+                {
+                    if (!altNameExtension.Uris.Contains(application.ApplicationUri))
                     {
                         var applicationUriMissing = new StringBuilder();
                         applicationUriMissing.AppendLine(
@@ -828,7 +964,7 @@ namespace Opc.Ua.Gds.Server
         private static bool TryGetECCCurve(NodeId certificateType, out ECCurve curve)
         {
             curve = default;
-            if (IsRSACertificateType(certificateType))
+            if (IsRsaCertificateType(certificateType))
             {
                 return false;
             }
@@ -838,18 +974,129 @@ namespace Opc.Ua.Gds.Server
                     StatusCodes.BadNotSupported,
                     $"The certificate type {certificateType} is not supported.");
             return true;
-
-            //  Checks if the Certificate Group is for RSA Certificates
-            static bool IsRSACertificateType(NodeId certificateType)
-            {
-                return certificateType.IsNull ||
-                    certificateType == Ua.ObjectTypeIds.ApplicationCertificateType ||
-                    certificateType == Ua.ObjectTypeIds.HttpsCertificateType ||
-                    certificateType == Ua.ObjectTypeIds.UserCertificateType ||
-                    certificateType == Ua.ObjectTypeIds.RsaMinApplicationCertificateType ||
-                    certificateType == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
-            }
         }
+
+        /// <summary>
+        /// Checks if the certificate type is issued with an RSA key.
+        /// </summary>
+        private static bool IsRsaCertificateType(NodeId certificateType)
+        {
+            return certificateType.IsNull ||
+                certificateType == Ua.ObjectTypeIds.ApplicationCertificateType ||
+                certificateType == Ua.ObjectTypeIds.HttpsCertificateType ||
+                certificateType == Ua.ObjectTypeIds.UserCertificateType ||
+                certificateType == Ua.ObjectTypeIds.RsaMinApplicationCertificateType ||
+                certificateType == Ua.ObjectTypeIds.RsaSha256ApplicationCertificateType;
+        }
+
+        /// <summary>
+        /// Gets the named curve OIDs a CSR key may use for an ECC
+        /// certificate type. Returns false for a type the group cannot
+        /// issue from a signing request.
+        /// </summary>
+        private static bool TryGetEccCurveOids(NodeId certificateType, out string[]? curveOids)
+        {
+            if (certificateType == Ua.ObjectTypeIds.EccNistP256ApplicationCertificateType)
+            {
+                curveOids = [NistP256Oid];
+            }
+            else if (certificateType == Ua.ObjectTypeIds.EccNistP384ApplicationCertificateType)
+            {
+                curveOids = [NistP384Oid];
+            }
+            else if (certificateType == Ua.ObjectTypeIds.EccBrainpoolP256r1ApplicationCertificateType)
+            {
+                curveOids = [BrainpoolP256r1Oid];
+            }
+            else if (certificateType == Ua.ObjectTypeIds.EccBrainpoolP384r1ApplicationCertificateType)
+            {
+                curveOids = [BrainpoolP384r1Oid];
+            }
+            else if (certificateType == Ua.ObjectTypeIds.EccApplicationCertificateType)
+            {
+                curveOids = [NistP256Oid, NistP384Oid, BrainpoolP256r1Oid, BrainpoolP384r1Oid];
+            }
+            else
+            {
+                curveOids = null;
+                return false;
+            }
+            return true;
+        }
+
+        /// <summary>
+        /// Reads the key algorithm, the named curve (EC keys) and the
+        /// modulus size in bits (RSA keys) of a DER encoded
+        /// SubjectPublicKeyInfo (RFC 5280 §4.1.2.7).
+        /// </summary>
+        private static (string keyAlgorithm, string? curve, int rsaKeySize) ReadPublicKeyInfo(
+            byte[] subjectPublicKeyInfo)
+        {
+            var reader = new AsnReader(subjectPublicKeyInfo, AsnEncodingRules.DER);
+            AsnReader spki = reader.ReadSequence();
+            AsnReader algorithm = spki.ReadSequence();
+            string keyAlgorithm = algorithm.ReadObjectIdentifier();
+
+            string? curve = null;
+            if (keyAlgorithm == EcPublicKeyOid &&
+                algorithm.HasData &&
+                algorithm.PeekTag() == Asn1Tag.ObjectIdentifier)
+            {
+                curve = algorithm.ReadObjectIdentifier();
+            }
+
+            int rsaKeySize = 0;
+            if (keyAlgorithm == RsaEncryptionOid)
+            {
+                byte[] publicKey = spki.ReadBitString(out _);
+                AsnReader rsaKey = new AsnReader(publicKey, AsnEncodingRules.DER).ReadSequence();
+                ReadOnlySpan<byte> modulus = rsaKey.ReadIntegerBytes().Span;
+                while (modulus.Length > 1 && modulus[0] == 0)
+                {
+                    modulus = modulus[1..];
+                }
+                rsaKeySize = modulus.Length * 8;
+                if (modulus.Length > 0)
+                {
+                    // count the unused leading bits of the top byte
+                    for (int bit = 0x80; bit > 0 && (modulus[0] & bit) == 0; bit >>= 1)
+                    {
+                        rsaKeySize--;
+                    }
+                }
+            }
+
+            return (keyAlgorithm, curve, rsaKeySize);
+        }
+
+        private static string DescribeKey(string keyAlgorithm, string? curve)
+        {
+            return keyAlgorithm switch
+            {
+                RsaEncryptionOid => "RSA",
+                EcPublicKeyOid => "ECC " + (curve == null ? "(no named curve)" : DescribeCurve(curve)),
+                _ => "unsupported (" + keyAlgorithm + ")"
+            };
+        }
+
+        private static string DescribeCurve(string curveOid)
+        {
+            return curveOid switch
+            {
+                NistP256Oid => "nistP256",
+                NistP384Oid => "nistP384",
+                BrainpoolP256r1Oid => "brainpoolP256r1",
+                BrainpoolP384r1Oid => "brainpoolP384r1",
+                _ => curveOid
+            };
+        }
+
+        private const string RsaEncryptionOid = "1.2.840.113549.1.1.1";
+        private const string EcPublicKeyOid = "1.2.840.10045.2.1";
+        private const string NistP256Oid = "1.2.840.10045.3.1.7";
+        private const string NistP384Oid = "1.3.132.0.34";
+        private const string BrainpoolP256r1Oid = "1.3.36.3.3.2.8.1.1.7";
+        private const string BrainpoolP384r1Oid = "1.3.36.3.3.2.8.1.1.11";
 
         /// <summary>
         /// Updates the certificate authority certificate and CRL in the provided CertificateStore

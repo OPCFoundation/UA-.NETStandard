@@ -62,7 +62,7 @@ namespace Microsoft.Extensions.DependencyInjection
     /// <see cref="IHostedService"/> so the .NET Generic Host owns its
     /// lifetime, logging pipeline and Ctrl+C / SIGTERM handling.
     /// </summary>
-    public static class OpcUaServerBuilderExtensions
+    public static partial class OpcUaServerBuilderExtensions
     {
         /// <summary>
         /// Default <see cref="IConfiguration"/> section name used by the
@@ -405,6 +405,9 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddOptions<OpcUaServerOptions>()
                 .Configure(options => BindOpcUaServerOptions(options, section));
+            builder.Services.AddOptions<OpcUaServerOptions>()
+                .Configure(options => BindResourceIsolationOptions(options.ResourceIsolation,
+                    section.GetSection(nameof(OpcUaServerOptions.ResourceIsolation))));
 
             IConfigurationSection rolesSection = section.GetSection("Roles");
             if (rolesSection.Exists())
@@ -481,6 +484,147 @@ namespace Microsoft.Extensions.DependencyInjection
             builder.Services.AddOptions<RoleConfigurationOptions>().Bind(section);
             builder.Services.TryAddSingleton<OpcUaServerRoleManagerRegistration>();
             builder.Services.TryAddSingleton(CreateConfiguredRoleManager);
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers the NodeId factory that every NodeManager the hosted
+        /// server owns mints runtime NodeIds with.
+        /// </summary>
+        /// <remarks>
+        /// Each NodeManager rebases the registered factory onto its own
+        /// namespace, so one registration serves the whole server. Without
+        /// this call NodeManagers default to
+        /// <see cref="NodeIdAssignmentMode.Numeric"/>.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="mode">The identifier type to mint.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddNodeIdFactory(
+            this IOpcUaServerBuilder builder,
+            NodeIdAssignmentMode mode)
+        {
+            return builder.AddNodeIdFactory(new DefaultNodeIdFactory(mode));
+        }
+
+        /// <summary>
+        /// Registers the NodeId factory that every NodeManager the hosted
+        /// server owns mints runtime NodeIds with.
+        /// </summary>
+        /// <remarks>
+        /// Each NodeManager rebases the registered factory onto its own
+        /// namespace, so one registration serves the whole server. The
+        /// factory is registered as <see cref="IRebasableNodeIdFactory"/>, so
+        /// a decorator around <see cref="DefaultNodeIdFactory"/> can be
+        /// registered in its place.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="nodeIdFactory">The factory to register.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> or
+        /// <paramref name="nodeIdFactory"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddNodeIdFactory(
+            this IOpcUaServerBuilder builder,
+            IRebasableNodeIdFactory nodeIdFactory)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            if (nodeIdFactory is null)
+            {
+                throw new ArgumentNullException(nameof(nodeIdFactory));
+            }
+
+            builder.Services.Replace(ServiceDescriptor.Singleton(nodeIdFactory));
+            return builder;
+        }
+
+        /// <summary>
+        /// Decides, for the whole hosted server, whether NodeManagers refuse
+        /// to mint a NodeId they already gave a different browse path.
+        /// </summary>
+        /// <remarks>
+        /// Without this call each factory keeps
+        /// <see cref="DefaultNodeIdFactory.DetectCollisionsByDefault"/>, which
+        /// is on in a debug build and off otherwise. Watching costs memory
+        /// that grows with the address space, which is why the decision is
+        /// server-wide rather than per NodeManager.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="detectCollisions">Whether to watch.</param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder DetectNodeIdCollisions(
+            this IOpcUaServerBuilder builder,
+            bool detectCollisions = true)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.Replace(
+                ServiceDescriptor.Singleton(new NodeIdCollisionDetection(detectCollisions)));
+            return builder;
+        }
+
+        /// <summary>
+        /// Bounds the memory that the chunks of incomplete messages may hold
+        /// across all the transport listeners of the hosted server.
+        /// </summary>
+        /// <remarks>
+        /// A peer that never sends the final chunk of a message makes the server
+        /// keep the chunks it sent. Without this call the budget is sized by
+        /// <see cref="Opc.Ua.Bindings.ChunkReassemblyBudget.GetDefaultMaxBytes(int)"/> from the
+        /// maximum message size; raise it when many clients send large requests
+        /// at the same time, lower it on a device with little memory. Channels on
+        /// which no session has been activated may fill half of it.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="maxBytes">
+        /// The number of bytes the chunks of incomplete messages may hold in
+        /// total.
+        /// </param>
+        /// <returns>The same <see cref="IOpcUaServerBuilder"/> for chaining.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/>
+        /// is <c>null</c>.</exception>
+        /// <exception cref="ArgumentOutOfRangeException"><paramref name="maxBytes"/>
+        /// is not positive.</exception>
+        public static IOpcUaServerBuilder WithChunkReassemblyBudget(
+            this IOpcUaServerBuilder builder,
+            long maxBytes)
+        {
+            return builder.WithChunkReassemblyBudget(maxBytes, maxBytes / 2);
+        }
+
+        /// <summary>
+        /// Bounds incomplete-message memory with an explicit share for channels without an activated session.
+        /// </summary>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="maxBytes">The total retained-byte limit across the server's listeners.</param>
+        /// <param name="maxBytesWithoutSession">
+        /// The occupancy threshold for channels without an activated session.
+        /// </param>
+        /// <returns>The same builder for chaining.</returns>
+        /// <exception cref="ArgumentNullException">The builder is null.</exception>
+        /// <exception cref="ArgumentOutOfRangeException">The total or sessionless limit is invalid.</exception>
+        public static IOpcUaServerBuilder WithChunkReassemblyBudget(
+            this IOpcUaServerBuilder builder,
+            long maxBytes,
+            long maxBytesWithoutSession)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.Replace(
+                ServiceDescriptor.Singleton(
+                    new Opc.Ua.Bindings.ChunkReassemblyBudget(maxBytes, maxBytesWithoutSession)));
             return builder;
         }
 
@@ -620,7 +764,9 @@ namespace Microsoft.Extensions.DependencyInjection
                     sp.GetService<ISecretStore>() ?? new InMemorySecretStore("KeyCredentialPush")));
             builder.Services.AddSingleton(sp => new KeyCredentialPushSubject(
                 sp.GetRequiredService<IKeyCredentialStore>(),
-                sp.GetRequiredService<IOptions<KeyCredentialPushOptions>>().Value));
+                sp.GetRequiredService<IOptions<KeyCredentialPushOptions>>().Value,
+                sp.GetService<ICertificateRegistry>(),
+                sp.GetService<ISecurityPolicyRegistry>()));
             return builder;
         }
 
@@ -868,6 +1014,37 @@ namespace Microsoft.Extensions.DependencyInjection
         }
 
         /// <summary>
+        /// Enables Session-less Service invocation (OPC 10000-4 §6.3): the
+        /// View (except RegisterNodes/UnregisterNodes), Attribute, Method,
+        /// NodeManagement and Query Services without CreateSession, with the
+        /// caller identified by an Access Token in the RequestHeader.
+        /// </summary>
+        /// <remarks>
+        /// Without this, a request that carries no authenticationToken is
+        /// answered with Bad_ServiceUnsupported. Anonymous callers stay
+        /// rejected unless <see cref="SessionlessInvocationOptions.AllowAnonymous"/>
+        /// is set. The options apply to the session manager the server uses,
+        /// including one created by a registered session manager factory.
+        /// </remarks>
+        /// <param name="builder">The server builder.</param>
+        /// <param name="configure">Optional configuration of the accepted identities.</param>
+        /// <returns>The server builder.</returns>
+        /// <exception cref="ArgumentNullException"><paramref name="builder"/> is <c>null</c>.</exception>
+        public static IOpcUaServerBuilder AddSessionlessInvocation(
+            this IOpcUaServerBuilder builder,
+            Action<SessionlessInvocationOptions>? configure = null)
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+            var options = new SessionlessInvocationOptions();
+            configure?.Invoke(options);
+            builder.Services.AddSingleton(options);
+            return builder;
+        }
+
+        /// <summary>
         /// Registers a session manager factory used by the hosted server.
         /// </summary>
         /// <exception cref="ArgumentNullException"></exception>
@@ -976,6 +1153,31 @@ namespace Microsoft.Extensions.DependencyInjection
 
             builder.Services.AddSingleton(provider);
             builder.Services.AddSingleton(new OpcUaServerHistorianRegistration(provider));
+            return builder;
+        }
+
+        /// <summary>
+        /// Registers a dependency-injection-resolved server-wide historian
+        /// provider as the default provider.
+        /// </summary>
+        /// <typeparam name="TProvider">
+        /// The historian service type already registered with dependency
+        /// injection. The service provider owns its lifetime.
+        /// </typeparam>
+        /// <exception cref="ArgumentNullException"></exception>
+        public static IOpcUaServerBuilder AddHistorian<TProvider>(
+            this IOpcUaServerBuilder builder)
+            where TProvider : class, IHistorianProvider
+        {
+            if (builder is null)
+            {
+                throw new ArgumentNullException(nameof(builder));
+            }
+
+            builder.Services.AddSingleton(
+                new OpcUaServerHistorianRegistration(
+                    services => services.GetRequiredService<TProvider>(),
+                    ownsProvider: false));
             return builder;
         }
 
@@ -1357,7 +1559,10 @@ namespace Microsoft.Extensions.DependencyInjection
                 (sp, certificateValidator) => CreateDefaultIdentityAuthenticators(
                     sp,
                     certificateValidator,
-                    options)));
+                    options))
+            {
+                ConfiguresDefaultAuthenticators = true
+            });
         }
 
         private static IEnumerable<IUserTokenAuthenticator> CreateDefaultIdentityAuthenticators(
@@ -1505,12 +1710,16 @@ namespace Microsoft.Extensions.DependencyInjection
                             sp,
                             certificateValidator,
                             options.Identity.Defaults);
-                    }));
+                    })
+                {
+                    ConfiguresDefaultAuthenticators = true
+                });
             }
             services.AddHostedService<OpcUaServerHostedService>();
             services.AddOpcUa().AddApplicationInstance();
             services.TryAddSingleton<IOpcUaServerFactory, DefaultOpcUaServerFactory>();
             services.TryAddSingleton<HostedNodeManagerLifecycle>();
+            services.TryAddSingleton<OpcUaServerAliasNameStartupTask>();
             services.TryAddSingleton<INodeManagerLifecycle>(services =>
                 services.GetRequiredService<HostedNodeManagerLifecycle>());
             RegisterFallbackAnonymousAuthenticator(services);

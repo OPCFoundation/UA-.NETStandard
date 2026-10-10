@@ -827,7 +827,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                 system => Copy(ConfigureValidGraph(system), graph))
                 .ConfigureAwait(false);
 
-            context.Seal();
+            await context.SealAsync().ConfigureAwait(false);
 
             Assert.That(graph.System.AsNode().Node, Is.SameAs(graph.System.State));
             Assert.That(
@@ -837,6 +837,28 @@ namespace Opc.Ua.Robotics.Server.Tests
                 graph.MotionDevice.AsNode().Components().MotionDeviceCategory().Node,
                 Is.SameAs(graph.MotionDevice.State.MotionDeviceCategory));
             Assert.That(graph.Software.AsNode().Node, Is.SameAs(graph.Software.State));
+        }
+
+        /// <summary>
+        /// Sealing an already sealed context is a no-op rather than a second
+        /// activation pass. The hosting extension seals once per manager, but
+        /// the context is reachable from configurators, so a redundant seal
+        /// must not re-run the builder's completion work.
+        /// </summary>
+        [Test]
+        public async Task SealingAnAlreadySealedContextIsANoOp()
+        {
+            IRoboticsBuildContext context = m_fixture.CreateBuildContext();
+            _ = await context.AddMotionDeviceSystemAsync(
+                NextName("DoubleSealed"),
+                system => ConfigureValidGraph(system))
+                .ConfigureAwait(false);
+
+            await context.SealAsync().ConfigureAwait(false);
+
+            Assert.DoesNotThrowAsync(
+                async () => await context.SealAsync().ConfigureAwait(false),
+                "A redundant seal must be ignored, not rejected.");
         }
 
         [Test]
@@ -874,7 +896,8 @@ namespace Opc.Ua.Robotics.Server.Tests
                         .WaitAsync(TimeSpan.FromSeconds(30))
                         .ConfigureAwait(false);
                     ServiceResultException exception =
-                        Assert.Throws<ServiceResultException>(() => context.Seal())!;
+                        Assert.ThrowsAsync<ServiceResultException>(
+                            async () => await context.SealAsync().ConfigureAwait(false))!;
                     Assert.That(
                         exception.StatusCode,
                         Is.EqualTo(StatusCodes.BadInvalidState));
@@ -891,7 +914,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                         "AfterRejectedSealCell",
                         system => ConfigureValidGraph(system))
                     .ConfigureAwait(false);
-                context.Seal();
+                await context.SealAsync().ConfigureAwait(false);
 
                 _ = AssertTreeRegisteredAndUnique(
                     manager,
@@ -939,7 +962,7 @@ namespace Opc.Ua.Robotics.Server.Tests
                     GetChildren(context.Context, context.DeviceSet);
                 int configureCalls = 0;
 
-                context.Seal();
+                await context.SealAsync().ConfigureAwait(false);
 
                 ServiceResultException exception =
                     Assert.ThrowsAsync<ServiceResultException>(async () =>

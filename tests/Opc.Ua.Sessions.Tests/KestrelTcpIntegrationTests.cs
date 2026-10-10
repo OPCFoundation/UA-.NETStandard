@@ -27,7 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
 
 using System;
 using System.Globalization;
@@ -178,7 +178,7 @@ namespace Opc.Ua.Sessions.Tests
                 Factory = context.Factory,
                 CertificateValidator = null,
                 ServerCertificates = null,
-                MaxChannelCount = 4
+                MaxChannelCount = 103
             };
         }
     }

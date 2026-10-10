@@ -55,13 +55,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
             using var newProvider = new InMemoryHistorianProvider(
                 new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
-            TrackingLifecycleNodeManager originalManager = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(kGeneration1Value, manager =>
                 {
                     originalManager = manager;
                     manager.HistoryProvider = oldProvider;
                 }), null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(originalManager);
             NodeId nodeId = new(kValueNodeId, originalManager.NamespaceIndexes[0]);
             await SeedLifecycleHistoryAsync(originalManager, oldProvider, 101, timeout.Token).ConfigureAwait(false);
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
@@ -76,7 +77,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 AssertHistorySample(first, 101, 0, StatusCodes.Good);
                 Assert.That(first.ContinuationPoint.IsEmpty, Is.False);
                 Assert.That(m_server.CurrentInstance.SubscriptionManager.GetSubscriptions(), Is.Empty);
-                TrackingLifecycleNodeManager replacement = null;
+                TrackingLifecycleNodeManager? replacement = null;
                 var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
                 NodeManagerBatchResult retired;
                 await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
@@ -93,6 +94,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     if (replace)
                     {
+                        AssertLifecycleValue(replacement);
                         await SeedLifecycleHistoryAsync(replacement, newProvider, 201, timeout.Token)
                             .ConfigureAwait(false);
                     }
@@ -105,7 +107,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(current.StatusCode, Is.EqualTo(replace ? StatusCodes.Good : StatusCodes.BadNodeIdUnknown));
                 if (replace)
                 {
-                    Assert.That(current.HistoryData.TryGetValue(out HistoryData currentData), Is.True);
+                    Assert.That(current.HistoryData.TryGetValue(out HistoryData? currentData), Is.True);
+                    AssertLifecycleValue(currentData);
                     Assert.That(currentData.DataValues.Count, Is.EqualTo(2));
                     Assert.That(currentData.DataValues[0].WrappedValue.TryGetValue(out int value), Is.True);
                     Assert.That(value, Is.EqualTo(201));
@@ -129,7 +132,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
                 if (replace)
                 {
-                    Assert.That(replacement.DisposeCount, Is.Zero);
+                    TrackingLifecycleNodeManager replacementGeneration = RequireLifecycleValue(replacement);
+                    Assert.That(replacementGeneration.DisposeCount, Is.Zero);
                 }
             }
             finally
@@ -228,10 +232,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            HistorianOperationContext observed = null;
+            HistorianOperationContext? observed = null;
             bool capturedSource = false;
             bool capturedTarget = false;
-            TrackingLifecycleNodeManager source = null;
+            TrackingLifecycleNodeManager? source = null;
             IHistorianProvider provider = CreateHistoryProbe(data, [targetId], async (context, _, token, ct) =>
             {
                 if (token.IsEmpty)
@@ -242,13 +246,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 entered.TrySetResult(true);
                 await release.Task.WaitAsync(ct).ConfigureAwait(false);
                 var master = (MasterNodeManager)m_server.CurrentInstance.NodeManager;
+                AssertLifecycleValue(source);
                 capturedSource = master.NamespaceManagers[source.NamespaceIndexes[0]].Contains(source);
                 capturedTarget = master.NamespaceManagers[target.NamespaceIndex].Contains(target.Manager);
             });
             var owner = await AddHistoryOwnerAsync(data, provider, kModelNamespaceUri, timeout.Token)
                 .ConfigureAwait(false);
             source = owner.Manager;
-            NodeState originalNode = source.Find(owner.NodeId);
+            NodeState originalNode = RequireLifecycleValue(source.Find(owner.NodeId));
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
@@ -282,8 +287,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(holder.HasHistoryForManager(target.Manager), Is.True);
                     Assert.That(source.DisposeCount, Is.Zero);
                     Assert.That(target.Manager.DisposeCount, Is.Zero);
+                    AssertLifecycleValue(observed);
                     Assert.That(observed.Node, Is.SameAs(originalNode));
-                    Assert.That(observed.OperationContext.Session.Id, Is.EqualTo(session.SessionId));
+                    Assert.That(RequireLifecycleValue(observed.OperationContext.Session).Id,
+                        Is.EqualTo(session.SessionId));
                 }
                 finally
                 {
@@ -377,6 +384,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                                 }
                             ],
                             timeout.Token).AsTask();
+                        Task completed = await Task.WhenAny(entered.Task, pending).WaitAsync(timeout.Token)
+                            .ConfigureAwait(false);
+                        if (ReferenceEquals(completed, pending))
+                        {
+                            HistoryReadResponse premature = await pending.ConfigureAwait(false);
+                            Assert.Fail(
+                                $"The retained page completed before entering its provider: " +
+                                $"{premature.Results[0].StatusCode}.");
+                        }
                         await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
                         Assert.That(holder.HasHistoryForManager(owner.Manager), Is.True);
                         Assert.That(owner.Manager.DisposeCount, Is.Zero);
@@ -394,11 +410,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             Throws.TypeOf<ServiceResultException>()
                                 .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(
                                     terminal == "Cancellation"
-                                        ? StatusCodes.BadRequestCancelledByRequest
+                                        ? StatusCodes.BadRequestCancelledByClient
                                         : StatusCodes.BadUnexpectedError)).ConfigureAwait(false);
                         break;
                     case "PermissionDenied":
-                        owner.Manager.Find(owner.NodeId).RolePermissions =
+                        RequireLifecycleValue(owner.Manager.Find(owner.NodeId)).RolePermissions =
                         [
                             new RolePermissionType
                             {
@@ -428,14 +444,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     default:
                         throw new ArgumentOutOfRangeException(nameof(terminal));
                 }
+                Assert.That(holder.HasHistoryForManager(owner.Manager), Is.False);
+                Assert.That(holder.HasHistoryForManager(target.Manager), Is.False);
                 await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await target.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
                 Assert.That(target.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
-                Assert.That(holder.HasHistoryForManager(owner.Manager), Is.False);
-                Assert.That(holder.HasHistoryForManager(target.Manager), Is.False);
             }
             finally
             {
@@ -554,7 +570,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 HistoryReadResult unpaged = await ReadLifecycleHistoryAsync(
                     session, owner.NodeId, ByteString.Empty, 0, false, timeout.Token).ConfigureAwait(false);
                 Assert.That(unpaged.StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(unpaged.HistoryData.TryGetValue(out HistoryData all), Is.True);
+                Assert.That(unpaged.HistoryData.TryGetValue(out HistoryData? all), Is.True);
+                AssertLifecycleValue(all);
                 Assert.That(all.DataValues.Count, Is.EqualTo(2));
                 HistoryReadResult page = await ReadLifecycleHistoryAsync(
                     session, owner.NodeId, ByteString.Empty, 1, false, timeout.Token).ConfigureAwait(false);
@@ -651,7 +668,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
             var context = new HistorianOperationContext(
                 new ServerSystemContext(m_server.CurrentInstance, operation), operation,
-                first.Manager.Find(first.NodeId),
+                RequireLifecycleValue(first.Manager.Find(first.NodeId)),
                 HistoryUpdateType.Insert);
             await firstData.InsertAsync(context, first.NodeId,
                 [new DataValue(new Variant(103), StatusCodes.Good, s_historyTime.AddMilliseconds(1500),
@@ -732,7 +749,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Task<HistoryReadResponse> pending = session.HistoryReadAsync(
                     null, new ExtensionObject(CreateHistoryDetails(1)), TimestampsToReturn.Both, false,
                     [new HistoryReadValueId { NodeId = owner.NodeId }], timeout.Token).AsTask();
-                Task<NodeManagerBatchResult> committing = null;
+                Task<NodeManagerBatchResult>? committing = null;
                 try
                 {
                     await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -782,8 +799,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new InMemoryHistorianOptions { RawDataRetentionPeriod = TimeSpan.Zero });
             var owner = await AddHistoryOwnerAsync(data, data, kModelNamespaceUri, timeout.Token).ConfigureAwait(false);
             owner.Manager.HistoryProvider = CreatePagedEventHistoryProbe(data);
-            var notifier = (BaseObjectState)owner.Manager.Find(
-                new NodeId(kRootNodeId, owner.Manager.NamespaceIndexes[0]));
+            BaseObjectState notifier = RequireLifecycleValue(owner.Manager.Find(
+                new NodeId(kRootNodeId, owner.Manager.NamespaceIndexes[0])) as BaseObjectState);
             notifier.EventNotifier |= EventNotifiers.HistoryRead;
             data.Register(notifier.NodeId);
             using var operation = new OperationContext(
@@ -849,7 +866,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         ContinuationPoint = first.Results[0].ContinuationPoint
                     }], timeout.Token).ConfigureAwait(false);
                 Assert.That(resumed.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(resumed.Results[0].HistoryData.TryGetValue(out HistoryEvent history), Is.True);
+                Assert.That(resumed.Results[0].HistoryData.TryGetValue(out HistoryEvent? history), Is.True);
+                AssertLifecycleValue(history);
                 Assert.That(history.Events.Count, Is.EqualTo(1));
                 ArrayOf<Variant> fields = history.Events[0].EventFields;
                 Assert.That(fields.Count, Is.EqualTo(3));
@@ -895,22 +913,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 HistoryReadResult final = await ReadLifecycleHistoryAsync(
                     session, annotations, first.ContinuationPoint, 1, false, timeout.Token).ConfigureAwait(false);
                 Assert.That(final.StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(final.HistoryData.TryGetValue(out HistoryData values), Is.True);
+                Assert.That(final.HistoryData.TryGetValue(out HistoryData? values), Is.True);
+                AssertLifecycleValue(values);
                 Assert.That(values.DataValues.Count, Is.EqualTo(1));
                 Assert.That(values.DataValues[0].WrappedValue.TryGetValue(out ExtensionObject encoded), Is.True);
-                Assert.That(encoded.TryGetValue(out Annotation annotation), Is.True);
+                Assert.That(encoded.TryGetValue(out Annotation? annotation), Is.True);
+                AssertLifecycleValue(annotation);
                 Assert.That(annotation.Message, Is.EqualTo("second"));
                 Assert.That(annotation.UserName, Is.EqualTo("history-owner"));
                 Assert.That(annotation.AnnotationTime, Is.EqualTo((DateTimeUtc)s_historyTime.AddSeconds(1)));
-                Assert.That(final.ContinuationPoint.IsEmpty, Is.False,
-                    "The stock annotation provider issues a terminal empty page after a full page.");
-                Assert.That(owner.Manager.DisposeCount, Is.Zero);
-                HistoryReadResult drained = await ReadLifecycleHistoryAsync(
-                    session, annotations, final.ContinuationPoint, 1, false, timeout.Token).ConfigureAwait(false);
-                Assert.That(drained.StatusCode, Is.EqualTo(StatusCodes.Good));
-                Assert.That(drained.ContinuationPoint.IsEmpty, Is.True);
-                Assert.That(drained.HistoryData.TryGetValue(out HistoryData empty), Is.True);
-                Assert.That(empty.DataValues.IsEmpty, Is.True);
+                Assert.That(final.ContinuationPoint.IsEmpty, Is.True,
+                    "The final annotation exhausts the stock provider's exact-page cursor.");
+                HistoryReadResult stale = await ReadLifecycleHistoryAsync(
+                    session, annotations, first.ContinuationPoint, 1, false, timeout.Token).ConfigureAwait(false);
+                Assert.That(stale.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                Assert.That(stale.HistoryData.IsNull, Is.True);
                 await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
                 Assert.That(owner.Manager.DisposeCount, Is.EqualTo(1));
             }
@@ -960,7 +977,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     Assert.That(first.Results[index].StatusCode, Is.EqualTo(StatusCodes.Good));
                     Assert.That(first.Results[index].ContinuationPoint.IsEmpty, Is.False);
-                    Assert.That(first.Results[index].HistoryData.TryGetValue(out HistoryData page), Is.True);
+                    Assert.That(first.Results[index].HistoryData.TryGetValue(out HistoryData? page), Is.True);
+                    AssertLifecycleValue(page);
                     Assert.That(page.DataValues.Count, Is.EqualTo(1000));
                     reads[index].ContinuationPoint = first.Results[index].ContinuationPoint;
                 }
@@ -974,7 +992,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
                     Assert.That(result.ContinuationPoint.IsEmpty, Is.True);
-                    Assert.That(result.HistoryData.TryGetValue(out HistoryData final), Is.True);
+                    Assert.That(result.HistoryData.TryGetValue(out HistoryData? final), Is.True);
+                    AssertLifecycleValue(final);
                     Assert.That(final.DataValues.Count, Is.EqualTo(1));
                     Assert.That(final.DataValues[0].WrappedValue.TryGetValue(out int count), Is.True);
                     Assert.That(count, Is.EqualTo(1));
@@ -1037,7 +1056,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             provider.Setup(value => value.IsHistorizingAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
                 .Returns((NodeId nodeId, CancellationToken ct) => data.IsHistorizingAsync(nodeId, ct));
             provider.Setup(value => value.GetCapabilitiesAsync(It.IsAny<NodeId>(), It.IsAny<CancellationToken>()))
-                .Returns((NodeId nodeId, CancellationToken ct) => data.GetCapabilitiesAsync(nodeId, ct));
+                .Returns(async (NodeId nodeId, CancellationToken ct) =>
+                    (await data.GetCapabilitiesAsync(nodeId, ct).ConfigureAwait(false)) with
+                    {
+                        ReadEventHistory = true
+                    });
             ArrayOf<NodeId> dependencies = [];
             provider.As<IHistorianContinuationDependencies>().Setup(value => value.TryGetContinuationDependencies(
                 It.IsAny<NodeId>(), It.IsAny<HistorianResumeToken>(), out dependencies)).Returns(true);
@@ -1049,11 +1072,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     HistorianPage<HistorianEventRecord> all = await data.ReadEventsAsync(
                         context, request with { MaxValues = 0 }, default, ct).ConfigureAwait(false);
-                    Assert.That(all.Values, Has.Count.EqualTo(2));
+                    Assert.That(all.Values.ToList(), Has.Count.EqualTo(2));
                     if (token.IsEmpty)
                     {
                         return new HistorianPage<HistorianEventRecord>(
-                            [all.Values[0]], new HistorianResumeToken("second"u8.ToArray()));
+                            [all.Values[0]], new HistorianResumeToken(ByteString.From("second"u8)));
                     }
                     Assert.That(token.State.Span.SequenceEqual("second"u8), Is.True);
                     return new HistorianPage<HistorianEventRecord>([all.Values[1]]);
@@ -1064,13 +1087,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static HistorianEventRecord CreateHistoryEvent(ByteString id, string message, DateTime time)
         {
             return new HistorianEventRecord(id, ObjectTypeIds.BaseEventType, time,
-                new Dictionary<string, Variant>(StringComparer.Ordinal)
-                {
-                    [BrowseNames.EventId] = new Variant(id),
-                    [BrowseNames.EventType] = new Variant(ObjectTypeIds.BaseEventType),
-                    [BrowseNames.Message] = new Variant(new LocalizedText(message)),
-                    [BrowseNames.Time] = new Variant((DateTimeUtc)time)
-                });
+                [
+                    new(BrowseNames.EventId, new Variant(id)),
+                    new(BrowseNames.EventType, new Variant(ObjectTypeIds.BaseEventType)),
+                    new(BrowseNames.Message, new Variant(new LocalizedText(message))),
+                    new(BrowseNames.Time, new Variant((DateTimeUtc)time))
+                ]);
         }
 
         private async Task SeedHistoryAnnotationsAsync(
@@ -1078,7 +1100,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             InMemoryHistorianProvider provider,
             CancellationToken cancellationToken)
         {
-            NodeState node = manager.Find(new NodeId(kValueNodeId, manager.NamespaceIndexes[0]));
+            NodeState node = RequireLifecycleValue(manager.Find(new NodeId(kValueNodeId, manager.NamespaceIndexes[0])));
             using var operation = new OperationContext(
                 new RequestHeader(), null, RequestType.HistoryUpdate, RequestLifetime.None);
             var context = new HistorianOperationContext(
@@ -1108,13 +1130,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 string namespaceUri,
                 CancellationToken cancellationToken)
         {
-            TrackingLifecycleNodeManager manager = null;
+            TrackingLifecycleNodeManager? manager = null;
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(kGeneration1Value, created =>
                 {
                     manager = created;
                     created.HistoryProvider = provider;
                 }, namespaceUri), null, cancellationToken).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
             await SeedLifecycleHistoryAsync(manager, data, 101, cancellationToken).ConfigureAwait(false);
             return (registration, manager, new NodeId(kValueNodeId, manager.NamespaceIndexes[0]));
         }
@@ -1123,7 +1146,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             InMemoryHistorianProvider data,
             ArrayOf<NodeId> dependencies,
             Func<HistorianOperationContext, HistorianRawReadRequest, HistorianResumeToken, CancellationToken,
-                ValueTask> onRead = null,
+                ValueTask>? onRead = null,
             string capability = "Declared")
         {
             var provider = new Mock<IHistorianProvider>();
@@ -1168,7 +1191,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             int firstValue,
             CancellationToken cancellationToken)
         {
-            var variable = (BaseDataVariableState)manager.Find(new NodeId(kValueNodeId, manager.NamespaceIndexes[0]));
+            BaseDataVariableState variable = RequireLifecycleValue(
+                manager.Find(new NodeId(kValueNodeId, manager.NamespaceIndexes[0])) as BaseDataVariableState);
             variable.AccessLevel |= AccessLevels.HistoryRead;
             variable.UserAccessLevel |= AccessLevels.HistoryRead;
             variable.Historizing = true;
@@ -1185,7 +1209,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     new DataValue(new Variant(firstValue + 1), StatusCodes.UncertainDataSubNormal,
                         s_historyTime.AddSeconds(1), s_historyTime.AddSeconds(11))
                 ], cancellationToken).ConfigureAwait(false);
-            Assert.That(statuses, Is.All.EqualTo(StatusCodes.GoodEntryInserted));
+            Assert.That(statuses.OperationResults.ToList(), Is.All.EqualTo(StatusCodes.GoodEntryInserted));
         }
 
         private static async Task<HistoryReadResult> ReadLifecycleHistoryAsync(
@@ -1212,7 +1236,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static void AssertHistorySample(HistoryReadResult result, int value, int offset, StatusCode status)
         {
             Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(result.HistoryData.TryGetValue(out HistoryData data), Is.True);
+            Assert.That(result.HistoryData.TryGetValue(out HistoryData? data), Is.True);
+            AssertLifecycleValue(data);
             Assert.That(data.DataValues.Count, Is.EqualTo(1));
             DataValue sample = data.DataValues[0];
             Assert.That(sample.WrappedValue.TryGetValue(out int actual), Is.True);
@@ -1224,11 +1249,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private sealed partial class TrackingLifecycleNodeManager
         {
-            public IHistorianProvider HistoryProvider { get; set; }
+            public IHistorianProvider? HistoryProvider { get; set; }
 
             public async ValueTask<NodeId> AddHistoryAnnotationsAsync(CancellationToken cancellationToken)
             {
-                var parent = (BaseVariableState)Find(new NodeId(kValueNodeId, NamespaceIndexes[0]));
+                BaseVariableState parent = RequireLifecycleValue(
+                    Find(new NodeId(kValueNodeId, NamespaceIndexes[0])) as BaseVariableState);
                 var property = new PropertyState(parent)
                 {
                     NodeId = new NodeId(8121u, NamespaceIndexes[0]),
@@ -1245,7 +1271,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 return property.NodeId;
             }
 
-            protected override IHistorianProvider GetHistorianProvider(NodeState node)
+            protected override IHistorianProvider? GetHistorianProvider(NodeState node)
             {
                 return HistoryProvider ?? base.GetHistorianProvider(node);
             }

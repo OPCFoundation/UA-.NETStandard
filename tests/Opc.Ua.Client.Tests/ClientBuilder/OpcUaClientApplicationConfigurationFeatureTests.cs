@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using Microsoft.Extensions.Options;
 using NUnit.Framework;
 using Opc.Ua.Configuration;

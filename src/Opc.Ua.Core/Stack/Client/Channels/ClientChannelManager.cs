@@ -123,7 +123,24 @@ namespace Opc.Ua
             ITransportWaitingConnection? connection = null,
             CancellationToken ct = default)
         {
-            ThrowIfDisposed();
+            try
+            {
+                ThrowIfDisposed();
+                if (endpoint is null)
+                {
+                    throw new ArgumentNullException(nameof(endpoint));
+                }
+                if (context is null)
+                {
+                    throw new ArgumentNullException(nameof(context));
+                }
+            }
+            catch
+            {
+                clientCertificateChain?.Dispose();
+                clientCertificate?.Dispose();
+                throw;
+            }
 
             // initialize the channel which will be created with the server.
             ITransportChannel channel;
@@ -191,25 +208,9 @@ namespace Opc.Ua
             ISecurityPolicyRegistry? securityPolicies = null,
             CancellationToken ct = default)
         {
-            // initialize the channel which will be created with the server.
-            string uriScheme = new Uri(description.EndpointUrl
-                ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description))).Scheme;
-            transportChannelBindings ??= GetDefaultBindingsLazy();
-            ITransportChannel channel =
-                transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}.",
-                    uriScheme);
-
-            if (channel is not ISecureChannel secureChannel)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNotSupported,
-                    "The transport channel does not support opening.");
-            }
-
-            // create a UA channel.
+            // Built before anything that can throw, so every failure below runs
+            // the cleanup that releases the caller's certificate handles - this
+            // method owns them from here on.
             var settings = new TransportChannelSettings
             {
                 Description = description,
@@ -219,8 +220,28 @@ namespace Opc.Ua
                 SecurityPolicyRegistry = securityPolicies
             };
 
+            ITransportChannel? channel = null;
+
             try
             {
+                // initialize the channel which will be created with the server.
+                string uriScheme = new Uri(description.EndpointUrl
+                    ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description))).Scheme;
+                transportChannelBindings ??= GetDefaultBindingsLazy();
+                channel =
+                    transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadProtocolVersionUnsupported,
+                        "Unsupported transport profile for scheme {0}.",
+                        uriScheme);
+
+                if (channel is not ISecureChannel secureChannel)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNotSupported,
+                        "The transport channel does not support opening.");
+                }
+
                 if (description.ServerCertificate.Length > 0)
                 {
                     settings.ServerCertificate = Utils.ParseCertificateBlob(
@@ -237,17 +258,16 @@ namespace Opc.Ua
                 settings.Factory = messageContext.Factory;
 
                 await secureChannel.OpenAsync(connection, settings, ct).ConfigureAwait(false);
+
+                ITransportChannel opened = channel;
+                channel = null;
+                return opened;
             }
             catch
             {
-                // settings.ServerCertificate is allocated above; dispose on
-                // failure since the channel never assumed ownership.
-                settings.ServerCertificate?.Dispose();
-                channel.Dispose();
+                ReleaseUnopenedChannel(channel, settings);
                 throw;
             }
-
-            return channel;
         }
 
         /// <summary>
@@ -277,37 +297,9 @@ namespace Opc.Ua
             ISecurityPolicyRegistry? securityPolicies = null,
             CancellationToken ct = default)
         {
-            var endpointUrl = new Uri(description.EndpointUrl
-                ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description)));
-            string uriScheme = description.TransportProfileUri switch
-            {
-                Profiles.UaTcpTransport => Utils.UriSchemeOpcTcp,
-                Profiles.HttpsBinaryTransport => Utils.UriSchemeOpcHttps,
-                Profiles.HttpsJsonTransport => Utils.UriSchemeOpcHttps,
-                Profiles.HttpsOpenApiTransport => Utils.UriSchemeOpcHttpsWebApi,
-                Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
-                Profiles.UaWssJsonTransport => "opc.wss+json",
-                Profiles.WssOpenApiTransport => Utils.UriSchemeOpcWssOpenApi,
-                _ => endpointUrl.Scheme
-            };
-
-            // initialize the channel which will be created with the server.
-            transportChannelBindings ??= GetDefaultBindingsLazy();
-            ITransportChannel channel =
-                transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
-                ?? throw ServiceResultException.Create(
-                    StatusCodes.BadProtocolVersionUnsupported,
-                    "Unsupported transport profile for scheme {0}.",
-                    uriScheme);
-
-            if (channel is not ISecureChannel secureChannel)
-            {
-                throw ServiceResultException.Create(
-                    StatusCodes.BadNotSupported,
-                    "The transport channel does not support opening.");
-            }
-
-            // create a UA-TCP channel.
+            // Built before anything that can throw, so every failure below runs
+            // the cleanup that releases the caller's certificate handles - this
+            // method owns them from here on.
             var settings = new TransportChannelSettings
             {
                 Description = description,
@@ -317,8 +309,40 @@ namespace Opc.Ua
                 SecurityPolicyRegistry = securityPolicies
             };
 
+            ITransportChannel? channel = null;
+
             try
             {
+                var endpointUrl = new Uri(description.EndpointUrl
+                    ?? throw new ArgumentException("EndpointUrl cannot be null", nameof(description)));
+                string uriScheme = description.TransportProfileUri switch
+                {
+                    Profiles.UaTcpTransport => Utils.UriSchemeOpcTcp,
+                    Profiles.HttpsBinaryTransport => Utils.UriSchemeOpcHttps,
+                    Profiles.HttpsJsonTransport => Utils.UriSchemeOpcHttps,
+                    Profiles.HttpsOpenApiTransport => Utils.UriSchemeOpcHttpsWebApi,
+                    Profiles.UaWssTransport => Utils.UriSchemeOpcWss,
+                    Profiles.UaWssJsonTransport => "opc.wss+json",
+                    Profiles.WssOpenApiTransport => Utils.UriSchemeOpcWssOpenApi,
+                    _ => endpointUrl.Scheme
+                };
+
+                // initialize the channel which will be created with the server.
+                transportChannelBindings ??= GetDefaultBindingsLazy();
+                channel =
+                    transportChannelBindings.Create(uriScheme, messageContext.Telemetry)
+                    ?? throw ServiceResultException.Create(
+                        StatusCodes.BadProtocolVersionUnsupported,
+                        "Unsupported transport profile for scheme {0}.",
+                        uriScheme);
+
+                if (channel is not ISecureChannel secureChannel)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadNotSupported,
+                        "The transport channel does not support opening.");
+                }
+
                 if (description.ServerCertificate.Length > 0)
                 {
                     settings.ServerCertificate = Utils.ParseCertificateBlob(
@@ -335,16 +359,42 @@ namespace Opc.Ua
                 settings.Factory = messageContext.Factory;
 
                 await secureChannel.OpenAsync(endpointUrl, settings, ct).ConfigureAwait(false);
+
+                ITransportChannel opened = channel;
+                channel = null;
+                return opened;
             }
             catch
             {
-                // settings.ServerCertificate is allocated above; dispose on
-                // failure since the channel never assumed ownership.
-                settings.ServerCertificate?.Dispose();
-                channel.Dispose();
+                ReleaseUnopenedChannel(channel, settings);
                 throw;
             }
-            return channel;
+        }
+
+        /// <summary>
+        /// Releases everything a channel that never opened was holding: the
+        /// channel itself and the certificate handles the settings took over.
+        /// </summary>
+        /// <remarks>
+        /// Disposing the channel releases the settings' certificates and clears
+        /// them when it got as far as storing the settings, so the disposals
+        /// after it cover only the handles it never saw. Each therefore runs
+        /// exactly once, which matters because these are reference-counted
+        /// handles the caller AddRef'd for this call.
+        /// </remarks>
+        private static void ReleaseUnopenedChannel(
+            ITransportChannel? channel,
+            TransportChannelSettings settings)
+        {
+            settings.ServerCertificate?.Dispose();
+            settings.ServerCertificate = null;
+
+            channel?.Dispose();
+
+            settings.ClientCertificate?.Dispose();
+            settings.ClientCertificate = null;
+            settings.ClientCertificateChain?.Dispose();
+            settings.ClientCertificateChain = null;
         }
 
         /// <summary>
@@ -393,20 +443,23 @@ namespace Opc.Ua
                 Server = ToChannelKey(token.ServerInitializationVector,
                     token.ServerEncryptingKey, token.ServerSigningKey)
             });
+        }
 
-            static ChannelKey? ToChannelKey(byte[]? iv, byte[]? key, byte[]? sk)
+        /// <summary>
+        /// Creates the diagnostic key record of one side of a token, or null for a token
+        /// without complete keys. Sign-only channels of policies that derive no encrypting
+        /// key and IV (OPC 10000-6 6.8.1) still have a signing key and get a record with an
+        /// empty key and IV.
+        /// </summary>
+        internal static ChannelKey? ToChannelKey(byte[]? iv, byte[]? key, byte[]? sk)
+        {
+            int ivLength = iv?.Length ?? 0;
+            int keyLength = key?.Length ?? 0;
+            if (sk == null || sk.Length == 0 || (ivLength == 0) != (keyLength == 0))
             {
-                if (iv == null ||
-                    key == null ||
-                    sk == null ||
-                    iv.Length == 0 ||
-                    key.Length == 0 ||
-                    sk.Length == 0)
-                {
-                    return null;
-                }
-                return new ChannelKey(iv, key, sk.Length);
+                return null;
             }
+            return new ChannelKey(iv ?? [], key ?? [], sk.Length);
         }
 
         /// <summary>
@@ -713,41 +766,19 @@ namespace Opc.Ua
 
         internal ILogger? Logger { get; }
 
-        internal (Certificate? Certificate, CertificateCollection? Chain, long Version) CurrentClientCertificateSnapshot
+        /// <summary>
+        /// Gets an independently retained snapshot of the manager's current client certificate material and version.
+        /// </summary>
+        internal ClientChannelCertificateSnapshot CurrentClientCertificateSnapshot
         {
             get
             {
                 lock (m_certLock)
                 {
-                    return (m_clientCertificate, m_clientCertificateChain, m_clientCertificateVersion);
+                    ThrowIfDisposed();
+                    return new ClientChannelCertificateSnapshot(
+                        m_clientCertificate, m_clientCertificateChain, m_clientCertificateVersion);
                 }
-            }
-        }
-
-        /// <summary>
-        /// AsyncLocal flag set by the manager around participant
-        /// reactivation calls. When non-zero, the channel wrapper's
-        /// <see cref="ITransportChannel.SendRequestAsync"/> bypasses the
-        /// ready-state gate so that session-service requests
-        /// (ActivateSession, CreateSession, etc.) can complete while the
-        /// channel is in
-        /// <see cref="ChannelState.TransportConnectedSessionReactivating"/>.
-        /// </summary>
-        internal static readonly AsyncLocal<int> s_reactivationDepth = new();
-
-        internal static bool IsReactivationInProgress => s_reactivationDepth.Value > 0;
-
-        internal static IDisposable EnterReactivationScope()
-        {
-            s_reactivationDepth.Value++;
-            return new ReactivationScope();
-        }
-
-        private sealed class ReactivationScope : IDisposable
-        {
-            public void Dispose()
-            {
-                s_reactivationDepth.Value--;
             }
         }
 
@@ -769,7 +800,7 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             ChannelEntry entry = lease.Entry;
-            if (entry.State is ChannelState.Closed or ChannelState.Faulted)
+            if (entry.IsClosing)
             {
                 entry = await SwapFaultedEntryAsync(lease, ct).ConfigureAwait(false);
             }
@@ -818,7 +849,7 @@ namespace Opc.Ua
         /// </summary>
         /// <remarks>
         /// A reconnect cycle that stopped because the reconnect policy ran out of
-        /// attempts, or because the caller's retry budget ran out of time, is a
+        /// attempts, its deadline expired, or a participant reported a fatal channel error, is a
         /// deliberate terminal outcome rather than a race. It leaves the entry
         /// <see cref="ChannelState.Faulted"/> with
         /// <see cref="StatusCodes.BadSecureChannelClosed"/> - indistinguishable from a
@@ -833,11 +864,16 @@ namespace Opc.Ua
             CancellationToken ct)
         {
             return !ct.IsCancellationRequested &&
-                !entry.ReconnectStoppedByRetryPolicy &&
+                !entry.ReconnectStoppedIntentionally &&
                 sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
-                entry.State is ChannelState.Closed or ChannelState.Faulted;
+                entry.IsClosing;
         }
 
+        /// <summary>
+        /// Reattaches a lease to a usable entry after reconnect backoff, opening a replacement with current
+        /// certificates.
+        /// </summary>
+        /// <exception cref="ServiceResultException">A reverse channel requires a fresh waiting connection.</exception>
         private async ValueTask<ChannelEntry> SwapFaultedEntryAsync(
             ManagedTransportChannelLease lease,
             CancellationToken ct)
@@ -845,9 +881,14 @@ namespace Opc.Ua
             ThrowIfDisposed();
 
             ChannelEntry original = lease.Entry;
-            if (original.State is not (ChannelState.Closed or ChannelState.Faulted))
+            if (!original.IsClosing)
             {
                 return original;
+            }
+            if (original.IsReverse)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadSecureChannelClosed, "A fresh reverse connection is required.");
             }
 
             TimeSpan delay = GetSwapDelay(lease.SwapCount);
@@ -855,20 +896,22 @@ namespace Opc.Ua
             await DelaySwapAsync(delay, ct).ConfigureAwait(false);
 
             original = lease.Entry;
-            if (original.State is not (ChannelState.Closed or ChannelState.Faulted))
+            if (!original.IsClosing)
             {
                 return original;
             }
 
-            (Certificate? clientCert, CertificateCollection? clientChain, long clientCertificateVersion) =
-                CurrentClientCertificateSnapshot;
+            using ClientChannelCertificateSnapshot certificates = CurrentClientCertificateSnapshot;
 
             ChannelEntry fresh;
             bool created = false;
             lock (m_entries)
             {
+                // The swap back-off above can outlast a concurrent DisposeAsync.
+                ThrowIfDisposed();
+
                 if (m_entries.TryGetValue(lease.Key, out ChannelEntry? existing) &&
-                    existing.State is not (ChannelState.Closed or ChannelState.Faulted))
+                    !existing.IsClosing)
                 {
                     fresh = existing;
                 }
@@ -889,7 +932,8 @@ namespace Opc.Ua
             {
                 try
                 {
-                    await fresh.OpenInitialAsync(clientCert, clientChain, clientCertificateVersion, ct)
+                    await fresh.OpenInitialAsync(
+                        certificates.Certificate, certificates.Chain, certificates.Version, ct)
                         .ConfigureAwait(false);
                 }
                 catch
@@ -929,7 +973,7 @@ namespace Opc.Ua
 
         private TimeSpan GetReconnectPolicyDelay(int attempt)
         {
-#if NETSTANDARD2_1 || NET8_0_OR_GREATER
+#if NET8_0_OR_GREATER
             return ReconnectPolicy.GetDelay(attempt, budget: null);
 #else
             return ChannelReconnectPolicyBudget.GetDelay(
@@ -949,6 +993,9 @@ namespace Opc.Ua
             return TimeProvider.Delay(delay, ct);
         }
 
+        /// <summary>
+        /// Acquires a participant lease from a matching channel entry, creating it with retained certificate material.
+        /// </summary>
         private async ValueTask<IManagedTransportChannel> GetCoreAsync(
             ConfiguredEndpoint endpoint,
             Func<IManagedTransportChannel, IReconnectParticipant> participantFactory,
@@ -957,63 +1004,84 @@ namespace Opc.Ua
         {
             ThrowIfDisposed();
 
-            Certificate? clientCert;
-            CertificateCollection? clientChain;
-            long clientCertificateVersion;
-            lock (m_certLock)
-            {
-                clientCert = m_clientCertificate;
-                clientChain = m_clientCertificateChain;
-                clientCertificateVersion = m_clientCertificateVersion;
-            }
+            using ClientChannelCertificateSnapshot certificates = CurrentClientCertificateSnapshot;
 
             var key = ManagedChannelKey.FromEndpoint(
-                endpoint, clientCert, reverseConnection);
+                endpoint, certificates.Certificate, reverseConnection);
 
-            ChannelEntry entry;
-            bool created = false;
-            lock (m_entries)
+            while (true)
             {
-                bool found = m_entries.TryGetValue(key, out ChannelEntry? existing);
-                if (!found ||
-                    existing!.State is ChannelState.Closed or ChannelState.Faulted)
+                ChannelEntry entry;
+                bool created = false;
+                lock (m_entries)
                 {
-                    if (!found)
+                    // Checked under the registry lock on every pass: DisposeAsync
+                    // flags disposal before it snapshots and clears the registry
+                    // under this lock, so a retry cannot add an entry it misses.
+                    ThrowIfDisposed();
+
+                    bool found = m_entries.TryGetValue(key, out ChannelEntry? existing);
+                    if (!found ||
+                        existing!.IsClosing)
                     {
-                        ThrowIfMaxChannelsReached();
+                        if (!found)
+                        {
+                            ThrowIfMaxChannelsReached();
+                        }
+
+                        existing = new ChannelEntry(this, key, endpoint, reverseConnection);
+                        m_entries[key] = existing;
+                        created = true;
                     }
-
-                    existing = new ChannelEntry(this, key, endpoint, reverseConnection);
-                    m_entries[key] = existing;
-                    created = true;
+                    entry = existing;
                 }
-                entry = existing;
-            }
 
-            ManagedTransportChannelLease lease;
-            try
-            {
-                if (created)
+                try
                 {
-                    await entry.OpenInitialAsync(clientCert, clientChain, clientCertificateVersion, ct)
-                        .ConfigureAwait(false);
-                }
-                lease = entry.AcquireLease(participantFactory);
-            }
-            catch
-            {
-                if (created)
-                {
-                    lock (m_entries)
+                    if (created)
                     {
-                        m_entries.Remove(key);
+                        Task opening = entry.OpenInitialAsync(
+                            certificates.Certificate,
+                            certificates.Chain,
+                            certificates.Version,
+                            m_shutdownCts.Token);
+                        if (!BackgroundWork.Run("OpenChannel", async _ => await opening.ConfigureAwait(false)))
+                        {
+                            await opening.ConfigureAwait(false);
+                        }
+                        await opening.WaitAsync(ct).ConfigureAwait(false);
                     }
-                    await entry.DisposeAsync().ConfigureAwait(false);
+                    return entry.AcquireLease(participantFactory);
                 }
-                throw;
+                catch (ServiceResultException sre) when (
+                    !created &&
+                    sre.StatusCode == StatusCodes.BadSecureChannelClosed &&
+                    entry.IsClosing)
+                {
+                    // The last lease on the shared entry was released and its
+                    // teardown began after the lookup: the next lookup replaces
+                    // the closing entry with a fresh one.
+                }
+                catch
+                {
+                    if (created)
+                    {
+                        lock (m_entries)
+                        {
+                            if (m_entries.TryGetValue(key, out ChannelEntry? current) &&
+                                ReferenceEquals(current, entry))
+                            {
+                                m_entries.Remove(key);
+                            }
+                        }
+                        if (entry.RefCount == 0)
+                        {
+                            await entry.DisposeAsync().ConfigureAwait(false);
+                        }
+                    }
+                    throw;
+                }
             }
-
-            return lease;
         }
 
         private void ThrowIfMaxChannelsReached()
@@ -1048,6 +1116,7 @@ namespace Opc.Ua
         /// </summary>
         private readonly Dictionary<ManagedChannelKey, ChannelEntry> m_entries = [];
         private readonly Lock m_certLock = new();
+        private readonly Dictionary<NodeId, ClientChannelCertificateSnapshot> m_certificatesByType = [];
         private readonly ChannelManagerOptions m_options;
         private Certificate? m_clientCertificate;
         private CertificateCollection? m_clientCertificateChain;
@@ -1072,6 +1141,11 @@ namespace Opc.Ua
                 clientCertificateChain = m_clientCertificateChain;
                 m_clientCertificate = null;
                 m_clientCertificateChain = null;
+                foreach (ClientChannelCertificateSnapshot certificate in m_certificatesByType.Values)
+                {
+                    certificate.Dispose();
+                }
+                m_certificatesByType.Clear();
             }
             clientCertificate?.Dispose();
             clientCertificateChain?.Dispose();
@@ -1190,6 +1264,9 @@ namespace Opc.Ua
             return SnapshotEntries();
         }
 
+        /// <summary>
+        /// Takes ownership of replacement certificate handles and advances the version when their material differs.
+        /// </summary>
         void IChannelCertRotationHost.ReplaceClientCertificate(
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain)
@@ -1198,11 +1275,33 @@ namespace Opc.Ua
             CertificateCollection? previousCertificateChain;
             lock (m_certLock)
             {
+                ThrowIfDisposed();
                 previousCertificate = m_clientCertificate;
                 previousCertificateChain = m_clientCertificateChain;
+                if (!ClientChannelCertificateSnapshot.HaveSameMaterial(
+                    previousCertificate,
+                    previousCertificateChain,
+                    clientCertificate,
+                    clientCertificateChain))
+                {
+                    m_clientCertificateVersion++;
+                }
+                if (clientCertificate != null)
+                {
+                    NodeId type = CertificateIdentifier.GetCertificateType(clientCertificate);
+                    if (!type.IsNull)
+                    {
+                        var replacement = new ClientChannelCertificateSnapshot(
+                            clientCertificate, clientCertificateChain, m_clientCertificateVersion);
+                        if (m_certificatesByType.TryGetValue(type, out ClientChannelCertificateSnapshot? previous))
+                        {
+                            previous.Dispose();
+                        }
+                        m_certificatesByType[type] = replacement;
+                    }
+                }
                 m_clientCertificate = clientCertificate;
                 m_clientCertificateChain = clientCertificateChain;
-                m_clientCertificateVersion++;
             }
 
             previousCertificate?.Dispose();
@@ -1243,20 +1342,22 @@ namespace Opc.Ua
             m_diagnostics.EmitChannelClosed(entry, reason);
         }
 
-        (Certificate? Certificate, CertificateCollection? Chain, long Version)
-            IChannelEntryHost.SnapshotClientCertificate()
+        /// <summary>
+        /// Acquires a certificate snapshot whose lifetime is independent of later manager updates.
+        /// </summary>
+        ClientChannelCertificateSnapshot IChannelEntryHost.SnapshotClientCertificate()
         {
             return CurrentClientCertificateSnapshot;
         }
 
-        async ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
+        ValueTask<ITransportChannel> IChannelEntryHost.CreateChannelAsync(
             ConfiguredEndpoint endpoint,
+            IServiceMessageContext context,
             Certificate? clientCertificate,
             CertificateCollection? clientCertificateChain,
             ITransportWaitingConnection? reverseConnection,
             CancellationToken ct)
         {
-            IServiceMessageContext context = Configuration.CreateMessageContext();
             Certificate? ownedCertificate = null;
             CertificateCollection? ownedChain = null;
             try
@@ -1265,22 +1366,46 @@ namespace Opc.Ua
                 // manager's reusable certificate snapshot.
                 ownedCertificate = clientCertificate?.AddRef();
                 ownedChain = clientCertificateChain?.AddRef();
-                return await CreateChannelAsync(
-                    endpoint,
-                    context,
-                    ownedCertificate,
-                    ownedChain,
-                    reverseConnection,
-                    ct).ConfigureAwait(false);
             }
-            catch
+            catch (Exception ex)
             {
                 ownedChain?.Dispose();
                 ownedCertificate?.Dispose();
-                throw;
+                return new ValueTask<ITransportChannel>(Task.FromException<ITransportChannel>(ex));
+            }
+
+            return CreateChannelAsync(
+                endpoint,
+                context,
+                ownedCertificate,
+                ownedChain,
+                reverseConnection,
+                ct);
+        }
+
+        /// <inheritdoc/>
+        ClientChannelCertificateSnapshot IChannelEntryHost.SnapshotClientCertificate(
+            ClientChannelCertificateSnapshot current)
+        {
+            lock (m_certLock)
+            {
+                ThrowIfDisposed();
+                if (current.Certificate != null &&
+                    m_certificatesByType.TryGetValue(
+                        CertificateIdentifier.GetCertificateType(current.Certificate),
+                        out ClientChannelCertificateSnapshot? replacement) &&
+                    replacement.Version > current.Version)
+                {
+                    return new ClientChannelCertificateSnapshot(
+                        replacement.Certificate, replacement.Chain, replacement.Version);
+                }
+                return new ClientChannelCertificateSnapshot(current.Certificate, current.Chain, current.Version);
             }
         }
 
+        /// <summary>
+        /// Starts a trace for the entry's reconnect cycle.
+        /// </summary>
         Activity? IChannelEntryHost.StartReconnectActivity(ChannelEntry entry)
         {
             return m_diagnostics.StartReconnectActivity(entry);

@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -70,12 +69,20 @@ namespace Opc.Ua.Server.Historian
         /// </param>
         /// <param name="ct">Cancellation token.</param>
         /// <returns>
-        /// A map of <see cref="NodeId"/> to per-value status list, with
-        /// one entry per node in the input <paramref name="batch"/>.
+        /// One outcome per input batch entry, in the same order.
         /// </returns>
-        ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
+        ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> InsertBatchAsync(
             HistorianOperationContext context,
-            IReadOnlyDictionary<NodeId, IList<DataValue>> batch,
+            ArrayOf<HistorianDataBatch> batch,
             CancellationToken ct);
     }
+
+    /// <summary>
+    /// Values captured for one historizing node in a bulk insert.
+    /// </summary>
+    /// <param name="NodeId">The historizing variable.</param>
+    /// <param name="Values">Values to insert in source-timestamp order.</param>
+    public readonly record struct HistorianDataBatch(
+        NodeId NodeId,
+        ArrayOf<DataValue> Values);
 }

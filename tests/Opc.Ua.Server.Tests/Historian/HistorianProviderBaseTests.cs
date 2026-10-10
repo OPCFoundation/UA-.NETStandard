@@ -31,7 +31,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -49,6 +48,9 @@ namespace Opc.Ua.Server.Tests.Historian
     [Parallelizable(ParallelScope.All)]
     public class HistorianProviderBaseTests
     {
+        /// <summary>
+        /// Verifies that the base historian provider reports historizing enabled by default.
+        /// </summary>
         [Test]
         public async Task IsHistorizingAsyncReturnsTrueByDefaultAsync()
         {
@@ -60,6 +62,9 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(result, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that the base historian provider advertises read-only capabilities by default.
+        /// </summary>
         [Test]
         public async Task GetCapabilitiesAsyncReturnsReadOnlyByDefaultAsync()
         {
@@ -72,10 +77,16 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(caps, Is.SameAs(HistorianNodeCapabilities.ReadOnly));
         }
 
+        /// <summary>
+        /// Verifies that repeated-status creation fills every entry with the requested code.
+        /// </summary>
         [Test]
         public void RepeatStatusReturnsArrayFilledWithGivenCode()
         {
-            IList<StatusCode> result = ConcreteProvider.RepeatStatusPublic(StatusCodes.Good, 5);
+            ArrayOf<StatusCode> result =
+                ConcreteProvider.RepeatStatusPublic(
+                    StatusCodes.Good,
+                    5);
 
             Assert.That(result, Has.Count.EqualTo(5));
             foreach (StatusCode sc in result)
@@ -84,18 +95,30 @@ namespace Opc.Ua.Server.Tests.Historian
             }
         }
 
+        /// <summary>
+        /// Verifies that repeating a status zero times returns an empty collection.
+        /// </summary>
         [Test]
         public void RepeatStatusReturnsEmptyListForCountZero()
         {
-            IList<StatusCode> result = ConcreteProvider.RepeatStatusPublic(StatusCodes.BadInvalidArgument, 0);
+            ArrayOf<StatusCode> result =
+                ConcreteProvider.RepeatStatusPublic(
+                    StatusCodes.BadInvalidArgument,
+                    0);
 
             Assert.That(result, Is.Empty);
         }
 
+        /// <summary>
+        /// Verifies that repeated-status creation preserves the exact supplied status code.
+        /// </summary>
         [Test]
         public void RepeatStatusPreservesSpecificCode()
         {
-            IList<StatusCode> result = ConcreteProvider.RepeatStatusPublic(StatusCodes.BadHistoryOperationUnsupported, 3);
+            ArrayOf<StatusCode> result =
+                ConcreteProvider.RepeatStatusPublic(
+                    StatusCodes.BadHistoryOperationUnsupported,
+                    3);
 
             Assert.That(result, Has.Count.EqualTo(3));
             Assert.That(result[0], Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
@@ -108,7 +131,9 @@ namespace Opc.Ua.Server.Tests.Historian
         /// </summary>
         private sealed class ConcreteProvider : HistorianProviderBase
         {
-            public static IList<StatusCode> RepeatStatusPublic(StatusCode code, int count)
+            public static ArrayOf<StatusCode> RepeatStatusPublic(
+                StatusCode code,
+                int count)
             {
                 return RepeatStatus(code, count);
             }

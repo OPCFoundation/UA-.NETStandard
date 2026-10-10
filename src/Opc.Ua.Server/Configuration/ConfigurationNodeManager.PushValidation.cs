@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
         /// <remarks>
         /// When <paramref name="registry"/> is supplied the presented
         /// certificate is resolved live from the certificate registry using the
-        /// endpoint's (immutable) <see cref="EndpointDescription.SecurityPolicyUri"/>,
+        /// endpoint's security and user-token policies,
         /// so a certificate that was rotated after the endpoints were created is
         /// still matched even though the endpoint's cached
         /// <see cref="EndpointDescription.ServerCertificate"/> blob is stale;
@@ -65,7 +65,8 @@ namespace Opc.Ua.Server
             string thumbprint,
             ArrayOf<EndpointDescription> endpoints,
             ICertificateRegistry? registry,
-            ITelemetryContext? telemetry)
+            ITelemetryContext? telemetry,
+            ISecurityPolicyRegistry? securityPolicies = null)
         {
             if (endpoints.IsNull)
             {
@@ -81,17 +82,13 @@ namespace Opc.Ua.Server
 
                 if (registry != null)
                 {
-                    // Authoritative path: an endpoint that requires encryption
-                    // presents the certificate the registry currently maps its
-                    // SecurityPolicyUri to. Endpoints without encryption present
-                    // no channel certificate to protect.
                     if (!ServerBase.RequireEncryption(endpoint))
                     {
                         continue;
                     }
 
-                    using CertificateEntry? entry = registry
-                        .AcquireApplicationCertificateBySecurityPolicy(endpoint.SecurityPolicyUri!);
+                    using CertificateEntry? entry = ServerBase.AcquireEndpointCertificate(
+                        endpoint, registry, securityPolicies);
                     if (entry?.Certificate is { } current &&
                         string.Equals(current.Thumbprint, thumbprint, StringComparison.OrdinalIgnoreCase))
                     {
@@ -208,7 +205,8 @@ namespace Opc.Ua.Server
             Certificate newCertificate,
             SecurityConfiguration securityConfiguration,
             ITelemetryContext telemetry,
-            CancellationToken ct)
+            CancellationToken ct,
+            ICertificateManager? certificateManager = null)
         {
             if (trustedStore == null)
             {
@@ -238,13 +236,15 @@ namespace Opc.Ua.Server
             }
 
             var trustList = new TrustListIdentifier(trustListName);
-            using CertificateManager validator = CertificateManagerFactory.Create(
-                securityConfiguration,
-                telemetry,
-                managerOptions => managerOptions.AddTrustList(
-                    trustList.Name,
-                    trustedStore.StorePath!,
-                    issuerStore?.StorePath));
+            using CertificateManager? validator = certificateManager != null
+                ? null
+                : CertificateManagerFactory.Create(
+                    securityConfiguration,
+                    telemetry,
+                    managerOptions => managerOptions.AddTrustList(
+                        trustList.Name,
+                        trustedStore.StorePath!,
+                        issuerStore?.StorePath));
 
             using var validationChain = new CertificateCollection { newCertificate };
 
@@ -257,7 +257,7 @@ namespace Opc.Ua.Server
                 AcceptError = static (_, _) => true
             };
 
-            CertificateValidationResult validationResult = await validator.ValidateAsync(
+            CertificateValidationResult validationResult = await (certificateManager ?? validator!).ValidateAsync(
                 validationChain,
                 trustList: trustList,
                 options: options,

@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Text.Json;
 
 namespace Opc.Ua.PubSub.Encoding.Json
@@ -52,6 +53,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
     /// </remarks>
     public static class JsonFieldDecoder
     {
+        private static readonly ConditionalWeakTable<DataSetMetaDataType, FieldIndex> s_fieldIndexes = new();
+
         /// <summary>
         /// Decodes the <c>Payload</c> object into a list of
         /// <see cref="DataSetField"/> values.
@@ -69,24 +72,72 @@ namespace Opc.Ua.PubSub.Encoding.Json
             JsonEncodingMode detectedMode,
             IServiceMessageContext context)
         {
+            // The public contract still surfaces malformed payloads to the caller.
+            _ = TryDecodeFields(
+                payload, metaData, detectedMode, context, tolerant: false, out ArrayOf<DataSetField> fields);
+            return fields;
+        }
+
+        internal static bool TryDecodeFields(
+            JsonElement payload,
+            DataSetMetaDataType? metaData,
+            JsonEncodingMode detectedMode,
+            IServiceMessageContext context,
+            out ArrayOf<DataSetField> fields)
+        {
+            return TryDecodeFields(payload, metaData, detectedMode, context, tolerant: true, out fields);
+        }
+
+        private static bool TryDecodeFields(
+            JsonElement payload,
+            DataSetMetaDataType? metaData,
+            JsonEncodingMode detectedMode,
+            IServiceMessageContext context,
+            bool tolerant,
+            out ArrayOf<DataSetField> fields)
+        {
+            fields = [];
             if (context is null)
             {
                 throw new ArgumentNullException(nameof(context));
             }
             if (payload.ValueKind is not JsonValueKind.Object)
             {
-                return [];
+                return true;
             }
-            var fields = new List<DataSetField>(payload.GetArrayLengthSafe());
+            int memberCount;
+            try
+            {
+                memberCount = JsonDecoder.CheckArrayLength(payload, context);
+            }
+            catch (ServiceResultException) when (tolerant)
+            {
+                return false;
+            }
+            // A Publisher may append fields with only a MinorVersion change
+            // (Part 14 §6.2.3.2.6 Table 11), so the Payload can carry more
+            // members than the metadata describes; those decode without
+            // FieldMetaData. The member count is bounded by MaxArrayLength.
+            FieldIndex? fieldIndex = null;
+            if (metaData is not null && metaData.Fields.Count > 0)
+            {
+                fieldIndex = GetFieldIndex(metaData);
+            }
+            var decodedFields = new List<DataSetField>(memberCount);
             int index = 0;
             foreach (JsonProperty property in payload.EnumerateObject())
             {
-                FieldMetaData? fmd = ResolveMetaData(metaData, property.Name, index);
-                DataSetField field = DecodeOne(property, fmd, detectedMode, context);
-                fields.Add(field);
+                FieldMetaData? fmd = fieldIndex?.Resolve(property.Name, index);
+                DataSetField? field = DecodeOne(property, fmd, detectedMode, context, tolerant);
+                if (field is null)
+                {
+                    return false;
+                }
+                decodedFields.Add(field);
                 index++;
             }
-            return fields;
+            fields = decodedFields;
+            return true;
         }
 
         /// <summary>
@@ -97,17 +148,27 @@ namespace Opc.Ua.PubSub.Encoding.Json
         /// <param name="metaData">Optional matching field metadata.</param>
         /// <param name="detectedMode">Detected encoding mode.</param>
         /// <param name="context">Stack message context.</param>
+        /// <param name="tolerant">Whether malformed values reject instead of throwing.</param>
         /// <returns>Decoded field.</returns>
-        private static DataSetField DecodeOne(
+        private static DataSetField? DecodeOne(
             JsonProperty property,
             FieldMetaData? metaData,
             JsonEncodingMode detectedMode,
-            IServiceMessageContext context)
+            IServiceMessageContext context,
+            bool tolerant)
         {
             JsonElement value = property.Value;
-            if (LooksLikeDataValue(value))
+            // A { "Value" } object of a field with a multi-dimensional or
+            // abstract ValueRank is a Variant (Part 14 §7.2.5.4.3 Table 186).
+            if (LooksLikeDataValue(value) &&
+                !(metaData is not null &&
+                    metaData.ValueRank is not (ValueRanks.Scalar or ValueRanks.OneDimension) &&
+                    JsonVariantDecoder.IsValueDimensionsObject(value)))
             {
-                DataValue dv = JsonVariantDecoder.DecodeDataValue(value, context);
+                if (!TryDecodeDataValue(value, metaData, detectedMode, context, tolerant, out DataValue dv))
+                {
+                    return null;
+                }
                 return new DataSetField
                 {
                     Name = property.Name,
@@ -120,19 +181,14 @@ namespace Opc.Ua.PubSub.Encoding.Json
                     Encoding = PubSubFieldEncoding.DataValue
                 };
             }
-            TypeInfo? typeInfo = metaData is null
-                ? null
-                : TypeInfo.Create(
-                    (BuiltInType)metaData.BuiltInType,
-                    metaData.ValueRank);
             PubSubFieldEncoding encoding = JsonVariantEncoder.WrapsInVariantEnvelope(detectedMode)
                 ? PubSubFieldEncoding.Variant
                 : PubSubFieldEncoding.RawData;
-            Variant variant = JsonVariantDecoder.DecodeVariant(
-                value,
-                detectedMode,
-                typeInfo,
-                context);
+            Variant variant;
+            if (!TryDecodeVariant(value, detectedMode, metaData, context, tolerant, out variant))
+            {
+                return null;
+            }
             return new DataSetField
             {
                 Name = property.Name,
@@ -141,37 +197,158 @@ namespace Opc.Ua.PubSub.Encoding.Json
             };
         }
 
-        /// <summary>
-        /// Locates the metadata entry that matches the supplied field
-        /// name or, failing that, the entry at the same ordinal.
-        /// </summary>
-        /// <param name="metaData">Optional metadata.</param>
-        /// <param name="name">Field name from the payload.</param>
-        /// <param name="index">Ordinal in the payload.</param>
-        /// <returns>Matching field metadata, or
-        /// <see langword="null"/>.</returns>
-        private static FieldMetaData? ResolveMetaData(
-            DataSetMetaDataType? metaData,
-            string name,
-            int index)
+        private static bool TryDecodeVariant(
+            JsonElement value,
+            JsonEncodingMode detectedMode,
+            FieldMetaData? metaData,
+            IServiceMessageContext context,
+            bool tolerant,
+            out Variant variant)
         {
-            if (metaData is null || metaData.Fields.Count == 0)
+            try
             {
-                return null;
+                variant = JsonVariantDecoder.DecodeField(
+                    value,
+                    detectedMode,
+                    metaData,
+                    context);
+                return true;
             }
-            for (int i = 0; i < metaData.Fields.Count; i++)
+            catch (ServiceResultException) when (tolerant)
             {
-                FieldMetaData fmd = metaData.Fields[i];
-                if (string.Equals(fmd.Name, name, StringComparison.Ordinal))
+                variant = Variant.Null;
+                return false;
+            }
+            catch (JsonException) when (tolerant)
+            {
+                variant = Variant.Null;
+                return false;
+            }
+        }
+
+        private static bool TryDecodeDataValue(
+            JsonElement value,
+            FieldMetaData? metaData,
+            JsonEncodingMode detectedMode,
+            IServiceMessageContext context,
+            bool tolerant,
+            out DataValue dataValue)
+        {
+            try
+            {
+                JsonElement wrapped = value.GetProperty("Value");
+                if (value.TryGetProperty("UaType", out _) ||
+                    (metaData is null && !JsonVariantDecoder.IsLegacyVariantEnvelope(wrapped)))
+                {
+                    dataValue = JsonVariantDecoder.DecodeDataValue(value, context);
+                    return true;
+                }
+                // Part 14 §7.2.5.4.3 Table 187: without UaType the Value is
+                // typed by the FieldMetaData like a collapsed Variant field.
+                Variant fieldValue = JsonVariantDecoder.DecodeField(
+                    wrapped,
+                    detectedMode,
+                    metaData,
+                    context);
+                DataValue header = JsonVariantDecoder.DecodeSpliced(
+                    value,
+                    context,
+                    static decoder => decoder.ReadDataValue(JsonVariantDecoder.SpliceFieldName),
+                    excludedProperty: "Value");
+                dataValue = new DataValue(
+                    fieldValue,
+                    header.StatusCode,
+                    header.SourceTimestamp,
+                    header.ServerTimestamp,
+                    header.SourcePicoseconds,
+                    header.ServerPicoseconds);
+                return true;
+            }
+            catch (ServiceResultException) when (tolerant)
+            {
+                dataValue = DataValue.Null;
+                return false;
+            }
+            catch (JsonException) when (tolerant)
+            {
+                dataValue = DataValue.Null;
+                return false;
+            }
+        }
+
+        /// <summary>
+        /// Returns the cached name index of the metadata fields, building
+        /// it once per <see cref="DataSetMetaDataType"/> (and again only
+        /// when its <see cref="DataSetMetaDataType.Fields"/> array is
+        /// replaced) so each payload member resolves in O(1).
+        /// </summary>
+        /// <param name="metaData">Metadata with at least one field.</param>
+        /// <returns>The field index.</returns>
+        private static FieldIndex GetFieldIndex(DataSetMetaDataType metaData)
+        {
+            ReadOnlyMemory<FieldMetaData> fields = metaData.Fields.Memory;
+            if (s_fieldIndexes.TryGetValue(metaData, out FieldIndex? cached) &&
+                cached.Fields.Equals(fields))
+            {
+                return cached;
+            }
+            var index = new FieldIndex(fields);
+            lock (s_fieldIndexes)
+            {
+                s_fieldIndexes.Remove(metaData);
+                s_fieldIndexes.Add(metaData, index);
+            }
+            return index;
+        }
+
+        /// <summary>
+        /// Name to <see cref="FieldMetaData"/> lookup for one metadata
+        /// field array.
+        /// </summary>
+        private sealed class FieldIndex
+        {
+            public FieldIndex(ReadOnlyMemory<FieldMetaData> fields)
+            {
+                Fields = fields;
+                m_byName = new Dictionary<string, FieldMetaData>(
+                    fields.Length,
+                    StringComparer.Ordinal);
+                ReadOnlySpan<FieldMetaData> span = fields.Span;
+                for (int i = 0; i < span.Length; i++)
+                {
+                    // The first field wins for duplicate names.
+                    string? name = span[i]?.Name;
+                    if (name is not null && !m_byName.ContainsKey(name))
+                    {
+                        m_byName.Add(name, span[i]);
+                    }
+                }
+            }
+
+            /// <summary>
+            /// The field array the index was built from.
+            /// </summary>
+            public ReadOnlyMemory<FieldMetaData> Fields { get; }
+
+            /// <summary>
+            /// Locates the metadata entry that matches the supplied
+            /// field name or, failing that, the entry at the same
+            /// ordinal.
+            /// </summary>
+            /// <param name="name">Field name from the payload.</param>
+            /// <param name="index">Ordinal in the payload.</param>
+            /// <returns>Matching field metadata, or
+            /// <see langword="null"/>.</returns>
+            public FieldMetaData? Resolve(string name, int index)
+            {
+                if (m_byName.TryGetValue(name, out FieldMetaData? fmd))
                 {
                     return fmd;
                 }
+                return index < Fields.Length ? Fields.Span[index] : null;
             }
-            if (index < metaData.Fields.Count)
-            {
-                return metaData.Fields[index];
-            }
-            return null;
+
+            private readonly Dictionary<string, FieldMetaData> m_byName;
         }
 
         /// <summary>
@@ -194,48 +371,32 @@ namespace Opc.Ua.PubSub.Encoding.Json
             {
                 return false;
             }
+            bool hasTypeEnvelope = false;
+            bool hasDataValueMetadata = false;
             foreach (JsonProperty member in value.EnumerateObject())
             {
                 switch (member.Name)
                 {
                     case "Value":
+                        continue;
+                    case "UaType":
+                    case "Dimensions":
+                        hasTypeEnvelope = true;
+                        continue;
                     case "Status":
                     case "StatusCode":
                     case "SourceTimestamp":
                     case "SourcePicoseconds":
                     case "ServerTimestamp":
                     case "ServerPicoseconds":
+                        hasDataValueMetadata = true;
                         continue;
                     default:
                         return false;
                 }
             }
-            return true;
-        }
-
-        /// <summary>
-        /// Safe variant of <see cref="JsonElement.GetArrayLength"/>
-        /// that returns a default capacity for objects (which do not
-        /// have an array length).
-        /// </summary>
-        /// <param name="element">Element being measured.</param>
-        /// <returns>Suggested list pre-allocation capacity.</returns>
-        private static int GetArrayLengthSafe(this JsonElement element)
-        {
-            if (element.ValueKind == JsonValueKind.Object)
-            {
-                int count = 0;
-                foreach (JsonProperty _ in element.EnumerateObject())
-                {
-                    count++;
-                }
-                return count;
-            }
-            if (element.ValueKind == JsonValueKind.Array)
-            {
-                return element.GetArrayLength();
-            }
-            return 0;
+            // Part 6 flattens typed DataValues; a plain typed Variant has no quality/timestamp members.
+            return hasDataValueMetadata || !hasTypeEnvelope;
         }
     }
 }

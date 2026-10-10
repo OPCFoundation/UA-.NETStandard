@@ -44,7 +44,7 @@ namespace Opc.Ua.Fuzzing
     /// </summary>
     public sealed class Logging : ITelemetryContext, IDisposable
     {
-        public Logging(Action<ILoggingBuilder> configure = null)
+        public Logging(Action<ILoggingBuilder>? configure = null)
         {
             LoggerFactory = Microsoft.Extensions.Logging.LoggerFactory
                 .Create(builder =>
@@ -80,7 +80,21 @@ namespace Opc.Ua.Fuzzing
         }
 
         /// <inheritdoc/>
+        public Meter CreateMeter(System.Reflection.Assembly assembly)
+        {
+            assembly.ThrowIfNull(nameof(assembly));
+            return CreateMeter();
+        }
+
+        /// <inheritdoc/>
         public ActivitySource ActivitySource { get; }
+
+        /// <inheritdoc/>
+        public ActivitySource GetActivitySource(System.Reflection.Assembly assembly)
+        {
+            assembly.ThrowIfNull(nameof(assembly));
+            return ActivitySource;
+        }
 
         /// <inheritdoc/>
         public void Dispose()
@@ -140,7 +154,7 @@ namespace Opc.Ua.Fuzzing
                 loggerConfiguration.WriteTo.File(
                     new ExpressionTemplate(
                         "{UtcDateTime(@t):yyyy-MM-dd HH:mm:ss.fff} [{@l:u3}] {@m}\n{@x}"),
-                    Utils.ReplaceSpecialFolderNames(outputFilePath),
+                    Utils.ReplaceSpecialFolderNames(outputFilePath)!,
                     restrictedToMinimumLevel: (LogEventLevel)fileLevel,
                     rollOnFileSizeLimit: true
                 );
@@ -174,7 +188,7 @@ namespace Opc.Ua.Fuzzing
         }
 
         private void Unobserved_TaskException(
-            object sender,
+            object? sender,
             UnobservedTaskExceptionEventArgs args)
         {
             if (m_logger.IsEnabled(LogLevel.Critical))

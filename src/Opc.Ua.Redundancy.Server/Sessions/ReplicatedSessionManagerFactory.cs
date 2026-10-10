@@ -111,7 +111,7 @@ namespace Opc.Ua.Redundancy.Server
                 ownedNonceStore = new InMemorySharedKeyValueStore();
                 nonceStore = ownedNonceStore;
             }
-            var nonceRegistry = new SharedSingleUseNonceRegistry(nonceStore);
+            var nonceRegistry = new SharedSingleUseNonceRegistry(nonceStore, timeProvider: timeProvider);
 
             lock (m_lock)
             {

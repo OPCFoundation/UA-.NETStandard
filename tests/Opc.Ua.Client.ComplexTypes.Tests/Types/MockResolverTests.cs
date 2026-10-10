@@ -51,8 +51,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     [Parallelizable]
     public class MockResolverTests : ComplexTypesCommon
     {
-        public IServiceMessageContext EncoderContext;
-        public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary;
+        public IServiceMessageContext EncoderContext = null!;
+        public Dictionary<StructureType, (ExpandedNodeId, Type)> TypeDictionary = null!;
 
         public readonly string[] DefaultEncodings =
         [
@@ -76,7 +76,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 #if !NET8_0_OR_GREATER
                     typeof(BuiltInType),
 #endif
-                    builtInType);
+                    builtInType)!;
                 TypeId = new NodeId((uint)builtInType);
             }
 
@@ -86,10 +86,10 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 TypeId = typeId;
             }
 
-            public string Name { get; }
+            public string Name { get; } = null!;
             public NodeId TypeId { get; }
 
-            public string ToString(string format, IFormatProvider formatProvider)
+            public string ToString(string? format, IFormatProvider? formatProvider)
             {
                 return Name;
             }
@@ -129,7 +129,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         [DatapointSource]
         public static readonly TestType[] TypeSource = new TestTypeCollection(
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
             Enum.GetValues<BuiltInType>()
 #else
             Enum.GetValues(typeof(BuiltInType))
@@ -273,8 +273,8 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver, new ComplexTypeBuilderFactory(), telemetry);
-            IType carType = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
-                .ConfigureAwait(false);
+            IType carType = (await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+                .ConfigureAwait(false))!;
             Assert.That(carType, Is.Not.Null);
             Assert.That(carType.Type, Is.Not.Null);
             var carTypeActivator = carType as IEncodeableType;
@@ -472,14 +472,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver, new ComplexTypeBuilderFactory(), telemetry);
-            IType arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
-                .ConfigureAwait(false);
+            IType arraysTypes = (await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+                .ConfigureAwait(false))!;
             Assert.That(arraysTypes, Is.Not.Null);
             Assert.That(arraysTypes.Type, Is.Not.Null);
 
-            var arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes.Type);
+            var arrays = (BaseComplexType)Activator.CreateInstance(arraysTypes.Type)!;
 
-            TestOutput.WriteLine(arrays.ToString());
+            TestOutput.WriteLine(arrays!.ToString());
 
             arrays["ArrayOfInteger"] = Variant.From(ArrayOf.Wrapped(1, 4, 8, 12, 22));
             arrays["Array2DOfInteger"] = Variant.From(new int[,]
@@ -610,7 +610,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
             int valueRank = (int)testRank;
             string typeName = typeDescription.Name;
-            string arrayPrefix = Enum.GetName(typeof(TestRanks), valueRank);
+            string arrayPrefix = Enum.GetName(typeof(TestRanks), valueRank)!;
             string seperator = valueRank > 0 ? "Of" : string.Empty;
             var field = new StructureField
             {
@@ -663,18 +663,18 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             mockResolver.DataTypeNodes[dataTypeNode.NodeId] = dataTypeNode;
 
             var cts = new ComplexTypeSystem(mockResolver, new ComplexTypeBuilderFactory(), telemetry);
-            IType arraysTypes = await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
-                .ConfigureAwait(false);
+            IType arraysTypes = (await cts.LoadTypeAsync(dataTypeNode.NodeId, false, true)
+                .ConfigureAwait(false))!;
             Assert.That(arraysTypes, Is.Not.Null);
             Assert.That(arraysTypes.Type, Is.Not.Null);
 
-            var testType = (BaseComplexType)Activator.CreateInstance(arraysTypes.Type);
+            var testType = (BaseComplexType)Activator.CreateInstance(arraysTypes.Type)!;
             Assert.That(testType, Is.Not.Null);
 
             TestOutput.WriteLine(testType.ToString());
 
             Variant value;
-            IType valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder);
+            IType valueType = TypeInfo.GetSystemType(field.DataType, mockResolver.FactoryBuilder)!;
             BuiltInType builtInType = TypeInfo.GetBuiltInType(field.DataType);
             if (valueRank == ValueRanks.Scalar)
             {
@@ -699,7 +699,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 }
                 else
                 {
-                    value = Variant.From(new ExtensionObject((IEncodeable)Activator.CreateInstance(valueType.Type)));
+                    value = Variant.From(new ExtensionObject((IEncodeable)Activator.CreateInstance(valueType!.Type)!));
                 }
             }
             else
@@ -719,11 +719,11 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                         array.SetValue(rndValue, indices);
                         Iterate(dimensions, indices);
                     }
-                    value = CreateVariantForMatrixOf(array.GetType().GetElementType(), array);
+                    value = CreateVariantForMatrixOf(array.GetType().GetElementType()!, array);
                 }
                 else
                 {
-                    var array = Array.CreateInstance(valueType.Type, dimensions);
+                    var array = Array.CreateInstance(valueType!.Type, dimensions);
                     int[] indices = new int[valueRank];
                     for (int ii = 0; ii < array.Length; ii++)
                     {
@@ -886,7 +886,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             }
 
             Assert.Fail($"Unexpected ValueType {valueType}");
-            return null;
+            return null!;
         }
 
         private object GetRandom(BuiltInType expectedType)
@@ -896,14 +896,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 case BuiltInType.DiagnosticInfo:
                     return DataGenerator.GetRandomDiagnosticInfo();
                 case BuiltInType.Null:
-                    return null;
+                    return null!;
                 case BuiltInType.Number:
                 case BuiltInType.Integer:
                 case BuiltInType.UInteger:
                 case BuiltInType.Variant:
                     return DataGenerator.GetRandomScalar(expectedType);
                 default:
-                    return DataGenerator.GetRandomScalar(expectedType).AsBoxedObject();
+                    return DataGenerator.GetRandomScalar(expectedType).AsBoxedObject()!;
             }
         }
 
@@ -949,9 +949,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetMethod(
                     nameof(CreateVariantForStructureMatrixT),
                     System.Reflection.BindingFlags.Static |
-                    System.Reflection.BindingFlags.NonPublic)
+                    System.Reflection.BindingFlags.NonPublic)!
                 .MakeGenericMethod([type])
-                .Invoke(null, [array]);
+                .Invoke(null, [array])!;
         }
 
         private static Variant CreateVariantForStructureMatrixT<T>(Array array) where T : IEncodeable
@@ -965,9 +965,9 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 .GetMethod(
                     nameof(CreateVariantForMatrixOfT),
                     System.Reflection.BindingFlags.Static |
-                    System.Reflection.BindingFlags.NonPublic)
+                    System.Reflection.BindingFlags.NonPublic)!
                 .MakeGenericMethod([type])
-                .Invoke(null, [array]);
+                .Invoke(null, [array])!;
         }
 
         private static Variant CreateVariantForMatrixOfT<T>(Array array)
@@ -1003,14 +1003,14 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
 
         [DataMember(Order = 4)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 1, IsOptional = false)]
-        public int[] PropertyInt32Array { get; set; }
+        public int[] PropertyInt32Array { get; set; } = null!;
 
         [DataMember(Order = 5)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 2, IsOptional = false)]
-        public int[,] PropertyInt322DArray { get; set; }
+        public int[,] PropertyInt322DArray { get; set; } = null!;
 
         [DataMember(Order = 6)]
         [StructureField(BuiltInType = (int)BuiltInType.Int32, ValueRank = 5, IsOptional = false)]
-        public int[,,,,] PropertyInt325DArray { get; set; }
+        public int[,,,,] PropertyInt325DArray { get; set; } = null!;
     }
 }

@@ -57,7 +57,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeId root = new(kRootNodeId, ns);
             NodeId concurrent = new(8401, ns);
             var added = new List<ExpandedNodeId>();
-            NodeStateReferenceAdded previousCallback = objects.OnReferenceAdded;
+            NodeStateReferenceAdded? previousCallback = objects.OnReferenceAdded;
             objects.OnReferenceAdded = (_, _, _, target) => added.Add(target);
             try
             {
@@ -130,10 +130,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         public async Task PreparedBatchReferenceImageIsRetainedByAnInflightNativeRequestAsync()
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
-            TrackingLifecycleNodeManager survivor = null;
+            TrackingLifecycleNodeManager? survivor = null;
             await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(kFirstRegistrationValue, manager => survivor = manager),
                 null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(survivor);
             NodeState objects = await GetObjectsReferenceOwnerAsync(timeout.Token).ConfigureAwait(false);
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             ushort ns = m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend(kSecondModelNamespaceUri);
@@ -264,12 +265,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task PreparedBatchReferenceCallbacksDoNotPreventReadinessAndRetirementAsync()
         {
-            TrackingLifecycleNodeManager originalManager = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(kFirstRegistrationValue, manager => originalManager = manager),
                 null)
                 .ConfigureAwait(false);
-            ReadinessLifecycleNodeManager replacement = null;
+            ReadinessLifecycleNodeManager? replacement = null;
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
@@ -282,7 +283,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             NodeState objects = await GetObjectsReferenceOwnerAsync(CancellationToken.None).ConfigureAwait(false);
             var failure = new IOException("Committed reference callback failed.");
-            NodeStateReferenceAdded previous = objects.OnReferenceAdded;
+            NodeStateReferenceAdded? previous = objects.OnReferenceAdded;
             int callbacks = 0;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [
@@ -290,6 +291,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerBatchChange.Add(new RuntimeNodeSetNodeManagerFactory(
                         CreateOptions(kSecondModelNamespaceUri, kSecondRegistrationValue)))
                 ]).ConfigureAwait(false);
+            AssertLifecycleValue(originalManager);
+            AssertLifecycleValue(replacement);
             NodeId root = new(kRootNodeId,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kSecondModelNamespaceUri));
             objects.OnReferenceAdded = (_, _, _, target) =>
@@ -304,7 +307,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 NodeManagerBatchResult result = await prepared.CommitAsync(_ => default).ConfigureAwait(false);
                 Assert.That(result.CleanupFailure, Is.TypeOf<AggregateException>());
-                Assert.That(((AggregateException)result.CleanupFailure).Flatten().InnerExceptions,
+                var cleanupFailure = RequireLifecycleValue(result.CleanupFailure) as AggregateException;
+                Assert.That(RequireLifecycleValue(cleanupFailure).Flatten().InnerExceptions,
                     Is.EqualTo(new[] { failure }));
                 Assert.That(callbacks, Is.EqualTo(1));
                 Assert.That(replacement.ReadinessCount, Is.EqualTo(1));
@@ -381,10 +385,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, _ => { }, kSecondModelNamespaceUri))], timeout.Token)
                 .ConfigureAwait(false);
-            object handle = await prepared.Registrations[0].NodeManager
+            object? handle = await prepared.Registrations[0].NodeManager
                 .GetManagerHandleAsync(candidateRoot, timeout.Token)
                 .ConfigureAwait(false);
-            var node = ((NodeHandle)handle).Node;
+            NodeState node = RequireLifecycleValue(handle as NodeHandle).Node;
             int callbacks = 0;
             node.OnReferenceAdded = (_, type, inverse, target) =>
             {
@@ -492,10 +496,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private async Task<NodeState> GetObjectsReferenceOwnerAsync(CancellationToken cancellationToken)
         {
-            (object handle, _) = await m_server.CurrentInstance.NodeManager.GetManagerHandleAsync(
+            (object? handle, _) = await m_server.CurrentInstance.NodeManager.GetManagerHandleAsync(
                 ObjectIds.ObjectsFolder, cancellationToken).ConfigureAwait(false);
             Assert.That(handle, Is.TypeOf<NodeHandle>());
-            return ((NodeHandle)handle).Node;
+            return RequireLifecycleValue(handle as NodeHandle).Node;
         }
 
         private IAsyncNodeManagerFactory CreateReferenceContributorFactory(

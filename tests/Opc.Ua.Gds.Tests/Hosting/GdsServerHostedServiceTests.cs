@@ -58,7 +58,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
     [NonParallelizable]
-    public sealed class GdsServerHostedServiceTests
+    public sealed partial class GdsServerHostedServiceTests
     {
         [Test]
         public async Task AddIdentityAuthenticatorRegistersWithRunningGdsIdentityRegistry()
@@ -72,11 +72,12 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             var services = new ServiceCollection();
             var authenticator = new StubAuthenticator();
+            using var certificateGroup = new StubCertificateGroup();
             services.AddLogging();
             services.AddSingleton(NUnitTelemetryContext.Create(isServer: true));
             services.AddSingleton<IApplicationsDatabase>(new StubApplicationsDatabase());
             services.AddSingleton<ICertificateRequest>(new StubCertificateRequest());
-            services.AddSingleton<ICertificateGroup>(new StubCertificateGroup());
+            services.AddSingleton<ICertificateGroup>(certificateGroup);
             services.AddSingleton<IUserDatabase>(new StubUserDatabase());
 
             services.AddOpcUa()
@@ -109,6 +110,13 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
                 Assert.That(result.Identity, Is.SameAs(authenticator.Identity));
                 Assert.That(authenticator.CallCount, Is.EqualTo(1));
+
+                // OPC 10000-12 §7.8.3.3: without configured groups the hosted GDS
+                // still serves the mandatory DefaultApplicationGroup.
+                Assert.That(certificateGroup.Configuration.Id, Is.EqualTo("Default"));
+                Assert.That(
+                    certificateGroup.Configuration.BaseStorePath,
+                    Does.StartWith(pkiRoot));
             }
             finally
             {
@@ -271,7 +279,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             DateTime deadline = DateTime.UtcNow.AddSeconds(30);
             while (DateTime.UtcNow < deadline)
             {
-                Task executeTask = hostedService.ExecuteTask;
+                Task executeTask = hostedService.ExecuteTask!;
                 if (executeTask != null && executeTask.IsCompleted)
                 {
                     await executeTask.ConfigureAwait(false);
@@ -324,10 +332,10 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(registry, Is.TypeOf<ServerIdentityRegistry>());
             FieldInfo field = typeof(ServerIdentityRegistry).GetField(
                 "m_augmenters",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
-            var augmenters = (ICollection)field.GetValue(registry);
-            return augmenters.Count;
+            var augmenters = (ICollection)field.GetValue(registry)!;
+            return augmenters!.Count;
         }
 
         private static async Task<AuthenticationResult> WaitForAuthenticationAsync(
@@ -336,7 +344,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             DateTime deadline = DateTime.UtcNow.AddSeconds(30);
             while (DateTime.UtcNow < deadline)
             {
-                Task executeTask = hostedService.ExecuteTask;
+                Task executeTask = hostedService.ExecuteTask!;
                 if (executeTask != null && executeTask.IsCompleted)
                 {
                     await executeTask.ConfigureAwait(false);
@@ -375,7 +383,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
             DateTime deadline = DateTime.UtcNow.AddSeconds(30);
             while (DateTime.UtcNow < deadline)
             {
-                Task executeTask = hostedService.ExecuteTask;
+                Task executeTask = hostedService.ExecuteTask!;
                 if (executeTask != null && executeTask.IsCompleted)
                 {
                     await executeTask.ConfigureAwait(false);
@@ -422,13 +430,13 @@ namespace Opc.Ua.Gds.Tests.Hosting
             Assert.That(registry, Is.TypeOf<ServerIdentityRegistry>());
             FieldInfo field = typeof(ServerIdentityRegistry).GetField(
                 "m_augmenters",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
-            var augmenters = (IEnumerable)field.GetValue(registry);
+            var augmenters = (IEnumerable)field.GetValue(registry)!;
 
             try
             {
-                foreach (object registered in augmenters)
+                foreach (object registered in augmenters!)
                 {
                     if (ReferenceEquals(registered, augmenter))
                     {
@@ -471,9 +479,9 @@ namespace Opc.Ua.Gds.Tests.Hosting
         {
             FieldInfo field = typeof(GdsServerHostedService).GetField(
                 "m_server",
-                BindingFlags.Instance | BindingFlags.NonPublic);
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
             Assert.That(field, Is.Not.Null);
-            return (StandardServer)field.GetValue(hostedService);
+            return (StandardServer)field.GetValue(hostedService)!;
         }
 
         private static int GetAvailablePort()
@@ -506,7 +514,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public int CallCount { get; private set; }
 
-            public IUserIdentity InputIdentity { get; private set; }
+            public IUserIdentity InputIdentity { get; private set; } = null!;
 
             public ValueTask<AuthenticationResult> AugmentAsync(
                 IUserIdentity identity,
@@ -544,7 +552,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public ApplicationRecordDataType GetApplication(NodeId applicationId)
             {
-                return null;
+                return null!;
             }
 
             public ApplicationRecordDataType[] FindApplications(string applicationUri)
@@ -595,7 +603,7 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 string certificateTypeId,
                 out string trustListId)
             {
-                trustListId = null;
+                trustListId = null!;
                 return false;
             }
 
@@ -694,23 +702,24 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
             public ArrayOf<NodeId> CertificateTypes { get; set; } = [];
 
-            public ConcurrentDictionary<NodeId, Certificate> Certificates { get; } = new();
+            public ConcurrentDictionary<NodeId, Certificate?> Certificates { get; } = new();
 
-            public CertificateGroupConfiguration Configuration { get; } = new();
+            public CertificateGroupConfiguration Configuration { get; private set; } = new();
 
             public CertificateStoreIdentifier AuthoritiesStore { get; } = new();
 
-            public CertificateStoreIdentifier IssuerCertificatesStore { get; }
+            public CertificateStoreIdentifier IssuerCertificatesStore { get; } = null!;
 
-            public TrustListState DefaultTrustList { get; set; }
+            public TrustListState DefaultTrustList { get; set; } = null!;
 
             public bool UpdateRequired { get; set; }
 
             public ICertificateGroup Create(
                 string authoritiesStorePath,
                 CertificateGroupConfiguration certificateGroupConfiguration,
-                string issuerCertificatesStorePath)
+                string? issuerCertificatesStorePath)
             {
+                Configuration = certificateGroupConfiguration;
                 return this;
             }
 
@@ -742,6 +751,15 @@ namespace Opc.Ua.Gds.Tests.Hosting
                 throw new NotSupportedException();
             }
 
+            public Task VerifySigningRequestAsync(
+                ApplicationRecordDataType application,
+                NodeId certificateType,
+                ByteString certificateRequest,
+                CancellationToken ct = default)
+            {
+                throw new NotSupportedException();
+            }
+
             public Task<Certificate> SigningRequestAsync(
                 ApplicationRecordDataType application,
                 NodeId certificateType,
@@ -767,35 +785,71 @@ namespace Opc.Ua.Gds.Tests.Hosting
 
         private sealed class StubUserDatabase : IUserDatabase
         {
+            /// <inheritdoc/>
             public bool CreateUser(string userName, ReadOnlySpan<byte> password, ICollection<Role> roles)
             {
                 return true;
             }
 
+            /// <inheritdoc/>
             public bool DeleteUser(string userName)
             {
                 return false;
             }
 
+            /// <inheritdoc/>
             public bool CheckCredentials(string userName, ReadOnlySpan<byte> password)
             {
                 return false;
             }
 
+            /// <inheritdoc/>
             public ICollection<Role> GetUserRoles(string userName)
             {
                 return Array.Empty<Role>();
             }
 
+            /// <inheritdoc/>
             public IReadOnlyList<UserManagementDataType> GetUsers()
             {
                 return [];
             }
 
+            /// <inheritdoc/>
             public bool ChangePassword(
                 string userName,
                 ReadOnlySpan<byte> oldPassword,
                 ReadOnlySpan<byte> newPassword)
+            {
+                return false;
+            }
+
+            /// <inheritdoc/>
+            public bool CreateUser(
+                string userName,
+                ReadOnlySpan<byte> password,
+                ArrayOf<Role> roles,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return true;
+            }
+
+            /// <inheritdoc/>
+            public bool ResetPassword(
+                string userName,
+                ReadOnlySpan<byte> newPassword,
+                UserConfigurationMask userConfiguration,
+                string description)
+            {
+                return false;
+            }
+
+            /// <inheritdoc/>
+            public bool UpdateUserMetadata(
+                string userName,
+                UserConfigurationMask userConfiguration,
+                string description)
             {
                 return false;
             }

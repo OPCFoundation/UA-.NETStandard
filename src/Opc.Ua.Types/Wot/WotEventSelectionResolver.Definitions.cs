@@ -478,7 +478,7 @@ namespace Opc.Ua.Wot
             }
             if (ambiguous)
             {
-                return null;
+                return default;
             }
 
             // A logical identifier is the complete provider request. Only a
@@ -531,7 +531,7 @@ namespace Opc.Ua.Wot
                     }
                     if (nowAmbiguous)
                     {
-                        return null;
+                        return default;
                     }
                     if (logicalLookup)
                     {
@@ -561,7 +561,7 @@ namespace Opc.Ua.Wot
                     $"The EventType reference '{reference}' is not a document URI with an " +
                     "optional RFC 6901 JSON Pointer (WoT Binding Section 6.1).",
                     where);
-                return null;
+                return default;
             }
             if (located)
             {
@@ -582,7 +582,7 @@ namespace Opc.Ua.Wot
                     $"The EventType reference '{reference}' does not resolve to a " +
                     "definition of the document it names (WoT Binding Section 6.1).",
                     where);
-                return null;
+                return default;
             }
             if (unresolvedDocument is not null && NamesDocumentLocation(reference))
             {
@@ -601,7 +601,7 @@ namespace Opc.Ua.Wot
                         "(WoT Binding Sections 5.1.5 and 6.1).",
                         where);
                 }
-                return null;
+                return default;
             }
 
             AddError(
@@ -611,7 +611,7 @@ namespace Opc.Ua.Wot
                 "one declare, or one of the well-known base types; it is never dereferenced " +
                 "over the network (WoT Binding Sections 5.1.5 and 6.1).",
                 where);
-            return null;
+            return default;
         }
 
         /// <summary>

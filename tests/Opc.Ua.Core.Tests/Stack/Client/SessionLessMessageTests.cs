@@ -54,7 +54,7 @@ namespace Opc.Ua.Core.Tests
         public void DecodeAsJsonThrowsOnNullBuffer()
         {
             Assert.That(
-                () => SessionLessMessage.DecodeAsJson(null, m_context),
+                () => SessionLessMessage.DecodeAsJson(null!, m_context),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -62,7 +62,7 @@ namespace Opc.Ua.Core.Tests
         public void DecodeAsJsonThrowsOnNullContext()
         {
             Assert.That(
-                () => SessionLessMessage.DecodeAsJson([], null),
+                () => SessionLessMessage.DecodeAsJson([], null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -71,7 +71,7 @@ namespace Opc.Ua.Core.Tests
         {
             using var stream = new MemoryStream();
             Assert.That(
-                () => SessionLessMessage.EncodeAsJson(null, stream, m_context, true),
+                () => SessionLessMessage.EncodeAsJson(null!, stream, m_context, true),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -80,7 +80,7 @@ namespace Opc.Ua.Core.Tests
         {
             using var stream = new MemoryStream();
             Assert.That(
-                () => SessionLessMessage.EncodeAsJson(new ReadRequest(), stream, null, true),
+                () => SessionLessMessage.EncodeAsJson(new ReadRequest(), stream, null!, true),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -105,6 +105,21 @@ namespace Opc.Ua.Core.Tests
 
             IEncodeable decoded = SessionLessMessage.DecodeAsJson(buffer, m_context);
             Assert.That(decoded, Is.Not.Null);
+        }
+
+        [Test]
+        public void DecodeAsJsonChecksMaxMessageSize()
+        {
+            // The buffer was decoded without any MaxMessageSize check.
+            var request = new ReadRequest { MaxAge = 1000.0 };
+            using var stream = new MemoryStream();
+            SessionLessMessage.EncodeAsJson(request, stream, m_context, true);
+            byte[] buffer = stream.ToArray();
+            m_context.MaxMessageSize = buffer.Length - 1;
+
+            ServiceResultException sre = Assert.Throws<ServiceResultException>(
+                () => SessionLessMessage.DecodeAsJson(buffer, m_context));
+            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
         }
 
         [Test]
@@ -147,7 +162,7 @@ namespace Opc.Ua.Core.Tests
         public void DecodeAsBinaryThrowsOnNullBuffer()
         {
             Assert.That(
-                () => SessionLessMessage.DecodeAsBinary(null, m_context),
+                () => SessionLessMessage.DecodeAsBinary(null!, m_context),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -155,7 +170,7 @@ namespace Opc.Ua.Core.Tests
         public void DecodeAsBinaryThrowsOnNullContext()
         {
             Assert.That(
-                () => SessionLessMessage.DecodeAsBinary([], null),
+                () => SessionLessMessage.DecodeAsBinary([], null!),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -164,7 +179,7 @@ namespace Opc.Ua.Core.Tests
         {
             using var stream = new MemoryStream();
             Assert.That(
-                () => SessionLessMessage.EncodeAsBinary(new ReadRequest(), stream, null, true),
+                () => SessionLessMessage.EncodeAsBinary(new ReadRequest(), stream, null!, true),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -173,7 +188,7 @@ namespace Opc.Ua.Core.Tests
         {
             using var stream = new MemoryStream();
             Assert.That(
-                () => SessionLessMessage.EncodeAsBinary(null, stream, m_context, true),
+                () => SessionLessMessage.EncodeAsBinary(null!, stream, m_context, true),
                 Throws.TypeOf<ArgumentNullException>());
         }
 

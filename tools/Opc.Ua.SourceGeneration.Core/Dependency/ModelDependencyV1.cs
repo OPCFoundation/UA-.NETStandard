@@ -34,8 +34,6 @@ using System.IO.Compression;
 using System.Text;
 using System.Xml;
 
-#nullable enable
-
 namespace Opc.Ua.SourceGeneration.Dependency
 {
     /// <summary>
@@ -96,6 +94,25 @@ namespace Opc.Ua.SourceGeneration.Dependency
 
         /// <summary>Value rank (<see cref="ValueRanks"/>).</summary>
         public int ValueRank { get; }
+
+        /// <summary>
+        /// True if the structure field is optional (encoding mask bit).
+        /// Carried in the structure field trailer.
+        /// </summary>
+        public bool IsOptional { get; init; }
+
+        /// <summary>
+        /// True if the structure field allows subtypes of its data type
+        /// (encoded as ExtensionObject). Carried in the structure field
+        /// trailer.
+        /// </summary>
+        public bool AllowSubTypes { get; init; }
+
+        /// <summary>
+        /// The declared array dimensions ("0,0,0"), or <c>null</c>.
+        /// Carried in the structure field trailer.
+        /// </summary>
+        public string? ArrayDimensions { get; init; }
 
         /// <summary>
         /// Constructor.
@@ -161,6 +178,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public string BrowseName { get; set; } = string.Empty;
 
         /// <summary>
+        /// Namespace URI qualifying <see cref="BrowseName"/>. Empty when the
+        /// declaring type's own namespace qualifies it. A child re-declared
+        /// from a base type in another namespace keeps the namespace of its
+        /// original declaration here, so a consumer that instantiates the
+        /// derived type on its own still emits <c>0:EngineeringUnits</c>
+        /// rather than re-qualifying it into the declaring model.
+        /// </summary>
+        public string BrowseNameNamespace { get; set; } = string.Empty;
+
+        /// <summary>
         /// Symbolic name (often equal to BrowseName).
         /// </summary>
         public string SymbolicName { get; set; } = string.Empty;
@@ -197,6 +224,18 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Instance kind: 1=Object 2=Variable 3=Property 4=Method.
         /// </summary>
         public byte InstanceKind { get; set; }
+
+        /// <summary>
+        /// Name of the reference type binding the child to its parent. Empty
+        /// when the kind default applies (<c>HasProperty</c> for a property,
+        /// <c>HasComponent</c> otherwise).
+        /// </summary>
+        public string ReferenceTypeName { get; set; } = string.Empty;
+
+        /// <summary>
+        /// Namespace URI of <see cref="ReferenceTypeName"/>.
+        /// </summary>
+        public string ReferenceTypeNamespace { get; set; } = string.Empty;
 
         /// <summary>
         /// ModelDesign access level value (variables only).
@@ -242,6 +281,17 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// Serialized ModelDesign default value XML (variables only).
         /// </summary>
         public string? DefaultValueXml { get; set; }
+
+        /// <summary>
+        /// The namespace table the namespace indexes in
+        /// <see cref="DefaultValueXml"/> refer to in the producing model
+        /// (index 0 is the OPC UA namespace): the producer's design
+        /// namespaces, or the table of the NodeSet or dependency the value
+        /// was decoded from. Null when the payload does not carry it (older
+        /// producers); the consumer then resolves the indexes as before.
+        /// Carried in the value namespace trailer.
+        /// </summary>
+        public IReadOnlyList<string>? DefaultValueNamespaceUris { get; set; }
 
         /// <summary>
         /// Input arguments (methods only).
@@ -335,6 +385,16 @@ namespace Opc.Ua.SourceGeneration.Dependency
         public string? StringId { get; set; }
 
         /// <summary>
+        /// Optional Guid NodeId in the "D" format (null when not assigned).
+        /// </summary>
+        public string? GuidId { get; set; }
+
+        /// <summary>
+        /// Optional opaque NodeId as base64 (null when not assigned).
+        /// </summary>
+        public string? OpaqueId { get; set; }
+
+        /// <summary>
         /// True when the type is abstract.
         /// </summary>
         public bool IsAbstract { get; set; }
@@ -343,6 +403,26 @@ namespace Opc.Ua.SourceGeneration.Dependency
         /// True when the entry represents an enumeration DataType.
         /// </summary>
         public bool IsEnumeration { get; set; }
+
+        /// <summary>
+        /// DataType restriction of a VariableType (null for every other kind).
+        /// A consumer needs it to decide whether a variable typed by this
+        /// VariableType requires a template parameter on its generated state
+        /// class; without it the consumer cannot tell State&lt;T&gt; from the
+        /// non-generic state and dereferences a null DataTypeNode.
+        /// </summary>
+        public string? DataTypeName { get; set; }
+
+        /// <summary>
+        /// Namespace URI of <see cref="DataTypeName"/>.
+        /// </summary>
+        public string? DataTypeNamespace { get; set; }
+
+        /// <summary>
+        /// ValueRank of a VariableType, or null when the VariableType does not
+        /// specify one (ValueRankSpecified = false upstream).
+        /// </summary>
+        public int? ValueRank { get; set; }
 
         /// <summary>
         /// DataType fields (empty for non-DataType kinds).
@@ -379,11 +459,49 @@ namespace Opc.Ua.SourceGeneration.Dependency
         private const byte kFluentAccessorsKnown = 0x40;
         private const byte kMethodIdentityTrailer = 0x80;
         private const byte kMethodIdentityTrailerVersion = 1;
+        private const byte kNodeIsAbstract = 0x01;
+        private const byte kNodeIsEnumeration = 0x02;
+        // The declaration trailer carries the DataType restriction of each
+        // VariableType and the BrowseName namespace and ReferenceType of each
+        // child, with a flag byte per node and per child.
+        private const byte kDeclarationTrailer = 0x04;
+        private const byte kDeclarationTrailerVersion = 1;
+        private const byte kDeclarationDataType = 0x01;
+        private const byte kDeclarationBrowseNameNamespace = 0x01;
+        private const byte kDeclarationReferenceType = 0x02;
+        private const byte kExtendedIdentifierTrailer = 0x20;
+        private const byte kExtendedIdentifierTrailerVersion = 1;
+        private const byte kStructureFieldTrailer = 0x10;
+        private const byte kStructureFieldTrailerVersion = 1;
+        private const byte kValueNamespaceTrailer = 0x08;
+        private const byte kValueNamespaceTrailerVersion = 1;
+        private const byte kFieldIsOptional = 0x01;
+        private const byte kFieldAllowSubTypes = 0x02;
         private const byte kAccessLevelSpecified = 0x01;
         private const byte kRawAccessLevel = 0x02;
         private const byte kRawUserAccessLevel = 0x04;
         private const byte kMinimumSamplingIntervalSpecified = 0x08;
         private const byte kHistorizingSpecified = 0x10;
+
+        /// <summary>
+        /// Namespace URI that qualifies the standard reference types.
+        /// </summary>
+        public const string OpcUaNamespaceUri = "http://opcfoundation.org/UA/";
+
+        /// <summary>
+        /// Reference type a child of the given instance kind is bound with when
+        /// the declaring model does not name one. Mirrors the defaulting the
+        /// validator applies to a locally declared instance, so a child
+        /// materialised from a dependency payload is bound the same way as the
+        /// identical child declared in the consuming model.
+        /// </summary>
+        /// <param name="instanceKind">
+        /// Instance kind: 1=Object 2=Variable 3=Property 4=Method.
+        /// </param>
+        public static string GetDefaultReferenceTypeName(byte instanceKind)
+        {
+            return instanceKind == 3 ? "HasProperty" : "HasComponent";
+        }
 
         /// <summary>
         /// The model URI this dependency payload describes.
@@ -492,11 +610,11 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 byte flags = 0;
                 if (node.IsAbstract)
                 {
-                    flags |= 0x01;
+                    flags |= kNodeIsAbstract;
                 }
                 if (node.IsEnumeration)
                 {
-                    flags |= 0x02;
+                    flags |= kNodeIsEnumeration;
                 }
                 writer.Write(flags);
                 writer.Write(node.Fields.Count);
@@ -566,7 +684,24 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 }
             }
             bool hasMethodIdentityTrailer = HasMethodIdentityTrailer();
-            if (FluentAccessorsEmitted.HasValue || hasMethodIdentityTrailer)
+            bool hasStructureFieldTrailer = HasStructureFieldTrailer();
+            bool hasValueNamespaceTrailer = HasValueNamespaceTrailer();
+            bool hasDeclarationTrailer = HasDeclarationTrailer();
+            // The structure field, value namespace and declaration trailers
+            // are written after the extended identifier trailer, which is
+            // always written with them: a reader that predates them only reads
+            // the capabilities as "trailers present" (honouring the
+            // FluentAccessorsKnown bit) when the method identity or the
+            // extended identifier bit is set, and it stops reading after the
+            // trailers it knows - so it never sees the new ones.
+            bool hasExtendedIdentifierTrailer =
+                hasStructureFieldTrailer ||
+                hasValueNamespaceTrailer ||
+                hasDeclarationTrailer ||
+                HasExtendedIdentifierTrailer();
+            if (FluentAccessorsEmitted.HasValue ||
+                hasMethodIdentityTrailer ||
+                hasExtendedIdentifierTrailer)
             {
                 byte capabilities = 0;
                 if (FluentAccessorsEmitted.HasValue)
@@ -581,10 +716,42 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 {
                     capabilities |= kMethodIdentityTrailer;
                 }
+                if (hasExtendedIdentifierTrailer)
+                {
+                    capabilities |= kExtendedIdentifierTrailer;
+                }
+                if (hasStructureFieldTrailer)
+                {
+                    capabilities |= kStructureFieldTrailer;
+                }
+                if (hasValueNamespaceTrailer)
+                {
+                    capabilities |= kValueNamespaceTrailer;
+                }
+                if (hasDeclarationTrailer)
+                {
+                    capabilities |= kDeclarationTrailer;
+                }
                 writer.Write(capabilities);
                 if (hasMethodIdentityTrailer)
                 {
                     WriteMethodIdentityTrailer(writer);
+                }
+                if (hasExtendedIdentifierTrailer)
+                {
+                    WriteExtendedIdentifierTrailer(writer);
+                }
+                if (hasStructureFieldTrailer)
+                {
+                    WriteStructureFieldTrailer(writer);
+                }
+                if (hasValueNamespaceTrailer)
+                {
+                    WriteValueNamespaceTrailer(writer);
+                }
+                if (hasDeclarationTrailer)
+                {
+                    WriteDeclarationTrailer(writer);
                 }
             }
         }
@@ -614,8 +781,8 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     StringId = ReadNullableString(reader)
                 };
                 byte flags = reader.ReadByte();
-                node.IsAbstract = (flags & 0x01) != 0;
-                node.IsEnumeration = (flags & 0x02) != 0;
+                node.IsAbstract = (flags & kNodeIsAbstract) != 0;
+                node.IsEnumeration = (flags & kNodeIsEnumeration) != 0;
                 int fieldCount = reader.ReadInt32();
                 if (fieldCount is < 0 or > 100_000)
                 {
@@ -732,7 +899,9 @@ namespace Opc.Ua.SourceGeneration.Dependency
                 byte capabilities = reader.ReadByte();
                 bool hasMethodIdentityTrailer =
                     (capabilities & kMethodIdentityTrailer) != 0;
-                if (hasMethodIdentityTrailer)
+                bool hasExtendedIdentifierTrailer =
+                    (capabilities & kExtendedIdentifierTrailer) != 0;
+                if (hasMethodIdentityTrailer || hasExtendedIdentifierTrailer)
                 {
                     FluentAccessorsEmitted =
                         (capabilities & kFluentAccessorsKnown) != 0
@@ -744,12 +913,496 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     FluentAccessorsEmitted =
                         (capabilities & kFluentAccessorsEmitted) != 0;
                 }
+                // Trailers carry no length prefix, so a trailer of a version
+                // this reader does not know cannot be skipped: its body is left
+                // unread and whatever follows it cannot be located. Stop there
+                // rather than parse the next trailer out of the middle of the
+                // unknown one - which either assigned garbage identifiers or
+                // threw and dropped the whole payload.
+                bool trailersReadable = true;
                 if (hasMethodIdentityTrailer &&
                     reader.BaseStream.Position < reader.BaseStream.Length)
                 {
-                    ReadMethodIdentityTrailer(reader);
+                    trailersReadable = ReadMethodIdentityTrailer(reader);
+                }
+                if (trailersReadable &&
+                    hasExtendedIdentifierTrailer &&
+                    reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    trailersReadable = ReadExtendedIdentifierTrailer(reader);
+                }
+                // The later trailers are length prefixed: an unknown version
+                // is skipped and the ones after it stay readable.
+                if (trailersReadable &&
+                    (capabilities & kStructureFieldTrailer) != 0 &&
+                    reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    ReadStructureFieldTrailer(reader);
+                }
+                if (trailersReadable &&
+                    (capabilities & kValueNamespaceTrailer) != 0 &&
+                    reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    ReadValueNamespaceTrailer(reader);
+                }
+                if (trailersReadable &&
+                    (capabilities & kDeclarationTrailer) != 0 &&
+                    reader.BaseStream.Position < reader.BaseStream.Length)
+                {
+                    ReadDeclarationTrailer(reader);
                 }
             }
+        }
+
+        private bool HasDeclarationTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                if (node.DataTypeName != null)
+                {
+                    return true;
+                }
+                foreach (DependencyChild child in node.Children)
+                {
+                    if (!string.IsNullOrEmpty(child.BrowseNameNamespace) ||
+                        !string.IsNullOrEmpty(child.ReferenceTypeName))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Writes the declaration trailer: per node the DataType and ValueRank
+        /// of a VariableType, and per child of that node the namespace of its
+        /// BrowseName and the ReferenceType that binds it, each behind a flag
+        /// byte. The body is length prefixed so that a reader can skip a
+        /// later version.
+        /// </summary>
+        private void WriteDeclarationTrailer(BinaryWriter writer)
+        {
+            using var body = new MemoryStream();
+            using (var bodyWriter = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
+            {
+                bodyWriter.Write(Nodes.Count);
+                foreach (DependencyNode node in Nodes)
+                {
+                    bool hasDataType = node.DataTypeName != null;
+                    bodyWriter.Write(hasDataType ? kDeclarationDataType : (byte)0);
+                    if (hasDataType)
+                    {
+                        WriteString(bodyWriter, node.DataTypeName ?? string.Empty);
+                        WriteString(bodyWriter, node.DataTypeNamespace ?? string.Empty);
+                        bodyWriter.Write(node.ValueRank.HasValue);
+                        bodyWriter.Write(node.ValueRank ?? 0);
+                    }
+                    bodyWriter.Write(node.Children.Count);
+                    foreach (DependencyChild child in node.Children)
+                    {
+                        bool hasBrowseNameNamespace =
+                            !string.IsNullOrEmpty(child.BrowseNameNamespace);
+                        bool hasReferenceType =
+                            !string.IsNullOrEmpty(child.ReferenceTypeName);
+                        byte childFlags = 0;
+                        if (hasBrowseNameNamespace)
+                        {
+                            childFlags |= kDeclarationBrowseNameNamespace;
+                        }
+                        if (hasReferenceType)
+                        {
+                            childFlags |= kDeclarationReferenceType;
+                        }
+                        bodyWriter.Write(childFlags);
+                        if (hasBrowseNameNamespace)
+                        {
+                            WriteString(bodyWriter, child.BrowseNameNamespace);
+                        }
+                        if (hasReferenceType)
+                        {
+                            WriteString(bodyWriter, child.ReferenceTypeName);
+                            WriteString(bodyWriter, child.ReferenceTypeNamespace);
+                        }
+                    }
+                }
+            }
+            writer.Write(kDeclarationTrailerVersion);
+            writer.Write((int)body.Length);
+            writer.Write(body.GetBuffer(), 0, (int)body.Length);
+        }
+
+        private void ReadDeclarationTrailer(BinaryReader reader)
+        {
+            byte trailerVersion = reader.ReadByte();
+            int length = reader.ReadInt32();
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid declaration trailer length " + length);
+            }
+            if (trailerVersion != kDeclarationTrailerVersion)
+            {
+                // Length prefixed: a later version is skipped as a whole.
+                reader.BaseStream.Seek(length, SeekOrigin.Current);
+                return;
+            }
+
+            int nodeCount = reader.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid declaration node count " + nodeCount);
+            }
+            for (int i = 0; i < nodeCount; i++)
+            {
+                DependencyNode node = Nodes[i];
+                byte nodeFlags = reader.ReadByte();
+                if ((nodeFlags & kDeclarationDataType) != 0)
+                {
+                    node.DataTypeName = ReadString(reader);
+                    node.DataTypeNamespace = ReadString(reader);
+                    bool valueRankSpecified = reader.ReadBoolean();
+                    int valueRank = reader.ReadInt32();
+                    node.ValueRank = valueRankSpecified ? valueRank : null;
+                }
+                int childCount = reader.ReadInt32();
+                if (childCount != node.Children.Count)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid declaration child count " + childCount);
+                }
+                for (int j = 0; j < childCount; j++)
+                {
+                    DependencyChild child = node.Children[j];
+                    byte childFlags = reader.ReadByte();
+                    if ((childFlags & kDeclarationBrowseNameNamespace) != 0)
+                    {
+                        child.BrowseNameNamespace = ReadString(reader);
+                    }
+                    if ((childFlags & kDeclarationReferenceType) != 0)
+                    {
+                        child.ReferenceTypeName = ReadString(reader);
+                        child.ReferenceTypeNamespace = ReadString(reader);
+                    }
+                }
+            }
+        }
+
+        private bool HasValueNamespaceTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                foreach (DependencyChild child in node.Children)
+                {
+                    if (child.DefaultValueNamespaceUris != null)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Writes the value namespace trailer: the distinct namespace tables
+        /// the default values of the children refer to, then per node and
+        /// child (in order) the index of the child's table, -1 for none. The
+        /// body is length prefixed so that a reader can skip a later version.
+        /// </summary>
+        private void WriteValueNamespaceTrailer(BinaryWriter writer)
+        {
+            var tables = new List<IReadOnlyList<string>>();
+            var tableIndexes = new Dictionary<string, int>(StringComparer.Ordinal);
+            using var body = new MemoryStream();
+            using (var bodyWriter = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
+            {
+                var childTables = new List<int>();
+                foreach (DependencyNode node in Nodes)
+                {
+                    foreach (DependencyChild child in node.Children)
+                    {
+                        IReadOnlyList<string>? uris = child.DefaultValueNamespaceUris;
+                        if (uris == null)
+                        {
+                            childTables.Add(-1);
+                            continue;
+                        }
+                        string key = GetTableKey(uris);
+                        if (!tableIndexes.TryGetValue(key, out int index))
+                        {
+                            index = tables.Count;
+                            tables.Add(uris);
+                            tableIndexes.Add(key, index);
+                        }
+                        childTables.Add(index);
+                    }
+                }
+
+                bodyWriter.Write(tables.Count);
+                foreach (IReadOnlyList<string> table in tables)
+                {
+                    bodyWriter.Write(table.Count);
+                    foreach (string uri in table)
+                    {
+                        WriteString(bodyWriter, uri);
+                    }
+                }
+                int next = 0;
+                bodyWriter.Write(Nodes.Count);
+                foreach (DependencyNode node in Nodes)
+                {
+                    bodyWriter.Write(node.Children.Count);
+                    for (int j = 0; j < node.Children.Count; j++)
+                    {
+                        bodyWriter.Write(childTables[next++]);
+                    }
+                }
+            }
+            writer.Write(kValueNamespaceTrailerVersion);
+            writer.Write((int)body.Length);
+            writer.Write(body.GetBuffer(), 0, (int)body.Length);
+        }
+
+        /// <summary>
+        /// An unambiguous key for a namespace table (length prefixed URIs).
+        /// </summary>
+        private static string GetTableKey(IReadOnlyList<string> uris)
+        {
+            var key = new StringBuilder();
+            foreach (string uri in uris)
+            {
+                string value = uri ?? string.Empty;
+                key.Append(value.Length.ToString(System.Globalization.CultureInfo.InvariantCulture))
+                    .Append(':')
+                    .Append(value);
+            }
+            return key.ToString();
+        }
+
+        private void ReadValueNamespaceTrailer(BinaryReader reader)
+        {
+            byte trailerVersion = reader.ReadByte();
+            int length = reader.ReadInt32();
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid value namespace trailer length " + length);
+            }
+            if (trailerVersion != kValueNamespaceTrailerVersion)
+            {
+                // Length prefixed: a later version is skipped as a whole.
+                reader.BaseStream.Seek(length, SeekOrigin.Current);
+                return;
+            }
+
+            int tableCount = reader.ReadInt32();
+            if (tableCount is < 0 or > 100_000)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid value namespace table count " + tableCount);
+            }
+            string[][] tables = new string[tableCount][];
+            for (int i = 0; i < tableCount; i++)
+            {
+                int uriCount = reader.ReadInt32();
+                if (uriCount is < 1 or > ushort.MaxValue + 1)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid value namespace table size " + uriCount);
+                }
+                string[] uris = new string[uriCount];
+                for (int k = 0; k < uriCount; k++)
+                {
+                    uris[k] = ReadString(reader);
+                }
+                tables[i] = uris;
+            }
+
+            int nodeCount = reader.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid value namespace node count " + nodeCount);
+            }
+            for (int i = 0; i < nodeCount; i++)
+            {
+                DependencyNode node = Nodes[i];
+                int childCount = reader.ReadInt32();
+                if (childCount != node.Children.Count)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid value namespace child count " + childCount);
+                }
+                for (int j = 0; j < childCount; j++)
+                {
+                    int index = reader.ReadInt32();
+                    if (index < -1 || index >= tableCount)
+                    {
+                        throw new InvalidDataException(
+                            "ModelDependencyV1: invalid value namespace table index " + index);
+                    }
+                    node.Children[j].DefaultValueNamespaceUris =
+                        index < 0 ? null : tables[index];
+                }
+            }
+        }
+
+        private bool HasStructureFieldTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                foreach (DependencyDataField field in node.Fields)
+                {
+                    if (field.IsOptional ||
+                        field.AllowSubTypes ||
+                        !string.IsNullOrEmpty(field.ArrayDimensions))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// Writes the structure field trailer: the IsOptional, AllowSubTypes
+        /// and ArrayDimensions of every field, in node and field order. The
+        /// body is length prefixed so that a reader can skip a later version.
+        /// </summary>
+        private void WriteStructureFieldTrailer(BinaryWriter writer)
+        {
+            using var body = new MemoryStream();
+            using (var bodyWriter = new BinaryWriter(body, Encoding.UTF8, leaveOpen: true))
+            {
+                bodyWriter.Write(Nodes.Count);
+                foreach (DependencyNode node in Nodes)
+                {
+                    bodyWriter.Write(node.Fields.Count);
+                    foreach (DependencyDataField field in node.Fields)
+                    {
+                        byte fieldFlags = 0;
+                        if (field.IsOptional)
+                        {
+                            fieldFlags |= kFieldIsOptional;
+                        }
+                        if (field.AllowSubTypes)
+                        {
+                            fieldFlags |= kFieldAllowSubTypes;
+                        }
+                        bodyWriter.Write(fieldFlags);
+                        WriteNullableString(
+                            bodyWriter,
+                            string.IsNullOrEmpty(field.ArrayDimensions) ? null : field.ArrayDimensions);
+                    }
+                }
+            }
+            writer.Write(kStructureFieldTrailerVersion);
+            writer.Write((int)body.Length);
+            writer.Write(body.GetBuffer(), 0, (int)body.Length);
+        }
+
+        private void ReadStructureFieldTrailer(BinaryReader reader)
+        {
+            byte trailerVersion = reader.ReadByte();
+            int length = reader.ReadInt32();
+            if (length < 0 || length > reader.BaseStream.Length - reader.BaseStream.Position)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid structure field trailer length " + length);
+            }
+            if (trailerVersion != kStructureFieldTrailerVersion)
+            {
+                // Length prefixed: a later version is skipped as a whole.
+                reader.BaseStream.Seek(length, SeekOrigin.Current);
+                return;
+            }
+
+            int nodeCount = reader.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid structure field node count " + nodeCount);
+            }
+            for (int i = 0; i < nodeCount; i++)
+            {
+                DependencyNode node = Nodes[i];
+                int fieldCount = reader.ReadInt32();
+                if (fieldCount != node.Fields.Count)
+                {
+                    throw new InvalidDataException(
+                        "ModelDependencyV1: invalid structure field count " + fieldCount);
+                }
+                if (fieldCount == 0)
+                {
+                    continue;
+                }
+                var fields = new DependencyDataField[fieldCount];
+                for (int j = 0; j < fieldCount; j++)
+                {
+                    byte fieldFlags = reader.ReadByte();
+                    fields[j] = node.Fields[j] with
+                    {
+                        IsOptional = (fieldFlags & kFieldIsOptional) != 0,
+                        AllowSubTypes = (fieldFlags & kFieldAllowSubTypes) != 0,
+                        ArrayDimensions = ReadNullableString(reader)
+                    };
+                }
+                node.Fields = fields;
+            }
+        }
+
+        private bool HasExtendedIdentifierTrailer()
+        {
+            foreach (DependencyNode node in Nodes)
+            {
+                // Null, not empty, means "not assigned" for both: an empty
+                // GuidId has to be written or it reads back as null.
+                if (node.GuidId != null ||
+                    node.OpaqueId != null)
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        private void WriteExtendedIdentifierTrailer(BinaryWriter writer)
+        {
+            writer.Write(kExtendedIdentifierTrailerVersion);
+            writer.Write(Nodes.Count);
+            foreach (DependencyNode node in Nodes)
+            {
+                WriteNullableString(writer, node.GuidId);
+                WriteNullableString(writer, node.OpaqueId);
+            }
+        }
+
+        /// <summary>
+        /// Reads the extended identifier trailer. Returns false when the
+        /// trailer has a version this reader does not know - its body is
+        /// then left unread and no later trailer can be located.
+        /// </summary>
+        private bool ReadExtendedIdentifierTrailer(BinaryReader reader)
+        {
+            byte trailerVersion = reader.ReadByte();
+            if (trailerVersion != kExtendedIdentifierTrailerVersion)
+            {
+                return false;
+            }
+
+            int nodeCount = reader.ReadInt32();
+            if (nodeCount != Nodes.Count)
+            {
+                throw new InvalidDataException(
+                    "ModelDependencyV1: invalid extended identifier node count " + nodeCount);
+            }
+            for (int i = 0; i < nodeCount; i++)
+            {
+                Nodes[i].GuidId = ReadNullableString(reader);
+                Nodes[i].OpaqueId = ReadNullableString(reader);
+            }
+            return true;
         }
 
         private bool HasMethodIdentityTrailer()
@@ -758,8 +1411,12 @@ namespace Opc.Ua.SourceGeneration.Dependency
             {
                 foreach (DependencyChild child in node.Children)
                 {
+                    // Every field the trailer carries, or a child whose only
+                    // method identity is a namespace does not round-trip.
                     if (!string.IsNullOrEmpty(child.MethodStateName) ||
+                        !string.IsNullOrEmpty(child.MethodStateNamespace) ||
                         !string.IsNullOrEmpty(child.MethodDeclarationName) ||
+                        !string.IsNullOrEmpty(child.MethodDeclarationNamespace) ||
                         child.MethodDeclarationNumericId != 0 ||
                         !string.IsNullOrEmpty(child.MethodDeclarationStringId))
                     {
@@ -789,12 +1446,17 @@ namespace Opc.Ua.SourceGeneration.Dependency
             }
         }
 
-        private void ReadMethodIdentityTrailer(BinaryReader reader)
+        /// <summary>
+        /// Reads the method identity trailer. Returns false when the trailer
+        /// has a version this reader does not know - its body is then left
+        /// unread and no later trailer can be located.
+        /// </summary>
+        private bool ReadMethodIdentityTrailer(BinaryReader reader)
         {
             byte trailerVersion = reader.ReadByte();
             if (trailerVersion != kMethodIdentityTrailerVersion)
             {
-                return;
+                return false;
             }
 
             int nodeCount = reader.ReadInt32();
@@ -823,6 +1485,7 @@ namespace Opc.Ua.SourceGeneration.Dependency
                     child.MethodDeclarationStringId = ReadNullableString(reader);
                 }
             }
+            return true;
         }
 
         private static void WriteString(BinaryWriter writer, string value)

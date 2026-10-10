@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 using Opc.Ua.Identity;
 
 namespace Opc.Ua.Client
@@ -94,6 +95,22 @@ namespace Opc.Ua.Client
         public ReconnectPolicyOptions ReconnectPolicy { get; init; } = new();
 
         /// <summary>
+        /// Maximum channel-manager recovery time before the outer
+        /// reconnect policy takes over. Null selects the maximum of
+        /// three keep-alive intervals, the revised session timeout,
+        /// and the operation timeout, sampled at the start of each cycle.
+        /// Use <see cref="Timeout.InfiniteTimeSpan"/> to retain unbounded
+        /// channel recovery. A finite override must be positive and at
+        /// most <c>uint.MaxValue - 1</c> milliseconds.
+        /// </summary>
+        /// <remarks>
+        /// Applies to the built-in channel manager. When sessions share
+        /// a channel, the earliest participant or caller deadline wins.
+        /// Raw sessions have no implicit deadline.
+        /// </remarks>
+        public TimeSpan? ChannelReconnectTimeout { get; init; }
+
+        /// <summary>
         /// Optional shared gate that asynchronously admits initial
         /// <see cref="ManagedSession"/> connect attempts. Default:
         /// <c>null</c> (no client-side connect admission limit).
@@ -137,6 +154,14 @@ namespace Opc.Ua.Client
         /// be configured here.
         /// </summary>
         public NetworkRedundancyOptions NetworkRedundancy { get; init; } = new();
+
+        /// <summary>
+        /// Bounds applied to the best-effort server-redundancy refresh so an
+        /// unavailable or slow server cannot delay connect, reconnect, or
+        /// failover. Defaults to two seconds for both the metadata read and
+        /// each peer lookup; raise them on a high-latency link.
+        /// </summary>
+        public ServerRedundancyOptions ServerRedundancy { get; init; } = new();
 
         /// <summary>
         /// Optional subscription engine factory. When null, defaults to the
@@ -220,5 +245,45 @@ namespace Opc.Ua.Client
         /// </para>
         /// </summary>
         public bool LoadComplexTypes { get; init; }
+
+        /// <summary>
+        /// Checks whether a timeout selects automatic recovery, opts out,
+        /// or specifies a positive duration within the supported timer range.
+        /// </summary>
+        internal static bool IsValidChannelReconnectTimeout(TimeSpan? timeout)
+        {
+            return timeout == null ||
+                timeout == Timeout.InfiniteTimeSpan ||
+                (timeout > TimeSpan.Zero && timeout <= s_maxChannelReconnectTimeout);
+        }
+
+        /// <summary>
+        /// Resolves an explicit timeout or computes a finite recovery
+        /// duration from the live session settings without overflow.
+        /// </summary>
+        internal static TimeSpan ResolveChannelReconnectTimeout(
+            TimeSpan? timeout,
+            int keepAliveInterval,
+            double sessionTimeout,
+            int operationTimeout)
+        {
+            if (!IsValidChannelReconnectTimeout(timeout))
+            {
+                throw new ArgumentOutOfRangeException(nameof(timeout));
+            }
+            if (timeout.HasValue)
+            {
+                return timeout.Value;
+            }
+
+            double milliseconds = Math.Max(3L * Math.Max(keepAliveInterval, 1), Math.Max(operationTimeout, 0));
+            if (!double.IsNaN(sessionTimeout) && !double.IsInfinity(sessionTimeout) && sessionTimeout > 0)
+            {
+                milliseconds = Math.Max(milliseconds, sessionTimeout);
+            }
+            return TimeSpan.FromMilliseconds(Math.Min(milliseconds, s_maxChannelReconnectTimeout.TotalMilliseconds));
+        }
+
+        private static readonly TimeSpan s_maxChannelReconnectTimeout = TimeSpan.FromMilliseconds(uint.MaxValue - 1);
     }
 }

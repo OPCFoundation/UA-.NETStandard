@@ -33,11 +33,9 @@
     <PackageReference Include="BenchmarkDotNet" />
     <PackageReference Include="ObjectLayoutInspector" />
   </ItemGroup>
-  <PropertyGroup Condition="'$(NetStandardTests)' == 'true'">
-    <DefineConstants>$(DefineConstants);NET_STANDARD_TESTS</DefineConstants>
-  </PropertyGroup>
   <ItemGroup>
     <Compile Include="..\Common\Main.cs" />
+    <Compile Include="..\Common\NodeStateMemoryEvidence.cs" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Opc.Ua.Types\Opc.Ua.Types.csproj" />

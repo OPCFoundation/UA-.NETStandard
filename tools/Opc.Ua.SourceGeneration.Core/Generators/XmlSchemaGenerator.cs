@@ -30,6 +30,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using System.Xml;
 using Opc.Ua.Schema.Model;
 using Opc.Ua.Types;
@@ -129,7 +130,7 @@ namespace Opc.Ua.SourceGeneration
             template.Render();
         }
 
-        private TemplateString LoadTemplate_Imports(ILoadContext context)
+        private TemplateString? LoadTemplate_Imports(ILoadContext context)
         {
             if (context.Target is not Namespace ns)
             {
@@ -167,7 +168,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private TemplateString LoadTemplate_DataType(ILoadContext context)
+        private TemplateString? LoadTemplate_DataType(ILoadContext context)
         {
             if (context.Target is IModelDesign design)
             {
@@ -221,12 +222,16 @@ namespace Opc.Ua.SourceGeneration
             }
             else if (basicType == BasicDataType.UserDefined)
             {
-                if (dataType.BaseTypeNode.SymbolicName.Name == "Union")
+                if (dataType.BaseTypeNode!.SymbolicName.Name == "Union")
                 {
                     return XmlSchemaTemplates.Union;
                 }
-                else if (dataType.BaseTypeNode.SymbolicName.Name == "Structure")
+                else if (dataType.BaseTypeNode.SymbolicName.Name == "Structure" ||
+                    WritesEncodingMaskBeforeBaseFields(dataType))
                 {
+                    // A derived type that introduces optional fields writes
+                    // the encoding mask before the base fields, which an
+                    // xs:extension cannot express: it is flattened.
                     return XmlSchemaTemplates.ComplexType;
                 }
                 else
@@ -265,7 +270,9 @@ namespace Opc.Ua.SourceGeneration
                     m_context.ModelDesign.Namespaces));
             }
 
-            context.Template.AddReplacement(Tokens.TypeName, dataType.SymbolicName.Name);
+            context.Template.AddReplacement(
+                Tokens.TypeName,
+                dataType.SymbolicName.Name.AsXmlAttributeValue());
 
             if (dataType.BasicDataType == BasicDataType.Enumeration && dataType.IsOptionSet)
             {
@@ -296,14 +303,108 @@ namespace Opc.Ua.SourceGeneration
 
             context.Template.AddReplacement(
                 Tokens.ListOfFields,
-                dataType.Fields,
+                GetXmlTypeFields(dataType),
                 LoadTemplate_XmlTypeFields);
 
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_XmlTypeFields(ILoadContext context)
+        /// <summary>
+        /// The elements of a data type's content model. A structure that
+        /// writes the encoding mask (XmlEncoder emits it as the first child
+        /// element) starts with an EncodingMask element; a flattened derived
+        /// structure also lists the fields of its ancestors.
+        /// </summary>
+        private List<object> GetXmlTypeFields(DataTypeDesign dataType)
         {
+            var fields = new List<object>();
+            if (dataType.BasicDataType != BasicDataType.UserDefined || dataType.IsUnion)
+            {
+                fields.AddRange(dataType.Fields ?? []);
+                return fields;
+            }
+
+            bool flattened = WritesEncodingMaskBeforeBaseFields(dataType);
+            if (HasOptionalFields(dataType) && !HasAncestorWithOptionalFields(dataType))
+            {
+                fields.Add(kEncodingMaskElement);
+            }
+            if (flattened)
+            {
+                var ancestors = new Stack<DataTypeDesign>();
+                for (var parent = dataType.BaseTypeNode as DataTypeDesign;
+                    parent != null && parent.BasicDataType == BasicDataType.UserDefined;
+                    parent = parent.BaseTypeNode as DataTypeDesign)
+                {
+                    ancestors.Push(parent);
+                }
+                while (ancestors.Count > 0)
+                {
+                    DataTypeDesign ancestor = ancestors.Pop();
+                    foreach (Parameter field in ancestor.Fields ?? [])
+                    {
+                        if (!m_context.ModelDesign.IsExcluded(field))
+                        {
+                            fields.Add(field);
+                        }
+                    }
+                }
+            }
+            fields.AddRange(dataType.Fields ?? []);
+            return fields;
+        }
+
+        /// <summary>
+        /// True if the generated Encode writes the encoding mask ahead of
+        /// the fields of a base structure (DerivedClassWithOptionalFields
+        /// without an ancestor that has optional fields).
+        /// </summary>
+        private static bool WritesEncodingMaskBeforeBaseFields(DataTypeDesign dataType)
+        {
+            return dataType.BasicDataType == BasicDataType.UserDefined &&
+                !dataType.IsUnion &&
+                dataType.BaseTypeNode is DataTypeDesign baseType &&
+                baseType.BasicDataType == BasicDataType.UserDefined &&
+                HasOptionalFields(dataType) &&
+                !HasAncestorWithOptionalFields(dataType);
+        }
+
+        private static bool HasOptionalFields(DataTypeDesign dataType)
+        {
+            return dataType.Fields != null && dataType.Fields.Any(f => f.IsOptional);
+        }
+
+        private static bool HasAncestorWithOptionalFields(DataTypeDesign dataType)
+        {
+            for (var parent = dataType.BaseTypeNode as DataTypeDesign;
+                parent != null && parent.BasicDataType == BasicDataType.UserDefined;
+                parent = parent.BaseTypeNode as DataTypeDesign)
+            {
+                if (HasOptionalFields(parent))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        /// <summary>
+        /// OPC 10000-6 5.3.6: the first element of a structure with optional
+        /// fields is the (mandatory) bit mask, typed xs:unsignedLong as in the
+        /// example of the clause; the 32 bit mask XmlEncoder writes is a
+        /// valid value of it.
+        /// </summary>
+        private const string kEncodingMaskElement =
+            "<xs:element name=\"EncodingMask\" type=\"xs:unsignedLong\" />";
+
+        private TemplateString? LoadTemplate_XmlTypeFields(ILoadContext context)
+        {
+            if (context.Target is string element)
+            {
+                context.Out.WriteLine(element);
+                return null;
+            }
+
             if (context.Target is not Parameter field)
             {
                 return null;
@@ -313,6 +414,11 @@ namespace Opc.Ua.SourceGeneration
             {
                 return null;
             }
+
+            // The authored field name lands in XSD attributes, so it has to be
+            // escaped - a BrowseName may legally contain '&', '<' or a quote,
+            // which would otherwise make the emitted schema non-well-formed.
+            string fieldName = field.Name.AsXmlAttributeValue();
 
             BasicDataType basicType = dataType.BasicDataType;
 
@@ -327,29 +433,51 @@ namespace Opc.Ua.SourceGeneration
                 {
                     context.Out.WriteLine(
                         "<xs:enumeration value=\"{0}\" />",
-                        field.Name);
+                        fieldName);
                     return null;
                 }
 
                 context.Out.WriteLine(
                     "<xs:enumeration value=\"{0}_{1}\" />",
-                    field.Name,
+                    fieldName,
                     field.Identifier);
                 return null;
             }
 
-            basicType = field.DataTypeNode.BasicDataType;
+            basicType = field.DataTypeNode!.BasicDataType;
 
             if (basicType == BasicDataType.XmlElement &&
                 field.ValueRank == ValueRank.Scalar)
             {
-                context.Out.WriteLine("<xs:element name=\"{0}\" minOccurs=\"0\" nillable=\"true\">", field.Name);
+                context.Out.WriteLine("<xs:element name=\"{0}\" minOccurs=\"0\" nillable=\"true\">", fieldName);
                 context.Out.WriteLine("  <xs:complexType>");
                 context.Out.WriteLine("    <xs:sequence>");
                 context.Out.WriteLine("      <xs:any minOccurs=\"0\" processContents=\"lax\" />");
                 context.Out.WriteLine("    </xs:sequence>");
                 context.Out.WriteLine("  </xs:complexType>");
                 context.Out.WriteLine("</xs:element>");
+                return null;
+            }
+
+            if (DataTypeGenerator.IsEncodedAsVariant(field))
+            {
+                // ScalarOrArray, Any, ... are written as a Variant.
+                context.Out.WriteLine(
+                    "<xs:element name=\"{0}\" type=\"ua:Variant\" minOccurs=\"0\" nillable=\"true\" />",
+                    fieldName);
+                return null;
+            }
+
+            if (field.ValueRank == ValueRank.OneOrMoreDimensions)
+            {
+                // "Multi-dimensional Array parameters are encoded using the
+                // Matrix type" (OPC 10000-6 5.3.4, 5.3.1.17): the field element
+                // itself is of type Matrix and holds the Dimensions and
+                // Elements, for every element type (built-in, enumeration,
+                // Variant, structure, subtyped structure) - no Matrix wrapper.
+                context.Out.WriteLine(
+                    "<xs:element name=\"{0}\" type=\"ua:Matrix\" minOccurs=\"0\" nillable=\"true\" />",
+                    fieldName);
                 return null;
             }
 
@@ -367,7 +495,7 @@ namespace Opc.Ua.SourceGeneration
 
                 context.Out.WriteLine(
                     "<xs:element name=\"{0}\" type=\"{1}\" minOccurs=\"0\" nillable=\"true\" />",
-                    field.Name,
+                    fieldName,
                     fieldDataType);
             }
             else
@@ -385,7 +513,7 @@ namespace Opc.Ua.SourceGeneration
                     case BasicDataType.DataValue:
                         context.Out.WriteLine(
                                 "<xs:element name=\"{0}\" type=\"{1}\" minOccurs=\"0\" nillable=\"true\" />",
-                                field.Name,
+                                fieldName,
                                 field.DataTypeNode.GetXmlDataType(
                                     field.ValueRank,
                                     m_context.ModelDesign.TargetNamespace.Value,
@@ -395,7 +523,7 @@ namespace Opc.Ua.SourceGeneration
                     case BasicDataType.StatusCode:
                         context.Out.WriteLine(
                                 "<xs:element name=\"{0}\" type=\"{1}\" minOccurs=\"0\" />",
-                                field.Name,
+                                fieldName,
                                 field.DataTypeNode.GetXmlDataType(
                                     field.ValueRank,
                                     m_context.ModelDesign.TargetNamespace.Value,
@@ -414,12 +542,12 @@ namespace Opc.Ua.SourceGeneration
 
                         context.Out.WriteLine(
                             "<xs:element name=\"{0}\" type=\"{1}\" minOccurs=\"0\" nillable=\"true\" />",
-                            field.Name,
+                            fieldName,
                             fieldDataType);
                         break;
                     default:
                         context.Out.WriteLine("<xs:element name=\"{0}\" type=\"{1}\" minOccurs=\"0\" />",
-                                field.Name,
+                                fieldName,
                                 field.DataTypeNode.GetXmlDataType(
                                     field.ValueRank,
                                     m_context.ModelDesign.TargetNamespace.Value,
@@ -431,7 +559,7 @@ namespace Opc.Ua.SourceGeneration
             return null;
         }
 
-        private TemplateString LoadTemplate_XmlDocumentation(ILoadContext context)
+        private TemplateString? LoadTemplate_XmlDocumentation(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign dataType)
             {
@@ -453,12 +581,14 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            context.Template.AddReplacement(Tokens.Description, dataType.Description.Value);
+            context.Template.AddReplacement(
+                Tokens.Description,
+                dataType.Description.Value.AsXmlText());
 
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_XmlCollectionType(ILoadContext context)
+        private TemplateString? LoadTemplate_XmlCollectionType(ILoadContext context)
         {
             if (context.Target is not DataTypeDesign dataType)
             {
@@ -480,7 +610,9 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            context.Template.AddReplacement(Tokens.TypeName, dataType.SymbolicName.Name);
+            context.Template.AddReplacement(
+                Tokens.TypeName,
+                dataType.SymbolicName.Name.AsXmlAttributeValue());
             context.Template.AddReplacement(
                 Tokens.Nillable,
                 !dataType.BasicDataType.IsXmlNillable() ?

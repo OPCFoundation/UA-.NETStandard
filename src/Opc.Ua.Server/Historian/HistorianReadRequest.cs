@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
-
 namespace Opc.Ua.Server.Historian
 {
     /// <summary>
@@ -75,10 +73,16 @@ namespace Opc.Ua.Server.Historian
         public required DateTimeUtc EndTime { get; init; }
 
         /// <summary>
-        /// Maximum number of values to return for this node. Zero = unbounded
-        /// (return up to the time window's worth).
+        /// Client page limit for bounded ranges, or total quota across all pages for
+        /// open-ended ranges. Zero means no client limit. Bounds count toward this quota.
         /// </summary>
         public uint MaxValues { get; init; }
+
+        /// <summary>
+        /// Maximum number of values the provider should emit in one page.
+        /// Zero means the provider may use its own default page size.
+        /// </summary>
+        public uint PageLimit { get; init; }
 
         /// <summary>
         /// True for forward-in-time reads, false for reverse.
@@ -131,10 +135,10 @@ namespace Opc.Ua.Server.Historian
     /// <para>
     /// Providers that implement this interface return one value per
     /// requested timestamp. When the underlying archive does not have an
-    /// exact match the provider may either interpolate (per the
-    /// historization configuration) or return a bounded raw value. If no
-    /// provider override is registered the framework falls back to a
-    /// streaming interpolation pipeline over the raw read API.
+    /// exact match the provider calculates a value using the signal's
+    /// stepped or sloped interpolation rule. If no provider override is
+    /// registered the framework applies the same calculation over the raw
+    /// read API.
     /// </para>
     /// </remarks>
     public sealed record HistorianAtTimeReadRequest
@@ -147,11 +151,12 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// The requested timestamps, in the order the client supplied them.
         /// </summary>
-        public required IReadOnlyList<DateTimeUtc> RequestedTimes { get; init; }
+        public required ArrayOf<DateTimeUtc> RequestedTimes { get; init; }
 
         /// <summary>
-        /// When true, returns the closest bound rather than interpolating
-        /// (Part 11 §5.2.6).
+        /// When true, the calculation uses the nearest raw values as simple
+        /// bounds. When false, it uses the nearest non-Bad values as
+        /// interpolated bounds (Part 11 §6.5.5.2 and Part 13 §3.1.8-3.1.9).
         /// </summary>
         public bool UseSimpleBounds { get; init; }
     }
@@ -196,6 +201,11 @@ namespace Opc.Ua.Server.Historian
         public required double ProcessingInterval { get; init; }
 
         /// <summary>
+        /// Maximum values returned per page. Zero means no provider limit.
+        /// </summary>
+        public uint MaxValues { get; init; }
+
+        /// <summary>
         /// Aggregate configuration overrides (Part 11 §5.2.6.4).
         /// </summary>
         public required AggregateConfiguration Configuration { get; init; }
@@ -223,9 +233,16 @@ namespace Opc.Ua.Server.Historian
         public required DateTimeUtc EndTime { get; init; }
 
         /// <summary>
-        /// Maximum number of annotations to return. Zero = unbounded.
+        /// Client page limit for bounded reads, or total quota for open-ended reads.
+        /// Zero means no client limit.
         /// </summary>
         public uint MaxValues { get; init; }
+
+        /// <summary>
+        /// Maximum annotations per server page. Zero allows the provider's default limit.
+        /// This does not replace the client's <see cref="MaxValues"/> quota.
+        /// </summary>
+        public uint PageLimit { get; init; }
 
         /// <summary>
         /// True for forward-in-time reads, false for reverse.

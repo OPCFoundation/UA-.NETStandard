@@ -393,10 +393,10 @@ namespace Opc.Ua.Security
                     logger.SecuredApplicationHelpersLogMessage3(policyUri);
                     result = 4;
                     break;
-                case SecurityPolicies.Basic256Sha256:
+                case SecurityPolicies.Aes128_Sha256_RsaOaep:
                     result = 6;
                     break;
-                case SecurityPolicies.Aes128_Sha256_RsaOaep:
+                case SecurityPolicies.Basic256Sha256:
                     result = 8;
                     break;
                 case SecurityPolicies.Aes256_Sha256_RsaPss:

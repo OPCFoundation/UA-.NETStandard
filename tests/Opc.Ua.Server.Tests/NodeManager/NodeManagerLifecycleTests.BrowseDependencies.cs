@@ -75,8 +75,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(page.ContinuationPoint.IsEmpty, Is.False);
                 Assert.That(m_server.CurrentInstance.SubscriptionManager.GetSubscriptions(), Is.Empty);
                 List<ReferenceDescription> oldReferences = [.. page.References];
-                TrackingLifecycleNodeManager newSource = null;
-                TrackingLifecycleNodeManager newTarget = null;
+                TrackingLifecycleNodeManager? newSource = null;
+                TrackingLifecycleNodeManager? newTarget = null;
                 NodeManagerBatchResult retired;
                 var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
                 await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
@@ -94,6 +94,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     if (replace)
                     {
+                        AssertLifecycleValue(newSource);
+                        AssertLifecycleValue(newTarget);
                         await newSource.AddContinuationChildrenAsync("New", timeout.Token).ConfigureAwait(false);
                         ConfigureBrowseDependency(newSource, newTarget, "NewTarget", VariableTypeIds.PropertyType);
                     }
@@ -143,8 +145,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(target.Manager.DisposeCount, Is.EqualTo(1));
                 if (replace)
                 {
-                    Assert.That(newSource.DisposeCount, Is.Zero);
-                    Assert.That(newTarget.DisposeCount, Is.Zero);
+                    TrackingLifecycleNodeManager sourceGeneration = RequireLifecycleValue(newSource);
+                    TrackingLifecycleNodeManager targetGeneration = RequireLifecycleValue(newTarget);
+                    Assert.That(sourceGeneration.DisposeCount, Is.Zero);
+                    Assert.That(targetGeneration.DisposeCount, Is.Zero);
                 }
             }
             finally
@@ -164,21 +168,23 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var second = await AddContinuationOwnerAsync(
                 kModelNamespaceUri + ":SecondBrowseSource", timeout.Token).ConfigureAwait(false);
             string targetUri = sharedNamespace ? kModelNamespaceUri : kSecondModelNamespaceUri;
-            TrackingLifecycleNodeManager unrelated = null;
-            TrackingLifecycleNodeManager target = null;
+            TrackingLifecycleNodeManager? unrelated = null;
+            TrackingLifecycleNodeManager? target = null;
             NodeManagerRegistration unrelatedRegistration = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(1, manager => unrelated = manager, targetUri),
                 null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(unrelated);
             unrelated.RejectHandleLookupAfterDisposal = true;
             NodeManagerRegistration targetRegistration = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(2, manager => target = manager, targetUri),
                 null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(target);
             ushort targetNamespace = target.NamespaceIndexes[0];
             NodeId targetId = new(8100u, targetNamespace);
             await target.AddBrowseDependencyTargetAsync(targetId, timeout.Token).ConfigureAwait(false);
-            first.Manager.Find(new NodeId(kRootNodeId, first.NamespaceIndex))
+            RequireLifecycleValue(first.Manager.Find(new NodeId(kRootNodeId, first.NamespaceIndex)))
                 .AddReference(ReferenceTypeIds.HasComponent, false, targetId);
-            second.Manager.Find(new NodeId(kRootNodeId, second.NamespaceIndex))
+            RequireLifecycleValue(second.Manager.Find(new NodeId(kRootNodeId, second.NamespaceIndex)))
                 .AddReference(ReferenceTypeIds.HasComponent, false, targetId);
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -314,7 +320,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                source.Manager.ValidateNodeCallback = null;
+                source.Manager.ValidateNodeCallback = (_, _) => default;
                 await session.CloseAsync(timeout.Token).ConfigureAwait(false);
             }
         }
@@ -330,7 +336,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var target = await AddContinuationOwnerAsync(kSecondModelNamespaceUri, timeout.Token).ConfigureAwait(false);
             ConfigureBrowseDependency(
                 source.Manager, target.Manager, "OldTarget", VariableTypeIds.BaseDataVariableType);
-            source.Manager.Find(new NodeId(kRootNodeId, source.NamespaceIndex)).RemoveReference(
+            RequireLifecycleValue(source.Manager.Find(new NodeId(kRootNodeId, source.NamespaceIndex))).RemoveReference(
                 ReferenceTypeIds.HasComponent, false, new NodeId(kRootNodeId, target.NamespaceIndex));
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -381,10 +387,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         CancelResponse cancelled = await session.CancelAsync(
                             null, header.RequestHandle, timeout.Token).ConfigureAwait(false);
                         Assert.That(cancelled.CancelCount, Is.EqualTo(1u));
-                        BrowseNextResponse cancelledNext = await pending.WaitAsync(timeout.Token).ConfigureAwait(false);
-                        Assert.That(cancelledNext.Results[0].StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
-                        Assert.That(cancelledNext.Results[0].ContinuationPoint.IsEmpty, Is.True);
-                        Assert.That(cancelledNext.Results[0].References.IsEmpty, Is.True);
+                        await Assert.ThatAsync(() => pending,
+                            Throws.TypeOf<ServiceResultException>()
+                                .With.Property(nameof(ServiceResultException.StatusCode))
+                                .EqualTo(StatusCodes.BadRequestCancelledByClient)).ConfigureAwait(false);
+                        Assert.That(holder.HasBrowseForManager(source.Manager), Is.False);
+                        Assert.That(holder.HasBrowseForManager(target.Manager), Is.False);
                     }
                     else
                     {
@@ -415,7 +423,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             finally
             {
                 release.TrySetResult(true);
-                target.Manager.ValidateNodeCallback = null;
+                target.Manager.ValidateNodeCallback = (_, _) => default;
                 await session.CloseAsync(timeout.Token).ConfigureAwait(false);
             }
         }
@@ -481,7 +489,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             .ConfigureAwait(false);
                         break;
                     case "PermissionDenied":
-                        source.Manager.Find(new NodeId(kRootNodeId, source.NamespaceIndex)).RolePermissions =
+                        RequireLifecycleValue(source.Manager.Find(new NodeId(kRootNodeId, source.NamespaceIndex)))
+                            .RolePermissions =
                         [
                             new RolePermissionType
                             {
@@ -579,7 +588,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var target = await AddContinuationOwnerAsync(kSecondModelNamespaceUri, timeout.Token).ConfigureAwait(false);
             NodeId targetId = new(kValueNodeId, target.NamespaceIndex);
             int disposedBrowsers = 0;
-            NodeState root = source.Manager.Find(new NodeId(kRootNodeId, source.NamespaceIndex));
+            NodeState root = RequireLifecycleValue(source.Manager.Find(new NodeId(kRootNodeId, source.NamespaceIndex)));
             root.OnCreateBrowser =
                 (context, _, view, referenceType, includeSubtypes, direction, name, additional, only) =>
                 declaresDependencies
@@ -647,7 +656,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             var target = await AddContinuationOwnerAsync(kSecondModelNamespaceUri, timeout.Token).ConfigureAwait(false);
-            ReferenceSynchronousNodeManager source = null;
+            ReferenceSynchronousNodeManager? source = null;
             var factory = new Mock<IAsyncNodeManagerFactory>();
             factory.Setup(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()))
@@ -657,6 +666,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     return new ValueTask<IAsyncNodeManager>(source.ToAsyncNodeManager());
                 });
             await m_server.NodeManagerLifecycle.AddAsync(factory.Object, null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(source);
             NodeId targetId = new(kValueNodeId, target.NamespaceIndex);
             source.AddBrowseDependencyReferences(targetId);
             ushort sourceNamespace = (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri);
@@ -760,13 +770,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await Assert.ThatAsync(() => pending,
                     Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
                         .EqualTo(cancel
-                            ? StatusCodes.BadRequestCancelledByRequest
+                            ? StatusCodes.BadRequestCancelledByClient
                             : StatusCodes.BadUnexpectedError)).ConfigureAwait(false);
             }
             finally
             {
                 release.TrySetResult(true);
-                source.ValidateNodeCallback = null;
+                source.ValidateNodeCallback = (_, _) => default;
             }
         }
 
@@ -777,11 +787,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeId targetType)
         {
             ushort targetNamespace = target.NamespaceIndexes[0];
-            var variable = (BaseVariableState)target.Find(new NodeId(kValueNodeId, targetNamespace));
+            BaseVariableState variable = RequireLifecycleValue(
+                target.Find(new NodeId(kValueNodeId, targetNamespace)) as BaseVariableState);
             variable.BrowseName = new QualifiedName(targetName, targetNamespace);
             variable.DisplayName = LocalizedText.From(targetName);
             variable.TypeDefinitionId = targetType;
-            NodeState root = source.Find(new NodeId(kRootNodeId, source.NamespaceIndexes[0]));
+            NodeState root = RequireLifecycleValue(source.Find(new NodeId(kRootNodeId, source.NamespaceIndexes[0])));
             root.AddReference(ReferenceTypeIds.HasComponent, false, variable.NodeId);
             root.AddReference(ReferenceTypeIds.HasComponent, false, new NodeId(kRootNodeId, targetNamespace));
         }
@@ -814,7 +825,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 reference.IsForward &&
                 reference.ReferenceTypeId == ReferenceTypeIds.HasComponent), Is.True,
                 "The external Object target must still be filtered out.");
-            ReferenceDescription target = references.SingleOrDefault(
+            ReferenceDescription? target = references.SingleOrDefault(
                 reference => reference.NodeId == new ExpandedNodeId(kValueNodeId, targetNamespace));
             Assert.That(target, Is.Not.Null);
             if (target is not null)
@@ -864,7 +875,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             public void AddBrowseDependencyReferences(NodeId targetId)
             {
-                NodeState root = Find(new NodeId(kRootNodeId, NamespaceIndexes[0]));
+                NodeState root = RequireLifecycleValue(Find(new NodeId(kRootNodeId, NamespaceIndexes[0])));
                 for (uint index = 0; index < 3; index++)
                 {
                     var variable = new BaseDataVariableState(root)
@@ -885,12 +896,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private class OpaqueLazyDependencyBrowser(
             ISystemContext context,
-            ViewDescription view,
+            ViewDescription? view,
             NodeId referenceType,
             bool includeSubtypes,
             BrowseDirection direction,
             QualifiedName browseName,
-            IEnumerable<IReference> additionalReferences,
+            IEnumerable<IReference>? additionalReferences,
             bool internalOnly,
             NodeId targetId,
             Action disposed)
@@ -899,9 +910,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             protected NodeId DependencyTarget { get; } = targetId;
 
-            public override IReference Next()
+            public override IReference? Next()
             {
-                IReference reference = base.Next();
+                IReference? reference = base.Next();
                 if (reference is not null)
                 {
                     return reference;
@@ -928,12 +939,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private sealed class DeclaredLazyDependencyBrowser(
             ISystemContext context,
-            ViewDescription view,
+            ViewDescription? view,
             NodeId referenceType,
             bool includeSubtypes,
             BrowseDirection direction,
             QualifiedName browseName,
-            IEnumerable<IReference> additionalReferences,
+            IEnumerable<IReference>? additionalReferences,
             bool internalOnly,
             NodeId targetId,
             Action disposed)

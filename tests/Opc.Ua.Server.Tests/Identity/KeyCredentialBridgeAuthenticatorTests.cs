@@ -89,7 +89,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -107,7 +107,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
         }
 
         [Test]
@@ -122,7 +122,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -136,7 +136,55 @@ namespace Opc.Ua.Server.Tests.Identity
                 .ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncRejectsReplayOfVersionedProof()
+        {
+            using InMemoryKeyCredentialStore store = await CreateStoreAsync(DateTime.UtcNow.AddMinutes(10))
+                .ConfigureAwait(false);
+            var authenticator = new KeyCredentialBridgeAuthenticator(store);
+            byte[] token = CreateTokenData(CredentialId, s_secret, "urn:test:server");
+
+            AuthenticationResult first = await authenticator.AuthenticateAsync(
+                CreateContext(token, "urn:test:server")).ConfigureAwait(false);
+            AuthenticationResult replay = await authenticator.AuthenticateAsync(
+                CreateContext(token, "urn:test:server")).ConfigureAwait(false);
+
+            Assert.That(first.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(replay.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(replay.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+        }
+
+        [Test]
+        public async Task AuthenticateAsyncRejectsProofForDifferentAudience()
+        {
+            using InMemoryKeyCredentialStore store = await CreateStoreAsync(DateTime.UtcNow.AddMinutes(10))
+                .ConfigureAwait(false);
+            var authenticator = new KeyCredentialBridgeAuthenticator(store);
+
+            AuthenticationResult result = await authenticator.AuthenticateAsync(
+                CreateContext(
+                    CreateTokenData(CredentialId, s_secret, "urn:test:other-server"),
+                    "urn:test:server"))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+        }
+
+        [Test]
+        public void CreateTokenDataRequiresAnAudienceInsteadOfIssuingAnUnusableToken()
+        {
+            Assert.That(
+                () => KeyCredentialBridgeAuthenticator.CreateTokenData(
+                    CredentialId,
+                    s_secret,
+                    "nonce-" + Guid.NewGuid().ToString("N"),
+                    DateTime.UtcNow,
+                    null!),
+                Throws.TypeOf<ArgumentNullException>());
         }
 
         [Test]
@@ -154,26 +202,33 @@ namespace Opc.Ua.Server.Tests.Identity
             {
                 Assert.That(authenticator.TokenType, Is.EqualTo(UserTokenType.IssuedToken));
                 Assert.That(authenticator.IssuedTokenProfileUri, Is.EqualTo("urn:test:profile"));
-                Assert.Throws<ArgumentNullException>(() => new KeyCredentialBridgeAuthenticator(null));
+                Assert.Throws<ArgumentNullException>(() => new KeyCredentialBridgeAuthenticator(null!));
             });
         }
 
         [Test]
         public void CreateProofValidatesSecretAndReturnsBase64UrlProof()
         {
+            long issuedAt = DateTimeOffset.UtcNow.ToUnixTimeSeconds();
             string proof = KeyCredentialBridgeAuthenticator.CreateProof(
                 s_secret,
                 CredentialId,
                 "nonce",
-                DateTimeOffset.UtcNow.ToUnixTimeSeconds());
+                issuedAt,
+                "urn:test:server");
 
             Assert.Multiple(() =>
             {
                 Assert.That(proof, Is.Not.Empty);
                 Assert.That(proof, Does.Not.Contain("+"));
                 Assert.That(proof, Does.Not.Contain("/"));
+                Assert.That(
+                    KeyCredentialBridgeAuthenticator.CreateProof(
+                        s_secret, CredentialId, "nonce", issuedAt, "urn:test:other"),
+                    Is.Not.EqualTo(proof));
                 Assert.Throws<ArgumentNullException>(() =>
-                    KeyCredentialBridgeAuthenticator.CreateProof(null, CredentialId, "nonce", 1));
+                    KeyCredentialBridgeAuthenticator.CreateProof(
+                        null!, CredentialId, "nonce", 1, "urn:test:server"));
             });
         }
 
@@ -182,12 +237,12 @@ namespace Opc.Ua.Server.Tests.Identity
         {
             // The [Experimental] attribute is only emitted when Opc.Ua.Server is
             // compiled for .NET 8 or later (the attribute type does not exist in
-            // the netstandard2.1 / .NET Framework BCL). This test assembly is
+            // the .NET Framework BCL). This test assembly is
             // always compiled for net8.0, so a compile-time #if would reflect the
             // TEST target framework, not the STACK's. Probe the actual compiled
             // target framework of the Opc.Ua.Server assembly under test instead.
-            string frameworkName = typeof(KeyCredentialBridgeAuthenticator).Assembly
-                .GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName;
+            string frameworkName = (typeof(KeyCredentialBridgeAuthenticator).Assembly
+                .GetCustomAttribute<TargetFrameworkAttribute>()?.FrameworkName)!;
 
             // frameworkName looks like ".NETCoreApp,Version=v8.0",
             // ".NETStandard,Version=v2.1" or ".NETFramework,Version=v4.8".
@@ -197,10 +252,10 @@ namespace Opc.Ua.Server.Tests.Identity
             {
                 string[] parts = frameworkName.Split('=');
                 string versionText = parts.Length > 1
-                    ? parts[parts.Length - 1].TrimStart('v', 'V')
+                    ? parts[^1].TrimStart('v', 'V')
                     : string.Empty;
                 stackIsNet8OrGreater =
-                    Version.TryParse(versionText, out Version version) && version.Major >= 8;
+                    Version.TryParse(versionText, out Version? version) && version.Major >= 8;
             }
 
             if (!stackIsNet8OrGreater)
@@ -213,14 +268,14 @@ namespace Opc.Ua.Server.Tests.Identity
             object attribute = typeof(KeyCredentialBridgeAuthenticator)
                 .GetCustomAttributes(false)
                 .SingleOrDefault(a => a.GetType().FullName ==
-                    "System.Diagnostics.CodeAnalysis.ExperimentalAttribute");
+                    "System.Diagnostics.CodeAnalysis.ExperimentalAttribute")!;
             Assert.That(attribute, Is.Not.Null);
         }
 
         private static async Task<InMemoryKeyCredentialStore> CreateStoreAsync(DateTime expiration)
         {
             var store = new InMemoryKeyCredentialStore();
-            var claims = new Dictionary<string, object>
+            var claims = new Dictionary<string, object?>
             {
                 ["iss"] = "urn:test:issuer",
                 ["sub"] = "subject-1",
@@ -236,7 +291,9 @@ namespace Opc.Ua.Server.Tests.Identity
             return store;
         }
 
-        private static AuthenticationContext CreateContext(byte[] tokenData)
+        private static AuthenticationContext CreateContext(
+            byte[] tokenData,
+            string audience = "urn:test:server")
         {
             return new AuthenticationContext(
                 new IssuedIdentityTokenHandler(KeyCredentialBridgeOptions.DefaultProfileUri, tokenData),
@@ -246,7 +303,11 @@ namespace Opc.Ua.Server.Tests.Identity
                     PolicyId = "keycredential",
                     IssuedTokenType = KeyCredentialBridgeOptions.DefaultProfileUri
                 },
-                new EndpointDescription { SecurityMode = MessageSecurityMode.SignAndEncrypt },
+                new EndpointDescription
+                {
+                    SecurityMode = MessageSecurityMode.SignAndEncrypt,
+                    Server = new ApplicationDescription { ApplicationUri = audience }
+                },
                 ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create()));
         }
 
@@ -256,7 +317,21 @@ namespace Opc.Ua.Server.Tests.Identity
                 credentialId,
                 secret,
                 "nonce-" + Guid.NewGuid().ToString("N"),
-                DateTime.UtcNow);
+                DateTime.UtcNow,
+                "urn:test:server");
+        }
+
+        private static byte[] CreateTokenData(
+            string credentialId,
+            byte[] secret,
+            string audience)
+        {
+            return KeyCredentialBridgeAuthenticator.CreateTokenData(
+                credentialId,
+                secret,
+                "nonce-" + Guid.NewGuid().ToString("N"),
+                DateTime.UtcNow,
+                audience);
         }
     }
 }

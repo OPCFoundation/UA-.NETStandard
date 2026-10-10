@@ -74,6 +74,16 @@ namespace Opc.Ua.Server.Hosting
         public bool IsFallback { get; }
 
         /// <summary>
+        /// Whether the registration materializes the default authenticator set
+        /// (<see cref="DefaultAuthenticatorOptions"/>). When such a registration
+        /// produces no anonymous authenticator, anonymous access was disabled
+        /// by configuration and anonymous tokens are rejected explicitly.
+        /// A server with its own UserName or X.509 authenticators (such as the
+        /// GDS) skips those token types from such a registration.
+        /// </summary>
+        public bool ConfiguresDefaultAuthenticators { get; internal init; }
+
+        /// <summary>
         /// Creates the configured identity authenticators.
         /// </summary>
         /// <param name="services">Service provider used to resolve dependencies.</param>

@@ -137,7 +137,7 @@ namespace Opc.Ua.Server.Tests
         {
             var manager = new Mock<IAsyncNodeManager>();
             using ContinuationPoint point = CreatePoint(manager.Object);
-            Assert.That(() => point.SetOwnerRelease(null), Throws.ArgumentNullException);
+            Assert.That(() => point.SetOwnerRelease(null!), Throws.ArgumentNullException);
             var holder = new SessionContinuationPoints(() => new NodeId(1), 1, 1, null);
             holder.SaveBrowse(point);
             Assert.That(holder.HasBrowseForManager(manager.Object), Is.True);
@@ -234,7 +234,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(activeData.Count, Is.Zero);
             Assert.That(savedData.Count, Is.EqualTo(1));
             Assert.That(holder.HasBrowseForManager(manager.Object), Is.True);
-            Assert.That(() => holder.SaveBrowse(active), Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(() => holder.SaveBrowse(active),
+                Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
+                    .EqualTo(StatusCodes.BadSessionClosed));
             active.Dispose();
             holder.Clear();
             Assert.That(activeData.Count, Is.EqualTo(1));
@@ -300,7 +302,7 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void FailedSaveReleasesOwnerAndDisposesPoint()
+        public void FailedBrowsePersistenceLeavesPointWithCaller()
         {
             var store = new Mock<IContinuationPointStore>();
             store.Setup(value => value.StoreContinuationPoint(It.IsAny<ContinuationPointEnvelope>()))
@@ -313,8 +315,11 @@ namespace Opc.Ua.Server.Tests
             holder.BrowseContinuationPointsReleased += () => released++;
             Assert.That(() => holder.SaveBrowse(point), Throws.TypeOf<IOException>());
             Assert.That(holder.HasBrowseForManager(manager.Object), Is.False);
+            Assert.That(data.Count, Is.Zero, "A failed persistence attempt never transfers browse ownership.");
+            Assert.That(released, Is.Zero);
+            point.Dispose();
             Assert.That(data.Count, Is.EqualTo(1));
-            Assert.That(released, Is.EqualTo(1));
+            Assert.That(released, Is.Zero);
         }
 
         [Test]
@@ -357,7 +362,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(released, Is.EqualTo(1));
         }
 
-        private static ContinuationPoint CreatePoint(IAsyncNodeManager manager, IDisposable data = null)
+        private static ContinuationPoint CreatePoint(IAsyncNodeManager manager, IDisposable? data = null)
         {
             return new ContinuationPoint { Id = Guid.NewGuid(), Manager = manager, Data = data };
         }

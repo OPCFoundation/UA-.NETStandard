@@ -31,11 +31,9 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Globalization;
-using System.Linq;
 using System.Numerics;
 using System.Threading;
 using System.Threading.Tasks;
-using System.Xml;
 using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Server;
@@ -44,7 +42,8 @@ using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 using Opc.Ua.Test;
 using Quickstarts.Servers;
-using Range = Opc.Ua.Range;
+using UaBrowseNames = Opc.Ua.BrowseNames;
+using UaKeyValuePair = Opc.Ua.KeyValuePair;
 
 namespace Quickstarts.ReferenceServer
 {
@@ -68,8 +67,6 @@ namespace Quickstarts.ReferenceServer
                   server.Telemetry.CreateLogger<ReferenceNodeManager>(),
                   Namespaces.ReferenceServer)
         {
-            SystemContext.NodeIdFactory = this;
-
             // use suitable defaults if no configuration exists.
         }
 
@@ -81,14 +78,16 @@ namespace Quickstarts.ReferenceServer
         /// the HA facet only when the feature is actually present.
         /// </summary>
         public ArrayOf<QualifiedName> ConformanceUnits =>
-            m_historian != null ? s_baseWithHistoricalConformanceUnits : s_baseConformanceUnits;
+            m_conformanceUnits;
 
         /// <summary>
-        /// The server profile URIs this node manager enables — the Historical
-        /// Raw Data and Historical Aggregate facets when history archiving is on.
+        /// The capability-gated Historical Access Server profile URIs enabled
+        /// by this node manager.
         /// </summary>
         public ArrayOf<string> ServerProfiles =>
-            m_historian != null ? s_historicalAccessProfiles : [];
+            m_historicalProfiles;
+
+        private HistorianBuilder? EventHistorianBuilder { get; set; }
 
         /// <summary>
         /// An overrideable version of the Dispose.
@@ -113,23 +112,6 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
-        /// <summary>
-        /// Creates the NodeId for the specified node.
-        /// </summary>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance &&
-                instance.Parent != null &&
-                instance.Parent.NodeId.TryGetValue(out string id))
-            {
-                return new NodeId(
-                    id + "_" + instance.SymbolicName,
-                    instance.Parent.NodeId.NamespaceIndex);
-            }
-
-            return node.NodeId;
-        }
-
         /// <inheritdoc/>
         /// <remarks>
         /// Enables the OPC UA NodeManagement service set (AddNodes /
@@ -139,61 +121,6 @@ namespace Quickstarts.ReferenceServer
         /// references are written through <see cref="MasterNodeManager"/>.
         /// </remarks>
         public override bool AllowNodeManagement => true;
-
-        private static bool IsAnalogType(BuiltInType builtInType)
-        {
-            switch (builtInType)
-            {
-                case BuiltInType.Byte:
-                case BuiltInType.UInt16:
-                case BuiltInType.UInt32:
-                case BuiltInType.UInt64:
-                case BuiltInType.SByte:
-                case BuiltInType.Int16:
-                case BuiltInType.Int32:
-                case BuiltInType.Int64:
-                case BuiltInType.Float:
-                case BuiltInType.Double:
-                    return true;
-                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
-                    return false;
-                default:
-                    Debug.Fail($"Unexpected BuiltInType {builtInType}");
-                    return false;
-            }
-        }
-
-        private static Range GetAnalogRange(BuiltInType builtInType)
-        {
-            switch (builtInType)
-            {
-                case BuiltInType.UInt16:
-                    return new Range(ushort.MaxValue, ushort.MinValue);
-                case BuiltInType.UInt32:
-                    return new Range(uint.MaxValue, uint.MinValue);
-                case BuiltInType.UInt64:
-                    return new Range(ulong.MaxValue, ulong.MinValue);
-                case BuiltInType.SByte:
-                    return new Range(sbyte.MaxValue, sbyte.MinValue);
-                case BuiltInType.Int16:
-                    return new Range(short.MaxValue, short.MinValue);
-                case BuiltInType.Int32:
-                    return new Range(int.MaxValue, int.MinValue);
-                case BuiltInType.Int64:
-                    return new Range(long.MaxValue, long.MinValue);
-                case BuiltInType.Float:
-                    return new Range(float.MaxValue, float.MinValue);
-                case BuiltInType.Double:
-                    return new Range(double.MaxValue, double.MinValue);
-                case BuiltInType.Byte:
-                    return new Range(byte.MaxValue, byte.MinValue);
-                case >= BuiltInType.Null and <= BuiltInType.Enumeration:
-                    return new Range(sbyte.MaxValue, sbyte.MinValue);
-                default:
-                    Debug.Fail($"Unexpected BuiltInType {builtInType}");
-                    return new Range(sbyte.MaxValue, sbyte.MinValue);
-            }
-        }
 
         /// <summary>
         /// Loads the predefined nodes from the NodeSet2 model and then enables
@@ -220,6 +147,7 @@ namespace Quickstarts.ReferenceServer
                 // through the fluent builder in Configure().
                 RegisterSimulationVariables();
                 InitializeMissingStaticValues();
+                EnableStatusAndTimestampWrites();
 
                 // Reset the random generator and generate boundary values so the
                 // fluent simulation loop (registered in Configure and started
@@ -274,6 +202,36 @@ namespace Quickstarts.ReferenceServer
             }
         }
 
+        /// <summary>
+        /// The reference server accepts a StatusCode and SourceTimestamp written
+        /// together with the Value on every writable data variable (CTT conformance
+        /// units "Attribute Write StatusCode &amp; Timestamp" and Data Access
+        /// PercentDeadband). OPC 10000-3 §8.57 requires the StatusWrite and
+        /// TimestampWrite AccessLevel bits for that, so they are added wherever
+        /// CurrentWrite is granted. The NodeSet2 model only carries the basic bits.
+        /// </summary>
+        private void EnableStatusAndTimestampWrites()
+        {
+            const byte statusAndTimestampWrite = (byte)(AccessLevels.StatusWrite | AccessLevels.TimestampWrite);
+            foreach (NodeState node in PredefinedNodes.Values)
+            {
+                if (node is not BaseDataVariableState variable)
+                {
+                    continue;
+                }
+
+                if ((variable.AccessLevel & AccessLevels.CurrentWrite) != 0)
+                {
+                    variable.AccessLevel |= statusAndTimestampWrite;
+                }
+
+                if ((variable.UserAccessLevel & AccessLevels.CurrentWrite) != 0)
+                {
+                    variable.UserAccessLevel |= statusAndTimestampWrite;
+                }
+            }
+        }
+
         private void InitializeMissingStaticValues()
         {
             SetPredefinedVariableValue(
@@ -287,13 +245,13 @@ namespace Quickstarts.ReferenceServer
                 Variant.From(CreateArray(10, i => (ulong)i).ToArrayOf()));
             SetPredefinedVariableValue(
                 "Scalar_Static_Arrays2D_Integer",
-                Variant.From(CreateMatrix(2, 2, (r, c) => (long)((r * 2) + c))));
+                Variant.From(CreateMatrix(5, 5, (r, c) => (long)((r * 5) + c))));
             SetPredefinedVariableValue(
                 "Scalar_Static_Arrays2D_Number",
-                Variant.From(CreateMatrix(2, 2, (r, c) => (double)((r * 2) + c))));
+                Variant.From(CreateMatrix(5, 5, (r, c) => (double)((r * 5) + c))));
             SetPredefinedVariableValue(
                 "Scalar_Static_Arrays2D_UInteger",
-                Variant.From(CreateMatrix(2, 2, (r, c) => (ulong)((r * 2) + c))));
+                Variant.From(CreateMatrix(5, 5, (r, c) => (ulong)((r * 5) + c))));
             SetPredefinedVariableValue(
                 "Scalar_Static_ArrayDynamic_Integer",
                 Variant.From(CreateArray(10, i => (long)i).ToArrayOf()));
@@ -335,6 +293,20 @@ namespace Quickstarts.ReferenceServer
                     { 0.0, 1.0, 2.0 },
                     { 3.0, 4.0, 5.0 }
                 })));
+
+            // MinimumSamplingInterval is an optional attribute (Part 3 §5.6.2). One static
+            // DataItem does not provide it, so clients can verify that the server revises the
+            // sampling interval of such a node to MinSupportedSampleRate (CTT Base Info Server
+            // Capabilities 2 002.js requires a node that returns BadAttributeIdInvalid). A DA
+            // item is used because the Address Space WriteMask cases write every attribute of
+            // the static scalars back.
+            if (FindPredefinedNode<BaseVariableState>(
+                new NodeId("DataAccess_DataItem_String", NamespaceIndex)) is BaseVariableState stringItem)
+            {
+                stringItem.MinimumSamplingInterval = MinimumSamplingIntervals.Indeterminate;
+                stringItem.OnReadMinimumSamplingInterval = static (context, node, ref value) =>
+                    StatusCodes.BadAttributeIdInvalid;
+            }
         }
 
         private void SetPredefinedVariableValue(string identifier, Variant value)
@@ -397,13 +369,13 @@ namespace Quickstarts.ReferenceServer
             // (< XmlElement, i.e. BuiltInType value 16). The DataGenerator can
             // return any BuiltInType, so keep retrying until it produces an
             // acceptable one alongside the existing null-value retry.
-            bool isVariantDataType = TypeInfo.GetBuiltInType(variable.DataType, Server.TypeTree)
-                == BuiltInType.Variant;
+            bool isVariantDataType = TypeInfo.GetBuiltInType(variable.DataType, Server.TypeTree) ==
+                BuiltInType.Variant;
 
             Variant value = default;
             for (int retryCount = 0;
-                (value.IsNull
-                 || (isVariantDataType && value.TypeInfo.BuiltInType >= BuiltInType.XmlElement)) &&
+                (value.IsNull ||
+                    (isVariantDataType && value.TypeInfo.BuiltInType >= BuiltInType.XmlElement)) &&
                 retryCount < 10;
                 retryCount++)
             {
@@ -414,15 +386,15 @@ namespace Quickstarts.ReferenceServer
                     Server.TypeTree);
             }
 
-            // The CTT requires the leading ByteString array elements to be at
-            // least four bytes long. The random generator can produce shorter
-            // values, so pad indexes 0..2 up to the minimum length.
+            // The CTT (Monitor Value Change V2 020.js) skips a ByteString array
+            // with any element shorter than four bytes. The random generator can
+            // produce shorter values, so pad every element up to the minimum length.
             if (variable.DataType == DataTypeIds.ByteString &&
                 variable.ValueRank == ValueRanks.OneDimension &&
                 value.TryGetValue(out ArrayOf<ByteString> byteStringArray))
             {
                 ByteString[] byteStrings = byteStringArray.ToArray()!;
-                for (int ii = 0; ii < 3 && ii < byteStrings.Length; ii++)
+                for (int ii = 0; ii < byteStrings.Length; ii++)
                 {
                     byteStrings[ii] = EnsureMinimumByteStringLength(byteStrings[ii], 4);
                 }
@@ -528,7 +500,7 @@ namespace Quickstarts.ReferenceServer
         /// Fixed length used for every dimension of a generated multi-dimensional
         /// array so its value and ArrayDimensions attribute stay deterministic.
         /// </summary>
-        private const uint MultiDimensionalArrayLength = 3;
+        private const uint MultiDimensionalArrayLength = 5;
 
         /// <summary>
         /// String node-id prefix shared by every variable under the
@@ -556,7 +528,71 @@ namespace Quickstarts.ReferenceServer
         private const string NodeDoesNotSupportServerTimestampNodeName
             = "Scalar_Static_NodeDoesNotSupportServerTimestamp";
 
+        /// <summary>
+        /// NodeId identifier of the generic StructuredHistoryData sample.
+        /// </summary>
+        private const string StructuredHistoryNodeName =
+            "Historical_KeyValuePairs";
+
+        /// <summary>
+        /// Start of the history segment that every historizing scalar variable gets at a
+        /// fixed date, in addition to the samples seeded relative to the server start. The
+        /// CTT aggregate test cases 005-05/005-06 need a block of consecutive non-Good values
+        /// at an absolute time (the project settings
+        /// <c>/Server Test/NodeIds/Static/HA Profile/Aggregates/StartOfBadData*</c>), which
+        /// a history relative to the server start cannot provide.
+        /// </summary>
+        private static readonly DateTime s_fixedHistoryStart =
+            new(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc);
+
+        /// <summary>
+        /// Number of samples in the fixed-date history segment (10 s apart).
+        /// </summary>
+        private const int FixedHistorySampleCount = 400;
+
+        /// <summary>
+        /// Sample index the StartOfBadData* settings of samples/UAReferenceServer.ctt.xml
+        /// point to (<c>2026-01-01T00:25:01.234Z</c>).
+        /// </summary>
+        private const int FixedHistoryBadDataSearchStart = 150;
+
+        /// <summary>
+        /// Returns the status of a sample in the fixed-date segment. The layout follows
+        /// how the CTT (HAAggregateHelper.GetBadData, scripts 1.05.513) searches it:
+        /// <list type="bullet">
+        /// <item>Samples 0-149 repeat the pattern of <see cref="GetSeededStatusCode"/>; the
+        /// CTT uses the first 120 samples as the start data of the other test cases.</item>
+        /// <item>The search reads 120 samples forward from the configured time (sample 150) and
+        /// needs a non-Good sample followed by a Good one: samples 150-267 are Good, 268 is Bad.</item>
+        /// <item>Its "reverse" read sends EndTime = DateTime.MinValue, which means "not
+        /// specified", so it also reads 120 samples forward (Part 11 §6.5.3). The final read
+        /// therefore spans sample 269 (150 + 119) to sample 387 (268 + 119), and the
+        /// contiguous Bad block 275-279 must lie inside it.</item>
+        /// <item>Samples 280-399 repeat the pattern again (no other consecutive non-Good
+        /// samples).</item>
+        /// </list>
+        /// </summary>
+        private static StatusCode GetFixedHistoryStatusCode(int sampleIndex)
+        {
+            return sampleIndex switch
+            {
+                < FixedHistoryBadDataSearchStart => GetSeededStatusCode(sampleIndex),
+                < 268 => StatusCodes.Good,
+                268 => StatusCodes.BadDataUnavailable,
+                < 275 => StatusCodes.Good,
+                < 280 => StatusCodes.BadDataUnavailable,
+                _ => GetSeededStatusCode(sampleIndex)
+            };
+        }
+
         private InMemoryHistorianProvider? m_historian;
+        private BaseObjectState? m_historicalEventNotifier;
+
+        private ArrayOf<QualifiedName> m_conformanceUnits =
+            s_baseConformanceUnits;
+
+        private ArrayOf<string> m_historicalProfiles =
+            [];
 
         /// <summary>
         /// Base set of conformance units the reference server always supports
@@ -630,47 +666,10 @@ namespace Quickstarts.ReferenceServer
         ];
 
         /// <summary>
-        /// Historical Access conformance units advertised while history
-        /// archiving is enabled.
-        /// </summary>
-        private static readonly QualifiedName[] s_historicalAccessConformanceUnitNames =
-        [
-            new("Aggregate Master Configuration"),
-            new("Attribute Historical Read"),
-            new("Base Info History Read Capabilities"),
-            new("Base Info History ReadData Capabilities"),
-            new("Historical Access Aggregates"),
-            new("Historical Access Read Raw")
-        ];
-
-        /// <summary>
         /// The always-supported base conformance units.
         /// </summary>
         private static readonly ArrayOf<QualifiedName> s_baseConformanceUnits =
             s_baseConformanceUnitNames.ToArrayOf();
-
-        /// <summary>
-        /// The base conformance units plus the Historical Access units, advertised
-        /// while history archiving is enabled.
-        /// </summary>
-        private static readonly ArrayOf<QualifiedName> s_baseWithHistoricalConformanceUnits =
-            new QualifiedName[][]
-                {
-                    s_baseConformanceUnitNames,
-                    s_historicalAccessConformanceUnitNames
-                }
-                .SelectMany(names => names)
-                .ToArrayOf();
-
-        /// <summary>
-        /// Historical Access server profile URIs advertised while history
-        /// archiving is enabled.
-        /// </summary>
-        private static readonly ArrayOf<string> s_historicalAccessProfiles = new[]
-        {
-            "http://opcfoundation.org/UA-Profile/Server/HistoricalRawData2022",
-            "http://opcfoundation.org/UA-Profile/Server/AggregateHistorical2022"
-        }.ToArrayOf();
 
         /// <inheritdoc/>
         protected override IHistorianProvider? GetHistorianProvider(NodeState node)
@@ -717,6 +716,9 @@ namespace Quickstarts.ReferenceServer
                 StartOfArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000)),
                 StartOfOnlineArchive = new DateTimeUtc(DateTime.UtcNow.AddSeconds(-10000))
             };
+            await EnableHistoricalEventsAsync(
+                capabilities.StartOfArchive,
+                cancellationToken).ConfigureAwait(false);
 
             // The dedicated node whose historian does not support server
             // timestamps reuses the shared capabilities with
@@ -725,61 +727,434 @@ namespace Quickstarts.ReferenceServer
             // "HA Profile > NodeDoesNotSupportServerTimestamp" slot).
             HistorianNodeCapabilities noServerTimestampCapabilities =
                 capabilities with { ServerTimestampSupported = false };
+            var historianBuilder = new HistorianBuilder(Server);
+            historianBuilder.UseProvider(m_historian);
 
-            // Discover the historized nodes directly from the loaded model:
-            // every variable that carries Historizing="true" (baked into the
-            // NodeSet2 model together with the HistoryRead / HistoryWrite
-            // access-level bits) is a history node. Snapshot them first because
-            // installing each node's HA Configuration companion below adds nodes
-            // to PredefinedNodes, which would otherwise invalidate the
-            // enumerator.
-            List<BaseVariableState> historizedNodes = [];
-            foreach (NodeState node in PredefinedNodes.Values)
+            try
             {
-                if (node is BaseVariableState variable && variable.Historizing)
+                // Discover the historized nodes directly from the loaded model:
+                // every variable that carries Historizing="true" (baked into the
+                // NodeSet2 model together with the HistoryRead / HistoryWrite
+                // access-level bits) is a history node. Snapshot them first because
+                // installing each node's HA Configuration companion below adds nodes
+                // to PredefinedNodes, which would otherwise invalidate the
+                // enumerator.
+                List<BaseVariableState> historizedNodes = [];
+                foreach (NodeState node in PredefinedNodes.Values)
                 {
-                    historizedNodes.Add(variable);
+                    if (node is BaseVariableState variable && variable.Historizing)
+                    {
+                        historizedNodes.Add(variable);
+                    }
+                }
+
+                foreach (BaseVariableState variable in historizedNodes)
+                {
+                    NodeId nodeId = variable.NodeId;
+
+                    // The dedicated node whose historian does not support server
+                    // timestamps is identified by its node id; everything else uses
+                    // the shared capabilities. Only the runtime historian
+                    // registration and seeding remain here.
+                    bool noServerTimestamp = nodeId.TryGetValue(out string identifier) &&
+                        string.Equals(
+                            identifier,
+                            NodeDoesNotSupportServerTimestampNodeName,
+                            StringComparison.Ordinal);
+
+                    HistorianNodeCapabilities nodeCapabilities = noServerTimestamp
+                        ? noServerTimestampCapabilities
+                        : capabilities;
+
+                    // nodes with the fixed-date segment start their archive there.
+                    if (HasFixedHistorySegment(variable))
+                    {
+                        nodeCapabilities = nodeCapabilities with
+                        {
+                            StartOfArchive = new DateTimeUtc(s_fixedHistoryStart),
+                            StartOfOnlineArchive = new DateTimeUtc(s_fixedHistoryStart)
+                        };
+                    }
+                    historianBuilder.Historize(
+                        variable,
+                        historyAccessLevel: 0,
+                        setHistorizing: false,
+                        systemContext: SystemContext,
+                        capabilities: nodeCapabilities,
+                        autoCapture: false);
+                    BaseInstanceState? annotations = variable.FindChild(
+                        SystemContext,
+                        new QualifiedName(UaBrowseNames.Annotations));
+                    if (annotations != null)
+                    {
+                        if (annotations is BaseVariableState annotationVariable)
+                        {
+                            annotationVariable.AccessLevel = (byte)(
+                                variable.AccessLevel &
+                                (AccessLevels.HistoryRead |
+                                    AccessLevels.HistoryWrite));
+                            annotationVariable.UserAccessLevel = (byte)(
+                                variable.UserAccessLevel &
+                                (AccessLevels.HistoryRead |
+                                    AccessLevels.HistoryWrite));
+                        }
+                        await AddPredefinedNodeAsync(
+                            SystemContext,
+                            annotations,
+                            cancellationToken).ConfigureAwait(false);
+                    }
+
+                    await SeedHistoricalNodeAsync(variable, cancellationToken).ConfigureAwait(false);
+
+                    // Attach a HistoricalDataConfigurationType companion object
+                    // (browse name "HA Configuration") and wire it via the
+                    // HasHistoricalConfiguration reference so History Access aggregate
+                    // clients and the CTT can discover the node's configuration
+                    // (OPC UA Part 11 5.2.3).
+                    HistoricalDataConfigurationState config =
+                        await HistoricalDataConfigurationInstaller.EnsureInstalledAsync(
+                            SystemContext,
+                            variable,
+                            m_historian,
+                            cancellationToken).ConfigureAwait(false);
+                    await AddPredefinedNodeAsync(
+                        SystemContext,
+                        config,
+                        cancellationToken).ConfigureAwait(false);
                 }
             }
-
-            foreach (BaseVariableState variable in historizedNodes)
+            finally
             {
-                var nodeId = (NodeId)variable.NodeId;
-
-                // The dedicated node whose historian does not support server
-                // timestamps is identified by its node id; everything else uses
-                // the shared capabilities. Only the runtime historian
-                // registration and seeding remain here.
-                bool noServerTimestamp = nodeId.TryGetValue(out string identifier) &&
-                    string.Equals(identifier, NodeDoesNotSupportServerTimestampNodeName, StringComparison.Ordinal);
-
-                m_historian.Register(
-                    nodeId,
-                    noServerTimestamp ? noServerTimestampCapabilities : capabilities);
-
-                await SeedHistoricalNodeAsync(variable, cancellationToken).ConfigureAwait(false);
-
-                // Attach a HistoricalDataConfigurationType companion object
-                // (browse name "HA Configuration") and wire it via the
-                // HasHistoricalConfiguration reference so History Access aggregate
-                // clients and the CTT can discover the node's configuration
-                // (OPC UA Part 11 5.2.3).
-                HistoricalDataConfigurationState config = await HistoricalDataConfigurationInstaller
-                    .EnsureInstalledAsync(SystemContext, variable, m_historian, cancellationToken)
-                    .ConfigureAwait(false);
-                await AddPredefinedNodeAsync(SystemContext, config, cancellationToken).ConfigureAwait(false);
+                await historianBuilder.DisposeAsync().ConfigureAwait(false);
             }
+            await EnableStructuredHistoryAsync(
+                capabilities.StartOfArchive,
+                cancellationToken).ConfigureAwait(false);
+            await UpdateHistoricalConformanceClaimsAsync(
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask EnableHistoricalEventsAsync(
+            DateTimeUtc startOfArchive,
+            CancellationToken cancellationToken)
+        {
+            BaseObjectState? notifier = FindPredefinedNode<BaseObjectState>(
+                new NodeId("CTT", NamespaceIndex)) ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdUnknown,
+                    "The ReferenceServer CTT event notifier was not loaded.");
+            m_historicalEventNotifier = notifier;
+
+            SimpleAttributeOperand eventTypeField = CreateHistoricalEventField(
+                UaBrowseNames.EventType);
+            SimpleAttributeOperand timeField = CreateHistoricalEventField(
+                UaBrowseNames.Time);
+            var capabilities = new HistorianNodeCapabilities
+            {
+                ReadRawData = false,
+                ReadModifiedData = false,
+                ReadAtTime = false,
+                ReadProcessedData = false,
+                ReadEventHistory = true,
+                InsertEvent = true,
+                ReplaceEvent = true,
+                UpdateEvent = true,
+                DeleteEvent = true,
+                EventTypes = [ObjectTypeIds.BaseEventType],
+                MandatoryEventFields = [eventTypeField, timeField],
+                SortByEventFields = [timeField],
+                StartOfArchive = startOfArchive,
+                StartOfOnlineArchive = startOfArchive
+            };
+
+            // ServerInternalData owns registered builders and disposes their
+            // capture pipelines during shutdown.
+            EventHistorianBuilder ??= new HistorianBuilder(Server);
+            EventHistorianBuilder.UseProvider(m_historian!);
+            HistoricalEventConfigurationState? configuration =
+                await EventHistorianBuilder.HistorizeEventsAsync(
+                    notifier,
+                    SystemContext,
+                    capabilities: capabilities,
+                    cancellationToken: cancellationToken).ConfigureAwait(false) ??
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    "The historical event configuration was not installed.");
+            await AddPredefinedNodeAsync(
+                SystemContext,
+                configuration,
+                cancellationToken).ConfigureAwait(false);
+
+            DateTimeUtc eventTime = DateTime.UtcNow.AddMinutes(-15);
+            var eventId = ByteString.From(Guid.NewGuid().ToByteArray());
+            var fields = new Dictionary<string, Variant>(StringComparer.Ordinal)
+            {
+                [UaBrowseNames.EventId] = Variant.From(eventId),
+                [UaBrowseNames.EventType] = Variant.From(ObjectTypeIds.BaseEventType),
+                [UaBrowseNames.SourceNode] = Variant.From(notifier.NodeId),
+                [UaBrowseNames.SourceName] = Variant.From("ReferenceServer"),
+                [UaBrowseNames.Time] = Variant.From(eventTime),
+                [UaBrowseNames.Message] = Variant.From(
+                    new LocalizedText("ReferenceServer historical event")),
+                [UaBrowseNames.Severity] = Variant.From(EventSeverity.Medium)
+            };
+            var record = new HistorianEventRecord(
+                eventId,
+                ObjectTypeIds.BaseEventType,
+                eventTime,
+                fields.ToArrayOf());
+            using var operationContext = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.HistoryUpdate,
+                RequestLifetime.None);
+            var systemContext = new ServerSystemContext(Server, operationContext);
+            var historianContext = new HistorianOperationContext(
+                systemContext,
+                operationContext,
+                null,
+                HistoryUpdateType.Insert);
+            _ = await m_historian!.InsertEventsAsync(
+                historianContext,
+                notifier.NodeId,
+                [record],
+                cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask EnableStructuredHistoryAsync(
+            DateTimeUtc startOfArchive,
+            CancellationToken cancellationToken)
+        {
+            BaseObjectState? parent = FindPredefinedNode<BaseObjectState>(
+                new NodeId("CTT", NamespaceIndex)) ??
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeIdUnknown,
+                    "The ReferenceServer CTT object was not loaded.");
+            var initialPair = new UaKeyValuePair
+            {
+                Key = new QualifiedName("Pressure", NamespaceIndex),
+                Value = Variant.From(0.0)
+            };
+            var variable = new BaseDataVariableState(parent)
+            {
+                SymbolicName = StructuredHistoryNodeName,
+                ReferenceTypeId = ReferenceTypeIds.HasComponent,
+                TypeDefinitionId = VariableTypeIds.BaseDataVariableType,
+                NodeId = new NodeId(
+                    StructuredHistoryNodeName,
+                    NamespaceIndex),
+                BrowseName = new QualifiedName(
+                    StructuredHistoryNodeName,
+                    NamespaceIndex),
+                DisplayName = new LocalizedText(
+                    "en",
+                    "Structured Historical KeyValuePairs"),
+                DataType = DataTypeIds.KeyValuePair,
+                ValueRank = ValueRanks.Scalar,
+                AccessLevel =
+                    AccessLevels.CurrentRead |
+                    AccessLevels.HistoryRead |
+                    AccessLevels.HistoryWrite,
+                UserAccessLevel =
+                    AccessLevels.CurrentRead |
+                    AccessLevels.HistoryRead |
+                    AccessLevels.HistoryWrite,
+                Historizing = true,
+                Value = Variant.From(
+                    new ExtensionObject(initialPair)),
+                StatusCode = StatusCodes.Good,
+                Timestamp = DateTime.UtcNow
+            };
+            parent.AddChild(variable);
+            m_historian!.RegisterStructured(
+                variable.NodeId,
+                KeyValuePairStructuredDataKeySelector.Instance,
+                HistorianNodeCapabilities.StructuredReadWrite with
+                {
+                    StartOfArchive = startOfArchive,
+                    StartOfOnlineArchive = startOfArchive
+                });
+            await AddPredefinedNodeAsync(
+                SystemContext,
+                variable,
+                cancellationToken).ConfigureAwait(false);
+            HistoricalDataConfigurationState configuration =
+                await HistoricalDataConfigurationInstaller
+                    .EnsureInstalledAsync(
+                        SystemContext,
+                        variable,
+                        m_historian,
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            await AddPredefinedNodeAsync(
+                SystemContext,
+                configuration,
+                cancellationToken).ConfigureAwait(false);
+
+            DateTimeUtc captureTime = DateTime.UtcNow.AddMinutes(-10);
+            ArrayOf<DataValue> seed =
+            [
+                CreateStructuredHistoryValue(
+                    "Pressure",
+                    captureTime,
+                    42.5),
+                CreateStructuredHistoryValue(
+                    "Temperature",
+                    captureTime,
+                    21.25)
+            ];
+            using var operationContext = new OperationContext(
+                new RequestHeader(),
+                null,
+                RequestType.HistoryUpdate,
+                RequestLifetime.None);
+            var historianContext = new HistorianOperationContext(
+                new ServerSystemContext(Server, operationContext),
+                operationContext,
+                variable,
+                HistoryUpdateType.Insert);
+            HistorianUpdateOutcome<DataValue> outcome =
+                await m_historian.InsertStructuredDataAsync(
+                    historianContext,
+                    variable.NodeId,
+                    seed,
+                    cancellationToken).ConfigureAwait(false);
+            for (int i = 0; i < outcome.OperationResults.Count; i++)
+            {
+                if (StatusCode.IsBad(outcome.OperationResults[i]))
+                {
+                    throw new ServiceResultException(
+                        outcome.OperationResults[i],
+                        "The ReferenceServer structured history seed failed.");
+                }
+            }
+        }
+
+        private DataValue CreateStructuredHistoryValue(
+            string key,
+            DateTimeUtc sourceTimestamp,
+            double value)
+        {
+            var pair = new UaKeyValuePair
+            {
+                Key = new QualifiedName(key, NamespaceIndex),
+                Value = Variant.From(value)
+            };
+            return new DataValue(
+                Variant.From(new ExtensionObject(pair)),
+                StatusCodes.Good,
+                sourceTimestamp,
+                sourceTimestamp);
+        }
+
+        private async ValueTask UpdateHistoricalConformanceClaimsAsync(
+            CancellationToken cancellationToken)
+        {
+            HistorianNodeCapabilities capabilities = await m_historian!
+                .GetCapabilitiesAsync(
+                    NodeId.Null,
+                    cancellationToken)
+                .ConfigureAwait(false);
+            HistorianNodeCapabilities eventCapabilities = await m_historian
+                .GetCapabilitiesAsync(
+                    new NodeId("CTT", NamespaceIndex),
+                    cancellationToken)
+                .ConfigureAwait(false);
+            ArrayOf<HistoricalAccessProfileDescriptor> profiles =
+                HistorianProfileCatalog.GetSupportedProfiles(
+                    m_historian,
+                    capabilities,
+                    eventCapabilities);
+            if (profiles.Count != 15)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadConfigurationError,
+                    $"The ReferenceServer historian satisfies {profiles.Count} of 15 Server facets.");
+            }
+            string[] profileUris = new string[profiles.Count];
+            var conformanceUnits =
+                new List<QualifiedName>(
+                    s_baseConformanceUnits.Count + 64);
+            var seen = new HashSet<QualifiedName>();
+            foreach (QualifiedName unit in s_baseConformanceUnits)
+            {
+                conformanceUnits.Add(unit);
+                seen.Add(unit);
+            }
+            for (int i = 0; i < profiles.Count; i++)
+            {
+                HistoricalAccessProfileDescriptor profile = profiles[i];
+                profileUris[i] = profile.ProfileUri;
+                foreach (string unitName in
+                    profile.MandatoryConformanceUnits)
+                {
+                    var unit = new QualifiedName(unitName);
+                    if (seen.Add(unit))
+                    {
+                        conformanceUnits.Add(unit);
+                    }
+                }
+            }
+            foreach (HistoricalAggregateFunctionDescriptor aggregate in
+                HistoricalAggregateFunctionCatalog.AllFunctions)
+            {
+                var unit = new QualifiedName(
+                    aggregate.ServerConformanceUnit);
+                if (seen.Add(unit))
+                {
+                    conformanceUnits.Add(unit);
+                }
+            }
+            m_historicalProfiles = profileUris;
+            m_conformanceUnits = conformanceUnits.ToArrayOf();
+        }
+
+        private static SimpleAttributeOperand CreateHistoricalEventField(
+            string browseName)
+        {
+            return new SimpleAttributeOperand
+            {
+                TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                BrowsePath = [new QualifiedName(browseName)],
+                AttributeId = Attributes.Value
+            };
+        }
+
+        /// <summary>
+        /// Scalar history nodes also get the fixed-date segment with the block of Bad values;
+        /// it must end before the samples relative to the server start begin.
+        /// </summary>
+        private static bool HasFixedHistorySegment(BaseVariableState variable)
+        {
+            DateTime fixedEnd = s_fixedHistoryStart.AddSeconds(FixedHistorySampleCount * 10);
+            return variable.DataType != DataTypeIds.DecimalDataType &&
+                variable.ValueRank < ValueRanks.OneDimension &&
+                fixedEnd < DateTime.UtcNow.AddSeconds(-10000);
         }
 
         private async Task SeedHistoricalNodeAsync(BaseVariableState variable, CancellationToken cancellationToken)
         {
-            var nodeId = (NodeId)variable.NodeId;
+            NodeId nodeId = variable.NodeId;
             BuiltInType dataType = TypeInfo.GetBuiltInType(variable.DataType);
             bool isStructure = variable.DataType == DataTypeIds.DecimalDataType;
             bool isMatrix = variable.ValueRank >= ValueRanks.TwoDimensions;
             bool isArray = variable.ValueRank == ValueRanks.OneDimension;
             DateTime now = DateTime.UtcNow;
-            var seed = new List<DataValue>(1001);
+            var seed = new List<DataValue>(FixedHistorySampleCount + 1001);
+
+            if (HasFixedHistorySegment(variable))
+            {
+                for (int ii = 0; ii < FixedHistorySampleCount; ii++)
+                {
+                    DateTime timestamp = s_fixedHistoryStart.AddSeconds(ii * 10);
+                    seed.Add(new DataValue(
+                        CreateHistoricalScalarValue(dataType, ii, s_fixedHistoryStart),
+                        GetFixedHistoryStatusCode(ii),
+                        sourceTimestamp: timestamp.AddMilliseconds(1234),
+                        serverTimestamp: timestamp));
+                }
+            }
+
             for (int ii = 1000; ii >= 0; ii--)
             {
                 int value = 1000 - ii;
@@ -833,22 +1208,26 @@ namespace Quickstarts.ReferenceServer
         {
             return dataType switch
             {
-                BuiltInType.Boolean => new Variant((value & 1) == 0),
-                BuiltInType.SByte => new Variant((sbyte)(value % 100)),
-                BuiltInType.Byte => new Variant((byte)(value % 200)),
-                BuiltInType.Int16 => new Variant((short)value),
-                BuiltInType.UInt16 => new Variant((ushort)value),
-                BuiltInType.Int32 => new Variant(value),
-                BuiltInType.UInt32 => new Variant((uint)value),
-                BuiltInType.Int64 => new Variant((long)value),
-                BuiltInType.UInt64 => new Variant((ulong)value),
-                BuiltInType.Float => new Variant((float)value),
-                BuiltInType.Double => new Variant((double)value),
-                BuiltInType.String => new Variant(value.ToString(CultureInfo.InvariantCulture)),
-                BuiltInType.DateTime => new Variant(new DateTimeUtc(now.AddSeconds(value))),
-                BuiltInType.Guid => new Variant(new Uuid(new Guid(value, 0, 0, new byte[8]))),
-                BuiltInType.ByteString => new Variant(new ByteString(BitConverter.GetBytes(value))),
-                _ => new Variant(value)
+                BuiltInType.Boolean => Variant.From((value & 1) == 0),
+                BuiltInType.SByte => Variant.From((sbyte)(value % 100)),
+                BuiltInType.Byte => Variant.From((byte)(value % 200)),
+                BuiltInType.Int16 => Variant.From((short)value),
+                BuiltInType.UInt16 => Variant.From((ushort)value),
+                BuiltInType.Int32 => Variant.From(value),
+                BuiltInType.UInt32 => Variant.From((uint)value),
+                BuiltInType.Int64 => Variant.From((long)value),
+                BuiltInType.UInt64 => Variant.From((ulong)value),
+                BuiltInType.Float => Variant.From((float)value),
+                BuiltInType.Double => Variant.From((double)value),
+                BuiltInType.String => Variant.From(
+                    value.ToString(CultureInfo.InvariantCulture)),
+                BuiltInType.DateTime => Variant.From(
+                    new DateTimeUtc(now.AddSeconds(value))),
+                BuiltInType.Guid => Variant.From(
+                    new Uuid(new Guid(value, 0, 0, new byte[8]))),
+                BuiltInType.ByteString => Variant.From(
+                    new ByteString(BitConverter.GetBytes(value))),
+                _ => Variant.From(value)
             };
         }
 
@@ -988,17 +1367,26 @@ namespace Quickstarts.ReferenceServer
             9.0009d
         ];
     }
+
+    /// <summary>
+    /// Defines log messages for reference node manager variable-write failures.
+    /// </summary>
     internal static partial class ReferenceNodeManagerLog
     {
+        /// <summary>
+        /// Logs a failure to write the simulation-enabled variable.
+        /// </summary>
         [LoggerMessage(
             EventId = QuickstartsServersEventIds.ReferenceNodeManager + 2, Level = LogLevel.Error,
             Message = "Error writing Enabled variable.")]
         public static partial void ErrorWritingEnabledVariable(this ILogger logger, Exception exception);
 
+        /// <summary>
+        /// Logs a failure to write the simulation interval variable.
+        /// </summary>
         [LoggerMessage(
             EventId = QuickstartsServersEventIds.ReferenceNodeManager + 6, Level = LogLevel.Error,
             Message = "Error writing Interval variable.")]
         public static partial void ErrorWritingIntervalVariable(this ILogger logger, Exception exception);
     }
-
 }

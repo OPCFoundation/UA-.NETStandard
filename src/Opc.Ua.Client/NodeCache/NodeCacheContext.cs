@@ -46,6 +46,16 @@ namespace Opc.Ua.Client
             });
             ResultSet<ArrayOf<ReferenceDescription>> results =
                 await browser.BrowseAsync([nodeId], ct).ConfigureAwait(false);
+            // Surface the browse error. Returning the empty result set would
+            // make the node cache store "this node has no references" for a
+            // node the server merely refused to browse (BadUserAccessDenied,
+            // BadNodeIdUnknown), and every type-hierarchy query answered from
+            // that entry would be silently wrong until the entry expires.
+            ServiceResult error = results.Errors[0];
+            if (ServiceResult.IsBad(error))
+            {
+                throw new ServiceResultException(error);
+            }
             return results.Results[0];
         }
 
@@ -94,7 +104,7 @@ namespace Opc.Ua.Client
                 });
 
             ReadResponse readResponse = await m_session.ReadAsync(
-                null,
+                requestHeader,
                 0,
                 TimestampsToReturn.Neither,
                 itemsToRead,
@@ -127,7 +137,7 @@ namespace Opc.Ua.Client
             {
                 itemsToRead = attributesToRead.ToArrayOf();
                 readResponse = await m_session.ReadAsync(
-                    null,
+                    requestHeader,
                     0,
                     TimestampsToReturn.Neither,
                     itemsToRead,
@@ -238,7 +248,7 @@ namespace Opc.Ua.Client
 
             // read from server.
             ReadResponse readResponse = await m_session.ReadAsync(
-                null,
+                requestHeader,
                 0,
                 TimestampsToReturn.Neither,
                 itemsToRead,
@@ -276,7 +286,7 @@ namespace Opc.Ua.Client
 
             // read from server.
             ReadResponse readResponse = await m_session.ReadAsync(
-                null,
+                requestHeader,
                 0,
                 TimestampsToReturn.Both,
                 itemsToRead,
@@ -325,7 +335,7 @@ namespace Opc.Ua.Client
             var errors = new ServiceResult[itemsToRead.Count];
 
             ReadResponse readResponse = await m_session.ReadAsync(
-                null,
+                requestHeader,
                 0,
                 TimestampsToReturn.Both,
                 itemsToRead,
@@ -406,9 +416,22 @@ namespace Opc.Ua.Client
                 }
 
                 node.NodeClass = nodeClass;
-                Dictionary<uint, DataValue> attributes = CreateAttributes(
-                    node.NodeClass,
-                    skipOptionalAttributes);
+                Dictionary<uint, DataValue> attributes;
+                try
+                {
+                    attributes = CreateAttributes(
+                        node.NodeClass,
+                        skipOptionalAttributes);
+                }
+                catch (ServiceResultException sre)
+                {
+                    // An undefined NodeClass value fails this node only, not
+                    // every other node of the batch.
+                    nodeCollection.Add(node);
+                    errors.Add(sre.Result);
+                    attributesPerNodeId.Add(null);
+                    continue;
+                }
                 foreach (uint attributeId in attributes.Keys)
                 {
                     var itemToRead = new ReadValueId
@@ -476,6 +499,25 @@ namespace Opc.Ua.Client
                 }
                 readIndex += readCount;
             }
+        }
+
+        /// <summary>
+        /// Returns a read attribute. The attribute set was built for the
+        /// NodeClass the caller expected; when the server reports another
+        /// NodeClass the attributes that class needs were never read.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static DataValue GetAttribute(
+            IDictionary<uint, DataValue> attributes,
+            uint attributeId)
+        {
+            if (!attributes.TryGetValue(attributeId, out DataValue value))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadNodeClassInvalid,
+                    "The NodeClass of the node does not match the requested NodeClass.");
+            }
+            return value;
         }
 
         /// <summary>
@@ -563,7 +605,7 @@ namespace Opc.Ua.Client
                 case NodeClass.Object:
                     var objectNode = new ObjectNode();
 
-                    value = attributes[Attributes.EventNotifier];
+                    value = GetAttribute(attributes, Attributes.EventNotifier);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -576,7 +618,7 @@ namespace Opc.Ua.Client
                 case NodeClass.ObjectType:
                     var objectTypeNode = new ObjectTypeNode();
 
-                    value = attributes[Attributes.IsAbstract];
+                    value = GetAttribute(attributes, Attributes.IsAbstract);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -590,7 +632,7 @@ namespace Opc.Ua.Client
                     var variableNode = new VariableNode();
 
                     // DataType Attribute
-                    value = attributes[Attributes.DataType];
+                    value = GetAttribute(attributes, Attributes.DataType);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -600,7 +642,7 @@ namespace Opc.Ua.Client
                     variableNode.DataType = value.WrappedValue.GetNodeId();
 
                     // ValueRank Attribute
-                    value = attributes[Attributes.ValueRank];
+                    value = GetAttribute(attributes, Attributes.ValueRank);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -610,7 +652,7 @@ namespace Opc.Ua.Client
                     variableNode.ValueRank = value.WrappedValue.GetInt32();
 
                     // ArrayDimensions Attribute
-                    value = attributes[Attributes.ArrayDimensions];
+                    value = GetAttribute(attributes, Attributes.ArrayDimensions);
 
                     if (!value.IsNull)
                     {
@@ -625,7 +667,7 @@ namespace Opc.Ua.Client
                     }
 
                     // AccessLevel Attribute
-                    value = attributes[Attributes.AccessLevel];
+                    value = GetAttribute(attributes, Attributes.AccessLevel);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -635,7 +677,7 @@ namespace Opc.Ua.Client
                     variableNode.AccessLevel = value.WrappedValue.GetByte();
 
                     // UserAccessLevel Attribute
-                    value = attributes[Attributes.UserAccessLevel];
+                    value = GetAttribute(attributes, Attributes.UserAccessLevel);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -645,7 +687,7 @@ namespace Opc.Ua.Client
                     variableNode.UserAccessLevel = value.WrappedValue.GetByte();
 
                     // Historizing Attribute
-                    value = attributes[Attributes.Historizing];
+                    value = GetAttribute(attributes, Attributes.Historizing);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -655,7 +697,7 @@ namespace Opc.Ua.Client
                     variableNode.Historizing = value.WrappedValue.GetBoolean();
 
                     // MinimumSamplingInterval Attribute
-                    value = attributes[Attributes.MinimumSamplingInterval];
+                    value = GetAttribute(attributes, Attributes.MinimumSamplingInterval);
                     if (!value.IsNull)
                     {
                         variableNode.MinimumSamplingInterval =
@@ -663,7 +705,7 @@ namespace Opc.Ua.Client
                     }
 
                     // AccessLevelEx Attribute
-                    value = attributes[Attributes.AccessLevelEx];
+                    value = GetAttribute(attributes, Attributes.AccessLevelEx);
                     if (!value.IsNull)
                     {
                         variableNode.AccessLevelEx = value.WrappedValue.GetUInt32();
@@ -675,7 +717,7 @@ namespace Opc.Ua.Client
                     var variableTypeNode = new VariableTypeNode();
 
                     // IsAbstract Attribute
-                    value = attributes[Attributes.IsAbstract];
+                    value = GetAttribute(attributes, Attributes.IsAbstract);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -685,7 +727,7 @@ namespace Opc.Ua.Client
                     variableTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
 
                     // DataType Attribute
-                    value = attributes[Attributes.DataType];
+                    value = GetAttribute(attributes, Attributes.DataType);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -695,7 +737,7 @@ namespace Opc.Ua.Client
                     variableTypeNode.DataType = value.WrappedValue.GetNodeId();
 
                     // ValueRank Attribute
-                    value = attributes[Attributes.ValueRank];
+                    value = GetAttribute(attributes, Attributes.ValueRank);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -705,7 +747,7 @@ namespace Opc.Ua.Client
                     variableTypeNode.ValueRank = value.WrappedValue.GetInt32();
 
                     // ArrayDimensions Attribute
-                    value = attributes[Attributes.ArrayDimensions];
+                    value = GetAttribute(attributes, Attributes.ArrayDimensions);
 
                     if (!value.IsNull &&
                         value.WrappedValue.TryGetValue(out ArrayOf<uint> arrayDimensions2))
@@ -719,7 +761,7 @@ namespace Opc.Ua.Client
                     var methodNode = new MethodNode();
 
                     // Executable Attribute
-                    value = attributes[Attributes.Executable];
+                    value = GetAttribute(attributes, Attributes.Executable);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -729,7 +771,7 @@ namespace Opc.Ua.Client
                     methodNode.Executable = value.WrappedValue.GetBoolean();
 
                     // UserExecutable Attribute
-                    value = attributes[Attributes.UserExecutable];
+                    value = GetAttribute(attributes, Attributes.UserExecutable);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -744,7 +786,7 @@ namespace Opc.Ua.Client
                     var dataTypeNode = new DataTypeNode();
 
                     // IsAbstract Attribute
-                    value = attributes[Attributes.IsAbstract];
+                    value = GetAttribute(attributes, Attributes.IsAbstract);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -754,7 +796,7 @@ namespace Opc.Ua.Client
                     dataTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
 
                     // DataTypeDefinition Attribute
-                    value = attributes[Attributes.DataTypeDefinition];
+                    value = GetAttribute(attributes, Attributes.DataTypeDefinition);
 
                     if (!value.IsNull)
                     {
@@ -768,7 +810,7 @@ namespace Opc.Ua.Client
                     var referenceTypeNode = new ReferenceTypeNode();
 
                     // IsAbstract Attribute
-                    value = attributes[Attributes.IsAbstract];
+                    value = GetAttribute(attributes, Attributes.IsAbstract);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -778,7 +820,7 @@ namespace Opc.Ua.Client
                     referenceTypeNode.IsAbstract = value.WrappedValue.GetBoolean();
 
                     // Symmetric Attribute
-                    value = attributes[Attributes.Symmetric];
+                    value = GetAttribute(attributes, Attributes.Symmetric);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -788,7 +830,7 @@ namespace Opc.Ua.Client
                     referenceTypeNode.Symmetric = value.WrappedValue.GetBoolean();
 
                     // InverseName Attribute
-                    value = attributes[Attributes.InverseName];
+                    value = GetAttribute(attributes, Attributes.InverseName);
 
                     if (!value.IsNull &&
                         value.WrappedValue.TryGetValue(out LocalizedText inverseName))
@@ -802,7 +844,7 @@ namespace Opc.Ua.Client
                     var viewNode = new ViewNode();
 
                     // EventNotifier Attribute
-                    value = attributes[Attributes.EventNotifier];
+                    value = GetAttribute(attributes, Attributes.EventNotifier);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -812,7 +854,7 @@ namespace Opc.Ua.Client
                     viewNode.EventNotifier = value.WrappedValue.GetByte();
 
                     // ContainsNoLoops Attribute
-                    value = attributes[Attributes.ContainsNoLoops];
+                    value = GetAttribute(attributes, Attributes.ContainsNoLoops);
                     if (value.IsNull)
                     {
                         throw ServiceResultException.Unexpected(
@@ -833,7 +875,7 @@ namespace Opc.Ua.Client
             }
 
             // NodeId Attribute
-            value = attributes[Attributes.NodeId];
+            value = GetAttribute(attributes, Attributes.NodeId);
             if (value.IsNull)
             {
                 throw ServiceResultException.Unexpected(
@@ -844,7 +886,7 @@ namespace Opc.Ua.Client
             node.NodeClass = nodeClass;
 
             // BrowseName Attribute
-            value = attributes[Attributes.BrowseName];
+            value = GetAttribute(attributes, Attributes.BrowseName);
             if (value.IsNull)
             {
                 throw ServiceResultException.Unexpected(
@@ -854,7 +896,7 @@ namespace Opc.Ua.Client
             node.BrowseName = value.WrappedValue.GetQualifiedName();
 
             // DisplayName Attribute
-            value = attributes[Attributes.DisplayName];
+            value = GetAttribute(attributes, Attributes.DisplayName);
             if (value.IsNull)
             {
                 throw ServiceResultException.Unexpected(

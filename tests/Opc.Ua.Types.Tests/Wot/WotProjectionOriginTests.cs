@@ -94,10 +94,10 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(sources.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
+            Assert.That(view.Required().Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
                 Is.EqualTo(expected));
         }
 
@@ -122,10 +122,10 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(sources.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
+            Assert.That(view.Required().Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
                 Is.EqualTo("https://device.test/api/value"));
             sources.Verify(value => value.ResolveThingAsync(
                 expected, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once());
@@ -161,7 +161,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(sources.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -200,14 +200,14 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(sources.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
+            Assert.That(view.Required().Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
                 Is.EqualTo(formUri));
             Assert.That(view.Properties["value"].GetProperty("uav:resolvedFrom").GetString(),
                 Is.EqualTo(retrievalUri + "#/properties/value"));
-            Assert.That(parsed.Sources[0].Href, Is.EqualTo(href));
+            Assert.That(parsed.Required().Sources[0].Href, Is.EqualTo(href));
             Assert.That(sourceDocument.ToJsonString(), Is.EqualTo(Encoding.UTF8.GetString(sourceBytes)));
             sources.Verify(sourceResolver => sourceResolver.ResolveThingAsync(
                 retrievalUri, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -236,10 +236,10 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(sources.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(view.Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
+            Assert.That(view.Required().Properties["value"].GetProperty("forms")[0].GetProperty("href").GetString(),
                 Is.EqualTo("https://device.test/api/value"));
             sources.Verify(sourceResolver => sourceResolver.ResolveThingAsync(
                 leafLocation, It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()), Times.Once);
@@ -274,7 +274,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(sources.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.EqualTo(!cycle), string.Join("; ", result.Diagnostics));
             sources.Verify(sourceResolver => sourceResolver.ResolveThingAsync(
@@ -305,7 +305,7 @@ namespace Opc.Ua.Types.Tests.Wot
             resolver.Setup(source => source.ResolveThingAsync(
                     It.IsAny<string>(), It.IsAny<WotResolutionContext>(), It.IsAny<CancellationToken>()))
                 .Returns((string href, WotResolutionContext _, CancellationToken _) =>
-                    new ValueTask<WotResolverResult>(documents.TryGetValue(href, out JsonObject document)
+                    new ValueTask<WotResolverResult>(documents.TryGetValue(href, out JsonObject? document)
                         ? WotResolverResult.FromBytes(Encoding.UTF8.GetBytes(document.ToJsonString()))
                         : WotResolverResult.NotFound));
             return resolver;

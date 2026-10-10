@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -100,11 +101,8 @@ namespace Pumps
                   Opc.Ua.Machinery.Namespaces.Machinery,
                   Opc.Ua.OpenUsd.Namespaces.OpenUSD)
         {
-            // Base class constructor sets SystemContext.NodeIdFactory to
-            // itself; our New() override takes over.
-            SystemContext.NodeIdFactory = this;
             m_options = options?.Value ?? new PumpDeviceIntegrationOptions();
-            if (m_options.PumpCount < 1 || m_options.PumpCount > 100)
+            if (m_options.PumpCount is < 1 or > 100)
             {
                 throw new ArgumentOutOfRangeException(
                     $"{nameof(options)}.{nameof(PumpDeviceIntegrationOptions.PumpCount)}",
@@ -138,21 +136,6 @@ namespace Pumps
 
         internal TimeSpan SimulationInterval => m_options.SimulationInterval;
 
-        /// <inheritdoc/>
-        public override NodeId New(ISystemContext context, NodeState node)
-        {
-            if (node is BaseInstanceState instance &&
-                instance.Parent != null)
-            {
-                string parentId = instance.Parent.NodeId.IdentifierAsString;
-                return new NodeId(
-                    $"{parentId}_{instance.SymbolicName}",
-                    InstanceNamespaceIndex);
-            }
-
-            return node.NodeId;
-        }
-
         /// <summary>
         /// Creates and registers a generated <see cref="PumpState"/>
         /// instance organized by the DI <c>DeviceSet</c>.
@@ -168,7 +151,7 @@ namespace Pumps
             return MaterialisePumpInstanceAsync(
                 pumpBrowseName,
                 cancellationToken,
-                RegisterPumpSimulation);
+                RegisterPumpSimulationAsync);
         }
 
         /// <inheritdoc/>
@@ -195,35 +178,34 @@ namespace Pumps
         }
 
         /// <inheritdoc/>
-        protected override async ValueTask OnAddressSpaceReadyAsync(
+        protected override async ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
             CancellationToken cancellationToken)
         {
             // Configuration phase 1 (async): materialise the
             // predefined instances that Configure(builder) will wire.
             // Mirrors the synchronous fluent Configure(builder) but
             // runs first so the builder has typed nodes available.
-            await ConfigureInstancesAsync(cancellationToken)
+            await ConfigureInstancesAsync(builder, cancellationToken)
                 .ConfigureAwait(false);
 
             // Configuration phase 2 (sync): wire fluent callbacks
             // against the predefined nodes.
-            CreateFluentBuilder(InstanceNamespaceIndex)
-                .Configure(Configure)
-                .Seal();
+            Configure(builder);
             PreservePumpHistoryReadAccessLevels();
 
             m_logger.PumpAddressSpaceReady(PredefinedNodes.Count);
 
-            // PostSetupRunner is invoked automatically by the base
-            // DiNodeManager.CreateAddressSpaceAsync after this method
+            // The builder is sealed and the PostSetupRunner invoked by the
+            // base DiNodeManager.CreateAddressSpaceAsync once this method
             // returns; no manual invocation needed here.
         }
 
         /// <summary>
         /// Materialises the predefined instances that the fluent
         /// <see cref="Configure"/> wiring expects to find. Runs as
-        /// the async phase of <see cref="OnAddressSpaceReadyAsync"/>
-        /// before the synchronous fluent builder pass.
+        /// the async phase of <see cref="ConfigureAsync"/> before the
+        /// synchronous fluent builder pass.
         /// </summary>
         /// <remarks>
         /// Cannot use
@@ -241,6 +223,7 @@ namespace Pumps
         /// directly.
         /// </remarks>
         private async ValueTask ConfigureInstancesAsync(
+            INodeManagerBuilder builder,
             CancellationToken cancellationToken)
         {
             // OpenUSD facility first so the pump representation can reference the stage.
@@ -265,12 +248,12 @@ namespace Pumps
 
             // Plant-level aggregation: composes one full-fidelity pump prim per
             // configured pump, so the rendered scene scales with --pumps N.
-            await MaterialisePlantAggregationAsync(cancellationToken).ConfigureAwait(false);
+            MaterialisePlantAggregation(builder);
 
             // Composition demo: a ProductionLine aggregating 1..n pumps (Many), with a
             // dynamically added/removed pump (model-change events) and a cross-server
             // component (federation). See OpenUsdComposition.cs.
-            await MaterialiseProductionLineAsync(cancellationToken).ConfigureAwait(false);
+            MaterialiseProductionLine(builder);
         }
 
         /// <summary>
@@ -291,10 +274,11 @@ namespace Pumps
         /// <c>AddPredefinedNodeAsync</c> recursively registers the
         /// entire subtree.
         /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
         private async ValueTask<PumpState> MaterialisePumpInstanceAsync(
             QualifiedName pumpBrowseName,
             CancellationToken cancellationToken,
-            Action<PumpState>? onRegistered = null)
+            Func<PumpState, CancellationToken, ValueTask>? onRegistered = null)
         {
             NodeState? deviceSet = PredefinedNodes.FindById(NodeId.Create(
                 Opc.Ua.Di.Objects.DeviceSet,
@@ -308,10 +292,15 @@ namespace Pumps
                     "The DI DeviceSet is not available.");
             }
 
-            var pumpNodeId = new NodeId(
-                $"{deviceSet.NodeId.IdentifierAsString}_{pumpBrowseName.Name}",
-                InstanceNamespaceIndex);
-            if (PredefinedNodes.ContainsKey(pumpNodeId))
+            // The duplicate is looked up by browse name rather than by
+            // predicting the identifier the factory would mint. A prediction
+            // only holds while the factory derives identifiers from the browse
+            // path: under Counter mode minting one consumes a counter value
+            // and returns an identifier no node can already have, so the check
+            // would pass and let a second pump of the same name through.
+            var existingDevices = new List<BaseInstanceState>();
+            deviceSet.GetChildren(SystemContext, existingDevices);
+            if (existingDevices.Any(device => device.BrowseName == pumpBrowseName))
             {
                 m_logger.DeviceSetAlreadyContains(pumpBrowseName.Name);
                 throw ServiceResultException.Create(
@@ -341,9 +330,10 @@ namespace Pumps
 
             await AddPredefinedNodeAsync(SystemContext, pump, cancellationToken)
                 .ConfigureAwait(false);
-            await AddRootNotifierAsync(pump, cancellationToken)
-                .ConfigureAwait(false);
-            onRegistered?.Invoke(pump);
+            if (onRegistered != null)
+            {
+                await onRegistered(pump, cancellationToken).ConfigureAwait(false);
+            }
 
             // Variables hand-built onto the pump (rather than materialised by the
             // generated factory) are reachable by browse and read, but a monitored
@@ -441,9 +431,9 @@ namespace Pumps
             variable.UserAccessLevel |= AccessLevels.HistoryRead;
             variable.AccessLevelEx |= AccessLevels.HistoryRead;
             variable.OnReadAccessLevel = (
-                ISystemContext context,
-                NodeState node,
-                ref byte value) =>
+                context,
+                node,
+                ref value) =>
             {
                 value = (byte)(variable.AccessLevel | AccessLevels.HistoryRead);
                 return ServiceResult.Good;
@@ -478,29 +468,29 @@ namespace Pumps
         private void MaterialiseNameplate(PumpIdentificationState identification)
         {
             // OPC 10000-100 (DI) nameplate.
-            identification.AddManufacturerUri(SystemContext);
-            identification.AddModel(SystemContext);
-            identification.AddProductCode(SystemContext);
-            identification.AddDeviceClass(SystemContext);
-            identification.AddHardwareRevision(SystemContext);
-            identification.AddSoftwareRevision(SystemContext);
-            identification.AddProductInstanceUri(SystemContext);
-            identification.AddAssetId(SystemContext);
-            identification.AddComponentName(SystemContext);
+            identification.AddManufacturerUri(SystemContext)
+                .AddModel(SystemContext)
+                .AddProductCode(SystemContext)
+                .AddDeviceClass(SystemContext)
+                .AddHardwareRevision(SystemContext)
+                .AddSoftwareRevision(SystemContext)
+                .AddProductInstanceUri(SystemContext)
+                .AddAssetId(SystemContext)
+                .AddComponentName(SystemContext);
 
             // OPC 40001-1 (Machinery) nameplate.
-            identification.AddLocation(SystemContext);
-            identification.AddYearOfConstruction(SystemContext);
-            identification.AddMonthOfConstruction(SystemContext);
+            identification.AddLocation(SystemContext)
+                .AddYearOfConstruction(SystemContext)
+                .AddMonthOfConstruction(SystemContext);
 
             // OPC 40223 (Pumps) nameplate.
-            identification.AddDayOfConstruction(SystemContext);
-            identification.AddArticleNumber(SystemContext);
-            identification.AddOrderProductCode(SystemContext);
-            identification.AddTypeOfProduct(SystemContext);
-            identification.AddSupplier(SystemContext);
-            identification.AddCountryOfOrigin(SystemContext);
-            identification.AddFabricationNumber(SystemContext);
+            identification.AddDayOfConstruction(SystemContext)
+                .AddArticleNumber(SystemContext)
+                .AddOrderProductCode(SystemContext)
+                .AddTypeOfProduct(SystemContext)
+                .AddSupplier(SystemContext)
+                .AddCountryOfOrigin(SystemContext)
+                .AddFabricationNumber(SystemContext);
         }
 
         /// <summary>

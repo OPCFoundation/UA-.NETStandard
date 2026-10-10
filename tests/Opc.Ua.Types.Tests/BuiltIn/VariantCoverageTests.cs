@@ -299,6 +299,25 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             Assert.That(result.GetLocalizedText().Text, Is.EqualTo("value"));
         }
 
+        /// <summary>
+        /// Part 4 Table 121: QualifiedName converts implicitly to LocalizedText
+        /// (the name becomes the text, the namespace index is dropped).
+        /// </summary>
+        [Test]
+        public void ConvertToLocalizedTextFromQualifiedName()
+        {
+            var value = new Variant(new QualifiedName("Name", 3));
+            LocalizedText result = value.ConvertToLocalizedText().GetLocalizedText();
+            Assert.That(result.Text, Is.EqualTo("Name"));
+            Assert.That(string.IsNullOrEmpty(result.Locale), Is.True);
+            Assert.That(
+                value.ConvertTo(BuiltInType.LocalizedText).GetLocalizedText().Text,
+                Is.EqualTo("Name"));
+            Variant empty = Variant.From(ArrayOf<QualifiedName>.Empty)
+                .ConvertTo(BuiltInType.LocalizedText);
+            Assert.That(empty.TypeInfo.BuiltInType, Is.EqualTo(BuiltInType.LocalizedText));
+        }
+
         [Test]
         public void ConvertToLocalizedTextFromUnsupportedTypeThrows()
         {
@@ -398,7 +417,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var body = new Argument();
             Variant copy = new Variant(new ExtensionObject(body)).Copy();
-            bool ok = copy.GetExtensionObject().TryGetValue(out Argument copiedBody);
+            bool ok = copy.GetExtensionObject().TryGetValue(out Argument? copiedBody);
             bool sameInstance = ReferenceEquals(copiedBody, body);
             Assert.Multiple(() =>
             {
@@ -426,7 +445,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             var body = new Argument();
             Variant copy = new Variant(ArrayOf.Wrapped(new ExtensionObject(body))).Copy();
-            bool ok = copy.GetExtensionObjectArray().Span[0].TryGetValue(out Argument copiedBody);
+            bool ok = copy.GetExtensionObjectArray().Span[0].TryGetValue(out Argument? copiedBody);
             bool sameInstance = ReferenceEquals(copiedBody, body);
             Assert.Multiple(() =>
             {
@@ -465,7 +484,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var body = new Argument();
             MatrixOf<ExtensionObject> matrix = Matrix(new ExtensionObject(body), new ExtensionObject(new Argument()));
             Variant copy = new Variant(matrix).Copy();
-            bool ok = copy.Expand().Span[0].GetExtensionObject().TryGetValue(out Argument copiedBody);
+            bool ok = copy.Expand().Span[0].GetExtensionObject().TryGetValue(out Argument? copiedBody);
             bool sameInstance = ReferenceEquals(copiedBody, body);
             Assert.Multiple(() =>
             {
@@ -539,10 +558,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             Assert.Multiple(() =>
             {
-                Assert.That((new Variant((byte)0b1100) & new Variant((byte)0b1010)).GetInt32(), Is.EqualTo(0b1000));
-                Assert.That((new Variant((sbyte)0b0110) & new Variant((sbyte)0b0011)).GetInt32(), Is.EqualTo(0b0010));
-                Assert.That((new Variant((short)0b1100) & new Variant((short)0b1010)).GetInt32(), Is.EqualTo(0b1000));
-                Assert.That((new Variant((ushort)0b1100) & new Variant((ushort)0b1010)).GetInt32(), Is.EqualTo(0b1000));
+                // The result keeps the type of the left hand operand instead of
+                // widening 8/16 bit operands to Int32.
+                Assert.That((new Variant((byte)0b1100) & new Variant((byte)0b1010)).GetByte(), Is.EqualTo((byte)0b1000));
+                Assert.That((new Variant((sbyte)0b0110) & new Variant((sbyte)0b0011)).GetSByte(), Is.EqualTo((sbyte)0b0010));
+                Assert.That((new Variant((short)0b1100) & new Variant((short)0b1010)).GetInt16(), Is.EqualTo((short)0b1000));
+                Assert.That((new Variant((ushort)0b1100) & new Variant((ushort)0b1010)).GetUInt16(), Is.EqualTo((ushort)0b1000));
                 Assert.That((new Variant(0b1100u) & new Variant(0b1010u)).GetUInt32(), Is.EqualTo(0b1000u));
                 Assert.That((new Variant(0b1100L) & new Variant(0b1010L)).GetInt64(), Is.EqualTo(0b1000L));
                 Assert.That((new Variant(0b1100UL) & new Variant(0b1010UL)).GetUInt64(), Is.EqualTo(0b1000UL));
@@ -557,10 +578,12 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         {
             Assert.Multiple(() =>
             {
-                Assert.That((new Variant((byte)0b1100) | new Variant((byte)0b1010)).GetInt32(), Is.EqualTo(0b1110));
-                Assert.That((new Variant((sbyte)0b0110) | new Variant((sbyte)0b0011)).GetInt32(), Is.EqualTo(0b0111));
-                Assert.That((new Variant((short)0b1100) | new Variant((short)0b1010)).GetInt32(), Is.EqualTo(0b1110));
-                Assert.That((new Variant((ushort)0b1100) | new Variant((ushort)0b1010)).GetInt32(), Is.EqualTo(0b1110));
+                // The result keeps the type of the left hand operand instead of
+                // widening 8/16 bit operands to Int32.
+                Assert.That((new Variant((byte)0b1100) | new Variant((byte)0b1010)).GetByte(), Is.EqualTo((byte)0b1110));
+                Assert.That((new Variant((sbyte)0b0110) | new Variant((sbyte)0b0011)).GetSByte(), Is.EqualTo((sbyte)0b0111));
+                Assert.That((new Variant((short)0b1100) | new Variant((short)0b1010)).GetInt16(), Is.EqualTo((short)0b1110));
+                Assert.That((new Variant((ushort)0b1100) | new Variant((ushort)0b1010)).GetUInt16(), Is.EqualTo((ushort)0b1110));
                 Assert.That((new Variant(0b1100u) | new Variant(0b1010u)).GetUInt32(), Is.EqualTo(0b1110u));
                 Assert.That((new Variant(0b1100L) | new Variant(0b1010L)).GetInt64(), Is.EqualTo(0b1110L));
                 Assert.That((new Variant(0b1100UL) | new Variant(0b1010UL)).GetUInt64(), Is.EqualTo(0b1110UL));
@@ -933,7 +956,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             };
             var variant = new Variant(new ExtensionObject(expected));
 
-            bool success = variant.TryGetStructure(context, out Argument actual);
+            bool success = variant.TryGetStructure<Argument>(context, out Argument? actual);
 
             Assert.That(success, Is.True);
             Assert.That(actual, Is.SameAs(expected));
@@ -945,10 +968,10 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             IServiceMessageContext context = CreateMessageContext();
             var variant = new Variant(CreateBinaryArgument(context, "Pressure"));
 
-            bool success = variant.TryGetStructure(context, out Argument actual);
+            bool success = variant.TryGetStructure<Argument>(context, out Argument? actual);
 
             Assert.That(success, Is.True);
-            Assert.That(actual.Name, Is.EqualTo("Pressure"));
+            Assert.That(actual!.Name, Is.EqualTo("Pressure"));
             Assert.That(actual.DataType, Is.EqualTo(DataTypeIds.Double));
         }
 
@@ -961,7 +984,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 ProductName = "NotAnArgument"
             }));
 
-            bool success = variant.TryGetStructure(context, out Argument actual);
+            bool success = variant.TryGetStructure<Argument>(context, out Argument? actual);
 
             Assert.That(success, Is.False);
             Assert.That(actual, Is.Null);
@@ -1010,7 +1033,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var array = new Variant(ArrayOf.Wrapped(new ExtensionObject(new Argument())));
 
             Assert.That(
-                () => scalar.TryGetStructure(null!, out Argument scalarValue),
+                () => scalar.TryGetStructure<Argument>(null!, out Argument? scalarValue),
                 Throws.ArgumentNullException.With.Property("ParamName").EqualTo("context"));
             Assert.That(
                 () => array.TryGetStructure(null!, out ArrayOf<Argument> arrayValue),
@@ -1058,7 +1081,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             };
             using var encoder = new BinaryEncoder(context);
             argument.Encode(encoder);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
             return new ExtensionObject(argument.BinaryEncodingId, ByteString.From(buffer));
         }
 

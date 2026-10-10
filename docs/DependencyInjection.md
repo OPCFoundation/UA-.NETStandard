@@ -1,9 +1,12 @@
 # Dependency Injection
 
-This document describes the unified `Microsoft.Extensions.DependencyInjection`
-surface for the OPC UA .NET Standard libraries. The surface is rooted in
-a single `services.AddOpcUa()` call that returns an `IOpcUaBuilder` on
-which every feature library hangs its own fluent `.AddXxx(...)` extension.
+This guide describes the unified `Microsoft.Extensions.DependencyInjection`
+surface for OPC UA .NET Standard libraries. Start with
+`services.AddOpcUa()`, which returns an `IOpcUaBuilder`. Feature libraries
+extend the builder with their own fluent `.AddXxx(...)` methods.
+For a complete, runnable client and server, see
+[Getting started](GettingStarted.md); this guide is the reference for the
+builder extensions.
 
 The dependency injection surface is consistent across:
 
@@ -23,12 +26,59 @@ The dependency injection surface is consistent across:
   `src/Opc.Ua.PubSub.Server`) — see [`PubSub.md`](PubSub.md)
   for the full library reference.
 
-The non-dependency-injection public constructors and factories of every library
-(`new ApplicationInstance(telemetry)`, `new StandardServer(telemetry)`,
-`new LdsServer(telemetry)`, `new ManagedSession(...)` etc.) remain
-unchanged. Use dependency injection when you want the .NET Generic Host to own application
-lifetime, logging, and configuration; use the manual constructors when
-you need finer control.
+Public constructors and factories remain available for applications that do
+not use dependency injection. Examples include `new ApplicationInstance(telemetry)`,
+`new StandardServer(telemetry)`, `new LdsServer(telemetry)`, and
+`new ManagedSession(...)`. Use dependency injection when you want the .NET
+Generic Host to manage application lifetime, logging, and configuration. Use
+the manual constructors when you need finer control.
+
+## Contents
+
+- [Quick reference](#quick-reference)
+- [Root: `services.AddOpcUa()`](#root-servicesaddopcua)
+  - [Buffer managers](#buffer-managers)
+- [Shared application configuration](#shared-application-configuration)
+  - [Application identity and certificate defaults](#application-identity-and-certificate-defaults)
+  - [Advanced application certificate validation](#advanced-application-certificate-validation)
+- [Options binding](#options-binding)
+- [Server feature](#server-feature)
+  - [Server metadata](#server-metadata)
+  - [Node-manager factories](#node-manager-factories)
+  - [Post-startup tasks](#post-startup-tasks)
+  - [Alias-name stores and standard browse nodes](#alias-name-stores-and-standard-browse-nodes)
+  - [Localized resources](#localized-resources)
+  - [Migrating with an existing configuration XML file](#migrating-with-an-existing-configuration-xml-file)
+  - [Server security and resource controls](#server-security-and-resource-controls)
+  - [First-class server options](#first-class-server-options)
+  - [Committed session bindings](#committed-session-bindings)
+  - [Server-side reverse connect](#server-side-reverse-connect)
+  - [Operation limits](#operation-limits)
+  - [User token policies](#user-token-policies)
+  - [Identity (server)](#identity-server)
+  - [Fluent shortcuts and one-shot presets](#fluent-shortcuts-and-one-shot-presets)
+  - [Positioning](#positioning)
+  - [Robotics](#robotics)
+- [Client feature](#client-feature)
+  - [Client: using an existing configuration XML file](#client-using-an-existing-configuration-xml-file)
+  - [Client: loading the configuration eagerly](#client-loading-the-configuration-eagerly)
+  - [Fluent shortcuts](#fluent-shortcuts)
+  - [Identity (client)](#identity-client)
+- [Complex types](#complex-types)
+- [Alarms and conditions](#alarms-and-conditions)
+- [Client-side reverse connect](#client-side-reverse-connect)
+- [Channel manager](#channel-manager)
+- [Application instance (advanced)](#application-instance-advanced)
+- [GDS Client](#gds-client)
+- [GDS Server](#gds-server)
+  - [Identity (GDS server)](#identity-gds-server)
+- [LDS Server](#lds-server)
+- [WoT Connectivity Server](#wot-connectivity-server)
+- [WoT Connectivity Client](#wot-connectivity-client)
+- [Combined hosts](#combined-hosts)
+- [Native AOT](#native-aot)
+- [Telemetry](#telemetry)
+- [See also](#see-also)
 
 ## Quick reference
 
@@ -75,11 +125,13 @@ Identity-provider extensions hang off `IOpcUaServerBuilder`,
 |-----------------------------------------------|--------------------------|----------------------------------|
 | `AddDefaultIdentityAuthenticators(...)`       | server, gds              | `OpcUa:Server:Identity:Defaults` |
 | `AddIdentityAuthenticator<T>()`               | server, gds              | —                                |
+| `AddIdentityAuthenticator(instance)` / `(factory)` | server             | —                                |
 | `AddIdentityAugmenter<T>()`                   | server, gds              | —                                |
 | `AddGdsApplicationSelfAdminProvider()`        | gds                      | —                                |
 | `AddJwtIssuer(...)`                           | server, gds              | `OpcUa:Server:Identity:Issuers[]`|
 | `WithAuthorizationService(...)` / `<TIssuer>()` | gds                    | —                                |
 | `WithKeyCredentialPush(...)`                  | server                   | —                                |
+| `AddSessionlessInvocation(...)`               | server                   | —                                |
 | `ConfigureRoles(...)`                         | server, gds              | `OpcUa:Server:Roles`             |
 | `AddIdentityProvider(...)` / `<T>()`          | client                   | `OpcUa:Client:Identity`          |
 | `AddAccessTokenProvider(...)` / `<T>()`       | client                   | —                                |
@@ -130,7 +182,13 @@ services.AddOpcUa()
 
 Transport listeners and channels resolve `IBufferManagerFactory` from dependency injection. The default factory selects `FastBufferManager` in Release builds, `CookieBufferManager` in Debug builds, and `TracingBufferManager` when the stack is compiled with `TRACK_MEMORY`.
 
-Register options before `AddOpcUa()` to select an implementation explicitly or apply a process-wide outstanding-buffer budget:
+The factory does not limit outstanding buffers by default. Incomplete server
+messages have a separate, enabled-by-default
+[chunk reassembly budget](RateLimiting.md#incomplete-messages), so they do not
+consume the allocation capacity needed for unrelated requests and responses.
+
+Register options before `AddOpcUa()` to select an implementation explicitly or
+opt into an outstanding-buffer budget:
 
 ```csharp
 services.AddSingleton(new BufferManagerFactoryOptions
@@ -144,7 +202,20 @@ services.AddOpcUa()
     .AddHttpsTransport();
 ```
 
-When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every manager it creates with `LimitingBufferManager` and shares one `BufferManagerMemoryLimiter` across them. A synchronous rent blocks without holding a manager lock until another buffer is returned. A single rent whose conservative expected size exceeds the budget fails immediately instead of waiting forever.
+When `MaxOutstandingBytesPerProcess` is positive, the singleton factory wraps every
+manager it creates with `LimitingBufferManager` and shares one
+`BufferManagerMemoryLimiter` across them. A rent waits synchronously for
+capacity. Use this optional policy only where
+buffer returns can progress independently; it is not a substitute for the
+nonblocking server reassembly budget. A single rent whose conservative expected
+size exceeds the budget fails immediately rather than waiting forever.
+Zero or `null` leaves allocation unrestricted. Independently constructed
+factories have independent budgets. Accounting uses actual rented-array lengths,
+including pool rounding and metadata, and excludes arrays returned to the pool.
+
+Capacity changes notify only currently registered renters; idle buffer returns
+do not accumulate wakeups. Cancellation removes any unclaimed wakeup, and
+disposal wakes all blocked renters before releasing the wait primitive.
 
 Applications can replace the complete policy by registering an `IBufferManagerFactory` before `AddOpcUa()`:
 
@@ -208,15 +279,18 @@ When both features are registered, the shared configuration has `ApplicationType
 | `ApplicationUri` | Generated from the host name and application name during validation. Set a stable URI for deployed applications. |
 | `ProductUri` | Uses the contributing feature value. Set a stable product URI for deployed applications. |
 | `SubjectName` | `CN={ApplicationName}, O=OPC Foundation, DC=localhost`; `DC=localhost` is replaced with the host name. |
-| `PkiRoot` | A per-application `OPC Foundation/{ApplicationName}/pki` directory below the process temporary directory. Configure a persistent, access-controlled location in production. |
+| `PkiRoot` | A per-application `OPC Foundation/{ApplicationName}/pki` directory below the per-user local application-data directory (`Environment.SpecialFolder.LocalApplicationData`). The shared temporary directory is not used, because other local users could pre-create it. Configuration fails if no application-data directory is available. When certificate stores of an earlier version (which defaulted to the temporary directory) exist but the new default does not, a warning names both paths: configure `PkiRoot` or move the stores to keep the existing application certificate. Configure a persistent, access-controlled location in production. |
 | Application certificates and stores | Directory-backed application, trusted peer/issuer, HTTPS, user, and rejected stores are created below `PkiRoot`; default RSA and supported ECC application-certificate identifiers are selected. |
 
-The security builder starts with secure defaults: unknown certificates are not
-auto-accepted, the application certificate is not copied into a shared trusted
-store, SHA-1 certificates and unknown revocation status are rejected, nonce
-validation errors are not suppressed, certificate chains are sent, the minimum
-RSA key size is 2048, and at most five rejected certificates are retained.
-Validated-certificate caching is off unless enabled explicitly.
+The security builder uses these secure defaults:
+
+- It does not auto-accept unknown certificates or copy the application
+  certificate into a shared trusted store.
+- It rejects SHA-1 certificates and unknown revocation status.
+- It does not suppress nonce-validation errors.
+- It sends certificate chains and requires an RSA key size of at least 2048.
+- It retains at most five rejected certificates.
+- It disables validated-certificate caching unless explicitly enabled.
 
 ### Advanced application certificate validation
 
@@ -235,7 +309,7 @@ Prefer the first-class properties for their common settings and use
 | Method | Purpose and secure default |
 |--------|----------------------------|
 | `SetApplicationCertificates(...)` | Replaces the generated application-certificate identifiers. Prefer `SubjectName` and `PkiRoot` for the normal generated layout. |
-| `SetMaxRejectedCertificates(...)` | Sets rejected-certificate retention; default `5`, `0` keeps all, and a negative value keeps no history. |
+| `SetMaxRejectedCertificates(...)` | Sets rejected-certificate retention; default `5`. Zero keeps unlimited history; a negative value disables new storage. Directory prunes prior history at a negative limit; the shared key/value store retains it. |
 | `SetAutoAcceptUntrustedCertificates(...)` | Accepts otherwise-valid unknown peer certificates; default `false`. Prefer `AutoAcceptUntrustedCertificates`. Use `true` only in an isolated lab. |
 | `SetAddAppCertToTrustedStore(...)` | Adds a newly created application certificate to a shared trusted store; default `false`. |
 | `SetRejectSHA1SignedCertificates(...)` | Rejects SHA-1-signed certificates; default `true`. Prefer `RejectSHA1SignedCertificates`. |
@@ -318,10 +392,13 @@ from the dependency injection surface.
 
 ## Server feature
 
-`builder.AddServer(o => …)` registers an OPC UA `StandardServer` as an
-`IHostedService` via a private `OpcUaServerHostedService`. Endpoints,
-PKI root, security policies, and the application instance certificate
-are all set up on host startup.
+`builder.AddServer(o => …)` hosts a `DependencyInjectionStandardServer`
+via a private `OpcUaServerHostedService`. This implementation derives
+from `ReverseConnectServer`, so configured reverse connections work
+alongside the dependency-injection hooks without an application server
+subclass. The ordinary `StandardServer` and its direct-construction
+behavior are unchanged. Endpoints, PKI root, security policies, and the
+application instance certificate are all set up on host startup.
 
 ```csharp
 using Microsoft.Extensions.DependencyInjection;
@@ -347,8 +424,9 @@ builder.Services
 await builder.Build().RunAsync();
 ```
 
-`.AddNodeManager<T>()` and `.AddSyncNodeManager<T>()` register the
-factory under an `OpcUaServerNodeManagerRegistration` wrapper that is
+`.AddNodeManager(...)`, `.AddNodeManagers(...)`, and
+`.AddSyncNodeManager<T>()` register factories under an
+`OpcUaServerNodeManagerRegistration` wrapper that is
 **scoped to the regular server feature**. Node managers registered this
 way are **not** visible to the GDS / LDS hosted services running in the
 same container. See *Combined hosts* below.
@@ -381,7 +459,7 @@ Advanced server services can be supplied through the same fluent builder:
 ```csharp
 builder.Services
     .AddOpcUa()
-    .AddServer<MyStandardServer>(o => /* … */) // optional StandardServer subclass
+    .AddServer(o => o.ApplicationName = "MyServer")
     .AddSessionManager<MySessionManager>()
     .AddSubscriptionManager<MySubscriptionManager>()
     .AddDurableSubscriptions(subscriptionStore, monitoredItemQueueFactory)
@@ -396,6 +474,198 @@ If no identity authenticator is configured, the regular hosted server adds
 an anonymous authenticator matching its default anonymous user-token policy.
 If a non-anonymous user-token policy is configured without a corresponding
 authenticator, startup logs a warning.
+
+The customization extensions below are methods on `IOpcUaServerBuilder`
+in `Microsoft.Extensions.DependencyInjection`; they return the same builder.
+They use the existing server and dependency-injection dependencies.
+
+Adopting these hooks is optional. Existing direct server construction and
+subclass-based customization remain supported; upgrading does not require
+switching to dependency injection.
+
+### Server metadata
+
+`ConfigureServerProperties(Action<Opc.Ua.ServerProperties>)` configures
+the metadata published in the server's build information:
+
+```csharp
+services.AddOpcUa()
+    .AddServer(options =>
+    {
+        options.ApplicationName = "PlantServer";
+        options.ProductUri = "urn:example:PlantServer";
+    })
+    .ConfigureServerProperties(properties =>
+    {
+        properties.ManufacturerName = "Example Automation";
+        properties.SoftwareVersion = "2.0.0";
+        properties.BuildNumber = "42";
+        properties.BuildDate = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc);
+    });
+```
+
+The callback configures `IOptions<Opc.Ua.ServerProperties>`. A directly
+registered `Opc.Ua.ServerProperties` service takes precedence over those
+options; the two sources are not merged.
+
+| Property left unspecified | Default |
+|---------------------------|---------|
+| `ProductName` | The effective `ApplicationConfiguration.ApplicationName`. |
+| `ProductUri` | The effective `ApplicationConfiguration.ProductUri`. |
+| `SoftwareVersion` | The existing stack software-version helper's value. |
+| `BuildNumber` | The existing stack build-number helper's value. |
+| `ManufacturerName`, `BuildDate` | No publisher identity or build date is inferred; configure these explicitly. |
+
+The version and build-number fallbacks are **stack defaults**, not the
+publisher application's version. Supply the publisher's own metadata for
+released products. On the XML/stream path, the effective application
+identity comes from the loaded configuration, including any
+`ConfigureLoadedConfiguration` changes.
+
+### Node-manager factories
+
+Use `AddNodeManager<TFactory>()` for an `IAsyncNodeManagerFactory` resolved
+from dependency injection, or the existing `AddSyncNodeManager<TFactory>()`
+for an `INodeManagerFactory`. Generic factories are resolved lazily, after
+the effective application configuration has been loaded or built.
+Already-constructed instances are also supported through
+`AddNodeManager(IAsyncNodeManagerFactory)` and
+`AddNodeManager(INodeManagerFactory)`.
+
+Configuration-dependent constructors should use
+`AddNodeManagers(Func<IServiceProvider, ApplicationConfiguration, ArrayOf<IAsyncNodeManagerFactory>>)`.
+The callback receives the effective configuration, including loaded-file
+overrides, and can return zero, one, or many factories:
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+
+services.AddOpcUa()
+    .AddServer("PlantServer.Config.xml")
+    .AddNodeManagers((sp, configuration) =>
+    [
+        ActivatorUtilities.CreateInstance<PlantNodeManagerFactory>(sp, configuration)
+    ]);
+```
+
+Here `PlantNodeManagerFactory` is an application-defined
+`IAsyncNodeManagerFactory` whose constructor accepts
+`ApplicationConfiguration` and any other injected dependencies. Use `[]`
+when no factories are needed, or include more factories in the returned
+`ArrayOf<IAsyncNodeManagerFactory>`. The loaded configuration is supplied
+explicitly; it is **not** registered as a global `ApplicationConfiguration`
+service for constructor injection.
+
+### Post-startup tasks
+
+`AddStartupTask<TTask>()`, where `TTask : class, IServerStartupTask`,
+registers an injected task implementing
+`OnServerStartedAsync(IServerContext, CancellationToken)`. Alternatively,
+`AddStartupTask(Func<IServiceProvider, IServerContext, CancellationToken, ValueTask>)`
+registers an asynchronous delegate. `IServerStartupTask` is in
+`Opc.Ua.Server.Hosting`.
+
+For example, register an application task, or delegate to an injected
+initializer whose `InitializeAsync` returns `ValueTask`:
+
+```csharp
+serverBuilder.AddStartupTask<MyStartupTask>();
+serverBuilder.AddStartupTask((sp, context, cancellationToken) =>
+    sp.GetRequiredService<MyInitializer>().InitializeAsync(context, cancellationToken));
+```
+
+Type registration is idempotent: registering the same `TTask` again does
+not run it twice. Separate delegate registrations are distinct tasks.
+Tasks run sequentially in registration order, once after the server has
+started. An exception or cancellation aborts hosted startup and triggers
+server cleanup; subsequent tasks do not run.
+
+`StopAsync` waits for execution cleanup even after a host shutdown timeout,
+so the host does not dispose dependencies that the server is still using.
+Slow cleanup can therefore outlast that timeout.
+
+Use injected services for application dependencies and the existing typed
+node-manager lookup for server subsystems. For example, inside a task:
+
+```csharp
+using System.Linq;
+using Opc.Ua;
+using Opc.Ua.Server;
+
+IDiagnosticsNodeManager diagnostics =
+    context.FindNodeManagers<IDiagnosticsNodeManager>().Single();
+HistoryServerCapabilitiesState capabilities =
+    await diagnostics.GetDefaultHistoryCapabilitiesAsync(cancellationToken)
+        .ConfigureAwait(false);
+```
+
+No extra `IServerContext` members or server subclass are needed. Prefer
+the historian providers' automatic
+[capabilities rollup](HistoricalAccess.md#capability-discovery) when it
+already describes the server's history support, rather than manually
+overriding the published capabilities in a task.
+
+### Alias-name stores and standard browse nodes
+
+`AddAliasNameStore(store)` and `AddAliasNameStoreRegistry(registry)`
+make registered stores available before address-space startup.
+Application `IServerPreStartupTask` registrations run first, in their
+registration order, so they can initialize source registries before the
+stores are copied into the server's registry.
+`ConfigureAliasNames(Action<AliasNameServerOptions>)` controls whether
+the normal `ConfigurationNodeManager` also materializes their aliases
+and declared optional capabilities under the standard `TagVariables`
+and `Topics` categories:
+
+```csharp
+serverBuilder
+    .AddAliasNameStore(aliasNameStore)
+    .ConfigureAliasNames(options => options.MaterializeAliasNodes = true);
+```
+
+`AliasNameServerOptions` is in `Opc.Ua.Server.AliasNames`; its
+`MaterializeAliasNodes` defaults to `false`. Materialized browse nodes
+are a startup snapshot by default. Also set `RefreshAliasNodesOnChange = true`
+to opt a materialized host into bounded, coalesced live refresh. This second
+option does not enable materialization by itself; query-only servers remain
+query-only.
+This setting is independent of `AliasNameNodeManagerOptions` for custom
+categories, whose `MaterializeAliasNodes` default remains `true`.
+See [Alias Names](AliasNames.md#browsable-alias-nodes) for capabilities,
+mutation behavior, and the lower-level materialization helper.
+
+### Localized resources
+
+Use `ConfigureResources(Action<Opc.Ua.Server.ResourceManager>)` or
+`ConfigureResources(Action<IServiceProvider, Opc.Ua.Server.ResourceManager>)`
+to add translations or replace default status text. The callbacks run
+after the base resource manager has loaded the stack's default status
+text. In a Generic Host, the service-provider overload can also consume
+application configuration:
+
+```csharp
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+serverBuilder
+    .ConfigureResources(resources =>
+        resources.Add("DeviceUnavailable", "de-DE", "Das Gerät ist nicht verfügbar."))
+    .ConfigureResources((sp, resources) =>
+    {
+        string text = sp.GetRequiredService<IConfiguration>()["Messages:DeviceUnavailable"]
+            ?? "The device is unavailable.";
+        resources.Add("DeviceUnavailable", "en-US", text);
+    });
+```
+
+The server creates, retains, and disposes its own resource manager.
+These callbacks do not register a live `Opc.Ua.Server.ResourceManager`
+service for injection. Resolve supporting services from `sp` and use the
+manager passed to the callback.
+
+Translated text retains its original `TranslationInfo` fallback locale,
+template, and arguments. A retained result can therefore be translated for
+another session without losing its original fallback.
 
 ### Migrating with an existing configuration XML file
 
@@ -426,17 +696,24 @@ subclass works too:
 builder.Services.AddOpcUa().AddServer<MyServer>("MyServer.Config.xml");
 ```
 
-On this path the file is authoritative: the `OpcUaServerOptions` knobs
-that feed the configuration builder (`ApplicationName`, `EndpointUrls`,
-`PkiRoot`, policy toggles, transport quotas, `ConfigureBuilder`, ...)
-are not applied, and the file also takes precedence over a shared
-application registered with `ConfigureApplication(...)`. Options that
-act on the hosted server itself (`Identity`, `ConfigureRateLimits`) and
-all fluent registrations (`AddNodeManager`, `ConfigureRoles`,
-`AddDefaultIdentityAuthenticators`, ...) keep working. To override
-individual file settings from code, pass the optional callback, which
-runs after the file is loaded and validated but before certificates are
-checked and the server starts:
+On this path, the file is authoritative and takes precedence over any
+application registered with `ConfigureApplication(...)`. The file also
+overrides configuration-builder settings from `OpcUaServerOptions`, including:
+
+- `ApplicationName`, `EndpointUrls`, and `PkiRoot`
+- Security-policy toggles and transport quotas
+- `ReverseConnect` and `ConfigureBuilder`
+
+Hosted-server settings such as `Identity` and `ConfigureRateLimits` still
+apply, as do runtime registrations such as node managers, startup tasks,
+authenticators, metadata, resources, and alias settings. Configuration
+shortcuts such as `AddReverseConnect` and `ConfigureOperationLimits` do not
+override file settings.
+
+To override individual file settings in code, use
+`ConfigureLoadedConfiguration`, also available through the optional
+`AddServer` callback below. It runs after the file is loaded and validated,
+but before the server checks certificates or starts:
 
 ```csharp
 builder.Services
@@ -484,8 +761,9 @@ these controls explicitly for every deployment:
 - Enable `IncludeEccPolicies` only when the deployment certificates and clients
   support the advertised ECC policies.
 - Configure `UserTokenPolicies` together with matching authenticators. An empty
-  list advertises `Anonymous`; adding a token policy alone does not authenticate
-  it. See [Identity Providers](IdentityProviders.md) and
+  list advertises `Anonymous` (or, when the identity defaults disable anonymous
+  access, the token types of the registered authenticators); adding a token
+  policy alone does not authenticate it. See [Identity Providers](IdentityProviders.md) and
   [Role-Based User Management](RoleBasedUserManagement.md).
 - Keep certificate auto-accept disabled and provision trust lists. For
   advanced validation, use the shared
@@ -577,11 +855,69 @@ properties (bindable from `IConfiguration` or set via the
 | `ConfigureLoadedConfiguration` | Code-only callback | Override individual settings of the configuration loaded from `ConfigurationFile` / `ConfigurationStream`. |
 | `ConfigureBuilder` | Code-only callback | Pre-security server-policy and server-option escape hatch, including max failed authentication attempts, sessions, channels, auditing, and HTTPS mutual TLS. |
 | `ConfigureRateLimits` | Code-only callback | Tunes the default connection and session-establishment admission controls. |
+| `ResourceIsolation` | `ConfigureResourceIsolation(...)` | Limits concurrent connections, retained data, and queued/running requests by caller; defaults to Balanced. Applied even when loading XML configuration. |
+
+Configure incomplete-message capacity with
+`builder.AddServer(...).WithChunkReassemblyBudget(maxBytes)`. This registers one
+`ChunkReassemblyBudget` for all listeners of the hosted server. Without an
+explicit budget, the server sizes one from `MaxMessageSize`; see
+[incomplete messages](RateLimiting.md#incomplete-messages) for the defaults,
+sessionless headroom, and direct-construction equivalent.
+
+### Server resource isolation
+
+`OpcUaServerOptions.ResourceIsolation` controls whether the running server
+accepts a connection, retains message data, or queues/executes a request when
+resources are limited. These capacity checks are additional to connection
+rate limits and service authentication. Configure them with
+`ConfigureResourceIsolation(...)` or the `OpcUa:Server:ResourceIsolation`
+configuration section. See [server resource isolation](ResourceIsolation.md)
+for direct, DI, and JSON examples.
+
+**Balanced is the default.** Startup validates that finite configured totals
+can hold its shared and reserved capacity. It does not remove reserves or
+raise totals to make an invalid configuration fit, including when you load an
+XML configuration. The [startup validation guide](ResourceIsolation.md#startup-validation-and-sizing)
+explains how to correct insufficient limits. Choose SharedOnly when you want
+shared rate, message, and reassembly limits without per-caller isolation.
+Without an explicitly supplied provider, this mode also accepts unlimited
+settings that do not satisfy the other profiles' finite-capacity requirements.
+
+`AddResourceIsolationClassifier<T>()` registers your application's implementation
+of `IResourceIsolationClassifier`. This code identifies callers that may use
+protected startup capacity or maps authenticated callers to configured groups.
+Reserves alone do not give unknown connections protected access, and an
+observed IP address is not proof of identity. TrustedReservations requires
+both a classifier and provisioned `TrustedOwners`. See the
+[dedicated-ingress example](ResourceIsolation.md#example-dedicated-trusted-ingress)
+and its deployment requirements.
+
+Direct servers expose `ResourceIsolationOptions`,
+`ResourceIsolationClassifier`, and `ResourceIsolationProvider`. An explicitly
+registered `IServerResourceIsolationProvider` takes precedence over the options,
+including SharedOnly. The server does not validate it by constructing a default
+plan or take ownership of its disposal; its creator or DI container owns it.
+The provider author is responsible for matching the actual listener and queue
+capacities. The server owns and disposes only the default provider it creates.
+
+### Committed session bindings
+
+Managed servers automatically supply their session manager's committed-binding
+view to transport listeners. A custom `IServerSessionBindingProvider` registered as a
+singleton is applied by the hosted server; direct hosts can assign
+`ServerBase.SessionBindingProvider` before startup. This optional seam preserves
+existing session-manager and transport-callback interfaces. Its snapshots are
+classification inputs, not authorization decisions; see
+[committed session bindings](Transports.md#committed-session-bindings).
 
 ### Server-side reverse connect
 
-A server can dial back to clients via reverse-hello using
-`OpcUaServerOptions.ReverseConnect`. The data binds directly from
+A regular DI server can dial back to clients via reverse-hello using
+`OpcUaServerOptions.ReverseConnect` or the fluent `AddReverseConnect(...)`
+shortcut. Its `ReverseConnectServer` base runs the configured outbound
+connections while retaining the other DI customization hooks.
+The options projection into `ServerConfiguration.ReverseConnect` is
+unchanged. The data binds directly from
 `OpcUa:Server:ReverseConnect`:
 
 ```jsonc
@@ -620,6 +956,13 @@ services.AddOpcUa().AddServer(o =>
 });
 ```
 
+For a loaded XML file or stream, its `ServerConfiguration.ReverseConnect`
+is authoritative; use `ConfigureLoadedConfiguration` to change it rather
+than the options-building shortcuts. Directly constructed `StandardServer`
+instances do not gain reverse-connect behavior. See
+[Reverse Connect](ReverseConnect.md#server-side-dependency-injection)
+for the hosted lifecycle and a loaded-configuration example.
+
 ### Operation limits
 
 ```csharp
@@ -655,7 +998,11 @@ services.AddOpcUa().AddServer(o =>
 ```
 
 Bindable from `OpcUa:Server:UserTokenPolicies`. When the list is empty
-the hosted service falls back to a single `Anonymous` policy.
+the hosted service falls back to a single `Anonymous` policy. If the
+identity defaults disable anonymous access (`EnableAnonymous = false`),
+that implicit `Anonymous` policy is not advertised; the endpoints list
+one policy per token type of the registered authenticators instead
+(OPC 10000-4 §7.14: the user identity tokens the server accepts).
 
 ### Identity (server)
 
@@ -670,10 +1017,13 @@ the hosted service falls back to a single `Anonymous` policy.
 |---|---|
 | `ConfigureRoles(Action<RoleConfigurationOptions>)` / `(IConfiguration)` | Registers `RoleConfigurationOptions` for future role-related tuning. The DTO currently has no configurable members; the extension exists as a stable expansion point. |
 | `AddIdentityAuthenticator<TAuth>()` | Registers a single custom `IUserTokenAuthenticator` implementation. The hosted service adds it to `IServerInternal.IdentityRegistry` on startup. |
+| `AddIdentityAuthenticator(IUserTokenAuthenticator)` | Registers an already-constructed authenticator instance. |
+| `AddIdentityAuthenticator(Func<IServiceProvider, ICertificateValidatorEx?, IUserTokenAuthenticator>)` | Creates an authenticator during startup with injected services and the effective certificate validator, which may be `null`. |
 | `AddIdentityAugmenter<TAugmenter>()` | Registers a single custom `IIdentityAugmenter` implementation. The hosted service runs it after accepted authentications. |
 | `AddDefaultIdentityAuthenticators(Action<DefaultAuthenticatorOptions>)` / `(IConfiguration)` | Registers the four in-box authenticators (Anonymous, UserNamePassword, X509, Jwt) with toggles per type plus the JWT audience / clock-skew settings. |
 | `AddJwtIssuer(Action<JwtIssuerOptions>)` / `(IConfiguration)` | Registers a trusted JWT issuer. Multiple calls coexist; each contributes a `StaticIssuerKeyResolver` and / or `JwksIssuerKeyResolver` keyed by `IssuerUri`. |
 | `WithKeyCredentialPush(Action<KeyCredentialPushOptions>?)` | Enables the Part 12 §8 resource-server Push binding and registers an `IKeyCredentialStore` if none is supplied. |
+| `AddSessionlessInvocation(Action<SessionlessInvocationOptions>?)` | Enables Session-less Service invocation (OPC 10000-4 §6.3) with an Access Token in the RequestHeader; anonymous callers only with `AllowAnonymous`. See [Session-less invocation](SessionlessInvocation.md). |
 
 Configuration binding under `OpcUa:Server:Identity`:
 
@@ -719,6 +1069,15 @@ hosted service skips that authenticator if neither is in dependency injection. S
 [Role-Based Security](RoleBasedUserManagement.md) for the role-mapping
 layer.
 
+The instance and factory overloads complement the existing generic
+registration. Factories receive the validator after configuration and
+certificate setup; a validator-dependent authenticator should fail
+clearly if the nullable validator is absent. Register matching
+`UserTokenPolicies` as well — an authenticator does not advertise its
+token policy automatically. See
+[custom authenticator registrations](IdentityProviders.md#custom-authenticator-registrations)
+for an example using the configured certificate stores.
+
 ### Fluent shortcuts and one-shot presets
 
 The server hosting surface exposes granular extension points and one-shot presets:
@@ -756,8 +1115,13 @@ services.AddOpcUa()
 ```
 
 Use `AddRoleManager(IRoleManager)` or `AddRoleManager<T>()` to replace the default role manager.
-Custom server types that need session, subscription, or durable-subscription DI hooks must derive from
-`DependencyInjectionStandardServer`; otherwise startup fails fast instead of ignoring those hooks.
+`AddServer<TServer>()` remains available for custom server implementations.
+Custom types that need session, subscription, or durable-subscription DI
+hooks must derive from `DependencyInjectionStandardServer`. The same
+requirement applies to DI-only metadata, resource, and alias settings
+configured through `ConfigureServerProperties`, `ConfigureResources`,
+and `ConfigureAliasNames`. A non-DI custom server rejects these settings
+clearly during startup instead of silently ignoring them.
 
 Fluent node managers can be registered without a factory class:
 
@@ -1386,7 +1750,25 @@ services
 ```
 
 `Action<>` and `IConfiguration` overloads are available for
-`ConfigureRoles`, `AddDefaultIdentityAuthenticators`, and `AddJwtIssuer`.
+`AddDefaultIdentityAuthenticators` and `AddJwtIssuer`; `ConfigureRoles`
+takes an `IConfiguration` section. The role manager it registers maps
+identities to Roles on the GDS, unless a regular server (`AddServer`)
+shares the container, which then owns it.
+
+UserName and X.509 tokens are handled by the GDS's own authenticators,
+not the generic `UserNamePasswordAuthenticator` and `X509Authenticator`,
+also when an `IUserManagement` is registered or a regular server shares
+the container. The UserName authenticator grants the Roles
+`IUserDatabase` assigns (DiscoveryAdmin, CertificateAuthorityAdmin, ...;
+OPC 10000-12 §6.2, §7.2). The X.509 authenticator validates the user
+certificate against the configured user trust list and grants
+AuthenticatedUser; it does not read Roles from `IUserDatabase`. Use
+`ConfigureRoles` identity mapping rules to give certificate users a GDS
+Role. The `EnableAnonymous`,
+`EnableUserNamePassword`, `EnableX509`, `UserDatabase` and
+`UserCertificateTrustList` options select and configure them. An
+authenticator added with `AddIdentityAuthenticator<T>()` replaces the
+built-in for its token type.
 `AddIdentityAugmenter<T>()` registers post-authentication identity
 augmenters; `AddGdsApplicationSelfAdminProvider()` registers the built-in
 OPC 10000-12 §7.2 SelfAdmin provider and is also wired by the GDS
@@ -1397,7 +1779,43 @@ for cloud KMS, HSM, or external token-service signing.
 
 `GdsServerHostedService` consumes these forwarded registrations during
 startup and adds them to the same identity registry used by regular OPC
-UA hosted servers.
+UA hosted servers, before the endpoints open.
+
+`GdsServerOptions.UserTokenPolicies` (bindable from
+`OpcUa:Gds:Server:UserTokenPolicies`) lists the user token types the GDS
+endpoints advertise. When it is empty the GDS advertises Anonymous and
+UserName, leaving out a type `AddDefaultIdentityAuthenticators` disables:
+Anonymous lets a registered application pull its certificates (OPC
+10000-12 §7.6), while `RegisterApplication` needs DiscoveryAdmin or the
+ApplicationAdmin Privilege (§6.5.6), so an administrator logs in with a
+user name.
+
+### Startup tasks (GDS server)
+
+The hosted GDS runs startup tasks the way the regular hosted server does:
+pre-startup tasks while the server starts, and startup tasks in
+registration order once it is running, where a failing task stops the
+startup. A startup task is the supported signal that the GDS is
+listening. `GdsReadiness` below stands for a readiness type of your own.
+
+```csharp
+services
+    .AddOpcUa()
+    .AddGdsServer(opt => opt.ApplicationName = "MyGds")
+    .AddPreStartupTask<MyGdsPreStartupTask>()
+    .AddStartupTask<MyGdsReadinessTask>()
+    .AddStartupTask((sp, context, cancellationToken) =>
+    {
+        // e.g. flip a readiness probe once the GDS is listening
+        sp.GetRequiredService<GdsReadiness>().MarkReady();
+        return ValueTask.CompletedTask;
+    });
+```
+
+Tasks registered through `IGdsServerBuilder` run on the GDS only. Tasks
+registered directly as `IServerStartupTask` or `IServerPreStartupTask`
+run on the GDS only when no regular server (`AddServer`) shares the
+container, so a task meant for the regular server does not run twice.
 
 See [Identity Providers](IdentityProviders.md) for the full reference.
 
@@ -1525,8 +1943,7 @@ compatibility.
 
 Notes:
 
-- The source generator targets net8.0+. On older TFMs (net48 /
-  netstandard2.0 / netstandard2.1) the generator is a no-op and the
+- The source generator targets net8.0+. On older TFMs (net48) the generator is a no-op and the
   reflection-based binder is used — those TFMs don't support
   PublishAot anyway.
 - Options properties whose type is an interface or a non-default-
@@ -1577,7 +1994,7 @@ services.AddOpcUa()
 
 - [Sessions](Sessions.md) — `ManagedSession`, reconnect, subscription engines.
 - [Source Generated NodeManagers](NodeManagers.md#source-generated-node-managers) — `IAsyncNodeManagerFactory` from a model design XML.
-- [Native AOT](NativeAoT.md) — AOT testing setup.
+- [Native AOT](NativeAoT.md) — publishing applications and the AOT test harness.
 - [GDS Developer Guide](GDS.md) — GDS service interfaces and provider patterns.
 - [Robotics](Robotics.md) — OPC 40010 hosting, model providers, and topology builders.
 - [WoT Connectivity](WoTConnectivity.md) — OPC 10100-1 information model.

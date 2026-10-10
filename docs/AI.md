@@ -1,18 +1,31 @@
 # AI Model Management developer guide
 
-This guide documents the `Opc.Ua.AI`, `Opc.Ua.AI.Server`,
-`Opc.Ua.AI.Client` and `Opc.Ua.AI.Inference` package family — the .NET
-implementation of the draft *OPC UA — AI Model Management and Inference*
-companion specification.
+The `Opc.Ua.AI`, `Opc.Ua.AI.Server`, `Opc.Ua.AI.Client`, and
+`Opc.Ua.AI.Inference` packages implement the draft
+*OPC UA — AI Model Management and Inference* companion specification in .NET.
 
 > **Draft.** The namespace `http://opcfoundation.org/UA/AI/` and every NodeId
 > in it are provisional until the working group publishes the specification.
 
-AI Model Management publishes model sources, models, datasets, deployments and
-inference methods through OPC UA. The control plane is OPC UA: clients discover
-what is available, read the provenance and trust-boundary metadata, call
-`Invoke` or `InvokeAsync`, and transfer large artefacts through the standard
-file-transfer types.
+AI Model Management exposes model sources, models, datasets, deployments, and
+inference methods through OPC UA. Clients can discover available resources and
+read provenance and trust-boundary metadata. They can also invoke `Invoke` or
+`InvokeAsync` and transfer large artefacts with standard file-transfer types.
+
+## Contents
+
+- [Packages](#packages)
+- [Model](#model)
+- [Minimal hosted server](#minimal-hosted-server)
+- [Hosting API](#hosting-api)
+  - [`AIOptions`](#aioptions)
+  - [`InferenceBackendOptions`](#inferencebackendoptions)
+- [Client surface](#client-surface)
+- [Inference backends](#inference-backends)
+- [Invocation inputs and parameters](#invocation-inputs-and-parameters)
+- [Example](#example)
+- [Limitations](#limitations)
+- [See also](#see-also)
 
 ## Packages
 
@@ -29,19 +42,25 @@ OpenAI or other vendor SDK dependency.
 
 ## Model
 
-The Server publishes one AI root below the Server object. Under it are model
-sources, deployments, models, datasets and jobs. A deployment describes where
-inference runs, whether egress is permitted, whether input may be retained, the
-maximum inline payload size, and the model source it uses.
+The Server publishes one AI root below the Server object. The root contains:
+
+- Model sources
+- Deployments
+- Models
+- Datasets
+- Jobs
+
+Each deployment describes where inference runs and identifies its model
+source. It also records egress permission, input-retention status, and the
+maximum inline payload size.
 
 Two properties are especially important:
 
-- `ModelUsed` is returned with an inference result so a fallback cannot answer
-  silently. A caller can distinguish "the primary model answered" from "a
-  degraded fallback answered".
-- `CredentialReference` is a name only. The credential value is resolved inside
-  the Server process by an `ICredentialResolver` and is never placed in the
-  address space.
+- An inference result includes `ModelUsed`, so callers can tell whether the
+  primary model or a degraded fallback answered.
+- `CredentialReference` is a name only. An `ICredentialResolver` resolves the
+  credential value inside the Server process. The address space contains only
+  the reference name, never the credential value.
 
 Large payloads use the standard Part 5 `FileType` transfer flow. Asynchronous
 inference jobs use the Part 10 program lifecycle so clients can monitor state
@@ -89,8 +108,8 @@ await app.RunAsync().ConfigureAwait(false);
 `AddRestChatCompletionsAIChatClientFactory()` is the sample-friendly factory:
 it creates an `IChatClient` over the configured OpenAI-compatible endpoint
 without adding a vendor SDK. A production host can instead register its own
-`IChatClientFactory` that creates `IChatClient` instances from Azure, OpenAI,
-Ollama or an on-device runtime package.
+`IChatClientFactory`. That factory can create `IChatClient` instances for
+Azure, OpenAI, Ollama, or an on-device runtime.
 
 The direct construction path remains available for hosts that do not use the
 generic hosting stack:
@@ -203,14 +222,46 @@ when you already own an `ISession`.
 and probe reachability. Two implementations ship:
 
 - `ChatClientInferenceBackend` wraps `Microsoft.Extensions.AI.IChatClient`.
-  This is the default because it lets the host choose any SDK or local runtime
-  that implements the abstraction without changing the OPC UA address space.
+  This is the default. Hosts can pair it with any SDK or local runtime that
+  implements the abstraction. The OPC UA address space stays unchanged.
 - `RestChatCompletionsBackend` speaks the OpenAI-compatible REST
   chat-completions contract directly. Use it when that REST shape is the actual
   wire contract and no `IChatClient` is available.
 
-Both hosted and on-device deployments use the same OPC UA nodes. The difference
-is configuration: endpoint, credentials, data jurisdiction and egress.
+Both hosted and on-device deployments use the same OPC UA nodes. Their
+configuration identifies the endpoint, credentials, data jurisdiction, and
+egress.
+
+## Invocation inputs and parameters
+
+`Invoke` and `InvokeAsync` accept an inline `Payload` or a `PayloadUri`, but the
+current server accepts inline payloads only. It returns `BadNotSupported` for
+URI-only input rather than accepting it and running a backend with no request
+body.
+
+Both built-in backends accept these parameters:
+
+- `temperature`: 0 through 2
+- `max_tokens`: positive integer
+- `top_p`: 0 through 1
+
+Clients can provide values as strings, built-in integer or floating-point
+values, or booleans. Both backends convert values using the invariant culture
+and forward them through these execution paths:
+
+- Synchronous and asynchronous calls
+- Fallback execution
+- Oversized-transfer execution
+
+Both backends reject malformed or unsupported parameters. In the REST
+chat-completions backend, an explicit OPC UA parameter overrides the matching
+field in the JSON request body. The backend preserves body fields without a
+matching parameter.
+
+The server sets `SpecificationVersion` from the source-generated
+`Opc.Ua.AI.ModelVersions.Target` constant. The AI NodeSet's target model
+version determines this constant, so updating the NodeSet also updates the
+published version without a separately maintained literal.
 
 ## Example
 
@@ -227,8 +278,8 @@ dotnet run --project samples/AI/ModelManagementServer
 dotnet run --project samples/AI/ModelManagementClient
 ```
 
-Set `InferenceBackend__Kind=RestChatCompletions` when testing an endpoint that
-must be reached through the REST backend directly. Configure
+Set `InferenceBackend__Kind=RestChatCompletions` to select the REST backend for
+an endpoint that requires direct REST access. Configure
 `FallbackInferenceBackend__Kind` independently when the fallback uses a
 different wire contract from the primary.
 
@@ -239,13 +290,13 @@ different wire contract from the primary.
 - The sample publishes a real `LearningJobType` instance and a real
   `SamplesCollected` counter. Host-level code can call the server-side
   accounting API when ground-truth corrections arrive, including empty or
-  retracted observations. Retraining, candidate generation and promotion are
-  deliberately not simulated.
+  retracted observations. The sample does not simulate retraining, candidate
+  generation, or promotion.
 - `IChatClient` has no standard model-enumeration method, so hosts that need a
   catalogue should configure `InferenceBackendOptions.Models`.
-- The libraries do not reference vendor SDKs. If a provider package is needed,
-  add it in the hosting application and expose it through `IChatClientFactory`.
-- Native AOT is disabled for the AI inference/sample projects because the
+- The libraries do not reference vendor SDKs. If your hosting application needs
+  a provider package, add it there and expose it through `IChatClientFactory`.
+- The AI inference and sample projects disable Native AOT because the
   `Microsoft.Extensions.AI` ecosystem uses reflection in areas this repository
   builds with warnings as errors.
 

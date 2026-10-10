@@ -31,8 +31,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System;
 using System.Collections.Concurrent;
 using System.Linq;
@@ -134,6 +132,140 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(factory.Manager!.SupportsSessionRestoreForTests, Is.True);
                 Assert.That(factory.Manager.GetSession(authenticationToken), Is.Not.Null);
                 Assert.That(factory.Manager.RestoreAttempts[authenticationToken.ToString()], Is.EqualTo(1));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-5: the restore is admitted (and a distributed manager consumes
+        /// its single-use nonce) exactly once, after the activation passed validation.
+        /// </summary>
+        [Test]
+        public async Task RestoredSessionIsAdmittedOnceAfterValidationAsync()
+        {
+            var factory = new TestSessionManagerFactory(RestoreBehavior.Restore);
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t)
+            {
+                SessionManagerFactory = factory
+            })
+            {
+                SecurityNone = true
+            };
+
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                var authenticationToken = new NodeId("admitted-token", 2);
+                var header = new RequestHeader { AuthenticationToken = authenticationToken };
+
+                ActivateSessionResponse response = await server.ActivateSessionAsync(
+                    CreateChannelContext(server), header, null, [], [], default, null, RequestLifetime.None)
+                    .ConfigureAwait(false);
+                ServerFixtureUtils.ValidateResponse(response.ResponseHeader);
+
+                // A re-activation of the admitted session is an ordinary activation.
+                response = await server.ActivateSessionAsync(
+                    CreateChannelContext(server), header, null, [], [], default, null, RequestLifetime.None)
+                    .ConfigureAwait(false);
+                ServerFixtureUtils.ValidateResponse(response.ResponseHeader);
+
+                Assert.That(factory.Manager!.AdmitAttempts[authenticationToken.ToString()], Is.EqualTo(1));
+                Assert.That(factory.Manager.RestoreAttempts[authenticationToken.ToString()], Is.EqualTo(1));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-5: a restored session whose first activation fails validation is
+        /// discarded again before anything was admitted, so it neither occupies the
+        /// session table nor times out into a close of the mirrored session.
+        /// </summary>
+        [Test]
+        public async Task RestoredSessionFailingValidationIsDiscardedWithoutAdmissionAsync()
+        {
+            var factory = new TestSessionManagerFactory(RestoreBehavior.RestoreWithDifferentOwner);
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t)
+            {
+                SessionManagerFactory = factory
+            })
+            {
+                SecurityNone = true
+            };
+
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                var authenticationToken = new NodeId("foreign-owner-token", 2);
+
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await server.ActivateSessionAsync(
+                        CreateChannelContext(server),
+                        new RequestHeader { AuthenticationToken = authenticationToken },
+                        null,
+                        [],
+                        [],
+                        default,
+                        null,
+                        RequestLifetime.None).ConfigureAwait(false))!;
+
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadIdentityChangeNotSupported));
+                Assert.That(factory.Manager!.AdmitAttempts.ContainsKey(authenticationToken.ToString()), Is.False);
+                Assert.That(factory.Manager.GetSession(authenticationToken), Is.Null);
+                Assert.That(
+                    factory.Manager.DisposedRestoredSessions[authenticationToken.ToString()],
+                    Is.EqualTo(1));
+            }
+            finally
+            {
+                await fixture.StopAsync().ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-5: a restore the manager refuses to admit (for example because
+        /// its single-use nonce was consumed by another replica) fails the activation
+        /// with Bad_SessionIdInvalid and leaves no session behind.
+        /// </summary>
+        [Test]
+        public async Task RejectedRestoreAdmissionFailsActivationAndDiscardsSessionAsync()
+        {
+            var factory = new TestSessionManagerFactory(RestoreBehavior.RestoreRejectAdmission);
+            var fixture = new ServerFixture<StandardServer>(t => new StandardServer(t)
+            {
+                SessionManagerFactory = factory
+            })
+            {
+                SecurityNone = true
+            };
+
+            try
+            {
+                StandardServer server = await fixture.StartAsync().ConfigureAwait(false);
+                var authenticationToken = new NodeId("rejected-admission-token", 2);
+
+                ServiceResultException exception = Assert.ThrowsAsync<ServiceResultException>(
+                    async () => await server.ActivateSessionAsync(
+                        CreateChannelContext(server),
+                        new RequestHeader { AuthenticationToken = authenticationToken },
+                        null,
+                        [],
+                        [],
+                        default,
+                        null,
+                        RequestLifetime.None).ConfigureAwait(false))!;
+
+                Assert.That(exception.StatusCode, Is.EqualTo(StatusCodes.BadSessionIdInvalid));
+                Assert.That(factory.Manager!.AdmitAttempts[authenticationToken.ToString()], Is.EqualTo(1));
+                Assert.That(factory.Manager.GetSession(authenticationToken), Is.Null);
+                Assert.That(
+                    factory.Manager.DisposedRestoredSessions[authenticationToken.ToString()],
+                    Is.EqualTo(1));
             }
             finally
             {
@@ -245,7 +377,10 @@ namespace Opc.Ua.Server.Tests
 
                 Task<ActivateSessionResponse> second = ActivateUnknownAsync(server, sameToken);
                 Task<ActivateSessionResponse> third = ActivateUnknownAsync(server, differentToken);
-                await manager.WaitForRestoreAttemptsAsync(3).ConfigureAwait(false);
+
+                // Issue #4627 RS-3/RS-5: the second activation of the same token shares the
+                // pending restore instead of materializing a competing copy.
+                await manager.WaitForRestoreAttemptsAsync(2).ConfigureAwait(false);
 
                 Task<(RequestHeader, SecureChannelContext)> unrelatedCreate =
                     server.CreateAndActivateSessionAsync("ConcurrentCreate", useSecurity: false);
@@ -265,9 +400,10 @@ namespace Opc.Ua.Server.Tests
                 Assert.That(manager.GetSession(sameToken), Is.Not.Null);
                 Assert.That(manager.GetSession(differentToken), Is.Not.Null);
                 Assert.That(manager.GetSessions(), Has.Count.EqualTo(3));
-                Assert.That(manager.RestoreAttempts[sameToken.ToString()], Is.EqualTo(2));
+                Assert.That(manager.RestoreAttempts[sameToken.ToString()], Is.EqualTo(1));
                 Assert.That(manager.RestoreAttempts[differentToken.ToString()], Is.EqualTo(1));
-                Assert.That(manager.DisposedRestoredSessions[sameToken.ToString()], Is.EqualTo(1));
+                Assert.That(manager.DisposedRestoredSessions.ContainsKey(sameToken.ToString()), Is.False);
+                Assert.That(manager.AdmitAttempts[sameToken.ToString()], Is.EqualTo(1));
             }
             finally
             {
@@ -311,7 +447,9 @@ namespace Opc.Ua.Server.Tests
             ReturnNull,
             Restore,
             RestoreWithoutSecurityState,
-            DelayThenRestore
+            DelayThenRestore,
+            RestoreRejectAdmission,
+            RestoreWithDifferentOwner
         }
 
         private static ApplicationConfiguration CreateConfiguration()
@@ -384,6 +522,18 @@ namespace Opc.Ua.Server.Tests
             public ConcurrentDictionary<string, int> RestoreAttempts { get; } = new(StringComparer.Ordinal);
 
             public ConcurrentDictionary<string, int> DisposedRestoredSessions { get; } = new(StringComparer.Ordinal);
+
+            public ConcurrentDictionary<string, int> AdmitAttempts { get; } = new(StringComparer.Ordinal);
+
+            protected override ValueTask<bool> AdmitRestoredSessionAsync(
+                NodeId authenticationToken,
+                ISession session,
+                OperationContext context,
+                CancellationToken cancellationToken)
+            {
+                AdmitAttempts.AddOrUpdate(authenticationToken.ToString(), 1, static (_, value) => value + 1);
+                return new ValueTask<bool>(m_behavior != RestoreBehavior.RestoreRejectAdmission);
+            }
 
             public Task WaitForRestoreAttemptsAsync(int count)
             {
@@ -504,11 +654,15 @@ namespace Opc.Ua.Server.Tests
                         context.ChannelContext!.EndpointDescription!;
                     SetRestoredSessionTransferSecurityState(
                         session,
-                        context.ChannelContext.ClientChannelCertificate.ToByteString(),
+                        context.ChannelContext.ClientChannelCertificate,
                         endpoint.SecurityPolicyUri ?? SecurityPolicies.None,
                         endpoint.SecurityMode,
-                        UserTokenType.Anonymous,
-                        clientUserId: null);
+                        m_behavior == RestoreBehavior.RestoreWithDifferentOwner
+                            ? UserTokenType.UserName
+                            : UserTokenType.Anonymous,
+                        clientUserId: m_behavior == RestoreBehavior.RestoreWithDifferentOwner
+                            ? "another-user"
+                            : null);
                 }
                 return session;
             }

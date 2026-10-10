@@ -91,7 +91,7 @@ namespace Opc.Ua.SourceGeneration
             return [fileName.AsTextFileResource()];
         }
 
-        private TemplateString LoadTemplate_IdsPerNodeClass(ILoadContext context)
+        private TemplateString? LoadTemplate_IdsPerNodeClass(ILoadContext context)
         {
             if (context.Target is not KeyValuePair<string, List<NodeDesign>> nodes)
             {
@@ -144,6 +144,12 @@ namespace Opc.Ua.SourceGeneration
                     if (!string.IsNullOrEmpty(item.StringId))
                     {
                         stringIds[item.StringId] = item;
+                    }
+                    else if (item.HasNonConstantIdentifier())
+                    {
+                        // Guid and Opaque identifiers are not part of the
+                        // string keyed reflection tables.
+                        continue;
                     }
                     else if (!string.IsNullOrEmpty(item.SymbolicId.Name))
                     {
@@ -214,8 +220,11 @@ namespace Opc.Ua.SourceGeneration
                 return false;
             }
 
-            object id;
+            object? id;
             string idType;
+            // Guid and Opaque identifiers have no C# constant form and are
+            // emitted as static readonly fields instead.
+            string idModifier = "const";
             if (node.NumericIdSpecified)
             {
                 id = node.NumericId;
@@ -223,12 +232,17 @@ namespace Opc.Ua.SourceGeneration
             }
             else if (!string.IsNullOrEmpty(node.StringId))
             {
-                id = $"\"{node.StringId}\""; // TODO: Make string resource
+                id = node.StringId.AsStringLiteral(); // TODO: Make string resource
                 idType = "string";
+            }
+            else if (node.HasNonConstantIdentifier())
+            {
+                id = ModelDesignExtensions.GetIdentifierAsCode(node.GetIdentifier()!, out idType!);
+                idModifier = "static readonly";
             }
             else
             {
-                id = $"\"{node.SymbolicId.Name}\""; // TODO: Make string resource
+                id = node.SymbolicId.Name.AsStringLiteral(); // TODO: Make string resource
                 idType = "string";
             }
 
@@ -244,11 +258,12 @@ namespace Opc.Ua.SourceGeneration
                 m_context.ModelDesign.Namespaces.GetNamespacePrefix(
                     node.SymbolicId.Namespace));
             context.Template.AddReplacement(Tokens.IdType, idType);
+            context.Template.AddReplacement(Tokens.IdModifier, idModifier);
 
             return context.Template.Render();
         }
 
-        private TemplateString LoadTemplate_IdentifierLookup(ILoadContext context)
+        private TemplateString? LoadTemplate_IdentifierLookup(ILoadContext context)
         {
             if (context.Target is not NodeDesign node)
             {
@@ -337,12 +352,12 @@ namespace Opc.Ua.SourceGeneration
                     parentId = parentId[..index];
                 }
 
-                if (!root.Hierarchy.Nodes.TryGetValue(parentId, out HierarchyNode parent))
+                if (!root.Hierarchy.Nodes.TryGetValue(parentId, out HierarchyNode? parent))
                 {
                     return false;
                 }
 
-                if (m_context.ModelDesign.IsExcluded(parent.Instance))
+                if (m_context.ModelDesign.IsExcluded(parent.Instance!))
                 {
                     return true;
                 }
@@ -378,7 +393,7 @@ namespace Opc.Ua.SourceGeneration
 
                 string nodeClass = node.GetNodeClassAsString();
 
-                if (!identifiers.TryGetValue(nodeClass, out List<NodeDesign> nodesWithinClass))
+                if (!identifiers.TryGetValue(nodeClass, out List<NodeDesign>? nodesWithinClass))
                 {
                     identifiers[nodeClass] = nodesWithinClass = [];
                 }
@@ -400,7 +415,7 @@ namespace Opc.Ua.SourceGeneration
                         continue;
                     }
 
-                    if (m_context.ModelDesign.IsExcluded(current.Value.Instance))
+                    if (m_context.ModelDesign.IsExcluded(current.Value.Instance!))
                     {
                         continue;
                     }
@@ -413,7 +428,7 @@ namespace Opc.Ua.SourceGeneration
                     var method = current.Value.Instance as MethodDesign;
 
                     if (method?.MethodDeclarationNode != null &&
-                        m_context.ModelDesign.IsExcluded(method?.MethodDeclarationNode))
+                        m_context.ModelDesign.IsExcluded((method?.MethodDeclarationNode)!))
                     {
                         continue;
                     }
@@ -450,9 +465,10 @@ namespace Opc.Ua.SourceGeneration
                         }
                     }
 
-                    if (current.Value.Instance.NumericIdSpecified ?
-                        current.Value.Instance.NumericId == 0 :
-                        current.Value.Instance.StringId == null)
+                    if (current.Value.Instance!.NumericIdSpecified
+                        ? current.Value.Instance.NumericId == 0
+                        : current.Value.Instance.StringId == null &&
+                            !current.Value.Instance.HasNonConstantIdentifier())
                     {
                         continue;
                     }

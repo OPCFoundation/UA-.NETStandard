@@ -30,22 +30,9 @@
 namespace Opc.Ua
 {
     /// <summary>
-    /// Hand-written convenience extensions for the source-generated
-    /// <see cref="ConditionTypeRecord"/>. Lives in <c>Opc.Ua.Client</c>
-    /// (alongside the alarm client APIs) so that the standard
-    /// <c>Opc.Ua.Core</c> assembly that emits the generated record
-    /// does not need to take on client-side helpers.
+    /// Hand-written convenience extensions for source-generated event records.
     /// </summary>
     public partial record ConditionTypeRecord
     {
-        /// <summary>
-        /// The NodeId of the condition instance the event was raised
-        /// from. This is an alias for <see cref="BaseEventTypeRecord.SourceNode"/>
-        /// — Part 9 of the OPC UA specification defines the
-        /// "ConditionId" of an event as the NodeId of the condition
-        /// object that fired the event, which is reported through the
-        /// <c>SourceNode</c> field.
-        /// </summary>
-        public NodeId ConditionId => SourceNode;
     }
 }

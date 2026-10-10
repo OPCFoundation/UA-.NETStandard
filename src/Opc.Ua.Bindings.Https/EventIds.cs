@@ -51,5 +51,6 @@ namespace Opc.Ua
         public const int WebApiEndpointDispatcher = 60;
         public const int WebSocketByteTransportBase = 70;
         public const int WssJsonTransportChannel = 80;
+        public const int KestrelTcpChannelLifetime = 90;
     }
 }

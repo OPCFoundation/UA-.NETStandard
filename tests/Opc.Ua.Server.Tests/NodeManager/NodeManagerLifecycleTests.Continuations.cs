@@ -50,10 +50,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
             server.NamespaceUris.GetIndexOrAppend("urn:opcfoundation.org:Tests:ContinuationPadding");
-            TrackingLifecycleNodeManager originalManager = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(kGeneration1Value, manager => originalManager = manager),
                 null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(originalManager);
             await originalManager.AddContinuationChildrenAsync("Old", timeout.Token).ConfigureAwait(false);
             ushort ns = (ushort)server.NamespaceUris.GetIndex(kModelNamespaceUri);
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
@@ -70,7 +71,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
                 Assert.That(server.SubscriptionManager.GetSubscriptions(), Is.Empty);
                 List<ReferenceDescription> references = [.. page.References];
-                TrackingLifecycleNodeManager replacement = null;
+                TrackingLifecycleNodeManager? replacement = null;
                 var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
                 NodeManagerBatchResult result;
                 await using (IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
@@ -83,6 +84,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 {
                     if (replace)
                     {
+                        AssertLifecycleValue(replacement);
                         await replacement.AddContinuationChildrenAsync("New", timeout.Token).ConfigureAwait(false);
                     }
                     result = await prepared.CommitAsync(_ => default, timeout.Token).ConfigureAwait(false);
@@ -139,7 +141,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
                 if (replace)
                 {
-                    Assert.That(replacement.DisposeCount, Is.Zero);
+                    TrackingLifecycleNodeManager replacementGeneration = RequireLifecycleValue(replacement);
+                    Assert.That(replacementGeneration.DisposeCount, Is.Zero);
                 }
             }
             finally
@@ -370,13 +373,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await Assert.ThatAsync(() => pending,
                     Throws.TypeOf<ServiceResultException>().With.Property(nameof(ServiceResultException.StatusCode))
                         .EqualTo(cancel
-                            ? StatusCodes.BadRequestCancelledByRequest
+                            ? StatusCodes.BadRequestCancelledByClient
                             : StatusCodes.BadUnexpectedError)).ConfigureAwait(false);
             }
             finally
             {
                 release.TrySetResult(true);
-                owner.Manager.ValidateNodeCallback = null;
+                owner.Manager.ValidateNodeCallback = (_, _) => default;
             }
             await owner.Manager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
             Assert.That(owner.Manager.DeleteAddressSpaceCount, Is.EqualTo(1));
@@ -404,7 +407,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 session, owner.NamespaceIndex, 1, timeout.Token).ConfigureAwait(false);
             Assert.That(page.ContinuationPoint.Length, Is.GreaterThan(0));
             await RetireContinuationOwnerAsync(owner.Registration, false, timeout.Token).ConfigureAwait(false);
-            NodeState root = owner.Manager.Find(new NodeId(kRootNodeId, owner.NamespaceIndex));
+            NodeState root = RequireLifecycleValue(owner.Manager.Find(new NodeId(kRootNodeId, owner.NamespaceIndex)));
             root.RolePermissions =
             [
                 new RolePermissionType
@@ -522,10 +525,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private async Task<(NodeManagerRegistration Registration, TrackingLifecycleNodeManager Manager,
             ushort NamespaceIndex)> AddContinuationOwnerAsync(string namespaceUri, CancellationToken cancellationToken)
         {
-            TrackingLifecycleNodeManager manager = null;
+            TrackingLifecycleNodeManager? manager = null;
             NodeManagerRegistration registration = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(kGeneration1Value, created => manager = created, namespaceUri),
                 null, cancellationToken).ConfigureAwait(false);
+            AssertLifecycleValue(manager);
             await manager.AddContinuationChildrenAsync("Old", cancellationToken).ConfigureAwait(false);
             return (registration, manager, (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(namespaceUri));
         }

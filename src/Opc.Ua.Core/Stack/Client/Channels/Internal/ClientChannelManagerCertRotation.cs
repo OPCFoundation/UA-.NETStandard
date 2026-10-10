@@ -42,14 +42,15 @@ namespace Opc.Ua
         public ClientChannelManagerCertRotation(IChannelCertRotationHost host)
         {
             m_host = host;
-            m_pump = new CertificateChangePump<CertificateChangeEvent>(
+            m_pump = new CertificateChangePump<OwnedCertificateChange>(
                 evt => IsApplicationCertificateUpdate(evt) && !m_host.IsDisposed,
                 // Latest-wins debounce: a burst of rotation events collapses
                 // into one reconnect pass over the newest certificate state.
-                (_, evt) => evt,
-                ProcessCertificateChangeAsync,
+                (_, evt) => new OwnedCertificateChange(evt),
+                (state, ct) => ProcessCertificateChangeAsync(state.Event, ct),
                 ex => m_host.Logger?.CertRotationLog0(ex),
-                task => m_host.SetCertificateRotationTask(task));
+                task => m_host.SetCertificateRotationTask(task),
+                state => state.Dispose());
         }
 
         public void UpdateClientCertificate(
@@ -89,6 +90,9 @@ namespace Opc.Ua
             m_pump.Dispose();
         }
 
+        /// <summary>
+        /// Installs changed application certificate material and reconnects entries unless the manager has shut down.
+        /// </summary>
         private async ValueTask ProcessCertificateChangeAsync(
             CertificateChangeEvent evt,
             CancellationToken ct)
@@ -114,7 +118,16 @@ namespace Opc.Ua
                 return;
             }
 
-            UpdateClientCertificate(certificate, chain);
+            try
+            {
+                UpdateClientCertificate(certificate, chain);
+            }
+            catch
+            {
+                certificate.Dispose();
+                chain?.Dispose();
+                throw;
+            }
             await ReconnectAllAsync(ct).ConfigureAwait(false);
         }
 
@@ -142,10 +155,21 @@ namespace Opc.Ua
                 return (null, null);
             }
 
-            CertificateCollection? chain = await LoadCertificateChainAsync(certificate, ct).ConfigureAwait(false);
-            if (chain == null && evt.IssuerChain != null)
+            CertificateCollection? chain;
+            try
             {
-                chain = evt.IssuerChain.AddRef();
+                chain = await LoadCertificateChainAsync(certificate, ct).ConfigureAwait(false);
+                if (chain == null &&
+                    m_host.Configuration.SecurityConfiguration.SendCertificateChain &&
+                    evt.IssuerChain != null)
+                {
+                    chain = evt.IssuerChain.AddRef();
+                }
+            }
+            catch
+            {
+                certificate.Dispose();
+                throw;
             }
 
             return (certificate, chain);
@@ -170,8 +194,8 @@ namespace Opc.Ua
                 }
                 catch (Exception ex)
                 {
-                    m_host.Logger
-                        ?.CertRotationLog1(
+                    m_host.Logger?
+                        .CertRotationLog1(
                             ex,
                             securityPolicy);
                 }
@@ -340,7 +364,44 @@ namespace Opc.Ua
             return configuredType == effectiveChangedType;
         }
 
-        private readonly CertificateChangePump<CertificateChangeEvent> m_pump;
+        private sealed class OwnedCertificateChange : IDisposable
+        {
+            public OwnedCertificateChange(CertificateChangeEvent source)
+            {
+                try
+                {
+                    m_old = source.OldCertificate?.AddRef();
+                    m_new = source.NewCertificate?.AddRef();
+                    m_chain = source.IssuerChain?.AddRef();
+                    Event = source with
+                    {
+                        OldCertificate = m_old,
+                        NewCertificate = m_new,
+                        IssuerChain = m_chain
+                    };
+                }
+                catch
+                {
+                    Dispose();
+                    throw;
+                }
+            }
+
+            public CertificateChangeEvent Event { get; }
+
+            public void Dispose()
+            {
+                m_old?.Dispose();
+                m_new?.Dispose();
+                m_chain?.Dispose();
+            }
+
+            private readonly Certificate? m_old;
+            private readonly Certificate? m_new;
+            private readonly CertificateCollection? m_chain;
+        }
+
+        private readonly CertificateChangePump<OwnedCertificateChange> m_pump;
 
         private readonly IChannelCertRotationHost m_host;
     }
@@ -350,18 +411,17 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class ClientChannelManagerCertRotationLog
     {
-
         [LoggerMessage(EventId = CoreEventIds.ClientChannelManagerCertRotation + 0, Level = LogLevel.Warning,
             Message = "ClientChannelManager: application certificate rotation reconnect failed.")]
         public static partial void CertRotationLog0(
             this ILogger logger,
-            global::System.Exception? exception);
+            Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.ClientChannelManagerCertRotation + 1, Level = LogLevel.Debug,
             Message = "ClientChannelManager: application certificate reload for {SecurityPolicy} failed.")]
         public static partial void CertRotationLog1(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? securityPolicy);
 
         [LoggerMessage(EventId = CoreEventIds.ClientChannelManagerCertRotation + 2, Level = LogLevel.Warning,
@@ -372,5 +432,4 @@ namespace Opc.Ua
                 "adoption.")]
         public static partial void CertRotationLog2(this ILogger logger);
     }
-
 }

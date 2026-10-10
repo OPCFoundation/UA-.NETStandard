@@ -62,6 +62,66 @@ namespace Opc.Ua.Schema
         }
 
         /// <summary>
+        /// Initializes a new instance of the <see cref="UaTypeDescription"/> class
+        /// and states whether an <c>IsOptionSet</c> <see cref="EnumDefinition"/>
+        /// describes a Structure-backed OptionSet.
+        /// </summary>
+        /// <param name="typeId">The data type identifier.</param>
+        /// <param name="browseName">The browse name of the data type.</param>
+        /// <param name="definition">The runtime structure or enum definition.</param>
+        /// <param name="namespaceUri">The namespace uri of the data type. When
+        /// null or empty the namespace uri of <paramref name="typeId"/> is used.</param>
+        /// <param name="isStructureOptionSet">True if the data type is a subtype of
+        /// the OptionSet structure (Part 5 12.18), encoded as {Value, ValidBits}.</param>
+        /// <exception cref="ArgumentNullException"><paramref name="definition"/> is <c>null</c>.</exception>
+        public UaTypeDescription(
+            ExpandedNodeId typeId,
+            QualifiedName browseName,
+            DataTypeDefinition definition,
+            string? namespaceUri,
+            bool isStructureOptionSet)
+            : this(typeId, browseName, definition, namespaceUri)
+        {
+            IsStructureOptionSet = isStructureOptionSet &&
+                definition is EnumDefinition { IsOptionSet: true };
+        }
+
+        /// <summary>
+        /// True if the <c>IsOptionSet</c> <see cref="EnumDefinition"/> describes a
+        /// subtype of the OptionSet structure, which is encoded as the structure
+        /// {Value, ValidBits} rather than as an unsigned integer.
+        /// </summary>
+        public bool IsStructureOptionSet { get; }
+
+        /// <summary>
+        /// The structure definition a Structure-backed OptionSet is encoded with
+        /// (Part 5 12.18: Value and ValidBits are ByteStrings).
+        /// </summary>
+        internal static StructureDefinition CreateOptionSetStructure()
+        {
+            return new StructureDefinition
+            {
+                BaseDataType = DataTypeIds.Structure,
+                StructureType = StructureType.Structure,
+                Fields =
+                [
+                    new StructureField
+                    {
+                        Name = "Value",
+                        DataType = DataTypeIds.ByteString,
+                        ValueRank = ValueRanks.Scalar
+                    },
+                    new StructureField
+                    {
+                        Name = "ValidBits",
+                        DataType = DataTypeIds.ByteString,
+                        ValueRank = ValueRanks.Scalar
+                    }
+                ]
+            };
+        }
+
+        /// <summary>
         /// The data type identifier.
         /// </summary>
         public ExpandedNodeId TypeId { get; }

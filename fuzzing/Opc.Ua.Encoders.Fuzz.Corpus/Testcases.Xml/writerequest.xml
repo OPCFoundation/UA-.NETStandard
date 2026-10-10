@@ -38,7 +38,7 @@
         </StatusCode>
         <SourceTimestamp>2026-06-09T10:03:56.2946236Z</SourceTimestamp>
         <SourcePicoseconds>0</SourcePicoseconds>
-        <ServerTimestamp>1601-01-01T00:00:00Z</ServerTimestamp>
+        <ServerTimestamp>0001-01-01T00:00:00Z</ServerTimestamp>
         <ServerPicoseconds>0</ServerPicoseconds>
       </Value>
     </WriteValue>

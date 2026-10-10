@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UANodeSet xmlns="http://opcfoundation.org/UA/2011/03/UANodeSet.xsd">
+  <NamespaceUris>
+    <Uri>http://test.org/UA/HierarchicalReferences/</Uri>
+  </NamespaceUris>
+  <Models>
+    <Model ModelUri="http://test.org/UA/HierarchicalReferences/" Version="1.0.0"
+        PublicationDate="2024-01-01T00:00:00Z">
+      <RequiredModel ModelUri="http://opcfoundation.org/UA/" Version="1.05.03"
+          PublicationDate="2024-01-01T00:00:00Z" />
+    </Model>
+  </Models>
+  <Aliases>
+    <Alias Alias="HasSubtype">i=45</Alias>
+    <Alias Alias="HasTypeDefinition">i=40</Alias>
+    <Alias Alias="HasModellingRule">i=37</Alias>
+    <Alias Alias="HasComponent">i=47</Alias>
+    <Alias Alias="HasOrderedComponent">i=49</Alias>
+    <Alias Alias="Organizes">i=35</Alias>
+  </Aliases>
+  <UAObjectType NodeId="ns=1;i=1000" BrowseName="1:WiringType">
+    <DisplayName>WiringType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1001</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=1002</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=1001" BrowseName="1:Source" ParentNodeId="ns=1;i=1000">
+    <DisplayName>Source</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="HasOrderedComponent">ns=1;i=1002</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=85</Reference>
+      <Reference ReferenceType="Organizes">ns=1;i=85</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=85</Reference>
+      <Reference ReferenceType="Organizes">i=85</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=1002" BrowseName="1:Target" ParentNodeId="ns=1;i=1000">
+    <DisplayName>Target</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=78</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=1000</Reference>
+      <Reference ReferenceType="HasOrderedComponent" IsForward="false">ns=1;i=1001</Reference>
+    </References>
+  </UAObject>
+  <UAObjectType NodeId="ns=1;i=1100" BrowseName="1:DerivedWiringType">
+    <DisplayName>DerivedWiringType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=1000</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=85" BrowseName="1:External">
+    <DisplayName>External</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=3000" BrowseName="1:Device">
+    <DisplayName>Device</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=1100</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=3001</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=3002</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=3001" BrowseName="1:Source" ParentNodeId="ns=1;i=3000">
+    <DisplayName>Source</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=3000</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=3002" BrowseName="1:Target" ParentNodeId="ns=1;i=3000">
+    <DisplayName>Target</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasComponent" IsForward="false">ns=1;i=3000</Reference>
+    </References>
+  </UAObject>
+  <UAReferenceType NodeId="ns=1;i=9000" BrowseName="1:HasPeer">
+    <DisplayName>HasPeer</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=33</Reference>
+    </References>
+    <InverseName>PeerOf</InverseName>
+  </UAReferenceType>
+  <UAObjectType NodeId="ns=1;i=4000" BrowseName="1:RecursiveType">
+    <DisplayName>RecursiveType</DisplayName>
+    <References>
+      <Reference ReferenceType="HasSubtype" IsForward="false">i=58</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=4001</Reference>
+      <Reference ReferenceType="ns=1;i=9000">ns=1;i=4002</Reference>
+    </References>
+  </UAObjectType>
+  <UAObject NodeId="ns=1;i=4001" BrowseName="1:&lt;Target&gt;"
+      SymbolicName="Target" ParentNodeId="ns=1;i=4000">
+    <DisplayName>&lt;Target&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=58</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11510</Reference>
+    </References>
+  </UAObject>
+  <UAObject NodeId="ns=1;i=4002" BrowseName="1:&lt;Peer&gt;"
+      SymbolicName="Peer" ParentNodeId="ns=1;i=4000">
+    <DisplayName>&lt;Peer&gt;</DisplayName>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">ns=1;i=4000</Reference>
+      <Reference ReferenceType="HasModellingRule">i=11508</Reference>
+      <Reference ReferenceType="HasComponent">ns=1;i=4001</Reference>
+    </References>
+  </UAObject>
+</UANodeSet>

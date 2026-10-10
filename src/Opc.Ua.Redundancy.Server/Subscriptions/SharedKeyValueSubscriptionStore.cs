@@ -57,6 +57,7 @@ namespace Opc.Ua.Redundancy.Server
     public sealed class SharedKeyValueSubscriptionStore :
         ISubscriptionStore,
         ISubscriptionRetransmissionDeltaStore,
+        ISubscriptionRetransmissionSendStateStore,
         IContinuationPointStore,
         IAsyncDisposable
     {
@@ -124,26 +125,29 @@ namespace Opc.Ua.Redundancy.Server
                 var generation = Guid.NewGuid();
                 foreach (StoredSubscription subscription in snapshot)
                 {
+                    string key = SnapshotGenerationKeyFor(generation, subscription.Id);
                     await m_store
                         .SetAsync(
-                            SnapshotGenerationKeyFor(generation, subscription.Id),
-                            m_protector.Protect(Encode(subscription)),
+                            key,
+                            m_protector.Protect(
+                                RecordProtectionContext.Create("subscription", key), Encode(subscription)),
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
 
+                string manifestKey = SnapshotManifestKey();
                 await m_store
                     .SetAsync(
-                        SnapshotManifestKey(),
-                        m_protector.Protect(EncodeSnapshotManifest(generation, (uint)snapshot.Count)),
+                        manifestKey,
+                        m_protector.Protect(
+                            RecordProtectionContext.Create("subscription-manifest", manifestKey),
+                            EncodeSnapshotManifest(generation, (uint)snapshot.Count)),
                         cancellationToken)
                     .ConfigureAwait(false);
 
                 // Keep prior generations so readers that captured an older manifest can complete safely.
                 // Reclamation requires reader pinning or an external retention policy.
-                uint[] removedIds = m_definitionCache.ReplaceAll(snapshot, liveIds);
-
-                foreach (uint subscriptionId in removedIds)
+                foreach (uint subscriptionId in m_definitionCache.ReplaceAll(snapshot, liveIds))
                 {
                     DeleteRetransmissionState(subscriptionId);
                 }
@@ -160,14 +164,18 @@ namespace Opc.Ua.Redundancy.Server
         public async ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
             CancellationToken cancellationToken = default)
         {
+            string manifestKey = SnapshotManifestKey();
             (bool foundManifest, ByteString protectedManifest) = await m_store
-                .TryGetAsync(SnapshotManifestKey(), cancellationToken)
+                .TryGetAsync(manifestKey, cancellationToken)
                 .ConfigureAwait(false);
 
             Dictionary<uint, StoredSubscription> restored;
             if (foundManifest)
             {
-                if (!m_protector.TryUnprotect(protectedManifest, out ByteString manifestPayload) ||
+                if (!m_protector.TryUnprotect(
+                        RecordProtectionContext.Create("subscription-manifest", manifestKey),
+                        protectedManifest,
+                        out ByteString manifestPayload) ||
                     manifestPayload.IsNull)
                 {
                     throw new ServiceResultException(
@@ -185,12 +193,11 @@ namespace Opc.Ua.Redundancy.Server
                 restored = await ReadSnapshotAsync(Prefix, null, cancellationToken).ConfigureAwait(false);
             }
 
-            List<StoredSubscription> subscriptions = restored.Values
-                .OrderBy(static subscription => subscription.Id)
-                .ToList();
+            List<StoredSubscription> subscriptions = [.. restored.Values.OrderBy(static subscription => subscription.Id)];
             m_definitionCache.ReplaceAll(subscriptions);
 
-            return new RestoreSubscriptionResult(true, subscriptions);        }
+            return new RestoreSubscriptionResult(true, subscriptions);
+        }
 
         /// <inheritdoc/>
         public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(uint monitoredItemId)
@@ -241,7 +248,7 @@ namespace Opc.Ua.Redundancy.Server
             }
 
             List<StoredSubscription> restoredSubscriptions = m_definitionCache
-                .CloneWhere(new HashSet<uint>(createdSubscriptions.Keys));
+                .CloneWhere([.. createdSubscriptions.Keys]);
             await StoreSubscriptionsAsync(restoredSubscriptions, cancellationToken).ConfigureAwait(false);
 
             if (m_queueFactory != null)
@@ -258,10 +265,14 @@ namespace Opc.Ua.Redundancy.Server
             uint subscriptionId,
             CancellationToken cancellationToken = default)
         {
+            string stateKey = RetransmissionStateKeyFor(subscriptionId);
             (bool found, ByteString value) = await m_store
-                .TryGetAsync(RetransmissionStateKeyFor(subscriptionId), cancellationToken)
+                .TryGetAsync(stateKey, cancellationToken)
                 .ConfigureAwait(false);
-            if (!found || !m_protector.TryUnprotect(value, out ByteString payload))
+            if (!found ||
+                !m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("subscription-retransmission-state", stateKey),
+                    value, out ByteString payload))
             {
                 return null;
             }
@@ -283,6 +294,13 @@ namespace Opc.Ua.Redundancy.Server
             {
                 namespaceUris = CreateNamespaceTable(decoder.ReadStringArray(null));
                 serverUris = CreateStringTable(decoder.ReadStringArray(null));
+
+                // Optional trailing field: records written before it existed end here, and
+                // readers that predate it ignore it.
+                if (decoder.Position < payload.Length)
+                {
+                    state.FirstUnsentSequenceNumber = decoder.ReadUInt32(null);
+                }
             }
 
             var messages = new List<NotificationMessage>();
@@ -290,13 +308,27 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(RetransmissionMessagePrefixFor(subscriptionId), cancellationToken)
                 .ConfigureAwait(false))
             {
-                if (m_protector.TryUnprotect(pair.Value, out ByteString messagePayload))
+                if (m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("subscription-retransmission-message", pair.Key),
+                    pair.Value, out ByteString messagePayload))
                 {
                     NotificationMessage message = DecodeNotificationMessage(messagePayload, namespaceUris, serverUris);
                     messages.Add(message);
                 }
             }
-            messages.Sort(static (left, right) => left.SequenceNumber.CompareTo(right.SequenceNumber));
+            // oldest first: sequence numbers roll over (Part 4 7.38), so order them by their
+            // distance below the next sequence number rather than by value.
+            uint nextSequenceNumber = state.NextSequenceNumber;
+            if (nextSequenceNumber != 0)
+            {
+                messages.Sort((left, right) =>
+                    unchecked(nextSequenceNumber - right.SequenceNumber).CompareTo(
+                        unchecked(nextSequenceNumber - left.SequenceNumber)));
+            }
+            else
+            {
+                messages.Sort(static (left, right) => left.SequenceNumber.CompareTo(right.SequenceNumber));
+            }
             state.SentMessages = [.. messages];
             return state;
         }
@@ -364,6 +396,25 @@ namespace Opc.Ua.Redundancy.Server
                     state.PendingMessages[message.SequenceNumber] = message;
                     state.PendingDeletes.Remove(message.SequenceNumber);
                 }
+            }
+
+            SignalDrain();
+        }
+
+        /// <inheritdoc/>
+        public void StoreFirstUnsentSequenceNumber(
+            uint subscriptionId,
+            uint nextSequenceNumber,
+            uint firstUnsentSequenceNumber)
+        {
+            lock (m_retransmissionLock)
+            {
+                // The state record carries both values; a pending state created here (for
+                // example after a restore on a fresh replica) must not persist Next = 0.
+                PendingRetransmissionState state = GetPendingState(subscriptionId);
+                state.NextSequenceNumber = nextSequenceNumber;
+                state.FirstUnsentSequenceNumber = firstUnsentSequenceNumber;
+                state.StateDirty = true;
             }
 
             SignalDrain();
@@ -473,7 +524,10 @@ namespace Opc.Ua.Redundancy.Server
                 .ScanAsync(ContinuationPointPrefixFor(ownerSessionId), cancellationToken)
                 .ConfigureAwait(false))
             {
-                if (m_protector.TryUnprotect(pair.Value, out ByteString payload))
+                if (m_protector.TryUnprotect(
+                    RecordProtectionContext.Create("subscription-continuation", pair.Key),
+                    pair.Value,
+                    out ByteString payload))
                 {
                     ContinuationPointEnvelope? envelope = DecodeContinuationPointEnvelope(payload);
                     if (envelope != null)
@@ -505,6 +559,7 @@ namespace Opc.Ua.Redundancy.Server
                 PendingRetransmissionState state = GetPendingState(subscriptionId);
                 state.ClearRequested = true;
                 state.StateDirty = false;
+                state.FirstUnsentSequenceNumber = 0;
                 state.KnownMessages.Clear();
                 state.PendingMessages.Clear();
                 state.PendingDeletes.Clear();
@@ -545,8 +600,10 @@ namespace Opc.Ua.Redundancy.Server
 
         private async ValueTask DrainPendingAsync(CancellationToken cancellationToken)
         {
-            foreach (RetransmissionBatch batch in TakePendingBatches())
+            List<RetransmissionBatch> batches = TakePendingBatches();
+            for (int ii = 0; ii < batches.Count; ii++)
             {
+                RetransmissionBatch batch = batches[ii];
                 try
                 {
                     if (batch.ClearRequested)
@@ -565,9 +622,14 @@ namespace Opc.Ua.Redundancy.Server
 
                     if (batch.StateDirty)
                     {
+                        string key = RetransmissionStateKeyFor(batch.SubscriptionId);
                         await m_store.SetAsync(
-                                RetransmissionStateKeyFor(batch.SubscriptionId),
-                                m_protector.Protect(EncodeRetransmissionState(batch.NextSequenceNumber)),
+                                key,
+                                m_protector.Protect(
+                                    RecordProtectionContext.Create("subscription-retransmission-state", key),
+                                    EncodeRetransmissionState(
+                                        batch.NextSequenceNumber,
+                                        batch.FirstUnsentSequenceNumber)),
                                 cancellationToken)
                             .ConfigureAwait(false);
                     }
@@ -575,9 +637,14 @@ namespace Opc.Ua.Redundancy.Server
                     var operations = new List<Task>(batch.Messages.Length + batch.Deletes.Length);
                     foreach (NotificationMessage message in batch.Messages)
                     {
+                        string key = RetransmissionMessageKeyFor(
+                            batch.SubscriptionId,
+                            message.SequenceNumber);
                         operations.Add(m_store.SetAsync(
-                                RetransmissionMessageKeyFor(batch.SubscriptionId, message.SequenceNumber),
-                                m_protector.Protect(EncodeNotificationMessage(message)),
+                                key,
+                                m_protector.Protect(
+                                    RecordProtectionContext.Create("subscription-retransmission-message", key),
+                                    EncodeNotificationMessage(message)),
                                 cancellationToken)
                             .AsTask());
                     }
@@ -593,7 +660,11 @@ namespace Opc.Ua.Redundancy.Server
                 }
                 catch
                 {
-                    Requeue(batch);
+                    // Requeue the failed batch and every batch not yet written.
+                    for (int jj = ii; jj < batches.Count; jj++)
+                    {
+                        Requeue(batches[jj]);
+                    }
                     throw;
                 }
             }
@@ -603,9 +674,15 @@ namespace Opc.Ua.Redundancy.Server
             {
                 foreach (ContinuationPointEnvelope envelope in continuationPointBatch.Stores)
                 {
+                    string key = ContinuationPointKeyFor(
+                        envelope.OwnerSessionId,
+                        envelope.Kind,
+                        envelope.Id);
                     await m_store.SetAsync(
-                            ContinuationPointKeyFor(envelope.OwnerSessionId, envelope.Kind, envelope.Id),
-                            m_protector.Protect(EncodeContinuationPointEnvelope(envelope)),
+                            key,
+                            m_protector.Protect(
+                                RecordProtectionContext.Create("subscription-continuation", key),
+                                EncodeContinuationPointEnvelope(envelope)),
                             cancellationToken)
                         .ConfigureAwait(false);
                 }
@@ -643,6 +720,7 @@ namespace Opc.Ua.Redundancy.Server
                     batches.Add(new RetransmissionBatch(
                         subscriptionId,
                         state.NextSequenceNumber,
+                        state.FirstUnsentSequenceNumber,
                         state.StateDirty,
                         [.. state.PendingMessages.Values],
                         [.. state.PendingDeletes],
@@ -674,11 +752,21 @@ namespace Opc.Ua.Redundancy.Server
             {
                 PendingRetransmissionState state = GetPendingState(batch.SubscriptionId);
                 state.ClearRequested |= batch.ClearRequested;
-                state.NextSequenceNumber = batch.NextSequenceNumber;
+
+                // A state change stored while the batch was in flight is newer; keep it.
+                if (!state.StateDirty)
+                {
+                    state.NextSequenceNumber = batch.NextSequenceNumber;
+                    state.FirstUnsentSequenceNumber = batch.FirstUnsentSequenceNumber;
+                }
                 state.StateDirty |= batch.StateDirty;
                 foreach (NotificationMessage message in batch.Messages)
                 {
-                    state.PendingMessages[message.SequenceNumber] = message;
+                    // Acknowledged while the batch was in flight: do not resurrect it.
+                    if (!state.PendingDeletes.Contains(message.SequenceNumber))
+                    {
+                        state.PendingMessages[message.SequenceNumber] = message;
+                    }
                 }
                 foreach (uint sequenceNumber in batch.Deletes)
                 {
@@ -830,7 +918,9 @@ namespace Opc.Ua.Redundancy.Server
                         StatusCodes.BadDecodingError,
                         "The persisted subscription key is malformed.");
                 }
-                if (!m_protector.TryUnprotect(pair.Value, out ByteString payload) || payload.IsNull)
+                if (!m_protector.TryUnprotect(
+                        RecordProtectionContext.Create("subscription", pair.Key), pair.Value, out ByteString payload) ||
+                    payload.IsNull)
                 {
                     throw new ServiceResultException(
                         StatusCodes.BadSecurityChecksFailed,
@@ -936,10 +1026,13 @@ namespace Opc.Ua.Redundancy.Server
 
         private static StoredSubscription CloneSubscription(IStoredSubscription subscription)
         {
+            var state = subscription as IStoredSubscriptionState;
             return new StoredSubscription
             {
                 Id = subscription.Id,
                 IsDurable = subscription.IsDurable,
+                PublishingEnabled = state?.PublishingEnabled ?? true,
+                OwnerClientApplicationUri = state?.OwnerClientApplicationUri,
                 LifetimeCounter = subscription.LifetimeCounter,
                 MaxLifetimeCount = subscription.MaxLifetimeCount,
                 MaxKeepaliveCount = subscription.MaxKeepaliveCount,
@@ -951,7 +1044,8 @@ namespace Opc.Ua.Redundancy.Server
                 SequenceNumber = subscription.SequenceNumber,
                 UserIdentityToken = subscription.UserIdentityToken,
                 SentMessages = subscription.SentMessages ?? [],
-                MonitoredItems = subscription.MonitoredItems.Select(CloneMonitoredItem).ToList()
+                MonitoredItems = subscription.MonitoredItems.Select(CloneMonitoredItem).ToList(),
+                TriggeringLinks = (subscription as IStoredSubscriptionTriggering)?.TriggeringLinks
             };
         }
 
@@ -1001,11 +1095,17 @@ namespace Opc.Ua.Redundancy.Server
 
         private ByteString Encode(StoredSubscription subscription)
         {
+            // Only subscriptions with triggering links need the newer format; writing the
+            // previous one otherwise keeps snapshots readable by replicas that predate it
+            // during a rolling upgrade.
+            int version = subscription.TriggeringLinks is { Count: > 0 }
+                ? TriggeringLinksDefinitionFormatVersion
+                : OwnerStateDefinitionFormatVersion;
             using var encoder = new BinaryEncoder(m_context);
-            encoder.WriteInt32(null, DefinitionFormatVersion);
+            encoder.WriteInt32(null, version);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
-            EncodeSubscription(encoder, subscription, DefinitionFormatVersion);
+            EncodeSubscription(encoder, subscription, version);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
@@ -1020,13 +1120,14 @@ namespace Opc.Ua.Redundancy.Server
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
 
-        private ByteString EncodeRetransmissionState(uint nextSequenceNumber)
+        private ByteString EncodeRetransmissionState(uint nextSequenceNumber, uint firstUnsentSequenceNumber)
         {
             using var encoder = new BinaryEncoder(m_context);
             encoder.WriteInt32(null, RetransmissionStateFormatVersion);
             encoder.WriteUInt32(null, nextSequenceNumber);
             encoder.WriteStringArray(null, m_context.NamespaceUris.ToArrayOf());
             encoder.WriteStringArray(null, m_context.ServerUris.ToArrayOf());
+            encoder.WriteUInt32(null, firstUnsentSequenceNumber);
             byte[]? buffer = encoder.CloseAndReturnBuffer();
             return buffer is null ? ByteString.Empty : ByteString.From(buffer);
         }
@@ -1130,8 +1231,7 @@ namespace Opc.Ua.Redundancy.Server
         {
             using var decoder = new BinaryDecoder(payload.ToArray(), m_context);
             int version = decoder.ReadInt32(null);
-            if (version < LegacyDefinitionFormatVersion ||
-                version > DefinitionFormatVersion)
+            if (!IsSupportedDefinitionVersion(version))
             {
                 throw new ServiceResultException(StatusCodes.BadDecodingError, "Unsupported subscription record version.");
             }
@@ -1183,6 +1283,11 @@ namespace Opc.Ua.Redundancy.Server
             encoder.WriteByte(null, subscription.Priority);
             encoder.WriteInt32(null, subscription.LastSentMessage);
             encoder.WriteUInt32(null, subscription.SequenceNumber);
+            if (version >= OwnerStateDefinitionFormatVersion)
+            {
+                encoder.WriteBoolean(null, subscription.PublishingEnabled);
+                encoder.WriteString(null, subscription.OwnerClientApplicationUri);
+            }
             encoder.WriteExtensionObject(
                 null,
                 subscription.UserIdentityToken != null
@@ -1196,6 +1301,21 @@ namespace Opc.Ua.Redundancy.Server
             foreach (StoredMonitoredItem item in items)
             {
                 EncodeMonitoredItem(encoder, item, version);
+            }
+
+            if (version >= TriggeringLinksDefinitionFormatVersion)
+            {
+                IReadOnlyDictionary<uint, IReadOnlyList<uint>>? triggeringLinks =
+                    subscription.TriggeringLinks;
+                encoder.WriteInt32(null, triggeringLinks?.Count ?? 0);
+                if (triggeringLinks != null)
+                {
+                    foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
+                    {
+                        encoder.WriteUInt32(null, link.Key);
+                        encoder.WriteUInt32Array(null, [.. link.Value ?? []]);
+                    }
+                }
             }
         }
 
@@ -1214,8 +1334,14 @@ namespace Opc.Ua.Redundancy.Server
                 Priority = decoder.ReadByte(null),
                 LastSentMessage = decoder.ReadInt32(null),
                 SequenceNumber = decoder.ReadUInt32(null),
+                PublishingEnabled = true,
                 SentMessages = []
             };
+            if (version >= OwnerStateDefinitionFormatVersion)
+            {
+                subscription.PublishingEnabled = decoder.ReadBoolean(null);
+                subscription.OwnerClientApplicationUri = decoder.ReadString(null);
+            }
 
             ExtensionObject token = decoder.ReadExtensionObject(null);
             if (!token.IsNull &&
@@ -1232,6 +1358,24 @@ namespace Opc.Ua.Redundancy.Server
                 items.Add(DecodeMonitoredItem(decoder, version));
             }
             subscription.MonitoredItems = items;
+
+            if (version >= TriggeringLinksDefinitionFormatVersion)
+            {
+                int linkCount = decoder.ReadInt32(null);
+                if (linkCount > 0)
+                {
+                    var triggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>(linkCount);
+                    for (int ii = 0; ii < linkCount; ii++)
+                    {
+                        uint triggeringItemId = decoder.ReadUInt32(null);
+                        ArrayOf<uint> linkedItemIds = decoder.ReadUInt32Array(null);
+                        triggeringLinks[triggeringItemId] = linkedItemIds.IsNull
+                            ? []
+                            : linkedItemIds.Memory.ToArray();
+                    }
+                    subscription.TriggeringLinks = triggeringLinks;
+                }
+            }
             return subscription;
         }
 
@@ -1392,6 +1536,15 @@ namespace Opc.Ua.Redundancy.Server
                 "/message/";
         }
 
+        private static bool IsSupportedDefinitionVersion(int version)
+        {
+            return version is LegacyDefinitionFormatVersion or
+                LifecycleStateDefinitionFormatVersion or
+                FilteredRetainDefinitionFormatVersion or
+                OwnerStateDefinitionFormatVersion or
+                TriggeringLinksDefinitionFormatVersion;
+        }
+
         private static string ContinuationPointPrefixFor(NodeId ownerSessionId)
         {
             return ContinuationPointPrefix +
@@ -1402,7 +1555,9 @@ namespace Opc.Ua.Redundancy.Server
         private const int LegacyDefinitionFormatVersion = 1;
         private const int LifecycleStateDefinitionFormatVersion = 2;
         private const int FilteredRetainDefinitionFormatVersion = 3;
-        private const int DefinitionFormatVersion = FilteredRetainDefinitionFormatVersion;
+        private const int OwnerStateDefinitionFormatVersion = 5;
+        private const int TriggeringLinksDefinitionFormatVersion = 6;
+
         private const int DefinitionSnapshotManifestFormatVersion = 1;
         private const int ContinuationPointFormatVersion = 1;
         private const int LegacyRetransmissionStateFormatVersion = 1;
@@ -1453,7 +1608,7 @@ namespace Opc.Ua.Redundancy.Server
         /// <c>Subscriptions</c> themselves. <see cref="SnapshotCommitLock"/> is
         /// deliberately separate and still handed out, because it sequences an
         /// asynchronous commit across <c>await</c> points, which a
-        /// <see cref="System.Threading.Lock"/> cannot span.
+        /// <see cref="Lock"/> cannot span.
         /// </remarks>
         private sealed class SharedDefinitionCache
         {
@@ -1535,6 +1690,11 @@ namespace Opc.Ua.Redundancy.Server
             public uint NextSequenceNumber { get; set; }
 
             /// <summary>
+            /// Gets or sets the oldest retained sequence number not yet returned by a Publish response (0 = none).
+            /// </summary>
+            public uint FirstUnsentSequenceNumber { get; set; }
+
+            /// <summary>
             /// Gets or sets a value indicating whether the retransmission queue should be cleared.
             /// </summary>
             public bool ClearRequested { get; set; }
@@ -1554,6 +1714,7 @@ namespace Opc.Ua.Redundancy.Server
         private readonly record struct RetransmissionBatch(
             uint SubscriptionId,
             uint NextSequenceNumber,
+            uint FirstUnsentSequenceNumber,
             bool StateDirty,
             NotificationMessage[] Messages,
             uint[] Deletes,
@@ -1600,11 +1761,17 @@ namespace Opc.Ua.Redundancy.Server
     /// </summary>
     internal static partial class SharedKeyValueSubscriptionStoreLog
     {
+        /// <summary>
+        /// Logs coalescing of shared-state updates when the mirror channel is full.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueSubscriptionStore + 0,
             Level = LogLevel.Warning,
             Message = "The shared-state mirror channel is full; updates are coalesced until the drain catches up.")]
         public static partial void SharedStateMirrorChannelFull(this ILogger logger);
 
+        /// <summary>
+        /// Logs a failure to mirror subscription retransmission state.
+        /// </summary>
         [LoggerMessage(EventId = RedundancyServerEventIds.SharedKeyValueSubscriptionStore + 1,
             Level = LogLevel.Warning,
             Message = "Failed to mirror subscription retransmission state.")]
@@ -1612,5 +1779,4 @@ namespace Opc.Ua.Redundancy.Server
             this ILogger logger,
             Exception exception);
     }
-
 }

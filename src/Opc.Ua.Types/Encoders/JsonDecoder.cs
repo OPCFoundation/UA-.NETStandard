@@ -30,12 +30,12 @@
 using System;
 using System.Buffers;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Opc.Ua.Types;
@@ -68,6 +68,7 @@ namespace Opc.Ua
                 m_document = JsonDocument.Parse(
                     utf8Json,
                     ParseOptions(Context.MaxEncodingNestingLevels));
+                CheckDuplicateProperties(m_document);
                 m_stack.Push(m_document.RootElement);
             }
             catch (Exception ex)
@@ -92,6 +93,7 @@ namespace Opc.Ua
                 m_document = JsonDocument.Parse(
                     stream,
                     ParseOptions(Context.MaxEncodingNestingLevels));
+                CheckDuplicateProperties(m_document);
                 m_stack.Push(m_document.RootElement);
             }
             catch (Exception ex)
@@ -116,6 +118,7 @@ namespace Opc.Ua
                 m_document = JsonDocument.Parse(
                     json,
                     ParseOptions(Context.MaxEncodingNestingLevels));
+                CheckDuplicateProperties(m_document);
                 m_stack.Push(m_document.RootElement);
             }
             catch (Exception ex)
@@ -287,7 +290,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, null);
         }
 
         /// <inheritdoc/>
@@ -299,7 +302,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -311,7 +314,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -323,7 +326,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -335,7 +338,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -347,7 +350,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -359,7 +362,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -371,7 +374,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -383,7 +386,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -395,7 +398,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -407,7 +410,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -419,7 +422,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -431,7 +434,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -443,7 +446,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -455,7 +458,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -467,7 +470,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -480,7 +483,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -492,7 +495,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -504,7 +507,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -516,7 +519,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -528,7 +531,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -540,7 +543,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -552,7 +555,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -564,7 +567,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -576,7 +579,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -588,7 +591,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -600,7 +603,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -612,7 +615,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -624,7 +627,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -636,7 +639,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -648,7 +651,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -660,7 +663,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -672,7 +675,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -684,7 +687,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -696,7 +699,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -708,7 +711,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -720,7 +723,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -732,7 +735,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -744,7 +747,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -756,7 +759,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -768,7 +771,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -780,7 +783,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -792,7 +795,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -804,7 +807,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -816,7 +819,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -830,7 +833,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -843,7 +846,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -856,7 +859,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -869,7 +872,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -883,7 +886,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -896,7 +899,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -910,7 +913,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -923,7 +926,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -935,7 +938,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -947,7 +950,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -959,7 +962,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -971,7 +974,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -983,7 +986,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -995,7 +998,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1007,7 +1010,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1019,7 +1022,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1033,7 +1036,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1045,7 +1048,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1057,7 +1060,7 @@ namespace Opc.Ua
             {
                 return values;
             }
-            return DefaultOrThrow(values);
+            return DefaultOrThrow(values, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1070,7 +1073,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, null);
         }
 
         /// <inheritdoc/>
@@ -1084,7 +1087,7 @@ namespace Opc.Ua
             {
                 return value;
             }
-            return DefaultOrThrow(value);
+            return DefaultOrThrow(value, fieldName);
         }
 
         /// <inheritdoc/>
@@ -1103,7 +1106,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get boolean from element
         /// </summary>
-        private static bool TryGetBooleanFromElement(JsonElement element, out bool value)
+        private bool TryGetBooleanFromElement(JsonElement element, out bool value)
         {
             switch (element.ValueKind)
             {
@@ -1122,7 +1125,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get boolean values from element
         /// </summary>
-        private static bool TryGetBooleanArrayFromElement(
+        private bool TryGetBooleanArrayFromElement(
             JsonElement element,
             out ArrayOf<bool> values)
         {
@@ -1154,7 +1157,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get byte from element
         /// </summary>
-        private static bool TryGetByteFromElement(
+        private bool TryGetByteFromElement(
             JsonElement element,
             out byte value)
         {
@@ -1174,7 +1177,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get byte values from element
         /// </summary>
-        private static bool TryGetByteArrayFromElement(
+        private bool TryGetByteArrayFromElement(
             JsonElement element,
             out ArrayOf<byte> values)
         {
@@ -1186,15 +1189,23 @@ namespace Opc.Ua
                 case JsonValueKind.String:
                     if (element.TryGetBytesFromBase64(out byte[]? base64))
                     {
+                        // TryGetArrayElements is the choke point for
+                        // MaxArrayLength, and this branch never goes through it.
+                        CheckArrayLength(base64.Length);
                         values = base64;
                         return true;
                     }
                     break;
                 case JsonValueKind.Array:
-                    bool success = TryGetArrayElements(
+                    // Part 6 5.4.5: a nested JSON array is not a valid array
+                    // element, so TryGetArrayElements rejects it.
+                    if (!TryGetArrayElements(
                         element,
-                        out ArrayOf<JsonElement> elements);
-                    Debug.Assert(success, "Must be an array");
+                        out ArrayOf<JsonElement> elements))
+                    {
+                        values = default;
+                        return false;
+                    }
                     byte[] bytes = new byte[elements.Count];
                     for (int i = 0; i < elements.Count; i++)
                     {
@@ -1221,7 +1232,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get byte string from element
         /// </summary>
-        private static bool TryGetByteStringFromElement(
+        private bool TryGetByteStringFromElement(
             JsonElement element,
             out ByteString value)
         {
@@ -1236,6 +1247,7 @@ namespace Opc.Ua
                         value = default;
                         return false;
                     }
+                    CheckByteStringLength(result.Length);
                     value = ByteString.From(result);
                     return true;
                 case JsonValueKind.Array:
@@ -1246,6 +1258,9 @@ namespace Opc.Ua
                         value = default;
                         return false;
                     }
+                    // The array spelling of a byte string still has to honour
+                    // MaxByteStringLength, like the base64 spelling above.
+                    CheckByteStringLength(array.Count);
                     value = ByteString.From(array.Span);
                     return true;
                 default:
@@ -1257,7 +1272,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get byte string values from element
         /// </summary>
-        private static bool TryGetByteStringArrayFromElement(
+        private bool TryGetByteStringArrayFromElement(
             JsonElement element,
             out ArrayOf<ByteString> values)
         {
@@ -1299,6 +1314,7 @@ namespace Opc.Ua
                     value = default;
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     // The DataValue is an encoded variant with extra fields in essence.
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.2.18
                     // Read the UaType, Value and optional dimension here and then read
@@ -1414,7 +1430,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get date time from json element
         /// </summary>
-        private static bool TryGetDateTimeFromElement(
+        private bool TryGetDateTimeFromElement(
             JsonElement element,
             out DateTimeUtc value)
         {
@@ -1424,6 +1440,13 @@ namespace Opc.Ua
                     value = DateTimeUtc.MinValue;
                     return true;
                 case JsonValueKind.String when element.TryGetDateTime(out DateTime dt):
+                    // DateTime values are UTC on the wire (Part 6 5.1.4). A value
+                    // without an offset must not be interpreted in the host's
+                    // local time zone, so treat it as UTC.
+                    if (dt.Kind == DateTimeKind.Unspecified)
+                    {
+                        dt = DateTime.SpecifyKind(dt, DateTimeKind.Utc);
+                    }
                     value = dt;
                     return true;
                 default:
@@ -1435,7 +1458,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get date time values from element
         /// </summary>
-        private static bool TryGetDateTimeArrayFromElement(
+        private bool TryGetDateTimeArrayFromElement(
             JsonElement element,
             out ArrayOf<DateTimeUtc> values)
         {
@@ -1479,7 +1502,8 @@ namespace Opc.Ua
                     value = default;
                     return true;
                 case JsonValueKind.Object:
-                    if (depth >= DiagnosticInfo.MaxInnerDepth)
+                    EncodingLimits.EnsureSufficientStack();
+                    if (depth > DiagnosticInfo.MaxInnerDepth)
                     {
                         throw ServiceResultException.Create(
                             StatusCodes.BadEncodingLimitsExceeded,
@@ -1494,7 +1518,7 @@ namespace Opc.Ua
                         {
                             symbolicId = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out symbolicId))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out symbolicId))
                         {
                             goto default;
                         }
@@ -1504,7 +1528,7 @@ namespace Opc.Ua
                         {
                             namespaceUri = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out namespaceUri))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out namespaceUri))
                         {
                             goto default;
                         }
@@ -1514,7 +1538,7 @@ namespace Opc.Ua
                         {
                             locale = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out locale))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out locale))
                         {
                             goto default;
                         }
@@ -1524,7 +1548,7 @@ namespace Opc.Ua
                         {
                             localizedText = -1;
                         }
-                        else if (!TryGetInt32FromElement(elem, out localizedText))
+                        else if (!TryGetDiagnosticInfoIndexFromElement(elem, out localizedText))
                         {
                             goto default;
                         }
@@ -1595,7 +1619,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get double from element
         /// </summary>
-        private static bool TryGetDoubleFromElement(JsonElement element, out double value)
+        private bool TryGetDoubleFromElement(JsonElement element, out double value)
         {
             switch (element.ValueKind)
             {
@@ -1605,9 +1629,32 @@ namespace Opc.Ua
                 case JsonValueKind.String when TryGetStringFromElement(
                     element,
                     out string? stringEncoded):
-                    return double.TryParse(stringEncoded, NumberStyles.Any,
-                        CultureInfo.InvariantCulture, out value);
+                    return TryGetSpecialFloatingPoint(stringEncoded, out value);
                 case JsonValueKind.Number when element.TryGetDouble(out value):
+                    return true;
+                default:
+                    value = default;
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// Part 6 5.4.2.4: normal Float and Double values are JSON numbers, only
+        /// the special values are the JSON strings "Infinity", "-Infinity" and
+        /// "NaN". Numeric strings are not a valid encoding.
+        /// </summary>
+        private static bool TryGetSpecialFloatingPoint(string? text, out double value)
+        {
+            switch (text)
+            {
+                case "Infinity":
+                    value = double.PositiveInfinity;
+                    return true;
+                case "-Infinity":
+                    value = double.NegativeInfinity;
+                    return true;
+                case "NaN":
+                    value = double.NaN;
                     return true;
                 default:
                     value = default;
@@ -1618,7 +1665,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get double values from element
         /// </summary>
-        private static bool TryGetDoubleArrayFromElement(JsonElement element,
+        private bool TryGetDoubleArrayFromElement(JsonElement element,
             out ArrayOf<double> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
@@ -1648,7 +1695,7 @@ namespace Opc.Ua
         /// Get enumeration from element
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private static bool TryGetEnumerationFromElement<T>(JsonElement element, out T value)
+        private bool TryGetEnumerationFromElement<T>(JsonElement element, out T value)
             where T : struct, Enum
         {
             switch (element.ValueKind)
@@ -1672,12 +1719,19 @@ namespace Opc.Ua
                         symbol = text[..split];
                         text = text[(split + 1)..];
                     }
-                    if (int.TryParse(text, out int enumValue))
+                    if (int.TryParse(
+                        text,
+                        NumberStyles.AllowLeadingSign,
+                        CultureInfo.InvariantCulture,
+                        out int enumValue))
                     {
                         value = EnumHelper.Int32ToEnum<T>(enumValue);
                         return true;
                     }
-                    if (Enum.TryParse(symbol, true, out T o))
+                    // A symbol names one value, Enum.TryParse would also accept a
+                    // flag combination ("A, B").
+                    if (symbol.IndexOf(',', StringComparison.Ordinal) < 0 &&
+                        Enum.TryParse(symbol, true, out T o))
                     {
                         value = o;
                         return true;
@@ -1698,7 +1752,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get enumeration from element
         /// </summary>
-        private static bool TryGetEnumerationFromElement(JsonElement element, out EnumValue value)
+        private bool TryGetEnumerationFromElement(JsonElement element, out EnumValue value)
         {
             switch (element.ValueKind)
             {
@@ -1712,16 +1766,25 @@ namespace Opc.Ua
                         value = default;
                         return false;
                     }
+                    // The symbolic name below is kept verbatim from the wire, so
+                    // it is bounded by MaxStringLength like any other string.
+                    CheckStringLength(text);
                     // Verbose encoding
                     // https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.4.1.2
                     int split = text.LastIndexOf('_');
-                    string? symbol = text;
+                    // Without a separator there is no symbolic name. Taking the
+                    // whole text as the symbol made a bare "5" re-encode as "5_5".
+                    string? symbol = null;
                     if (split >= 0)
                     {
                         symbol = text[..split];
                         text = text[(split + 1)..];
                     }
-                    if (int.TryParse(text, out int enumValue))
+                    if (int.TryParse(
+                        text,
+                        NumberStyles.AllowLeadingSign,
+                        CultureInfo.InvariantCulture,
+                        out int enumValue))
                     {
                         value = new EnumValue(enumValue, symbol);
                         return true;
@@ -1743,7 +1806,7 @@ namespace Opc.Ua
         /// Get enumeration values from element
         /// </summary>
         /// <typeparam name="T"></typeparam>
-        private static bool TryGetEnumerationArrayFromElement<T>(
+        private bool TryGetEnumerationArrayFromElement<T>(
             JsonElement element,
             out ArrayOf<T> values) where T : struct, Enum
         {
@@ -1773,7 +1836,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get enumeration values from element
         /// </summary>
-        private static bool TryGetEnumerationArrayFromElement(
+        private bool TryGetEnumerationArrayFromElement(
             JsonElement element,
             out ArrayOf<EnumValue> values)
         {
@@ -1813,16 +1876,35 @@ namespace Opc.Ua
                     value = ExpandedNodeId.Null;
                     return true;
                 case JsonValueKind.String:
-                    return ExpandedNodeId.TryParse(
+                    string text = element.GetString()!;
+                    if (ExpandedNodeId.TryParse(
                         Context,
-                        element.GetString()!,
+                        text,
                         new NodeIdParsingOptions
                         {
                             UpdateTables = m_options.UpdateNamespaceTable,
                             NamespaceMappings = m_namespaceMappings,
                             ServerMappings = m_serverMappings
                         },
-                        out value);
+                        out value,
+                        out NodeIdParseError error))
+                    {
+                        CheckNodeIdLength(value.InnerNodeId);
+                        CheckStringLength(value.NamespaceUri);
+                        return true;
+                    }
+
+                    if (error == NodeIdParseError.NoServerUriMapping)
+                    {
+                        // Part 6 5.4.2.11: a ServerUri that cannot be mapped to a
+                        // ServerIndex decodes as a String NodeId (NamespaceIndex 0,
+                        // ServerIndex 0) holding the JSON string. An unmapped
+                        // NamespaceUri is kept in the NamespaceUri field instead.
+                        CheckStringLength(text);
+                        value = new ExpandedNodeId(new NodeId(text, 0));
+                        return true;
+                    }
+                    return false;
                 case JsonValueKind.Number when element.TryGetUInt32(out uint id):
                     value = new ExpandedNodeId(id);
                     return true;
@@ -1876,12 +1958,31 @@ namespace Opc.Ua
                     value = ExtensionObject.Null;
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     m_stack.Push(element);
                     try
                     {
                         bool artifactsSuppressed = !TryGetExpandedNodeIdFromElement(
                             GetPropertyElement(JsonProperties.UaTypeId),
                             out ExpandedNodeId typeId);
+                        if (artifactsSuppressed && m_options.ParseStrict)
+                        {
+                            // Part 6 5.4.2.16: UaTypeId is a NodeId in the 5.4.2.10
+                            // string form. An absent UaTypeId parses as the null
+                            // NodeId, so getting here means it is present but
+                            // malformed. Keeping the envelope as a type-less raw
+                            // body would silently drop the type identity.
+                            goto default;
+                        }
+                        if (!artifactsSuppressed &&
+                            typeId.IsNull &&
+                            IsBodylessExtensionObject(element))
+                        {
+                            // Part 6 5.4.2.16: the VerboseEncoding writes the
+                            // default ExtensionObject as an empty JSON object.
+                            value = ExtensionObject.Null;
+                            return true;
+                        }
                         ExpandedNodeId absoluteId = typeId.IsAbsolute
                             ? typeId
                             : NodeId.ToExpandedNodeId(typeId.InnerNodeId, Context.NamespaceUris);
@@ -1903,23 +2004,32 @@ namespace Opc.Ua
                                 case 1: // binary
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
-                                        value = new ExtensionObject(typeId, bytes);
+                                        value = new ExtensionObject(
+                                            GetOpaqueBodyEncodingId(typeId, ExtensionObjectEncoding.Binary),
+                                            bytes);
                                         return true;
                                     }
                                     break;
                                 case 2: // xml
                                     if (TryGetXmlElementFromElement(uaBody, out XmlElement xml))
                                     {
-                                        value = new ExtensionObject(typeId, xml);
+                                        value = new ExtensionObject(
+                                            GetOpaqueBodyEncodingId(typeId, ExtensionObjectEncoding.Xml),
+                                            xml);
                                         return true;
                                     }
                                     break;
                                 case 0: // default
                                 case 3: // json
-                                    if (!typeId.IsNull && // if artifacts were suppressed (rawdata mode)
+                                    IEncodeableType? activator = null;
+                                    bool registeredType =
+                                        !typeId.IsNull &&
                                         Context.Factory.TryGetEncodeableType(
                                             typeId,
-                                            out IEncodeableType? activator))
+                                            out activator);
+                                    if (!typeId.IsNull && // if artifacts were suppressed (rawdata mode)
+                                        registeredType &&
+                                        activator != null)
                                     {
                                         IEncodeable encodeable = activator.CreateInstance() ??
                                             throw ServiceResultException.Create(
@@ -1937,7 +2047,7 @@ namespace Opc.Ua
                                             value = new ExtensionObject(typeId, encodeable);
                                             return true;
                                         }
-                                        catch (Exception ex)
+                                        catch (Exception ex) when (!MustRethrowBodyError(ex))
                                         {
                                             m_logger.CannotDeserializeExtensionObjectBody(ex);
                                         }
@@ -1949,6 +2059,20 @@ namespace Opc.Ua
                                                 m_stack.Pop();
                                             }
                                         }
+                                    }
+                                    // A bodyless envelope is only preserved as a bodyless
+                                    // ExtensionObject when the type is unknown. For a registered
+                                    // type the inline body form makes a bodyless envelope
+                                    // indistinguishable from a default constructed instance, so
+                                    // the branch above materializes one; that is deliberate.
+                                    if (!registeredType &&
+                                        !artifactsSuppressed &&
+                                        !typeId.IsNull &&
+                                        uaBody.ValueKind == JsonValueKind.Undefined &&
+                                        IsBodylessExtensionObject(element))
+                                    {
+                                        value = new ExtensionObject(typeId);
+                                        return true;
                                     }
                                     // Wrap the raw json inside an extension object
                                     if (!m_options.ParseStrict &&
@@ -1974,6 +2098,33 @@ namespace Opc.Ua
                     value = ExtensionObject.Null;
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Decides whether a failure while decoding an ExtensionObject body may
+        /// be swallowed in favour of keeping the raw JSON. Strict parsing must
+        /// never fall back, and an encoding limit breach must never be
+        /// downgraded into a successful decode.
+        /// </summary>
+        private bool MustRethrowBodyError(Exception ex)
+        {
+            return m_options.ParseStrict ||
+                (ex is ServiceResultException sre &&
+                    sre.StatusCode == StatusCodes.BadEncodingLimitsExceeded);
+        }
+
+        private static bool IsBodylessExtensionObject(JsonElement element)
+        {
+            foreach (JsonProperty property in element.EnumerateObject())
+            {
+                if (property.Name != JsonProperties.UaTypeId &&
+                    property.Name != JsonProperties.UaEncoding)
+                {
+                    return false;
+                }
+            }
+
+            return true;
         }
 
         /// <summary>
@@ -2012,7 +2163,7 @@ namespace Opc.Ua
         /// <param name="element"></param>
         /// <param name="value"></param>
         /// <returns></returns>
-        private static bool TryGetFloatFromElement(JsonElement element, out float value)
+        private bool TryGetFloatFromElement(JsonElement element, out float value)
         {
             switch (element.ValueKind)
             {
@@ -2022,8 +2173,9 @@ namespace Opc.Ua
                 case JsonValueKind.String when TryGetStringFromElement(
                     element,
                     out string? stringEncoded):
-                    return float.TryParse(stringEncoded, NumberStyles.Any,
-                        CultureInfo.InvariantCulture, out value);
+                    bool special = TryGetSpecialFloatingPoint(stringEncoded, out double d);
+                    value = (float)d;
+                    return special;
                 case JsonValueKind.Number when element.TryGetSingle(out value):
                     return true;
                 default:
@@ -2035,7 +2187,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get float values from element
         /// </summary>
-        private static bool TryGetFloatArrayFromElement(JsonElement element,
+        private bool TryGetFloatArrayFromElement(JsonElement element,
             out ArrayOf<float> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
@@ -2064,7 +2216,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get guid from element
         /// </summary>
-        private static bool TryGetGuidFromElement(JsonElement element, out Uuid value)
+        private bool TryGetGuidFromElement(JsonElement element, out Uuid value)
         {
             switch (element.ValueKind)
             {
@@ -2075,24 +2227,36 @@ namespace Opc.Ua
 #if NET9_0_OR_GREATER
                     ReadOnlySpan<byte> utf8Text =
                         JsonMarshal.GetRawUtf8Value(element).Trim((byte)'"');
-                    Span<char> chars = stackalloc char[78];
-                    if (System.Text.Encoding.UTF8.TryGetChars(utf8Text, chars, out int written))
+
+                    // The raw value is still JSON escaped. Only take the
+                    // allocation free path when there is nothing to unescape,
+                    // otherwise fall through to the decoded string below.
+                    if (utf8Text.IndexOf((byte)'\\') < 0)
                     {
-                        chars = chars[..written];
-                        if (Guid.TryParse(chars, out Guid guid))
+                        Span<char> chars = stackalloc char[78];
+                        if (System.Text.Encoding.UTF8.TryGetChars(
+                            utf8Text,
+                            chars,
+                            out int written))
                         {
-                            value = new Uuid(guid);
-                            return true;
-                        }
-                        Span<byte> bytes = stackalloc byte[16];
-                        if (Convert.TryFromBase64Chars(chars, bytes, out written) &&
-                            written == 16)
-                        {
-                            value = new Uuid(new Guid(bytes));
-                            return true;
+                            chars = chars[..written];
+                            if (Guid.TryParse(chars, out Guid fastGuid))
+                            {
+                                value = new Uuid(fastGuid);
+                                return true;
+                            }
+                            Span<byte> buffer = stackalloc byte[16];
+                            if (Convert.TryFromBase64Chars(chars, buffer, out written) &&
+                                written == 16)
+                            {
+                                value = new Uuid(new Guid(buffer));
+                                return true;
+                            }
+                            value = default;
+                            return false;
                         }
                     }
-#else
+#endif
                     if (Guid.TryParse(element.GetString(), out Guid guid))
                     {
                         value = new Uuid(guid);
@@ -2104,7 +2268,6 @@ namespace Opc.Ua
                         value = new Uuid(new Guid(bytes));
                         return true;
                     }
-#endif
                     value = default;
                     return false;
                 default:
@@ -2116,7 +2279,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get guid values from element
         /// </summary>
-        private static bool TryGetGuidArrayFromElement(
+        private bool TryGetGuidArrayFromElement(
             JsonElement element,
             out ArrayOf<Uuid> values)
         {
@@ -2146,7 +2309,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get signed short from element
         /// </summary>
-        private static bool TryGetInt16FromElement(JsonElement element, out short value)
+        private bool TryGetInt16FromElement(JsonElement element, out short value)
         {
             switch (element.ValueKind)
             {
@@ -2165,7 +2328,7 @@ namespace Opc.Ua
         /// Get short values from element
         /// </summary>
         /// <returns></returns>
-        private static bool TryGetInt16ArrayFromElement(
+        private bool TryGetInt16ArrayFromElement(
             JsonElement element,
             out ArrayOf<short> values)
         {
@@ -2195,7 +2358,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get signed integer from element
         /// </summary>
-        private static bool TryGetInt32FromElement(JsonElement element, out int value)
+        private bool TryGetInt32FromElement(JsonElement element, out int value)
         {
             switch (element.ValueKind)
             {
@@ -2213,7 +2376,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get integer values from element
         /// </summary>
-        private static bool TryGetInt32ArrayFromElement(
+        private bool TryGetInt32ArrayFromElement(
             JsonElement element,
             out ArrayOf<int> values)
         {
@@ -2253,7 +2416,9 @@ namespace Opc.Ua
                 case JsonValueKind.String
                 when TryGetStringFromElement(element, out string? stringEncoded):
                     // As per 5.4.2.3, formatted as a decimal number encoded as a JSON string
-                    return long.TryParse(stringEncoded, NumberStyles.Any,
+                    // (an optional sign and digits only: no whitespace, parentheses,
+                    // group or currency symbols).
+                    return long.TryParse(stringEncoded, NumberStyles.AllowLeadingSign,
                         CultureInfo.InvariantCulture, out value);
                 case JsonValueKind.Number
                 when !m_options.ParseStrict && element.TryGetInt64(out value):
@@ -2294,6 +2459,17 @@ namespace Opc.Ua
             return false;
         }
 
+        private bool TryGetDiagnosticInfoIndexFromElement(JsonElement element, out int value)
+        {
+            if (TryGetInt32FromElement(element, out value) && value >= -1)
+            {
+                return true;
+            }
+
+            value = -1;
+            return false;
+        }
+
         /// <summary>
         /// Get localized text from element
         /// </summary>
@@ -2328,7 +2504,11 @@ namespace Opc.Ua
                         m_stack.Pop();
                     }
                 case JsonValueKind.String:
-                    value = LocalizedText.From(element.GetString()!);
+                    // The shorthand spelling has to honour MaxStringLength too,
+                    // the object form above does so via TryGetStringFromElement.
+                    string? shorthand = element.GetString();
+                    CheckStringLength(shorthand);
+                    value = LocalizedText.From(shorthand!);
                     return true;
                 default:
                     value = LocalizedText.Null;
@@ -2379,21 +2559,35 @@ namespace Opc.Ua
                     value = NodeId.Null;
                     return true;
                 case JsonValueKind.String:
+                    string text = element.GetString()!;
                     if (ExpandedNodeId.TryParse(
                         Context,
-                        element.GetString()!,
+                        text,
                         new NodeIdParsingOptions
                         {
                             UpdateTables = m_options.UpdateNamespaceTable,
                             NamespaceMappings = m_namespaceMappings,
                             ServerMappings = m_serverMappings
                         },
-                        out ExpandedNodeId expandedNodeId))
+                        out ExpandedNodeId expandedNodeId) &&
+                        // a NodeId cannot reference another server ("svr=").
+                        expandedNodeId.ServerIndex == 0)
                     {
+                        if (!string.IsNullOrEmpty(expandedNodeId.NamespaceUri))
+                        {
+                            // Part 6 5.4.2.10: a NamespaceUri that cannot be
+                            // mapped to a NamespaceIndex decodes as a String
+                            // NodeId in namespace 0 holding the JSON string.
+                            value = new NodeId(text, 0);
+                            CheckNodeIdLength(value);
+                            return true;
+                        }
+
                         value = ExpandedNodeId.ToNodeId(
                             expandedNodeId,
                             Context.NamespaceUris,
                             m_options.UpdateNamespaceTable);
+                        CheckNodeIdLength(value);
                         return true;
                     }
                     value = default;
@@ -2450,24 +2644,85 @@ namespace Opc.Ua
                     value = QualifiedName.Null;
                     return true;
                 case JsonValueKind.String:
-                    try
-                    {
-                        value = QualifiedName.Parse(
-                            Context,
-                            element.GetString()!,
-                            m_options.UpdateNamespaceTable);
-                        return true;
-                    }
-                    catch (ServiceResultException sre)
-                        when (sre.StatusCode == StatusCodes.BadNodeIdInvalid)
-                    {
-                        value = QualifiedName.Null;
-                        return false;
-                    }
+                    return TryParseQualifiedName(element.GetString()!, out value);
                 default:
                     value = QualifiedName.Null;
                     return false;
             }
+        }
+
+        /// <summary>
+        /// Parses the JSON string form of a QualifiedName (Part 6 5.4.2.14
+        /// with the forms of 5.1.12 Table 7). A leading digit run followed by
+        /// ':' is a NamespaceIndex, mapped like the index of a NodeId; any
+        /// other text is a name in namespace 0, also when it contains ':'.
+        /// A NamespaceUri that cannot be mapped keeps the raw JSON string as
+        /// the name in namespace 0.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool TryParseQualifiedName(string text, out QualifiedName value)
+        {
+            value = QualifiedName.Null;
+            if (text.Length == 0)
+            {
+                return true;
+            }
+
+            int nameStart = 0;
+            ushort namespaceIndex = 0;
+            if (text.StartsWith("nsu=", StringComparison.Ordinal))
+            {
+                // Without the ';' that separates a NamespaceUri from the name
+                // only the <name> form of Table 7 matches: a name in
+                // namespace 0.
+                int index = text.IndexOf(';', 4);
+                if (index >= 0 &&
+                    CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) &&
+                    !string.IsNullOrWhiteSpace(namespaceUri))
+                {
+                    CheckStringLength(namespaceUri);
+                    int ns = m_options.UpdateNamespaceTable
+                        ? Context.NamespaceUris.GetIndexOrAppend(namespaceUri)
+                        : Context.NamespaceUris.GetIndex(namespaceUri);
+                    if (ns >= 0)
+                    {
+                        namespaceIndex = (ushort)ns;
+                        nameStart = index + 1;
+                    }
+                }
+            }
+            else
+            {
+                int digits = 0;
+                while (digits < text.Length && text[digits] is >= '0' and <= '9')
+                {
+                    digits++;
+                }
+                if (digits > 0 && digits < text.Length && text[digits] == ':')
+                {
+                    if (!ushort.TryParse(
+                        text[..digits],
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out ushort ns))
+                    {
+                        // A digit run followed by ':' is never a name in
+                        // namespace 0, so an out of range index is invalid.
+                        return false;
+                    }
+                    namespaceIndex = m_namespaceMappings != null && ns < m_namespaceMappings.Length
+                        ? m_namespaceMappings[ns]
+                        : ns;
+                    nameStart = digits + 1;
+                }
+            }
+
+            // The name is kept verbatim (for an unmapped NamespaceUri the whole
+            // text), so it is bounded by MaxStringLength like in UA Binary.
+            string name = nameStart == 0 ? text : text[nameStart..];
+            CheckStringLength(name);
+            value = new QualifiedName(name, namespaceIndex);
+            return true;
         }
 
         /// <summary>
@@ -2503,7 +2758,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get signed byte from element
         /// </summary>
-        private static bool TryGetSByteFromElement(JsonElement element, out sbyte value)
+        private bool TryGetSByteFromElement(JsonElement element, out sbyte value)
         {
             switch (element.ValueKind)
             {
@@ -2521,7 +2776,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get sbyte values from element
         /// </summary>
-        private static bool TryGetSByteArrayFromElement(
+        private bool TryGetSByteArrayFromElement(
             JsonElement element,
             out ArrayOf<sbyte> values)
         {
@@ -2536,13 +2791,21 @@ namespace Opc.Ua
                         values = default;
                         return false;
                     }
+                    // TryGetArrayElements is the choke point for MaxArrayLength,
+                    // and this branch never goes through it.
+                    CheckArrayLength(bytes.Length);
                     values = MemoryMarshal.Cast<byte, sbyte>(bytes).ToArray();
                     return true;
                 case JsonValueKind.Array:
-                    bool success = TryGetArrayElements(
+                    // Part 6 5.4.5: a nested JSON array is not a valid array
+                    // element, so TryGetArrayElements rejects it.
+                    if (!TryGetArrayElements(
                         element,
-                        out ArrayOf<JsonElement> elements);
-                    Debug.Assert(success, "Can only be array here");
+                        out ArrayOf<JsonElement> elements))
+                    {
+                        values = default;
+                        return false;
+                    }
                     sbyte[] result = new sbyte[elements.Count];
                     for (int i = 0; i < elements.Count; i++)
                     {
@@ -2633,7 +2896,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get string from element
         /// </summary>
-        private static bool TryGetStringFromElement(JsonElement element, out string? value)
+        private bool TryGetStringFromElement(JsonElement element, out string? value)
         {
             switch (element.ValueKind)
             {
@@ -2642,6 +2905,7 @@ namespace Opc.Ua
                     return true;
                 case JsonValueKind.String:
                     value = element.GetString();
+                    CheckStringLength(value);
                     return true;
                 default:
                     value = default;
@@ -2655,7 +2919,7 @@ namespace Opc.Ua
         /// <param name="element"></param>
         /// <param name="values"></param>
         /// <returns></returns>
-        private static bool TryGetStringArrayFromElement(JsonElement element,
+        private bool TryGetStringArrayFromElement(JsonElement element,
             out ArrayOf<string?> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
@@ -2682,6 +2946,38 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Returns the DataTypeEncoding id an opaque Binary or XML body is kept
+        /// with. The UaTypeId is the DataType id (Part 6 5.4.2.16 Table 40), but
+        /// an ExtensionObject with a Binary or XML body carries the encoding id,
+        /// which a BinaryEncoder or XmlEncoder writes as its TypeId. The mapping
+        /// is only known for a type registered in the factory; otherwise the
+        /// UaTypeId is kept unchanged.
+        /// </summary>
+        private ExpandedNodeId GetOpaqueBodyEncodingId(
+            ExpandedNodeId typeId,
+            ExtensionObjectEncoding encoding)
+        {
+            if (typeId.IsNull ||
+                !Context.Factory.TryGetEncodeableType(typeId, out IEncodeableType? type) ||
+                type.CreateInstance() is not IEncodeable instance)
+            {
+                return typeId;
+            }
+            ExpandedNodeId encodingId;
+            try
+            {
+                encodingId = encoding == ExtensionObjectEncoding.Binary
+                    ? instance.BinaryEncodingId
+                    : instance.XmlEncodingId;
+            }
+            catch (NotSupportedException)
+            {
+                encodingId = ExpandedNodeId.Null;
+            }
+            return encodingId.IsNull ? typeId : encodingId;
+        }
+
+        /// <summary>
         /// Get structure as extension object from element
         /// </summary>
         /// <typeparam name="T"></typeparam>
@@ -2695,12 +2991,22 @@ namespace Opc.Ua
                     value = default!;
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     m_stack.Push(element);
                     try
                     {
                         bool artifactsSuppressed = !TryGetExpandedNodeIdFromElement(
                             GetPropertyElement(JsonProperties.UaTypeId),
                             out ExpandedNodeId typeId);
+                        if (!artifactsSuppressed &&
+                            typeId.IsNull &&
+                            IsBodylessExtensionObject(element))
+                        {
+                            // Part 6 5.4.2.16: the VerboseEncoding writes the
+                            // default ExtensionObject as an empty JSON object.
+                            value = default!;
+                            return true;
+                        }
                         ExpandedNodeId absoluteId = typeId.IsAbsolute
                             ? typeId
                             : NodeId.ToExpandedNodeId(typeId.InnerNodeId, Context.NamespaceUris);
@@ -2720,8 +3026,26 @@ namespace Opc.Ua
                                 case 1: // binary
                                     if (TryGetByteStringFromElement(uaBody, out ByteString bytes))
                                     {
-                                        using var decoder = new BinaryDecoder(bytes.ToArray(), Context);
+                                        byte[] body = bytes.ToArray();
+                                        using var decoder = new BinaryDecoder(body, Context);
+
+                                        // The embedded body continues this message's
+                                        // nesting budget (approximated by the JSON
+                                        // element depth) and spans the whole buffer.
+                                        decoder.InheritDecodingState(
+                                            m_namespaceMappings,
+                                            m_serverMappings,
+                                            (uint)m_stack.Count,
+                                            body.Length);
                                         value = decoder.ReadEncodeable<T>(null, typeId);
+                                        if (decoder.Position != body.Length)
+                                        {
+                                            throw ServiceResultException.Create(
+                                                StatusCodes.BadDecodingError,
+                                                "Binary UaBody of type {0} has {1} unused byte(s).",
+                                                typeId,
+                                                body.Length - decoder.Position);
+                                        }
                                         return true;
                                     }
                                     break;
@@ -2734,6 +3058,10 @@ namespace Opc.Ua
                                             break;
                                         }
                                         using var decoder = new XmlDecoder(xmlElement, Context);
+                                        decoder.InheritDecodingState(
+                                            m_namespaceMappings,
+                                            m_serverMappings,
+                                            (uint)m_stack.Count);
                                         decoder.PushNamespace(xmlElement.NamespaceURI);
                                         value = decoder.ReadEncodeable<T>(xmlElement.LocalName, typeId);
                                         decoder.PopNamespace();
@@ -2746,11 +3074,17 @@ namespace Opc.Ua
                                         typeId,
                                         out IEncodeableType? activator))
                                     {
-                                        value = (T)activator.CreateInstance() ??
+                                        if (activator.CreateInstance() is not T instance)
+                                        {
+                                            // The type id comes from the wire and
+                                            // need not name a T at all.
                                             throw ServiceResultException.Create(
                                                 StatusCodes.BadDecodingError,
-                                                "Type does not support IEncodeable interface: '{0}'",
-                                                typeId);
+                                                "Type '{0}' is not a {1}.",
+                                                typeId,
+                                                typeof(T).Name);
+                                        }
+                                        value = instance;
 
                                         if (!m_options.ParseStrict)
                                         {
@@ -2762,8 +3096,16 @@ namespace Opc.Ua
                                                     return true;
                                                 case JsonValueKind.Object:
                                                     m_stack.Push(uaBody);
-                                                    value.Decode(this);
-                                                    m_stack.Pop();
+                                                    try
+                                                    {
+                                                        value.Decode(this);
+                                                    }
+                                                    finally
+                                                    {
+                                                        // keep the element stack balanced
+                                                        // when the body throws.
+                                                        m_stack.Pop();
+                                                    }
                                                     return true;
                                             }
                                         }
@@ -2852,7 +3194,16 @@ namespace Opc.Ua
                     encodeableTypeId);
             }
 
-            value = (T)activator.CreateInstance();
+            if (activator.CreateInstance() is not T instance)
+            {
+                // The type id comes from the wire and need not name a T at all.
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Type '{0}' is not a {1}.",
+                    encodeableTypeId,
+                    typeof(T).Name);
+            }
+            value = instance;
             return TryGetEncodeableFromElement(value, element);
         }
 
@@ -2881,6 +3232,7 @@ namespace Opc.Ua
                 case JsonValueKind.Null or JsonValueKind.Undefined:
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     m_stack.Push(element);
                     try
                     {
@@ -2990,8 +3342,20 @@ namespace Opc.Ua
                                 encodeableTypeId,
                                 out ArrayOf<T> structures))
                         {
-                            values = structures.ToMatrix(dimensions);
-                            return true;
+                            // The inline matrix has at least two dimensions
+                            // and may be empty (5.4.5, 5.2.5 Table 28); a
+                            // dimension <= 0 means no values, like in binary.
+                            // Earlier versions wrote an empty matrix with the
+                            // single dimension 0.
+                            int[] dims = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
+                                dimensions.ToArray() ?? [],
+                                structures.Count);
+                            if (MatrixOf.IsValidInlineMatrix(dims, structures.Count, Context.MaxArrayLength))
+                            {
+                                values = structures.ToMatrix(
+                                    MatrixOf.NormalizeInlineMatrixDimensions(dims));
+                                return true;
+                            }
                         }
                         values = default;
                         return false;
@@ -3030,8 +3394,20 @@ namespace Opc.Ua
                                 GetPropertyElement(JsonProperties.Array),
                                 out ArrayOf<T> structures))
                         {
-                            values = structures.ToMatrix(dimensions);
-                            return true;
+                            // The inline matrix has at least two dimensions
+                            // and may be empty (5.4.5, 5.2.5 Table 28); a
+                            // dimension <= 0 means no values, like in binary.
+                            // Earlier versions wrote an empty matrix with the
+                            // single dimension 0.
+                            int[] dims = MatrixOf.NormalizeLegacyEmptyInlineMatrixDimensions(
+                                dimensions.ToArray() ?? [],
+                                structures.Count);
+                            if (MatrixOf.IsValidInlineMatrix(dims, structures.Count, Context.MaxArrayLength))
+                            {
+                                values = structures.ToMatrix(
+                                    MatrixOf.NormalizeInlineMatrixDimensions(dims));
+                                return true;
+                            }
                         }
                         values = default;
                         return false;
@@ -3049,7 +3425,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get unsigned short from element
         /// </summary>
-        private static bool TryGetUInt16FromElement(JsonElement element, out ushort value)
+        private bool TryGetUInt16FromElement(JsonElement element, out ushort value)
         {
             switch (element.ValueKind)
             {
@@ -3067,7 +3443,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get unsigned short values from element
         /// </summary>
-        private static bool TryGetUInt16ArrayFromElement(JsonElement element, out ArrayOf<ushort> values)
+        private bool TryGetUInt16ArrayFromElement(JsonElement element, out ArrayOf<ushort> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
             {
@@ -3095,7 +3471,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get unsigned integer from element
         /// </summary>
-        private static bool TryGetUInt32FromElement(JsonElement element, out uint value)
+        private bool TryGetUInt32FromElement(JsonElement element, out uint value)
         {
             switch (element.ValueKind)
             {
@@ -3113,7 +3489,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get unsigned int values from element
         /// </summary>
-        private static bool TryGetUInt32ArrayFromElement(JsonElement element, out ArrayOf<uint> values)
+        private bool TryGetUInt32ArrayFromElement(JsonElement element, out ArrayOf<uint> values)
         {
             if (TryGetArrayElements(element, out ArrayOf<JsonElement> elements))
             {
@@ -3151,7 +3527,9 @@ namespace Opc.Ua
                 case JsonValueKind.String
                 when TryGetStringFromElement(element, out string? stringEncoded):
                     // As per 5.4.2.3, formatted as a decimal number encoded as a JSON string
-                    return ulong.TryParse(stringEncoded, NumberStyles.Any,
+                    // with the lexical form of xs:unsignedLong (5.3.1.3): digits with an
+                    // optional leading '+' (no whitespace, group or currency symbols).
+                    return ulong.TryParse(stringEncoded, NumberStyles.AllowLeadingSign,
                         CultureInfo.InvariantCulture, out value);
                 case JsonValueKind.Number
                 when !m_options.ParseStrict && element.TryGetUInt64(out value):
@@ -3204,6 +3582,7 @@ namespace Opc.Ua
                     value = default;
                     return true;
                 case JsonValueKind.Object:
+                    EncodingLimits.EnsureSufficientStack();
                     m_stack.Push(element);
                     try
                     {
@@ -3271,156 +3650,445 @@ namespace Opc.Ua
             out Variant value,
             JsonElement dimensionElement = default)
         {
+            // Each form is read by its own method. A Variant nested in a Variant
+            // array, a DataValue or an ExtensionObject recurses through here, and a
+            // single method holding the temporaries of all three switches made every
+            // nesting level cost several KB of stack.
             if (typeInfo.IsScalar)
             {
-                switch (typeInfo.BuiltInType)
-                {
-                    case BuiltInType.Null:
-                        value = Variant.Null;
-                        return true;
-                    case BuiltInType.Boolean when TryGetBooleanFromElement(
-                        element,
-                        out bool v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.SByte when TryGetSByteFromElement(
-                        element,
-                        out sbyte v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Byte when TryGetByteFromElement(
-                        element,
-                        out byte v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Int16 when TryGetInt16FromElement(
-                        element,
-                        out short v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.UInt16 when TryGetUInt16FromElement(
-                        element,
-                        out ushort v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Enumeration when TryGetEnumerationFromElement(
-                        element,
-                        out EnumValue v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Int32 when TryGetInt32FromElement(
-                        element,
-                        out int v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.UInt32 when TryGetUInt32FromElement(
-                        element,
-                        out uint v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Int64 when TryGetInt64FromElement(
-                        element,
-                        out long v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.UInt64 when TryGetUInt64FromElement(
-                        element,
-                        out ulong v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Float when TryGetFloatFromElement(
-                        element,
-                        out float v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Double when TryGetDoubleFromElement(
-                        element,
-                        out double v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.String when TryGetStringFromElement(
-                        element,
-                        out string? v):
-                        value = Variant.From(v!);
-                        return true;
-                    case BuiltInType.DateTime when TryGetDateTimeFromElement(
-                        element,
-                        out DateTimeUtc v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Guid when TryGetGuidFromElement(
-                        element,
-                        out Uuid v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.ByteString when TryGetByteStringFromElement(
-                        element,
-                        out ByteString v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.XmlElement when TryGetXmlElementFromElement(
-                        element,
-                        out XmlElement v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.NodeId when TryGetNodeIdFromElement(
-                        element,
-                        out NodeId v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.ExpandedNodeId when TryGetExpandedNodeIdFromElement(
-                        element,
-                        out ExpandedNodeId v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.StatusCode when TryGetStatusCodeFromElement(
-                        element,
-                        out StatusCode v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.QualifiedName when TryGetQualifiedNameFromElement(
-                        element,
-                        out QualifiedName v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.LocalizedText when TryGetLocalizedTextFromElement(
-                        element,
-                        out LocalizedText v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.DataValue when TryGetDataValueFromElement(
-                        element,
-                        out DataValue v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.ExtensionObject when TryGetExtensionObjectFromElement(
-                        element,
-                        out ExtensionObject v):
-                        value = Variant.From(v);
-                        return true;
-                    case BuiltInType.Variant:
-                    case BuiltInType.DiagnosticInfo:
-                    case BuiltInType.Number:
-                    case BuiltInType.Integer:
-                    case BuiltInType.UInteger:
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unsupported built in type for Variant content ({0}).",
-                            typeInfo);
-                    default:
-                        if (typeInfo.BuiltInType <= BuiltInType.Enumeration)
-                        {
-                            value = default;
-                            return false;
-                        }
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadDecodingError,
-                            "Unexpected scalar built in type ({0}).",
-                            typeInfo);
-                }
+                return TryGetScalarVariantValueFromElement(element, typeInfo, out value);
             }
-            else if (typeInfo.IsArray)
+            if (typeInfo.IsArray)
             {
+                return TryGetArrayVariantValueFromElement(element, typeInfo, out value);
+            }
+            return TryGetMatrixVariantValueFromElement(
+                element,
+                typeInfo,
+                readRawValue,
+                out value,
+                dimensionElement);
+        }
+
+        /// <summary>
+        /// Try get a scalar variant value from element
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool TryGetScalarVariantValueFromElement(
+            JsonElement element,
+            TypeInfo typeInfo,
+            out Variant value)
+        {
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.Null:
+                    value = Variant.Null;
+                    return true;
+                case BuiltInType.Boolean when TryGetBooleanFromElement(
+                    element,
+                    out bool v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.SByte when TryGetSByteFromElement(
+                    element,
+                    out sbyte v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Byte when TryGetByteFromElement(
+                    element,
+                    out byte v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int16 when TryGetInt16FromElement(
+                    element,
+                    out short v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt16 when TryGetUInt16FromElement(
+                    element,
+                    out ushort v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Enumeration when TryGetEnumerationFromElement(
+                    element,
+                    out EnumValue v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int32 when TryGetInt32FromElement(
+                    element,
+                    out int v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt32 when TryGetUInt32FromElement(
+                    element,
+                    out uint v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int64 when TryGetInt64FromElement(
+                    element,
+                    out long v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt64 when TryGetUInt64FromElement(
+                    element,
+                    out ulong v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Float when TryGetFloatFromElement(
+                    element,
+                    out float v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Double when TryGetDoubleFromElement(
+                    element,
+                    out double v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.String when TryGetStringFromElement(
+                    element,
+                    out string? v):
+                    value = Variant.From(v!);
+                    return true;
+                case BuiltInType.DateTime when TryGetDateTimeFromElement(
+                    element,
+                    out DateTimeUtc v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Guid when TryGetGuidFromElement(
+                    element,
+                    out Uuid v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ByteString when TryGetByteStringFromElement(
+                    element,
+                    out ByteString v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.XmlElement when TryGetXmlElementFromElement(
+                    element,
+                    out XmlElement v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.NodeId when TryGetNodeIdFromElement(
+                    element,
+                    out NodeId v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ExpandedNodeId when TryGetExpandedNodeIdFromElement(
+                    element,
+                    out ExpandedNodeId v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.StatusCode when TryGetStatusCodeFromElement(
+                    element,
+                    out StatusCode v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.QualifiedName when TryGetQualifiedNameFromElement(
+                    element,
+                    out QualifiedName v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.LocalizedText when TryGetLocalizedTextFromElement(
+                    element,
+                    out LocalizedText v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.DataValue when TryGetDataValueFromElement(
+                    element,
+                    out DataValue v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ExtensionObject when TryGetExtensionObjectFromElement(
+                    element,
+                    out ExtensionObject v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Variant:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant content ({0}).",
+                        typeInfo);
+                default:
+                    if (typeInfo.BuiltInType <= BuiltInType.Enumeration)
+                    {
+                        value = default;
+                        return false;
+                    }
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected scalar built in type ({0}).",
+                        typeInfo);
+            }
+        }
+
+        /// <summary>
+        /// Try get a one-dimensional variant array value from element
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool TryGetArrayVariantValueFromElement(
+            JsonElement element,
+            TypeInfo typeInfo,
+            out Variant value)
+        {
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.Null:
+                    value = Variant.Null;
+                    return true;
+                case BuiltInType.Boolean when TryGetBooleanArrayFromElement(
+                    element,
+                    out ArrayOf<bool> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.SByte when TryGetSByteArrayFromElement(
+                    element,
+                    out ArrayOf<sbyte> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Byte when TryGetByteArrayFromElement(
+                    element,
+                    out ArrayOf<byte> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int16 when TryGetInt16ArrayFromElement(
+                    element,
+                    out ArrayOf<short> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt16 when TryGetUInt16ArrayFromElement(
+                    element,
+                    out ArrayOf<ushort> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Enumeration when TryGetEnumerationArrayFromElement(
+                    element,
+                    out ArrayOf<EnumValue> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
+                    element,
+                    out ArrayOf<int> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt32 when TryGetUInt32ArrayFromElement(
+                    element,
+                    out ArrayOf<uint> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Int64 when TryGetInt64ArrayFromElement(
+                    element,
+                    out ArrayOf<long> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.UInt64 when TryGetUInt64ArrayFromElement(
+                    element,
+                    out ArrayOf<ulong> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Float when TryGetFloatArrayFromElement(
+                    element,
+                    out ArrayOf<float> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Double when TryGetDoubleArrayFromElement(
+                    element,
+                    out ArrayOf<double> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.String when TryGetStringArrayFromElement(
+                    element,
+                    out ArrayOf<string?> v):
+                    // Argument cannot be used due to nullability differences.
+                    // ArrayOf<string?> and ArrayOf<string> share runtime layout;
+                    // null elements are tolerated by Variant.
+#pragma warning disable CS8620
+                    value = Variant.From(v);
+#pragma warning restore CS8620
+                    return true;
+                case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
+                    element,
+                    out ArrayOf<DateTimeUtc> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Guid when TryGetGuidArrayFromElement(
+                    element,
+                    out ArrayOf<Uuid> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ByteString when TryGetByteStringArrayFromElement(
+                    element, out ArrayOf<ByteString> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.XmlElement when TryGetXmlElementArrayFromElement(
+                    element,
+                    out ArrayOf<XmlElement> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.NodeId when TryGetNodeIdArrayFromElement(
+                    element,
+                    out ArrayOf<NodeId> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ExpandedNodeId when TryGetExpandedNodeIdArrayFromElement(
+                    element,
+                    out ArrayOf<ExpandedNodeId> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.StatusCode when TryGetStatusCodeArrayFromElement(
+                    element,
+                    out ArrayOf<StatusCode> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.QualifiedName when TryGetQualifiedNameArrayFromElement(
+                    element,
+                    out ArrayOf<QualifiedName> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.LocalizedText when TryGetLocalizedTextArrayFromElement(
+                    element,
+                    out ArrayOf<LocalizedText> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
+                    element,
+                    out ArrayOf<DataValue> v):
+                    // Argument cannot be used due to nullability differences.
+                    // ArrayOf<DataValue?> and ArrayOf<DataValue> share runtime layout;
+                    // null elements are tolerated by Variant.
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
+                    element,
+                    out ArrayOf<ExtensionObject> v):
+                    value = Variant.From(v);
+                    return true;
+                case BuiltInType.Variant:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    if (TryGetVariantArrayFromElement(element, out ArrayOf<Variant> varray))
+                    {
+                        value = Variant.From(varray);
+                        return true;
+                    }
+                    goto default;
+                case BuiltInType.DiagnosticInfo:
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unsupported built in type for Variant content ({0}).",
+                        typeInfo);
+                default:
+                    if (typeInfo.BuiltInType <= BuiltInType.Enumeration)
+                    {
+                        value = default;
+                        return false;
+                    }
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "Unexpected scalar built in type ({0}).",
+                        typeInfo);
+            }
+        }
+
+        /// <summary>
+        /// Try get a variant matrix value from element
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private bool TryGetMatrixVariantValueFromElement(
+            JsonElement element,
+            TypeInfo typeInfo,
+            bool readRawValue,
+            out Variant value,
+            JsonElement dimensionElement)
+        {
+            if (element.ValueKind is JsonValueKind.Null or JsonValueKind.Undefined &&
+                dimensionElement.ValueKind == JsonValueKind.Undefined)
+            {
+                // An omitted or null matrix field is a null variant. The
+                // dimension check below would otherwise reject it outright.
+                value = default;
+                return true;
+            }
+
+            if (readRawValue)
+            {
+                // If reading raw value, then the eleemnt we are reading is encoded
+                // using array encoding with both Array and Dimensions properties
+                // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.5
+                // Anything but an object is rejected before the push, the
+                // pop in the finally below is not reached from here.
+                if (element.ValueKind != JsonValueKind.Object)
+                {
+                    value = default;
+                    return false;
+                }
+                m_stack.Push(element);
+                element = GetPropertyElement(JsonProperties.Array);
+                dimensionElement = GetPropertyElement(JsonProperties.Dimensions);
+            }
+            else if (dimensionElement.ValueKind == JsonValueKind.Undefined)
+            {
+                // If we read a variant, then the dimenions is part of the parent
+                // object (e.g. DataValue or Variant. To read pop back to parent
+                // get dimension and push back parent to the stack. But only if
+                // the dimension element was not passed already (short cut)
+                JsonElement parent = m_stack.Pop();
+                dimensionElement = GetPropertyElement(JsonProperties.Dimensions);
+                m_stack.Push(parent);
+            }
+
+            try
+            {
+                // Read dimension array. A multi-dimensional Variant must carry
+                // Dimensions with at least two entries, each greater than zero
+                // (Part 6 5.2.2.16); the product-versus-length consistency is
+                // enforced by MatrixOf<T> in the switch below. Reject an absent,
+                // too-short, zero or negative dimension here so an empty matrix
+                // (which would otherwise satisfy the product check) is rejected.
+                // This sits inside the try so the pushed stack entry is popped
+                // again by the finally below.
+                // The inline matrix of a structure field (raw value) may be
+                // empty, a dimension of 0 means no values (5.2.5, 5.4.5).
+                if (!TryGetInt32ArrayFromElement(
+                    dimensionElement,
+                    out ArrayOf<int> dims))
+                {
+                    value = default;
+                    return false;
+                }
+                // A rank above 32 is valid but cannot be represented.
+                MatrixOf.ThrowIfRankNotSupported(dims.Count);
+                if (readRawValue
+                    ? !MatrixOf.IsValidInlineMatrix(dims.Span, -1, Context.MaxArrayLength)
+                    : !MatrixOf.IsValidMatrix(dims.Span))
+                {
+                    value = default;
+                    return false;
+                }
+                if (readRawValue)
+                {
+                    // a dimension < 0 means no values, like in binary
+                    dims = MatrixOf.NormalizeInlineMatrixDimensions(dims.ToArray()!)
+                        .ToArrayOf();
+
+                    // A populated matrix read for a structure field must
+                    // have the rank the field declares.
+                    MatrixOf.TryGetInlineMatrixElementCount(dims.Span, out int count, out _);
+                    if (!MatrixOf.HasInlineMatrixRank(dims.Span, count, typeInfo))
+                    {
+                        throw ServiceResultException.Create(
+                            StatusCodes.BadDecodingError,
+                            "Inline matrix dimensions [{0}] do not have the rank of the field ({1}).",
+                            string.Join(",", dims.ToArray()!),
+                            typeInfo);
+                    }
+                }
+
                 switch (typeInfo.BuiltInType)
                 {
                     case BuiltInType.Null:
@@ -3429,129 +4097,129 @@ namespace Opc.Ua
                     case BuiltInType.Boolean when TryGetBooleanArrayFromElement(
                         element,
                         out ArrayOf<bool> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.SByte when TryGetSByteArrayFromElement(
                         element,
                         out ArrayOf<sbyte> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Byte when TryGetByteArrayFromElement(
                         element,
                         out ArrayOf<byte> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Int16 when TryGetInt16ArrayFromElement(
                         element,
                         out ArrayOf<short> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.UInt16 when TryGetUInt16ArrayFromElement(
                         element,
                         out ArrayOf<ushort> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Enumeration when TryGetEnumerationArrayFromElement(
                         element,
                         out ArrayOf<EnumValue> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
                         element,
                         out ArrayOf<int> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.UInt32 when TryGetUInt32ArrayFromElement(
                         element,
                         out ArrayOf<uint> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Int64 when TryGetInt64ArrayFromElement(
                         element,
                         out ArrayOf<long> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.UInt64 when TryGetUInt64ArrayFromElement(
                         element,
                         out ArrayOf<ulong> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Float when TryGetFloatArrayFromElement(
                         element,
                         out ArrayOf<float> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Double when TryGetDoubleArrayFromElement(
                         element,
                         out ArrayOf<double> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.String when TryGetStringArrayFromElement(
                         element,
                         out ArrayOf<string?> v):
                         // Argument cannot be used due to nullability differences.
-                        // ArrayOf<string?> and ArrayOf<string> share runtime layout;
+                        // MatrixOf<string?> and MatrixOf<string> share runtime layout;
                         // null elements are tolerated by Variant.
 #pragma warning disable CS8620
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
 #pragma warning restore CS8620
                         return true;
                     case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
                         element,
                         out ArrayOf<DateTimeUtc> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Guid when TryGetGuidArrayFromElement(
                         element,
                         out ArrayOf<Uuid> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.ByteString when TryGetByteStringArrayFromElement(
                         element, out ArrayOf<ByteString> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.XmlElement when TryGetXmlElementArrayFromElement(
                         element,
                         out ArrayOf<XmlElement> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.NodeId when TryGetNodeIdArrayFromElement(
                         element,
                         out ArrayOf<NodeId> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.ExpandedNodeId when TryGetExpandedNodeIdArrayFromElement(
                         element,
                         out ArrayOf<ExpandedNodeId> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.StatusCode when TryGetStatusCodeArrayFromElement(
                         element,
                         out ArrayOf<StatusCode> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.QualifiedName when TryGetQualifiedNameArrayFromElement(
                         element,
                         out ArrayOf<QualifiedName> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.LocalizedText when TryGetLocalizedTextArrayFromElement(
                         element,
                         out ArrayOf<LocalizedText> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
                         element,
                         out ArrayOf<DataValue> v):
                         // Argument cannot be used due to nullability differences.
-                        // ArrayOf<DataValue?> and ArrayOf<DataValue> share runtime layout;
+                        // MatrixOf<DataValue?> and MatrixOf<DataValue> share runtime layout;
                         // null elements are tolerated by Variant.
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
                         element,
                         out ArrayOf<ExtensionObject> v):
-                        value = Variant.From(v);
+                        value = Variant.From(v.ToMatrix(dims));
                         return true;
                     case BuiltInType.Variant:
                     case BuiltInType.Number:
@@ -3559,7 +4227,7 @@ namespace Opc.Ua
                     case BuiltInType.UInteger:
                         if (TryGetVariantArrayFromElement(element, out ArrayOf<Variant> varray))
                         {
-                            value = Variant.From(varray);
+                            value = Variant.From(varray.ToMatrix(dims));
                             return true;
                         }
                         goto default;
@@ -3580,223 +4248,21 @@ namespace Opc.Ua
                             typeInfo);
                 }
             }
-            else
+            catch (ArgumentException ex)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    ex,
+                    "Invalid variant matrix dimensions ({0}): {1}",
+                    typeInfo,
+                    ex.Message);
+            }
+            finally
             {
                 if (readRawValue)
                 {
-                    // If reading raw value, then the eleemnt we are reading is encoded
-                    // using array encoding with both Array and Dimensions properties
-                    // see https://reference.opcfoundation.org/Core/Part6/v105/docs/5.4.5
-                    m_stack.Push(element);
-                    element = GetPropertyElement(JsonProperties.Array);
-                    dimensionElement = GetPropertyElement(JsonProperties.Dimensions);
-                }
-                else if (dimensionElement.ValueKind == JsonValueKind.Undefined)
-                {
-                    // If we read a variant, then the dimenions is part of the parent
-                    // object (e.g. DataValue or Variant. To read pop back to parent
-                    // get dimension and push back parent to the stack. But only if
-                    // the dimension element was not passed already (short cut)
-                    JsonElement parent = m_stack.Pop();
-                    dimensionElement = GetPropertyElement(JsonProperties.Dimensions);
-                    m_stack.Push(parent);
-                }
-
-                // Read dimension array. A multi-dimensional Variant must carry
-                // Dimensions with at least two entries, each greater than zero
-                // (Part 6 5.2.2.16); the product-versus-length consistency is
-                // enforced by MatrixOf<T> in the switch below. Reject an absent,
-                // too-short, zero or negative dimension here so an empty matrix
-                // (which would otherwise satisfy the product check) is rejected.
-                if (!TryGetInt32ArrayFromElement(
-                    dimensionElement,
-                    out ArrayOf<int> dims) ||
-                    !MatrixOf.IsValidMatrix(dims.Span))
-                {
-                    value = default;
-                    return false;
-                }
-                try
-                {
-                    switch (typeInfo.BuiltInType)
-                    {
-                        case BuiltInType.Null:
-                            value = Variant.Null;
-                            return true;
-                        case BuiltInType.Boolean when TryGetBooleanArrayFromElement(
-                            element,
-                            out ArrayOf<bool> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.SByte when TryGetSByteArrayFromElement(
-                            element,
-                            out ArrayOf<sbyte> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Byte when TryGetByteArrayFromElement(
-                            element,
-                            out ArrayOf<byte> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Int16 when TryGetInt16ArrayFromElement(
-                            element,
-                            out ArrayOf<short> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.UInt16 when TryGetUInt16ArrayFromElement(
-                            element,
-                            out ArrayOf<ushort> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Enumeration when TryGetEnumerationArrayFromElement(
-                            element,
-                            out ArrayOf<EnumValue> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Int32 when TryGetInt32ArrayFromElement(
-                            element,
-                            out ArrayOf<int> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.UInt32 when TryGetUInt32ArrayFromElement(
-                            element,
-                            out ArrayOf<uint> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Int64 when TryGetInt64ArrayFromElement(
-                            element,
-                            out ArrayOf<long> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.UInt64 when TryGetUInt64ArrayFromElement(
-                            element,
-                            out ArrayOf<ulong> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Float when TryGetFloatArrayFromElement(
-                            element,
-                            out ArrayOf<float> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Double when TryGetDoubleArrayFromElement(
-                            element,
-                            out ArrayOf<double> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.String when TryGetStringArrayFromElement(
-                            element,
-                            out ArrayOf<string?> v):
-                            // Argument cannot be used due to nullability differences.
-                            // MatrixOf<string?> and MatrixOf<string> share runtime layout;
-                            // null elements are tolerated by Variant.
-#pragma warning disable CS8620
-                            value = Variant.From(v.ToMatrix(dims));
-#pragma warning restore CS8620
-                            return true;
-                        case BuiltInType.DateTime when TryGetDateTimeArrayFromElement(
-                            element,
-                            out ArrayOf<DateTimeUtc> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Guid when TryGetGuidArrayFromElement(
-                            element,
-                            out ArrayOf<Uuid> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.ByteString when TryGetByteStringArrayFromElement(
-                            element, out ArrayOf<ByteString> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.XmlElement when TryGetXmlElementArrayFromElement(
-                            element,
-                            out ArrayOf<XmlElement> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.NodeId when TryGetNodeIdArrayFromElement(
-                            element,
-                            out ArrayOf<NodeId> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.ExpandedNodeId when TryGetExpandedNodeIdArrayFromElement(
-                            element,
-                            out ArrayOf<ExpandedNodeId> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.StatusCode when TryGetStatusCodeArrayFromElement(
-                            element,
-                            out ArrayOf<StatusCode> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.QualifiedName when TryGetQualifiedNameArrayFromElement(
-                            element,
-                            out ArrayOf<QualifiedName> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.LocalizedText when TryGetLocalizedTextArrayFromElement(
-                            element,
-                            out ArrayOf<LocalizedText> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.DataValue when TryGetDataValueArrayFromElement(
-                            element,
-                            out ArrayOf<DataValue> v):
-                            // Argument cannot be used due to nullability differences.
-                            // MatrixOf<DataValue?> and MatrixOf<DataValue> share runtime layout;
-                            // null elements are tolerated by Variant.
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.ExtensionObject when TryGetExtensionObjectArrayFromElement(
-                            element,
-                            out ArrayOf<ExtensionObject> v):
-                            value = Variant.From(v.ToMatrix(dims));
-                            return true;
-                        case BuiltInType.Variant:
-                        case BuiltInType.Number:
-                        case BuiltInType.Integer:
-                        case BuiltInType.UInteger:
-                            if (TryGetVariantArrayFromElement(element, out ArrayOf<Variant> varray))
-                            {
-                                value = Variant.From(varray.ToMatrix(dims));
-                                return true;
-                            }
-                            goto default;
-                        case BuiltInType.DiagnosticInfo:
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadDecodingError,
-                                "Unsupported built in type for Variant content ({0}).",
-                                typeInfo);
-                        default:
-                            if (typeInfo.BuiltInType <= BuiltInType.Enumeration)
-                            {
-                                value = default;
-                                return false;
-                            }
-                            throw ServiceResultException.Create(
-                                StatusCodes.BadDecodingError,
-                                "Unexpected scalar built in type ({0}).",
-                                typeInfo);
-                    }
-                }
-                catch (ArgumentException ex)
-                {
-                    // MatrixOf<T>(values, dimensions) deliberately throws
-                    // ArgumentException for wire dimensions that are inconsistent
-                    // with the value payload (a length mismatch or an
-                    // Int32-overflowing product). Convert to the standard decoder
-                    // rejection channel so callers treat it as malformed input.
-                    throw ServiceResultException.Create(
-                        StatusCodes.BadDecodingError,
-                        ex,
-                        "Invalid variant matrix dimensions ({0}).",
-                        typeInfo);
-                }
-                finally
-                {
-                    if (readRawValue)
-                    {
-                        // Pop the array object
-                        m_stack.Pop();
-                    }
+                    // Pop the array object
+                    m_stack.Pop();
                 }
             }
         }
@@ -3837,7 +4303,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get xml element from json element
         /// </summary>
-        private static bool TryGetXmlElementFromElement(
+        private bool TryGetXmlElementFromElement(
             JsonElement element,
             out XmlElement value)
         {
@@ -3853,7 +4319,7 @@ namespace Opc.Ua
         /// <summary>
         /// Get xml element values from element
         /// </summary>
-        private static bool TryGetXmlElementArrayFromElement(
+        private bool TryGetXmlElementArrayFromElement(
             JsonElement element,
             out ArrayOf<XmlElement> values)
         {
@@ -3896,27 +4362,41 @@ namespace Opc.Ua
                     value = default;
                     return true;
                 case JsonValueKind.Object:
+                    fieldName = default;
+
+                    // An absent SwitchField must stay "not present" (-1): reading
+                    // it as selector 0 both indexed switches[-1] and made the
+                    // name based Verbose fallback below unreachable.
                     long index = -1;
-                    if (TryGetUInt32FromElement(
-                        GetPropertyElement(JsonProperties.SwitchField),
-                        out uint switchFieldIndex))
+                    JsonElement switchFieldElement =
+                        GetPropertyElement(JsonProperties.SwitchField);
+                    if (switchFieldElement.ValueKind == JsonValueKind.Number &&
+                        switchFieldElement.TryGetUInt32(out uint switchFieldIndex))
                     {
                         index = switchFieldIndex;
                     }
 
-                    fieldName = default;
                     if (switches == null)
                     {
+                        // No field names to resolve against, but the selector
+                        // itself must still be reported when it was written.
+                        value = index < 0 ? 0 : (uint)index;
+                        return true;
+                    }
+                    if (index == 0)
+                    {
+                        // Selector zero selects no field at all.
                         value = 0;
                         return true;
                     }
-                    if (index >= switches.Count)
+                    if (index > switches.Count)
                     {
+                        // Unknown selector - report it and let the caller reject it.
                         value = (uint)index;
                         return true;
                     }
 
-                    if (index >= 0)
+                    if (index > 0)
                     {
                         // Switch field index found, resolve it
                         JsonElement valueElement = GetPropertyElement("Value");
@@ -3985,9 +4465,10 @@ namespace Opc.Ua
                             if (found.ValueKind != JsonValueKind.Undefined)
                             {
                                 int index = masks.IndexOf(fieldName);
-                                if (index >= 0)
+                                // The mask has 32 bits, 1 << 32 wraps to bit 0.
+                                if (index is >= 0 and < 32)
                                 {
-                                    value |= (uint)(1 << index);
+                                    value |= 1u << index;
                                 }
                             }
                         }
@@ -4019,6 +4500,7 @@ namespace Opc.Ua
                             out ArrayOf<string?> serverUris);
                         if (namespaceUris.Count > 0 || serverUris.Count > 0)
                         {
+                            CheckMessageUriTables(namespaceUris, serverUris);
                             NamespaceTable namespaces =
                                 namespaceUris.Count == 0
                                     ? Context.NamespaceUris
@@ -4031,12 +4513,19 @@ namespace Opc.Ua
                             SetMappingTables(namespaces, servers);
                         }
                     }
-                    if (TryGetNodeIdFromElement(
+                    // Messages are ExtensionObjects with a JSON encoded body (Part 6
+                    // 5.4.9, 7.4.5), so the body fields follow the UaTypeId inline and
+                    // there is no UaEncoding or UaBody field (Part 6 5.4.2.16).
+                    if (GetPropertyElement(JsonProperties.UaEncoding).ValueKind ==
+                            JsonValueKind.Undefined &&
+                        GetPropertyElement(JsonProperties.UaBody).ValueKind ==
+                            JsonValueKind.Undefined &&
+                        TryGetNodeIdFromElement(
                             GetPropertyElement(JsonProperties.UaTypeId),
                             out NodeId typeId) &&
                         !typeId.IsNull &&
                         TryGetEncodeableFromElement(
-                            GetPropertyElement(JsonProperties.UaBody),
+                            element,
                             typeId,
                             out value))
                     {
@@ -4050,19 +4539,71 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Validates the NamespaceUris and ServerUris a peer sent with a
+        /// message before they become mapping tables. An empty or null entry,
+        /// or a namespace table that does not start with the OPC UA namespace,
+        /// made the table constructors throw exceptions other than
+        /// ServiceResultException out of the decoder.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void CheckMessageUriTables(
+            ArrayOf<string?> namespaceUris,
+            ArrayOf<string?> serverUris)
+        {
+            if (namespaceUris.Count > 0 &&
+                namespaceUris[0] != Types.Namespaces.OpcUa)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "The first NamespaceUri of the message must be the OPC UA namespace.");
+            }
+            for (int ii = 0; ii < namespaceUris.Count; ii++)
+            {
+                if (string.IsNullOrEmpty(namespaceUris[ii]))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "NamespaceUris contains an empty URI.");
+                }
+            }
+            for (int ii = 0; ii < serverUris.Count; ii++)
+            {
+                if (string.IsNullOrEmpty(serverUris[ii]))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadDecodingError,
+                        "ServerUris contains an empty URI.");
+                }
+            }
+        }
+
+        /// <summary>
         /// Returns a default value or throws
         /// </summary>
         /// <typeparam name="T"></typeparam>
         /// <exception cref="ServiceResultException"></exception>
 #pragma warning disable IDE0060 // Remove unused parameter
-        private T DefaultOrThrow<T>(T returnedValue)
+        private T DefaultOrThrow<T>(T returnedValue, string? fieldName)
 #pragma warning restore IDE0060 // Remove unused parameter
         {
             if (m_options.ParseStrict)
             {
+                // Only name the field and the JSON kind found. Echoing the raw
+                // JSON copied the whole (peer supplied) object into the message,
+                // the ServiceFault and the logs.
+                JsonElement current = m_stack.Count > 0 ? m_stack.Peek() : default;
+                JsonValueKind kind = current.ValueKind;
+                if (fieldName != null && kind == JsonValueKind.Object)
+                {
+                    kind = current.TryGetProperty(fieldName, out JsonElement field)
+                        ? field.ValueKind
+                        : JsonValueKind.Undefined;
+                }
                 throw ServiceResultException.Create(StatusCodes.BadDecodingError,
-                    "Parsing encountered invalid information. {0}",
-                    m_stack.Peek().GetRawText());
+                    "Parsing encountered invalid information. {0}{1} cannot be decoded from JSON {2}.",
+                    fieldName != null ? $"Field '{fieldName}' of type " : string.Empty,
+                    typeof(T).Name,
+                    kind);
             }
             return default!;
         }
@@ -4089,20 +4630,17 @@ namespace Opc.Ua
             {
                 return element;
             }
-#if CASE_INSENSITIVE_FIELD_MATCHING // Perf - make it an option
-            else
+            else if (m_options.CaseInsensitivePropertyMatching && fieldName != null)
             {
-                // Try case insensitive
-                var pn = Encoding.UTF8.GetString(fieldName);
-                foreach (var p in o.EnumerateObject())
+                // Not compliant with Part 6, only done when opted in.
+                foreach (JsonProperty property in o.EnumerateObject())
                 {
-                    if (p.Name.Equals(pn, StringComparison.OrdinalIgnoreCase))
+                    if (property.Name.Equals(fieldName, StringComparison.OrdinalIgnoreCase))
                     {
-                        return p.Value;
+                        return property.Value;
                     }
                 }
             }
-#endif
             return default;
         }
 
@@ -4112,7 +4650,7 @@ namespace Opc.Ua
         /// <param name="element"></param>
         /// <param name="values"></param>
         /// <returns></returns>
-        private static bool TryGetArrayElements(
+        private bool TryGetArrayElements(
             JsonElement element,
             out ArrayOf<JsonElement> values)
         {
@@ -4122,44 +4660,93 @@ namespace Opc.Ua
                     values = default;
                     return true; // Default is empty array
                 case JsonValueKind.Array:
-                    if (element.GetArrayLength() == 0)
+                    int length = element.GetArrayLength();
+                    if (length == 0)
                     {
                         values = [];
                         return true;
                     }
-                    var result = new List<JsonElement>(element.GetArrayLength());
+                    CheckArrayLength(length);
+                    var result = new JsonElement[length];
+                    int index = 0;
                     foreach (JsonElement item in element.EnumerateArray())
                     {
+                        // Part 6 5.4.5: a one-dimensional array is a JSON array of
+                        // its elements, a matrix is a flat JSON array with the
+                        // Dimensions beside it. Nested JSON arrays are neither
+                        // and used to be flattened silently.
                         if (item.ValueKind == JsonValueKind.Array)
                         {
-                            GetValuesFromArray(item, ref result);
+                            values = default;
+                            return false;
                         }
-                        else
-                        {
-                            result.Add(item);
-                        }
-
-                        static void GetValuesFromArray(JsonElement array,
-                            ref List<JsonElement> elements)
-                        {
-                            foreach (JsonElement element in array.EnumerateArray())
-                            {
-                                if (element.ValueKind == JsonValueKind.Array)
-                                {
-                                    GetValuesFromArray(element, ref elements);
-                                }
-                                else
-                                {
-                                    elements.Add(element);
-                                }
-                            }
-                        }
+                        result[index++] = item;
                     }
                     values = result;
                     return true;
                 default:
                     values = default;
                     return false;
+            }
+        }
+
+        /// <summary>
+        /// The JSON decoder used to enforce no payload limits at all. Zero means
+        /// unlimited, matching every other codec.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckArrayLength(int length)
+        {
+            if (Context.MaxArrayLength > 0 && length > Context.MaxArrayLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxArrayLength {0} < {1}",
+                    Context.MaxArrayLength,
+                    length);
+            }
+        }
+
+        /// <summary>
+        /// Checks a decoded byte string against MaxByteStringLength.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckByteStringLength(int length)
+        {
+            if (Context.MaxByteStringLength > 0 && length > Context.MaxByteStringLength)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingLimitsExceeded,
+                    "MaxByteStringLength {0} < {1}",
+                    Context.MaxByteStringLength,
+                    length);
+            }
+        }
+
+        /// <summary>
+        /// Checks a decoded string against MaxStringLength.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckStringLength(string? value)
+        {
+            EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
+        }
+
+        /// <summary>
+        /// Checks the identifier of a NodeId decoded from its string form
+        /// against the limits UA Binary applies to it: MaxStringLength for a
+        /// String identifier and MaxByteStringLength for an Opaque one.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void CheckNodeIdLength(NodeId nodeId)
+        {
+            if (nodeId.TryGetValue(out string identifier))
+            {
+                CheckStringLength(identifier);
+            }
+            else if (nodeId.TryGetValue(out ByteString opaque))
+            {
+                CheckByteStringLength(opaque.Length);
             }
         }
 
@@ -4172,8 +4759,58 @@ namespace Opc.Ua
             {
                 CommentHandling = JsonCommentHandling.Skip,
                 AllowTrailingCommas = true,
+#if !NET || NET10_0_OR_GREATER
+                // Part 6 5.4.2.16: decoders shall report a decoding error if a
+                // JSON object has multiple fields with the same name.
+                AllowDuplicateProperties = false,
+#endif
                 MaxDepth = maxDepth
             };
+        }
+
+        /// <summary>
+        /// Rejects a JSON object with multiple fields of the same name (Part 6
+        /// 5.4.2.16). The System.Text.Json of net8.0 and net9.0 has no parser
+        /// option for it, so the parsed document is walked once instead;
+        /// elsewhere the parser rejects duplicates itself.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void CheckDuplicateProperties(JsonDocument document)
+        {
+#if NET && !NET10_0_OR_GREATER
+            var pending = new Stack<JsonElement>();
+            pending.Push(document.RootElement);
+            HashSet<string>? names = null;
+            while (pending.Count > 0)
+            {
+                JsonElement element = pending.Pop();
+                if (element.ValueKind == JsonValueKind.Array)
+                {
+                    foreach (JsonElement item in element.EnumerateArray())
+                    {
+                        pending.Push(item);
+                    }
+                }
+                else if (element.ValueKind == JsonValueKind.Object)
+                {
+                    names ??= new HashSet<string>(StringComparer.Ordinal);
+                    names.Clear();
+                    foreach (JsonProperty property in element.EnumerateObject())
+                    {
+                        if (!names.Add(property.Name))
+                        {
+                            document.Dispose();
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadDecodingError,
+                                "Duplicate property in JSON object.");
+                        }
+                        pending.Push(property.Value);
+                    }
+                }
+            }
+#else
+            _ = document;
+#endif
         }
 
         /// <summary>
@@ -4185,6 +4822,9 @@ namespace Opc.Ua
         {
             switch (ex)
             {
+                case ServiceResultException sre:
+                    // A validation failure raised after parsing.
+                    throw sre;
                 case JsonException jre when jre.Message.Contains(
                     "maximum configured depth",
                     StringComparison.Ordinal):

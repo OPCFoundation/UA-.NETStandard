@@ -154,9 +154,10 @@ Purposes:
 A provider bound to a purpose it does not declare is **skipped**, and resolution falls through to the next
 candidate. A configuration mistake therefore fails close to its cause instead of deep inside a handshake.
 
-Registration is explicit. There is no assembly scanning: it would make the effective security
-configuration depend on what happens to be loaded, and it is incompatible with trimming and ahead-of-time
-compilation.
+Registration is explicit. The stack does not scan assemblies because that
+would make the effective security configuration depend on which assemblies
+happen to load. Assembly scanning would also conflict with trimming and
+ahead-of-time compilation.
 
 ### Where resolution happens
 
@@ -251,9 +252,12 @@ These algorithms are **not** FIPS-approved and are enabled by default:
 | Curve25519 / X25519 | Not an approved curve |
 | SHA-1 and P-SHA1 (Basic128Rsa15, Basic256) | Deprecated for new signatures by SP 800-131A |
 
-`net472` and `net48` additionally use the `BouncyCastle.Cryptography` package for elliptic curve
-certificate building. That package is **not** validated — the validated Bouncy Castle product is a
-separate, commercially licensed distribution — so **those target frameworks cannot make a FIPS claim at
+`net48` additionally uses the `BouncyCastle.Cryptography` package for elliptic curve
+certificate building, for the raw ECDH agreement of the ECC security policies and for the AES-GCM and
+ChaCha20-Poly1305 ciphers of the AEAD policies. Because those steps bypass the provider registry,
+`FipsOnly` withholds every ECC policy and every AEAD policy on `net48`, including the NIST curves and
+`RSA_DH_AesGcm`. That package is **not** validated — the validated Bouncy Castle product is a
+separate, commercially licensed distribution — so **that target framework cannot make a FIPS claim at
 all**.
 
 ### What `FipsOnly` actually enforces at startup
@@ -270,25 +274,31 @@ provider resolved for these cannot perform them and the platform would be used i
 ChannelSymmetric (ChaCha20Poly1305) for ...#ECC_nistP256_ChaChaPoly, KeyDerivation (HkdfSha256) for ...
 ```
 
-A module that covers AES-CBC but not ChaCha20-Poly1305 is therefore caught before it can run — where a
-facet-only check would have reported it fully compliant while the platform performed every message on
-any policy negotiating the algorithm it lacks. Nothing is reported when the platform provider is the one
-resolved: the platform performing the platform's work is not a shortfall.
+If a module supports AES-CBC but not ChaCha20-Poly1305, the audit catches it
+before it runs. A facet-only check could mark the module compliant even when
+the platform performs every message using a policy that requires the missing
+algorithm. The audit reports a shortfall only when a non-platform provider is
+resolved; it does not report the platform performing its own operations.
 
 Narrow the offered policy set, or extend the module, rather than lowering the compliance policy.
 
 ### Output a provider did not produce is refused
 
-`IKeyDerivationProvider.DeriveKey` and `ISecureRandomSource.GetBytes` return `void`, so a module that
-no-ops, fills part of the buffer, or swallows an internal failure is indistinguishable from one that
-succeeded — and the buffer it was handed becomes channel signing keys, encryption keys, initialization
-vectors and nonces. The platform paths these replace cannot fail this way: `Utils.PSHA` returns the array
-it built and `RandomNumberGenerator` throws.
+`IKeyDerivationProvider.DeriveKey` and `ISecureRandomSource.GetBytes` return
+`void`. A provider could silently fail by returning without writing output,
+filling only part of the buffer, or swallowing an internal failure. The caller
+cannot distinguish those cases from success, and the buffer becomes channel
+signing keys, encryption keys, initialization vectors, and nonces.
 
-That matters most for exactly the deployments this seam exists for. A network- or hardware-served module
-can be transiently offline, and because both ends of a channel usually run the same image, both would
-derive the same dead key material and the handshake would complete — traffic flowing with no
-confidentiality and forgeable integrity, invisible to the operator and to the peer.
+The platform paths these providers replace do not fail this way:
+`Utils.PSHA` returns the array it creates, and `RandomNumberGenerator` throws
+on failure.
+
+This risk matters most for the deployments that use this seam. A network- or
+hardware-served module can go offline temporarily. If both ends of a channel
+run the same image, they could derive the same invalid key material and
+complete the handshake. Traffic would then lack confidentiality and have
+forgeable integrity, without either peer detecting the failure.
 
 So the buffer is stamped before the call and checked after it. Output left untouched or zeroed is
 rejected with `BadSecurityChecksFailed` rather than used. This cannot prove the output is good — no
@@ -304,7 +314,7 @@ directly.
 
 | Facet | Covers |
 |---|---|
-| `ISymmetricCryptoProvider` | AES-CBC, AES-GCM, ChaCha20-Poly1305 and the HMAC signatures |
+| `ISymmetricCryptoProvider` | Advanced Encryption Standard (AES) in CBC and GCM modes, ChaCha20-Poly1305, and Hash-based Message Authentication Code (HMAC) signatures |
 | `IKeyDerivationProvider` | P_SHA1, P_SHA256, HKDF-SHA256, HKDF-SHA384 |
 | `ISecureRandomSource` | Nonces and other random material |
 
@@ -356,20 +366,21 @@ cost of the indirection is measured rather than assumed.
 
 ### A provider that cannot do what it was bound to
 
-Binding a provider to `ChannelSymmetric` without implementing `ISymmetricCryptoProvider` would otherwise
-be silent: resolution falls through to the platform and the channel keeps working, while a deployment
-believes its validated module performed the per-message cryptography.
+Binding a provider to `ChannelSymmetric` without implementing
+`ISymmetricCryptoProvider` would fail silently. Resolution would fall back to
+the platform, while the deployment could believe its validated module
+performed the per-message cryptography.
 
-`CryptoCompliance.GetUnservedOperationPurposes` reports exactly that case, and under `FipsOnly`
-`CryptoProviderAuditor.ThrowIfNotCompliant()` refuses to start rather than run on cryptography the
-operator did not ask for.
+`CryptoCompliance.GetUnservedOperationPurposes` reports this case. Under
+`FipsOnly`, `CryptoProviderAuditor.ThrowIfNotCompliant()` stops startup rather
+than run cryptography the operator did not request.
 
 ## Using a key served over a network
 
-`RSA` and `ECDsa` are synchronous contracts, and they are .NET's rather than this stack's, so a key
-backed by a cloud key service occupies a thread for the whole of every call. Rather than replace those
-contracts — which would make every ready-made hardware and cloud implementation unusable — an
-implementation may **also** declare an asynchronous path:
+`RSA` and `ECDsa` are synchronous .NET contracts. A key backed by a cloud
+service therefore occupies a thread for each call. The stack keeps these
+contracts so existing hardware and cloud implementations remain usable.
+Providers may **also** declare an asynchronous path:
 
 ```csharp
 public sealed class KmsRsa : RSA, IAsyncRsaKey
@@ -442,11 +453,10 @@ new PubSubApplicationBuilder(telemetry)
 
 ### What device custody can and cannot mean here
 
-**With a standard Security Key Service the key necessarily exists in process
-memory.** `GetSecurityKeys` (Part 14 §8.3.2) returns raw key bytes over the wire,
-so the property the client and server side achieve — the key never leaves the
-device — **cannot** be achieved for PubSub through the SKS pull profile. That is
-a property of the specification, not of this stack.
+**With a standard Security Key Service, the key necessarily exists in process
+memory.** `GetSecurityKeys` (Part 14 §8.3.2) returns raw key bytes over the
+wire. Therefore, the SKS pull profile cannot keep PubSub keys exclusively on
+the device. This limitation comes from the specification, not the stack.
 
 Introducing a wrapped-key envelope would change what is on the wire and break
 interoperability with third-party key services and publishers, so it is
@@ -459,9 +469,9 @@ What is achievable, and is supported:
   `IPubSubSecurityKeyProvider` is the seam; an implementation may derive per-token
   keys from a long-lived secret that stays in a device, so only the derived
   material is in memory.
-- **Its lifetime is bounded.** `PubSubSecurityKey` zeroizes on disposal, the key
-  ring disposes keys as it retires them, and the intermediate copies made while
-  unpacking an SKS response are cleared rather than left in the heap.
+- **Its lifetime is bounded.** `PubSubSecurityKey` zeroizes key material on
+  disposal. The key ring disposes keys as it retires them. The implementation
+  also clears intermediate copies created while unpacking an SKS response.
 
 ## Contributing a security policy
 
@@ -488,11 +498,14 @@ services.AddOpcUa()
     .AddSecurityPolicy(customPolicy);
 ```
 
-A registered policy is discoverable through the same API as a built-in one — `GetInfo`, `GetUri`,
-`GetDisplayName`, `GetDisplayNames` and the default-URI helpers — because those are now driven from one
-table rather than from reflection over the constants. Registering a URI or name that already exists
-throws unless `replaceExisting: true` is passed, which makes shadowing a built-in policy deliberate and
-reversible: disposing the returned registration restores what was there before.
+A registered policy uses the same discovery API as a built-in policy:
+`GetInfo`, `GetUri`, `GetDisplayName`, `GetDisplayNames`, and the default-URI
+helpers. One table drives these lookups instead of reflection over constants.
+
+Registration throws if the URI or name already exists. Pass
+`replaceExisting: true` to replace it. Dispose the returned registration to
+restore the previous policy, making built-in policy shadowing deliberate and
+reversible.
 
 ### Resolving the policy set
 
@@ -520,12 +533,14 @@ Passing nothing keeps the previous behaviour and uses `SecurityPolicies.Default`
 
 ### Reaching the secure channel and the session
 
-An application composed through the builder gets its registry threaded through the stack: the client
-channel manager, the session factory, the sessions it creates and the identity providers they select
-all resolve policies against it, and a server's listeners are opened with it. A policy registered with
-`AddSecurityPolicy` is therefore negotiable by that application's channels — the secure channel resolves
-the handshake policy, its key sizes, its asymmetric padding and its signature algorithm from the same
-registry.
+The builder passes the registry through the application stack. The client
+channel manager, session factory, sessions, and selected identity providers
+all resolve policies against it. The server also opens its listeners with
+that registry.
+
+A policy registered with `AddSecurityPolicy` is therefore negotiable by the
+application's channels. The secure channel uses the same registry to resolve
+the handshake policy, key sizes, asymmetric padding, and signature algorithm.
 
 Constructing the transport directly carries the registry the same way:
 
@@ -556,8 +571,8 @@ ManagedSession session = await new ManagedSessionBuilder(configuration, telemetr
     .ConnectAsync(ct);
 ```
 
-The registry then reaches both the sessions the builder creates and the channels they open, including
-the ones re-created on reconnect.
+The builder passes the registry to the sessions it creates and the channels
+they open, including channels recreated during reconnect.
 
 The registry a container builds is **its own**. A policy registered by one application is not visible to
 another hosted in the same process, and it is not visible to `SecurityPolicies.Default`. That
@@ -585,12 +600,14 @@ policy whose algorithms are unavailable is filtered out the same way the built-i
 advertised, and a consumer can light them up from outside without rebuilding the stack — which is what
 `RegisterLightsUpCurvePoliciesFromOutsideCore` asserts.
 
-Registering a policy makes it **advertised and resolvable**; it does not by itself supply the
-cryptography behind it. For the two curve profiles above, the in-tree key agreement is still behind a
-compile-time symbol that no project defines and a BouncyCastle dependency, so a deployment that lights
-them up supplies the operations through a provider, exactly as [the sections above](#substituting-the-symmetric-primitives)
-describe. That is the intended division: the policy set says *what* is offered, the provider says *who*
-performs it.
+Registering a policy makes it **advertised and resolvable**, but does not
+supply its cryptography. The in-tree key agreement for the two curve profiles
+above remains behind a compile-time symbol that no project defines, and it
+depends on BouncyCastle. A deployment that enables these profiles must supply
+their operations through a provider, as described in
+[Substituting the symmetric primitives](#substituting-the-symmetric-primitives).
+The policy set says *what* is offered; the provider says *who* performs the
+cryptography.
 
 Removing the reflection that used to build these tables also removed the last reflection in
 `Opc.Ua.Core.Security.Constants`, which is why this is also a trimming and Native AOT improvement.

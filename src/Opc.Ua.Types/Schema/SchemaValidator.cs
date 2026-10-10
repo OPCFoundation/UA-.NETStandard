@@ -301,10 +301,17 @@ namespace Opc.Ua.Schema
             string file = Path.GetFileName(path);
             if (!string.IsNullOrEmpty(FilePath))
             {
-                path = Path.Combine(Path.GetFullPath(FilePath), file);
-                if (FileSystem.Exists(path))
+                // FilePath is the file under validation, so its directory is
+                // what "side by side" means - combining with the file path
+                // itself produced a path that can never exist.
+                string? directory = Path.GetDirectoryName(Path.GetFullPath(FilePath!));
+                if (!string.IsNullOrEmpty(directory))
                 {
-                    return FileSystem.OpenRead(path);
+                    path = Path.Combine(directory!, file);
+                    if (FileSystem.Exists(path))
+                    {
+                        return FileSystem.OpenRead(path);
+                    }
                 }
             }
 

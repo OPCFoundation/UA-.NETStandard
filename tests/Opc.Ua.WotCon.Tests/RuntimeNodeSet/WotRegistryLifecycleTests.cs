@@ -48,8 +48,6 @@ using UaObjectIds = Opc.Ua.ObjectIds;
 using UaReferenceTypeIds = Opc.Ua.ReferenceTypeIds;
 using WotConModel = Opc.Ua.WotCon;
 
-#nullable disable warnings
-
 namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 {
     /// <summary>
@@ -387,7 +385,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 resourceNodeId, closeId, new Variant(fileHandle)).ConfigureAwait(false);
             Assert.That(close.StatusCode, Is.EqualTo(StatusCodes.Good));
 
-            WotResource stored = Registry.WotRegistryTestAuthorities.FindResource(
+            WotResource? stored = Registry.WotRegistryTestAuthorities.FindResource(
                 m_registry.Current, "sensors", "thing1");
             Assert.That(stored?.DefaultVersion, Is.Not.Null,
                 "Closing the write handle must commit the buffered document as a version.");
@@ -399,8 +397,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(validate.StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(validate.OutputArguments[0].TryGetValue(out ExtensionObject outcomeExtension), Is.True);
             Assert.That(outcomeExtension.TryGetValue(
-                out WoTValidationOutcomeDataType outcome), Is.True);
-            Assert.That(outcome.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
+                out WoTValidationOutcomeDataType? outcome), Is.True);
+            Assert.That(outcome?.FormatOutcome, Is.EqualTo(WoTOutcomeEnum.Skipped));
 
             // 5. SetEnabled(false) through the document Method.
             NodeId setEnabledId = await FindChildAsync(resourceNodeId, "SetEnabled")
@@ -540,7 +538,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
             DataValue envValue = await ReadValueAsync(envNodeId).ConfigureAwait(false);
             Assert.That(envValue.StatusCode, Is.EqualTo(StatusCodes.Good));
-            Assert.That(envValue.GetValue<string>(null), Is.EqualTo("production"));
+            Assert.That(envValue.GetValue<string>(null!), Is.EqualTo("production"));
 
             // Group-level Labels.
             NodeId createGroupId = await FindChildAsync(registryNodeId, "CreateGroup")
@@ -561,7 +559,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(addGroupLabel.StatusCode, Is.EqualTo(StatusCodes.Good));
             NodeId ownerNodeId = await FindChildAsync(groupLabelsId, "owner").ConfigureAwait(false);
             Assert.That(
-                (await ReadValueAsync(ownerNodeId).ConfigureAwait(false)).GetValue<string>(null),
+                (await ReadValueAsync(ownerNodeId).ConfigureAwait(false)).GetValue<string>(null!),
                 Is.EqualTo("team-iot"));
 
             // Epoch mismatch is rejected with Bad_InvalidState and makes no change.
@@ -574,7 +572,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 .ConfigureAwait(false);
             Assert.That(mismatchedGroup.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
             Assert.That(
-                (await ReadValueAsync(ownerNodeId).ConfigureAwait(false)).GetValue<string>(null),
+                (await ReadValueAsync(ownerNodeId).ConfigureAwait(false)).GetValue<string>(null!),
                 Is.EqualTo("team-iot"), "A rejected epoch mismatch must not change the label value.");
 
             // A key colliding with a fixed Labels container member is rejected.
@@ -614,7 +612,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             Assert.That(addResourceLabel.StatusCode, Is.EqualTo(StatusCodes.Good));
             NodeId siteNodeId = await FindChildAsync(resourceLabelsId, "site").ConfigureAwait(false);
             Assert.That(
-                (await ReadValueAsync(siteNodeId).ConfigureAwait(false)).GetValue<string>(null),
+                (await ReadValueAsync(siteNodeId).ConfigureAwait(false)).GetValue<string>(null!),
                 Is.EqualTo("seattle"));
 
             // Remove the resource label; it must disappear from Browse.
@@ -843,7 +841,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTimeUtc.Now;
             return await services
-                .BrowseAsync(requestHeader, view: null, requestedMaxReferencesPerNode: 0, nodesToBrowse)
+                .BrowseAsync(requestHeader, view: null!, requestedMaxReferencesPerNode: 0, nodesToBrowse)
                 .ConfigureAwait(false);
         }
 
@@ -912,7 +910,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 {
                     foreach (ExtensionObject notificationData in message.NotificationData)
                     {
-                        if (notificationData.TryGetValue(out DataChangeNotification dcn))
+                        if (notificationData.TryGetValue(out DataChangeNotification? dcn))
                         {
                             foreach (MonitoredItemNotification item in dcn.MonitoredItems)
                             {

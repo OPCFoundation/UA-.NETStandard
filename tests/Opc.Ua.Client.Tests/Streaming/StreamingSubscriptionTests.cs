@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -163,6 +161,42 @@ namespace Opc.Ua.Client.Tests.Streaming
             Assert.That(
                 capturedOptions?.CurrentValue.PublishingEnabled,
                 Is.True);
+        }
+
+        /// <summary>
+        /// DisposeAsync racing the first subscriber (which is still creating
+        /// the shared subscription) must dispose the subscription that
+        /// subscriber creates and fail the subscriber with
+        /// <see cref="ObjectDisposedException"/>, instead of leaking it.
+        /// </summary>
+        [Test]
+        public async Task DisposeRacingFirstSubscribeDisposesCreatedSubscriptionAsync()
+        {
+            var subscription = new Mock<ISubscription>();
+            var manager = new Mock<ISubscriptionManager>();
+            StreamingSubscription? streaming = null;
+            Task? disposal = null;
+            manager
+                .Setup(value => value.Add(
+                    It.IsAny<ISubscriptionNotificationHandler>(),
+                    It.IsAny<IOptionsMonitor<Subscriptions.SubscriptionOptions>>()))
+                .Callback(() => disposal = streaming!.DisposeAsync().AsTask())
+                .Returns(subscription.Object);
+
+            streaming = new StreamingSubscription(manager.Object);
+            await using (streaming)
+            {
+                await using IAsyncEnumerator<EventNotification> enumerator = streaming
+                    .SubscribeEventsAsync(ObjectIds.Server, new EventFilter())
+                    .GetAsyncEnumerator();
+
+                Assert.That(
+                    async () => await enumerator.MoveNextAsync().ConfigureAwait(false),
+                    Throws.InstanceOf<ObjectDisposedException>());
+                Assert.That(disposal, Is.Not.Null);
+                await disposal!.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                subscription.Verify(value => value.DisposeAsync(), Times.Once);
+            }
         }
 
         /// <summary>

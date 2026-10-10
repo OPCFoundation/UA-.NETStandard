@@ -34,6 +34,7 @@ using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Diagnostics.Metrics;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
@@ -54,6 +55,9 @@ namespace Opc.Ua.Server.Tests
     [Parallelizable]
     public class MonitoredItemQueueRestoreTests
     {
+        /// <summary>
+        /// Verifies that restoration uses a prehydrated data-change queue without invoking synchronous fallback.
+        /// </summary>
         [Test]
         public void RestoreUsesPreHydratedDataChangeQueueAndSkipsSyncFallback()
         {
@@ -81,6 +85,9 @@ namespace Opc.Ua.Server.Tests
                 Times.Never);
         }
 
+        /// <summary>
+        /// Verifies that restoration uses synchronous queue fallback when no prehydrated queue is available.
+        /// </summary>
         [Test]
         public void RestoreFallsBackToSyncRestoreWhenNotPreHydrated()
         {
@@ -88,7 +95,7 @@ namespace Opc.Ua.Server.Tests
             var storeMock = new Mock<ISubscriptionStore>();
             storeMock
                 .Setup(s => s.RestoreDataChangeMonitoredItemQueue(It.IsAny<uint>()))
-                .Returns((IDataChangeMonitoredItemQueue)null);
+                .Returns((IDataChangeMonitoredItemQueue)null!);
             using var queueFactory = new MonitoredItemQueueFactory(telemetry);
             Mock<IServerInternal> serverMock = CreateServerMock(telemetry, queueFactory, storeMock.Object);
 
@@ -105,6 +112,135 @@ namespace Opc.Ua.Server.Tests
                 Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that restoring a queue does not reinstate transient required-notification protection.
+        /// </summary>
+        [TestCase(1u, false, false)]
+        [TestCase(2u, false, false)]
+        [TestCase(2u, true, false)]
+        [TestCase(2u, true, true)]
+        public void RestoreDoesNotReinstateRequiredNotificationProtection(
+            uint queueSize,
+            bool restoreQueue,
+            bool queueContainsRequired)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            ILogger logger =
+                telemetry.CreateLogger<MonitoredItemQueueRestoreTests>();
+            var storeMock = new Mock<ISubscriptionStore>();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> serverMock =
+                CreateServerMock(telemetry, queueFactory, storeMock.Object);
+            DateTime timestamp = DateTime.UtcNow;
+            var requiredValue = new DataValue(
+                Variant.Null,
+                StatusCodes.BadCommunicationError,
+                timestamp,
+                timestamp);
+            StoredMonitoredItem stored = StoreItemWithPendingHistoryFailure(
+                serverMock.Object,
+                queueSize,
+                requiredValue);
+            if (restoreQueue)
+            {
+                IDataChangeMonitoredItemQueue preHydrated =
+                    queueFactory.CreateDataChangeQueue(false, stored.Id);
+                preHydrated.ResetQueue(queueSize, false);
+                preHydrated.Enqueue(
+                    queueContainsRequired
+                        ? requiredValue
+                        : new DataValue(Variant.From(7), StatusCodes.Good),
+                    queueContainsRequired
+                        ? stored.LastError
+                        : ServiceResult.Good);
+                stored.RestoredDataChangeQueue = preHydrated;
+            }
+
+            using var item = new MonitoredItem(
+                serverMock.Object,
+                new Mock<IAsyncNodeManager>().Object,
+                new object(),
+                stored);
+            item.QueueValue(
+                new DataValue(Variant.From(42), StatusCodes.Good),
+                ServiceResult.Good);
+            item.QueueValue(
+                new DataValue(Variant.From(43), StatusCodes.Good),
+                ServiceResult.Good);
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+
+            _ = item.Publish(
+                new OperationContext(item),
+                notifications,
+                diagnostics,
+                10,
+                logger);
+
+            Assert.That(
+                notifications.Any(value =>
+                    value.Value.StatusCode.Code ==
+                        StatusCodes.BadCommunicationError),
+                Is.False,
+                "A restored error value follows ordinary queue replacement, not live priming protection.");
+            Assert.That(notifications, Has.Count.EqualTo(queueSize));
+            Assert.That(
+                notifications.Last().Value.WrappedValue.TryGetValue(out int lastValue),
+                Is.True);
+            Assert.That(lastValue, Is.EqualTo(43));
+        }
+
+        /// <summary>
+        /// Verifies that restoration preserves raw error values without synthesizing missing notifications.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RestoreKeepsRawErrorValuesWithoutSynthesizingMissingNotifications(bool queueContainsError)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            using var queueFactory = new MonitoredItemQueueFactory(telemetry);
+            Mock<IServerInternal> server = CreateServerMock(
+                telemetry,
+                queueFactory,
+                Mock.Of<ISubscriptionStore>());
+            var errorValue = new DataValue(Variant.Null, StatusCodes.BadCommunicationError);
+            StoredMonitoredItem stored = StoreItemWithPendingHistoryFailure(server.Object, 2, errorValue);
+            IDataChangeMonitoredItemQueue queue = queueFactory.CreateDataChangeQueue(false, stored.Id);
+            queue.ResetQueue(2, false);
+            queue.Enqueue(
+                queueContainsError ? errorValue : new DataValue(Variant.From(7)),
+                queueContainsError ? stored.LastError : ServiceResult.Good);
+            stored.RestoredDataChangeQueue = queue;
+            using var item = new MonitoredItem(
+                server.Object,
+                Mock.Of<IAsyncNodeManager>(),
+                new object(),
+                stored);
+
+            item.QueueValue(new DataValue(Variant.From(42)), ServiceResult.Good);
+            var notifications = new Queue<MonitoredItemNotification>();
+            var diagnostics = new Queue<DiagnosticInfo>();
+            _ = item.Publish(
+                new OperationContext(item),
+                notifications,
+                diagnostics,
+                10,
+                telemetry.CreateLogger<MonitoredItemQueueRestoreTests>());
+
+            Assert.That(notifications, Has.Count.EqualTo(2));
+            Assert.That(
+                notifications.Any(value => value.Value.StatusCode.Code == StatusCodes.BadCommunicationError),
+                Is.EqualTo(queueContainsError),
+                "Only values actually present in the restored raw queue should be delivered.");
+            Assert.That(
+                notifications.Last().Value.WrappedValue.TryGetValue(out int lastValue),
+                Is.True);
+            Assert.That(lastValue, Is.EqualTo(42));
+        }
+
+        /// <summary>
+        /// Verifies that queue prehydration continues after a store failure and respects the queue-size gate.
+        /// </summary>
         [Test]
         public async Task PreHydrateContinuesAfterStoreFailureAndHonorsQueueSizeGateAsync()
         {
@@ -117,10 +253,10 @@ namespace Opc.Ua.Server.Tests
             restoredQueue.ResetQueue(10, false);
             restoredQueue.Enqueue(new DataValue(new Variant(7)), ServiceResult.Good);
             storeMock.Setup(s => s.RestoreDataChangeMonitoredItemQueueAsync(2, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IDataChangeMonitoredItemQueue>(restoredQueue));
+                .Returns(new ValueTask<IDataChangeMonitoredItemQueue?>(restoredQueue));
             storeMock.Setup(s => s.RestoreDataChangeMonitoredItemQueueAsync(3, It.IsAny<CancellationToken>()))
-                .Returns(new ValueTask<IDataChangeMonitoredItemQueue>(
-                    Task.FromException<IDataChangeMonitoredItemQueue>(
+                .Returns(new ValueTask<IDataChangeMonitoredItemQueue?>(
+                    Task.FromException<IDataChangeMonitoredItemQueue?>(
                         new InvalidOperationException("store failed"))));
 
             fixture.Server.Setup(s => s.SubscriptionStore).Returns(storeMock.Object);
@@ -143,6 +279,26 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 loggerProvider.Messages,
                 Has.Some.Contains("Failed to pre-hydrate queue for monitored item with id 3"));
+        }
+
+        private static StoredMonitoredItem StoreItemWithPendingHistoryFailure(
+            IServerInternal server,
+            uint queueSize,
+            in DataValue failure)
+        {
+            StoredMonitoredItem initialState = CreateStoredItem(queueSize: queueSize);
+            initialState.SamplingInterval = 0;
+            using var original = new MonitoredItem(
+                server,
+                Mock.Of<IAsyncNodeManager>(),
+                new object(),
+                initialState);
+            ((IInitialValueMonitoredItem)original).QueueInitialValue(
+                failure,
+                new ServiceResult(failure.StatusCode),
+                ignoreFilters: true);
+
+            return (StoredMonitoredItem)original.ToStorableMonitoredItem();
         }
 
         private static StoredMonitoredItem CreateStoredItem(uint id = 2, uint queueSize = 10)
@@ -187,8 +343,8 @@ namespace Opc.Ua.Server.Tests
             {
                 SecurityNone = true
             };
-            TestTelemetryContext telemetry = null;
-            MasterNodeManager manager = null;
+            TestTelemetryContext? telemetry = null;
+            MasterNodeManager? manager = null;
             bool transferred = false;
             try
             {
@@ -231,15 +387,15 @@ namespace Opc.Ua.Server.Tests
             }
         }
 
-        private static async Task InvokePreHydrateAsync(
+        private static ValueTask InvokePreHydrateAsync(
             MasterNodeManager manager,
             IList<IStoredMonitoredItem> items)
         {
-            MethodInfo method = typeof(MasterNodeManager).GetMethod(
-                "PreHydrateMonitoredItemQueuesAsync",
-                BindingFlags.Instance | BindingFlags.NonPublic)!;
-            var task = (ValueTask)method.Invoke(manager, [items, CancellationToken.None])!;
-            await task.ConfigureAwait(false);
+            FieldInfo field = typeof(MasterNodeManager).GetField(
+                "m_serviceDispatch", BindingFlags.Instance | BindingFlags.NonPublic)!;
+            Assert.That(field, Is.Not.Null);
+            var dispatcher = (NodeManagerServiceDispatcher)field!.GetValue(manager)!;
+            return dispatcher.PreHydrateMonitoredItemQueuesAsync(items, CancellationToken.None);
         }
 
         private sealed class MasterNodeManagerFixture : IAsyncDisposable
@@ -298,9 +454,19 @@ namespace Opc.Ua.Server.Tests
                 return m_meter;
             }
 
+            public Meter CreateMeter(Assembly assembly)
+            {
+                return m_meter;
+            }
+
             public ILoggerFactory LoggerFactory { get; }
 
             public ActivitySource ActivitySource { get; }
+
+            public ActivitySource GetActivitySource(Assembly assembly)
+            {
+                return ActivitySource;
+            }
 
             private readonly Meter m_meter;
 
@@ -347,10 +513,10 @@ namespace Opc.Ua.Server.Tests
                 LogLevel logLevel,
                 EventId eventId,
                 TState state,
-                Exception exception,
+                Exception? exception,
                 Func<TState, Exception, string> formatter)
             {
-                m_messages.Add(formatter(state, exception));
+                m_messages.Add(formatter(state, exception!));
             }
 
             private readonly ConcurrentBag<string> m_messages;

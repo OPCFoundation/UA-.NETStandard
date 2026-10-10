@@ -2127,10 +2127,36 @@ namespace Opc.Ua.Wot
             {
                 return false;
             }
+            if (definition.IsUnion)
+            {
+                // Only a Structure can be a union.
+                return false;
+            }
+
+            var values = new HashSet<int>();
             foreach (DataTypeField field in definition.Field)
             {
                 if (!string.IsNullOrEmpty(field.DataType) &&
                     !string.Equals(field.DataType, WotVocabulary.BaseDataType, StringComparison.Ordinal))
+                {
+                    return false;
+                }
+
+                // Facets only a structure field carries.
+                if (field.IsOptional ||
+                    field.AllowSubTypes ||
+                    field.ValueRank != -1 ||
+                    !string.IsNullOrEmpty(field.ArrayDimensions) ||
+                    field.MaxStringLength != 0)
+                {
+                    return false;
+                }
+
+                // An enumeration's field values are distinct, so two fields
+                // sharing one cannot be an enumeration. That is what a
+                // Structure whose fields are all typed BaseDataType looks like:
+                // every field leaves Value at the schema default of -1.
+                if (!values.Add(field.Value))
                 {
                     return false;
                 }

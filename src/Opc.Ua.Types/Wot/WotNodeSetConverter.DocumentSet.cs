@@ -475,10 +475,14 @@ namespace Opc.Ua.Wot
             {
                 return true;
             }
+            // A type that carries an instance's events roots a Thing Model
+            // of its own in a document set, so the instance's document binds
+            // to it rather than folding it in.
             byte[] json = WriteReadableDocument(
                 nodeSet, node, title, explicitTitle, nodeSetBytes,
                 nativeProjection: null, emitEnvelope: false,
-                options, diagnostics, parentHref, eventTypeHrefs, href);
+                options, diagnostics, parentHref, eventTypeHrefs, href,
+                foldEventSourceType: false);
             if (json.Length > options.MaxJsonDocumentSize)
             {
                 diagnostics.Add(new WotDiagnostic(

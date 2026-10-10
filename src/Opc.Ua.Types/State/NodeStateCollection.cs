@@ -445,7 +445,11 @@ namespace Opc.Ua
 
             var serverUris = new StringTable();
 
-            if (!decoder.LoadStringTable("ServerUris", "ServerUri", context.ServerUris))
+            // Load into the local table, like the namespace table above. Loading
+            // into context.ServerUris left serverUris empty, so the mapping
+            // below was built from nothing and the document's server indexes
+            // were never translated.
+            if (!decoder.LoadStringTable("ServerUris", "ServerUri", serverUris))
             {
                 serverUris = null;
             }
@@ -509,14 +513,23 @@ namespace Opc.Ua
             {
                 // try to load from app directory
                 var file = new FileInfo(resourcePath);
-                istrm = file.OpenRead() ??
+
+                if (!file.Exists)
+                {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Could not load nodes from resource: {0}",
                         resourcePath);
+                }
+
+                istrm = file.OpenRead();
             }
 
-            LoadFromXml(context, istrm, updateTables);
+            // the XML reader does not close its input, so dispose the stream here.
+            using (istrm)
+            {
+                LoadFromXml(context, istrm, updateTables);
+            }
         }
 
         /// <summary>
@@ -549,14 +562,23 @@ namespace Opc.Ua
             {
                 // try to load from app directory
                 var file = new FileInfo(resourcePath);
-                istrm = file.OpenRead() ??
+
+                if (!file.Exists)
+                {
                     throw ServiceResultException.Create(
                         StatusCodes.BadDecodingError,
                         "Could not load nodes from resource: {0}",
                         resourcePath);
+                }
+
+                istrm = file.OpenRead();
             }
 
-            LoadFromBinary(context, istrm, updateTables);
+            // dispose the opened stream once the nodes are loaded.
+            using (istrm)
+            {
+                LoadFromBinary(context, istrm, updateTables);
+            }
         }
     }
 }

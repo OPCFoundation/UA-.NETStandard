@@ -47,6 +47,11 @@ namespace Opc.Ua.Server
             CancellationToken cancellationToken = default)
         {
             var results = new List<HistoryReadResult>(nodesToRead.Count);
+            SessionContinuationPoints? sessionContinuationPoints = !releaseContinuationPoints
+                ? context.Session?.ContinuationPoints as SessionContinuationPoints
+                : null;
+            // Protect both captured-generation resumes and new pages for the full request.
+            using IDisposable? historyRequest = sessionContinuationPoints?.BeginHistoryRequest(nodesToRead);
             try
             {
                 return await HistoryReadCoreAsync(
@@ -55,6 +60,8 @@ namespace Opc.Ua.Server
             }
             catch (Exception failure) when (failure is not OutOfMemoryException)
             {
+                ReleaseUnreturnedHistoryContinuationPoints(
+                    context, sessionContinuationPoints, historyRequest, nodesToRead, results);
                 ReleaseFailedHistoryResults(context, results, failure);
                 throw;
             }

@@ -681,7 +681,7 @@ namespace Opc.Ua.Test
             m_random.NextBytes(bytes, 0, bytes.Length);
             return GetBoundaryValue(
                 useBoundaryValues,
-                BitConverter.ToSingle(bytes, 0),
+                BitConverter.ToDouble(bytes, 0),
                 [
                     double.Epsilon,
                     double.MaxValue,
@@ -1644,11 +1644,9 @@ namespace Opc.Ua.Test
 
             var variants = new Variant[length];
 
-            _ = TypeInfo.CreateScalar(builtInType);
-
             for (int ii = 0; ii < variants.Length; ii++)
             {
-                variants[ii] = GetRandomVariant(false);
+                variants[ii] = GetRandomScalar(builtInType, useBoundaryValues);
             }
 
             return variants;

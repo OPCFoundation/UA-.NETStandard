@@ -17,12 +17,31 @@
     <Project Path="samples/AI/ModelManagementServer/ModelManagementServer.csproj" />
     <Project Path="samples/AI/ModelManagementClient/ModelManagementClient.csproj" />
   </Folder>
+  <Folder Name="/samples/AMB/">
+    <Project Path="samples/AMB/AmbServer/AmbServer.csproj" />
+    <Project Path="samples/AMB/AmbClient/AmbClient.csproj" />
+  </Folder>
   <Folder Name="/samples/DI/">
     <Project Path="samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj" />
+  </Folder>
+  <Folder Name="/samples/FluentApi/">
+    <Project Path="samples/FluentApi/BasicFluentApiServer/BasicFluentApiServer.csproj" />
   </Folder>
   <Folder Name="/samples/Gds/">
     <Project Path="samples/Gds/OnboardingClient/OnboardingClient.csproj" />
     <Project Path="samples/Gds/OnboardingRegistrar/OnboardingRegistrar.csproj" />
+  </Folder>
+  <Folder Name="/samples/Machinery/">
+    <Project Path="samples/Machinery/MachineryServer/MachineryServer.csproj" />
+    <Project Path="samples/Machinery/MachineryClient/MachineryClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/Pumps/">
+    <Project Path="samples/Pumps/PumpsServer/PumpsServer.csproj" />
+    <Project Path="samples/Pumps/PumpsClient/PumpsClient.csproj" />
+  </Folder>
+  <Folder Name="/samples/Scales/">
+    <Project Path="samples/Scales/ScalesServer/ScalesServer.csproj" />
+    <Project Path="samples/Scales/ScalesClient/ScalesClient.csproj" />
   </Folder>
   <Folder Name="/samples/Isa95/">
     <Project Path="samples/Isa95/MinimalIsa95Server/MinimalIsa95Server.csproj" />
@@ -53,15 +72,24 @@
   </Folder>
   <Folder Name="/fuzzing/">
     <File Path="fuzzing/Fuzzing.md" />
+    <File Path="fuzzing/fuzz-targets.json" />
+    <File Path="fuzzing/fuzz-parity.runsettings" />
     <Project Path="fuzzing/Opc.Ua.Certificates.Fuzz/Opc.Ua.Certificates.Fuzz.csproj" />
     <Project Path="fuzzing/Opc.Ua.Certificates.Fuzz.Tests/Opc.Ua.Certificates.Fuzz.Tests.csproj" />
     <Project Path="fuzzing/Opc.Ua.Certificates.Fuzz.Tools/Opc.Ua.Certificates.Fuzz.Tools.csproj" />
     <Project Path="fuzzing/Opc.Ua.Encoders.Fuzz/Opc.Ua.Encoders.Fuzz.csproj" />
     <Project Path="fuzzing/Opc.Ua.Encoders.Fuzz.Tests/Opc.Ua.Encoders.Fuzz.Tests.csproj" />
     <Project Path="fuzzing/Opc.Ua.Encoders.Fuzz.Tools/Opc.Ua.Encoders.Fuzz.Tools.csproj" />
+    <Project Path="fuzzing/Opc.Ua.Fuzzing.Tests/Opc.Ua.Fuzzing.Tests.csproj" />
     <Project Path="fuzzing/Opc.Ua.Network.Fuzz/Opc.Ua.Network.Fuzz.csproj" />
     <Project Path="fuzzing/Opc.Ua.Network.Fuzz.Tests/Opc.Ua.Network.Fuzz.Tests.csproj" />
     <Project Path="fuzzing/Opc.Ua.Network.Fuzz.Tools/Opc.Ua.Network.Fuzz.Tools.csproj" />
+    <Project Path="fuzzing/Opc.Ua.PubSub.Fuzz/Opc.Ua.PubSub.Fuzz.csproj" />
+    <Project Path="fuzzing/Opc.Ua.PubSub.Fuzz.Tests/Opc.Ua.PubSub.Fuzz.Tests.csproj" />
+    <Project Path="fuzzing/Opc.Ua.PubSub.Fuzz.Tools/Opc.Ua.PubSub.Fuzz.Tools.csproj" />
+    <Project Path="fuzzing/OneFuzz/Opc.Ua.OneFuzz.Validator/Opc.Ua.OneFuzz.Validator.csproj" />
+    <Project Path="fuzzing/OneFuzz/Opc.Ua.OneFuzz.Validator.Tests/Opc.Ua.OneFuzz.Validator.Tests.csproj" />
+    <Project Path="fuzzing/OneFuzz/Opc.Ua.OneFuzz.TestTarget/Opc.Ua.OneFuzz.TestTarget.csproj" />
   </Folder>
   <Folder Name="/fuzzing/Common/Fuzz/">
     <File Path="fuzzing/Common/Fuzz/FuzzMethods.cs" />
@@ -69,6 +97,8 @@
   </Folder>
   <Folder Name="/fuzzing/Common/" />
   <Folder Name="/fuzzing/Common/Fuzz.Tests/">
+    <File Path="fuzzing/Common/Fuzz.Tests/FuzzProcessWatchdog.cs" />
+    <File Path="fuzzing/Common/Fuzz.Tests/FuzzReplayProgram.cs" />
     <File Path="fuzzing/Common/Fuzz.Tests/FuzzTargetFunction.cs" />
     <File Path="fuzzing/Common/Fuzz.Tests/FuzzTargetTestsBase.cs" />
     <File Path="fuzzing/Common/Fuzz.Tests/TestAssetUtils.cs" />
@@ -90,11 +120,14 @@
     <File Path="fuzzing/Dictionaries/xml.dict" />
   </Folder>
   <Folder Name="/fuzzing/Scripts/">
+    <File Path="fuzzing/Scripts/build-onefuzz.ps1" />
     <File Path="fuzzing/Scripts/fuzz-afl.ps1" />
     <File Path="fuzzing/Scripts/fuzz-libfuzzer.ps1" />
     <File Path="fuzzing/Scripts/fuzz-menu.ps1" />
     <File Path="fuzzing/Scripts/install.sh" />
     <File Path="fuzzing/Scripts/readme.txt" />
+    <File Path="fuzzing/Scripts/test-fuzzing.ps1" />
+    <File Path="fuzzing/Scripts/validate-fuzz-manifest.ps1" />
   </Folder>
   <Folder Name="/src/">
     <Project Path="src/Opc.Ua.Client.ComplexTypes/Opc.Ua.Client.ComplexTypes.csproj" />
@@ -103,12 +136,32 @@
     <Project Path="src/Opc.Ua.Di.Client/Opc.Ua.Di.Client.csproj" />
     <Project Path="src/Opc.Ua.Di.Server/Opc.Ua.Di.Server.csproj" />
     <Project Path="src/Opc.Ua.Di/Opc.Ua.Di.csproj" />
+    <Project Path="src/Opc.Ua.IA/Opc.Ua.IA.csproj" />
+    <Project Path="src/Opc.Ua.ECM/Opc.Ua.ECM.csproj" />
+    <Project Path="src/Opc.Ua.PADIM/Opc.Ua.PADIM.csproj" />
+    <Project Path="src/Opc.Ua.PackML/Opc.Ua.PackML.csproj" />
+    <Project Path="src/Opc.Ua.Machinery/Opc.Ua.Machinery.csproj" />
+    <Project Path="src/Opc.Ua.Machinery.Jobs/Opc.Ua.Machinery.Jobs.csproj" />
+    <Project Path="src/Opc.Ua.Machinery.Result/Opc.Ua.Machinery.Result.csproj" />
+    <Project Path="src/Opc.Ua.Machinery.ProcessValues/Opc.Ua.Machinery.ProcessValues.csproj" />
+    <Project Path="src/Opc.Ua.Machinery.Energy/Opc.Ua.Machinery.Energy.csproj" />
+    <Project Path="src/Opc.Ua.Machinery.Server/Opc.Ua.Machinery.Server.csproj" />
+    <Project Path="src/Opc.Ua.Machinery.Client/Opc.Ua.Machinery.Client.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd/Opc.Ua.OpenUsd.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd.Server/Opc.Ua.OpenUsd.Server.csproj" />
     <Project Path="src/Opc.Ua.OpenUsd.Client/Opc.Ua.OpenUsd.Client.csproj" />
     <Project Path="src/Opc.Ua.Positioning/Opc.Ua.Positioning.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Client/Opc.Ua.Positioning.Client.csproj" />
     <Project Path="src/Opc.Ua.Positioning.Server/Opc.Ua.Positioning.Server.csproj" />
+    <Project Path="src/Opc.Ua.Pumps/Opc.Ua.Pumps.csproj" />
+    <Project Path="src/Opc.Ua.Pumps.Client/Opc.Ua.Pumps.Client.csproj" />
+    <Project Path="src/Opc.Ua.Pumps.Server/Opc.Ua.Pumps.Server.csproj" />
+    <Project Path="src/Opc.Ua.Scales/Opc.Ua.Scales.csproj" />
+    <Project Path="src/Opc.Ua.Scales.Client/Opc.Ua.Scales.Client.csproj" />
+    <Project Path="src/Opc.Ua.Scales.Server/Opc.Ua.Scales.Server.csproj" />
+    <Project Path="src/Opc.Ua.AMB/Opc.Ua.AMB.csproj" />
+    <Project Path="src/Opc.Ua.AMB.Client/Opc.Ua.AMB.Client.csproj" />
+    <Project Path="src/Opc.Ua.AMB.Server/Opc.Ua.AMB.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics/Opc.Ua.Robotics.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Server/Opc.Ua.Robotics.Server.csproj" />
     <Project Path="src/Opc.Ua.Robotics.Client/Opc.Ua.Robotics.Client.csproj" />
@@ -165,8 +218,6 @@
     <File Path=".gitattributes" />
     <File Path=".github/copilot-instructions.md" />
     <File Path=".gitignore" />
-    <File Path="azure-pipelines-preview.yml" />
-    <File Path="azure-pipelines.yml" />
     <File Path="common.props" />
     <File Path="coverage-thresholds.json" />
     <File Path="Directory.Build.props" />
@@ -189,19 +240,12 @@
   </Folder>
   <Folder Name="/Solution Items/Azurepipelines/">
     <File Path=".azurepipelines/check-coverage.ps1" />
-    <File Path=".azurepipelines/ci.yml" />
-    <File Path=".azurepipelines/get-matrix.ps1" />
-    <File Path=".azurepipelines/get-root.ps1" />
-    <File Path=".azurepipelines/preview.yml" />
     <File Path=".azurepipelines/set-version.ps1" />
     <File Path=".azurepipelines/signlistDebug.txt" />
     <File Path=".azurepipelines/signlistRelease.txt" />
-    <File Path=".azurepipelines/sln.yml" />
-    <File Path=".azurepipelines/test.yml" />
   </Folder>
   <Folder Name="/Solution Items/Nuget/">
     <File Path="nuget/Opc.Ua.nuspec" />
-    <File Path="nuget/Opc.Ua.Symbols.nuspec" />
   </Folder>
   <Folder Name="/Solution Items/docs/">
     <File Path="docs/Aggregates.md" />
@@ -236,6 +280,7 @@
     <File Path="docs/ProvisioningMode.md" />
     <File Path="docs/PubSub.md" />
     <File Path="docs/README.md" />
+    <File Path="docs/ReleaseProcess.md" />
     <File Path="docs/ReverseConnect.md" />
     <File Path="docs/RoleBasedUserManagement.md" />
     <File Path="docs/Sessions.md" />
@@ -277,6 +322,8 @@
     <Project Path="tests/Opc.Ua.Core.Schema.Tests/Opc.Ua.Core.Schema.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Client.Tests/Opc.Ua.Client.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Aot.Tests.Historian/Opc.Ua.Aot.Tests.Historian.csproj" />
+    <Project Path="tests/Opc.Ua.Aot.Tests.Mcp/Opc.Ua.Aot.Tests.Mcp.csproj" />
     <Project Path="tests/Opc.Ua.Configuration.Tests/Opc.Ua.Configuration.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Tests/Opc.Ua.Core.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Core.Encoders.Tests/Opc.Ua.Core.Encoders.Tests.csproj" />
@@ -293,6 +340,7 @@
     <Project Path="tests/Opc.Ua.Features.Tests/Opc.Ua.Features.Tests.csproj" />
     <Project Path="tests/Opc.Ua.History.Tests/Opc.Ua.History.Tests.csproj" />
     <Project Path="tests/Opc.Ua.InformationModel.Tests/Opc.Ua.InformationModel.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Interop.Tests/Opc.Ua.Interop.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Lds.Tests/Opc.Ua.Lds.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Sessions.Tests/Opc.Ua.Sessions.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Stress.Tests/Opc.Ua.Stress.Tests.csproj" />
@@ -301,6 +349,7 @@
     <Project Path="tests/Opc.Ua.Subscriptions.Durable.Tests/Opc.Ua.Subscriptions.Durable.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Gds.Tests/Opc.Ua.Gds.Tests.csproj" />
     <Project Path="tests/Opc.Ua.ISA95.Tests/Opc.Ua.ISA95.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Machinery.Tests/Opc.Ua.Machinery.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Tests/Opc.Ua.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Adapter.Tests/Opc.Ua.PubSub.Adapter.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Udp.Tests/Opc.Ua.PubSub.Udp.Tests.csproj" />
@@ -311,6 +360,9 @@
     <Project Path="tests/Opc.Ua.PubSub.Server.Tests/Opc.Ua.PubSub.Server.Tests.csproj" />
     <Project Path="tests/Opc.Ua.PubSub.Diagnostics.Tests/Opc.Ua.PubSub.Diagnostics.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Positioning.Tests/Opc.Ua.Positioning.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Pumps.Tests/Opc.Ua.Pumps.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.Scales.Tests/Opc.Ua.Scales.Tests.csproj" />
+    <Project Path="tests/Opc.Ua.AMB.Tests/Opc.Ua.AMB.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Redundancy.PubSub.Tests/Opc.Ua.Redundancy.PubSub.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Certificates.Tests/Opc.Ua.Security.Certificates.Tests.csproj" />
     <Project Path="tests/Opc.Ua.Security.Pkcs11.Tests/Opc.Ua.Security.Pkcs11.Tests.csproj" />

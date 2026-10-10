@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Reflection;
+using System.Text;
 using SharpFuzz;
 
 namespace Opc.Ua.Fuzzing
@@ -63,15 +64,17 @@ namespace Opc.Ua.Fuzzing
             Type type = typeof(FuzzableCode);
             if (FuzzMethodsToParameterType.TryGetValue(
                 delegateType,
-                out Type delegateParameterType))
+                out Type? delegateParameterType))
             {
                 foreach (
                     MethodInfo method in type.GetMethods(
-                        BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static))
+                        BindingFlags.Public | BindingFlags.Static))
                 {
                     // Determine the target signature
                     ParameterInfo[] parameters = method.GetParameters();
-                    if (parameters.Length == 1 &&
+                    if (method.ReturnType == typeof(void) &&
+                        !method.ContainsGenericParameters &&
+                        parameters.Length == 1 &&
                         parameters[0].ParameterType == delegateParameterType)
                     {
                         fuzzMethods.Add(method.CreateDelegate(delegateType));
@@ -84,21 +87,23 @@ namespace Opc.Ua.Fuzzing
         /// <summary>
         /// Finds a fuzzing method by name and returns a delegate to call it.
         /// </summary>
-        public static Delegate FindFuzzMethod(TextWriter errorOutput, string fuzzingFunction)
+        public static Delegate? FindFuzzMethod(TextWriter errorOutput, string fuzzingFunction)
         {
             // find the function to fuzz based on the first argument using reflection
             Type type = typeof(FuzzableCode);
             MethodInfo method = type.GetMethod(
                 fuzzingFunction,
-                BindingFlags.Public | BindingFlags.Instance | BindingFlags.Static);
+                BindingFlags.Public | BindingFlags.Static)!;
             if (method != null)
             {
                 // Determine the target signature
                 ParameterInfo[] parameters = method.GetParameters();
-                if (parameters.Length == 1)
+                if (method.ReturnType == typeof(void) &&
+                    !method.ContainsGenericParameters &&
+                    parameters.Length == 1)
                 {
                     // afl-fuzz targets
-#if NET8_0_OR_GREATER || NETSTANDARD2_1_OR_GREATER
+#if NET8_0_OR_GREATER
                     if (parameters[0].ParameterType == typeof(Stream))
                     {
                         return method.CreateDelegate<AflFuzzStream>();
@@ -119,20 +124,20 @@ namespace Opc.Ua.Fuzzing
                     }
                     else if (parameters[0].ParameterType == typeof(string))
                     {
-                        return method.CreateDelegate(typeof(AflFuzzStream));
+                        return method.CreateDelegate(typeof(AflFuzzString));
                     }
                     // libfuzzer span target
                     else if (parameters[0].ParameterType == typeof(ReadOnlySpan<byte>))
                     {
-                        return method.CreateDelegate(typeof(AflFuzzStream));
+                        return method.CreateDelegate(typeof(LibFuzzSpan));
                     }
 #endif
                 }
 
                 errorOutput.WriteLine(
-                    "The fuzzing function {0} does not have the correct signature {1}.",
-                    fuzzingFunction,
-                    parameters[0].ParameterType);
+                    "The fuzzing function {0} must be static void with one " +
+                    "Stream, string or ReadOnlySpan<byte> parameter.",
+                    fuzzingFunction);
             }
             else
             {
@@ -143,6 +148,43 @@ namespace Opc.Ua.Fuzzing
         }
 
         /// <summary>
+        /// Replays one input without starting an instrumentation engine.
+        /// </summary>
+        public static void Replay(Delegate fuzzingMethod, ReadOnlySpan<byte> input)
+        {
+            byte[] data = input.ToArray();
+            if (fuzzingMethod is LibFuzzSpan spanMethod)
+            {
+                RunWithOracles(spanMethod.Method.Name, data, () => spanMethod(data));
+            }
+            else if (fuzzingMethod is AflFuzzStream streamMethod)
+            {
+                RunWithOracles(streamMethod.Method.Name, data, () =>
+                {
+                    using var stream = new MemoryStream(data, writable: false);
+                    streamMethod(stream);
+                });
+            }
+            else if (fuzzingMethod is AflFuzzString stringMethod)
+            {
+                string text = Encoding.UTF8.GetString(data);
+                RunWithOracles(stringMethod.Method.Name, data, () => stringMethod(text));
+            }
+            else
+            {
+                throw new ArgumentException("Unsupported fuzzing delegate.", nameof(fuzzingMethod));
+            }
+        }
+
+        /// <summary>
+        /// Runs one input under the stack and time oracles of <see cref="FuzzOracles"/>.
+        /// </summary>
+        private static void RunWithOracles(string target, byte[] input, Action run)
+        {
+            FuzzOracles.RunTarget(target, input.Length, run);
+        }
+
+        /// <summary>
         /// Runs the fuzzing method with the given delegate.
         /// </summary>
         public static void RunFuzzMethod(Delegate fuzzingMethod, bool outOfProcess = false)
@@ -150,32 +192,61 @@ namespace Opc.Ua.Fuzzing
             // find the function to fuzz method based on the type
             if (fuzzingMethod is AflFuzzStream aflFuzzStreamMethod)
             {
+                // Buffered so the oracles can re-run the input and measure its size.
+                void RunStream(Stream stream)
+                {
+                    using var buffer = new MemoryStream();
+                    stream.CopyTo(buffer);
+                    byte[] data = buffer.ToArray();
+                    RunWithOracles(aflFuzzStreamMethod.Method.Name, data, () =>
+                    {
+                        using var input = new MemoryStream(data, writable: false);
+                        aflFuzzStreamMethod(input);
+                    });
+                }
+
                 if (outOfProcess)
                 {
-                    Fuzzer.OutOfProcess.Run(stream => aflFuzzStreamMethod(stream));
+                    Fuzzer.OutOfProcess.Run(RunStream);
                 }
                 else
                 {
-                    Fuzzer.Run(stream => aflFuzzStreamMethod(stream));
+                    Fuzzer.Run(RunStream);
                 }
             }
             else if (fuzzingMethod is AflFuzzString aflFuzzStringMethod)
             {
+                void RunString(string text)
+                {
+                    RunWithOracles(
+                        aflFuzzStringMethod.Method.Name,
+                        Encoding.UTF8.GetBytes(text),
+                        () => aflFuzzStringMethod(text));
+                }
+
                 if (outOfProcess)
                 {
-                    Fuzzer.OutOfProcess.Run(text => aflFuzzStringMethod(text));
+                    Fuzzer.OutOfProcess.Run(RunString);
                 }
                 else
                 {
-                    Fuzzer.Run(text => aflFuzzStringMethod(text));
+                    Fuzzer.Run(RunString);
                 }
                 return;
             }
             // libfuzzer span target
             else if (fuzzingMethod is LibFuzzSpan libFuzzSpanMethod)
             {
-                Fuzzer.LibFuzzer.Run(bytes => libFuzzSpanMethod(bytes));
+                Fuzzer.LibFuzzer.Run(bytes =>
+                {
+                    byte[] data = bytes.ToArray();
+                    RunWithOracles(libFuzzSpanMethod.Method.Name, data, () => libFuzzSpanMethod(data));
+                });
                 return;
+            }
+            else
+            {
+                throw new ArgumentException("Unsupported fuzzing delegate.", nameof(fuzzingMethod));
             }
         }
     }

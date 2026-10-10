@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
 
 namespace Opc.Ua.Server
 {
@@ -58,6 +59,213 @@ namespace Opc.Ua.Server
             : base(aggregateId, startTime, endTime, processingInterval, stepped, configuration, telemetry)
         {
             SetPartialBit = true;
+        }
+
+        /// <summary>
+        /// Calculates AnnotationCount values for the requested time domain.
+        /// </summary>
+        /// <param name="annotationTimestamps">
+        /// Annotation timestamps in any order.
+        /// </param>
+        /// <param name="startTime">The start of the requested domain.</param>
+        /// <param name="endTime">The end of the requested domain.</param>
+        /// <param name="processingInterval">
+        /// The interval in milliseconds. Zero requests one result over the
+        /// complete domain.
+        /// </param>
+        /// <param name="outputCap">Maximum number of returned values.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The calculated AnnotationCount values.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="annotationTimestamps"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="outputCap"/> is not positive.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The interval is invalid or the output cap is exceeded.
+        /// </exception>
+        public static ArrayOf<DataValue> CalculateAnnotationCounts(
+            ArrayOf<DateTimeUtc> annotationTimestamps,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
+            double processingInterval,
+            int outputCap,
+            CancellationToken cancellationToken)
+        {
+            return CalculateAnnotationCounts(
+                annotationTimestamps,
+                startTime,
+                endTime,
+                processingInterval,
+                DateTimeUtc.MinValue,
+                DateTimeUtc.MaxValue,
+                outputCap,
+                cancellationToken);
+        }
+
+        /// <summary>
+        /// Calculates AnnotationCount values for the requested time domain of a
+        /// history collection whose data spans the specified range.
+        /// </summary>
+        /// <remarks>
+        /// Part 13 §5.4.3.20: an interval entirely before the start of data or
+        /// after the end of data is <c>Bad_NoData</c>, and an interval that
+        /// overlaps the start or the end of data has the Partial bit set
+        /// (§5.3.3.2). Pass a <paramref name="startOfData"/> later than
+        /// <paramref name="endOfData"/> when the collection has no data.
+        /// </remarks>
+        /// <param name="annotationTimestamps">
+        /// Annotation timestamps in any order.
+        /// </param>
+        /// <param name="startTime">The start of the requested domain.</param>
+        /// <param name="endTime">The end of the requested domain.</param>
+        /// <param name="processingInterval">
+        /// The interval in milliseconds. Zero requests one result over the
+        /// complete domain.
+        /// </param>
+        /// <param name="startOfData">The timestamp of the first data point.</param>
+        /// <param name="endOfData">The timestamp of the last data point.</param>
+        /// <param name="outputCap">Maximum number of returned values.</param>
+        /// <param name="cancellationToken">Cancellation token.</param>
+        /// <returns>The calculated AnnotationCount values.</returns>
+        /// <exception cref="ArgumentNullException">
+        /// <paramref name="annotationTimestamps"/> is null.
+        /// </exception>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="outputCap"/> is not positive.
+        /// </exception>
+        /// <exception cref="ServiceResultException">
+        /// The interval is invalid or the output cap is exceeded.
+        /// </exception>
+        public static ArrayOf<DataValue> CalculateAnnotationCounts(
+            ArrayOf<DateTimeUtc> annotationTimestamps,
+            DateTimeUtc startTime,
+            DateTimeUtc endTime,
+            double processingInterval,
+            DateTimeUtc startOfData,
+            DateTimeUtc endOfData,
+            int outputCap,
+            CancellationToken cancellationToken)
+        {
+            if (annotationTimestamps.IsNull)
+            {
+                throw new ArgumentNullException(nameof(annotationTimestamps));
+            }
+            if (outputCap <= 0)
+            {
+                throw new ArgumentOutOfRangeException(
+                    nameof(outputCap),
+                    outputCap,
+                    "The output cap must be positive.");
+            }
+            if (processingInterval < 0 ||
+                double.IsNaN(processingInterval) ||
+                double.IsInfinity(processingInterval))
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadAggregateInvalidInputs);
+            }
+            if (startTime == endTime)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidArgument);
+            }
+            long intervalTicks = processingInterval == 0
+                ? 0
+                : GetAnnotationIntervalTicks(processingInterval);
+            if (processingInterval > 0)
+            {
+                long spanTicks = Math.Abs(
+                    endTime.ToDateTime().Ticks -
+                    startTime.ToDateTime().Ticks);
+                long intervalCount = spanTicks / intervalTicks;
+                if (spanTicks % intervalTicks != 0)
+                {
+                    intervalCount++;
+                }
+                if (intervalCount > outputCap)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTooManyOperations);
+                }
+            }
+
+            cancellationToken.ThrowIfCancellationRequested();
+            var sorted = new DateTimeUtc[annotationTimestamps.Count];
+            for (int i = 0; i < sorted.Length; i++)
+            {
+                sorted[i] = annotationTimestamps[i];
+            }
+            Array.Sort(sorted);
+
+            bool forward = startTime < endTime;
+            var values = new List<DataValue>();
+            int index = forward ? 0 : sorted.Length - 1;
+            DateTimeUtc cursor = startTime;
+            while (forward ? cursor < endTime : cursor > endTime)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (values.Count >= outputCap)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadTooManyOperations);
+                }
+
+                long remainingTicks = Math.Abs(
+                    endTime.ToDateTime().Ticks -
+                    cursor.ToDateTime().Ticks);
+                DateTimeUtc next =
+                    processingInterval == 0 ||
+                    intervalTicks >= remainingTicks
+                    ? endTime
+                    : AddAnnotationInterval(
+                        cursor,
+                        forward ? intervalTicks : -intervalTicks);
+
+                int count = forward
+                    ? CountForwardAnnotations(
+                        sorted,
+                        ref index,
+                        cursor,
+                        next,
+                        cancellationToken)
+                    : CountReverseAnnotations(
+                        sorted,
+                        ref index,
+                        cursor,
+                        next,
+                        cancellationToken);
+
+                // chronological bounds; forward intervals exclude the late
+                // time and reverse intervals exclude the early time.
+                DateTimeUtc early = forward ? cursor : next;
+                DateTimeUtc late = forward ? next : cursor;
+                bool beforeStartOfData = forward
+                    ? late <= startOfData
+                    : late < startOfData;
+                bool afterEndOfData = forward
+                    ? early > endOfData
+                    : early >= endOfData;
+                if (beforeStartOfData || afterEndOfData)
+                {
+                    values.Add(new DataValue(
+                        Variant.Null,
+                        StatusCodes.BadNoData,
+                        cursor,
+                        cursor));
+                }
+                else
+                {
+                    // same edge rules as AggregateCalculator.TryGetProcessedValue.
+                    bool partial =
+                        (startOfData > early && startOfData < late) ||
+                        (endOfData >= early && endOfData < late);
+                    values.Add(CreateAnnotationCountValue(count, cursor, partial));
+                }
+                cursor = next;
+            }
+            return values.ToArrayOf();
         }
 
         /// <summary>
@@ -100,12 +308,13 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // count the values.
+            // count the values. Part 13 §4.2.1.2: with TreatUncertainAsBad = false an
+            // Uncertain value is equivalent to Good, so it is counted (IsGood applies the setting).
             int count = 0;
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (StatusCode.IsGood(values[ii].StatusCode))
+                if (IsGood(values[ii]))
                 {
                     count++;
                 }
@@ -213,7 +422,12 @@ namespace Opc.Ua.Server
                 StatusCodes.Good,
                 GetTimestamp(slice),
                 GetTimestamp(slice));
-            value = value.WithStatus(GetTimeBasedStatusCode(regions, value.StatusCode));
+
+            // The duration uses stepped regions because a state lasts until the next value, but
+            // the status regions follow the interpolation of the variable: with sloped
+            // interpolation a region ending in a Bad or Uncertain value (including the simple
+            // end bound) is Uncertain (Part 13 §5.4.3.2.2).
+            value = value.WithStatus(GetTimeBasedStatusCode(slice, values, value.StatusCode));
             value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
 
             // return result.
@@ -234,8 +448,13 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            // The first non-Bad value is a transition when no previous non-Bad value exists.
-            LinkedListNode<DataValue>? previousValue = slice.NonBadEarlyBound;
+            // Part 13 §5.4.3.24: the earliest non-Bad value in the interval is compared to the
+            // previous non-Bad value, which is a transition when no previous non-Bad value exists;
+            // Bad values are not included. The definition speaks of non-Bad values, so an Uncertain
+            // value counts whatever TreatUncertainAsBad is (Table 72 "Bound Uncertain: Use as value";
+            // the aggregate definition wins over TreatUncertainAsBad, Mantis 11425 ~0025847,
+            // 11426 ~0025852). The EarlyBound is the last non-Bad value before the interval.
+            LinkedListNode<DataValue>? previousValue = slice.EarlyBound;
             bool hasLastValue = previousValue != null;
             Variant lastValue = previousValue != null
                 ? previousValue.Value.WrappedValue
@@ -246,7 +465,7 @@ namespace Opc.Ua.Server
 
             for (int ii = 0; ii < values.Count; ii++)
             {
-                if (StatusCode.IsBad(values[ii].StatusCode))
+                if (!IsBoundCandidate(values[ii]))
                 {
                     continue;
                 }
@@ -267,11 +486,131 @@ namespace Opc.Ua.Server
                 StatusCodes.Good,
                 GetTimestamp(slice),
                 GetTimestamp(slice));
-            value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
             value = value.WithStatus(GetValueBasedStatusCode(slice, values, value.StatusCode));
+
+            // like Count, a Bad result carries no value and no aggregate bits.
+            if (!StatusCode.IsBad(value.StatusCode))
+            {
+                value = value.WithStatus(value.StatusCode.WithAggregateBits(AggregateBits.Calculated));
+            }
 
             // return result.
             return value;
+        }
+
+        private static DateTimeUtc AddAnnotationInterval(
+            DateTimeUtc timestamp,
+            long ticks)
+        {
+            DateTimeUtc next;
+            try
+            {
+                long nextTicks = checked(
+                    timestamp.ToDateTime().Ticks + ticks);
+                next = new DateTimeUtc(
+                    new DateTime(nextTicks, DateTimeKind.Utc));
+            }
+            catch (Exception exception) when (
+                exception is ArgumentOutOfRangeException or
+                OverflowException)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadAggregateInvalidInputs,
+                    "The annotation-count interval does not produce a valid timestamp.",
+                    exception);
+            }
+            if (next == timestamp)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadAggregateInvalidInputs,
+                    "The annotation-count interval does not advance.");
+            }
+            return next;
+        }
+
+        private static long GetAnnotationIntervalTicks(
+            double processingInterval)
+        {
+            double ticks = processingInterval *
+                TimeSpan.TicksPerMillisecond;
+            if (double.IsInfinity(ticks) ||
+                ticks < 1 ||
+                ticks >= 9_223_372_036_854_775_808d)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadAggregateInvalidInputs);
+            }
+            try
+            {
+                return checked((long)ticks);
+            }
+            catch (OverflowException exception)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadAggregateInvalidInputs,
+                    "The annotation-count interval exceeds the supported range.",
+                    exception);
+            }
+        }
+
+        private static int CountForwardAnnotations(
+            DateTimeUtc[] timestamps,
+            ref int index,
+            DateTimeUtc lowerInclusive,
+            DateTimeUtc upperExclusive,
+            CancellationToken cancellationToken)
+        {
+            while (index < timestamps.Length &&
+                timestamps[index] < lowerInclusive)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                index++;
+            }
+            int start = index;
+            while (index < timestamps.Length &&
+                timestamps[index] < upperExclusive)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                index++;
+            }
+            return index - start;
+        }
+
+        private static int CountReverseAnnotations(
+            DateTimeUtc[] timestamps,
+            ref int index,
+            DateTimeUtc upperInclusive,
+            DateTimeUtc lowerExclusive,
+            CancellationToken cancellationToken)
+        {
+            while (index >= 0 && timestamps[index] > upperInclusive)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                index--;
+            }
+            int start = index;
+            while (index >= 0 && timestamps[index] > lowerExclusive)
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                index--;
+            }
+            return start - index;
+        }
+
+        private static DataValue CreateAnnotationCountValue(
+            int count,
+            DateTimeUtc timestamp,
+            bool partial)
+        {
+            var value = new DataValue(
+                Variant.From(count),
+                StatusCodes.Good,
+                timestamp,
+                timestamp);
+            return value.WithStatus(value.StatusCode.WithAggregateBits(
+                partial
+                    ? AggregateBits.Calculated | AggregateBits.Partial
+                    : AggregateBits.Calculated));
         }
     }
 }

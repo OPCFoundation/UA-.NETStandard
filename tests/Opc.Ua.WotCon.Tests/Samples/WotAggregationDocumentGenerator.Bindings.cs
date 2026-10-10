@@ -286,7 +286,12 @@ namespace Opc.Ua.WotCon.Tests.Samples
             var matches = new List<AffordanceLocation>();
             foreach ((string resourceId, JsonObject root) in roots)
             {
-                if (root[mapName] is JsonObject map)
+                // A pump raises the events its own type declares, so the
+                // type's Thing Model states the same EventType as the pump's
+                // Thing Description. The binding belongs on the instance, and
+                // a Thing Model never stands in for a declaration the instance
+                // lacks.
+                if (root[mapName] is JsonObject map && !IsThingModel(root))
                 {
                     VisitMap(map, "/" + mapName, resourceId, root);
                 }
@@ -297,6 +302,17 @@ namespace Opc.Ua.WotCon.Tests.Samples
                     $"Expected exactly one '{mapName}' declaration for '{nodeId}'; found {matches.Count}.");
             }
             return matches[0];
+
+            static bool IsThingModel(JsonObject root)
+            {
+                return root["@type"] switch
+                {
+                    JsonArray types => types.Any(type =>
+                        type?.GetValue<string>() == "tm:ThingModel"),
+                    JsonValue type => type.GetValue<string>() == "tm:ThingModel",
+                    _ => false
+                };
+            }
 
             void VisitMap(JsonObject map, string pointer, string resourceId, JsonObject root)
             {

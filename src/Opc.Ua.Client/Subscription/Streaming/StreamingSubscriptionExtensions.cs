@@ -92,7 +92,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             Func<T, bool> predicate,
             [EnumeratorCancellation] CancellationToken ct)
         {
-            await foreach (T item in source.ConfigureAwait(false))
+            await foreach (T item in source.WithCancellation(ct).ConfigureAwait(false))
             {
                 ct.ThrowIfCancellationRequested();
                 yield return item;
@@ -198,7 +198,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             [EnumeratorCancellation] CancellationToken ct)
         {
             int taken = 0;
-            await foreach (T item in source.ConfigureAwait(false))
+            await foreach (T item in source.WithCancellation(ct).ConfigureAwait(false))
             {
                 ct.ThrowIfCancellationRequested();
                 yield return item;
@@ -231,7 +231,7 @@ namespace Opc.Ua.Client.Subscriptions.Streaming
             }
 
             var buffer = new List<T>(count);
-            await foreach (T item in source.ConfigureAwait(false))
+            await foreach (T item in source.WithCancellation(ct).ConfigureAwait(false))
             {
                 ct.ThrowIfCancellationRequested();
                 buffer.Add(item);

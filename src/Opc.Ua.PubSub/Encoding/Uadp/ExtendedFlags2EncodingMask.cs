@@ -54,9 +54,10 @@ namespace Opc.Ua.PubSub.Encoding.Uadp
         None = 0,
 
         /// <summary>
-        /// Bit 0 — Chunk message. When set, the payload is a single
-        /// chunk of a larger NetworkMessage; full reassembly is
-        /// required before decoding the contained DataSetMessages.
+        /// Bit 0 — Chunk message. When set, the payload is one chunk of
+        /// a DataSetMessage (or discovery announcement) that did not fit
+        /// into a single NetworkMessage (Part 14 §7.2.4.4.4); full
+        /// reassembly is required before decoding it.
         /// </summary>
         ChunkMessage = 0x01,
 

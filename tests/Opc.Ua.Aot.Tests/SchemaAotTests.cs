@@ -31,9 +31,11 @@ using System.Text.Json.Nodes;
 using System.Xml;
 using System.Xml.Linq;
 using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Bindings;
 using Opc.Ua.Schema;
 using Opc.Ua.Schema.Bsd;
 using Opc.Ua.Schema.Json;
+using Opc.Ua.Schema.OpenApi;
 using Opc.Ua.Schema.Xsd;
 
 namespace Opc.Ua.Aot.Tests
@@ -50,6 +52,18 @@ namespace Opc.Ua.Aot.Tests
             ISchemaProvider provider = services.GetRequiredService<ISchemaProvider>();
 
             await AssertAllFormatsAsync(provider, outer);
+        }
+
+        [Test]
+        public async Task WebApiOpenApiDocumentIsAotSafeAsync()
+        {
+            var generator = new WebApiOpenApiGenerator();
+
+            JsonObject document = generator.Generate(WebApiServiceSet.AllServices, includeSchemas: true);
+
+            await Assert.That(document["paths"]!.AsObject().Count).IsEqualTo(WebApiServiceRoutes.Count);
+            await Assert.That(document["components"]!["schemas"]!.AsObject().ContainsKey("ReadRequest")).IsTrue();
+            await Assert.That(document.ToJsonString()).Contains("DataValue");
         }
 
         [Test]
@@ -123,7 +137,13 @@ namespace Opc.Ua.Aot.Tests
 
             foreach ((NodeId id, string name) in identifiers)
             {
-                ExpandedNodeId uriId = NodeId.ToExpandedNodeId(id, namespaceUris);
+                var stored = Variant.From(id);
+                await Assert.That(stored.TryGetValue(out NodeId extracted)).IsTrue();
+                await Assert.That(extracted.IdType).IsEqualTo(id.IdType);
+                await Assert.That(extracted.NamespaceIndex).IsEqualTo(id.NamespaceIndex);
+                await Assert.That(extracted.GetHashCode()).IsEqualTo(id.GetHashCode());
+                await Assert.That(extracted.Equals(id)).IsTrue();
+                var uriId = NodeId.ToExpandedNodeId(extracted, namespaceUris);
                 await Assert.That(registry.TryResolve(uriId, out UaTypeDescription? registered)).IsTrue();
                 await Assert.That(registered!.Name).IsEqualTo(name);
                 await Assert.That(source.TryResolve(uriId, out UaTypeDescription? resolved)).IsTrue();

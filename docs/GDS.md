@@ -14,6 +14,50 @@ control.
 | [KeyCredentialService](KeyCredentialService.md) | Credential issuance for non-UA services |
 | [AuthorizationService](AuthorizationService.md) | OAuth2-style access token issuance |
 
+## Contents
+
+- [Quick Links](#quick-links)
+- [Packages](#packages)
+- [1. Client API](#1-client-api)
+  - [GlobalDiscoveryServerClient](#globaldiscoveryserverclient)
+  - [ServerPushConfigurationClient](#serverpushconfigurationclient)
+  - [OPC 10000-21 OnboardingClient](#opc-10000-21-onboardingclient)
+- [2. Server-Side: Building a GDS](#2-server-side-building-a-gds)
+  - [Minimal GDS Server](#minimal-gds-server)
+  - [Using GdsNodeManagerFactory](#using-gdsnodemanagerfactory)
+  - [Extension Points](#extension-points)
+- [3. Implementing Providers](#3-implementing-providers)
+  - [IApplicationsDatabase](#iapplicationsdatabase)
+  - [ICertificateGroup](#icertificategroup)
+  - [IGdsUserDatabase](#igdsuserdatabase)
+  - [IConfigurationDataStore](#iconfigurationdatastore)
+- [4. Roles and Authorization](#4-roles-and-authorization)
+  - [GDS Roles (OPC 10000-12 §7.2)](#gds-roles-opc-10000-12-72)
+  - [ApplicationSelfAdmin Privilege](#applicationselfadmin-privilege)
+  - [ApplicationAdmin Privilege](#applicationadmin-privilege)
+  - [Security: Fail-Closed Channel Validation](#security-fail-closed-channel-validation)
+- [5. End-to-End Example](#5-end-to-end-example)
+- [Conformance Matrix](#conformance-matrix)
+  - [Applicable Part 12 profiles and conformance units](#applicable-part-12-profiles-and-conformance-units)
+  - [Automated verification](#automated-verification)
+- [GDS Directory (§6.5)](#gds-directory-65)
+- [Certificate Management — Pull Model (§7.9)](#certificate-management--pull-model-79)
+- [Roles and Privileges (§7.2)](#roles-and-privileges-72)
+- [Push Management — ServerConfiguration (§7.10)](#push-management--serverconfiguration-710)
+  - [Transaction model, diagnostics and lifecycle (§7.10.2, §7.10.9, §7.10.11, §7.10.17)](#transaction-model-diagnostics-and-lifecycle-7102-7109-71011-71017)
+  - [Optional ServerConfiguration surface (§7.10.13, §7.10.14, §7.10.20)](#optional-serverconfiguration-surface-71013-71014-71020)
+  - [GDS-managed applications proxy (§7.10.14–§7.10.16)](#gds-managed-applications-proxy-7101471016)
+- [TrustList (§7.8)](#trustlist-78)
+  - [Certificate and TrustList alarms (§7.8.3)](#certificate-and-trustlist-alarms-783)
+  - [TrustList-change effects on channels and Sessions (§7.10.9)](#trustlist-change-effects-on-channels-and-sessions-7109)
+- [Audit Events](#audit-events)
+- [KeyCredentialService (§8)](#keycredentialservice-8)
+- [AuthorizationService (§9)](#authorizationservice-9)
+  - [Refresh tokens](#refresh-tokens)
+- [Remaining optional / unsupported Part 12 items](#remaining-optional--unsupported-part-12-items)
+- [LDS / LDS-ME (§4–5)](#lds--lds-me-45)
+- [Extension Points (Phase 2 Abstractions)](#extension-points-phase-2-abstractions)
+
 ## Packages
 
 | NuGet Package | Contents |
@@ -494,7 +538,7 @@ There is no fully-automated CTT harness in this repository, and the formal **OPC
 | Section | Feature | Status | Source | Tests |
 |---------|---------|--------|--------|-------|
 | §6.5.3 | DirectoryType | ✅ | `ApplicationsNodeManager.cs` | `ClientTest.cs`, `GdsApplicationDirectoryTests.cs` |
-| §6.5.4 | FindApplications | ✅ | `OnFindApplications` | `GdsApplicationDirectoryTests.cs` |
+| §6.5.4 | FindApplications | ✅ | `OnFindApplications` (any Client, §6.5.3) | `GdsApplicationDirectoryTests.cs`, `ClientTest.FindApplicationsAsSelfAdminAsync` |
 | §6.5.5 | ApplicationRecordDataType / rcp+ rules | ✅ | `ApplicationsDatabaseBase.ValidateApplication` | `ApplicationsDatabaseBaseTests.cs`, `LinqApplicationsDatabaseTests.cs` |
 | §6.5.6 | RegisterApplication | ✅ | `OnRegisterApplication` + `DiscoveryAdminOrAppAdmin` | `GdsApplicationDirectoryTests.cs`, `RegisteredApplicationTests.cs` |
 | §6.5.7 | UpdateApplication | ✅ | `OnUpdateApplication` + `DiscoveryAdminOrSelfAdminOrAppAdmin` | `GdsApplicationDirectoryTests.cs` |
@@ -510,7 +554,7 @@ Pull Certificate Management moved from §7.6 (1.04) to **§7.9** (v1.05.07); the
 
 | Section | Feature | Status | Source | Tests |
 |---------|---------|--------|--------|-------|
-| §7.9.3 | StartSigningRequest | ✅ | `OnStartSigningRequestAsync` + audit | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
+| §7.9.3 | StartSigningRequest | ✅ | `OnStartSigningRequestAsync` + CSR key / CertificateType check + audit | `GdsCertificateManagementTests.cs`, `CertificateGroupSigningRequestTests.cs`, `ClientTest.cs` |
 | §7.9.4 | StartNewKeyPairRequest | ✅ | `OnStartNewKeyPairRequest` + audit | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
 | §7.9.5 | FinishRequest | ✅ | `OnFinishRequestAsync` + issuer chain | `GdsCertificateManagementTests.cs`, `ClientTest.cs` |
 | §7.9.6 | RevokeCertificate | ✅ | `OnRevokeCertificateAsync` + audit | `GdsCertificateManagementTests.cs`, `CertificateGroupTests.cs` |
@@ -591,14 +635,22 @@ The GDS-side proxy that exposes *other* applications' configurations under a `Ma
 | §7.8.2.5 | CloseAndUpdate — staged, applied at `ApplyChanges` | ✅ | `TrustList.cs` + coordinator; `TrustListUpdatedAuditEvent` post-commit | `TrustListTransactionTests` (`CloseAndUpdateStagesInsteadOfApplyingImmediatelyAsync`, `...RollsBackWhenALaterOperationFailsAsync`, `...SelfCompensatesWhenOnlyOneOfSeveralStoresFailsAsync`), `PushTest.UpdateTrustListAsync` |
 | §7.8.2.6/.7 | AddCertificate / RemoveCertificate — staged | ✅ | `TrustList.cs` | `PushTest` (`AddRemoveCertAsync`, `AddRemoveCATrustedCertAsync`, `AddRemoveCAIssuerCertAsync`), `TrustListTransactionTests.cs` |
 | §7.8.2 | Open-for-write blocked with `Bad_TransactionPending` while another Session's transaction is active | ✅ | `TrustList.cs` + coordinator | `TrustListTransactionTests.cs`, `PushConfigurationTransactionCoordinatorTests.ApplyChangesWithOpenTrustListWriter*` |
+| §7.8.2 / Part 20 §4.2.2 | Several concurrent read handles; an open while a write handle is open → `Bad_NotReadable`/`Bad_NotWritable` (also for the owning Session); a write open while any handle is open → `Bad_NotWritable` | ✅ | `TrustList.cs` | `TrustListTests` (`OpenForReadSeveralTimesKeepsEveryReadHandle`, `SameSessionOpenWhileItsWriteHandleIsOpenIsRejected`) |
 | §7.8.2 | Read/write access control | ✅ | `TrustList.cs` | `TrustListTests` (`OpenReadWithoutReadAccessThrowsBadUserAccessDenied`, `OpenWriteWithoutWriteAccessThrowsBadUserAccessDenied`) |
 | §7.8.2 | `LastUpdateTime` set on init + after committed update | ✅ | `TrustList.cs` | `TrustListTransactionTests.cs` |
-| §7.8.2 | Writable / UserWritable; ActivityTimeout / DefaultValidationOptions | ✅ | Set to true for GDS groups; generated from model CSV | `TrustListTests.cs` |
-| §8.4.5 | `MaxTrustListSize` advertised honestly + resource-protection safety ceiling; oversize → `Bad_EncodingLimitsExceeded` | ✅ | `TrustList.cs` + `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling` | `TrustListValidationTest` (`NormalSizeTrustListAsync`, `WriteTrustListExceedsSizeLimit`, `TrustListJustUnderLimitAsync`), `ConfigurationNodeManagerPushTests.MaxTrustListSizeAdvertisesHonestFiniteEffectiveLimit` |
+| §7.8.2 | Writable / UserWritable; DefaultValidationOptions | ✅ | Set to true for GDS groups; generated from model CSV | `TrustListTests.cs` |
+| §7.8.2.1 | ActivityTimeout: a handle with no Method call for the node's `ActivityTimeout` (default 60 000 ms) is closed and its changes discarded; every Open/Read/Write restarts it | ✅ | `TrustList.cs` (per-handle timer on the server `TimeProvider`) | `TrustListTests` (`IdleWriteHandleIsClosedAfterActivityTimeout`, `ActivityTimeoutPropertyValueIsHonored`) |
+| §8.4.5 | `MaxTrustListSize` advertised honestly + resource-protection safety ceiling; oversize `Write`/`AddCertificate` → `Bad_RequestTooLarge`; `Read` clamped to the server-encoded stream | ✅ | `TrustList.cs` + `ServerConfigurationOptions.MaxTrustListSizeSafetyCeiling` | `TrustListValidationTest` (`NormalSizeTrustListAsync`, `WriteTrustListExceedsSizeLimit`, `TrustListJustUnderLimitAsync`), `ConfigurationNodeManagerPushTests.MaxTrustListSizeAdvertisesHonestFiniteEffectiveLimit` |
 
 ### Certificate and TrustList alarms (§7.8.3)
 
-Each `CertificateGroup` exposes the two optional standard alarm instances with **full active/inactive transitions and events** (previously property-only). `ConfigurationNodeManager` creates and wires them in `CreateAddressSpace` and `StandardServer.OnServerStarted` starts periodic monitoring (60&nbsp;s) once the subscription infrastructure is ready; all thresholds and timers flow through the injected `TimeProvider`. See [CertificateManager.md → Certificate-Expiration and TrustList-Staleness Alarms](CertificateManager.md#certificate-expiration-and-trustlist-staleness-alarms-opc-ua-part-12-783).
+Each `CertificateGroup` exposes the two optional standard alarm instances
+with **full active/inactive transitions and events** (previously
+property-only). `ConfigurationNodeManager` creates and wires them in
+`CreateAddressSpace`. `StandardServer.OnServerStarted` starts periodic
+monitoring every 60 s once the subscription infrastructure is ready. The
+injected `TimeProvider` supplies all thresholds and timers. See
+[CertificateManager.md → Certificate-Expiration and TrustList-Staleness Alarms](CertificateManager.md#certificate-expiration-and-trustlist-staleness-alarms-opc-ua-part-12-783).
 
 | Alarm | Status | Source | Tests |
 |-------|--------|--------|-------|

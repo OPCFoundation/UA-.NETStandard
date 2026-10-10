@@ -42,7 +42,7 @@ namespace Opc.Ua.Client.TestFramework
         public const string DefaultIssuer = "urn:opcfoundation:tests:jwt";
         public const string DefaultSubject = "local-issued-token-user";
 
-        public IssuedIdentityTokenHandler LastIssuedToken { get; set; }
+        public IssuedIdentityTokenHandler LastIssuedToken { get; set; } = null!;
 
         public string? Issuer { get; set; } = DefaultIssuer;
 
@@ -50,7 +50,7 @@ namespace Opc.Ua.Client.TestFramework
 
         public void Dispose()
         {
-            LastIssuedToken = null;
+            LastIssuedToken = null!;
         }
 
         public IUserIdentity ValidateToken(IssuedIdentityTokenHandler issuedToken)

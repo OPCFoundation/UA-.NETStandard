@@ -28,7 +28,7 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
+using System.Net;
 using System.Net.Http;
 using System.Net.Http.Headers;
 using System.Threading;
@@ -50,9 +50,41 @@ namespace Opc.Ua.Client.WebApi
     {
         private readonly HttpClient m_httpClient;
         private readonly bool m_ownsHttpClient;
+
+        /// <summary>
+        /// Whether the HttpClient may be configured in the constructor. False
+        /// for a factory pooled instance, which is shared and may already have
+        /// sent a request.
+        /// </summary>
+        private readonly bool m_configureHttpClient;
         private readonly WebApiClientOptions m_options;
         private readonly IServiceMessageContext m_messageContext;
         private readonly string m_contentType;
+
+        /// <summary>
+        /// Authorization header applied to every request. Kept here rather than
+        /// on the HttpClient so a shared client is never mutated.
+        /// </summary>
+        private readonly AuthenticationHeaderValue? m_authorization;
+
+        /// <summary>
+        /// Parsed once: the content type never changes after construction and
+        /// SendAsync is the per-service-call path of this transport.
+        /// </summary>
+        private readonly MediaTypeHeaderValue m_contentTypeHeader;
+        private readonly MediaTypeWithQualityHeaderValue m_acceptHeader;
+
+        /// <summary>
+        /// <c>Accept-Encoding: gzip</c> when
+        /// <see cref="WebApiClientOptions.AcceptCompressedResponses"/> is set.
+        /// </summary>
+        private static readonly StringWithQualityHeaderValue s_gzipEncoding = new("gzip");
+
+        /// <summary>
+        /// Base address applied per request when this instance does not own
+        /// the HttpClient; <see langword="null"/> when the client carries it.
+        /// </summary>
+        private readonly Uri? m_baseAddress;
         private bool m_disposed;
 
         /// <summary>
@@ -62,22 +94,54 @@ namespace Opc.Ua.Client.WebApi
         /// </summary>
         /// <param name="httpClient">The HTTP client to use.</param>
         /// <param name="options">Configuration options.</param>
+        /// <exception cref="ServiceResultException">
+        /// <c>BadSecurityChecksFailed</c> when credentials are configured and the
+        /// client's base address is not <c>https://</c>.</exception>
         public WebApiClient(HttpClient httpClient, WebApiClientOptions? options = null)
-            : this(httpClient, ownsHttpClient: false, options)
+            : this(
+                ThrowIfCredentialsOverPlainHttp(httpClient, options),
+                ownsHttpClient: false,
+                configureHttpClient: true,
+                options)
         {
+        }
+
+        /// <summary>
+        /// Initializes a new REST client over an <c>HttpClient</c> the caller
+        /// owns - typically one handed out by an <c>IHttpClientFactory</c> and
+        /// therefore shared and possibly already used. The base address is kept
+        /// here and applied per request instead of being written onto the
+        /// shared client, whose BaseAddress, Timeout and DefaultRequestHeaders
+        /// throw once it has sent its first request.
+        /// </summary>
+        /// <param name="httpClient">The HTTP client to use.</param>
+        /// <param name="baseAddress">The server's base URI.</param>
+        /// <param name="options">Configuration options.</param>
+        internal WebApiClient(
+            HttpClient httpClient,
+            Uri baseAddress,
+            WebApiClientOptions? options)
+            : this(httpClient, ownsHttpClient: false, configureHttpClient: false, options)
+        {
+            ThrowIfCredentialsOverPlainHttp(baseAddress, m_options);
+            m_baseAddress = baseAddress;
         }
 
         private WebApiClient(
             HttpClient httpClient,
             bool ownsHttpClient,
+            bool configureHttpClient,
             WebApiClientOptions? options)
         {
             m_httpClient = httpClient ?? throw new ArgumentNullException(nameof(httpClient));
             m_ownsHttpClient = ownsHttpClient;
+            m_configureHttpClient = configureHttpClient;
             m_options = options ?? new WebApiClientOptions();
             m_messageContext = m_options.MessageContext
                 ?? ServiceMessageContext.CreateEmpty(new ClientTelemetryContext());
             m_contentType = WebApiMediaType.FormatContentType(m_options.Encoding);
+            m_contentTypeHeader = MediaTypeHeaderValue.Parse(m_contentType);
+            m_acceptHeader = MediaTypeWithQualityHeaderValue.Parse(m_contentType);
 
             if (m_options.BearerToken != null && m_options.BasicCredentials.HasValue)
             {
@@ -87,23 +151,37 @@ namespace Opc.Ua.Client.WebApi
 
             if (m_options.BearerToken is not null)
             {
-                m_httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Bearer", m_options.BearerToken);
+                m_authorization = new AuthenticationHeaderValue("Bearer", m_options.BearerToken);
             }
             else if (m_options.BasicCredentials is var basic && basic.HasValue)
             {
                 string parameter = Convert.ToBase64String(
                     System.Text.Encoding.UTF8.GetBytes(basic.Value.Username + ":" + basic.Value.Password));
-                m_httpClient.DefaultRequestHeaders.Authorization =
-                    new AuthenticationHeaderValue("Basic", parameter);
+                m_authorization = new AuthenticationHeaderValue("Basic", parameter);
             }
 
-            m_httpClient.DefaultRequestHeaders.Accept.Clear();
-            m_httpClient.DefaultRequestHeaders.Accept.Add(MediaTypeWithQualityHeaderValue.Parse(m_contentType));
-
-            if (m_options.RequestTimeout.HasValue)
+            // A factory pooled HttpClient is shared and already in use: writing
+            // BaseAddress, Timeout or DefaultRequestHeaders on it throws
+            // InvalidOperationException. Those instances are configured per
+            // request instead - see SendAsync.
+            if (m_configureHttpClient)
             {
-                m_httpClient.Timeout = m_options.RequestTimeout.Value;
+                if (m_authorization != null)
+                {
+                    m_httpClient.DefaultRequestHeaders.Authorization = m_authorization;
+                }
+                m_httpClient.DefaultRequestHeaders.Accept.Clear();
+                m_httpClient.DefaultRequestHeaders.Accept.Add(m_acceptHeader);
+                if (m_options.AcceptCompressedResponses &&
+                    !m_httpClient.DefaultRequestHeaders.AcceptEncoding.Contains(s_gzipEncoding))
+                {
+                    m_httpClient.DefaultRequestHeaders.AcceptEncoding.Add(s_gzipEncoding);
+                }
+
+                if (m_options.RequestTimeout.HasValue)
+                {
+                    m_httpClient.Timeout = m_options.RequestTimeout.Value;
+                }
             }
         }
 
@@ -130,11 +208,55 @@ namespace Opc.Ua.Client.WebApi
             // handed to HttpClient — HttpClient only understands the
             // registered transport schemes.
             Uri normalizedAddress = NormalizeOpcUaUrl(baseAddress);
+            ThrowIfCredentialsOverPlainHttp(normalizedAddress, options);
             HttpClient httpClient = options?.HttpMessageHandler != null
                 ? new HttpClient(options.HttpMessageHandler, disposeHandler: options.DisposeHandler)
                 : new HttpClient();
             httpClient.BaseAddress = normalizedAddress;
-            return new WebApiClient(httpClient, ownsHttpClient: true, options);
+            return new WebApiClient(httpClient, ownsHttpClient: true, configureHttpClient: true, options);
+        }
+
+        /// <summary>
+        /// Checks a caller-supplied client before its default headers are
+        /// written, so credentials are never installed on a non-TLS client.
+        /// </summary>
+        private static HttpClient ThrowIfCredentialsOverPlainHttp(
+            HttpClient httpClient,
+            WebApiClientOptions? options)
+        {
+            if (httpClient?.BaseAddress != null)
+            {
+                ThrowIfCredentialsOverPlainHttp(httpClient.BaseAddress, options);
+            }
+            // A null client is rejected by the constructor it is passed to.
+            return httpClient!;
+        }
+
+        /// <summary>
+        /// Refuses to send Bearer / Basic credentials in cleartext: the
+        /// Authorization header would otherwise go out over a plain
+        /// <c>http://</c> address (the WSS channel rejects the same case).
+        /// </summary>
+        /// <exception cref="ServiceResultException">
+        /// <c>BadSecurityChecksFailed</c> when credentials are configured and
+        /// <paramref name="address"/> is not <c>https://</c>.</exception>
+        private static void ThrowIfCredentialsOverPlainHttp(
+            Uri address,
+            WebApiClientOptions? options)
+        {
+            if (options == null ||
+                (options.BearerToken == null && !options.BasicCredentials.HasValue))
+            {
+                return;
+            }
+            if (!address.IsAbsoluteUri ||
+                !string.Equals(address.Scheme, Utils.UriSchemeHttps, StringComparison.OrdinalIgnoreCase))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "Web API credentials must not be sent over a non-TLS address. " +
+                    "Use an https:// endpoint or omit BearerToken/BasicCredentials.");
+            }
         }
 
         private static Uri NormalizeOpcUaUrl(Uri url)
@@ -229,44 +351,109 @@ namespace Opc.Ua.Client.WebApi
             }
             ThrowIfDisposed();
 
+            // The caller may set BaseAddress after construction (or not at
+            // all), so check the address this request is actually sent to.
+            if (m_authorization != null)
+            {
+                Uri? effectiveBase = m_baseAddress ?? m_httpClient.BaseAddress;
+                if (effectiveBase == null)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadSecurityChecksFailed,
+                        "Web API credentials require an https:// base address.");
+                }
+                ThrowIfCredentialsOverPlainHttp(effectiveBase, m_options);
+            }
+
             byte[] body = WebApiBodyCodec.EncodeBody(
                 request,
                 m_messageContext,
                 WebApiMediaType.ToEncoderOptions(m_options.Encoding));
 
             using var content = new ByteArrayContent(body);
-            content.Headers.ContentType = MediaTypeHeaderValue.Parse(m_contentType);
+            content.Headers.ContentType = m_contentTypeHeader;
 
-            using var requestMessage = new HttpRequestMessage(HttpMethod.Post, route.Path)
+            using var requestMessage = new HttpRequestMessage(
+                HttpMethod.Post,
+                m_baseAddress != null
+                    ? new Uri(m_baseAddress, route.Path)
+                    : new Uri(route.Path, UriKind.Relative))
             {
                 Content = content
             };
 
-            using HttpResponseMessage response = await m_httpClient
-                .SendAsync(requestMessage, HttpCompletionOption.ResponseContentRead, ct)
-                .ConfigureAwait(false);
+            if (!m_configureHttpClient)
+            {
+                // The client is shared, so the per-client defaults were not
+                // applied in the constructor. Carry them on the request.
+                if (m_authorization != null)
+                {
+                    requestMessage.Headers.Authorization = m_authorization;
+                }
+                requestMessage.Headers.Accept.Add(m_acceptHeader);
+                if (m_options.AcceptCompressedResponses)
+                {
+                    requestMessage.Headers.AcceptEncoding.Add(s_gzipEncoding);
+                }
+            }
 
-            response.EnsureSuccessStatusCode();
+            TimeSpan requestTimeout = m_httpClient.Timeout;
+            if (m_options.RequestTimeout is TimeSpan configuredTimeout &&
+                (requestTimeout == Timeout.InfiniteTimeSpan ||
+                    (configuredTimeout != Timeout.InfiniteTimeSpan && configuredTimeout < requestTimeout)))
+            {
+                requestTimeout = configuredTimeout;
+            }
+            using CancellationTokenSource timeout = TimeProvider.System.CreateCancellationTokenSource(requestTimeout);
+            using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
 
-#if NET5_0_OR_GREATER
-            using Stream stream = await response.Content
-                .ReadAsStreamAsync(ct)
-                .ConfigureAwait(false);
-#else
-            using Stream stream = await response.Content
-                .ReadAsStreamAsync()
-                .ConfigureAwait(false);
-#endif
+            // HTTP failures surface as a ServiceResultException with a
+            // StatusCode, like in the transport channels. A cancellation the
+            // caller requested stays an OperationCanceledException.
+            byte[] payload;
+            try
+            {
+                using HttpResponseMessage response = await m_httpClient
+                    .SendAsync(requestMessage, HttpCompletionOption.ResponseHeadersRead, linkedCts.Token)
+                    .ConfigureAwait(false);
 
-            IEncodeable decoded = await WebApiBodyCodec
-                .DecodeBodyAsync(
+                // Translate throttling (HTTP 429/503, e.g. a rate limiter gate) into
+                // BadServerTooBusy with the Retry-After hint, like HttpsTransportChannel.
+                if ((int)response.StatusCode == 429 ||
+                    response.StatusCode == HttpStatusCode.ServiceUnavailable)
+                {
+                    throw HttpsTransportChannel.CreateServerTooBusyException(response);
+                }
+
+                if (!response.IsSuccessStatusCode)
+                {
+                    throw WebApiHttpErrors.FromResponse(
+                        response,
+                        route.Path,
+                        credentialsSent: m_authorization != null ||
+                            m_httpClient.DefaultRequestHeaders.Authorization != null);
+                }
+
+                // A gzip body (Part 6 §7.4.5) is inflated by the reader
+                // within the MaxMessageSize budget.
+                payload = await HttpResponseBodyReader.ReadAsync(
+                    response.Content, m_messageContext.MaxMessageSize, linkedCts.Token).ConfigureAwait(false);
+            }
+            catch (OperationCanceledException ex) when (!ct.IsCancellationRequested)
+            {
+                throw WebApiHttpErrors.FromTimeout(ex, route.Path, requestTimeout);
+            }
+            catch (HttpRequestException ex)
+            {
+                throw WebApiHttpErrors.FromRequestFailure(ex, route.Path);
+            }
+
+            IEncodeable decoded = WebApiBodyCodec
+                .DecodeBody(
                     route.ResponseType,
-                    stream,
+                    payload,
                     m_messageContext,
-                    s_clientDecoderOptions,
-                    contentLengthHint: response.Content.Headers.ContentLength ?? -1,
-                    ct: ct)
-                .ConfigureAwait(false);
+                    s_clientDecoderOptions);
             return (IServiceResponse)decoded;
         }
 
@@ -282,8 +469,6 @@ namespace Opc.Ua.Client.WebApi
         {
             UpdateNamespaceTable = true
         };
-
-        // Strongly-typed delegates =====================================
 
         /// <inheritdoc/>
         public ValueTask<ReadResponse> ReadAsync(

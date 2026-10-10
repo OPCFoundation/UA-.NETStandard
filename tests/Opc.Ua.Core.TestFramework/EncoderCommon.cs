@@ -99,15 +99,15 @@ namespace Opc.Ua.Core.TestFramework
         /// writing them only when they are actually read - on a failure - keeps
         /// the diagnostics without the flood.
         /// </remarks>
-        protected TextWriter TestOutput { get; private set; }
+        protected TextWriter TestOutput { get; private set; } = null!;
 
-        protected RandomSource RandomSource { get; private set; }
-        protected DataGenerator DataGenerator { get; private set; }
-        protected IServiceMessageContext Context { get; private set; }
-        protected NamespaceTable NameSpaceUris { get; private set; }
-        protected StringTable ServerUris { get; private set; }
-        protected BufferManager BufferManager { get; private set; }
-        protected ITelemetryContext Telemetry { get; private set; }
+        protected RandomSource RandomSource { get; private set; } = null!;
+        protected DataGenerator DataGenerator { get; private set; } = null!;
+        protected IServiceMessageContext Context { get; private set; } = null!;
+        protected NamespaceTable NameSpaceUris { get; private set; } = null!;
+        protected StringTable ServerUris { get; private set; } = null!;
+        protected BufferManager BufferManager { get; private set; } = null!;
+        protected ITelemetryContext Telemetry { get; private set; } = null!;
 
         [OneTimeSetUp]
         protected void OneTimeSetUp()
@@ -186,7 +186,7 @@ namespace Opc.Ua.Core.TestFramework
 
         [DatapointSource]
         public static readonly BuiltInType[] BuiltInTypes =
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
         [
             .. Enum.GetValues<BuiltInType>()
 #else
@@ -204,7 +204,7 @@ namespace Opc.Ua.Core.TestFramework
 
         [DatapointSource]
         public static readonly EncodingType[] EncoderTypes =
-#if NET8_0_OR_GREATER && !NET_STANDARD_TESTS
+#if NET8_0_OR_GREATER
             Enum.GetValues<EncodingType>();
 #else
             (EncodingType[])Enum.GetValues(typeof(EncodingType));
@@ -287,7 +287,7 @@ namespace Opc.Ua.Core.TestFramework
             DataValue expected = CreateDataValue(data);
             Assert.That(expected.IsNull, Is.False, "Expected DataValue is Null, " + encodeInfo);
 
-            string formatted = null;
+            string? formatted = null;
             DataValue result = default;
             try
             {
@@ -364,7 +364,7 @@ namespace Opc.Ua.Core.TestFramework
             MemoryStreamType memoryStreamType,
             Variant expected)
         {
-            string formatted = null;
+            string? formatted = null;
             Variant result = default;
             try
             {
@@ -380,7 +380,7 @@ namespace Opc.Ua.Core.TestFramework
                             encoderType,
                             Context,
                             encoderStream,
-                            type?.Type,
+                            (type?.Type)!,
                             jsonEncodingType))
                     {
                         encoder.WriteVariantValue(builtInType.ToString(), expected);
@@ -407,7 +407,7 @@ namespace Opc.Ua.Core.TestFramework
                     useXmlParser,
                     Context,
                     decoderStream,
-                    type?.Type))
+                    (type?.Type)!))
                 {
                     result = decoder.ReadVariantValue(
                         builtInType.ToString(),
@@ -442,8 +442,8 @@ namespace Opc.Ua.Core.TestFramework
             JsonEncodingType jsonEncoding,
             string expected)
         {
-            string result = null;
-            string formattedResult = null;
+            string? result = null;
+            string? formattedResult = null;
             try
             {
                 string encodeInfo = $"Encoder: Json Type:{builtInType} Encoding: {jsonEncoding}";
@@ -663,7 +663,7 @@ namespace Opc.Ua.Core.TestFramework
                 case EncodingType.Json:
                     return new JsonDecoder(stream, context);
                 default:
-                    return null;
+                    return null!;
             }
         }
 
@@ -818,11 +818,11 @@ namespace Opc.Ua.Core.TestFramework
             public void Decode(IDecoder decoder)
             {
                 decoder.PushNamespace(kApplicationUri);
-                Foo = decoder.ReadString(FieldName);
+                Foo = decoder.ReadString(FieldName)!;
                 decoder.PopNamespace();
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 if (encodeable is FooBarEncodeable de)
                 {
@@ -886,7 +886,7 @@ namespace Opc.Ua.Core.TestFramework
                     typeId,
                     binaryEncodingId,
                     xmlEncodingId,
-                    (Dictionary<string, (int, string)>)null)
+                    (Dictionary<string, (int, string)>)null!)
             {
                 m_resetCounter = true;
                 Count = Interlocked.Increment(ref s_count);
@@ -954,7 +954,7 @@ namespace Opc.Ua.Core.TestFramework
 
             public void Encode(IEncoder encoder)
             {
-                InitializeFromFactory(encoder.Context?.Factory);
+                InitializeFromFactory((encoder.Context?.Factory)!);
                 encoder.PushNamespace(m_xmlNamespace);
                 foreach (
                     KeyValuePair<string, (int FieldOrder, string Value)> field in m_fields
@@ -968,7 +968,7 @@ namespace Opc.Ua.Core.TestFramework
 
             public void Decode(IDecoder decoder)
             {
-                InitializeFromFactory(decoder.Context?.Factory);
+                InitializeFromFactory((decoder.Context?.Factory)!);
                 decoder.PushNamespace(m_xmlNamespace);
                 foreach (
                     KeyValuePair<string, (int FieldOrder, string Value)> fieldKV in m_fields
@@ -976,7 +976,7 @@ namespace Opc.Ua.Core.TestFramework
                         .ToList())
                 {
                     m_fields[fieldKV.Key] = (fieldKV.Value.FieldOrder, decoder.ReadString(
-                        fieldKV.Key));
+                        fieldKV.Key)!);
                 }
                 decoder.PopNamespace();
             }
@@ -991,23 +991,23 @@ namespace Opc.Ua.Core.TestFramework
                     // Obtain a previously registered instance from the Factory
                     // Other systems will want to put just type information into the factory,
                     // or have other means of finding type information given an encoding id
-                    DynamicEncodeable encodeable = factory is DynamicEncodeableFactory df
+                    DynamicEncodeable encodeable = (factory is DynamicEncodeableFactory df
                         ? df.GetDynamicEncodeableForEncoding(TypeId)
-                        : null;
+                        : null)!;
                     // Read the type information
                     TypeId = encodeable?.TypeId ?? default;
                     XmlEncodingId = encodeable?.XmlEncodingId ?? default;
                     BinaryEncodingId = encodeable?.BinaryEncodingId ?? default;
                     Count = encodeable?.Count ?? 0;
-                    m_fields = encodeable?.m_fields.ToDictionary(
+                    m_fields = (encodeable?.m_fields.ToDictionary(
                         kv => kv.Key,
-                        kv => (kv.Value.FieldOrder, (string)null));
-                    m_xmlName = encodeable?.m_xmlName;
-                    m_xmlNamespace = encodeable?.m_xmlNamespace;
+                        kv => (kv.Value.FieldOrder, (string)null!)))!;
+                    m_xmlName = (encodeable?.m_xmlName)!;
+                    m_xmlNamespace = (encodeable?.m_xmlNamespace)!;
                 }
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 if (encodeable is DynamicEncodeable de)
                 {
@@ -1053,13 +1053,13 @@ namespace Opc.Ua.Core.TestFramework
 
             public XmlQualifiedName GetXmlName(IServiceMessageContext context)
             {
-                InitializeFromFactory(context?.Factory);
+                InitializeFromFactory((context?.Factory)!);
                 return new XmlQualifiedName(m_xmlName, m_xmlNamespace);
             }
 
-            private Dictionary<string, (int FieldOrder, string Value)> m_fields;
-            private string m_xmlName;
-            private string m_xmlNamespace;
+            private Dictionary<string, (int FieldOrder, string Value)> m_fields = null!;
+            private string m_xmlName = null!;
+            private string m_xmlNamespace = null!;
             private readonly bool m_resetCounter;
         }
 
@@ -1079,11 +1079,11 @@ namespace Opc.Ua.Core.TestFramework
                 if (!typeId.IsNull &&
                     m_dynamicEncodeables.TryGetValue(
                         typeId,
-                        out DynamicEncodeable dynamicEncodeable))
+                        out DynamicEncodeable? dynamicEncodeable))
                 {
                     return dynamicEncodeable;
                 }
-                return null;
+                return null!;
             }
 
             public void AddDynamicEncodeable(DynamicEncodeable encodeable)
@@ -1098,17 +1098,17 @@ namespace Opc.Ua.Core.TestFramework
 
             public bool TryGetEncodeableType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEncodeableType encodeableType)
             {
-                return m_inner.TryGetEncodeableType(typeId, out encodeableType);
+                return m_inner.TryGetEncodeableType(typeId, out encodeableType!);
             }
 
             public bool TryGetEnumeratedType(ExpandedNodeId typeId, [NotNullWhen(true)] out IEnumeratedType enumeratedType)
             {
-                return m_inner.TryGetEnumeratedType(typeId, out enumeratedType);
+                return m_inner.TryGetEnumeratedType(typeId, out enumeratedType!);
             }
 
             public bool TryGetType(XmlQualifiedName xmlName, [NotNullWhen(true)] out IType type)
             {
-                return m_inner.TryGetType(xmlName, out type);
+                return m_inner.TryGetType(xmlName, out type!);
             }
 
             private readonly IEncodeableFactory m_inner;

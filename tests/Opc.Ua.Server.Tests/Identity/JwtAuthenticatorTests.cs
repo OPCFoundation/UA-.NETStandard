@@ -106,7 +106,7 @@ namespace Opc.Ua.Server.Tests.Identity
             AuthenticationResult result = await AuthenticateAsync(jwt, key).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenRejected));
         }
 
         [Test]
@@ -128,7 +128,7 @@ namespace Opc.Ua.Server.Tests.Identity
         }
 
         [Test]
-        public async Task AuthenticateAsyncWrongIssuerRejected()
+        public async Task AuthenticateAsyncWrongIssuerIsNotHandled()
         {
             using var rsa = RSA.Create(2048);
             using IssuerVerificationKey key = CreateRsaVerificationKey(rsa, "kid-rsa");
@@ -142,7 +142,7 @@ namespace Opc.Ua.Server.Tests.Identity
 
             AuthenticationResult result = await AuthenticateAsync(jwt, key).ConfigureAwait(false);
 
-            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.NotHandled));
         }
 
         [Test]
@@ -154,7 +154,72 @@ namespace Opc.Ua.Server.Tests.Identity
             AuthenticationResult result = await AuthenticateAsync("not-a-jwt", key).ConfigureAwait(false);
 
             Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
-            Assert.That(result.Error.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+            Assert.That(result.Error!.Code, Is.EqualTo((uint)StatusCodes.BadIdentityTokenInvalid));
+        }
+
+        [Test]
+        public async Task RegistryAuthenticatesBothIssuersAndNeverUsesAnotherIssuersKeyAsync()
+        {
+            const string OtherIssuer = "https://other-issuer.example.test";
+            using var first = RSA.Create(2048);
+            using var second = RSA.Create(2048);
+            using IssuerVerificationKey firstKey = CreateRsaVerificationKey(first, "shared-kid");
+            using IssuerVerificationKey secondKey = CreateRsaVerificationKey(second, "shared-kid");
+            var registry = new ServerIdentityRegistry(
+                new JwtAuthenticator(new StaticKeyResolver(Issuer, firstKey), Audience),
+                new JwtAuthenticator(new StaticKeyResolver(OtherIssuer, secondKey), Audience));
+
+            foreach ((string issuer, RSA signer) in new[] { (Issuer, first), (OtherIssuer, second) })
+            {
+                string jwt = CreateJwt(
+                    "RS256", "shared-kid", issuer, Quote(Audience), 3600,
+                    data => signer.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
+                AuthenticationResult accepted = await registry.AuthenticateAsync(CreateContext(
+                    new IssuedIdentityTokenHandler(Profiles.JwtUserToken, Encoding.UTF8.GetBytes(jwt))))
+                    .ConfigureAwait(false);
+                Assert.That(accepted.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+                Assert.That(((IIdentityClaims)accepted.Identity!).Issuer, Is.EqualTo(issuer));
+            }
+
+            string forged = CreateJwt(
+                "RS256", "shared-kid", Issuer, Quote(Audience), 3600,
+                data => second.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
+            AuthenticationResult rejected = await registry.AuthenticateAsync(CreateContext(
+                new IssuedIdentityTokenHandler(Profiles.JwtUserToken, Encoding.UTF8.GetBytes(forged))))
+                .ConfigureAwait(false);
+            Assert.That(rejected.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(rejected.Error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+        }
+
+        [Test]
+        public async Task RegistryReplacesTheSameIssuerRatherThanKeepingAnOldSigningKeyAsync()
+        {
+            using var oldSigner = RSA.Create(2048);
+            using var newSigner = RSA.Create(2048);
+            using IssuerVerificationKey oldKey = CreateRsaVerificationKey(oldSigner, "shared-kid");
+            using IssuerVerificationKey newKey = CreateRsaVerificationKey(newSigner, "shared-kid");
+            var registry = new ServerIdentityRegistry(
+                new JwtAuthenticator(new StaticKeyResolver(Issuer, oldKey), Audience),
+                new JwtAuthenticator(new StaticKeyResolver(Issuer, newKey), Audience));
+            string jwt = CreateJwt(
+                "RS256", "shared-kid", Issuer, Quote(Audience), 3600,
+                data => oldSigner.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
+
+            AuthenticationResult result = await registry.AuthenticateAsync(CreateContext(
+                new IssuedIdentityTokenHandler(Profiles.JwtUserToken, Encoding.UTF8.GetBytes(jwt))))
+                .ConfigureAwait(false);
+
+            Assert.That(result.Outcome, Is.EqualTo(AuthenticationOutcome.Rejected));
+            Assert.That(result.Error!.StatusCode, Is.EqualTo(StatusCodes.BadIdentityTokenRejected));
+
+            string replacement = CreateJwt(
+                "RS256", "shared-kid", Issuer, Quote(Audience), 3600,
+                data => newSigner.SignData(data, HashAlgorithmName.SHA256, RSASignaturePadding.Pkcs1));
+            AuthenticationResult accepted = await registry.AuthenticateAsync(CreateContext(
+                new IssuedIdentityTokenHandler(Profiles.JwtUserToken, Encoding.UTF8.GetBytes(replacement))))
+                .ConfigureAwait(false);
+            Assert.That(accepted.Outcome, Is.EqualTo(AuthenticationOutcome.Accepted));
+            Assert.That(((IIdentityClaims)accepted.Identity!).Issuer, Is.EqualTo(Issuer));
         }
 
         [Test]
@@ -165,7 +230,7 @@ namespace Opc.Ua.Server.Tests.Identity
                 Encoding.UTF8.GetBytes("token"));
             var identity = new JwtUserIdentity(
                 tokenHandler,
-                new Dictionary<string, object> { ["sub"] = "subject-1" },
+                new Dictionary<string, object?> { ["sub"] = "subject-1" },
                 ["engineering"],
                 ["operator"],
                 Issuer,
@@ -244,13 +309,13 @@ namespace Opc.Ua.Server.Tests.Identity
 
         private static IssuerVerificationKey CreateRsaVerificationKey(RSA rsa, string keyId)
         {
-            RSA publicKey = null;
+            RSA? publicKey = null;
             try
             {
                 publicKey = RSA.Create();
                 publicKey.ImportParameters(rsa.ExportParameters(false));
                 var key = new IssuerVerificationKey(keyId, publicKey, "RS256");
-                publicKey = null;
+                publicKey = null!;
                 return key;
             }
             finally
@@ -261,12 +326,12 @@ namespace Opc.Ua.Server.Tests.Identity
 
         private static IssuerVerificationKey CreateEcdsaVerificationKey(ECDsa ecdsa, string keyId)
         {
-            ECDsa publicKey = null;
+            ECDsa? publicKey = null;
             try
             {
                 publicKey = ECDsa.Create(ecdsa.ExportParameters(false));
                 var key = new IssuerVerificationKey(keyId, publicKey, "ES256");
-                publicKey = null;
+                publicKey = null!;
                 return key;
             }
             finally
@@ -296,7 +361,7 @@ namespace Opc.Ua.Server.Tests.Identity
             public string IssuerUri { get; }
 
             public ValueTask<IReadOnlyList<IIssuerVerificationKey>> GetKeysAsync(
-                string keyId,
+                string? keyId,
                 CancellationToken ct = default)
             {
                 return new ValueTask<IReadOnlyList<IIssuerVerificationKey>>(m_keys);

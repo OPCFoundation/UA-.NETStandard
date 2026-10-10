@@ -42,6 +42,7 @@ namespace Opc.Ua.Types.Tests.State
     [SetUICulture("en-us")]
     [NonParallelizable]
     [MemoryDiagnoser]
+    [Config(typeof(NodeStateStorageBenchmarks.StorageBenchmarkConfig))]
     public class NodeStateReadAttributesBenchmarks
     {
         private static readonly uint[] s_commonAttributeIds =
@@ -136,9 +137,9 @@ namespace Opc.Ua.Types.Tests.State
         [OneTimeTearDown]
         public void TearDown()
         {
-            m_commonVariants = null;
-            m_allNonValueVariants = null;
-            m_variableVariants = null;
+            m_commonVariants = null!;
+            m_allNonValueVariants = null!;
+            m_variableVariants = null!;
         }
 
         /// <summary>

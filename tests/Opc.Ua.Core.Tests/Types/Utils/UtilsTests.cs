@@ -120,8 +120,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Assert.That(Utils.AreDomainsEqual(string.Empty, uri1.ToString()), Is.False);
             Assert.That(Utils.AreDomainsEqual(string.Empty, uri2.ToString()), Is.False);
 
-            Assert.That(Utils.AreDomainsEqual((Uri)null, null), Is.False);
-            Assert.That(Utils.AreDomainsEqual((string)null, null), Is.False);
+            Assert.That(Utils.AreDomainsEqual((Uri)null!, null), Is.False);
+            Assert.That(Utils.AreDomainsEqual((string)null!, null), Is.False);
             Assert.That(Utils.AreDomainsEqual(uri1, uri2), Is.False);
             Assert.That(Utils.AreDomainsEqual(uri1.ToString(), uri2.ToString()), Is.False);
         }
@@ -505,7 +505,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         {
             var typeTable = new TypeTable(new NamespaceTable());
             const string str = "/abc&#def";
-            const string expected = "/abc#def";
+            // '#' is reserved (Part 4 A.2) and stays escaped so the path round-trips.
+            const string expected = "/abc&#def";
             Assert.That(RelativePath.Parse(str, typeTable).Format(typeTable), Is.EqualTo(expected));
         }
 

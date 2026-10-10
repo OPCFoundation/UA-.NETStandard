@@ -13,25 +13,26 @@ param(
     [int]$Index = 0
 )
 
-$assembly = [System.Reflection.Assembly]::LoadFrom((Resolve-Path $AssemblyPath))
-$bindingFlags = [System.Reflection.BindingFlags] "Public, Static"
-$targetType = $assembly.GetTypes() | Where-Object { $_.Name -eq "FuzzableCode" } | Select-Object -First 1
-
-if ($null -eq $targetType) {
-    throw "No FuzzableCode type found in $AssemblyPath."
-}
-
-$targets = @($targetType.GetMethods($bindingFlags) |
-    Where-Object { $_.GetParameters().Count -eq 1 -and $_.Name -match $Filter } |
-    Sort-Object Name)
-
-for ($i = 0; $i -lt $targets.Count; $i++) {
-    "{0,3}: {1}" -f ($i + 1), $targets[$i].Name
-}
+Set-StrictMode -Version Latest
+$ErrorActionPreference = 'Stop'
+$AssemblyPath = (Resolve-Path -LiteralPath $AssemblyPath).Path
+$listed = @(& dotnet $AssemblyPath --list)
+if ($LASTEXITCODE -ne 0) { throw "Target discovery failed ($LASTEXITCODE)." }
+$targets = @($listed | Where-Object { $_ -match $Filter } | Sort-Object)
+if ($targets.Count -eq 0) { throw 'No supported targets match the filter.' }
+if ($Index -lt 0 -or $Index -gt $targets.Count) { throw 'Target index is outside the menu.' }
 
 if ($Index -gt 0) {
-    $targets[$Index - 1].Name
-} elseif ($Host.Name -ne "Default Host") {
+    $targets[$Index - 1]
+    return
+}
+
+for ($i = 0; $i -lt $targets.Count; $i++) {
+    "{0,3}: {1}" -f ($i + 1), $targets[$i]
+}
+
+if ($Host.Name -ne "Default Host") {
     $selection = [int](Read-Host "Select fuzz target")
-    $targets[$selection - 1].Name
+    if ($selection -lt 1 -or $selection -gt $targets.Count) { throw 'Invalid target selection.' }
+    $targets[$selection - 1]
 }

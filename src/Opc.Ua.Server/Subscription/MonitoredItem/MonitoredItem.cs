@@ -41,6 +41,7 @@ namespace Opc.Ua.Server
     public class MonitoredItem :
         IEventMonitoredItem,
         ISampledDataChangeMonitoredItem,
+        IInitialValueMonitoredItem,
         ITriggeredMonitoredItem,
         IDetachableMonitoredItem,
         IMonitoredItemTransferState
@@ -190,13 +191,11 @@ namespace Opc.Ua.Server
             ClientHandle = clientHandle;
             Filter = originalFilter;
             m_filterToUse = filterToUse;
-            m_cachedDataChangeFilter = filterToUse as DataChangeFilter;
             m_range = 0;
             m_samplingInterval = samplingInterval;
             QueueSize = queueSize;
             m_discardOldest = discardOldest;
             m_sourceSamplingInterval = (int)sourceSamplingInterval;
-            m_calculator = null;
             m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
             AlwaysReportUpdates = false;
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
@@ -221,18 +220,13 @@ namespace Opc.Ua.Server
                 }
             }
 
-            // create aggregate calculator.
-            var aggregateFilter = filterToUse as ServerAggregateFilter;
-
-            if (filterToUse is ServerAggregateFilter)
+            if (filterToUse is ServerAggregateFilter aggregateFilter)
             {
-                m_calculator = m_server.AggregateManager.CreateCalculator(
-                    aggregateFilter!.AggregateType,
-                    (DateTime)aggregateFilter.StartTime,
-                    DateTime.MaxValue,
-                    aggregateFilter.ProcessingInterval,
-                    aggregateFilter.Stepped,
-                    aggregateFilter.AggregateConfiguration);
+                m_filterToUse = new AggregationFilterHandler(
+                    m_server.AggregateManager,
+                    aggregateFilter,
+                    QueueProcessedValue,
+                    primeInitialValue: true);
             }
 
             if (range != null)
@@ -247,7 +241,7 @@ namespace Opc.Ua.Server
                 m_samplingInterval,
                 QueueSize,
                 m_discardOldest,
-                m_filterToUse!,
+                FilterToUse!,
                 MonitoringMode);
 
             InitializeQueue();
@@ -303,13 +297,11 @@ namespace Opc.Ua.Server
             ClientHandle = storedMonitoredItem.ClientHandle;
             Filter = storedMonitoredItem.OriginalFilter;
             m_filterToUse = storedMonitoredItem.FilterToUse;
-            m_cachedDataChangeFilter = storedMonitoredItem.FilterToUse as DataChangeFilter;
             m_range = storedMonitoredItem.Range;
             m_samplingInterval = storedMonitoredItem.SamplingInterval;
             QueueSize = storedMonitoredItem.QueueSize;
             m_discardOldest = storedMonitoredItem.DiscardOldest;
             m_sourceSamplingInterval = storedMonitoredItem.SourceSamplingInterval;
-            m_calculator = null;
             m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
             m_monitoredItemQueueFactory = m_server.MonitoredItemQueueFactory;
             m_subscriptionStore = m_server.SubscriptionStore;
@@ -320,7 +312,6 @@ namespace Opc.Ua.Server
             m_lastError = storedMonitoredItem.LastError;
             m_lastValue = storedMonitoredItem.LastValue;
             MonitoredItemType = storedMonitoredItem.TypeMask;
-
             // without this the first transition out of filter scope after a restart is
             // dropped, because the item would not know the client had been told about the
             // condition.
@@ -332,16 +323,13 @@ namespace Opc.Ua.Server
                 m_filteredRetainConditionIds = [.. filteredRetainConditionIds];
             }
 
-            // create aggregate calculator.
             if (storedMonitoredItem.FilterToUse is ServerAggregateFilter aggregateFilter)
             {
-                m_calculator = m_server.AggregateManager.CreateCalculator(
-                    aggregateFilter.AggregateType,
-                    (DateTime)aggregateFilter.StartTime,
-                    DateTime.MaxValue,
-                    aggregateFilter.ProcessingInterval,
-                    aggregateFilter.Stepped,
-                    aggregateFilter.AggregateConfiguration);
+                m_filterToUse = new AggregationFilterHandler(
+                    m_server.AggregateManager,
+                    aggregateFilter,
+                    QueueProcessedValue,
+                    primeInitialValue: false);
             }
 
             // report change to item state.
@@ -351,10 +339,21 @@ namespace Opc.Ua.Server
                 m_samplingInterval,
                 QueueSize,
                 m_discardOldest,
-                m_filterToUse!,
+                FilterToUse!,
                 MonitoringMode);
 
             RestoreQueue();
+
+            // notifications that were queued before the restart are still owed to the
+            // client, so the item is ready without waiting for the next change. Only a
+            // reporting item delivers them and triggers its linked items with them: the
+            // queue of a sampling item keeps its samples until it is triggered itself, so
+            // it holds nothing new since the restart.
+            if (ItemsInQueue > 0)
+            {
+                m_readyToPublish = true;
+                m_readyToTrigger = MonitoringMode == MonitoringMode.Reporting;
+            }
 
             m_isDeleted = storedMonitoredItem.IsDeleted;
             m_isDetached = storedMonitoredItem.IsDetached;
@@ -448,9 +447,14 @@ namespace Opc.Ua.Server
             get
             {
                 EnsureSourceRetirement(includeCaptured: false);
+                if (MonitoringMode == MonitoringMode.Disabled ||
+                    (MonitoringMode != MonitoringMode.Reporting && !m_triggered))
+                {
+                    return false;
+                }
 
                 // check if aggregate interval has passed.
-                if (m_calculator != null && m_calculator.HasEndTimePassed(DateTime.UtcNow))
+                if (AggregateFilter?.HasEndTimePassed(DateTime.UtcNow) == true)
                 {
                     return true;
                 }
@@ -462,18 +466,15 @@ namespace Opc.Ua.Server
                 }
 
                 // check if it has been triggered.
-                if (MonitoringMode != MonitoringMode.Disabled && m_triggered)
+                if (m_triggered)
                 {
                     return true;
                 }
 
-                // check if monitoring was turned off.
-                if (MonitoringMode != MonitoringMode.Reporting)
-                {
-                    return false;
-                }
-
-                if (m_sourceSamplingInterval == 0)
+                // events are exception based and are not sampled (Part 4, 5.13.1.2), so a
+                // requested sampling interval must not hold back their delivery.
+                if (m_sourceSamplingInterval == 0 &&
+                    (MonitoredItemType & MonitoredItemTypeMask.Events) == 0)
                 {
                     // re-queue if too little time has passed since the last publish, in case it doesn't ResendData
                     long now = m_timeProvider.GetTimestampMilliseconds();
@@ -666,9 +667,10 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Gets the handle a detached MonitoredItem is parked on.
+        /// Gets the handle a detached MonitoredItem is parked on. It is a shared sentinel, because a
+        /// detached item has no real Node behind it until it is attached again.
         /// </summary>
-        internal static object DetachedHandle => s_detachedHandle;
+        internal static object DetachedHandle { get; } = new();
 
         /// <inheritdoc/>
         void IDetachableMonitoredItem.QueueNodeIdUnknown()
@@ -695,11 +697,11 @@ namespace Opc.Ua.Server
                 SourceMetadata = metadata;
                 m_isDetached = false;
                 m_isDeleted = false;
-                }
+            }
         }
 
         /// <summary>
-        /// The filter used by the monitored item.
+        /// Gets the original client filter before server-side revision.
         /// </summary>
         public MonitoringFilter? Filter { get; private set; }
 
@@ -873,12 +875,7 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
-                if (error == null)
-                {
-                    m_samplingError = ServiceResult.Good;
-                }
-
-                m_samplingError = error;
+                m_samplingError = error ?? ServiceResult.Good;
             }
         }
 
@@ -945,16 +942,32 @@ namespace Opc.Ua.Server
         {
             lock (m_lock)
             {
+                MonitoringFilter? previousFilterToUse = FilterToUse;
+                uint previousClientHandle = ClientHandle;
+                AggregationFilterHandler? aggregateFilter = AggregateFilter;
+                if (aggregateFilter == null && filterToUse is ServerAggregateFilter)
+                {
+                    aggregateFilter = new AggregationFilterHandler(
+                        m_server.AggregateManager,
+                        QueueProcessedValue,
+                        previousFilterToUse);
+                }
+                AggregationFilterHandler.Modification? aggregateChange = aggregateFilter?.PrepareChange(filterToUse);
+
+                // the queued events are brought in line with the new select clauses and client
+                // handle when they are published; registering that cannot fail.
+                RebuildQueuedEventFields(
+                    previousFilterToUse,
+                    filterToUse,
+                    previousClientHandle,
+                    clientHandle);
+
                 DiagnosticsMasks = diagnosticsMasks;
                 m_timestampsToReturn = timestampsToReturn;
                 ClientHandle = clientHandle;
                 m_discardOldest = discardOldest;
 
-                MonitoringFilter? previousFilterToUse = m_filterToUse;
-
                 Filter = originalFilter;
-                m_filterToUse = filterToUse;
-                m_cachedDataChangeFilter = filterToUse as DataChangeFilter;
 
                 DiscardFilteredRetainStateOnWhereClauseChange(previousFilterToUse, filterToUse);
 
@@ -966,47 +979,8 @@ namespace Opc.Ua.Server
                 SetSamplingInterval(samplingInterval);
                 QueueSize = queueSize;
 
-                // check if aggregate filter has been updated.
-                if (filterToUse is ServerAggregateFilter aggregateFilter)
-                {
-                    ServerAggregateFilter existingFilter = aggregateFilter;
-
-                    bool match = true;
-
-                    if (match && existingFilter.AggregateType != aggregateFilter.AggregateType)
-                    {
-                        match = false;
-                    }
-
-                    if (match &&
-                        existingFilter.ProcessingInterval != aggregateFilter.ProcessingInterval)
-                    {
-                        match = false;
-                    }
-
-                    if (match && existingFilter.StartTime != aggregateFilter.StartTime)
-                    {
-                        match = false;
-                    }
-
-                    if (match &&
-                        !existingFilter.AggregateConfiguration
-                            .IsEqual(aggregateFilter.AggregateConfiguration))
-                    {
-                        match = false;
-                    }
-
-                    if (!match)
-                    {
-                        m_calculator = m_server.AggregateManager.CreateCalculator(
-                            aggregateFilter.AggregateType,
-                            (DateTime)aggregateFilter.StartTime,
-                            DateTime.MaxValue,
-                            aggregateFilter.ProcessingInterval,
-                            aggregateFilter.Stepped,
-                            aggregateFilter.AggregateConfiguration);
-                    }
-                }
+                aggregateFilter?.CommitChange(filterToUse, aggregateChange);
+                m_filterToUse = (IMonitoringFilter?)aggregateFilter ?? filterToUse;
 
                 // report change to item state.
                 ServerUtils.ReportModifyMonitoredItem(
@@ -1015,12 +989,198 @@ namespace Opc.Ua.Server
                     m_samplingInterval,
                     QueueSize,
                     m_discardOldest,
-                    m_filterToUse!,
+                    FilterToUse!,
                     MonitoringMode);
 
                 InitializeQueue();
 
                 return null;
+            }
+        }
+
+        /// <summary>
+        /// Brings events that were queued before a modification in line with the new
+        /// select clauses and client handle.
+        /// </summary>
+        /// <remarks>
+        /// Event fields are resolved when the event is queued, but the client decodes every
+        /// EventFieldList it receives after the modification with the new select clauses
+        /// (Part 4, 7.25.3). Queued events are therefore resolved again from their filter
+        /// target when they are published. An event without one (restored from a durable or
+        /// redundant queue) keeps
+        /// the values of the clauses selected before and reports the new ones as null; only
+        /// an event none of whose fields is still selected is dropped, which is reported to
+        /// the client as an event queue overflow.
+        /// </remarks>
+        private void RebuildQueuedEventFields(
+            MonitoringFilter? previousFilter,
+            MonitoringFilter? newFilter,
+            uint previousClientHandle,
+            uint clientHandle)
+        {
+            if (m_eventQueueHandler == null ||
+                m_eventQueueHandler.ItemsInQueue == 0 ||
+                newFilter is not EventFilter filter)
+            {
+                return;
+            }
+
+            bool selectClausesChanged = !AreSelectClausesEqual(
+                (previousFilter as EventFilter)?.SelectClauses ?? default,
+                filter.SelectClauses);
+
+            if (!selectClausesChanged)
+            {
+                if (previousClientHandle != clientHandle)
+                {
+                    m_eventQueueHandler.TransformQueuedEvents(fields =>
+                    {
+                        fields.ClientHandle = clientHandle;
+                        return fields;
+                    });
+                }
+
+                return;
+            }
+
+            var context = new FilterContext(
+                m_server.NamespaceUris,
+                m_server.TypeTree,
+                Session?.PreferredLocales!,
+                m_server.Telemetry);
+
+            // where each new select clause was in the previous layout, for the events
+            // without a filter target, e.g. restored from a durable queue.
+            int[]? previousIndexes = null;
+
+            m_eventQueueHandler.TransformQueuedEvents(fields =>
+            {
+                if (fields.Handle is not IFilterTarget target)
+                {
+                    previousIndexes ??= MapSelectClauses(
+                        (previousFilter as EventFilter)?.SelectClauses ?? default,
+                        filter.SelectClauses);
+                    return ProjectEventFields(fields, previousIndexes, clientHandle);
+                }
+
+                // a trailing filtered retain event keeps its FilteredRetainTarget handle,
+                // so the rebuilt fields report the same Retain override.
+                EventFieldList rebuilt = GetEventFields(context, filter, target);
+                rebuilt.ClientHandle = clientHandle;
+                return rebuilt;
+            });
+        }
+
+        /// <summary>
+        /// Returns for every current select clause the index of the identical previous
+        /// clause, or -1 when the clause is new.
+        /// </summary>
+        private static int[] MapSelectClauses(
+            ArrayOf<SimpleAttributeOperand> previous,
+            ArrayOf<SimpleAttributeOperand> current)
+        {
+            int[] previousIndexes = new int[current.Count];
+            for (int ii = 0; ii < current.Count; ii++)
+            {
+                previousIndexes[ii] = -1;
+                if (current[ii] == null)
+                {
+                    continue;
+                }
+
+                for (int jj = 0; jj < previous.Count; jj++)
+                {
+                    if (Utils.IsEqual(previous[jj], current[ii]))
+                    {
+                        previousIndexes[ii] = jj;
+                        break;
+                    }
+                }
+            }
+
+            return previousIndexes;
+        }
+
+        /// <summary>
+        /// Moves the fields of a queued event that cannot be resolved again onto the new
+        /// select clauses: a field selected before keeps its value, a new one is null. An
+        /// event none of whose fields is selected any more is dropped.
+        /// </summary>
+        private static EventFieldList? ProjectEventFields(
+            EventFieldList fields,
+            int[] previousIndexes,
+            uint clientHandle)
+        {
+            var eventFields = new List<Variant>(previousIndexes.Length);
+            bool anyMapped = false;
+            foreach (int previousIndex in previousIndexes)
+            {
+                if (previousIndex >= 0 && previousIndex < fields.EventFields.Count)
+                {
+                    eventFields.Add(fields.EventFields[previousIndex]);
+                    anyMapped = true;
+                }
+                else
+                {
+                    eventFields.Add(Variant.Null);
+                }
+            }
+
+            if (!anyMapped)
+            {
+                return null;
+            }
+
+            return new EventFieldList
+            {
+                ClientHandle = clientHandle,
+                EventFields = eventFields
+            };
+        }
+
+        private static bool AreSelectClausesEqual(
+            ArrayOf<SimpleAttributeOperand> previous,
+            ArrayOf<SimpleAttributeOperand> current)
+        {
+            if (previous.Count != current.Count)
+            {
+                return false;
+            }
+
+            for (int ii = 0; ii < previous.Count; ii++)
+            {
+                if (!Utils.IsEqual(previous[ii], current[ii]))
+                {
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        /// <summary>
+        /// Prepares an aggregate calculator before the node manager commits a monitored-item modification.
+        /// </summary>
+        internal AggregationFilterHandler.Modification? PrepareAggregateModification(ServerAggregateFilter filter)
+        {
+            lock (m_lock)
+            {
+                AggregationFilterHandler aggregateFilter = AggregateFilter ??
+                    new AggregationFilterHandler(m_server.AggregateManager, QueueProcessedValue, FilterToUse);
+                AggregationFilterHandler.Modification? preparation = aggregateFilter.PrepareModification(filter);
+                m_filterToUse = aggregateFilter;
+                return preparation;
+            }
+        }
+
+        /// <summary>
+        /// Cancels an uncommitted aggregate preparation without disturbing a newer modification.
+        /// </summary>
+        internal void CancelPreparedAggregateModification(AggregationFilterHandler.Modification preparation)
+        {
+            lock (m_lock)
+            {
+                AggregateFilter?.CancelModification(preparation);
             }
         }
 
@@ -1085,9 +1245,17 @@ namespace Opc.Ua.Server
                     m_nextSamplingTime = m_timeProvider.GetTimestampMilliseconds();
                     m_lastError = null;
                     m_lastValue = default;
+                    m_readyToPublish = false;
                 }
 
                 MonitoringMode = monitoringMode;
+
+                // a pending ResendData/transfer resend only applies to a reporting item;
+                // a sampling or disabled item must not report (Part 4, 5.13.1.3).
+                if (monitoringMode != MonitoringMode.Reporting)
+                {
+                    m_resendData = false;
+                }
 
                 if (monitoringMode == MonitoringMode.Disabled)
                 {
@@ -1103,10 +1271,17 @@ namespace Opc.Ua.Server
                     m_samplingInterval,
                     QueueSize,
                     m_discardOldest,
-                    m_filterToUse!,
+                    FilterToUse!,
                     MonitoringMode);
 
                 InitializeQueue();
+
+                // the node was deleted while the item was disabled, or before it was
+                // disabled: the item reports Bad_NodeIdUnknown again once it samples.
+                if (previousMode == MonitoringMode.Disabled && m_isDeleted)
+                {
+                    QueueNodeIdUnknown();
+                }
 
                 return previousMode;
             }
@@ -1125,6 +1300,31 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <exception cref="ServiceResultException"></exception>
         public virtual void QueueValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
+        {
+            QueueValueCore(in value, error, ignoreFilters, initialValue: false);
+        }
+
+        void IInitialValueMonitoredItem.QueueInitialValue(
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters)
+        {
+            QueueValueCore(in value, error, ignoreFilters, initialValue: true);
+        }
+
+        ServiceResult IInitialValueMonitoredItem.CompleteInitialValue()
+        {
+            lock (m_lock)
+            {
+                return AggregateFilter?.CompleteInitialValue(QueueBufferedValue) ?? ServiceResult.Good;
+            }
+        }
+
+        private void QueueValueCore(
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters,
+            bool initialValue)
         {
             bool admitted = MasterNodeManager.TryCaptureSourceEmission(m_server, NodeManager, out var emission);
             using var emissionLease = emission;
@@ -1152,75 +1352,17 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                DataValue current = value;
-
-                // make a shallow copy of the value.
-                if (!current.IsNull)
-                {
-                    m_logger.RECEIVEDVALUEMonitoredItemIdValueValue(
-                        Id,
-                        current.WrappedValue,
-                        SubscriptionId);
-
-                    current = current.Copy();
-
-                    // ensure the data value matches the error status code.
-                    if (error != null && error.StatusCode.Code != 0)
-                    {
-                        current = current.WithStatus(error.StatusCode);
-                    }
-                }
-
-                // create empty value if none provided.
-                if (ServiceResult.IsBad(error) && current.IsNull)
-                {
-                    DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
-                    current = new DataValue(
-                        Variant.Null,
-                        error!.StatusCode,
-                        utcNow,
-                        utcNow);
-                }
-
-                // this should never happen.
-                if (current.IsNull)
+                if (!initialValue &&
+                    AggregateFilter?.TryBufferLiveValue(value, error, ignoreFilters) == true)
                 {
                     return;
                 }
 
-                // apply aggregate filter.
-                if (m_calculator != null)
-                {
-                    if (!m_calculator.QueueRawValue(current) &&
-                        m_logger.IsEnabled(LogLevel.Trace))
-                    {
-                        m_logger.ValueReceivedOutOfOrderSourceTimestampServerHandle(
-                            current.SourceTimestamp
-                                .ToLocalTime()
-                                .ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
-                            Id,
-                            SubscriptionId);
-                    }
-
-                    while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
-                    {
-                        AddValueToQueue(processedValue, null!);
-                    }
-
-                    return;
-                }
-
-                // apply filter to incoming item.
-                if (!ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(current, error!))
-                {
-                    ServerUtils.ReportFilteredValue(NodeId, Id, current);
-                    return;
-                }
-
-                ServerUtils.ReportQueuedValue(NodeId, Id, current);
-
-                // add the value to the queue.
-                AddValueToQueue(current, error!);
+                QueueValueLocked(
+                    value,
+                    error,
+                    ignoreFilters,
+                    initialValue: initialValue);
                 if (m_isDeleted &&
                     m_server.NodeManager is MasterNodeManager master &&
                     !master.IsSourceEmissionAllowed(NodeManager, includeCaptured: false))
@@ -1230,10 +1372,122 @@ namespace Opc.Ua.Server
             }
         }
 
+        private void QueueBufferedValue(in DataValue value, ServiceResult? error, bool ignoreFilters)
+        {
+            QueueValueLocked(value, error, ignoreFilters, initialValue: false);
+        }
+
+        private void QueueProcessedValue(in DataValue value)
+        {
+            AddValueToQueue(value, null!);
+        }
+
+        private void QueueValueLocked(
+            in DataValue value,
+            ServiceResult? error,
+            bool ignoreFilters,
+            bool initialValue)
+        {
+            DataValue current = value;
+
+            // make a shallow copy of the value.
+            if (!current.IsNull)
+            {
+                m_logger.RECEIVEDVALUEMonitoredItemIdValueValue(
+                    Id,
+                    current.WrappedValue,
+                    SubscriptionId);
+
+                current = current.Copy();
+
+                // ensure the data value matches the error status code.
+                if (error != null && error.StatusCode.Code != 0)
+                {
+                    current = current.WithStatus(error.StatusCode);
+                }
+            }
+
+            // create empty value if none provided.
+            if (ServiceResult.IsBad(error) && current.IsNull)
+            {
+                DateTime utcNow = m_timeProvider.GetUtcNow().UtcDateTime;
+                current = new DataValue(
+                    Variant.Null,
+                    error!.StatusCode,
+                    utcNow,
+                    utcNow);
+            }
+
+            // this should never happen.
+            if (current.IsNull)
+            {
+                return;
+            }
+
+            if (initialValue && ServiceResult.IsBad(error))
+            {
+                ServerUtils.ReportQueuedValue(NodeId, Id, current);
+                AddRequiredValueToQueue(
+                    current,
+                    error!,
+                    replaceExisting: false);
+                return;
+            }
+
+            // apply aggregate filter.
+            if (!ServiceResult.IsBad(error) &&
+                AggregateFilter is { } aggregateFilter &&
+                aggregateFilter.TryQueueValue(current, initialValue, out bool accepted))
+            {
+                if (!accepted &&
+                    m_logger.IsEnabled(LogLevel.Trace))
+                {
+                    m_logger.ValueReceivedOutOfOrderSourceTimestampServerHandle(
+                        current.SourceTimestamp
+                            .ToLocalTime()
+                            .ToString("HH:mm:ss.fff", CultureInfo.InvariantCulture),
+                        Id,
+                        SubscriptionId);
+                }
+
+                return;
+            }
+
+            // apply filter to incoming item.
+            if (!ignoreFilters && !AlwaysReportUpdates && !ApplyFilter(current, error!))
+            {
+                ServerUtils.ReportFilteredValue(NodeId, Id, current);
+                return;
+            }
+
+            ServerUtils.ReportQueuedValue(NodeId, Id, current);
+
+            // add the value to the queue.
+            AddValueToQueue(current, error!);
+        }
+
+        private void AddRequiredValueToQueue(
+            DataValue value,
+            ServiceResult error,
+            bool replaceExisting)
+        {
+            if (QueueSize > 1)
+            {
+                m_dataChangeQueueHandler?.QueueRequiredValue(
+                    value,
+                    error,
+                    replaceExisting);
+            }
+            m_lastValue = value;
+            m_lastError = error;
+            m_readyToPublish = true;
+            m_readyToTrigger = true;
+        }
+
         /// <summary>
         /// Adds a value to the queue.
         /// </summary>
-        private void AddValueToQueue(DataValue value, ServiceResult error)
+        private void AddValueToQueue(in DataValue value, ServiceResult error)
         {
             bool overflow = false;
             if (QueueSize > 1)
@@ -1241,10 +1495,11 @@ namespace Opc.Ua.Server
                 overflow = m_dataChangeQueueHandler!.QueueValue(value, error);
             }
 
-            if (!m_lastValue.IsNull)
-            {
-                m_readyToTrigger = true;
-            }
+            // every notification triggers the linked items, including the first one after
+            // leaving DISABLED. A notification queued before the first triggering link was
+            // created must not trigger (Part 4, 5.13.1.6); SetTriggering discards the flag
+            // when it creates that link.
+            m_readyToTrigger = true;
 
             // save last value received.
             m_lastValue = value;
@@ -1265,6 +1520,50 @@ namespace Opc.Ua.Server
         public bool MonitoringAllEvents => NodeId == ObjectIds.Server;
 
         /// <summary>
+        /// Returns which select clauses of <paramref name="filter"/> are rejected. They are
+        /// determined once per filter, because a rejected clause stays unvalidated and
+        /// validating it again for every event would repeat the failing (and possibly
+        /// throwing) validation for every event the item receives. Clauses restored without
+        /// validation are validated here.
+        /// </summary>
+        private bool[] GetRejectedSelectClauses(IFilterContext context, EventFilter filter)
+        {
+            RejectedSelectClauses? cached = m_rejectedSelectClauses;
+            if (cached != null && ReferenceEquals(cached.Filter, filter))
+            {
+                return cached.Rejected;
+            }
+
+            ArrayOf<SimpleAttributeOperand> clauses = filter.SelectClauses;
+            bool[] rejected = new bool[clauses.Count];
+            for (int ii = 0; ii < rejected.Length; ii++)
+            {
+                SimpleAttributeOperand clause = clauses[ii];
+                rejected[ii] = clause == null ||
+                    (!clause.Validated && ServiceResult.IsBad(clause.Validate(context, 0)));
+            }
+
+            m_rejectedSelectClauses = new RejectedSelectClauses(filter, rejected);
+            return rejected;
+        }
+
+        /// <summary>
+        /// The rejected select clauses of one event filter.
+        /// </summary>
+        private sealed class RejectedSelectClauses
+        {
+            public RejectedSelectClauses(EventFilter filter, bool[] rejected)
+            {
+                Filter = filter;
+                Rejected = rejected;
+            }
+
+            public EventFilter Filter { get; }
+
+            public bool[] Rejected { get; }
+        }
+
+        /// <summary>
         /// Fetches the event fields from the event.
         /// </summary>
         private EventFieldList GetEventFields(
@@ -1273,9 +1572,20 @@ namespace Opc.Ua.Server
             IFilterTarget instance)
         {
             // fetch the event fields.
-            var eventFieldValues = new List<Variant>();
-            foreach (SimpleAttributeOperand clause in filter.SelectClauses)
+            bool[] rejected = GetRejectedSelectClauses(context, filter);
+            var eventFieldValues = new List<Variant>(rejected.Length);
+            for (int ii = 0; ii < rejected.Length; ii++)
             {
+                // a select clause rejected in the EventFilterResult returns a null field
+                // (Part 4 §7.22.3).
+                if (rejected[ii])
+                {
+                    eventFieldValues.Add(Variant.Null);
+                    continue;
+                }
+
+                SimpleAttributeOperand clause = filter.SelectClauses[ii];
+
                 // get the value of the attribute (apply localization).
                 Variant value = instance.GetAttributeValue(
                     context,
@@ -1287,10 +1597,10 @@ namespace Opc.Ua.Server
                 // add the value to the list of event fields.
                 if (!value.IsNull)
                 {
-                    // translate any localized text.
-                    if (value.TryGetValue(out LocalizedText text))
+                    // translate any localized text (scalar or array).
+                    if (value.TypeInfo.BuiltInType == BuiltInType.LocalizedText)
                     {
-                        value = m_server.ResourceManager.Translate(Session?.PreferredLocales!, text);
+                        value = m_server.ResourceManager.TranslateValue(Session?.PreferredLocales!, value);
                     }
 
                     // add value.
@@ -1363,12 +1673,6 @@ namespace Opc.Ua.Server
                     return;
                 }
 
-                // check for space in the queue.
-                if (m_eventQueueHandler.SetQueueOverflowIfFull())
-                {
-                    return;
-                }
-
                 // construct the context to use for the event filter.
                 var context = new FilterContext(
                     m_server.NamespaceUris,
@@ -1377,20 +1681,34 @@ namespace Opc.Ua.Server
                     m_server.Telemetry);
 
                 // event filter must be specified.
-                if (m_filterToUse is not EventFilter filter)
+                if (FilterToUse is not EventFilter filter)
                 {
                     throw new ServiceResultException(StatusCodes.BadInternalError);
                 }
 
-                // apply filter.
-                if (!bypassFilter && !CanSendFilteredAlarm(context, filter, instance))
+                // apply filter first: an event the where clause would have rejected was
+                // never going to be queued, so it must not count as a queue overflow.
+                bool overrideRetain = false;
+                if (!bypassFilter &&
+                    !CanSendFilteredAlarm(context, filter, instance, out overrideRetain))
                 {
                     return;
                 }
 
-                // fetch the event fields.
-                EventFieldList fields = GetEventFields(context, filter, instance);
-                QueueEvent(fields);
+                // check for space in the queue only for events that passed the filter.
+                if (m_eventQueueHandler.SetQueueOverflowIfFull())
+                {
+                    return;
+                }
+
+                // fetch the event fields. The trailing filtered retain event reads them
+                // through a wrapper that reports Retain = false to this client only. The
+                // wrapper stays the handle of the queued event, so a later change of the
+                // select clauses rebuilds its fields with the same Retain override.
+                IFilterTarget fieldSource = overrideRetain
+                    ? new FilteredRetainTarget(instance)
+                    : instance;
+                QueueEvent(GetEventFields(context, filter, fieldSource));
             }
         }
 
@@ -1437,12 +1755,22 @@ namespace Opc.Ua.Server
         /// queues its own filter targets falls back to plain where clause evaluation and
         /// filtered retain has no effect for those events.
         /// </para>
+        /// <para>
+        /// <paramref name="overrideRetain"/> is <c>true</c> only for the trailing event a
+        /// condition produces as it leaves this client's where clause. Part 9, 5.5.2 requires
+        /// that event to carry a client specific <c>Retain = false</c> whatever the server
+        /// retains, so the caller has to substitute that value into the delivered fields
+        /// without touching the shared filter target.
+        /// </para>
         /// </remarks>
         protected bool CanSendFilteredAlarm(
             IFilterContext context,
             EventFilter filter,
-            IFilterTarget instance)
+            IFilterTarget instance,
+            out bool overrideRetain)
         {
+            overrideRetain = false;
+
             bool passedFilter = filter.WhereClause.Evaluate(context, instance);
 
             ConditionState? alarmCondition = GetFilteredRetainCondition(instance);
@@ -1473,7 +1801,9 @@ namespace Opc.Ua.Server
                 return true;
             }
 
-            // out of scope now: send the trailing event if it was in scope before.
+            // out of scope now: send the trailing event if it was in scope before, and
+            // tell this client that it no longer retains the condition.
+            overrideRetain = wasInFilterScope;
             return wasInFilterScope;
         }
 
@@ -1631,72 +1961,30 @@ namespace Opc.Ua.Server
                         SubscriptionId,
                         Id);
 
-                    EventFieldList? overflowEvent = null;
-
-                    if (m_eventQueueHandler.Overflow)
+                    // with discardOldest TRUE the overflow event is placed at the beginning
+                    // of the queue (Part 4 5.13.1.5).
+                    if (m_discardOldest && m_eventQueueHandler.Overflow)
                     {
-                        // construct event.
-                        var e = new EventQueueOverflowEventState(null);
-
-                        var message = new TranslationInfo(
-                            "EventQueueOverflowEventState",
-                            "en-US",
-                            "Events lost due to queue overflow.");
-
-                        ISystemContext systemContext = new ServerSystemContext(m_server, context);
-
-                        e.Initialize(
-                            systemContext,
-                            null,
-                            EventSeverity.Low,
-                            new LocalizedText(message));
-
-                        e.SetChildValue(
-                            systemContext,
-                            BrowseNames.SourceNode,
-                            ObjectIds.Server,
-                            false);
-                        e.SetChildValue(systemContext, BrowseNames.SourceName, "Internal", false);
-
-                        // fetch the event fields. The overflow path is reached only
-                        // when m_eventQueueHandler is active, which guarantees an
-                        // EventFilter has been configured for this monitored item.
-                        overflowEvent = GetEventFields(
-                            new FilterContext(
-                                m_server.NamespaceUris,
-                                m_server.TypeTree,
-                                Session?.PreferredLocales!,
-                                m_server.Telemetry),
-                            (EventFilter)m_filterToUse!,
-                            e);
-                    }
-
-                    // place overflow event at the beginning of the queue.
-                    if (overflowEvent != null && m_discardOldest)
-                    {
-                        notifications.Enqueue(overflowEvent);
+                        notifications.Enqueue(CreateEventQueueOverflowEventFields(context));
+                        EventQueueOverflowReported();
                         maxNotificationsPerPublish--;
                     }
-                    uint notificationCount = m_eventQueueHandler.Publish(
+
+                    m_eventQueueHandler.Publish(
                         context,
                         notifications,
-                        maxNotificationsPerPublish);
+                        maxNotificationsPerPublish,
+                        out bool overflowEventDue);
 
-                    moreValuesToPublish = m_eventQueueHandler?.ItemsInQueue > 0;
-
-                    // place overflow event at the end of the queue if queue is empty.
-                    if (overflowEvent != null && !m_discardOldest)
+                    // with discardOldest FALSE it follows the events queued before the loss.
+                    if (overflowEventDue)
                     {
-                        if (notificationCount < maxNotificationsPerPublish)
-                        {
-                            notifications.Enqueue(overflowEvent);
-                        }
-                        else
-                        {
-                            moreValuesToPublish = true;
-                        }
+                        notifications.Enqueue(CreateEventQueueOverflowEventFields(context));
+                        EventQueueOverflowReported();
                     }
 
+                    moreValuesToPublish =
+                        m_eventQueueHandler.ItemsInQueue > 0 || m_eventQueueHandler.Overflow;
                     m_logger.MONITOREDITEMPublishQueueSizeQueueSize(
                         notifications.Count,
                         SubscriptionId,
@@ -1710,6 +1998,47 @@ namespace Opc.Ua.Server
 
                 return moreValuesToPublish;
             }
+        }
+
+        /// <summary>
+        /// Creates the fields of an EventQueueOverflowEventType event for this item.
+        /// </summary>
+        private EventFieldList CreateEventQueueOverflowEventFields(OperationContext context)
+        {
+            // construct event.
+            var e = new EventQueueOverflowEventState(null);
+
+            var message = new TranslationInfo(
+                "EventQueueOverflowEventState",
+                "en-US",
+                "Events lost due to queue overflow.");
+
+            ISystemContext systemContext = new ServerSystemContext(m_server, context);
+
+            e.Initialize(
+                systemContext,
+                null,
+                EventSeverity.Low,
+                new LocalizedText(message));
+
+            e.SetChildValue(
+                systemContext,
+                BrowseNames.SourceNode,
+                ObjectIds.Server,
+                false);
+            e.SetChildValue(systemContext, BrowseNames.SourceName, "Internal", false);
+
+            // fetch the event fields. The overflow path is reached only
+            // when m_eventQueueHandler is active, which guarantees an
+            // EventFilter has been configured for this monitored item.
+            return GetEventFields(
+                new FilterContext(
+                    m_server.NamespaceUris,
+                    m_server.TypeTree,
+                    Session?.PreferredLocales!,
+                    m_server.Telemetry),
+                (EventFilter)FilterToUse!,
+                e);
         }
 
         /// <summary>
@@ -1746,6 +2075,13 @@ namespace Opc.Ua.Server
                     return false;
                 }
 
+                // a disabled item reports nothing, not even a pending resend.
+                if (MonitoringMode == MonitoringMode.Disabled)
+                {
+                    m_resendData = false;
+                    return false;
+                }
+
                 if (!IsReadyToPublish)
                 {
                     if (!m_resendData)
@@ -1755,20 +2091,7 @@ namespace Opc.Ua.Server
                 }
                 else
                 {
-                    // pull any unprocessed data.
-                    if (m_calculator != null &&
-                        m_calculator.HasEndTimePassed(DateTime.UtcNow))
-                    {
-                        while (m_calculator.TryGetProcessedValue(false, out DataValue processedValue))
-                        {
-                            AddValueToQueue(processedValue, null!);
-                        }
-
-                        if (m_calculator.TryGetProcessedValue(true, out DataValue partialValue))
-                        {
-                            AddValueToQueue(partialValue, null!);
-                        }
-                    }
+                    AggregateFilter?.Publish(DateTime.UtcNow);
 
                     IncrementSampleTime();
                 }
@@ -1868,6 +2191,15 @@ namespace Opc.Ua.Server
                 m_structureChanged = false;
             }
 
+            // select the translation the session prefers for a localized text value
+            // (Part 4 5.4); the queued value keeps all its translations.
+            if (value.WrappedValue.TypeInfo.BuiltInType == BuiltInType.LocalizedText &&
+                m_server.ResourceManager != null)
+            {
+                value = value.WithWrappedValue(
+                    m_server.ResourceManager.TranslateValue(context.PreferredLocales, value.WrappedValue));
+            }
+
             // copy data value.
             var item = (MonitoredItemNotification)MonitoredItemNotificationActivator.Instance.CreateInstance();
             item.ClientHandle = ClientHandle;
@@ -1899,7 +2231,6 @@ namespace Opc.Ua.Server
 
             return false;
         }
-
 
         /// <summary>
         /// The object to call when item is ready to publish.
@@ -1957,6 +2288,10 @@ namespace Opc.Ua.Server
         /// <inheritdoc/>
         public bool IsDurable { get; }
 
+        private MonitoringFilter? FilterToUse => m_filterToUse?.Filter;
+
+        private AggregationFilterHandler? AggregateFilter => m_filterToUse as AggregationFilterHandler;
+
         /// <inheritdoc/>
         public IStoredMonitoredItem ToStorableMonitoredItem()
         {
@@ -1977,7 +2312,7 @@ namespace Opc.Ua.Server
                     IsDeleted = m_isDeleted,
                     IsDetached = m_isDetached,
                     Encoding = DataEncoding,
-                    FilterToUse = m_filterToUse!,
+                    FilterToUse = FilterToUse!,
                     Id = Id,
                     IndexRange = m_indexRange!,
                     LastError = m_lastError!,
@@ -2052,7 +2387,10 @@ namespace Opc.Ua.Server
 
         private void QueueNodeIdUnknown()
         {
-            if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0)
+            // a disabled item queues nothing (Part 4, 5.13.4.1); m_isDeleted is kept and
+            // the notification is queued when the item leaves DISABLED.
+            if ((MonitoredItemType & MonitoredItemTypeMask.DataChange) == 0 ||
+                MonitoringMode == MonitoringMode.Disabled)
             {
                 return;
             }
@@ -2060,17 +2398,10 @@ namespace Opc.Ua.Server
             DataValue value = CreateNodeIdUnknownValue();
             var error = new ServiceResult(StatusCodes.BadNodeIdUnknown);
 
-            // With queueing disabled the last value is what the Client is served, so there is
-            // nothing to protect and the notification simply becomes that value.
-            if (QueueSize > 1)
-            {
-                m_dataChangeQueueHandler?.QueueRequiredValue(value, error);
-            }
-
-            m_lastValue = value;
-            m_lastError = error;
-            m_readyToPublish = true;
-            m_readyToTrigger = true;
+            AddRequiredValueToQueue(
+                value,
+                error,
+                replaceExisting: true);
         }
 
         private DataValue CreateNodeIdUnknownValue()
@@ -2109,7 +2440,7 @@ namespace Opc.Ua.Server
                 error,
                 m_lastValue,
                 m_lastError!,
-                m_cachedDataChangeFilter!,
+                (FilterToUse as DataChangeFilter)!,
                 m_range);
         }
 
@@ -2132,7 +2463,6 @@ namespace Opc.Ua.Server
             }
 
             // select default data change filters.
-            const double deadband = 0.0;
             DeadbandType deadbandType = DeadbandType.None;
             DataChangeTrigger trigger = DataChangeTrigger.StatusValue;
 
@@ -2152,11 +2482,8 @@ namespace Opc.Ua.Server
             }
             else
             {
-                filter = new DataChangeFilter
-                {
-                    DeadbandType = (uint)deadbandType,
-                    DeadbandValue = deadband
-                };
+                // runs for every sampled value of an unfiltered item; AreEqual only reads it.
+                filter = s_defaultDataChangeFilter;
             }
 
             // get the current status.
@@ -2271,9 +2598,14 @@ namespace Opc.Ua.Server
                             DiagnosticsMasks);
                         m_dataChangeQueueHandler.SetSamplingInterval(m_samplingInterval);
 
-                        if (queueLastValue && !m_lastValue.IsNull)
+                        // seed the new queue only with a value that is still waiting to be
+                        // published. m_lastValue is kept after publishing for the change
+                        // filter, so re-queueing it then would report it a second time.
+                        if (queueLastValue && m_readyToPublish && !m_lastValue.IsNull)
                         {
-                            m_dataChangeQueueHandler.QueueValue(m_lastValue, m_lastError!);
+                            m_dataChangeQueueHandler.QueueValue(
+                                m_lastValue,
+                                m_lastError!);
                         }
                     }
                     else // create event queue.
@@ -2282,7 +2614,9 @@ namespace Opc.Ua.Server
                             IsDurable,
                             m_monitoredItemQueueFactory,
                             Id,
-                            m_server.Telemetry);
+                            m_server.Telemetry,
+                            QueueOverflowHandler,
+                            null);
                         m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                     }
                     break;
@@ -2390,7 +2724,17 @@ namespace Opc.Ua.Server
                             m_eventQueueHandler = new EventQueueHandler(
                                 restoredQueue,
                                 m_discardOldest,
-                                m_server.Telemetry);
+                                m_server.Telemetry,
+                                QueueOverflowHandler,
+                                null);
+
+                            // the queue may have been persisted with a size that was
+                            // revised since, e.g. a literal size of 1 before queueSize 1
+                            // was mapped to the server minimum (Part 4 §7.21).
+                            if (restoredQueue.QueueSize != QueueSize)
+                            {
+                                m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
+                            }
                         }
                         else
                         {
@@ -2399,7 +2743,9 @@ namespace Opc.Ua.Server
                                 IsDurable,
                                 m_monitoredItemQueueFactory,
                                 Id,
-                                m_server.Telemetry);
+                                m_server.Telemetry,
+                                QueueOverflowHandler,
+                                null);
                             m_eventQueueHandler.SetQueueSize(QueueSize, m_discardOldest);
                         }
                     }
@@ -2418,6 +2764,15 @@ namespace Opc.Ua.Server
         private void QueueOverflowHandler()
         {
             (m_subscription as ISubscriptionPublishPipeline)?.QueueOverflowHandler();
+        }
+
+        /// <summary>
+        /// Update the event queue overflow count once an EventQueueOverflowEventType
+        /// event is reported to the client.
+        /// </summary>
+        private void EventQueueOverflowReported()
+        {
+            (m_subscription as ISubscriptionPublishPipeline)?.EventQueueOverflowHandler();
         }
 
         /// <inheritdoc/>
@@ -2476,6 +2831,16 @@ namespace Opc.Ua.Server
         }
 
         private readonly Lock m_lock = new();
+
+        /// <summary>
+        /// The filter applied when a monitored item has none: no deadband, StatusValue trigger.
+        /// Shared and never modified.
+        /// </summary>
+        private static readonly DataChangeFilter s_defaultDataChangeFilter = new()
+        {
+            DeadbandType = (uint)DeadbandType.None,
+            DeadbandValue = 0.0
+        };
         private readonly ILogger m_logger;
         private bool m_isDisposed;
         private bool m_isAttaching;
@@ -2484,8 +2849,7 @@ namespace Opc.Ua.Server
         private string? m_indexRange;
         private NumericRange m_parsedIndexRange;
         private TimestampsToReturn m_timestampsToReturn;
-        private MonitoringFilter? m_filterToUse;
-        private DataChangeFilter? m_cachedDataChangeFilter;
+        private IMonitoringFilter? m_filterToUse;
         private double m_range;
         private double m_samplingInterval;
         private bool m_discardOldest;
@@ -2505,17 +2869,11 @@ namespace Opc.Ua.Server
         private bool m_structureChanged;
         private ISubscription? m_subscription;
         private ServiceResult? m_samplingError;
-        private IAggregateCalculator? m_calculator;
         private bool m_triggered;
         private bool m_resendData;
         private HashSet<string>? m_filteredRetainConditionIds;
+        private RejectedSelectClauses? m_rejectedSelectClauses;
         private bool m_isDetached;
-
-        /// <summary>
-        /// The handle a detached MonitoredItem is parked on. It is a shared sentinel, because a
-        /// detached item has no real Node behind it until it is attached again.
-        /// </summary>
-        private static readonly object s_detachedHandle = new();
         private bool m_isDeleted;
     }
 
@@ -2524,6 +2882,9 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class MonitoredItemLog
     {
+        /// <summary>
+        /// Logs rejection of a durable item when the registered queue factory lacks durable support.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 0, Level = LogLevel.Error,
             Message = "Durable subscription was created but no MonitoredItemQueueFactory that supports durable " +
                 "queues was registered, monitored item with id {Id} could not be created, " +
@@ -2533,10 +2894,16 @@ namespace Opc.Ua.Server
             uint id,
             uint subscriptionId);
 
+        /// <summary>
+        /// Traces a monitored item being marked for triggered publication.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 1, Level = LogLevel.Trace,
             Message = "SetTriggered[{Id}], SubscriptionId={SubscriptionId}")]
         public static partial void SetTriggeredId(this ILogger logger, uint id, uint subscriptionId);
 
+        /// <summary>
+        /// Traces a monitored item's monitoring-mode transition.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 2, Level = LogLevel.Trace,
             Message = "MONITORING MODE[{MonitoredItemId}] {Previous} -> {New}, SubscriptionId={SubscriptionId}")]
         public static partial void MONITORINGMODEMonitoredItemIdPreviousNew(
@@ -2546,6 +2913,9 @@ namespace Opc.Ua.Server
             MonitoringMode @new,
             uint subscriptionId);
 
+        /// <summary>
+        /// Traces a raw value received by a monitored item.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 3, Level = LogLevel.Trace,
             Message = "RECEIVED VALUE[{MonitoredItemId}] Value={Value}, SubscriptionId={SubscriptionId}")]
         public static partial void RECEIVEDVALUEMonitoredItemIdValueValue(
@@ -2554,6 +2924,9 @@ namespace Opc.Ua.Server
             Variant value,
             uint subscriptionId);
 
+        /// <summary>
+        /// Traces a sample rejected by aggregate processing because its timestamp is out of order.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 4, Level = LogLevel.Trace,
             Message = "Value received out of order: {SourceTimestamp}, ServerHandle={MonitoredItemId}, " +
                 "SubscriptionId={SubscriptionId}")]
@@ -2563,6 +2936,9 @@ namespace Opc.Ua.Server
             uint monitoredItemId,
             uint subscriptionId);
 
+        /// <summary>
+        /// Traces a queued value together with its status and overflow indication.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 5, Level = LogLevel.Trace,
             Message = "QUEUE VALUE[{MonitoredItemId}]: Value={Value} CODE={Code}<{Code:X8}> OVERFLOW={Overflow}, " +
                 "SubscriptionId={SubscriptionId}")]
@@ -2574,6 +2950,9 @@ namespace Opc.Ua.Server
             bool overflow,
             uint subscriptionId);
 
+        /// <summary>
+        /// Traces the queue size when a monitored item publishes notifications.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 6, Level = LogLevel.Trace,
             Message = "MONITORED ITEM: Publish(QueueSize={QueueSize}), " +
                 "SubscriptionId={SubscriptionId}, MonitoredItemId={MonitoredItemId}")]
@@ -2583,6 +2962,9 @@ namespace Opc.Ua.Server
             uint subscriptionId,
             uint monitoredItemId);
 
+        /// <summary>
+        /// Emits the compatibility trace for a monitored item's publication-readiness state.
+        /// </summary>
         [LoggerMessage(
             EventId = ServerCompatibilityEventIds.MonitoredItemReady,
             EventName = "MonitoredItemReady",
@@ -2593,6 +2975,9 @@ namespace Opc.Ua.Server
             uint id,
             string state);
 
+        /// <summary>
+        /// Logs a failure to restore a monitored item's persisted data-change queue.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 7, Level = LogLevel.Error,
             Message = "Failed to restore queue for monitored item with id {MonitoredItemId}," +
                 " SubscriptionId={SubscriptionId}")]
@@ -2602,6 +2987,9 @@ namespace Opc.Ua.Server
             uint monitoredItemId,
             uint subscriptionId);
 
+        /// <summary>
+        /// Logs a failure to restore a monitored item's persisted event queue.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.MonitoredItem + 8, Level = LogLevel.Error,
             Message = "Failed to restore queue for monitored item with id {Id}," +
                 " SubscriptionId={SubscriptionId}")]
@@ -2611,5 +2999,4 @@ namespace Opc.Ua.Server
             uint id,
             uint subscriptionId);
     }
-
 }

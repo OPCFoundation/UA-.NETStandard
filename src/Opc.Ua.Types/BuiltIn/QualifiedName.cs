@@ -29,6 +29,7 @@
 
 using System;
 using System.Diagnostics.Contracts;
+using System.Globalization;
 using System.Text;
 using Opc.Ua.Types;
 
@@ -425,7 +426,11 @@ namespace Opc.Ua
             // extract local namespace index.
             int start = text.IndexOf(':', StringComparison.Ordinal);
             if (start < 0 ||
-                !ushort.TryParse(text[..start], out ushort namespaceIndex) ||
+                !ushort.TryParse(
+                    text[..start],
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out ushort namespaceIndex) ||
                 start + 1 == text.Length)
             {
                 return new QualifiedName(text);
@@ -467,7 +472,13 @@ namespace Opc.Ua
                         $"Invalid QualifiedName ({originalText}).");
                 }
 
-                string namespaceUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
+                if (!CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri))
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadNodeIdInvalid,
+                        $"Invalid QualifiedName ({originalText}).");
+                }
+
                 namespaceIndex = updateTables
                     ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
                     : context.NamespaceUris.GetIndex(namespaceUri);
@@ -487,7 +498,11 @@ namespace Opc.Ua
 
                 if (index > 0)
                 {
-                    if (ushort.TryParse(text[..index], out ushort nsIndex))
+                    if (ushort.TryParse(
+                        text[..index],
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out ushort nsIndex))
                     {
                         namespaceIndex = nsIndex;
                     }
@@ -521,26 +536,32 @@ namespace Opc.Ua
 
             var buffer = new StringBuilder();
 
-            if (NamespaceIndex > 0)
+            if (NamespaceIndex == 0)
             {
-                if (useNamespaceUri)
+                // prepend the namespace index if the name contains a colon,
+                // otherwise the text parses back into the wrong namespace.
+                if (Name!.Contains(':', StringComparison.Ordinal))
                 {
-                    string? namespaceUri = context.NamespaceUris.GetString(NamespaceIndex);
-                    if (!string.IsNullOrEmpty(namespaceUri))
-                    {
-                        buffer.Append("nsu=")
-                            .Append(CoreUtils.EscapeUri(namespaceUri!))
-                            .Append(';');
-                    }
-                    else
-                    {
-                        buffer.Append(NamespaceIndex).Append(':');
-                    }
+                    buffer.Append("0:");
+                }
+            }
+            else if (useNamespaceUri)
+            {
+                string? namespaceUri = context.NamespaceUris.GetString(NamespaceIndex);
+                if (!string.IsNullOrEmpty(namespaceUri))
+                {
+                    buffer.Append("nsu=")
+                        .Append(CoreUtils.EscapeUri(namespaceUri!))
+                        .Append(';');
                 }
                 else
                 {
                     buffer.Append(NamespaceIndex).Append(':');
                 }
+            }
+            else
+            {
+                buffer.Append(NamespaceIndex).Append(':');
             }
 
             buffer.Append(Name);

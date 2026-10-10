@@ -2,29 +2,56 @@
 
 ## Overview
 
-The durable subscriptions service enables long lifetimes of subscriptions with big queue sizes and therefore zero-dataloss scenarios.
-If the connection to the client fails the server continues to sample values. On reconnect the client can use the transfer subscription service to gain access to the missed values.
+Durable subscriptions let servers retain subscriptions for longer periods
+and use large notification queues. If a client disconnects, the server
+continues sampling values. After reconnecting, the client can use the
+TransferSubscriptions service to retrieve missed notifications.
+
+## Contents
+
+- [Overview](#overview)
+- [Fix an existing server with minimal changes](#fix-an-existing-server-with-minimal-changes)
+- [Enabling durable subscriptions on an existing server](#enabling-durable-subscriptions-on-an-existing-server)
+- [Known limitations and issues](#known-limitations-and-issues)
 
 ## Fix an existing server with minimal changes
 
-- If a custom implementation of `INodeManager` is used, or the Method `CreateMonitoredItems` is overridden, add the new parameter `createDurable`. As long as durable Subscriptions are not enabled in the configuration this parameter can be ignored.
-- Implement`INodeManager.RestoreMonitoredItems`, this method is only called if durable subscriptions are enabled in the server configuration.
-- If a custom `IMonitoredItem` implementation is used, set `IsDurable` to false. Implement a `Dispose` method.
+- If you implement a custom `INodeManager` or override
+  `CreateMonitoredItems`, add the `createDurable` parameter. You can ignore
+  it while durable subscriptions are disabled in the server configuration.
+- Implement `INodeManager.RestoreMonitoredItems`. The server calls this
+  method only when durable subscriptions are enabled.
+- If you implement a custom `IMonitoredItem`, set `IsDurable` to `false`
+  and implement `Dispose`.
 
 ## Enabling durable subscriptions on an existing server
 
 Typically the following porting steps are necessary:
 
-- Provide an implementation of `IMonitoredItemQueueFactory` that sets `SupportsDurableQueues` to true. This factory returns your own implementation of `IMonitoredItemQueue` that persists values to storage and supports large queue sizes. As a reference see [DurableMonitoredItemQueueFactory](../../samples/Quickstats.Servers/DurableSubscription/DurableMonitoredItemQueueFactory.cs).
-- Register the `IMonitoredItemQueueFactory` by overriding the StandardServer method `CreateMonitoredItemQueueFactory`.
-- Provide an implementation of `ISubscriptionStore` that persists and restores subscriptions to storage to continue them after a server restart. The subscription store shall also enshure persistent queues are provided to the monitored items after a restore.
-- - Register the `ISubscriptionStore` by overriding the StandardServer method `CreateSubscriptionStore`.
-- If a custom implementation of `INodeManager` is used, or the Method `CreateMonitoredItems` is overridden, add the new parameter `createDurable`. Pass the value of this parameter to the MonitoredItem constructor. If a custom queue length check if performed for durable subscriptions check against the durable queue length from SererConfiguration.
-- If a custom `IMonitoredItem` implementation is used, implement the `IsDurable` property. Implement a `Dispose` method. Add a `createDurable` paramter to the constructor.
-- Make the custom `MonitoredItem` use the `IMonitoredItemQueueFactory` from `IServerInternal.MonitoredItemQueueFactory` to get the registerd durable queues instead of using internal queues for events & value changes.
-- To test custom queues use the unit tests in Server Test Project in the file monitoredItemTests and adapt to use your own queue by providing your `IMonitoredItemQueueFactory` in the constructor.
+- Implement `IMonitoredItemQueueFactory` and set
+  `SupportsDurableQueues` to `true`. Return an `IMonitoredItemQueue` that
+  persists values and supports large queue sizes. See the sample
+  [DurableMonitoredItemQueueFactory](../samples/Quickstarts.Servers/DurableSubscription/DurableMonitoredItemQueueFactory.cs).
+- Register the queue factory by overriding
+  `StandardServer.CreateMonitoredItemQueueFactory`.
+- Implement `ISubscriptionStore` to persist and restore subscriptions across
+  server restarts. After restoring a subscription, the store must also provide
+  persistent queues to its monitored items. Register the store by overriding
+  `StandardServer.CreateSubscriptionStore`.
+- If you implement a custom `INodeManager` or override
+  `CreateMonitoredItems`, add the `createDurable` parameter and pass it to
+  the `MonitoredItem` constructor. When you check queue length for a durable
+  subscription, compare it with the durable queue limit in
+  `ServerConfiguration`.
+- If you implement a custom `IMonitoredItem`, add the `createDurable`
+  constructor parameter, implement `IsDurable`, and implement `Dispose`.
+- In a custom `MonitoredItem`, use
+  `IServerInternal.MonitoredItemQueueFactory` to get the registered durable
+  queues for events and value changes instead of using internal queues.
+- To test custom queues, adapt the monitored-item tests in the server test
+  project. Provide your `IMonitoredItemQueueFactory` in the test constructor.
 
-Extend the ServerConfiguration
+Configure durable subscriptions in `ServerConfiguration`:
 
 - Set `DurableSubscriptionsEnabled` to true
 - Set `MaxDurableNotificationQueueSize` to the desired value
@@ -33,6 +60,20 @@ Extend the ServerConfiguration
 
 ## Known limitations and issues
 
-- Subscriptions are only persistet on a gracefuls shutdown. If the server crashes or needs to be shut down forcefully all `Subscriptions` / `MonitoredItems` are lost.
-- The Quickstarts durable-subscription store uses a versioned format and rejects files written by the previous unsafe format. User-name passwords are removed before persistence, and issued-token subscriptions are not persisted because their bearer token is the identity.
-- **Breaking change**: The Interfaces for INodeManager & IMonitoredItem were extended to support durable subscriptions.
+- The Quickstarts queues return `false` from `Dequeue` while a batch is
+  being persisted or cannot be restored within the bounded wait. The queue
+  retains the item count for a later attempt. A failed restore does not mean
+  the batch data is resident. The store deletes restored batch files after
+  their readers close.
+- The server persists subscriptions only during a graceful shutdown. A crash
+  or forced shutdown loses all subscriptions and monitored items.
+- The Quickstarts durable-subscription store writes format version 3. It can
+  read version 1 records, which enable publishing but do not persist the
+  owning application URI. The store rejects retired version 2 records.
+  Current records persist publishing state and the owning client
+  `ApplicationUri`, allowing anonymous durable subscriptions to transfer
+  after restart. The store removes user-name passwords before persistence.
+  It does not persist issued-token subscriptions because their bearer token
+  is their identity.
+- **Breaking change:** The `INodeManager` and `IMonitoredItem` interfaces
+  were extended to support durable subscriptions.

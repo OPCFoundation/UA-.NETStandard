@@ -42,16 +42,20 @@ namespace Opc.Ua.Server.Tests
     /// serialization in <see cref="SubscriptionStore"/> and
     /// <see cref="DurableMonitoredItemQueueFactory"/>.
     /// Tests call the internal encode/decode methods directly.
+    /// Persistor cleanup clears the process-wide batch directory.
     /// </summary>
     [TestFixture]
     [Category("Server")]
     [SetCulture("en-us")]
     [SetUICulture("en-us")]
-    [Parallelizable]
+    [NonParallelizable]
     public class DurableSubscriptionSerializationTests
     {
         private ServiceMessageContext m_context;
 
+        /// <summary>
+        /// Creates the serialization message context and registers the two fixture namespaces.
+        /// </summary>
         [OneTimeSetUp]
         public void OneTimeSetUp()
         {
@@ -63,6 +67,9 @@ namespace Opc.Ua.Server.Tests
                 "urn:test:namespace2");
         }
 
+        /// <summary>
+        /// Verifies that an empty durable subscription preserves its settings and empty item and message collections.
+        /// </summary>
         [Test]
         public void RoundTripEmptySubscription()
         {
@@ -77,6 +84,74 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.SentMessages, Has.Count.EqualTo(0));
         }
 
+        /// <summary>
+        /// Verifies that the current sample format preserves publishing state and anonymous owner application URI.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public void RoundTripSubscriptionState(bool publishingEnabled)
+        {
+            StoredSubscription original = CreateMinimalSubscription(id: 43);
+            original.PublishingEnabled = publishingEnabled;
+            original.OwnerClientApplicationUri = "urn:test:client";
+
+            StoredSubscription result = RoundTripSubscription(original);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.PublishingEnabled, Is.EqualTo(publishingEnabled));
+                Assert.That(result.OwnerClientApplicationUri, Is.EqualTo("urn:test:client"));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that the current sample format preserves the triggering links between
+        /// monitored items (OPC 10000-4 §5.13.1.6).
+        /// </summary>
+        [Test]
+        public void RoundTripSubscriptionTriggeringLinks()
+        {
+            StoredSubscription original = CreateMinimalSubscription(id: 45);
+            original.TriggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>
+            {
+                [1] = [2u, 3u],
+                [4] = [5u]
+            };
+
+            StoredSubscription result = RoundTripSubscription(original);
+
+            Assert.That(result.TriggeringLinks, Is.Not.Null);
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.TriggeringLinks.Keys, Is.EquivalentTo(new uint[] { 1, 4 }));
+                Assert.That(result.TriggeringLinks[1], Is.EqualTo(new uint[] { 2, 3 }));
+                Assert.That(result.TriggeringLinks[4], Is.EqualTo(new uint[] { 5 }));
+            });
+        }
+
+        /// <summary>
+        /// Verifies that version-one sample records migrate to the safe default publishing state.
+        /// </summary>
+        [Test]
+        public void DecodeVersionOneSubscriptionDefaultsState()
+        {
+            using var encoder = new BinaryEncoder(m_context);
+            StoredSubscription original = CreateMinimalSubscription(id: 44);
+            WriteLegacySubscription(encoder, original);
+            using var decoder = new BinaryDecoder(encoder.CloseAndReturnBuffer()!, m_context);
+
+            StoredSubscription result = SubscriptionStore.DecodeSubscription(decoder, version: 1);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(result.PublishingEnabled, Is.True);
+                Assert.That(result.OwnerClientApplicationUri, Is.Null);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that durable subscription serialization preserves its monitored items and their identifiers.
+        /// </summary>
         [Test]
         public void RoundTripSubscriptionWithMonitoredItems()
         {
@@ -98,6 +173,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(items[0].SubscriptionId, Is.EqualTo(100u));
         }
 
+        /// <summary>
+        /// Verifies that durable subscription serialization preserves monitored-item properties.
+        /// </summary>
         [Test]
         public void RoundTripMonitoredItemProperties()
         {
@@ -133,8 +211,65 @@ namespace Opc.Ua.Server.Tests
             Assert.That(restored.LastValue.IsNull, Is.False);
             Assert.That((int)restored.LastValue.WrappedValue,
                 Is.EqualTo(42));
+            Assert.That(restored.LastValue, Is.EqualTo(mi.LastValue));
         }
 
+        /// <summary>
+        /// Verifies that the retired interim notification-state format is rejected before decoding a subscription.
+        /// </summary>
+        [Test]
+        public void DecodeRejectsInterimVersionTwoSubscriptions()
+        {
+            StoredMonitoredItem first = CreateMonitoredItem(id: 7, subscriptionId: 1);
+            first.LastValue = new DataValue(Variant.From(42), StatusCodes.Good);
+            StoredMonitoredItem second = CreateMonitoredItem(id: 8, subscriptionId: 2);
+            second.LastValue = new DataValue(Variant.From(43), StatusCodes.Good);
+            using var encoder = new BinaryEncoder(m_context);
+            foreach (StoredMonitoredItem item in new[] { first, second })
+            {
+                StoredSubscription subscription = CreateMinimalSubscription(item.SubscriptionId);
+                subscription.MonitoredItems = [item];
+                SubscriptionStore.EncodeSubscription(encoder, subscription);
+                encoder.WriteBoolean(null, true);
+                encoder.WriteDataValue(null, new DataValue(Variant.Null, StatusCodes.BadCommunicationError));
+                encoder.WriteStatusCode(null, StatusCodes.BadCommunicationError);
+            }
+            byte[] bytes = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(bytes!, m_context);
+
+            Assert.That(
+                () => SubscriptionStore.DecodeSubscription(decoder, version: 2),
+                Throws.TypeOf<InvalidDataException>()
+                    .With.Message.Contains("Unsupported durable subscription store version 2"));
+            Assert.That(decoder.Position, Is.Zero);
+        }
+
+        /// <summary>
+        /// Verifies that new subscription records contain raw monitored-item state rather than transient notifications.
+        /// </summary>
+        [Test]
+        public void NewSubscriptionRecordContainsOnlyRawMonitoredItemState()
+        {
+            StoredSubscription subscription = CreateMinimalSubscription(id: 1);
+            StoredMonitoredItem item = CreateMonitoredItem(id: 7, subscriptionId: 1);
+            item.LastValue = new DataValue(Variant.From(42), StatusCodes.Good);
+            subscription.MonitoredItems = [item];
+            using var encoder = new BinaryEncoder(m_context);
+            SubscriptionStore.EncodeSubscription(encoder, subscription);
+            byte[] bytes = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(bytes!, m_context);
+
+            IStoredMonitoredItem restored = SubscriptionStore.DecodeSubscription(decoder, version: 4)
+                .MonitoredItems.Single();
+
+            Assert.That(restored.Id, Is.EqualTo(item.Id));
+            Assert.That(restored.LastValue, Is.EqualTo(item.LastValue));
+            Assert.That(decoder.Position, Is.EqualTo(bytes.Length));
+        }
+
+        /// <summary>
+        /// Verifies that durable subscription serialization preserves the user identity token.
+        /// </summary>
         [Test]
         public void RoundTripSubscriptionWithUserIdentityToken()
         {
@@ -155,6 +290,9 @@ namespace Opc.Ua.Server.Tests
             Assert.That(token.PolicyId, Is.EqualTo("username_policy"));
         }
 
+        /// <summary>
+        /// Verifies that multiple durable subscriptions round-trip independently.
+        /// </summary>
         [Test]
         public void RoundTripMultipleSubscriptions()
         {
@@ -188,6 +326,9 @@ namespace Opc.Ua.Server.Tests
                 Is.Zero);
         }
 
+        /// <summary>
+        /// Verifies that a storable data-change queue round-trips through serialization.
+        /// </summary>
         [Test]
         public void RoundTripStorableDataChangeQueue()
         {
@@ -208,10 +349,13 @@ namespace Opc.Ua.Server.Tests
             Assert.That(result.DequeueBatch, Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that a storable data-change queue preserves its batches during serialization.
+        /// </summary>
         [Test]
         public void RoundTripStorableDataChangeQueueWithBatches()
         {
-            var values = new List<(DataValue, ServiceResult)>
+            var values = new List<(DataValue, ServiceResult?)>
             {
                 (new DataValue(new Variant(1), StatusCodes.Good), null),
                 (new DataValue(new Variant("hello"), StatusCodes.Good),
@@ -243,6 +387,9 @@ namespace Opc.Ua.Server.Tests
                 Has.Count.EqualTo(1));
         }
 
+        /// <summary>
+        /// Verifies that a storable event queue round-trips through serialization.
+        /// </summary>
         [Test]
         public void RoundTripStorableEventQueue()
         {
@@ -299,6 +446,26 @@ namespace Opc.Ua.Server.Tests
             };
         }
 
+        private static void WriteLegacySubscription(
+            BinaryEncoder encoder,
+            StoredSubscription subscription)
+        {
+            encoder.WriteUInt32(null, subscription.Id);
+            encoder.WriteBoolean(null, subscription.IsDurable);
+            encoder.WriteUInt32(null, subscription.LifetimeCounter);
+            encoder.WriteUInt32(null, subscription.MaxLifetimeCount);
+            encoder.WriteUInt32(null, subscription.MaxKeepaliveCount);
+            encoder.WriteUInt32(null, subscription.MaxMessageCount);
+            encoder.WriteUInt32(null, subscription.MaxNotificationsPerPublish);
+            encoder.WriteDouble(null, subscription.PublishingInterval);
+            encoder.WriteByte(null, subscription.Priority);
+            encoder.WriteInt32(null, subscription.LastSentMessage);
+            encoder.WriteUInt32(null, subscription.SequenceNumber);
+            encoder.WriteExtensionObject(null, ExtensionObject.Null);
+            encoder.WriteExtensionObjectArray(null, []);
+            encoder.WriteInt32(null, 0);
+        }
+
         private StoredSubscription RoundTripSubscription(
             StoredSubscription original)
         {
@@ -331,11 +498,11 @@ namespace Opc.Ua.Server.Tests
             stream.Position = 0;
             using var decoder = new BinaryDecoder(
                 stream, m_context, true);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> srvUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> srvUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(
-                new NamespaceTable(nsUris.Memory.ToArray()),
-                new StringTable(srvUris.Memory.ToArray()));
+                new NamespaceTable(nsUris.Memory.ToArray().Select(uri => uri!)),
+                new StringTable(srvUris.Memory.ToArray().Select(uri => uri!)));
             int count = decoder.ReadInt32(null);
             var results = new List<StoredSubscription>(count);
             for (int i = 0; i < count; i++)
@@ -367,11 +534,11 @@ namespace Opc.Ua.Server.Tests
             stream.Position = 0;
             using var decoder = new BinaryDecoder(
                 stream, m_context, true);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> srvUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> srvUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(
-                new NamespaceTable(nsUris.Memory.ToArray()),
-                new StringTable(srvUris.Memory.ToArray()));
+                new NamespaceTable(nsUris.Memory.ToArray().Select(uri => uri!)),
+                new StringTable(srvUris.Memory.ToArray().Select(uri => uri!)));
             return DurableMonitoredItemQueueFactory
                 .DecodeDataChangeQueue(decoder);
         }
@@ -397,22 +564,25 @@ namespace Opc.Ua.Server.Tests
             stream.Position = 0;
             using var decoder = new BinaryDecoder(
                 stream, m_context, true);
-            ArrayOf<string> nsUris = decoder.ReadStringArray(null);
-            ArrayOf<string> srvUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> nsUris = decoder.ReadStringArray(null);
+            ArrayOf<string?> srvUris = decoder.ReadStringArray(null);
             decoder.SetMappingTables(
-                new NamespaceTable(nsUris.Memory.ToArray()),
-                new StringTable(srvUris.Memory.ToArray()));
+                new NamespaceTable(nsUris.Memory.ToArray().Select(uri => uri!)),
+                new StringTable(srvUris.Memory.ToArray().Select(uri => uri!)));
             return DurableMonitoredItemQueueFactory
                 .DecodeEventQueue(decoder);
         }
 
+        /// <summary>
+        /// Verifies that a data-change batch round-trips through the queue persistor.
+        /// </summary>
         [Test]
         public void RoundTripDataChangeBatchViaPersistor()
         {
             using IDisposable scope =
                 AmbientMessageContext.SetScopedContext(m_context);
 
-            var values = new List<(DataValue, ServiceResult)>
+            var values = new List<(DataValue, ServiceResult?)>
             {
                 (new DataValue(new Variant(42), StatusCodes.Good), null),
                 (new DataValue(new Variant("test"), StatusCodes.Good),
@@ -445,6 +615,9 @@ namespace Opc.Ua.Server.Tests
             persistor.DeleteBatches([]);
         }
 
+        /// <summary>
+        /// Verifies that an event batch round-trips through the queue persistor.
+        /// </summary>
         [Test]
         public void RoundTripEventBatchViaPersistor()
         {
@@ -475,13 +648,16 @@ namespace Opc.Ua.Server.Tests
             persistor.DeleteBatches([]);
         }
 
+        /// <summary>
+        /// Verifies that deleting a persisted queue batch removes its backing file.
+        /// </summary>
         [Test]
         public void PersistorDeleteBatchRemovesFile()
         {
             using IDisposable scope =
                 AmbientMessageContext.SetScopedContext(m_context);
 
-            var values = new List<(DataValue, ServiceResult)>
+            var values = new List<(DataValue, ServiceResult?)>
             {
                 (new DataValue(new Variant(1), StatusCodes.Good), null)
             };

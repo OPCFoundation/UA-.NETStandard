@@ -139,7 +139,21 @@ namespace Opc.Ua.Client
                 tracker = m_modelChangeTracker;
             }
 
-            await tracker.StartTrackingAsync(ct).ConfigureAwait(false);
+            try
+            {
+                await tracker.StartTrackingAsync(ct).ConfigureAwait(false);
+            }
+            catch
+            {
+                lock (m_streamingLock)
+                {
+                    if (ReferenceEquals(m_modelChangeTracker, tracker))
+                    {
+                        m_modelChangeTrackingEnabled = false;
+                    }
+                }
+                throw;
+            }
         }
 
         /// <summary>
@@ -227,5 +241,4 @@ namespace Opc.Ua.Client
             this ILogger logger,
             Exception? exception);
     }
-
 }

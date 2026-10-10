@@ -29,6 +29,7 @@
 
 using System;
 using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server.Fluent;
@@ -167,13 +168,16 @@ namespace Opc.Ua.Robotics.Server
             return m_postSetupContext.GetRequiredService<T>();
         }
 
-        public void Seal()
+        public ValueTask SealAsync(CancellationToken cancellationToken = default)
         {
+            // The state transition stays under the lock; the builder's own
+            // asynchronous completion work runs outside it, so no await ever
+            // happens while the context lock is held.
             lock (m_stateLock)
             {
                 if (m_sealed)
                 {
-                    return;
+                    return default;
                 }
                 if (m_activeBuildLeaseCount != 0)
                 {
@@ -183,8 +187,9 @@ namespace Opc.Ua.Robotics.Server
                 }
 
                 m_sealed = true;
-                m_nodes.Seal();
             }
+
+            return m_nodes.SealAsync(cancellationToken);
         }
 
         IDisposable IRoboticsBuildCoordinator.AcquireBuildLease()

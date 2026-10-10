@@ -220,7 +220,7 @@ namespace Opc.Ua
             m_inner.NamespaceIdx = namespaceIndex;
             m_inner.Type = (byte)IdType.Opaque;
             m_identifier = value;
-            m_inner.Numeric = (uint)value.GetHashCode();
+            m_inner.Numeric = value.IsEmpty ? 0 : (uint)value.GetHashCode();
         }
 
         /// <summary>
@@ -266,6 +266,12 @@ namespace Opc.Ua
             m_inner.NamespaceIdx = namespaceIndex;
         }
 
+        private NodeId(object? identifier, Inner inner)
+        {
+            m_identifier = identifier;
+            m_inner = inner;
+        }
+
         /// <summary>
         /// Creates a new NodeId from a long-form text representation, resolving
         /// the namespace URI against the supplied <see cref="NamespaceTable"/>.
@@ -279,9 +285,8 @@ namespace Opc.Ua
         ///   <item><c>nsu=&lt;escaped-uri&gt;;&lt;id&gt;</c> (namespace URI,
         ///   resolved via <paramref name="namespaceTable"/>)</item>
         /// </list>
-        /// The <c>&lt;id&gt;</c> portion may be typed
-        /// (<c>i=N</c>/<c>s=X</c>/<c>g=GUID</c>/<c>b=BASE64</c>)
-        /// or a bare token, which is treated as a string identifier.
+        /// The <c>&lt;id&gt;</c> portion must be typed
+        /// (<c>i=N</c>/<c>s=X</c>/<c>g=GUID</c>/<c>b=BASE64</c>).
         /// </remarks>
         /// <param name="text">The long-form NodeId text.</param>
         /// <param name="namespaceTable">Namespace table used to resolve the URI to
@@ -376,7 +381,14 @@ namespace Opc.Ua
                     return false;
                 }
 
-                string namespaceUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
+                // "nsu=;" has no namespace uri (Part 6 5.1.12).
+                if (!CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? namespaceUri) ||
+                    string.IsNullOrWhiteSpace(namespaceUri))
+                {
+                    error = NodeIdParseError.InvalidNamespaceFormat;
+                    return false;
+                }
+
                 namespaceIndex =
                     options?.UpdateTables == true
                         ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
@@ -403,15 +415,26 @@ namespace Opc.Ua
                     return false;
                 }
 
-                if (ushort.TryParse(text[3..index], out ushort ns))
+                // <short-index> is 1*DIGIT (Part 6 5.1.12): no sign, no
+                // whitespace and no dependency on the current culture.
+                if (!ushort.TryParse(
+                    text[3..index],
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out ushort ns))
                 {
-                    namespaceIndex = ns;
+                    // An unparsable or out of range index must not be silently
+                    // dropped - that would land the node id in namespace zero.
+                    error = NodeIdParseError.InvalidNamespaceFormat;
+                    return false;
+                }
 
-                    if (options?.NamespaceMappings != null &&
-                        options?.NamespaceMappings.Length < ns)
-                    {
-                        namespaceIndex = options.NamespaceMappings[ns];
-                    }
+                namespaceIndex = ns;
+
+                if (options?.NamespaceMappings != null &&
+                    ns < options.NamespaceMappings.Length)
+                {
+                    namespaceIndex = options.NamespaceMappings[ns];
                 }
 
                 text = text[(index + 1)..];
@@ -419,7 +442,13 @@ namespace Opc.Ua
 
             NodeIdParseError typedError = NodeIdParseError.InvalidIdentifier;
 
-            if (text.Length >= 2)
+            // The '=' after the identifier type is mandatory (Part 6 5.1.12),
+            // "ns=2;sensor" or "i:42" must not be read as "s=nsor" or "i=42".
+            if (text.Length >= 2 && text[1] != '=')
+            {
+                typedError = NodeIdParseError.InvalidIdentifierType;
+            }
+            else if (text.Length >= 2)
             {
                 char idType = text[0];
                 string idText = text[2..];
@@ -427,7 +456,11 @@ namespace Opc.Ua
                 switch (idType)
                 {
                     case 'i':
-                        if (uint.TryParse(idText, out uint number))
+                        if (uint.TryParse(
+                            idText,
+                            NumberStyles.None,
+                            CultureInfo.InvariantCulture,
+                            out uint number))
                         {
                             value = new NodeId(number, (ushort)namespaceIndex);
                             return true;
@@ -435,7 +468,11 @@ namespace Opc.Ua
 
                         break;
                     case 's':
-                        if (!string.IsNullOrWhiteSpace(idText))
+                        // An empty string identifier is what the formatter writes for a NodeId
+                        // whose identifier is empty, so rejecting it would leave the stack
+                        // unable to parse its own "ns=<index>;s=" output. Whitespace only
+                        // identifiers stay rejected, as pinned by ParseWithContextStringWhitespaceIdentifier.
+                        if (idText.Length == 0 || !string.IsNullOrWhiteSpace(idText))
                         {
                             value = new NodeId(idText, (ushort)namespaceIndex);
                             return true;
@@ -455,7 +492,9 @@ namespace Opc.Ua
 
                         break;
                     case 'g':
-                        if (Guid.TryParse(idText, out Guid guid))
+                        // Only the 5.1.3 form ("D") names a Guid, braces or
+                        // a plain digit run would alias the same identifier.
+                        if (Guid.TryParseExact(idText, "D", out Guid guid))
                         {
                             value = new NodeId(guid, (ushort)namespaceIndex);
                             return true;
@@ -551,7 +590,7 @@ namespace Opc.Ua
             return buffer.ToString();
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         /// <summary>
         /// Formats the node id into a span without allocating a string.
         /// Writes the same text as <see cref="Format(IServiceMessageContext, bool)"/>
@@ -989,7 +1028,7 @@ namespace Opc.Ua
                 // parse guid node identifier.
                 if (text.StartsWith("g=", StringComparison.Ordinal))
                 {
-                    if (Guid.TryParse(text[2..], out Guid guidId))
+                    if (Guid.TryParseExact(text[2..], "D", out Guid guidId))
                     {
                         value = new NodeId(guidId, namespaceIndex);
                         return true;
@@ -1294,7 +1333,16 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return nodeId.IsNull ? 0 : 1; // nodeId is greater than null
+                return nodeId.IsNull ? 0 : -1; // a null NodeId sorts before any value
+            }
+
+            if (nodeId.IsNull)
+            {
+                // ... and any value sorts after a null NodeId. Without this the
+                // comparisons below answer -1 for everything that is not a
+                // namespace zero numeric id, so both directions report "less
+                // than" and the comparer is not even transitive.
+                return +1;
             }
 
             // check for different namespace.
@@ -1338,7 +1386,7 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return string.IsNullOrEmpty(obj) ? 0 : 1;
+                return string.IsNullOrEmpty(obj) ? 0 : -1;
             }
             if (NamespaceIndex != 0 || IdType != IdType.String)
             {
@@ -1352,7 +1400,7 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return obj == 0 ? 0 : 1;
+                return obj == 0 ? 0 : -1;
             }
             if (NamespaceIndex != 0 || IdType != IdType.Numeric)
             {
@@ -1366,7 +1414,7 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return obj == Guid.Empty ? 0 : 1;
+                return obj == Guid.Empty ? 0 : -1;
             }
             if (NamespaceIndex != 0 || IdType != IdType.Guid)
             {
@@ -1380,7 +1428,7 @@ namespace Opc.Ua
         {
             if (IsNull)
             {
-                return obj.IsEmpty ? 0 : 1;
+                return obj.IsEmpty ? 0 : -1;
             }
             if (NamespaceIndex != 0 || IdType != IdType.Opaque)
             {
@@ -1395,7 +1443,7 @@ namespace Opc.Ua
             // Needed for filter operators - do not remove
             return obj switch
             {
-                null => IsNull ? 0 : -1,
+                null => IsNull ? 0 : 1,
                 int n => n < 0 ? -1 : CompareTo((uint)n),
                 uint n => CompareTo(n),
                 Guid g => CompareTo(g),
@@ -1591,7 +1639,7 @@ namespace Opc.Ua
             }
             return hashCode.ToHashCode();
 #else
-            return (int)m_inner.Numeric ^ (m_inner.NamespaceIdx >> 16);
+            return (int)m_inner.Numeric ^ (m_inner.NamespaceIdx << 16);
 #endif
         }
 
@@ -1814,6 +1862,31 @@ namespace Opc.Ua
         /// C# 15 union types.
         /// </summary>
         public bool HasValue => !IsNull;
+
+        /// <summary>
+        /// Borrows the identifier reference and complete unmanaged state for lossless internal storage.
+        /// </summary>
+        /// <remarks>
+        /// This method must never be made public. It exists only for <see cref="Variant"/>
+        /// storage, and the internal representation may change.
+        /// </remarks>
+        internal void GetRawState(out object? identifier, out Inner inner)
+        {
+            identifier = m_identifier;
+            inner = m_inner;
+        }
+
+        /// <summary>
+        /// Restores the identifier reference and complete unmanaged state without recomputing it.
+        /// </summary>
+        /// <remarks>
+        /// This method must never be made public. It exists only for <see cref="Variant"/>
+        /// storage, and the internal representation may change.
+        /// </remarks>
+        internal static NodeId SetRawState(object? identifier, Inner inner)
+        {
+            return new NodeId(identifier, inner);
+        }
 
         /// <summary>
         /// Get namespace index for id or throw if not found.

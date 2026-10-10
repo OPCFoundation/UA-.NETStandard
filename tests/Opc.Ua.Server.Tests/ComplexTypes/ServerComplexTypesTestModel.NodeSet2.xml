@@ -93,6 +93,27 @@
     </References>
   </UAObject>
 
+  <!-- ===================== TestPoint3D (Structure subtype) ============= -->
+  <!-- The Definition lists only the field TestPoint3D adds (Part 6 F.12). -->
+  <UADataType NodeId="ns=1;i=15030" BrowseName="1:TestPoint3D">
+    <DisplayName>TestPoint3D</DisplayName>
+    <Description>A runtime-loaded structure that inherits the TestPoint fields.</Description>
+    <References>
+      <Reference ReferenceType="HasEncoding">ns=1;i=15031</Reference>
+      <Reference ReferenceType="HasSubtype" IsForward="false">ns=1;i=15010</Reference>
+    </References>
+    <Definition Name="1:TestPoint3D">
+      <Field Name="Z" DataType="Int32" />
+    </Definition>
+  </UADataType>
+  <UAObject NodeId="ns=1;i=15031" BrowseName="Default Binary" SymbolicName="DefaultBinary">
+    <DisplayName>Default Binary</DisplayName>
+    <References>
+      <Reference ReferenceType="HasEncoding" IsForward="false">ns=1;i=15030</Reference>
+      <Reference ReferenceType="HasTypeDefinition">i=76</Reference>
+    </References>
+  </UAObject>
+
   <!-- ============================== Instances ========================== -->
   <UAObject NodeId="ns=1;i=15020" BrowseName="1:ComplexTypesTestData">
     <DisplayName>ComplexTypesTestData</DisplayName>
@@ -100,6 +121,7 @@
       <Reference ReferenceType="HasTypeDefinition">i=61</Reference>
       <Reference ReferenceType="Organizes">ns=1;i=15021</Reference>
       <Reference ReferenceType="Organizes">ns=1;i=15022</Reference>
+      <Reference ReferenceType="Organizes">ns=1;i=15032</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">i=85</Reference>
     </References>
   </UAObject>
@@ -116,6 +138,15 @@
               DataType="ns=1;i=15001" ValueRank="-1" AccessLevel="3" UserAccessLevel="3">
     <DisplayName>ColorValue</DisplayName>
     <Description>A scalar value of the runtime-loaded TestColor enumeration.</Description>
+    <References>
+      <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
+      <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=15020</Reference>
+    </References>
+  </UAVariable>
+  <UAVariable NodeId="ns=1;i=15032" BrowseName="1:Point3DValue" ParentNodeId="ns=1;i=15020"
+              DataType="ns=1;i=15030" ValueRank="-1" AccessLevel="3" UserAccessLevel="3">
+    <DisplayName>Point3DValue</DisplayName>
+    <Description>A scalar value of the runtime-loaded TestPoint3D structure.</Description>
     <References>
       <Reference ReferenceType="HasTypeDefinition">i=63</Reference>
       <Reference ReferenceType="Organizes" IsForward="false">ns=1;i=15020</Reference>

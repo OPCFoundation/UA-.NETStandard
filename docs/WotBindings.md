@@ -15,6 +15,7 @@ This document starts with the bindings that ship today and how to register them,
   - [Polling, retry and backoff](#polling-retry-and-backoff)
   - [Runtime integration](#runtime-integration)
   - [OPC UA target-mapping binding runtime](#opc-ua-target-mapping-binding-runtime)
+  - [Projected Methods, events, and Conditions](#projected-methods-events-and-conditions)
   - [Registering binders and executors](#registering-binders-and-executors)
   - [Intentionally unsupported operations](#intentionally-unsupported-operations)
   - [Transport security](#transport-security)
@@ -58,7 +59,7 @@ This document starts with the bindings that ship today and how to register them,
 
 | Project, assembly, or namespace | Contents | Availability and dependencies |
 | --- | --- | --- |
-| `src/Opc.Ua.WotCon.Bindings` / `Opc.Ua.WotCon.Bindings` | Stable interfaces, plan model, codecs, the eight planner/validator binders, and registry. No sample binding ships in this library. | Base package `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`; full `net472;net48;netstandard2.1;net8.0;net9.0;net10.0` matrix. |
+| `src/Opc.Ua.WotCon.Bindings` / `Opc.Ua.WotCon.Bindings` | Stable interfaces, plan model, codecs, the eight planner/validator binders, and registry. No sample binding ships in this library. | Base package `OPCFoundation.NetStandard.Opc.Ua.WotCon.Bindings`; full `net48;net8.0;net9.0;net10.0` matrix. |
 | `Opc.Ua.WotCon.Bindings.Http` | HTTP executor and options, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; `HttpClient`. |
 | `Opc.Ua.WotCon.Bindings.Modbus` | Modbus TCP client, executor, addressing, and conversion, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; sockets only. |
 | `Opc.Ua.WotCon.Bindings.OpcUa` | OPC UA-to-OPC UA executor and options, included in the base Bindings package | `net8.0`, `net9.0`, and `net10.0`; `Opc.Ua.Client`. |
@@ -1834,30 +1835,22 @@ neither becomes a Node, and both are restated verbatim on a round trip.
 
 ### What the readable mapping does not yet carry
 
-Section 9.2 emits the exceptional `uav:nodes` projection where converting the readable
-document back would not reproduce an equivalent NodeSet. Two gaps in this
-implementation still trigger it, both ordinary work rather than limits of the
-vocabulary.
+Readable mappings and their fallback conditions are maintained in
+[WoT / NodeSet conversion](WoTNodeSetConversion.md). In particular,
+[engineering units, ranges and scaling](WoTNodeSetConversion.md#engineering-units-ranges-and-scaling-sections-64-and-641)
+are mapped in both directions when their values can be decoded. Missing or
+unsupported values use the documented preservation projection rather than
+invented defaults.
 
-A Variable's own Variable children - the `EURange` and `EngineeringUnits` Properties of
-an `AnalogUnitType` - sit one level deeper than the conversion descends, so they are
-not emitted. And a Variable's `Value` is carried only where it is a scalar the
-conversion special-cases; a structure is not carried at all.
+Use this guide for protocol planners, executors, and binding registration;
+use [WoT Connectivity](WoTConnectivity.md) for registry hosting and projection
+lifecycle. Keeping conversion rules in one place avoids binding implementations
+depending on an outdated list of mapping limitations.
 
-Neither needs new vocabulary. A structure's value is self-describing: the
-`ExtensionObject` states the identifier of the type it holds, `EUInformation` and
-`Range` are types this stack already generates from the standard NodeSet, and the
-encoder stack in `Opc.Ua.Types/Encoders` maps such a value to named JSON fields and
-back. Nothing has to infer a unit's identifier from its symbol.
-
-One convention is worth knowing when reading a generated document: completeness is
-tested with `NodeSetComparer.CompareEquivalent`, which reads each side through its own
-`Aliases` table, because Section 9.2 asks for an equivalent NodeSet and not an
-identically spelled one. A name neither side declares is read through the
-`INodeSetAliasResolver` the caller injects — here `WotNodeSetAliases`, which states
-that the Binding writes the standard base-namespace names — so the comparison itself
-states no policy of its own. `NodeSetComparer.Compare` keeps the stricter text
-comparison for callers that need to know a document was reproduced as written.
+Equivalence and byte identity are different contracts. `NodeSetComparer.CompareEquivalent`
+resolves each NodeSet's aliases, while `NodeSetComparer.Compare` retains stricter
+text comparison. See the conversion guide for readable, preservation, and exact
+round-trip guarantees.
 
 ### How this is checked
 
@@ -2273,8 +2266,7 @@ For the converter-default compatibility note, see
 
 Current sample limitation: the upstream cavitation signal is proven to raise the
 upstream alarm and leave it unacknowledged, but the Pump1 Asset's `Supervision`
-view currently organizes no event affordance, Pump1 carries no `GeneratesEvent`
-reference for its cavitation alarm, and acknowledgement does not round-trip
+view currently organizes no event affordance, and acknowledgement does not round-trip
 because the projected pump actions are Start, Stop and Reset rather than
 Condition Methods carrying `uav:conditionAction` / `uav:actsOn`.
 

@@ -38,8 +38,6 @@ using Moq;
 using NUnit.Framework;
 using Opc.Ua.Wot;
 
-#nullable enable
-
 namespace Opc.Ua.Types.Tests.Wot
 {
     /// <summary>

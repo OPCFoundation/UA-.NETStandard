@@ -42,7 +42,7 @@ namespace Opc.Ua.PubSub.Tests.Security
             uint tokenId,
             int signingKeyLength = 32,
             int encryptingKeyLength = 16,
-            int keyNonceLength = 12)
+            int keyNonceLength = AesCtrNonceLayout.KeyNonceLength)
         {
             byte[] signing = new byte[signingKeyLength];
             byte[] encrypting = new byte[encryptingKeyLength];

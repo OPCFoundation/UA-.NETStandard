@@ -58,10 +58,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(s_readinessTimeout);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ReadinessLifecycleNodeManager participant = null;
-            TrackingLifecycleNodeManager childManager = null;
-            NodeManagerRegistration observed = null;
-            NodeManagerRegistration child = null;
+            ReadinessLifecycleNodeManager? participant = null;
+            TrackingLifecycleNodeManager? childManager = null;
+            NodeManagerRegistration? observed = null;
+            NodeManagerRegistration? child = null;
 
             Task<NodeManagerRegistration> addTask = StartReadinessChangeAsync(
                 ReadinessChange.Add,
@@ -98,12 +98,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 },
                 timeout.Token);
 
-            NodeManagerRegistration added = null;
+            NodeManagerRegistration? added = null;
             try
             {
                 await entered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                AssertLifecycleValue(participant);
                 Assert.That(addTask.IsCompleted, Is.False, "Add must await the participant's unfinished work.");
-                Assert.That(lifecycle.Registrations, Has.Count.EqualTo(2));
+                Assert.That(GetBranchRegistrations(lifecycle), Has.Count.EqualTo(2));
                 Assert.That(participant.ReadinessCount, Is.EqualTo(1));
                 Assert.That(participant.ReadinessCompletedCount, Is.Zero);
                 Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
@@ -114,6 +115,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 added = await addTask.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             }
 
+            AssertLifecycleValue(added);
+            AssertLifecycleValue(participant);
+            AssertLifecycleValue(child);
+            AssertLifecycleValue(childManager);
             Assert.That(added, Is.SameAs(observed));
             Assert.That(FindReadinessRegistration(), Is.SameAs(added));
             Assert.That(participant.ReadinessCount, Is.EqualTo(1));
@@ -124,7 +129,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(childManager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(childManager.DisposeCount, Is.EqualTo(1));
             Assert.That(participant.DeleteAddressSpaceCount, Is.EqualTo(1));
-            Assert.That(lifecycle.Registrations, Is.Empty);
+            Assert.That(GetBranchRegistrations(lifecycle), Is.Empty);
             await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
             await AssertReadinessNodeUnknownAsync(kSecondModelNamespaceUri).ConfigureAwait(false);
         }
@@ -146,7 +151,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             using var timeout = new CancellationTokenSource(s_readinessTimeout);
-            TrackingLifecycleNodeManager originalManager = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             NodeManagerRegistration original = await lifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -155,10 +160,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 timeout.Token).AsTask().WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ReadinessLifecycleNodeManager participant = null;
-            TrackingLifecycleNodeManager childManager = null;
-            NodeManagerRegistration observed = null;
-            NodeManagerRegistration child = null;
+            ReadinessLifecycleNodeManager? participant = null;
+            TrackingLifecycleNodeManager? childManager = null;
+            NodeManagerRegistration? observed = null;
+            NodeManagerRegistration? child = null;
 
             Task<NodeManagerRegistration> reloadTask = StartReadinessChangeAsync(
                 change,
@@ -195,12 +200,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 },
                 timeout.Token);
 
-            NodeManagerRegistration next = null;
+            NodeManagerRegistration? next = null;
             try
             {
                 await entered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                AssertLifecycleValue(participant);
                 Assert.That(reloadTask.IsCompleted, Is.False, "Reload must await committed-generation readiness.");
-                Assert.That(lifecycle.Registrations, Has.Count.EqualTo(2));
+                Assert.That(GetBranchRegistrations(lifecycle), Has.Count.EqualTo(2));
                 Assert.That(participant.ReadinessCount, Is.EqualTo(1));
                 Assert.That(participant.ReadinessCompletedCount, Is.Zero);
                 Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
@@ -211,6 +217,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 next = await reloadTask.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             }
 
+            AssertLifecycleValue(next);
+            AssertLifecycleValue(participant);
+            AssertLifecycleValue(originalManager);
+            AssertLifecycleValue(child);
+            AssertLifecycleValue(childManager);
             Assert.That(next, Is.SameAs(observed));
             Assert.That(FindReadinessRegistration(), Is.SameAs(next));
             Assert.That(next.Id, Is.EqualTo(original.Id));
@@ -225,7 +236,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(childManager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(childManager.DisposeCount, Is.EqualTo(1));
             Assert.That(participant.DeleteAddressSpaceCount, Is.EqualTo(1));
-            Assert.That(lifecycle.Registrations, Is.Empty);
+            Assert.That(GetBranchRegistrations(lifecycle), Is.Empty);
             await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
         }
 
@@ -240,8 +251,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             using var timeout = new CancellationTokenSource(s_readinessTimeout);
-            NodeManagerRegistration original = null;
-            TrackingLifecycleNodeManager originalManager = null;
+            NodeManagerRegistration? original = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             if (reload)
             {
                 original = await lifecycle.AddAsync(
@@ -253,7 +264,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
 
             var expected = new SentinelException("Readiness candidate preparation failed.");
-            ReadinessLifecycleNodeManager participant = null;
+            ReadinessLifecycleNodeManager? participant = null;
             Task<NodeManagerRegistration> operation = StartReadinessChangeAsync(
                 reload ? ReadinessChange.Reload : ReadinessChange.Add,
                 original,
@@ -267,6 +278,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 timeout.Token);
             SentinelException failure = await ExpectReadinessExceptionAsync<SentinelException>(operation)
                 .ConfigureAwait(false);
+            AssertLifecycleValue(participant);
 
             Assert.That(failure, Is.SameAs(expected));
             Assert.That(participant.ReadinessCount, Is.Zero);
@@ -276,7 +288,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(participant.Find(ReadinessNodeId(kModelNamespaceUri, kValueNodeId)), Is.Null);
             if (reload)
             {
-                Assert.That(lifecycle.Registrations, Has.Count.EqualTo(1));
+                AssertLifecycleValue(original);
+                AssertLifecycleValue(originalManager);
+                Assert.That(GetBranchRegistrations(lifecycle), Has.Count.EqualTo(1));
                 Assert.That(FindReadinessRegistration(), Is.SameAs(original));
                 Assert.That(originalManager.DeleteAddressSpaceCount, Is.Zero);
                 Assert.That(originalManager.DisposeCount, Is.Zero);
@@ -287,7 +301,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
             }
-            Assert.That(lifecycle.Registrations, Is.Empty);
+            Assert.That(GetBranchRegistrations(lifecycle), Is.Empty);
         }
 
         /// <summary>
@@ -300,8 +314,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(s_readinessTimeout);
             var expected = new SentinelException("Published Add readiness failed.");
-            ReadinessLifecycleNodeManager participant = null;
-            NodeManagerRegistration observed = null;
+            ReadinessLifecycleNodeManager? participant = null;
+            NodeManagerRegistration? observed = null;
             Task<NodeManagerRegistration> operation = StartReadinessChangeAsync(
                 ReadinessChange.Add,
                 null,
@@ -322,6 +336,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 timeout.Token);
             InvalidOperationException failure = await ExpectReadinessExceptionAsync<InvalidOperationException>(
                 operation).ConfigureAwait(false);
+            AssertLifecycleValue(participant);
+            AssertLifecycleValue(observed);
 
             Assert.That(failure.Message, Does.Contain("added").And.Contain("readiness"));
             Assert.That(failure.InnerException, Is.SameAs(expected));
@@ -348,10 +364,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var caller = new CancellationTokenSource(s_readinessTimeout);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ReadinessLifecycleNodeManager participant = null;
-            NodeManagerRegistration observed = null;
+            ReadinessLifecycleNodeManager? participant = null;
+            NodeManagerRegistration? observed = null;
             CancellationToken receivedToken = default;
-            OperationCanceledException callbackCancellation = null;
+            OperationCanceledException? callbackCancellation = null;
             Task<NodeManagerRegistration> operation = StartReadinessChangeAsync(
                 ReadinessChange.Add,
                 null,
@@ -386,7 +402,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 },
                 caller.Token);
 
-            InvalidOperationException failure = null;
+            InvalidOperationException? failure = null;
             try
             {
                 await entered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
@@ -401,10 +417,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     .ConfigureAwait(false);
             }
 
+            AssertLifecycleValue(failure);
+            AssertLifecycleValue(participant);
+            AssertLifecycleValue(observed);
             Assert.That(failure.Message, Does.Contain("added").And.Contain("readiness"));
             Assert.That(failure.InnerException, Is.InstanceOf<OperationCanceledException>());
             Assert.That(
-                ((OperationCanceledException)failure.InnerException).CancellationToken,
+                RequireLifecycleValue(failure.InnerException as OperationCanceledException).CancellationToken,
                 Is.EqualTo(caller.Token));
             if (observeCancellation)
             {
@@ -438,7 +457,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             using var caller = new CancellationTokenSource(s_readinessTimeout);
-            TrackingLifecycleNodeManager originalManager = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             NodeManagerRegistration original = await lifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(
                     kGeneration1Value,
@@ -448,8 +467,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Exception expected = cancel
                 ? new OperationCanceledException("Committed reload readiness cancelled.", caller.Token)
                 : new SentinelException("Committed reload readiness failed.");
-            ReadinessLifecycleNodeManager participant = null;
-            NodeManagerRegistration observed = null;
+            ReadinessLifecycleNodeManager? participant = null;
+            NodeManagerRegistration? observed = null;
             Task<NodeManagerRegistration> operation = StartReadinessChangeAsync(
                 change,
                 original,
@@ -478,6 +497,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             NodeManagerReloadCommittedException failure =
                 await ExpectReadinessExceptionAsync<NodeManagerReloadCommittedException>(operation)
                     .ConfigureAwait(false);
+            AssertLifecycleValue(participant);
+            AssertLifecycleValue(originalManager);
 
             Assert.That(failure.Message, Does.Contain("replacement NodeManager is live"));
             Assert.That(failure.InnerException, Is.SameAs(expected));
@@ -510,7 +531,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
             using var timeout = new CancellationTokenSource(s_readinessTimeout);
-            NodeManagerRegistration original = null;
+            NodeManagerRegistration? original = null;
             if (change != ReadinessChange.Add)
             {
                 original = await lifecycle.AddAsync(
@@ -521,8 +542,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ReadinessLifecycleNodeManager participant = null;
-            NodeManagerRegistration observed = null;
+            ReadinessLifecycleNodeManager? participant = null;
+            NodeManagerRegistration? observed = null;
             Task<NodeManagerRegistration> operation = StartReadinessChangeAsync(
                 change,
                 original,
@@ -541,11 +562,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 timeout.Token);
             var asyncReplacement = new Mock<IAsyncNodeManagerFactory>(MockBehavior.Strict);
             var syncReplacement = new Mock<INodeManagerFactory>(MockBehavior.Strict);
-            NodeManagerRegistration completed = null;
+            NodeManagerRegistration? completed = null;
 
             try
             {
                 await entered.Task.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+                AssertLifecycleValue(observed);
+                AssertLifecycleValue(participant);
                 Assert.That(operation.IsCompleted, Is.False);
                 InvalidOperationException removeFailure =
                     await ExpectReadinessExceptionAsync<InvalidOperationException>(
@@ -601,7 +624,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(participant.DisposeCount, Is.Zero);
                 Assert.That(FindReadinessRegistration(), Is.SameAs(observed));
 
-                TrackingLifecycleNodeManager independentManager = null;
+                TrackingLifecycleNodeManager? independentManager = null;
                 NodeManagerRegistration independent = await lifecycle.AddAsync(
                     CreateTrackingNodeManagementFactory(
                         kSecondRegistrationValue,
@@ -613,6 +636,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await AssertReadinessValueAsync(kSecondModelNamespaceUri, kSecondRegistrationValue)
                     .ConfigureAwait(false);
                 await RemoveReadinessRegistrationAsync(independent).ConfigureAwait(false);
+                AssertLifecycleValue(independentManager);
                 Assert.That(independentManager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(independentManager.DisposeCount, Is.EqualTo(1));
                 await AssertReadinessNodeUnknownAsync(kSecondModelNamespaceUri).ConfigureAwait(false);
@@ -621,7 +645,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(participant.ReadinessCompletedCount, Is.Zero);
                 Assert.That(participant.DeleteAddressSpaceCount, Is.Zero);
                 Assert.That(participant.DisposeCount, Is.Zero);
-                Assert.That(lifecycle.Registrations, Has.Count.EqualTo(1));
+                Assert.That(GetBranchRegistrations(lifecycle), Has.Count.EqualTo(1));
             }
             finally
             {
@@ -629,13 +653,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 completed = await operation.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
             }
 
+            AssertLifecycleValue(completed);
+            AssertLifecycleValue(participant);
             Assert.That(completed, Is.SameAs(observed));
             Assert.That(participant.ReadinessCount, Is.EqualTo(1));
             Assert.That(participant.ReadinessCompletedCount, Is.EqualTo(1));
             await RemoveReadinessRegistrationAsync(completed).ConfigureAwait(false);
             Assert.That(participant.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(participant.DisposeCount, Is.EqualTo(1));
-            Assert.That(lifecycle.Registrations, Is.Empty);
+            Assert.That(GetBranchRegistrations(lifecycle), Is.Empty);
             await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
         }
 
@@ -655,10 +681,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(s_readinessTimeout);
             var deleteEntered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var releaseDelete = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ReadinessLifecycleNodeManager parentManager = null;
-            TrackingLifecycleNodeManager childManager = null;
-            TrackingLifecycleNodeManager replacementManager = null;
-            NodeManagerRegistration child = null;
+            ReadinessLifecycleNodeManager? parentManager = null;
+            TrackingLifecycleNodeManager? childManager = null;
+            TrackingLifecycleNodeManager? replacementManager = null;
+            NodeManagerRegistration? child = null;
             NodeManagerRegistration original = await StartReadinessChangeAsync(
                 ReadinessChange.Add,
                 null,
@@ -690,18 +716,21 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         await releaseDelete.Task.WaitAsync(s_readinessTimeout, ct).ConfigureAwait(false);
                         using var nestedTimeout = CancellationTokenSource.CreateLinkedTokenSource(ct);
                         nestedTimeout.CancelAfter(s_readinessTimeout);
-                        await lifecycle.RemoveAsync(child, null, nestedTimeout.Token)
+                        await lifecycle.RemoveAsync(RequireLifecycleValue(child), null, nestedTimeout.Token)
                             .AsTask().WaitAsync(s_readinessTimeout, ct).ConfigureAwait(false);
                     };
                 },
                 timeout.Token).WaitAsync(s_readinessTimeout).ConfigureAwait(false);
+            AssertLifecycleValue(parentManager);
+            AssertLifecycleValue(childManager);
+            AssertLifecycleValue(child);
 
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             uint subscriptionId = 0;
             bool shadowRetired = false;
-            Task cleanupTask = null;
-            Task<NodeManagerRegistration> reloadTask = null;
-            NodeManagerRegistration replacement = null;
+            Task? cleanupTask = null;
+            Task<NodeManagerRegistration>? reloadTask = null;
+            NodeManagerRegistration? replacement = null;
             try
             {
                 if (cleanup == ReadinessCleanup.ShadowDrain)
@@ -721,8 +750,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(parentManager.DeleteAddressSpaceCount, Is.Zero);
                     Assert.That(parentManager.DisposeCount, Is.Zero);
                     Assert.That(
-                        ((BaseVariableState)parentManager.Find(
-                            ReadinessNodeId(kModelNamespaceUri, kValueNodeId))).Value,
+                        RequireLifecycleValue(parentManager.Find(
+                            ReadinessNodeId(kModelNamespaceUri, kValueNodeId)) as BaseVariableState).Value,
                         Is.EqualTo(kGeneration1Value));
                     await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
                     cleanupTask = parentManager.DisposalCompleted;
@@ -763,7 +792,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
                 // These real operations also give retired cleanup another opportunity
                 // to run while the first destruction callback owns its drain claim.
-                TrackingLifecycleNodeManager probeManager = null;
+                TrackingLifecycleNodeManager? probeManager = null;
                 NodeManagerRegistration probe = await lifecycle.AddAsync(
                     CreateTrackingNodeManagementFactory(
                         kFirstRegistrationValue,
@@ -774,6 +803,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await AssertReadinessValueAsync(kReadinessProbeNamespaceUri, kFirstRegistrationValue)
                     .ConfigureAwait(false);
                 await RemoveReadinessRegistrationAsync(probe).ConfigureAwait(false);
+                AssertLifecycleValue(probeManager);
                 Assert.That(probeManager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(probeManager.DisposeCount, Is.EqualTo(1));
                 Assert.That(parentManager.DeleteAddressSpaceCount, Is.EqualTo(1));
@@ -786,6 +816,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }
                 else
                 {
+                    AssertLifecycleValue(replacementManager);
                     Assert.That(FindReadinessRegistration().Generation, Is.EqualTo(2));
                     await AssertReadinessValueAsync(kModelNamespaceUri, kGeneration2Value).ConfigureAwait(false);
                     Assert.That(replacementManager.DeleteAddressSpaceCount, Is.Zero);
@@ -832,6 +863,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await AssertReadinessNodeUnknownAsync(kReadinessProbeNamespaceUri).ConfigureAwait(false);
             if (replacement is not null)
             {
+                AssertLifecycleValue(replacementManager);
                 Assert.That(FindReadinessRegistration(), Is.SameAs(replacement));
                 Assert.That(replacement.Id, Is.EqualTo(original.Id));
                 Assert.That(replacement.Generation, Is.EqualTo(2));
@@ -840,13 +872,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(replacementManager.DeleteAddressSpaceCount, Is.EqualTo(1));
                 Assert.That(replacementManager.DisposeCount, Is.EqualTo(1));
             }
-            Assert.That(lifecycle.Registrations, Is.Empty);
+            Assert.That(GetBranchRegistrations(lifecycle), Is.Empty);
             await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
         }
 
         private Task<NodeManagerRegistration> StartReadinessChangeAsync(
             ReadinessChange change,
-            NodeManagerRegistration original,
+            NodeManagerRegistration? original,
             bool synchronousFactory,
             int value,
             Action<ReadinessLifecycleNodeManager> configure,
@@ -897,16 +929,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static ValueTask<NodeManagerRegistration> InvokeReadinessChangeAsync(
             INodeManagerLifecycle lifecycle,
             ReadinessChange change,
-            NodeManagerRegistration original,
+            NodeManagerRegistration? original,
             IAsyncNodeManagerFactory factory,
             CancellationToken cancellationToken)
         {
             return change switch
             {
                 ReadinessChange.Add => lifecycle.AddAsync(factory, null, cancellationToken),
-                ReadinessChange.Reload => lifecycle.ReloadAsync(original, factory, null, cancellationToken),
-                ReadinessChange.ShadowReload => lifecycle.ShadowReloadAsync(original, factory, cancellationToken),
-                ReadinessChange.ImmediateReload => lifecycle.ImmediateReloadAsync(original, factory, cancellationToken),
+                ReadinessChange.Reload => lifecycle.ReloadAsync(
+                    RequireLifecycleValue(original), factory, null, cancellationToken),
+                ReadinessChange.ShadowReload => lifecycle.ShadowReloadAsync(
+                    RequireLifecycleValue(original), factory, cancellationToken),
+                ReadinessChange.ImmediateReload => lifecycle.ImmediateReloadAsync(
+                    RequireLifecycleValue(original), factory, cancellationToken),
                 _ => throw new ArgumentOutOfRangeException(nameof(change))
             };
         }
@@ -914,26 +949,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static ValueTask<NodeManagerRegistration> InvokeReadinessChangeAsync(
             INodeManagerLifecycle lifecycle,
             ReadinessChange change,
-            NodeManagerRegistration original,
+            NodeManagerRegistration? original,
             INodeManagerFactory factory,
             CancellationToken cancellationToken)
         {
             return change switch
             {
                 ReadinessChange.Add => lifecycle.AddAsync(factory, null, cancellationToken),
-                ReadinessChange.Reload => lifecycle.ReloadAsync(original, factory, null, cancellationToken),
-                ReadinessChange.ShadowReload => lifecycle.ShadowReloadAsync(original, factory, cancellationToken),
-                ReadinessChange.ImmediateReload => lifecycle.ImmediateReloadAsync(original, factory, cancellationToken),
+                ReadinessChange.Reload => lifecycle.ReloadAsync(
+                    RequireLifecycleValue(original), factory, null, cancellationToken),
+                ReadinessChange.ShadowReload => lifecycle.ShadowReloadAsync(
+                    RequireLifecycleValue(original), factory, cancellationToken),
+                ReadinessChange.ImmediateReload => lifecycle.ImmediateReloadAsync(
+                    RequireLifecycleValue(original), factory, cancellationToken),
                 _ => throw new ArgumentOutOfRangeException(nameof(change))
             };
         }
 
         private NodeManagerRegistration FindReadinessRegistration()
         {
-            NodeManagerRegistration registration = m_server.NodeManagerLifecycle.Registrations.Find(
+            NodeManagerRegistration? registration = m_server.NodeManagerLifecycle.Registrations.Find(
                 candidate => candidate.NamespaceUris.Contains(kModelNamespaceUri));
             Assert.That(registration, Is.Not.Null, "Readiness requires an already committed registration.");
-            return registration;
+            return RequireLifecycleValue(registration);
         }
 
         private NodeId ReadinessNodeId(string namespaceUri, uint identifier)
@@ -977,7 +1015,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static async Task<TException> ExpectReadinessExceptionAsync<TException>(Task operation)
             where TException : Exception
         {
-            TException failure = null;
+            TException? failure = null;
             try
             {
                 await operation.WaitAsync(s_readinessTimeout).ConfigureAwait(false);
@@ -987,12 +1025,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 failure = exception;
             }
             Assert.That(failure, Is.TypeOf<TException>());
-            return failure;
+            return RequireLifecycleValue(failure);
         }
 
         private async Task RemoveReadinessRegistrationAsync(
             NodeManagerRegistration registration,
-            ReadinessLifecycleNodeManager participant = null,
+            ReadinessLifecycleNodeManager? participant = null,
             bool synchronousFactory = false)
         {
             using var timeout = new CancellationTokenSource(s_readinessTimeout);
@@ -1002,7 +1040,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
                 // The legacy sync facade does not own disposal of its underlying async
                 // manager. Release that test-owned resource only after real removal.
-                participant.Dispose();
+                RequireLifecycleValue(participant).Dispose();
             }
         }
 
@@ -1011,15 +1049,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
             ReadinessLifecycleNodeManager participant)
         {
             INodeManagerLifecycle lifecycle = m_server.NodeManagerLifecycle;
-            Assert.That(lifecycle.Registrations, Has.Count.EqualTo(1));
+            Assert.That(GetBranchRegistrations(lifecycle), Has.Count.EqualTo(1));
             await RemoveReadinessRegistrationAsync(registration).ConfigureAwait(false);
-            Assert.That(lifecycle.Registrations, Is.Empty);
+            Assert.That(GetBranchRegistrations(lifecycle), Is.Empty);
             Assert.That(participant.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(participant.DisposeCount, Is.EqualTo(1));
             await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
 
             using var timeout = new CancellationTokenSource(s_readinessTimeout);
-            TrackingLifecycleNodeManager laterManager = null;
+            TrackingLifecycleNodeManager? laterManager = null;
             NodeManagerRegistration later = await lifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(
                     kFirstRegistrationValue,
@@ -1031,10 +1069,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(later.NodeManager, Is.SameAs(laterManager));
             await AssertReadinessValueAsync(kModelNamespaceUri, kFirstRegistrationValue).ConfigureAwait(false);
             await RemoveReadinessRegistrationAsync(later).ConfigureAwait(false);
+            AssertLifecycleValue(laterManager);
             Assert.That(laterManager.DeleteAddressSpaceCount, Is.EqualTo(1));
             Assert.That(laterManager.DisposeCount, Is.EqualTo(1));
             Assert.That(participant.ReadinessCount, Is.EqualTo(1));
-            Assert.That(lifecycle.Registrations, Is.Empty);
+            Assert.That(GetBranchRegistrations(lifecycle), Is.Empty);
             await AssertReadinessNodeUnknownAsync(kModelNamespaceUri).ConfigureAwait(false);
         }
 
@@ -1051,11 +1090,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             {
             }
 
-            public Func<CancellationToken, ValueTask> ReadinessCallback { get; set; }
+            public Func<CancellationToken, ValueTask>? ReadinessCallback { get; set; }
 
-            public Func<CancellationToken, ValueTask> DeleteCallback { get; set; }
+            public Func<CancellationToken, ValueTask>? DeleteCallback { get; set; }
 
-            public Exception PreparationFailure { get; set; }
+            public Exception? PreparationFailure { get; set; }
 
             public int ReadinessCount => Volatile.Read(ref m_readinessCount);
 

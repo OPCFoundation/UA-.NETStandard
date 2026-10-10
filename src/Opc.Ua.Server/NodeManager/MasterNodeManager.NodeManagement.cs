@@ -173,10 +173,21 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < nodesToAdd.Count; ii++)
                 {
                     AddNodesItem item = nodesToAdd[ii];
-                    (ServiceResult result, NodeId addedNodeId) = await DispatchAddNodeAsync(
-                        context,
-                        item,
-                        cancellationToken).ConfigureAwait(false);
+                    ServiceResult result;
+                    NodeId addedNodeId = NodeId.Null;
+                    try
+                    {
+                        (result, addedNodeId) = await DispatchAddNodeAsync(
+                            context, item, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception)
+                    {
+                        result = CreateNodeManagementError(exception);
+                    }
 
                     results[ii] = new AddNodesResult
                     {
@@ -227,10 +238,20 @@ namespace Opc.Ua.Server
                 for (int ii = 0; ii < nodesToDelete.Count; ii++)
                 {
                     DeleteNodesItem item = nodesToDelete[ii];
-                    ServiceResult result = await DispatchDeleteNodeAsync(
-                        context,
-                        item,
-                        cancellationToken).ConfigureAwait(false);
+                    ServiceResult result;
+                    try
+                    {
+                        result = await DispatchDeleteNodeAsync(
+                            context, item, cancellationToken).ConfigureAwait(false);
+                    }
+                    catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                    {
+                        throw;
+                    }
+                    catch (Exception exception)
+                    {
+                        result = CreateNodeManagementError(exception);
+                    }
 
                     results[ii] = result.StatusCode;
 
@@ -274,10 +295,20 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < referencesToAdd.Count; ii++)
             {
                 AddReferencesItem item = referencesToAdd[ii];
-                ServiceResult result = await DispatchAddReferenceAsync(
-                    context,
-                    item,
-                    cancellationToken).ConfigureAwait(false);
+                ServiceResult result;
+                try
+                {
+                    result = await DispatchAddReferenceAsync(
+                        context, item, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    result = CreateNodeManagementError(exception);
+                }
 
                 results[ii] = result.StatusCode;
 
@@ -316,10 +347,20 @@ namespace Opc.Ua.Server
             for (int ii = 0; ii < referencesToDelete.Count; ii++)
             {
                 DeleteReferencesItem item = referencesToDelete[ii];
-                ServiceResult result = await DispatchDeleteReferenceAsync(
-                    context,
-                    item,
-                    cancellationToken).ConfigureAwait(false);
+                ServiceResult result;
+                try
+                {
+                    result = await DispatchDeleteReferenceAsync(
+                        context, item, cancellationToken).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
+                {
+                    throw;
+                }
+                catch (Exception exception)
+                {
+                    result = CreateNodeManagementError(exception);
+                }
 
                 results[ii] = result.StatusCode;
 
@@ -339,6 +380,27 @@ namespace Opc.Ua.Server
             return (results.ToArrayOf(), anyDiagnostics ? diagnosticInfos.ToArrayOf() : default);
         }
 
+        private ServiceResult CreateNodeManagementError(Exception exception)
+        {
+            m_logger.NodeManagementOperationFailed(exception);
+            return exception is ServiceResultException serviceException
+                ? new ServiceResult(serviceException)
+                : ServiceResult.Create(exception, StatusCodes.BadUnexpectedError,
+                    "The node manager failed a node-management operation.");
+        }
+
+        /// <summary>
+        /// Returns true when the ReferenceType is abstract. No Reference of an abstract
+        /// ReferenceType shall exist (Part 3 5.3.1), so AddNodes and AddReferences reject it.
+        /// </summary>
+        private async ValueTask<bool> IsAbstractReferenceTypeAsync(
+            NodeId referenceTypeId,
+            CancellationToken cancellationToken)
+        {
+            return await m_serviceDispatch.FindNodeInAddressSpaceAsync(referenceTypeId, cancellationToken)
+                .ConfigureAwait(false) is ReferenceTypeState { IsAbstract: true };
+        }
+
         private async ValueTask<(ServiceResult result, NodeId addedNodeId)> DispatchAddNodeAsync(
             OperationContext context,
             AddNodesItem item,
@@ -349,7 +411,7 @@ namespace Opc.Ua.Server
                 return (new ServiceResult(StatusCodes.BadNothingToDo), NodeId.Null);
             }
 
-            if (item.BrowseName.IsNull)
+            if (item.BrowseName.IsNull || string.IsNullOrEmpty(item.BrowseName.Name))
             {
                 return (new ServiceResult(StatusCodes.BadBrowseNameInvalid), NodeId.Null);
             }
@@ -360,7 +422,14 @@ namespace Opc.Ua.Server
             }
 
             if (item.ReferenceTypeId.IsNull ||
-                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId) ||
+                !Server.TypeTree.IsTypeOf(item.ReferenceTypeId, ReferenceTypeIds.References))
+            {
+                return (new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid), NodeId.Null);
+            }
+
+            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+                .ConfigureAwait(false))
             {
                 return (new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid), NodeId.Null);
             }
@@ -567,7 +636,14 @@ namespace Opc.Ua.Server
             }
 
             if (item.ReferenceTypeId.IsNull ||
-                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId) ||
+                !Server.TypeTree.IsTypeOf(item.ReferenceTypeId, ReferenceTypeIds.References))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
+            }
+
+            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+                .ConfigureAwait(false))
             {
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
@@ -638,15 +714,17 @@ namespace Opc.Ua.Server
                 }
             }
 
-            bool crossManagerTarget =
-                targetOwner != null &&
+            bool localTarget = targetOwner != null;
+
+            _ =
+                localTarget &&
                 !ReferenceEquals(targetOwner, sourceOwner);
-            if (crossManagerTarget &&
+            if (localTarget &&
                 (sourceMetadata == null || sourceMetadata.NodeClass == NodeClass.Unspecified))
             {
                 return new ServiceResult(StatusCodes.BadSourceNodeIdInvalid);
             }
-            if (crossManagerTarget &&
+            if (localTarget &&
                 (targetMetadata == null || targetMetadata.NodeClass == NodeClass.Unspecified))
             {
                 return new ServiceResult(StatusCodes.BadTargetNodeIdInvalid);
@@ -670,7 +748,7 @@ namespace Opc.Ua.Server
 
             // Write the complementary edge into the target's owning manager when the
             // target is explicitly local. Roll back the source edge if the target mutation fails.
-            if (crossManagerTarget)
+            if (localTarget)
             {
                 var inverseItem = new AddReferencesItem
                 {
@@ -686,7 +764,8 @@ namespace Opc.Ua.Server
                 {
                     ServiceResult inverseResult = await targetOwner!.AddReferenceAsync(
                         context, inverseItem, cancellationToken).ConfigureAwait(false);
-                    if (ServiceResult.IsBad(inverseResult))
+                    if (ServiceResult.IsBad(inverseResult) &&
+                        inverseResult.StatusCode != StatusCodes.BadDuplicateReferenceNotAllowed)
                     {
                         m_logger.AddReferencesFailedToMirrorInverseEdgeRefType(
                             item.ReferenceTypeId,
@@ -699,6 +778,11 @@ namespace Opc.Ua.Server
                             item).ConfigureAwait(false);
                         return inverseResult;
                     }
+                }
+                catch (ServiceResultException ex)
+                    when (ex.StatusCode == StatusCodes.BadDuplicateReferenceNotAllowed)
+                {
+                    return sourceResult;
                 }
                 catch (Exception ex)
                 {
@@ -739,7 +823,15 @@ namespace Opc.Ua.Server
             }
 
             if (item.ReferenceTypeId.IsNull ||
-                !Server.TypeTree.IsKnown(item.ReferenceTypeId))
+                !Server.TypeTree.IsKnown(item.ReferenceTypeId) ||
+                !Server.TypeTree.IsTypeOf(item.ReferenceTypeId, ReferenceTypeIds.References))
+            {
+                return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
+            }
+
+            // Part 3 5.3.1: no Reference of an abstract ReferenceType exists to delete.
+            if (await IsAbstractReferenceTypeAsync(item.ReferenceTypeId, cancellationToken)
+                .ConfigureAwait(false))
             {
                 return new ServiceResult(StatusCodes.BadReferenceTypeIdInvalid);
             }
@@ -823,8 +915,7 @@ namespace Opc.Ua.Server
             }
 
             DeleteReferencesItem sourceItem = item;
-            if (item.DeleteBidirectional &&
-                (!explicitlyLocalTarget || crossManagerTarget))
+            if (item.DeleteBidirectional)
             {
                 sourceItem = new DeleteReferencesItem
                 {
@@ -855,7 +946,8 @@ namespace Opc.Ua.Server
                 return sourceResult;
             }
 
-            if (!crossManagerTarget)
+            if (!item.DeleteBidirectional ||
+                !explicitlyLocalTarget)
             {
                 return sourceResult;
             }
@@ -873,7 +965,8 @@ namespace Opc.Ua.Server
             {
                 ServiceResult inverseResult = await targetOwner!.DeleteReferenceAsync(
                     context, inverseItem, cancellationToken).ConfigureAwait(false);
-                if (ServiceResult.IsBad(inverseResult))
+                if (ServiceResult.IsBad(inverseResult) &&
+                    inverseResult.StatusCode != StatusCodes.BadNoMatch)
                 {
                     m_logger.DeleteReferencesFailedToMirrorInverseDeleteRefType(
                         item.ReferenceTypeId,
@@ -887,6 +980,10 @@ namespace Opc.Ua.Server
                         targetMetadata!.NodeClass).ConfigureAwait(false);
                     return inverseResult;
                 }
+            }
+            catch (ServiceResultException ex) when (ex.StatusCode == StatusCodes.BadNoMatch)
+            {
+                return sourceResult;
             }
             catch (Exception ex)
             {
@@ -1016,7 +1113,8 @@ namespace Opc.Ua.Server
             ushort namespaceIndex,
             CancellationToken cancellationToken)
         {
-            if (context.Session == null || ConfigurationNodeManager == null)
+            if (ConfigurationNodeManager == null ||
+                (context.Session == null && context.UserIdentity == null && context.ChannelContext == null))
             {
                 return StatusCodes.Good;
             }

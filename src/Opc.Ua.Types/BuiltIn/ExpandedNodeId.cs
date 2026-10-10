@@ -452,7 +452,7 @@ namespace Opc.Ua
             // check for null.
             if (obj is null)
             {
-                return IsNull ? 0 : -1;
+                return IsNull ? 0 : 1;
             }
 
             // just compare node ids.
@@ -466,6 +466,13 @@ namespace Opc.Ua
                 if (IsNull && nodeId.IsNull)
                 {
                     return 0;
+                }
+
+                // an absolute id never equals a local node id; mirrors
+                // NodeId.CompareTo(ExpandedNodeId) which returns -1.
+                if (IsAbsolute)
+                {
+                    return 1;
                 }
             }
             else if (obj is ExpandedNodeId expandedId)
@@ -494,7 +501,8 @@ namespace Opc.Ua
             }
             else
             {
-                nodeId = NodeId.Null;
+                // Not comparable to a foreign type - never report equality.
+                return -1;
             }
 
             // check for null.
@@ -538,6 +546,7 @@ namespace Opc.Ua
             {
                 null => IsNull,
                 ExpandedNodeId e => Equals(e),
+                NodeId n => Equals(n),
                 _ => false
             };
         }
@@ -749,7 +758,9 @@ namespace Opc.Ua
 
             int index = -1;
 
-            if (namespaceTable != null)
+            // an id that only carries a server index has no namespace uri to
+            // resolve (or append) and cannot become a local node id.
+            if (namespaceTable != null && !string.IsNullOrEmpty(nodeId.NamespaceUri))
             {
                 index = updateNamespaceTable ?
                     namespaceTable.GetIndexOrAppend(nodeId.NamespaceUri!) :
@@ -773,7 +784,7 @@ namespace Opc.Ua
         /// <returns>The formatted identifier.</returns>
         public string? Format(IServiceMessageContext context, bool useUris = false)
         {
-            if (m_nodeId.IsNull)
+            if (IsNull)
             {
                 return null;
             }
@@ -814,7 +825,9 @@ namespace Opc.Ua
                     .Append(';');
             }
 
-            string id = m_nodeId.Format(context, useUris);
+            // A server index or namespace URI keeps the value non-null even when the
+            // identifier is, so the identifier must still be written for it to parse back.
+            string id = m_nodeId.IsNull ? "i=0" : m_nodeId.Format(context, useUris);
             buffer.Append(id);
 
             return buffer.ToString();
@@ -900,10 +913,12 @@ namespace Opc.Ua
             }
             else
             {
+                // The identifier itself must still be written, otherwise the
+                // result ("nsu=<uri>;i=") cannot be parsed back.
                 Format(
                     formatProvider,
                     buffer,
-                    null!,
+                    "0",
                     IdType.Numeric,
                     0,
                     NamespaceUri,
@@ -1195,70 +1210,6 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Unescapes any reserved characters in the uri.
-        /// </summary>
-        /// <exception cref="ServiceResultException"></exception>
-        internal static void UnescapeUri(
-            string text,
-            int start,
-            int index,
-            StringBuilder buffer)
-        {
-            for (int ii = start; ii < index; ii++)
-            {
-                char ch = text[ii];
-
-                switch (ch)
-                {
-                    case '%':
-                        if (ii + 2 >= index)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdInvalid,
-                                "Invalid escaped character in namespace uri.");
-                        }
-
-                        ushort value = 0;
-
-                        int digit = kHexDigits.IndexOf(
-                            char.ToUpperInvariant(text[++ii]),
-                            StringComparison.Ordinal);
-
-                        if (digit == -1)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdInvalid,
-                                "Invalid escaped character in namespace uri.");
-                        }
-
-                        value += (ushort)digit;
-                        value <<= 4;
-
-                        digit = kHexDigits.IndexOf(
-                            char.ToUpperInvariant(text[++ii]),
-                            StringComparison.Ordinal);
-
-                        if (digit == -1)
-                        {
-                            throw new ServiceResultException(
-                                StatusCodes.BadNodeIdInvalid,
-                                "Invalid escaped character in namespace uri.");
-                        }
-
-                        value += (ushort)digit;
-
-                        char unencodedChar = Convert.ToChar(value);
-
-                        buffer.Append(unencodedChar);
-                        break;
-                    default:
-                        buffer.Append(ch);
-                        break;
-                }
-            }
-        }
-
-        /// <summary>
         /// Internal try parse method that returns error message on failure.
         /// </summary>
         /// <param name="text">The ExpandedNodeId value as string.</param>
@@ -1320,9 +1271,21 @@ namespace Opc.Ua
                         return false;
                     }
 
-                    var buffer = new StringBuilder();
-                    UnescapeUri(text, 4, index, buffer);
-                    namespaceUri = buffer.ToString();
+                    // The escapes are RFC 3986 UTF-8 octets, decoded exactly
+                    // like the context parser does (Part 6 5.1.12).
+                    if (!CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out namespaceUri))
+                    {
+                        error = NodeIdParseError.InvalidNamespaceUri;
+                        return false;
+                    }
+
+                    // "nsu=;" has no namespace uri (Part 6 5.1.12).
+                    if (string.IsNullOrWhiteSpace(namespaceUri))
+                    {
+                        error = NodeIdParseError.InvalidNamespaceFormat;
+                        return false;
+                    }
+
                     text = text[(index + 1)..];
                 }
             }
@@ -1386,7 +1349,14 @@ namespace Opc.Ua
                     return false;
                 }
 
-                string serverUri = CoreUtils.UnescapeUri(text.AsSpan()[4..index]);
+                // "svu=;" has no server uri (Part 6 5.1.12).
+                if (!CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out string? serverUri) ||
+                    string.IsNullOrWhiteSpace(serverUri))
+                {
+                    error = NodeIdParseError.InvalidServerUriFormat;
+                    return false;
+                }
+
                 serverIndex =
                     options?.UpdateTables == true
                         ? context.ServerUris.GetIndexOrAppend(serverUri)
@@ -1411,14 +1381,25 @@ namespace Opc.Ua
                     return false;
                 }
 
-                if (ushort.TryParse(text[4..index], out ushort ns))
+                if (!uint.TryParse(
+                    text[4..index],
+                    NumberStyles.None,
+                    CultureInfo.InvariantCulture,
+                    out uint svr))
                 {
-                    serverIndex = ns;
+                    // An unparsable or out of range index must not be silently
+                    // dropped - that would turn a remote node id into a local
+                    // one, and TryParse would report success while doing it.
+                    error = NodeIdParseError.InvalidServerIndex;
+                    return false;
+                }
 
-                    if (options?.ServerMappings != null && options.NamespaceMappings != null && options.NamespaceMappings.Length < ns)
-                    {
-                        serverIndex = options.NamespaceMappings[ns];
-                    }
+                serverIndex = (int)svr;
+
+                if (options?.ServerMappings != null &&
+                    svr < (uint)options.ServerMappings.Length)
+                {
+                    serverIndex = options.ServerMappings[svr];
                 }
 
                 text = text[(index + 1)..];
@@ -1437,7 +1418,14 @@ namespace Opc.Ua
                     return false;
                 }
 
-                namespaceUri = CoreUtils.UnescapeUri(text[4..index]);
+                // "nsu=;" has no namespace uri (Part 6 5.1.12).
+                if (!CoreUtils.TryUnescapeUri(text.AsSpan()[4..index], out namespaceUri) ||
+                    string.IsNullOrWhiteSpace(namespaceUri))
+                {
+                    error = NodeIdParseError.InvalidNamespaceFormat;
+                    return false;
+                }
+
                 namespaceIndex =
                     options?.UpdateTables == true
                         ? context.NamespaceUris.GetIndexOrAppend(namespaceUri)
@@ -1461,10 +1449,13 @@ namespace Opc.Ua
                 return false;
             }
 
-            if (namespaceIndex > 0)
+            if (namespaceUri != null && namespaceIndex >= 0)
             {
+                // A resolved nsu= becomes a relative node id, also when it
+                // resolves to namespace zero, so that the result matches what
+                // NodeId.Parse produces for the equivalent ns= form.
                 value = new ExpandedNodeId(
-                    nodeId.WithNamespaceIndex((ushort)namespaceIndex),
+                    WithResolvedNamespace(nodeId, (ushort)namespaceIndex),
                     null,
                     (uint)serverIndex);
             }
@@ -1477,9 +1468,30 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// The set of hexadecimal digits used for decoding escaped URIs.
+        /// Applies a resolved namespace index to a parsed NodeId.
+        /// <para>
+        /// WithNamespaceIndex deliberately leaves a null NodeId untouched, but an identifier
+        /// that is zero or empty is only null while it also sits in namespace zero. Rebuilding
+        /// the NodeId here keeps the two textual forms of the same value in agreement, so
+        /// "nsu=&lt;uri&gt;;i=0" parses exactly like the "ns=&lt;index&gt;;i=0" form instead of
+        /// silently discarding the namespace.
+        /// </para>
         /// </summary>
-        private const string kHexDigits = "0123456789ABCDEF";
+        private static NodeId WithResolvedNamespace(NodeId nodeId, ushort namespaceIndex)
+        {
+            if (!nodeId.IsNull)
+            {
+                return nodeId.WithNamespaceIndex(namespaceIndex);
+            }
+
+            return nodeId.IdType switch
+            {
+                IdType.String => new NodeId(nodeId.StringIdentifier, namespaceIndex),
+                IdType.Guid => new NodeId(nodeId.GuidIdentifier, namespaceIndex),
+                IdType.Opaque => new NodeId(nodeId.OpaqueIdentifier, namespaceIndex),
+                _ => new NodeId(nodeId.NumericIdentifier, namespaceIndex)
+            };
+        }
 
         /// <summary>
         /// Inner data structure to hold the additional data

@@ -37,7 +37,7 @@ namespace Opc.Ua.Identity
 {
     /// <summary>
     /// Client identity provider that acquires an issued access token for
-    /// OPC UA JWT user-token policies.
+    /// OPC UA issued-token policies, including explicitly selected vendor profiles.
     /// </summary>
     public sealed class IssuedTokenIdentityProvider : IClientIdentityProvider
     {
@@ -106,18 +106,18 @@ namespace Opc.Ua.Identity
         {
             CanSatisfyResult satisfied = await CanSatisfyAsync(policy, context, ct)
                 .ConfigureAwait(false);
-            if (!satisfied.CanSatisfy ||
-                !AuthorizationServerMetadata.TryFromPolicy(policy, out AuthorizationServerMetadata metadata))
+            if (!satisfied.CanSatisfy)
             {
                 throw ServiceResultException.Create(
                     StatusCodes.BadIdentityTokenRejected,
                     "Issued-token identity provider cannot satisfy the supplied user token policy: {0}",
-                    satisfied.RejectionReason ?? "policy is missing required JWT metadata");
+                    satisfied.RejectionReason ?? "token profile is not supported");
             }
 
-            AccessToken accessToken = await m_accessTokenProvider
-                .AcquireAsync(metadata, ct)
-                .ConfigureAwait(false);
+            var metadata = AuthorizationServerMetadata.Parse(policy.IssuerEndpointUrl);
+            AccessToken accessToken = m_accessTokenProvider is IEndpointAccessTokenProvider endpointProvider
+                ? await endpointProvider.AcquireAsync(metadata, context.EndpointDescription, ct).ConfigureAwait(false)
+                : await m_accessTokenProvider.AcquireAsync(metadata, ct).ConfigureAwait(false);
             try
             {
                 byte[] tokenData = accessToken.TokenData.ToArray();

@@ -51,10 +51,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            TrackingLifecycleNodeManager original = null;
+            TrackingLifecycleNodeManager? original = null;
             NodeManagerRegistration registration = await lifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(101, manager => original = manager),
                 null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(original);
             NodeId nodeId = new(events ? kRootNodeId : kValueNodeId, original.NamespaceIndexes[0]);
             await using var client = new ClientFixture(false, true, NUnitTelemetryContext.Create());
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
@@ -148,7 +149,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     PublishResponse published = await session.PublishAsync(null, [], timeout.Token)
                         .ConfigureAwait(false);
                     Assert.That(published.NotificationMessage.NotificationData[0]
-                        .TryGetValue(out DataChangeNotification data), Is.True);
+                        .TryGetValue(out DataChangeNotification? data), Is.True);
+                    AssertLifecycleValue(data);
                     Assert.That(data.MonitoredItems[0].ClientHandle, Is.EqualTo(81));
                     Assert.That(data.MonitoredItems[0].Value.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 }
@@ -190,7 +192,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 CreateNodeManagementFactory(101, range), null, timeout.Token).ConfigureAwait(false);
             var manager = (AsyncCustomNodeManager)registration.NodeManager;
             NodeId valueId = new(kValueNodeId, manager.NamespaceIndexes[0]);
-            var variable = (BaseVariableState)manager.Find(valueId);
+            BaseVariableState variable = RequireLifecycleValue(manager.Find(valueId) as BaseVariableState);
             variable.StatusCode = StatusCodes.Good;
             if (text)
             {
@@ -248,7 +250,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         : text
                             ? StatusCodes.BadFilterNotAllowed
                             : deadband == DeadbandType.Percent && !range
-                                ? StatusCodes.BadMonitoredItemFilterUnsupported
+                                ? StatusCodes.BadDeadbandFilterInvalid
                                 : StatusCodes.Good;
                     Assert.That(response.Results[0].StatusCode, Is.EqualTo(expected), $"Filter: {deadband}.");
                 }

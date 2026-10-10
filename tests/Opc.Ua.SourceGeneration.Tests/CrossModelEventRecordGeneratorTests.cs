@@ -108,6 +108,18 @@ namespace Opc.Ua.SourceGeneration
                 Does.Contain(
                     "DownstreamEventTypeRecord : " +
                     "global::Test.XRegistry.XRegistryEventTypeRecord"));
+            // A3-4: the inherited field's browse name is declared by the
+            // xRegistry model, not by Downstream.
+            Assert.That(
+                downstreamRecords,
+                Does.Contain(
+                    "new global::Opc.Ua.QualifiedName(\"SourceUrl\", " +
+                    "GetNamespaceIndex(namespaceUris, \"http://opcfoundation.org/UA/xRegistry/\"))"));
+            Assert.That(
+                downstreamRecords,
+                Does.Contain(
+                    "new global::Opc.Ua.QualifiedName(global::Test.Downstream.BrowseNames.CompanionField, " +
+                    "GetNamespaceIndex(namespaceUris, \"http://example.org/UA/Downstream/\"))"));
 
             AssignmentExpressionSyntax sourceUrlAssignment = CSharpSyntaxTree
                 .ParseText(downstreamRecords)
@@ -150,8 +162,8 @@ namespace Opc.Ua.SourceGeneration
                     LanguageVersion.CSharp13);
 
             INamedTypeSymbol downstreamRecord = eventRecordCompilation.GetTypeByMetadataName(
-                "Test.Downstream.DownstreamEventTypeRecord");
-            IPropertySymbol sourceUrl = FindProperty(downstreamRecord, "SourceUrl");
+                "Test.Downstream.DownstreamEventTypeRecord")!;
+            IPropertySymbol sourceUrl = FindProperty(downstreamRecord!, "SourceUrl");
             Assert.That(sourceUrl, Is.Not.Null);
             Assert.That(sourceUrl!.Type.SpecialType, Is.EqualTo(SpecialType.System_String));
 
@@ -171,18 +183,18 @@ namespace Opc.Ua.SourceGeneration
         {
             for (INamedTypeSymbol current = type;
                 current != null;
-                current = current.BaseType)
+                current = current.BaseType!)
             {
                 IPropertySymbol property = current
                     .GetMembers(name)
                     .OfType<IPropertySymbol>()
-                    .SingleOrDefault();
+                    .SingleOrDefault()!;
                 if (property != null)
                 {
                     return property;
                 }
             }
-            return null;
+            return null!;
         }
 
         private const string EventModelStubs =
@@ -202,9 +214,11 @@ namespace Opc.Ua.SourceGeneration
 
             namespace Test.Downstream
             {
+                // As ConstantsGenerator emits it: only the browse names the
+                // Downstream model declares (A3-4), not the inherited
+                // xRegistry SourceUrl.
                 public static partial class BrowseNames
                 {
-                    public const string SourceUrl = nameof(SourceUrl);
                     public const string CompanionField = nameof(CompanionField);
                 }
 

@@ -1,15 +1,24 @@
 # Support for Elliptic Curve Cryptography (ECC) Certificates in Server and Client Applications
 
-The server and client applications now support encrypted communication using both the RSA and the ECC encryption algorithms.
-The following document tries to explain the changes in the configuration of the server and client applications needed to support ECC certificates as well as the well consacrated RSA certificates.
+Server and client applications support encrypted communication with RSA
+and elliptic curve cryptography (ECC) certificates. This guide explains
+how to configure both certificate types.
 
-The means by which client and server application security related configuration has been configured upto introducing the ECC certificates, is described in the section [Previous Client and Server application configuration supports only RSA certificates](###previous-client-and-server-application-configuration-supports-only-rsa-certificates).
+## Contents
 
-The new security related configuration of client and server applications is described in the section [New Client and Server application configuration support both RSA and ECC certificates](###new-client-and-server-application-configuration-support-both-rsa-and-ecc-certificates).
+- [Previous client and server configuration (RSA only)](#previous-client-and-server-application-configuration-supports-only-rsa-certificates)
+- [Previous server configuration (RSA only)](#previous-server-application-configuration-supports-only-rsa-certificates)
+- [New client and server configuration (RSA and ECC)](#new-client-and-server-application-configuration-support-both-rsa-and-ecc-certificates)
+- [New server configuration for ECC](#new-server-application-configuration-related-to-ecc-certificates)
+- [Old and new configuration compatibility](#old-client-and-server-application-configuration-format-vs-new-client-and-server-application-configuration-format)
+- [Configure GDS for ECC](#configure-gds-for-use-with-ecc-certificates)
+- [Known limitations](#known-limitations)
 
-The compatibility between the old and the new configuration of client and server applications is described in the section [Old Client and Server application configuration VS New Client and Server spplication configuration](###old-client-and-server-application-configuration-vs-new-client-and-server-spplication-configuration).
-
-The limitations of the support for ECC certificates are described in the section [Known Limitations](###known-limitations).
+The [previous configuration](#previous-client-and-server-application-configuration-supports-only-rsa-certificates)
+supports RSA certificates. The
+[new configuration](#new-client-and-server-application-configuration-support-both-rsa-and-ecc-certificates)
+supports both RSA and ECC certificates. The guide also describes
+compatibility and ECC limitations.
 
 ## Previous Client and Server application configuration supports only RSA certificates
 
@@ -187,9 +196,16 @@ With the introduction of ECC certificates, the `<SecurityPolicies>` section of t
 - `http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP256r1`
 - `http://opcfoundation.org/UA/SecurityPolicy#ECC_brainpoolP384r1`
 
-If ECC specific SecurityPolicies are specified in the `<SecurityPolicies>` section of the configuration file, then the server will need to support the corresponding ECC certificates configured in the `<ApplicationCertificates>` section of the configuration file with the corresponding `<CertificateTypeString>`s, not having them configured will result in the server not being able to start.
+For every ECC-specific policy in `<SecurityPolicies>`, the server must have
+a corresponding ECC certificate in `<ApplicationCertificates>`. Its
+`CertificateTypeString` must match the policy's curve. If a corresponding
+certificate is missing, the server cannot start.
 
-Since the UserIdentityToken is also encrypted using the RSA or ECC certificate depending on the active security policy or the specified `<SecurityPolicyUri>` of the `<UserTokenPolicy>`, servers which intend to explicitly state which ECC encryption (if any) of the UserIdentity tokens is supported, should specify the supported `<SecurityPolicy>` in the `<UserTokenPolicies>` section of the configuration file (as it has always been). The supported `<SecurityPolicy>`s are the same as the ones specified in the `<SecurityPolicies>` section of the configuration file.
+The server encrypts each `UserIdentityToken` with the certificate selected
+by the active security policy or by the `<SecurityPolicyUri>` in its
+`<UserTokenPolicy>`. To explicitly list the policies supported for user
+identity tokens, configure them in `<UserTokenPolicies>`. They must also
+appear in `<SecurityPolicies>`.
 
 The following example shows how the server can specify the supported `<SecurityPolicy>`s for the UserIdentityTokens:
 
@@ -218,24 +234,37 @@ The following example shows how the server can specify the supported `<SecurityP
 </UserTokenPolicies>
 ```
 
-The `<SecurityPolicyUri>` tag can be ommited in the `<UserTokenPolicy>` tag, in which case the active security policy is used for the encryption of the UserIdentityToken. That implies that there is a dependency between the `<SecurityPolicies>` and the `<UserTokenPolicies>` sections of the configuration file, meaning that the `<SecurityPolicyUri>`s specified in the `<UserTokenPolicies>` section should be a subset of the `<SecurityPolicyUri>`s specified in the `<SecurityPolicies>` section of the configuration file.
+You can omit `<SecurityPolicyUri>` from `<UserTokenPolicy>`. In that case,
+the server uses the active security policy to encrypt the
+`UserIdentityToken`. Therefore, each policy listed in `<UserTokenPolicies>`
+must also appear in `<SecurityPolicies>`.
 
-A situation in which a `<SecurityPolicyUri>` is specified in the `<UserTokenPolicies>` section of the configuration file, but it is not specified in the `<SecurityPolicies>` section of the configuration file is logically incorrect and produces an invalid configuration.
+If `<UserTokenPolicies>` names a policy that `<SecurityPolicies>` does not
+include, the configuration is invalid.
 
 ## "Old" Client and Server application configuration format VS "New" Client and Server application configuration format
 
-Client and server applications which use the "old" configuration, will continue to work as before, meaning that the server and client certificates will be RSA certificates and the `<ApplicationCertificate>` tag will be used to configure the RSA certificate. Server applications will have no ECC security policies specified in the `<SecurityPolicies>` section of the configuration file.
-You should be aware that such applications will not be able to support ECC certificates therefore they will not be able to communicate with clients and servers which use ECC certificates.
+Applications using the old configuration continue to use RSA certificates
+configured with `<ApplicationCertificate>`. The server must not list ECC
+policies in `<SecurityPolicies>`. These applications cannot communicate with
+peers that require ECC certificates.
 
-Client and server applications which use the "new" configuration, are be able to support both RSA and ECC certificates.
-Server and Client applications are be able to support both RSA and ECC security policies by using the `<ApplicationCertificates>` tag to configure the RSA and ECC certificates. The `<SecurityPolicies>` section of the configuration file are still used to configure the supported security policies which include the new ECC policies.
-Additionally the `<UserTokenPolicies>` section of the configuration file can be used to configure the supported security policies for the UserIdentityTokens which also include the new ECC policies.
+Applications using the new configuration can support both RSA and ECC
+certificates. Configure both certificate types with
+`<ApplicationCertificates>`, then list the supported policies in
+`<SecurityPolicies>`, including any ECC policies.
 
-Combining the "old" and the "new" configuration formats is not supported. That means that the `<ApplicationCertificate>` tag cannot be used in the same configuration file with the `<ApplicationCertificates>` tag.
+Use `<UserTokenPolicies>` to configure the policies used to encrypt user
+identity tokens. These policies must also appear in `<SecurityPolicies>`.
+
+Do not combine the old and new configuration formats. A configuration file
+cannot contain both `<ApplicationCertificate>` and
+`<ApplicationCertificates>`.
 
 ## Configure GDS for use with ECC Certificates
 
-To configure the Global Discovery Server for use with ECC Certificates the configuration needs to be updated.
+To use ECC certificates with the Global Discovery Server (GDS), update its
+configuration as shown below.
 
 ```xml
   <Extensions>
@@ -270,7 +299,32 @@ The GDS checks on startup if a valid configuration was supplied.
 ## Known Limitations
 
 Not all curves are supported by all OS platforms and not all .NET implementations offer cryptographic API support for all curve types.
-Due to these limitations, the support for ECC profiles is available starting with the following target platforms: .NET 4.8, .NET standard 2.1 and .NET 5 and above.
+**On .NET Framework 4.8 the ECDH agreement and the AEAD ciphers run in BouncyCastle.**
+OPC UA Part 6 feeds the raw ECDH shared secret into HKDF. .NET Framework
+only offers `ECDiffieHellman.DeriveKeyMaterial`, which hashes the secret
+first, so the .NET Framework 4.8 build computes the raw agreement with the
+managed `BouncyCastle.Cryptography` implementation (`ECDHBasicAgreement`),
+which `Opc.Ua.Security.Certificates` already references on that target.
+The ephemeral keys, ECDSA signatures and HKDF stay on the platform (CNG)
+providers; only the agreement step is managed code. The AES-GCM and
+ChaCha20-Poly1305 variants of the ECC policies (`ECC_*_AesGcm`,
+`ECC_*_ChaChaPoly`) and `RSA_DH_AesGcm` / `RSA_DH_ChaChaPoly` need
+authenticated ciphers that .NET Framework does not have, so on that target
+the stack runs AES-GCM (`GcmBlockCipher` over `AesEngine`) and
+ChaCha20-Poly1305 in BouncyCastle as well, also for the encrypted ECC user
+tokens. Deployments bound to FIPS-validated or other certified cryptographic
+modules should note that these steps are not performed by a validated module
+on .NET Framework, so `CryptoCompliancePolicy.FipsOnly` withholds the ECC and
+AEAD policies there, and that the managed AES is neither hardware accelerated
+nor hardened against cache-timing side channels like the CNG implementation;
+use the .NET 8+ build, or an RSA policy, where that matters. The .NET 8+
+builds use `ECDiffieHellman.DeriveRawSecretAgreement`, `AesGcm` and
+`ChaCha20Poly1305` from the BCL and do not load BouncyCastle for them.
+
+All ECC policies (`ECC_nistP256`, `ECC_nistP384`, `ECC_brainpoolP256r1`,
+`ECC_brainpoolP384r1` and their `_AesGcm` / `_ChaChaPoly` variants) are
+available on every target, subject to the OS supporting the curve.
+ECC certificate parsing and signing remain subject to OS curve support.
 The supported ECC curve types are the following:
 
 - `NistP256`               for ECC certificates with NIST P256 curve

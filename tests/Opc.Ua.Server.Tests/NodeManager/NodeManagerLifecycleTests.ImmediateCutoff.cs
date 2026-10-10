@@ -51,13 +51,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
-            TrackingLifecycleNodeManager originalManager = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(
                     kGeneration1Value, manager => originalManager = manager, kSecondModelNamespaceUri),
                 null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(originalManager);
             NodeId valueId = new(kValueNodeId, (ushort)server.NamespaceUris.GetIndex(kSecondModelNamespaceUri));
-            var originalValue = (BaseVariableState)originalManager.Find(valueId);
+            BaseVariableState originalValue = RequireLifecycleValue(originalManager.Find(valueId) as BaseVariableState);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             (uint dataSubscription, uint dataItem) = await CreateSubscriptionAndMonitoredItemAsync(
                 services, valueId, 1).ConfigureAwait(false);
@@ -67,8 +68,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 services, dataSubscription, default, 1).ConfigureAwait(false);
             var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ReadinessLifecycleNodeManager candidate = null;
-            TrackingLifecycleNodeManager replacement = null;
+            ReadinessLifecycleNodeManager? candidate = null;
+            TrackingLifecycleNodeManager? replacement = null;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [
@@ -87,8 +88,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             kGeneration2Value, manager => replacement = manager, kSecondModelNamespaceUri), immediate)
                         : NodeManagerBatchChange.Remove(original, immediate)
                 ], timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(candidate);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
-            NodeManagerBatchResult result = null;
+            NodeManagerBatchResult? result = null;
             try
             {
                 await ready.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -145,7 +147,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
             if (replace)
             {
-                Assert.That(replacement.DisposeCount, Is.Zero);
+                Assert.That(RequireLifecycleValue(replacement).DisposeCount, Is.Zero);
             }
         }
 
@@ -157,19 +159,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
-            TrackingLifecycleNodeManager originalManager = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(
                     kGeneration1Value, manager => originalManager = manager, kSecondModelNamespaceUri),
                 null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(originalManager);
             NodeId valueId = new(kValueNodeId, (ushort)server.NamespaceUris.GetIndex(kSecondModelNamespaceUri));
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             (uint subscriptionId, _) = await CreateSubscriptionAndMonitoredItemAsync(
                 services, valueId, 1).ConfigureAwait(false);
             await CreateEventMonitoredItemAsync(services, subscriptionId, ObjectIds.Server, 2).ConfigureAwait(false);
             var initial = await PublishForDataChangeAsync(services, subscriptionId, default, 1).ConfigureAwait(false);
-            ReadinessLifecycleNodeManager candidate = null;
-            TrackingLifecycleNodeManager replacement = null;
+            ReadinessLifecycleNodeManager? candidate = null;
+            TrackingLifecycleNodeManager? replacement = null;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [
@@ -179,6 +182,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             kGeneration2Value, manager => replacement = manager, kSecondModelNamespaceUri), immediate)
                         : NodeManagerBatchChange.Remove(original, immediate)
                 ], timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(candidate);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var rejection = new IOException("No durable retirement decision was committed.");
@@ -226,13 +230,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     Assert.That(after.Value.GetValueOrDefault().StatusCode, Is.EqualTo(StatusCodes.Good));
                     Assert.That(after.Value.GetValueOrDefault().WrappedValue, Is.EqualTo(new Variant(888)));
                     Assert.That(prepared.IsCommitted, Is.False);
-                    Assert.That(lifecycle.Registrations[0], Is.SameAs(original));
+                    Assert.That(GetBranchRegistration(lifecycle, original.Id), Is.SameAs(original));
                     Assert.That(originalManager.AllEventsUnsubscribeCount, Is.Zero);
                     Assert.That(originalManager.DisposeCount, Is.Zero);
                     Assert.That(candidate.ReadinessCount, Is.Zero);
                     Assert.That(candidate.DisposeCount, Is.EqualTo(1));
                     if (replace)
                     {
+                        AssertLifecycleValue(replacement);
                         Assert.That(replacement.DisposeCount, Is.EqualTo(1));
                     }
                 }
@@ -253,11 +258,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(60));
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
-            TrackingLifecycleNodeManager originalManager = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(
                     kGeneration1Value, manager => originalManager = manager, kSecondModelNamespaceUri),
                 null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(originalManager);
             ushort ns = (ushort)server.NamespaceUris.GetIndex(kSecondModelNamespaceUri);
             NodeId valueId = new(kValueNodeId, ns);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -281,8 +287,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await releaseRead.Task.WaitAsync(token).ConfigureAwait(false);
                 retainedRoutes = master.NamespaceManagers[ns].Contains(originalManager);
             };
-            TrackingLifecycleNodeManager replacement = null;
-            ReadinessLifecycleNodeManager candidate = null;
+            TrackingLifecycleNodeManager? replacement = null;
+            ReadinessLifecycleNodeManager? candidate = null;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [
@@ -300,10 +306,15 @@ namespace Opc.Ua.Server.Tests.NodeManager
                             kGeneration2Value, manager => replacement = manager, kSecondModelNamespaceUri), true)
                         : NodeManagerBatchChange.Remove(original, true)
                 ], timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(candidate);
+            if (replace)
+            {
+                AssertLifecycleValue(replacement);
+            }
             Task<ReadResponse> pendingRead = ReadNativeAsync();
-            Task<NodeManagerBatchResult> commit = null;
-            ReadResponse captured = null;
-            NodeManagerBatchResult result = null;
+            Task<NodeManagerBatchResult>? commit = null;
+            ReadResponse? captured = null;
+            NodeManagerBatchResult? result = null;
             try
             {
                 await readEntered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -348,7 +359,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     {
                         var owner = (ISubscriptionMonitoredItemLifecycle)server.SubscriptionManager.GetSubscriptions()
                             .Single(subscription => subscription.Id == subscriptionId);
-                        Assert.That(owner.HasMonitoredItems(replacement), Is.False,
+                        Assert.That(owner.HasMonitoredItems(RequireLifecycleValue(replacement)), Is.False,
                             "Immediate replacement must not recover the source items invalidated by this switch.");
                     }
                 }
@@ -359,6 +370,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     await session.CloseAsync(timeout.Token).ConfigureAwait(false);
                 }
             }
+            AssertLifecycleValue(captured);
+            AssertLifecycleValue(result);
             using (Assert.EnterMultipleScope())
             {
                 Assert.That(captured.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
@@ -369,7 +382,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
                 if (replace)
                 {
-                    Assert.That(replacement.DisposeCount, Is.Zero);
+                    Assert.That(RequireLifecycleValue(replacement).DisposeCount, Is.Zero);
                 }
             }
 
@@ -387,15 +400,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
-            TrackingLifecycleNodeManager originalManager = null;
+            TrackingLifecycleNodeManager? originalManager = null;
             NodeManagerRegistration original = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(
                     kGeneration1Value, manager => originalManager = manager, kSecondModelNamespaceUri),
                 null, timeout.Token).ConfigureAwait(false);
-            TrackingLifecycleNodeManager survivor = null;
+            AssertLifecycleValue(originalManager);
+            TrackingLifecycleNodeManager? survivor = null;
             await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 333, manager => survivor = manager, kReadinessProbeNamespaceUri), null, timeout.Token)
                 .ConfigureAwait(false);
+            AssertLifecycleValue(survivor);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             (uint subscriptionId, uint itemId) = await CreateSubscriptionAndEventMonitoredItemAsync(
                 services, ObjectIds.Server).ConfigureAwait(false);
@@ -427,11 +442,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerBatchChange.Remove(original, true)
                 ], timeout.Token).ConfigureAwait(false);
             QueueOccurrence("queued-before-cutoff");
-            ISession session = server.SessionManager.GetSession(m_requestHeader.AuthenticationToken);
+            ISession session = RequireLifecycleValue(
+                server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
             using var context = new OperationContext(session, DiagnosticsMasks.None);
             Task dispatch = master.ConditionRefreshAsync(context, [item], timeout.Token).AsTask();
-            Task<NodeManagerBatchResult> commit = null;
-            NodeManagerBatchResult result = null;
+            Task<NodeManagerBatchResult>? commit = null;
+            NodeManagerBatchResult? result = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -468,7 +484,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         new SubscriptionAcknowledgement { SubscriptionId = subscriptionId, SequenceNumber = sequence });
                     foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
                     {
-                        if (!notification.TryGetValue(out EventNotificationList events))
+                        if (!notification.TryGetValue(out EventNotificationList? events))
                         {
                             continue;
                         }
@@ -476,7 +492,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         {
                             Assert.That(occurrence.ClientHandle, Is.EqualTo(1));
                             Assert.That(occurrence.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
-                            messages.Add(message.Text);
+                            messages.Add(RequireLifecycleValue(message.Text));
                         }
                     }
                 }
@@ -503,7 +519,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(repeated.Results[0], Is.EqualTo(StatusCodes.BadMonitoredItemIdInvalid));
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
-            Assert.That(result.CleanupFailure, Is.Null);
+            Assert.That(RequireLifecycleValue(result).CleanupFailure, Is.Null);
             Assert.That(originalManager.AllEventsUnsubscribeCount, Is.EqualTo(1));
             Assert.That(survivor.AllEventsUnsubscribeCount, Is.EqualTo(1));
             Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
@@ -524,9 +540,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
         {
             using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(30));
             IServerInternal server = m_server.CurrentInstance;
-            TrackingLifecycleNodeManager failing = null;
-            TrackingLifecycleNodeManager healthy = null;
-            TrackingLifecycleNodeManager survivor = null;
+            TrackingLifecycleNodeManager? failing = null;
+            TrackingLifecycleNodeManager? healthy = null;
+            TrackingLifecycleNodeManager? survivor = null;
             NodeManagerRegistration first = await m_server.NodeManagerLifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(
                     kGeneration1Value, manager => failing = manager, kSecondModelNamespaceUri),
@@ -538,6 +554,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await m_server.NodeManagerLifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 303, manager => survivor = manager, "urn:opcfoundation.org:Tests:CutoffFailureSurvivor"),
                 null, timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(failing);
+            AssertLifecycleValue(healthy);
+            AssertLifecycleValue(survivor);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             (uint subscriptionId, uint itemId) = await CreateSubscriptionAndEventMonitoredItemAsync(
                 services, ObjectIds.Server).ConfigureAwait(false);
@@ -553,7 +572,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             var ready = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            ReadinessLifecycleNodeManager candidate = null;
+            ReadinessLifecycleNodeManager? candidate = null;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [
@@ -569,8 +588,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     NodeManagerBatchChange.Remove(first, true),
                     NodeManagerBatchChange.Remove(second, true)
                 ], timeout.Token).ConfigureAwait(false);
+            AssertLifecycleValue(candidate);
             Task<NodeManagerBatchResult> commit = prepared.CommitAsync(_ => default, timeout.Token).AsTask();
-            NodeManagerBatchResult result = null;
+            NodeManagerBatchResult? result = null;
             try
             {
                 await ready.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -581,7 +601,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 await survivor.ReportOwnedEmissionAsync("cleanup-failure-fence", timeout.Token).ConfigureAwait(false);
                 var delivery = await PublishForModelChangeEventAsync(services, subscriptionId, default)
                     .ConfigureAwait(false);
-                Assert.That(delivery.EventFields.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
+                EventFieldList deliveredFields = RequireLifecycleValue(delivery.EventFields);
+                Assert.That(deliveredFields.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
                 Assert.That(message.Text, Is.EqualTo("cleanup-failure-fence"));
                 using (Assert.EnterMultipleScope())
                 {
@@ -596,19 +617,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }
             finally
             {
-                failing.AllEventsCallback = null;
+                failing.AllEventsCallback = (_, _, _) => default;
                 failing.AllEventsUnsubscribeResult = ServiceResult.Good;
                 release.TrySetResult(true);
                 result = await commit.WaitAsync(timeout.Token).ConfigureAwait(false);
                 await DeleteSubscriptionAsync(services, subscriptionId).ConfigureAwait(false);
             }
             Assert.That(result.CleanupFailure, Is.TypeOf<AggregateException>());
-            var failures = ((AggregateException)result.CleanupFailure).Flatten().InnerExceptions;
+            var failures = RequireLifecycleValue(result.CleanupFailure as AggregateException).Flatten().InnerExceptions;
             Assert.That(failures, Has.Count.EqualTo(1));
             if (badStatus)
             {
                 Assert.That(failures[0], Is.TypeOf<ServiceResultException>());
-                Assert.That(((ServiceResultException)failures[0]).StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+                Assert.That(((ServiceResultException)failures[0]).StatusCode,
+                    Is.EqualTo(StatusCodes.BadUnexpectedError));
             }
             else
             {

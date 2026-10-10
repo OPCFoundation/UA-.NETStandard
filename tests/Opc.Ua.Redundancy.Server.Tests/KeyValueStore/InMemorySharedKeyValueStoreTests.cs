@@ -51,6 +51,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
     [Parallelizable(ParallelScope.All)]
     public class InMemorySharedKeyValueStoreTests
     {
+        /// <summary>
+        /// Verifies that an in-memory shared-store value can be retrieved after insertion.
+        /// </summary>
         [Test]
         public async Task SetAndTryGetReturnsStoredValueAsync()
         {
@@ -64,6 +67,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(payload.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that reading a missing shared-store key returns false.
+        /// </summary>
         [Test]
         public async Task TryGetMissingKeyReturnsFalseAsync()
         {
@@ -75,6 +81,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(value.IsNull, Is.True);
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap creates an entry when the key is absent.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapCreatesWhenAbsentAsync()
         {
@@ -88,6 +97,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(createdAgain, Is.False, "second create-if-absent must fail because the key now exists");
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap replaces an entry when the expected value matches.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapSwapsWhenValueMatchesAsync()
         {
@@ -104,6 +116,30 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(second.ToArray()));
         }
 
+        /// <summary>
+        /// Verifies that compare-and-swap deletes a matching entry when the replacement is null.
+        /// </summary>
+        [Test]
+        public async Task CompareAndSwapDeletesWhenReplacementIsNullAsync()
+        {
+            using var store = new InMemorySharedKeyValueStore();
+            var value = ByteString.From(new byte[] { 1 });
+            await store.SetAsync("k", value).ConfigureAwait(false);
+
+            bool deleted = await store.CompareAndSwapAsync(
+                "k",
+                value,
+                default).ConfigureAwait(false);
+            (bool found, _) = await store.TryGetAsync("k")
+                .ConfigureAwait(false);
+
+            Assert.That(deleted, Is.True);
+            Assert.That(found, Is.False);
+        }
+
+        /// <summary>
+        /// Verifies that compare-and-swap fails when the expected value does not match.
+        /// </summary>
         [Test]
         public async Task CompareAndSwapFailsWhenValueMismatchAsync()
         {
@@ -121,6 +157,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(value.ToArray(), Is.EqualTo(actual.ToArray()), "value must be unchanged on a failed CAS");
         }
 
+        /// <summary>
+        /// Verifies that deletion removes the shared-store entry.
+        /// </summary>
         [Test]
         public async Task DeleteRemovesKeyAsync()
         {
@@ -136,6 +175,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(found, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that scanning returns only shared-store keys matching the requested prefix.
+        /// </summary>
         [Test]
         public async Task ScanReturnsMatchingPrefixOnlyAsync()
         {
@@ -153,6 +195,9 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(keys, Is.EquivalentTo(["a/1", "a/2"]));
         }
 
+        /// <summary>
+        /// Verifies that a prefix watcher observes set and delete operations.
+        /// </summary>
         [Test]
         public async Task WatchObservesSetAndDeleteForPrefixAsync()
         {

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using Microsoft.Extensions.Options;
 using Opc.Ua.Client.Subscriptions.MonitoredItems;
@@ -59,8 +57,15 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
             = (_, _, _) => throw new InvalidOperationException(
                 "CreateMonitoredItemFactory not set on FakeMonitoredItemManagerContext.");
 
-        /// <summary>Number of times <see cref="Update"/> was invoked.</summary>
+        /// <summary>
+        /// Number of times <see cref="Update"/> was invoked.
+        /// </summary>
         public int UpdateCalls { get; private set; }
+
+        /// <summary>
+        /// Number of times <see cref="RequestRecreate"/> was invoked.
+        /// </summary>
+        public int RequestRecreateCalls { get; private set; }
 
         public MonitoredItems.MonitoredItem CreateMonitoredItem(string name,
             IOptionsMonitor<MonitoredItems.MonitoredItemOptions> options,
@@ -72,6 +77,11 @@ namespace Opc.Ua.Client.Subscriptions.Fakes
         public void Update()
         {
             UpdateCalls++;
+        }
+
+        public void RequestRecreate()
+        {
+            RequestRecreateCalls++;
         }
     }
 }

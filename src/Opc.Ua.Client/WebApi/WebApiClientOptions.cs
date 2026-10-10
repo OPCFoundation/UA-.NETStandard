@@ -62,13 +62,15 @@ namespace Opc.Ua.Client.WebApi
         public HttpMessageHandler? HttpMessageHandler { get; set; }
 
         /// <summary>
-        /// When <c>true</c>, <see cref="HttpMessageHandler"/> is
-        /// disposed when the client is disposed. Defaults to
-        /// <c>true</c> only when the client created the handler
-        /// internally; ignored when the caller injected
-        /// <see cref="HttpMessageHandler"/> directly (caller owns it).
+        /// When <c>true</c>, <see cref="HttpMessageHandler"/> is disposed
+        /// together with the client. Defaults to <c>false</c>: an injected
+        /// handler belongs to the caller, and it is commonly shared between
+        /// channels - the first channel to close would otherwise dispose it
+        /// and every other channel would fail with
+        /// <see cref="System.ObjectDisposedException"/>. The transport channel
+        /// sets it to <c>true</c> for the TLS handler it creates itself.
         /// </summary>
-        public bool DisposeHandler { get; set; } = true;
+        public bool DisposeHandler { get; set; }
 
         /// <summary>
         /// Bearer token to attach to every outbound request as
@@ -96,5 +98,15 @@ namespace Opc.Ua.Client.WebApi
         /// instead of the client timeout.
         /// </summary>
         public TimeSpan? RequestTimeout { get; set; }
+
+        /// <summary>
+        /// When <c>true</c>, requests carry <c>Accept-Encoding: gzip</c> so
+        /// a server that compresses responses can answer with gzip
+        /// compressed JSON (OPC 10000-6 §7.4.5). Defaults to <c>false</c>.
+        /// A gzip response (<c>Content-Encoding: gzip</c>) is decompressed
+        /// whether or not it was asked for, within the
+        /// <c>MaxMessageSize</c> of <see cref="MessageContext"/>.
+        /// </summary>
+        public bool AcceptCompressedResponses { get; set; }
     }
 }

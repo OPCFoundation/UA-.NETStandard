@@ -133,16 +133,20 @@ namespace Opc.Ua.Di.Tests
         [Test]
         public async Task PumpMeasurementPropertiesAreBrowsableAndReadableAsync()
         {
-            const string measurementIdentifier =
-                "5001_Pump_1_Operational_Measurements_FluidTemperature";
-            ushort namespaceIndex = m_manager.InstanceNamespaceIndex;
-            var measurementId = new NodeId(measurementIdentifier, namespaceIndex);
-            var engineeringUnitsId = new NodeId(
-                $"{measurementIdentifier}_EngineeringUnits",
-                namespaceIndex);
-            var euRangeId = new NodeId(
-                $"{measurementIdentifier}_EURange",
-                namespaceIndex);
+            // resolved by browse path rather than by a literal identifier, so
+            // the test does not depend on the factory's identifier format.
+            NodeState measurement = FindDescendant(
+                m_manager.FindPredefinedNode<PumpState>(m_manager.PumpNodeIds[0]),
+                "Operational",
+                "Measurements",
+                "FluidTemperature");
+            NodeId measurementId = measurement.NodeId;
+            NodeId engineeringUnitsId = FindDescendant(
+                measurement,
+                Opc.Ua.BrowseNames.EngineeringUnits).NodeId;
+            NodeId euRangeId = FindDescendant(
+                measurement,
+                Opc.Ua.BrowseNames.EURange).NodeId;
 
             object handle = await m_manager.GetManagerHandleAsync(measurementId)
                 .ConfigureAwait(false);
@@ -274,6 +278,34 @@ namespace Opc.Ua.Di.Tests
             Assert.That(
                 exception.StatusCode,
                 Is.EqualTo((uint)StatusCodes.BadTypeMismatch));
+        }
+
+        /// <summary>
+        /// Walks a browse path by name, ignoring which namespace each browse
+        /// name is qualified with.
+        /// </summary>
+        private NodeState FindDescendant(NodeState root, params string[] browseNames)
+        {
+            NodeState current = root;
+            foreach (string browseName in browseNames)
+            {
+                var children = new List<BaseInstanceState>();
+                current.GetChildren(m_manager.SystemContext, children);
+                NodeState? match = null;
+                foreach (BaseInstanceState child in children)
+                {
+                    if (child.BrowseName.Name == browseName)
+                    {
+                        match = child;
+                        break;
+                    }
+                }
+
+                Assert.That(match, Is.Not.Null, browseName + " was not found.");
+                current = match!;
+            }
+
+            return current;
         }
 
         private async Task AssertPropertyReadableAsync(

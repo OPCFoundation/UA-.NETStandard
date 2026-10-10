@@ -44,8 +44,11 @@ namespace Opc.Ua.Types.Tests.State
             browser.Add(ReferenceTypeIds.HasComponent, false, new ExpandedNodeId(100u, 1));
             browser.Add(ReferenceTypeIds.HasComponent, false, new ExpandedNodeId(200u, 2));
             browser.Add(ReferenceTypeIds.HasComponent, false, new ExpandedNodeId(300u, 3));
-            Assert.That(browser.Next().TargetId, Is.EqualTo(new ExpandedNodeId(100u, 1)));
-            IReference pushed = browser.Next();
+            IReference firstReference = browser.Next() ??
+                throw new AssertionException("The browser must retain its first stored reference.");
+            Assert.That(firstReference.TargetId, Is.EqualTo(new ExpandedNodeId(100u, 1)));
+            IReference pushed = browser.Next() ??
+                throw new AssertionException("The browser must retain the reference being pushed back.");
             browser.Push(pushed);
             Assert.That(browser.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> first), Is.True);
             Assert.That(first.ToArray(),
@@ -53,7 +56,9 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(browser.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> second), Is.True);
             Assert.That(second, Is.EqualTo(first));
             Assert.That(browser.Next(), Is.SameAs(pushed));
-            Assert.That(browser.Next().TargetId, Is.EqualTo(new ExpandedNodeId(300u, 3)));
+            IReference finalReference = browser.Next() ??
+                throw new AssertionException("The dependency queries must not consume the final stored reference.");
+            Assert.That(finalReference.TargetId, Is.EqualTo(new ExpandedNodeId(300u, 3)));
             Assert.That(browser.Next(), Is.Null);
             Assert.That(browser.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> drained), Is.True);
             Assert.That(drained.IsEmpty, Is.True);
@@ -75,7 +80,9 @@ namespace Opc.Ua.Types.Tests.State
             browser.Add(ReferenceTypeIds.HasComponent, false, new ExpandedNodeId(100u, 1));
             Assert.That(browser.TryGetContinuationDependencies(out ArrayOf<ExpandedNodeId> dependencies), Is.False);
             Assert.That(dependencies.IsEmpty, Is.True);
-            Assert.That(browser.Next().TargetId, Is.EqualTo(new ExpandedNodeId(100u, 1)),
+            IReference reference = browser.Next() ??
+                throw new AssertionException("An unsupported dependency query must preserve the stored reference.");
+            Assert.That(reference.TargetId, Is.EqualTo(new ExpandedNodeId(100u, 1)),
                 "An unsupported dependency query does not consume the browser.");
         }
 
@@ -90,7 +97,9 @@ namespace Opc.Ua.Types.Tests.State
                 new ExpandedNodeId(100u, 1),
                 new ExpandedNodeId(900u, 9)
             }));
-            Assert.That(browser.Next().TargetId, Is.EqualTo(new ExpandedNodeId(100u, 1)));
+            IReference reference = browser.Next() ??
+                throw new AssertionException("The derived dependency query must preserve the stored reference.");
+            Assert.That(reference.TargetId, Is.EqualTo(new ExpandedNodeId(100u, 1)));
         }
 
         private static SystemContext CreateContext()

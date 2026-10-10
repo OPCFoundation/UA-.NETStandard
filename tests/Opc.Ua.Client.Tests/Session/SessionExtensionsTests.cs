@@ -27,10 +27,12 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
+using Opc.Ua.Tests;
 
 namespace Opc.Ua.Client.Tests
 {
@@ -251,12 +253,13 @@ namespace Opc.Ua.Client.Tests
         }
 
         [Test]
-        public void ReadByteStringInChunksAsyncThrowsWhenMaxByteStringLengthTooSmall()
+        public void ReadByteStringInChunksAsyncThrowsWhenNoLimitIsKnown()
         {
             var capabilities = new ServerCapabilities { MaxByteStringLength = 0 };
             m_session
                 .SetupGet(s => s.ServerCapabilities)
                 .Returns(capabilities);
+            SetupMessageContext(maxByteStringLength: 0);
 
             Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_session.Object.ReadByteStringInChunksAsync(new NodeId(1)).ConfigureAwait(false));
@@ -269,9 +272,63 @@ namespace Opc.Ua.Client.Tests
             m_session
                 .SetupGet(s => s.ServerCapabilities)
                 .Returns(capabilities);
+            SetupMessageContext(maxByteStringLength: 1024);
 
             Assert.ThrowsAsync<ServiceResultException>(async () =>
                 await m_session.Object.ReadByteStringInChunksAsync(new NodeId(1)).ConfigureAwait(false));
+        }
+
+        /// <summary>
+        /// A server that does not provide MaxByteStringLength (0) or reports a
+        /// value beyond int range is read in chunks of the client limit (L3-6).
+        /// </summary>
+        [TestCase(0u)]
+        [TestCase(3_000_000_000u)]
+        public async Task ReadByteStringInChunksAsyncUsesClientLimitWhenServerLimitUnknownAsync(
+            uint serverLimit)
+        {
+            var capabilities = new ServerCapabilities { MaxByteStringLength = serverLimit };
+            m_session
+                .SetupGet(s => s.ServerCapabilities)
+                .Returns(capabilities);
+            SetupMessageContext(maxByteStringLength: 4);
+            var ranges = new List<string>();
+            m_session
+                .Setup(s => s.ReadAsync(
+                    It.IsAny<RequestHeader>(),
+                    It.IsAny<double>(),
+                    It.IsAny<TimestampsToReturn>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<CancellationToken>()))
+                .Returns<RequestHeader, double, TimestampsToReturn, ArrayOf<ReadValueId>, CancellationToken>(
+                    (_, _, _, ids, _) =>
+                    {
+                        ranges.Add(ids[0].IndexRange!);
+                        byte[] chunk = ranges.Count == 1 ? [1, 2, 3, 4] : [5];
+                        return new ValueTask<ReadResponse>(new ReadResponse
+                        {
+                            ResponseHeader = new ResponseHeader(),
+                            Results = [new DataValue(new Variant(ByteString.From(chunk)))],
+                            DiagnosticInfos = []
+                        });
+                    });
+
+            ByteString result = await m_session.Object
+                .ReadByteStringInChunksAsync(new NodeId(1))
+                .ConfigureAwait(false);
+
+            Assert.That(result.ToArray(), Is.EqualTo(new byte[] { 1, 2, 3, 4, 5 }));
+            string[] expectedRanges = ["0:3", "4:7"];
+            Assert.That(ranges, Is.EqualTo(expectedRanges));
+        }
+
+        private void SetupMessageContext(int maxByteStringLength)
+        {
+            var messageContext = ServiceMessageContext.Create(NUnitTelemetryContext.Create());
+            messageContext.MaxByteStringLength = maxByteStringLength;
+            m_session
+                .SetupGet(s => s.MessageContext)
+                .Returns(messageContext);
         }
     }
 }

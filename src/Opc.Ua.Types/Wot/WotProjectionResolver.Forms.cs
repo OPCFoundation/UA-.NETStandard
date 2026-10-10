@@ -143,7 +143,7 @@ namespace Opc.Ua.Wot
                             List<string> security = EffectiveSecurity(form, owner);
                             CopySecurityClosure(
                                 null, owner, selection.DocumentHref, security,
-                                selection.SecurityDefinitions, selection.SecurityAdded);
+                                selection, diagnostics);
                             if (security.Count != 0)
                             {
                                 var names = new JsonArray();

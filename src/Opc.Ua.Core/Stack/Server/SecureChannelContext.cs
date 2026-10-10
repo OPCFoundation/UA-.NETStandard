@@ -27,6 +27,8 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Net;
+
 namespace Opc.Ua
 {
     /// <summary>
@@ -43,20 +45,25 @@ namespace Opc.Ua
         /// <param name="clientChannelCertificate">The client certificate used to establish the secure channel.</param>
         /// <param name="serverChannelCertificate">The server certificate used to establish the secure channel.</param>
         /// <param name="channelThumbprint">The unique hash for the secure channel calculated during channel creation.</param>
+        /// <param name="peerAddress">The observed network address of the peer, when available.</param>
         public SecureChannelContext(
             string secureChannelId,
             EndpointDescription? endpointDescription,
             RequestEncoding messageEncoding,
             byte[]? clientChannelCertificate = null,
             byte[]? serverChannelCertificate = null,
-            byte[]? channelThumbprint = null)
+            byte[]? channelThumbprint = null,
+            IPAddress? peerAddress = null)
         {
             SecureChannelId = secureChannelId;
             EndpointDescription = endpointDescription;
             MessageEncoding = messageEncoding;
-            ClientChannelCertificate = clientChannelCertificate;
-            ServerChannelCertificate = serverChannelCertificate;
-            ChannelThumbprint = channelThumbprint;
+            // Wrapped, not copied: the transport passes buffers it owns for the life of
+            // the channel, and ByteString hands out read-only views only.
+            ClientChannelCertificate = clientChannelCertificate == null ? default : new ByteString(clientChannelCertificate);
+            ServerChannelCertificate = serverChannelCertificate == null ? default : new ByteString(serverChannelCertificate);
+            ChannelThumbprint = channelThumbprint == null ? default : new ByteString(channelThumbprint);
+            PeerAddress = peerAddress;
         }
 
         /// <summary>
@@ -83,17 +90,35 @@ namespace Opc.Ua
         /// <summary>
         /// The unique hash for the secure channel calculated during channel creation.
         /// </summary>
-        public byte[]? ChannelThumbprint { get; }
+        /// <remarks>
+        /// Read-only: the transport shares one buffer with every request of the channel.
+        /// <see cref="ByteString.IsNull"/> when the channel has no thumbprint.
+        /// </remarks>
+        public ByteString ChannelThumbprint { get; }
 
         /// <summary>
-        /// The client certificate used to establsih the secure channel.
+        /// The DER encoded client certificate used to establish the secure channel.
         /// </summary>
-        public byte[]? ClientChannelCertificate { get; }
+        /// <remarks>
+        /// Read-only: the transport shares one buffer with every request of the channel,
+        /// so request handlers and resource-isolation classifiers cannot alter the evidence
+        /// later requests are checked against. <see cref="ByteString.IsNull"/> when the
+        /// channel is not secured with a client certificate.
+        /// </remarks>
+        public ByteString ClientChannelCertificate { get; }
 
         /// <summary>
-        /// The server certificate used to establsih the secure channel.
+        /// The DER encoded server certificate used to establish the secure channel.
         /// </summary>
-        public byte[]? ServerChannelCertificate { get; }
+        /// <remarks>
+        /// Read-only, see <see cref="ClientChannelCertificate"/>.
+        /// </remarks>
+        public ByteString ServerChannelCertificate { get; }
+
+        /// <summary>
+        /// The observed network address of the peer, when the transport exposes one.
+        /// </summary>
+        public IPAddress? PeerAddress { get; }
 
         /// <summary>
         /// Optional upstream user identity established by an outer

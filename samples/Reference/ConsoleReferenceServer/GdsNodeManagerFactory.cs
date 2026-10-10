@@ -61,11 +61,13 @@ namespace Quickstarts.ReferenceServer
         }
 
         /// <inheritdoc/>
-        public ArrayOf<string> NamespacesUris =>
-        [
-            "http://opcfoundation.org/UA/GDS/applications/",
-            Opc.Ua.Gds.Namespaces.OpcUaGds
-        ];
+        /// <remarks>
+        /// Taken from the manager itself so the two cannot drift: the master
+        /// node manager routes a namespace to this manager only if it is
+        /// advertised here.
+        /// </remarks>
+        public ArrayOf<string> NamespacesUris
+            => new(ApplicationsNodeManager.DefaultNamespaceUris());
 
         /// <inheritdoc/>
         public ValueTask<IAsyncNodeManager> CreateAsync(
@@ -97,15 +99,18 @@ namespace Quickstarts.ReferenceServer
                 : JsonApplicationsDatabase.Load(databaseStorePath!);
 
 #pragma warning disable CA2000 // Ownership is transferred to the server via returned node manager instance.
-            return new ValueTask<IAsyncNodeManager>(
-                new ApplicationsNodeManager(
-                    server,
-                    configuration,
-                    database,
-                    database,
-                    new CertificateGroup(server.Telemetry),
-                    autoApprove: true));
+            var nodeManager = new ApplicationsNodeManager(
+                server,
+                configuration,
+                database,
+                database,
+                new CertificateGroup(server.Telemetry),
+                autoApprove: true);
 #pragma warning restore CA2000
+            // GDS AliasName Server facet (OPC 10000-17 Annex C), enabled in
+            // the CTT configuration.
+            nodeManager.AliasNameAggregationEnabled |= m_gdsConfiguration.EnableAliasNameAggregation;
+            return new ValueTask<IAsyncNodeManager>(nodeManager);
         }
     }
 }

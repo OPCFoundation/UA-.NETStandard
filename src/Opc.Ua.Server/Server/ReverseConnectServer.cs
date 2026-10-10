@@ -187,22 +187,32 @@ namespace Opc.Ua.Server
         {
             base.OnServerStarted(server);
 
-            UpdateConfiguration(Configuration!);
-            StartTimer(true);
+            lock (m_connectionsLock)
+            {
+                m_reverseConnectStopped = false;
+                UpdateConfiguration(Configuration!);
+                StartTimer(true);
+            }
         }
 
         /// <inheritdoc />
-        protected override async ValueTask OnUpdateConfigurationAsync(ApplicationConfiguration configuration, CancellationToken cancellationToken = default)
+        protected override async ValueTask OnUpdateConfigurationAsync(
+            ApplicationConfiguration configuration,
+            CancellationToken cancellationToken = default)
         {
             await base.OnUpdateConfigurationAsync(configuration, cancellationToken)
                 .ConfigureAwait(false);
-            UpdateConfiguration(configuration);
+            lock (m_connectionsLock)
+            {
+                UpdateConfiguration(configuration);
+                StartTimer(false);
+            }
         }
 
         /// <inheritdoc />
         protected override ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
         {
-            DisposeTimer();
+            DisposeTimer(stopping: true);
             return base.OnServerStoppingAsync(cancellationToken);
         }
 
@@ -211,8 +221,7 @@ namespace Opc.Ua.Server
         {
             if (disposing)
             {
-                m_reverseConnectTimer?.Dispose();
-                m_reverseConnectTimer = null;
+                DisposeTimer(stopping: true);
             }
 
             base.Dispose(disposing);
@@ -294,12 +303,18 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Timer callback to establish new reverse connections.
         /// </summary>
-        private void OnReverseConnect(object? state)
+        private void OnReverseConnect(long timerVersion)
         {
             try
             {
                 lock (m_connectionsLock)
                 {
+                    // Disposed timers can still have callbacks queued on the thread pool.
+                    if (m_reverseConnectStopped || timerVersion != m_reverseConnectTimerVersion)
+                    {
+                        return;
+                    }
+
                     foreach (ReverseConnectProperty reverseConnection in m_connections.Values)
                     {
                         // recharge a rejected connection after timeout
@@ -353,7 +368,13 @@ namespace Opc.Ua.Server
             }
             finally
             {
-                StartTimer(true);
+                lock (m_connectionsLock)
+                {
+                    if (timerVersion == m_reverseConnectTimerVersion)
+                    {
+                        StartTimer(true);
+                    }
+                }
             }
         }
 
@@ -406,19 +427,21 @@ namespace Opc.Ua.Server
         /// </summary>
         private void StartTimer(bool forceRestart)
         {
-            if (forceRestart)
-            {
-                DisposeTimer();
-            }
             lock (m_connectionsLock)
             {
-                if (m_connectInterval > 0 &&
+                if (forceRestart)
+                {
+                    DisposeTimer();
+                }
+                if (!m_reverseConnectStopped &&
+                    m_connectInterval > 0 &&
                     m_connections.Count > 0 &&
                     m_reverseConnectTimer == null)
                 {
+                    long timerVersion = m_reverseConnectTimerVersion;
                     m_reverseConnectTimer = TimeProvider.CreateTimer(
-                        OnReverseConnect,
-                        this,
+                        _ => OnReverseConnect(timerVersion),
+                        null,
                         TimeSpan.FromMilliseconds(forceRestart ? m_connectInterval : 1000),
                         Timeout.InfiniteTimeSpan);
                 }
@@ -428,11 +451,15 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Dispose the current timer.
         /// </summary>
-        private void DisposeTimer()
+        private void DisposeTimer(bool stopping = false)
         {
-            // start registration timer.
             lock (m_connectionsLock)
             {
+                if (stopping)
+                {
+                    m_reverseConnectStopped = true;
+                }
+                m_reverseConnectTimerVersion++;
                 m_reverseConnectTimer?.Dispose();
                 m_reverseConnectTimer = null;
             }
@@ -445,11 +472,12 @@ namespace Opc.Ua.Server
         {
             lock (m_connectionsLock)
             {
-                foreach (
-                    KeyValuePair<Uri, ReverseConnectProperty> entry in m_connections.Where(r =>
-                        r.Value.ConfigEntry == configEntry))
+                Uri[] urls = [.. m_connections
+                    .Where(entry => entry.Value.ConfigEntry == configEntry)
+                    .Select(entry => entry.Key)];
+                foreach (Uri url in urls)
                 {
-                    m_connections.Remove(entry.Key);
+                    m_connections.Remove(url);
                 }
             }
         }
@@ -459,8 +487,6 @@ namespace Opc.Ua.Server
         /// </summary>
         private void UpdateConfiguration(ApplicationConfiguration configuration)
         {
-            ClearConnections(true);
-
             // get the configuration for the reverse connections.
             ReverseConnectServerConfiguration? reverseConnect = configuration?.ServerConfiguration?
                 .ReverseConnect;
@@ -482,6 +508,7 @@ namespace Opc.Ua.Server
                         reverseConnect.RejectTimeout > 0
                             ? reverseConnect.RejectTimeout
                             : DefaultReverseConnectRejectTimeout;
+                    HashSet<Uri> configuredUrls = [];
                     if (!reverseConnect.Clients.IsEmpty)
                     {
                         foreach (ReverseConnectClient client in reverseConnect.Clients)
@@ -489,9 +516,22 @@ namespace Opc.Ua.Server
                             Uri? uri = Utils.ParseUri(client.EndpointUrl);
                             if (uri != null)
                             {
-                                if (m_connections.ContainsKey(uri))
+                                if (!configuredUrls.Add(uri))
                                 {
                                     m_logger.WarningServerConfigurationReverseConnectContains(uri);
+                                    continue;
+                                }
+                                if (m_connections.TryGetValue(uri, out ReverseConnectProperty? existing))
+                                {
+                                    if (existing.ConfigEntry)
+                                    {
+                                        existing.MaxSessionCount = client.MaxSessionCount;
+                                        existing.Enabled = client.Enabled;
+                                    }
+                                    else
+                                    {
+                                        m_logger.WarningServerConfigurationReverseConnectContains(uri);
+                                    }
                                 }
                                 else
                                 {
@@ -505,12 +545,30 @@ namespace Opc.Ua.Server
                                 }
                             }
                         }
+
+                        Uri[] removedUrls = [.. m_connections
+                            .Where(entry => entry.Value.ConfigEntry && !configuredUrls.Contains(entry.Key))
+                            .Select(entry => entry.Key)];
+                        foreach (Uri uri in removedUrls)
+                        {
+                            m_connections.Remove(uri);
+                        }
                     }
                 }
+                if (reverseConnect.Clients.IsEmpty)
+                {
+                    ClearConnections(true);
+                }
+            }
+            else
+            {
+                ClearConnections(true);
             }
         }
 
         private ITimer? m_reverseConnectTimer;
+        private long m_reverseConnectTimerVersion;
+        private bool m_reverseConnectStopped;
         private int m_connectInterval;
         private int m_connectTimeout;
         private int m_rejectTimeout;
@@ -585,5 +643,4 @@ namespace Opc.Ua.Server
             Message = "Reverse Connection added for EndpointUrl: {Uri}.")]
         public static partial void ReverseConnectionAddedForEndpointUrlUri(this ILogger logger, Uri uri);
     }
-
 }

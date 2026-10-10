@@ -30,9 +30,8 @@
 using System;
 using System.Collections.Generic;
 using System.Net;
+using System.Threading.Tasks;
 using NUnit.Framework;
-
-#nullable enable
 
 namespace Opc.Ua.Server.Tests
 {
@@ -133,6 +132,25 @@ namespace Opc.Ua.Server.Tests
             Assert.That(provider.ListenBacklog, Is.EqualTo(777));
         }
 
+        [TestCase(0, 0)]
+        [TestCase(-1, -1)]
+        [TestCase(0, 1)]
+        [TestCase(1, 0)]
+        public void ProviderUsesDefaultsForNonPositiveConnectionLimits(
+            int connectionsPerSecond,
+            int connectionBurst)
+        {
+            var options = new ServerRateLimitOptions
+            {
+                ConnectionsPerSecond = connectionsPerSecond,
+                ConnectionBurst = connectionBurst
+            };
+
+            using var provider = new DefaultServerRateLimiterProvider(options);
+
+            Assert.That(provider.ConnectionRateLimiter, Is.Not.Null);
+        }
+
         /// <summary>
         /// Verifies that the session-establishment concurrency limiter admits up to
         /// the permit limit and rejects the next operation while permits are held,
@@ -177,6 +195,40 @@ namespace Opc.Ua.Server.Tests
             {
                 lease?.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Verifies that a session establishment waits in the configured queue for a
+        /// permit instead of being rejected, and that a full queue still rejects.
+        /// </summary>
+        [Test]
+        public async Task SessionEstablishmentQueueLimitQueuesUntilPermitIsFreeAsync()
+        {
+            var options = new ServerRateLimitOptions
+            {
+                MaxConcurrentSessionEstablishment = 1,
+                SessionEstablishmentQueueLimit = 1
+            };
+            using var provider = new DefaultServerRateLimiterProvider(options);
+
+            (bool acquired, IDisposable? first, _) =
+                await provider.AcquireSessionEstablishmentAsync().ConfigureAwait(false);
+            Assert.That(acquired, Is.True);
+
+            Task<(bool Acquired, IDisposable? Lease, TimeSpan? RetryAfter)> queued =
+                provider.AcquireSessionEstablishmentAsync().AsTask();
+            Assert.That(queued.IsCompleted, Is.False);
+
+            (bool overflowAcquired, IDisposable? overflow, _) =
+                await provider.AcquireSessionEstablishmentAsync().ConfigureAwait(false);
+            Assert.That(overflowAcquired, Is.False);
+            Assert.That(overflow, Is.Null);
+
+            first!.Dispose();
+            (bool queuedAcquired, IDisposable? second, _) =
+                await queued.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false);
+            Assert.That(queuedAcquired, Is.True);
+            second!.Dispose();
         }
 
         /// <summary>

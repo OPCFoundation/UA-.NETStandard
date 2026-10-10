@@ -55,7 +55,9 @@ namespace Opc.Ua.SourceGeneration
                 /// Data type definitions for all classes in the {{Tokens.NamespaceUri}} namespace.
                 /// </summary>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+                #if !OPCUA_FUZZING_COVERAGE
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+                #endif
                 public static partial class DataTypeDefinitions
                 {
                     {{Tokens.ListOfDataTypeDefinitions}}
@@ -73,7 +75,9 @@ namespace Opc.Ua.SourceGeneration
                     /// <param name="builder">The factory builder.</param>
                     /// <returns>The factory builder passed as parameter.</returns>
                     [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+                    #if !OPCUA_FUZZING_COVERAGE
                     [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+                    #endif
                     public static global::Opc.Ua.IEncodeableFactoryBuilder Add{{Tokens.Namespace}}(
                         this global::Opc.Ua.IEncodeableFactoryBuilder builder)
                     {
@@ -167,7 +171,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString StructureActivatorClass = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -202,7 +208,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString PooledStructureActivatorClass = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.PooledEncodeableType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -244,13 +252,35 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public void Reuse()
                 {
+                    ReuseCore();
+                }
+
+                /// <summary>
+                /// Resets the instance and returns it to the pool of its
+                /// runtime type, also when <c>Reuse()</c> is called through
+                /// a reference typed as a base class.
+                /// </summary>
+                protected virtual void ReuseCore()
+                {
                     if (global::System.Threading.Interlocked.CompareExchange(
                         ref m_pooledSentinel, 1, 0) != 0)
                     {
                         return;
                     }
-                    {{Tokens.ListOfFieldResets}}
+                    ResetForReuse();
                     {{Tokens.ClassName}}Activator.Instance.Return(this);
+                }
+
+                /// <summary>
+                /// Resets every field, including the inherited ones, the
+                /// encoding mask and the switch field, to the value a newly
+                /// constructed instance has. A pooled instance is handed out
+                /// again without running the constructor.
+                /// </summary>
+                protected virtual void ResetForReuse()
+                {
+                    {{Tokens.ListOfFieldResets}}
+                    Initialize();
                 }
 
                 internal void ClearPooledSentinel()
@@ -278,19 +308,93 @@ namespace Opc.Ua.SourceGeneration
                 /// <inheritdoc/>
                 public new void Reuse()
                 {
+                    ReuseCore();
+                }
+
+                /// <inheritdoc/>
+                protected override void ReuseCore()
+                {
                     if (global::System.Threading.Interlocked.CompareExchange(
                         ref m_pooledSentinel, 1, 0) != 0)
                     {
                         return;
                     }
-                    {{Tokens.ListOfFieldResets}}
+                    ResetForReuse();
                     {{Tokens.ClassName}}Activator.Instance.Return(this);
+                }
+
+                /// <inheritdoc/>
+                protected override void ResetForReuse()
+                {
+                    base.ResetForReuse();
+                    {{Tokens.ListOfFieldResets}}
+                    Initialize();
                 }
 
                 internal new void ClearPooledSentinel()
                 {
                     global::System.Threading.Volatile.Write(ref m_pooledSentinel, 0);
                 }
+            }
+            """);
+
+        /// <summary>
+        /// Variant of <see cref="DerivedPooledExtensionClass"/> for derived
+        /// types whose nearest pooled base is generated by another model.
+        /// That base may live in an assembly built by an older generator
+        /// without the overridable <c>ResetForReuse()</c>, so it is neither
+        /// overridden nor called: this type declares its own and resets
+        /// every field, the inherited ones through their properties. The
+        /// base's <c>ResetForReuse()</c> and <c>ClearPooledSentinel()</c>
+        /// may not exist or not be accessible, so <c>new</c> may not hide
+        /// anything there (CS0109).
+        /// </summary>
+        public static readonly TemplateString ForeignDerivedPooledExtensionClass = TemplateString.Parse(
+            $$"""
+            public partial class {{Tokens.ClassName}} : global::Opc.Ua.IPooledEncodeable
+            {
+                private int m_pooledSentinel;
+
+                /// <inheritdoc/>
+                public new void Reuse()
+                {
+                    ReuseCore();
+                }
+
+            #pragma warning disable CS0109 // The member does not hide an accessible member
+                /// <summary>
+                /// Resets the instance and returns it to the pool of its
+                /// runtime type, also when <c>Reuse()</c> is called through
+                /// a reference typed as this class.
+                /// </summary>
+                protected new virtual void ReuseCore()
+                {
+                    if (global::System.Threading.Interlocked.CompareExchange(
+                        ref m_pooledSentinel, 1, 0) != 0)
+                    {
+                        return;
+                    }
+                    ResetForReuse();
+                    {{Tokens.ClassName}}Activator.Instance.Return(this);
+                }
+
+                /// <summary>
+                /// Resets every field, including the inherited ones, the
+                /// encoding mask and the switch field, to the value a newly
+                /// constructed instance has. A pooled instance is handed out
+                /// again without running the constructor.
+                /// </summary>
+                protected new virtual void ResetForReuse()
+                {
+                    {{Tokens.ListOfFieldResets}}
+                    Initialize();
+                }
+
+                internal new void ClearPooledSentinel()
+                {
+                    global::System.Threading.Volatile.Write(ref m_pooledSentinel, 0);
+                }
+            #pragma warning restore CS0109
             }
             """);
 
@@ -312,7 +416,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString EnumerationActivatorClass = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -334,7 +440,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString StructureActivatorClassWithDefinition = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -368,7 +476,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString PooledStructureActivatorClassWithDefinition = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.PooledEncodeableType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -402,7 +512,9 @@ namespace Opc.Ua.SourceGeneration
         public static readonly TemplateString EnumerationActivatorClassWithDefinition = TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.ClassName}}>
             {
                 /// <summary>
@@ -454,7 +566,9 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} :
                 global::System.IEquatable<{{Tokens.ClassName}}>,
@@ -668,7 +782,9 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}, global::System.IEquatable<{{Tokens.ClassName}}>
             {
@@ -761,6 +877,12 @@ namespace Opc.Ua.SourceGeneration
                         return false;
                     }
 
+                    // The optional fields below are only compared when this
+                    // instance's mask bit is set: the masks must match first,
+                    // otherwise equality is asymmetric. A base without optional
+                    // fields does not compare the mask itself.
+                    if (value.EncodingMask != this.EncodingMask) return false;
+
                     {{Tokens.ListOfComparedFields}}
 
                     return base.IsEqual(encodeable);
@@ -850,7 +972,9 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} :
                 global::System.IEquatable<{{Tokens.ClassName}}>,
@@ -1023,7 +1147,9 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public {{Tokens.IsAbstract}}partial class {{Tokens.ClassName}} :
                 {{Tokens.ExtraInterfaces}}global::System.IEquatable<{{Tokens.ClassName}}>,
@@ -1173,7 +1299,9 @@ namespace Opc.Ua.SourceGeneration
             /// The {{Tokens.BrowseName}} DataType.
             /// </summary>
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+            #endif
             [global::System.Runtime.Serialization.DataContractAttribute(Namespace = {{Tokens.XmlNamespaceUri}})]
             public partial class {{Tokens.ClassName}} : {{Tokens.BaseType}}, global::System.IEquatable<{{Tokens.ClassName}}>
             {
@@ -1344,7 +1472,7 @@ namespace Opc.Ua.SourceGeneration
                 IsRequired = {{Tokens.IsRequired}},
                 EmitDefaultValue = {{Tokens.EmitDefaultValue}},
                 Order = {{Tokens.FieldIndex}})]
-            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.BrowseName}}
+            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.PropertyName}}
             {
                 get => {{Tokens.FieldName}};
                 set => {{Tokens.FieldName}} = value;
@@ -1365,7 +1493,7 @@ namespace Opc.Ua.SourceGeneration
                 IsRequired = {{Tokens.IsRequired}},
                 EmitDefaultValue = {{Tokens.EmitDefaultValue}},
                 Order = {{Tokens.FieldIndex}})]
-            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.BrowseName}}
+            {{Tokens.AccessorSymbol}} {{Tokens.TypeName}} {{Tokens.PropertyName}}
             {
                 get => {{Tokens.FieldName}};
                 set => {{Tokens.FieldName}} = value == null ?
@@ -1380,10 +1508,10 @@ namespace Opc.Ua.SourceGeneration
         /// </summary>
         public static readonly TemplateString HashProperty = TemplateString.Parse(
             $$"""
-            hashCode = (hashCode * 16777619) ^
+            {{Tokens.HashCondition}}hashCode = (hashCode * 16777619) ^
                 global::System.Collections.Generic.EqualityComparer<{{Tokens.TypeName}}>
                 .Default
-                .GetHashCode({{Tokens.FieldName}});
+                .GetHashCode({{Tokens.HashValue}});
             """);
 
         /// <summary>

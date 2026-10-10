@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Runtime.Serialization;
 using NUnit.Framework;
 
 namespace Opc.Ua.Client.ComplexTypes.Tests.Types
@@ -44,6 +45,231 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
     public class ComplexSampleTypesBuilder : ComplexTypesCommon
     {
         /// <summary>
+        /// Concrete nested fields retain their values in both accessor directions.
+        /// </summary>
+        [Test]
+        [Combinatorial]
+        public void ConcreteStructurePropertyPreservesValue(
+            [Values(ValueRanks.Scalar, ValueRanks.OneDimension, ValueRanks.TwoDimensions)] int valueRank,
+            [Values] bool write,
+            [Values(BuiltInType.Null, BuiltInType.ExtensionObject)] BuiltInType builtInType)
+        {
+            var child = new Argument { Name = "Nested", DataType = DataTypeIds.Int32 };
+            var holder = new StructurePropertyHolder();
+            string propertyName = valueRank switch
+            {
+                ValueRanks.Scalar => nameof(StructurePropertyHolder.Scalar),
+                ValueRanks.OneDimension => nameof(StructurePropertyHolder.Array),
+                _ => nameof(StructurePropertyHolder.Matrix)
+            };
+            var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
+            var property = new ComplexTypePropertyInfo(
+                reflectionProperty!,
+                new StructureFieldAttribute { BuiltInType = (int)builtInType, ValueRank = valueRank },
+                new DataMemberAttribute { Name = propertyName });
+            Variant expected = valueRank switch
+            {
+                ValueRanks.Scalar => Variant.FromStructure(child),
+                ValueRanks.OneDimension => Variant.FromStructure(new Argument[] { child }.ToArrayOf()),
+                _ => Variant.FromStructure(MatrixOf.From<Argument>(new Argument[,] { { child } }))
+            };
+
+            if (write)
+            {
+                property.SetValue(holder, expected);
+                switch (valueRank)
+                {
+                    case ValueRanks.Scalar:
+                        Assert.That(holder.Scalar, Is.SameAs(child));
+                        break;
+                    case ValueRanks.OneDimension:
+                        Assert.That(holder.Array, Is.EqualTo(new Argument[] { child }));
+                        break;
+                    default:
+                        Assert.That(holder.Matrix, Is.EqualTo(new Argument[,] { { child } }));
+                        break;
+                }
+            }
+            else
+            {
+                holder.Scalar = child;
+                holder.Array = [child];
+                holder.Matrix = new Argument[,] { { child } };
+                Variant actual = property.GetValue(holder);
+                Assert.That(actual.IsNull, Is.False);
+                Assert.That(actual, Is.EqualTo(expected));
+            }
+        }
+
+        [Test]
+        [Combinatorial]
+        public void ConcreteStructureCollectionPreservesNullAndEmpty(
+            [Values(ValueRanks.OneDimension, ValueRanks.TwoDimensions)] int valueRank,
+            [Values] bool isNull,
+            [Values(BuiltInType.Null, BuiltInType.ExtensionObject)] BuiltInType builtInType)
+        {
+            var holder = new StructurePropertyHolder
+            {
+                Array = [new Argument()],
+                Matrix = new Argument[,] { { new Argument() } }
+            };
+            string propertyName = valueRank == ValueRanks.OneDimension
+                ? nameof(StructurePropertyHolder.Array)
+                : nameof(StructurePropertyHolder.Matrix);
+            var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
+            var property = new ComplexTypePropertyInfo(
+                reflectionProperty!,
+                new StructureFieldAttribute { BuiltInType = (int)builtInType, ValueRank = valueRank },
+                new DataMemberAttribute { Name = propertyName });
+            Variant value = isNull ? Variant.Null : valueRank == ValueRanks.OneDimension
+                ? Variant.FromStructure(ArrayOf<IEncodeable>.Empty)
+                : Variant.FromStructure(MatrixOf.From<IEncodeable>(new IEncodeable[0, 2]));
+
+            property.SetValue(holder, value);
+
+            if (isNull)
+            {
+                Assert.That(reflectionProperty!.GetValue(holder), Is.Null);
+                Variant actual = property.GetValue(holder);
+                Assert.That(valueRank == ValueRanks.OneDimension
+                    ? actual.GetStructureArray<IEncodeable>().IsNull
+                    : actual.GetStructureMatrix<IEncodeable>().IsNull, Is.True);
+            }
+            else
+            {
+                var actual = (Array)reflectionProperty!.GetValue(holder)!;
+                Assert.That(actual, Has.Length.Zero);
+                Assert.That(actual.Rank, Is.EqualTo(valueRank));
+                Assert.That(property.GetValue(holder).IsNull, Is.False);
+                if (valueRank == ValueRanks.TwoDimensions)
+                {
+                    Assert.That(actual.GetLength(1), Is.EqualTo(2));
+                }
+            }
+        }
+
+        /// <summary>
+        /// T1-2: the rank of a matrix property is fixed by the field's ValueRank,
+        /// while a decoded matrix has whatever rank the wire said. An empty
+        /// matrix of another rank becomes an empty array of the field's rank; a
+        /// populated one is a decoding error instead of an ArgumentException out
+        /// of PropertyInfo.SetValue, which bypassed the decoder's handling.
+        /// </summary>
+        [Test]
+        public void MatrixOfAnotherRankIsNormalizedWhenEmptyAndRejectedWhenPopulated(
+            [Values] bool structure,
+            [Values] bool populated)
+        {
+            var holder = new StructurePropertyHolder();
+            string propertyName = structure
+                ? nameof(StructurePropertyHolder.Matrix)
+                : nameof(StructurePropertyHolder.Int32Matrix);
+            var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
+            var property = new ComplexTypePropertyInfo(
+                reflectionProperty!,
+                new StructureFieldAttribute
+                {
+                    BuiltInType = (int)(structure ? BuiltInType.Null : BuiltInType.Int32),
+                    ValueRank = ValueRanks.TwoDimensions
+                },
+                new DataMemberAttribute { Name = propertyName });
+            int length = populated ? 1 : 0;
+            var structures = new IEncodeable[length, length, length];
+            if (populated)
+            {
+                structures[0, 0, 0] = new Argument();
+            }
+            Variant value = structure
+                ? Variant.FromStructure(MatrixOf.From<IEncodeable>(structures))
+                : Variant.From(MatrixOf.From<int>(new int[length, length, length]));
+
+            if (populated)
+            {
+                ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                    () => property.SetValue(holder, value));
+                Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+                return;
+            }
+
+            property.SetValue(holder, value);
+            var actual = (Array)reflectionProperty!.GetValue(holder)!;
+            Assert.That(actual!.Rank, Is.EqualTo(2));
+            Assert.That(actual, Has.Length.Zero);
+        }
+
+        /// <summary>
+        /// ExtensionObject collection properties retain their wrapper representation.
+        /// </summary>
+        [Test]
+        [Combinatorial]
+        public void ExtensionObjectCollectionPreservesValue(
+            [Values(ValueRanks.OneDimension, ValueRanks.TwoDimensions)] int valueRank,
+            [Values(0, 1, 2)] int elementCount,
+            [Values] bool isNull)
+        {
+            var holder = new StructurePropertyHolder();
+            string propertyName = valueRank == ValueRanks.OneDimension
+                ? nameof(StructurePropertyHolder.ExtensionArray)
+                : nameof(StructurePropertyHolder.ExtensionMatrix);
+            var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
+            var property = new ComplexTypePropertyInfo(
+                reflectionProperty!,
+                new StructureFieldAttribute { BuiltInType = (int)BuiltInType.ExtensionObject, ValueRank = valueRank },
+                new DataMemberAttribute { Name = propertyName });
+            var elements = new ExtensionObject[elementCount];
+            var matrix = new ExtensionObject[1, elementCount];
+            for (int index = 0; index < elementCount; index++)
+            {
+                elements[index] = new ExtensionObject(new Argument { Name = "Nested" });
+                matrix[0, index] = elements[index];
+            }
+            Variant expected = isNull ? Variant.Null : valueRank == ValueRanks.OneDimension
+                ? Variant.From(elements.ToArrayOf())
+                : Variant.From(MatrixOf.From<ExtensionObject>(matrix));
+
+            property.SetValue(holder, expected);
+
+            if (isNull)
+            {
+                Assert.That(reflectionProperty!.GetValue(holder), Is.Null);
+            }
+            else
+            {
+                Assert.That(property.GetValue(holder), Is.EqualTo(expected));
+                Assert.That(reflectionProperty!.GetValue(holder), Is.TypeOf(reflectionProperty.PropertyType));
+            }
+        }
+
+        /// <summary>
+        /// Incompatible structure elements cannot replace a concrete collection property.
+        /// </summary>
+        [TestCase(ValueRanks.OneDimension)]
+        [TestCase(ValueRanks.TwoDimensions)]
+        public void SubtypedStructureCollectionRejectsIncompatibleElements(int valueRank)
+        {
+            var holder = new StructurePropertyHolder
+            {
+                Array = [new Argument()],
+                Matrix = new Argument[,] { { new Argument() } }
+            };
+            string propertyName = valueRank == ValueRanks.OneDimension
+                ? nameof(StructurePropertyHolder.Array)
+                : nameof(StructurePropertyHolder.Matrix);
+            var reflectionProperty = typeof(StructurePropertyHolder).GetProperty(propertyName);
+            var previous = (Array)reflectionProperty!.GetValue(holder)!;
+            var property = new ComplexTypePropertyInfo(
+                reflectionProperty,
+                new StructureFieldAttribute { BuiltInType = (int)BuiltInType.ExtensionObject, ValueRank = valueRank },
+                new DataMemberAttribute { Name = propertyName });
+            Variant incompatible = valueRank == ValueRanks.OneDimension
+                ? Variant.FromStructure(new IEncodeable[] { new StructureDefinition() }.ToArrayOf())
+                : Variant.FromStructure(MatrixOf.From<IEncodeable>(new IEncodeable[,] { { new StructureDefinition() } }));
+
+            Assert.Throws<InvalidCastException>(() => property.SetValue(holder, incompatible));
+            Assert.That(reflectionProperty.GetValue(holder), Is.SameAs(previous));
+        }
+
+        /// <summary>
         /// Create a structure type from a DataTypeDefinition.
         /// Activate an object and verify it is the expected type
         /// with expected properties.
@@ -57,19 +283,19 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 structureType,
                 nameof(CreateComplexType));
             Assert.That(complexType, Is.Not.Null);
-            object emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType)!;
             var structType = emittedType as BaseComplexType;
             switch (structureType)
             {
                 case StructureType.Structure:
                     Assert.That(structType, Is.Not.Null);
-                    Assert.That(propertyBuiltInTypes, Is.EqualTo(structType.GetPropertyTypes().Count));
+                    Assert.That(propertyBuiltInTypes, Is.EqualTo(structType!.GetPropertyTypes().Count));
                     Assert.That(propertyBuiltInTypes, Is.EqualTo(structType.GetPropertyCount()));
                     break;
                 case StructureType.StructureWithOptionalFields:
                     var structWithOptionalFieldsType = emittedType as OptionalFieldsComplexType;
                     Assert.That(structWithOptionalFieldsType, Is.Not.Null);
-                    Assert.That(structWithOptionalFieldsType.EncodingMask, Is.Zero);
+                    Assert.That(structWithOptionalFieldsType!.EncodingMask, Is.Zero);
                     Assert.That(
                         propertyBuiltInTypes,
                         Is.EqualTo(structWithOptionalFieldsType.GetPropertyTypes().Count));
@@ -80,7 +306,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 case StructureType.Union:
                     var unionType = emittedType as UnionComplexType;
                     Assert.That(unionType, Is.Not.Null);
-                    Assert.That(unionType.SwitchField, Is.Zero);
+                    Assert.That(unionType!.SwitchField, Is.Zero);
                     Assert.That(propertyBuiltInTypes, Is.EqualTo(unionType.GetPropertyTypes().Count));
                     Assert.That(propertyBuiltInTypes, Is.EqualTo(unionType.GetPropertyCount()));
                     Assert.That(unionType.Value.IsNull, Is.True);
@@ -89,7 +315,7 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
             var encodeable = emittedType as IEncodeable;
             Assert.That(encodeable, Is.Not.Null);
             // try the accessor by name
-            foreach (string accessorname in structType.GetPropertyNames())
+            foreach (string accessorname in structType!.GetPropertyNames())
             {
                 object obj = structType[accessorname];
             }
@@ -112,13 +338,13 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                 structureType,
                 nameof(CreateComplexTypeWithData) + "." + randomValue.ToString());
             Assert.That(complexType, Is.Not.Null);
-            object emittedType = Activator.CreateInstance(complexType);
+            object emittedType = Activator.CreateInstance(complexType)!;
             var baseType = emittedType as BaseComplexType;
 
             // fill struct with default values
-            FillStructWithValues(baseType, randomValue, NameSpaceUris);
+            FillStructWithValues(baseType!, randomValue, NameSpaceUris);
 
-            for (int i = 0; i < baseType.GetPropertyCount(); i++)
+            for (int i = 0; i < baseType!.GetPropertyCount(); i++)
             {
                 Variant obj = baseType[i];
                 if (structureType is StructureType.Union or StructureType.UnionWithSubtypedValues)
@@ -137,6 +363,20 @@ namespace Opc.Ua.Client.ComplexTypes.Tests.Types
                     Assert.That(obj.IsNull, Is.False);
                 }
             }
+        }
+        private sealed class StructurePropertyHolder
+        {
+            public Argument Scalar { get; set; } = null!;
+
+            public Argument[] Array { get; set; } = null!;
+
+            public Argument[,] Matrix { get; set; } = null!;
+
+            public ExtensionObject[] ExtensionArray { get; set; } = null!;
+
+            public ExtensionObject[,] ExtensionMatrix { get; set; } = null!;
+
+            public int[,] Int32Matrix { get; set; } = null!;
         }
     }
 }

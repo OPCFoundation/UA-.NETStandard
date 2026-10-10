@@ -62,7 +62,7 @@ namespace Opc.Ua.PubSub.Tests.Security
                 tokenId,
                 signingKeyLength: policy.SigningKeyLength == 0 ? 1 : policy.SigningKeyLength,
                 encryptingKeyLength: policy.EncryptingKeyLength == 0 ? 1 : policy.EncryptingKeyLength,
-                keyNonceLength: policy.NonceLength == 0 ? 1 : policy.NonceLength);
+                keyNonceLength: policy.NonceLength == 0 ? 1 : AesCtrNonceLayout.KeyNonceLength);
 
             var senderRing = new PubSubSecurityKeyRing("group");
             senderRing.SetCurrent(key);
@@ -139,8 +139,8 @@ namespace Opc.Ua.PubSub.Tests.Security
             ReadOnlyMemory<byte> wrapped = await sender.WrapAsync(s_outerPrefix, s_innerPayload).ConfigureAwait(false);
             byte[] tampered = wrapped.ToArray();
             // Flip a byte inside the ciphertext (after outerPrefix +
-            // SecurityHeader of size 1+4+1+12 = 18 bytes).
-            tampered[s_outerPrefix.Length + 18 + 5] ^= 0x01;
+            // SecurityHeader of size 1+4+1+8 = 14 bytes).
+            tampered[s_outerPrefix.Length + 14 + 5] ^= 0x01;
 
             UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
                 s_outerPrefix.AsMemory(),
@@ -257,6 +257,123 @@ namespace Opc.Ua.PubSub.Tests.Security
             Assert.That(
                 () => UadpSecurityWrapper.UnwrapResult.Failure(StatusCodes.BadSecurityChecksFailed, string.Empty),
                 Throws.ArgumentException);
+        }
+
+        /// <summary>
+        /// OPC 10000-14 7.2.4.4.3.2 (Tables 156 and 157): the SecurityHeader
+        /// carries an 8-byte nonce and the counter block is
+        /// KeyNonce[4] | MessageNonce[8] | BlockCounter[4] starting at 1. With
+        /// KeyNonce = RFC 3686 Nonce and MessageNonce = RFC 3686 IV this is the
+        /// RFC 3686 layout, so RFC 3686 test vector #2 must appear on the wire.
+        /// </summary>
+        [Test]
+        [TestSpec("7.2.4.4.3.2", Summary = "AES-CTR counter block KeyNonce | MessageNonce | BlockCounter")]
+        public async Task WrapAsync_Aes128Ctr_UsesKeyNonceAndEightByteMessageNonceInCounterBlockAsync()
+        {
+            byte[] encryptingKey = FromHex("7E24067817FAE0D743D6CE1F32539163");
+            byte[] keyNonce = FromHex("006CB6DB");
+            byte[] messageNonce = FromHex("C0543B59DA48D90B");
+            byte[] plaintext = FromHex(
+                "000102030405060708090A0B0C0D0E0F101112131415161718191A1B1C1D1E1F");
+            byte[] expected = FromHex(
+                "5104A106168A72D9790D41EE8EDAD388EB2E1EFC46DA57C8FCE630DF9141BE28");
+
+            var key = new PubSubSecurityKey(
+                7U,
+                ByteString.Create(new byte[32]),
+                ByteString.Create(encryptingKey),
+                ByteString.Create(keyNonce),
+                DateTimeUtc.From(DateTime.UtcNow),
+                TimeSpan.FromMinutes(5));
+            var ring = new PubSubSecurityKeyRing("group");
+            ring.SetCurrent(key);
+            var window = new SecurityTokenWindow();
+            window.RegisterToken(7U);
+            var wrapper = new UadpSecurityWrapper(
+                PubSubAes128CtrPolicy.Instance,
+                new StaticSecurityKeyProvider("group", ring),
+                new FixedNonceProvider(messageNonce),
+                window,
+                NUnitTelemetryContext.Create());
+
+            ReadOnlyMemory<byte> wrapped = await wrapper
+                .WrapAsync(s_outerPrefix, plaintext, UadpSecurityWrapOptions.SignAndEncrypt)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                UadpSecurityHeader.TryRead(
+                    wrapped.Span[s_outerPrefix.Length..],
+                    out UadpSecurityHeader header,
+                    out int headerLength),
+                Is.True);
+            Assert.Multiple(() =>
+            {
+                Assert.That(header.MessageNonce.ToArray(), Is.EqualTo(messageNonce));
+                Assert.That(
+                    wrapped.Slice(s_outerPrefix.Length + headerLength, plaintext.Length).ToArray(),
+                    Is.EqualTo(expected));
+            });
+
+            UadpSecurityWrapper.UnwrapResult result = await wrapper.TryUnwrapAsync(
+                s_outerPrefix.AsMemory(),
+                wrapped[s_outerPrefix.Length..]).ConfigureAwait(false);
+            Assert.That(result.IsSuccess, Is.True, result.Reason);
+            Assert.That(result.InnerPayload!.Value.ToArray(), Is.EqualTo(plaintext));
+        }
+
+        [Test]
+        public async Task TryUnwrap_RejectsTwelveByteNonceForCtrPolicyAsync()
+        {
+            (UadpSecurityWrapper sender, UadpSecurityWrapper receiver, _, _, _) =
+                CreatePair(PubSubAes128CtrPolicy.Instance);
+            // Encrypt only, so the nonce length check is reached without a signature.
+            ReadOnlyMemory<byte> wrapped = await sender
+                .WrapAsync(s_outerPrefix, s_innerPayload, UadpSecurityWrapOptions.EncryptOnly)
+                .ConfigureAwait(false);
+
+            Assert.That(
+                UadpSecurityHeader.TryRead(
+                    wrapped.Span[s_outerPrefix.Length..],
+                    out UadpSecurityHeader header,
+                    out int headerLength),
+                Is.True);
+            var legacyHeader = new UadpSecurityHeader(
+                header.SecurityFlags,
+                header.SecurityTokenId,
+                new byte[12]);
+            byte[] legacy = new byte[legacyHeader.GetEncodedSize() + wrapped.Length - s_outerPrefix.Length - headerLength];
+            legacyHeader.WriteTo(legacy, out int written);
+            wrapped[(s_outerPrefix.Length + headerLength)..].Span.CopyTo(legacy.AsSpan(written));
+
+            UadpSecurityWrapper.UnwrapResult result = await receiver.TryUnwrapAsync(
+                s_outerPrefix.AsMemory(),
+                legacy).ConfigureAwait(false);
+            Assert.That(result.Status, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+        }
+
+        private static byte[] FromHex(string hex)
+        {
+            byte[] bytes = new byte[hex.Length / 2];
+            for (int i = 0; i < bytes.Length; i++)
+            {
+                bytes[i] = Convert.ToByte(hex.Substring(i * 2, 2), 16);
+            }
+            return bytes;
+        }
+
+        private sealed class FixedNonceProvider : INonceProvider
+        {
+            public FixedNonceProvider(byte[] nonce)
+            {
+                m_nonce = nonce;
+            }
+
+            public void GetNext(uint keyId, ReadOnlySpan<byte> keyNonce, Span<byte> buffer)
+            {
+                m_nonce.CopyTo(buffer);
+            }
+
+            private readonly byte[] m_nonce;
         }
     }
 }

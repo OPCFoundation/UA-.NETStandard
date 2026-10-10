@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Encoders
 {
@@ -102,6 +103,17 @@ namespace Opc.Ua.Encoders
         /// <inheritdoc/>
         public override void Encode(IEncoder encoder)
         {
+            // Encoders shall report an error for a SwitchField greater than
+            // the number of union fields (OPC 10000-6 5.2.8, 5.3.7).
+            if (SwitchField > (uint)PropertyList.Count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Union SwitchField {0} is greater than the number of fields {1}.",
+                    SwitchField,
+                    PropertyList.Count);
+            }
+
             encoder.PushNamespace(XmlNamespace);
 
             // the encoder may return an override for the field name
@@ -142,16 +154,28 @@ namespace Opc.Ua.Encoders
             bool isJsonDecoder = decoder.EncodingType == EncodingType.Json;
             if (unionSelector == 0 && isJsonDecoder)
             {
+                // The Verbose JSON encoding writes no SwitchField, so the
+                // selector has to be recovered from the member name. Every
+                // union field is a candidate - filtering by IsOptional left the
+                // list empty and every such union decoded as selector 0.
                 var fields = new List<string>();
                 foreach (Field property in PropertyList)
                 {
-                    if (property.IsOptional)
-                    {
-                        fields.Add(property.Name!);
-                    }
+                    fields.Add(property.Name!);
                 }
 
                 unionSelector = decoder.ReadSwitchField(fields, out _);
+            }
+
+            // Decoders shall report an error for a SwitchField greater than
+            // the number of union fields (OPC 10000-6 5.2.8, 5.3.7, 5.4.8).
+            if (unionSelector > (uint)PropertyList.Count)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "Union SwitchField {0} is greater than the number of fields {1}.",
+                    unionSelector,
+                    PropertyList.Count);
             }
 
             SwitchField = unionSelector;

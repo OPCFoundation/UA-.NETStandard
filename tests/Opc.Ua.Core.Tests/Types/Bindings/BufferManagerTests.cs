@@ -269,14 +269,14 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
         [Test]
         public async Task FactorySharesProcessBudgetAcrossManagers()
         {
-            const int maxOutstandingBytes = 32;
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            int maxOutstandingBytes = new FastBufferManager("sizing", 32, telemetry).GetExpectedBufferSize(17);
             var factory = new DefaultBufferManagerFactory(
                 new BufferManagerFactoryOptions
                 {
                     ImplementationKind = BufferManagerImplementationKind.Fast,
                     MaxOutstandingBytesPerProcess = maxOutstandingBytes
                 });
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             IBufferManager firstManager = factory.Create("first", maxOutstandingBytes, telemetry);
             IBufferManager secondManager = factory.Create("second", maxOutstandingBytes, telemetry);
 
@@ -441,7 +441,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
 
             manager.ReturnBuffer(first, nameof(LimiterRejectsReentrantRentDuringReturn));
 
-            pool.OnReturned = null;
+            pool.OnReturned = null!;
             byte[] next = manager.TakeBuffer(
                 bufferLength,
                 nameof(LimiterRejectsReentrantRentDuringReturn));
@@ -471,14 +471,14 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 FieldInfo field = type.GetField(
                     fieldName,
                     BindingFlags.Instance |
-                    BindingFlags.NonPublic);
+                    BindingFlags.NonPublic)!;
 
                 if (field != null)
                 {
                     return field.GetValue(instance) ?? throw new AssertionException("Field value was null.");
                 }
 
-                type = type.BaseType;
+                type = type.BaseType!;
             }
 
             throw new AssertionException($"Field '{fieldName}' was not found.");
@@ -550,15 +550,15 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             public DelegateBufferManager(
                 int expectedBufferSize,
                 int actualBufferSize,
-                Func<int, string, int, byte[]> takeBuffer = null,
-                Func<int> getNextAttempt = null,
-                Action<byte[], string> returnBuffer = null)
+                Func<int, string, int, byte[]>? takeBuffer = null,
+                Func<int>? getNextAttempt = null,
+                Action<byte[], string>? returnBuffer = null)
             {
                 MaxSuggestedBufferSize = expectedBufferSize;
                 m_actualBufferSize = actualBufferSize;
-                m_takeBuffer = takeBuffer;
-                m_getNextAttempt = getNextAttempt;
-                m_returnBuffer = returnBuffer;
+                m_takeBuffer = takeBuffer!;
+                m_getNextAttempt = getNextAttempt!;
+                m_returnBuffer = returnBuffer!;
             }
 
             public string Name => nameof(DelegateBufferManager);
@@ -596,7 +596,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 return TakeBuffer(size, owner);
             }
 
-            public void TransferBuffer(byte[] buffer, string owner)
+            public void TransferBuffer(byte[]? buffer, string owner)
             {
             }
 
@@ -608,14 +608,14 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
             {
             }
 
-            public void ReturnBuffer(byte[] buffer, string owner)
+            public void ReturnBuffer(byte[]? buffer, string owner)
             {
-                m_returnBuffer?.Invoke(buffer, owner);
+                m_returnBuffer?.Invoke(buffer!, owner);
             }
 
             private readonly int m_actualBufferSize;
             private readonly Func<int, string, int, byte[]> m_takeBuffer;
-            private readonly Func<int> m_getNextAttempt;
+            private readonly Func<int> m_getNextAttempt = null!;
             private readonly Action<byte[], string> m_returnBuffer;
         }
 
@@ -626,7 +626,7 @@ namespace Opc.Ua.Core.Tests.Stack.Bindings
                 m_buffer = new byte[bufferLength];
             }
 
-            public Action OnReturned { get; set; }
+            public Action OnReturned { get; set; } = null!;
 
             public override byte[] Rent(int minimumLength)
             {

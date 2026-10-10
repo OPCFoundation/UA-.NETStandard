@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.IO;
@@ -113,14 +111,19 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(fileHandle, Is.Zero);
         }
 
+        /// <summary>
+        /// Spec gap Read|Write: Read and Write are independent valid mode bits (Part 20 4.2.2),
+        /// so an unsupported combined open is Bad_NotSupported, not an invalid mode.
+        /// </summary>
         [Test]
-        public void OpenWithReadAndWriteReturnsBadInvalidArgument()
+        public void OpenWithReadAndWriteReturnsBadNotSupported()
         {
             using var handle = new FileHandle(CreateProvider(), "f.txt");
 
-            ServiceResult result = handle.Open(s_sessionId, ModeRead | ModeWrite, out _);
+            ServiceResult result = handle.Open(s_sessionId, ModeRead | ModeWrite, out uint fileHandle);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotSupported));
+            Assert.That(fileHandle, Is.Zero);
         }
 
         [Test]
@@ -184,7 +187,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
         }
 
         [Test]
-        public void OpenReadWhileWritingReturnsBadInvalidState()
+        public void OpenReadWhileWritingReturnsBadNotReadable()
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
@@ -192,11 +195,11 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(s_sessionId, ModeRead, out _);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
         }
 
         [Test]
-        public void OpenReadWhileWriteHandleAlreadyOpenInternallyReturnsBadInvalidState()
+        public void OpenReadWhileWriteHandleAlreadyOpenInternallyReturnsBadNotReadable()
         {
             // Uses a provider whose streams do not take exclusive OS-level
             // file locks, so this exercises FileHandle's own in-memory
@@ -207,7 +210,7 @@ namespace Opc.Ua.Server.Tests.FileSystem
 
             ServiceResult result = handle.Open(s_sessionId, ModeRead, out uint readHandle);
 
-            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadInvalidState));
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadNotReadable));
             Assert.That(readHandle, Is.Zero);
             Assert.That(handle.OpenCount, Is.EqualTo(1));
             Assert.That(handle.GetStream(s_sessionId, writeHandle), Is.Not.Null);
@@ -430,14 +433,17 @@ namespace Opc.Ua.Server.Tests.FileSystem
             Assert.That(handle.IsWriteable, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that opening a readable handle does not change the file's underlying write capability.
+        /// </summary>
         [Test]
-        public void IsWriteableIsFalseWhileOpen()
+        public void IsWriteableIsTrueWhileOpen()
         {
             WriteFile("f.txt", "hello");
             using var handle = new FileHandle(CreateProvider(), "f.txt");
             handle.Open(s_sessionId, ModeRead, out _);
 
-            Assert.That(handle.IsWriteable, Is.False);
+            Assert.That(handle.IsWriteable, Is.True);
         }
 
         [Test]

@@ -34,11 +34,9 @@ using System.Collections.Generic;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
-using Microsoft.Extensions.Logging;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
-using Opc.Ua.Identity;
 using Opc.Ua.Tests;
 using ManagedSessionClass = Opc.Ua.Client.ManagedSession;
 
@@ -58,11 +56,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         private SessionMock m_innerSession;
 
         [SetUp]
-        public void SetUp()
+        public async Task SetUpAsync()
         {
             m_innerSession = SessionMock.Create();
             m_innerSession.SetConnected();
-            m_managedSession = CreateManagedSessionWithInner(m_innerSession);
+            m_managedSession = await CreateManagedSessionWithInnerAsync(m_innerSession).ConfigureAwait(false);
         }
 
         [TearDown]
@@ -172,14 +170,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             await m_managedSession.DisposeAsync().ConfigureAwait(false);
 
             // Null out so TearDown doesn't dispose a third time.
-            m_managedSession = null;
+            m_managedSession = null!;
         }
 
         [Test]
         public void EventHandlerThrowingDoesNotPreventOtherHandlers()
         {
             int otherInvocations = 0;
-            ISession otherSender = null;
+            ISession? otherSender = null;
 
             m_managedSession.KeepAlive += (s, e) =>
                 throw new InvalidOperationException("first handler boom");
@@ -220,7 +218,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public void KeepAliveEventForwardsToConsumer()
         {
             bool fired = false;
-            ISession receivedSender = null;
+            ISession? receivedSender = null;
             m_managedSession.KeepAlive += (sender, e) =>
             {
                 fired = true;
@@ -235,17 +233,17 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void ChannelStateChangedForwardsManagedChannelTransitions()
+        public async Task ChannelStateChangedForwardsManagedChannelTransitions()
         {
             var innerSession = SessionMock.Create();
             innerSession.SetConnected();
             Mock<IManagedTransportChannel> channel = CreateManagedChannelMock(
                 out Action<ChannelStateChange> raiseStateChanged);
-            using ManagedSessionClass managedSession = CreateManagedSessionWithInner(
+            await using ManagedSessionClass managedSession = await CreateManagedSessionWithInnerAsync(
                 innerSession,
-                channel.Object);
+                channel.Object).ConfigureAwait(false);
             var observedChanges = new List<ChannelStateChange>();
-            ManagedSessionClass observedSender = null;
+            ManagedSessionClass? observedSender = null;
 
             managedSession.ChannelStateChanged += (sender, change) =>
             {
@@ -304,16 +302,16 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         [Test]
-        public void ConnectionStateChangedIncludesUnderlyingChannelStateWhenChannelFaulted()
+        public async Task ConnectionStateChangedIncludesUnderlyingChannelStateWhenChannelFaulted()
         {
             var innerSession = SessionMock.Create();
             innerSession.SetConnected();
             Mock<IManagedTransportChannel> channel = CreateManagedChannelMock(
                 out Action<ChannelStateChange> raiseStateChanged);
-            using ManagedSessionClass managedSession = CreateManagedSessionWithInner(
+            await using ManagedSessionClass managedSession = await CreateManagedSessionWithInnerAsync(
                 innerSession,
-                channel.Object);
-            ConnectionStateChangedEventArgs observedArgs = null;
+                channel.Object).ConfigureAwait(false);
+            ConnectionStateChangedEventArgs? observedArgs = null;
             var error = new ServiceResult(StatusCodes.BadSecureChannelClosed);
             var channelChange = new ChannelStateChange(
                 ChannelState.Ready,
@@ -321,9 +319,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                 error,
                 3);
 
-            SetStateMachineState(
-                managedSession.StateMachine,
-                ConnectionState.Connected);
+            Assert.That(managedSession.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
             managedSession.ConnectionStateChanged += (_, e) =>
             {
                 if (e.NewState == ConnectionState.Reconnecting)
@@ -344,7 +340,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public void NotificationEventForwardsToConsumer()
         {
             bool fired = false;
-            ISession receivedSender = null;
+            ISession? receivedSender = null;
             m_managedSession.Notification += (sender, e) =>
             {
                 fired = true;
@@ -361,7 +357,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public void PublishErrorEventForwardsToConsumer()
         {
             bool fired = false;
-            ISession receivedSender = null;
+            ISession? receivedSender = null;
             m_managedSession.PublishError += (sender, e) =>
             {
                 fired = true;
@@ -378,11 +374,11 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         public void SubscriptionsChangedEventForwardsToConsumer()
         {
             bool fired = false;
-            object receivedSender = null;
+            object? receivedSender = null;
             m_managedSession.SubscriptionsChanged += (sender, e) =>
             {
                 fired = true;
-                receivedSender = sender;
+                receivedSender = sender!;
             };
 
             RaiseSubscriptionsChangedOnInner(m_innerSession);
@@ -601,7 +597,7 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             Func<TResponse> responseFactory)
             where TResponse : class, IServiceResponse, new()
         {
-            IServiceRequest captured = null;
+            IServiceRequest? captured = null;
             m_innerSession.Channel
                 .Setup(c => c.SendRequestAsync(
                     It.IsAny<IServiceRequest>(),
@@ -680,25 +676,21 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         }
 
         /// <summary>
-        /// Creates a <see cref="ManagedSessionClass"/> with
-        /// the given inner session injected via reflection, bypassing
-        /// the async factory that needs a real server.
+        /// Connects a managed session through a mock factory so its worker and service gate follow the real lifecycle.
         /// </summary>
-        private static ManagedSessionClass
-            CreateManagedSessionWithInner(
+        private static async Task<ManagedSessionClass>
+            CreateManagedSessionWithInnerAsync(
                 Session innerSession,
-                IManagedTransportChannel managedChannel = null)
+                IManagedTransportChannel? managedChannel = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
-            ILogger<ManagedSessionClass> logger = telemetry.CreateLogger<ManagedSessionClass>();
-
             var configuration = new ApplicationConfiguration(telemetry)
             {
                 ClientConfiguration = new ClientConfiguration()
             };
 
             var endpoint = new ConfiguredEndpoint(
-                null,
+                null!,
                 new EndpointDescription
                 {
                     SecurityMode = MessageSecurityMode.None,
@@ -707,63 +699,22 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     UserIdentityTokens = [new UserTokenPolicy()]
                 });
 
-            var reconnectPolicy = new ReconnectPolicy();
             var sessionFactory = new Mock<ISessionFactory>();
             sessionFactory.SetupGet(f => f.Telemetry)
                 .Returns(telemetry);
-
-            ConstructorInfo ctor = typeof(ManagedSessionClass)
-                .GetConstructor(
-                    BindingFlags.NonPublic | BindingFlags.Instance,
-                    null,
-                    [
-                        typeof(ApplicationConfiguration),
-                        typeof(ConfiguredEndpoint),
-                        typeof(ISessionFactory),
-                        typeof(IReconnectPolicy),
-                        typeof(IServerRedundancyHandler),
-                        typeof(ILogger),
-                        typeof(IUserIdentity),
-                        typeof(IClientIdentityProvider),
-                        typeof(TimeProvider),
-                        typeof(ArrayOf<string>),
-                        typeof(string),
-                        typeof(uint),
-                        typeof(bool),
-                        typeof(bool),
-                        typeof(bool),
-                        typeof(bool),
-                        typeof(NetworkRedundancyOptions),
-                        typeof(IClientChannelManager),
-                        typeof(IClientConnectGate)
-                    ],
-                    null);
-
-            Assert.That(ctor, Is.Not.Null);
-
-            var managed =
-                (ManagedSessionClass)ctor.Invoke(
-                [
+            sessionFactory.SetupGet(f => f.SubscriptionEngineFactory)
+                .Returns(DefaultSubscriptionEngineFactory.Instance);
+            sessionFactory.Setup(f => f.CreateAsync(
                     configuration,
                     endpoint,
-                    sessionFactory.Object,
-                    reconnectPolicy,
-                    null,
-                    logger,
-                    null,
-                    null,
-                    null,
-                    default(ArrayOf<string>),
-                    "TestManagedSession",
-                    60000u,
                     false,
                     false,
-                    false,
-                    false,
-                    null,
-                    null,
-                    null
-                ]);
+                    It.IsAny<string>(),
+                    It.IsAny<uint>(),
+                    It.IsAny<IUserIdentity>(),
+                    It.IsAny<ArrayOf<string>>(),
+                    It.IsAny<CancellationToken>()))
+                .ReturnsAsync(innerSession);
 
             if (managedChannel != null)
             {
@@ -773,21 +724,16 @@ namespace Opc.Ua.Client.Tests.ManagedSession
                     managedChannel);
             }
 
-            // Inject the inner session.
-            typeof(ManagedSessionClass)
-                .GetField(
-                    "m_session",
-                    BindingFlags.NonPublic | BindingFlags.Instance)
-                .SetValue(managed, innerSession);
-
-            // Wire events so the ManagedSession forwards inner
-            // session events to its own subscribers.
-            typeof(ManagedSessionClass)
-                .GetMethod(
-                    "WireSessionEvents",
-                    BindingFlags.NonPublic | BindingFlags.Instance)
-                .Invoke(managed, [innerSession]);
-
+            using var timeout = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+            ManagedSessionClass managed = await ManagedSessionClass.CreateAsync(
+                configuration,
+                endpoint,
+                sessionFactory.Object,
+                sessionName: "TestManagedSession",
+                updateBeforeConnect: false,
+                ct: timeout.Token).ConfigureAwait(false);
+            Assert.That(managed.InnerSession, Is.SameAs(innerSession));
+            Assert.That(managed.StateMachine.State, Is.EqualTo(ConnectionState.Connected));
             return managed;
         }
 
@@ -802,24 +748,14 @@ namespace Opc.Ua.Client.Tests.ManagedSession
             return channel;
         }
 
-        private static void SetStateMachineState(
-            ConnectionStateMachine stateMachine,
-            ConnectionState state)
-        {
-            FieldInfo field = typeof(ConnectionStateMachine).GetField(
-                "m_state",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            field.SetValue(stateMachine, state);
-        }
-
         private static void RaiseKeepAliveOnInner(
             Session session,
-            ServiceResult status = null)
+            ServiceResult? status = null)
         {
             FieldInfo field = typeof(Session).GetField(
                 "m_KeepAlive",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            var handler = (KeepAliveEventHandler)field.GetValue(session);
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var handler = (KeepAliveEventHandler)field!.GetValue(session)!;
             handler?.Invoke(
                 session,
                 new KeepAliveEventArgs(
@@ -830,21 +766,21 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             FieldInfo field = typeof(Session).GetField(
                 "m_Publish",
-                BindingFlags.NonPublic | BindingFlags.Instance);
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
             var handler =
-                (NotificationEventHandler)field.GetValue(session);
+                (NotificationEventHandler)field!.GetValue(session)!;
             handler?.Invoke(
                 session,
-                new NotificationEventArgs(null, null, default));
+                new NotificationEventArgs(null!, null!, default));
         }
 
         private static void RaisePublishErrorOnInner(Session session)
         {
             FieldInfo field = typeof(Session).GetField(
                 "m_PublishError",
-                BindingFlags.NonPublic | BindingFlags.Instance);
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
             var handler =
-                (PublishErrorEventHandler)field.GetValue(session);
+                (PublishErrorEventHandler)field!.GetValue(session)!;
             handler?.Invoke(
                 session,
                 new PublishErrorEventArgs(
@@ -856,8 +792,8 @@ namespace Opc.Ua.Client.Tests.ManagedSession
         {
             FieldInfo field = typeof(Session).GetField(
                 "m_SubscriptionsChanged",
-                BindingFlags.NonPublic | BindingFlags.Instance);
-            var handler = (EventHandler)field.GetValue(session);
+                BindingFlags.NonPublic | BindingFlags.Instance)!;
+            var handler = (EventHandler)field!.GetValue(session)!;
             handler?.Invoke(session, EventArgs.Empty);
         }
     }

@@ -34,6 +34,7 @@ using System.Globalization;
 using System.Linq;
 using System.Net;
 using System.Net.Sockets;
+using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Threading;
 using System.Threading.Tasks;
@@ -46,7 +47,7 @@ namespace Opc.Ua
     /// <summary>
     /// A base class for a UA server implementation.
     /// </summary>
-    public partial class ServerBase : IServerBase
+    public partial class ServerBase : IServerBase, IResourceIsolationProviderSource, IRequestParkingPolicySource
     {
         /// <summary>
         /// Initializes object with default values.
@@ -75,12 +76,25 @@ namespace Opc.Ua
         public ServerBase(
             ITelemetryContext telemetry,
             ITransportBindingRegistry? transportBindings)
+            : this(telemetry, transportBindings, requestParkingPolicy: null)
+        {
+        }
+
+        /// <summary>
+        /// Constructs a server with optional transport bindings and a custom-handler parking policy.
+        /// The policy supplements intrinsic Publish support and does not override DecoupleHeldPublishRequests.
+        /// </summary>
+        public ServerBase(
+            ITelemetryContext telemetry,
+            ITransportBindingRegistry? transportBindings,
+            IRequestParkingPolicy? requestParkingPolicy)
         {
             ServerError = new ServiceResult(StatusCodes.BadServerHalted);
             m_requestQueue = new RequestQueue(this, 10, 100, 1000);
             m_telemetry = telemetry;
             m_logger = m_telemetry.CreateLogger(this);
             m_transportBindings = transportBindings;
+            RequestParkingPolicy = requestParkingPolicy;
         }
 
         /// <summary>
@@ -209,6 +223,12 @@ namespace Opc.Ua
         public IServiceResponseMutator? ResponseMutator { get; set; }
 
         /// <summary>
+        /// Gets or sets the optional custom-handler parking policy. Configure it before starting the server.
+        /// Publish parking remains intrinsic; DecoupleHeldPublishRequests disables all worker decoupling.
+        /// </summary>
+        public IRequestParkingPolicy? RequestParkingPolicy { get; set; }
+
+        /// <summary>
         /// Returns the endpoints supported by the server.
         /// </summary>
         /// <returns>Returns a collection of EndpointDescription.</returns>
@@ -226,7 +246,7 @@ namespace Opc.Ua
             IEndpointIncomingRequest request,
             CancellationToken cancellationToken = default)
         {
-            m_requestQueue.ScheduleIncomingRequest(request);
+            m_requestQueue.ScheduleIncomingRequest(request, cancellationToken);
         }
 
         /// <summary>
@@ -320,7 +340,7 @@ namespace Opc.Ua
         /// for a UA application</param>
         /// <param name="cancellationToken">The cancellation token</param>
         /// <param name="baseAddresses">The array of Uri elements which contains base addresses.</param>
-        /// <returns>Returns a host for a UA service.</returns>
+        /// <returns>The default service host, which the caller must open.</returns>
         /// <exception cref="ArgumentNullException"><paramref name="configuration"/> is <c>null</c>.</exception>
         /// <exception cref="ServiceResultException"></exception>
         public async ValueTask<ServiceHost> StartAsync(
@@ -383,6 +403,7 @@ namespace Opc.Ua
                 }
             }
 
+            await CompleteServerStartAsync(cancellationToken).ConfigureAwait(false);
             return hosts[0];
         }
 
@@ -439,6 +460,43 @@ namespace Opc.Ua
                     serviceHost.Open();
                     ServiceHosts.Add(serviceHost);
                 }
+            }
+
+            await CompleteServerStartAsync(cancellationToken).ConfigureAwait(false);
+        }
+
+        private async ValueTask CompleteServerStartAsync(
+            CancellationToken cancellationToken)
+        {
+            try
+            {
+                await OnServerStartedAsync(cancellationToken).ConfigureAwait(false);
+            }
+            catch (Exception startupException) when (
+                startupException is not OutOfMemoryException)
+            {
+                ServerError = null!;
+                try
+                {
+                    await StopAsync(CancellationToken.None).ConfigureAwait(false);
+                }
+                catch (Exception cleanupException) when (
+                    cleanupException is not OutOfMemoryException)
+                {
+                    throw new AggregateException(
+                        "Server post-start initialization and cleanup both failed.",
+                        startupException,
+                        cleanupException);
+                }
+                if (ServerError is not null &&
+                    ServiceResult.IsBad(ServerError))
+                {
+                    throw new AggregateException(
+                        "Server post-start initialization failed and shutdown reported an error.",
+                        startupException,
+                        new ServiceResultException(ServerError));
+                }
+                throw;
             }
         }
 
@@ -607,7 +665,9 @@ namespace Opc.Ua
                 minRequestThreadCount,
                 maxRequestThreadCount,
                 maxQueuedRequestCount,
-                decoupleHeldPublishRequests);
+                decoupleHeldPublishRequests,
+                ResourceIsolationProvider,
+                configuration.TransportQuotas?.MaxMessageSize ?? TcpMessageLimits.DefaultMaxMessageSize);
 
             // a fresh request queue re-arms the shutdown sequence for the (re)started server.
             lock (m_stopLock)
@@ -627,6 +687,14 @@ namespace Opc.Ua
         protected void StopRequestQueue()
         {
             m_requestQueue?.Dispose();
+        }
+
+        /// <summary>
+        /// Cancels admissions and drains executing and parked requests before server state is torn down.
+        /// </summary>
+        protected ValueTask StopRequestQueueAsync(CancellationToken cancellationToken = default)
+        {
+            return m_requestQueue?.StopAsync(cancellationToken) ?? default;
         }
 
         /// <summary>
@@ -710,6 +778,10 @@ namespace Opc.Ua
                 listeners.Clear();
             }
 
+            // The listeners are gone and their channels with them; a restart
+            // sizes a new budget from the configuration it is started with.
+            m_defaultChunkReassemblyBudget = null;
+
             // close the hosts.
             lock (ServiceHosts)
             {
@@ -775,21 +847,92 @@ namespace Opc.Ua
             ICertificateRegistry serverCertificates,
             bool checkRequireEncryption = true)
         {
+            SetServerCertificateInEndpointDescription(
+                description, serverCertificates, checkRequireEncryption, securityPolicies: null);
+        }
+
+        internal static void SetServerCertificateInEndpointDescription(
+            EndpointDescription description,
+            ICertificateRegistry serverCertificates,
+            bool checkRequireEncryption,
+            ISecurityPolicyRegistry? securityPolicies)
+        {
             if (!checkRequireEncryption || RequireEncryption(description))
             {
-                using CertificateEntry? instanceEntry = serverCertificates
-                    .AcquireApplicationCertificateBySecurityPolicy(description.SecurityPolicyUri!);
-                Certificate? serverCertificate = instanceEntry?.Certificate;
+                using CertificateEntry instanceEntry = AcquireEndpointCertificate(
+                    description, serverCertificates, securityPolicies) ??
+                    throw ServiceResultException.ConfigurationError(
+                        "No application certificate is compatible with the endpoint's " +
+                        "security and user token policies.");
                 // check if complete chain should be sent.
                 if (serverCertificates.SendCertificateChain)
                 {
-                    description.ServerCertificate = instanceEntry!.GetEncodedChainBlob().ToByteString();
+                    description.ServerCertificate = instanceEntry.GetEncodedChainBlob().ToByteString();
                 }
                 else
                 {
-                    description.ServerCertificate = serverCertificate!.RawData.ToByteString();
+                    description.ServerCertificate = instanceEntry.Certificate.RawData.ToByteString();
                 }
             }
+        }
+
+        internal static CertificateEntry? AcquireEndpointCertificate(
+            EndpointDescription description,
+            ICertificateRegistry certificates,
+            ISecurityPolicyRegistry? securityPolicies = null)
+        {
+            return description.SecurityMode == MessageSecurityMode.None
+                ? AcquireNoneEndpointTokenCertificate(
+                    description.UserIdentityTokens, certificates, securityPolicies ?? SecurityPolicies.Default)
+                : certificates.AcquireApplicationCertificateBySecurityPolicy(description.SecurityPolicyUri!);
+        }
+
+        private static CertificateEntry? AcquireNoneEndpointTokenCertificate(
+            ArrayOf<UserTokenPolicy> policies,
+            ICertificateRegistry certificates,
+            ISecurityPolicyRegistry securityPolicies)
+        {
+            var constraints = new List<SecurityPolicyInfo>();
+            foreach (UserTokenPolicy policy in policies)
+            {
+                if (policy.TokenType is not (UserTokenType.UserName or UserTokenType.IssuedToken) ||
+                    policy.SecurityPolicyUri == SecurityPolicies.None)
+                {
+                    continue;
+                }
+                SecurityPolicyInfo? info = securityPolicies.GetInfo(
+                    string.IsNullOrEmpty(policy.SecurityPolicyUri)
+                        ? SecurityPolicies.Basic256Sha256
+                        : policy.SecurityPolicyUri);
+                if (info?.CertificateKeyFamily != CertificateKeyFamily.RSA ||
+                    info.EphemeralKeyAlgorithm != CertificateKeyAlgorithm.None)
+                {
+                    return null;
+                }
+                constraints.Add(info);
+            }
+            if (constraints.Count == 0)
+            {
+                return certificates.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.None);
+            }
+
+            using CertificateEntryCollection entries = certificates.SnapshotApplicationCertificates();
+            foreach (CertificateEntry entry in entries)
+            {
+                if (!CertificateIdentifier.IsRsaCertificateType(entry.CertificateType))
+                {
+                    continue;
+                }
+                using RSA? key = entry.Certificate.GetRSAPublicKey();
+                if (key != null &&
+                    constraints.All(policy =>
+                        key.KeySize >= policy.MinAsymmetricKeyLength &&
+                        (policy.MaxAsymmetricKeyLength <= 0 || key.KeySize <= policy.MaxAsymmetricKeyLength)))
+                {
+                    return entry.AddRef();
+                }
+            }
+            return null;
         }
 
         /// <summary>
@@ -816,6 +959,11 @@ namespace Opc.Ua
             /// The discovery URL for the address.
             /// </summary>
             public Uri? DiscoveryUrl { get; set; }
+
+            /// <summary>
+            /// Gets the transport profiles explicitly requested for this base address.
+            /// </summary>
+            internal ArrayOf<string> RequestedProfiles { get; init; }
         }
 
         /// <summary>
@@ -844,6 +992,35 @@ namespace Opc.Ua
         /// reachable by a connecting client.
         /// </remarks>
         public ISecurityPolicyRegistry? SecurityPolicyRegistry { get; set; }
+
+        /// <summary>
+        /// The budget that bounds the memory the chunks of incomplete messages
+        /// hold across all the transport listeners of the server, or <c>null</c>
+        /// to let the server create one.
+        /// </summary>
+        /// <remarks>
+        /// Set this before starting the server to size the budget, or to share
+        /// one budget between the servers of a process - a dependency-injected
+        /// server sets it from its container. When it is left <c>null</c> the
+        /// server creates a budget when it opens its listeners, sized by
+        /// <see cref="ChunkReassemblyBudget.GetDefaultMaxBytes(int)"/>
+        /// from the maximum message size of its transport quotas, and all its
+        /// listeners share it. Either way no connection can make the server keep
+        /// more than the budget for messages whose final chunk never arrives.
+        /// </remarks>
+        public ChunkReassemblyBudget? ChunkReassemblyBudget { get; set; }
+
+        /// <summary>
+        /// Optional session binding provider supplied by a direct host or its DI container.
+        /// Set before startup. Managed servers supply their session manager by default.
+        /// </summary>
+        public IServerSessionBindingProvider? SessionBindingProvider { get; set; }
+
+        /// <summary>
+        /// Gets or sets the shared resource-isolation policy used by listeners and decoded request dispatch.
+        /// Configure before startup; the host owns explicitly supplied providers.
+        /// </summary>
+        public IServerResourceIsolationProvider? ResourceIsolationProvider { get; set; }
 
         /// <summary>
         /// Gets or sets the encodeable factory to use for this server instance.
@@ -940,7 +1117,9 @@ namespace Opc.Ua
                 {
                     SetServerCertificateInEndpointDescription(
                         endpointDescription,
-                        serverCertificates);
+                        serverCertificates,
+                        checkRequireEncryption: true,
+                        SecurityPolicyRegistry);
                 }
 
                 foreach (ITransportListener listener in TransportListeners)
@@ -979,6 +1158,13 @@ namespace Opc.Ua
             {
                 IServiceMessageContext messageContext = m_messageContext
                     ?? throw new ServiceResultException(StatusCodes.BadServerHalted);
+
+                // One budget for all the listeners, so that a peer cannot hold
+                // the budget of each by spreading its connections across them.
+                ChunkReassemblyBudget chunkReassemblyBudget = ChunkReassemblyBudget ??
+                    (m_defaultChunkReassemblyBudget ??=
+                        global::Opc.Ua.Bindings.ChunkReassemblyBudget.CreateDefault(endpointConfiguration));
+
                 var settings = new TransportListenerSettings
                 {
                     Descriptions = endpoints,
@@ -988,7 +1174,10 @@ namespace Opc.Ua
                     SecurityPolicyRegistry = SecurityPolicyRegistry,
                     NamespaceUris = messageContext.NamespaceUris,
                     Factory = messageContext.Factory,
-                    MaxChannelCount = 0
+                    MaxChannelCount = 0,
+                    ChunkReassemblyBudget = chunkReassemblyBudget,
+                    SessionBindingProvider = SessionBindingProvider ?? this as IServerSessionBindingProvider,
+                    ResourceIsolationProvider = ResourceIsolationProvider
                 };
 
                 settings.MaxChannelCount = Configuration!.ServerConfiguration!.MaxChannelCount;
@@ -1076,6 +1265,23 @@ namespace Opc.Ua
                     {
                         // ensure a security policy is specified for user tokens.
                         clone.SecurityPolicyUri = SecurityPolicies.Basic256Sha256;
+                    }
+                }
+
+                if (description.SecurityMode == MessageSecurityMode.None &&
+                    clone.TokenType is UserTokenType.UserName or UserTokenType.IssuedToken &&
+                    clone.SecurityPolicyUri != SecurityPolicies.None)
+                {
+                    ICertificateRegistry? certificates = configuration.CertificateManager ?? CertificateManager;
+                    using CertificateEntry? tokenCertificate = certificates == null
+                        ? null
+                        : AcquireNoneEndpointTokenCertificate(
+                            [.. policies, clone], certificates, SecurityPolicyRegistry ?? SecurityPolicies.Default);
+                    if (tokenCertificate == null)
+                    {
+                        m_logger.IncompatibleNoneEndpointTokenPolicy(
+                            clone.TokenType, clone.SecurityPolicyUri, description.EndpointUrl);
+                        continue;
                     }
                 }
 
@@ -1207,14 +1413,24 @@ namespace Opc.Ua
             }
 
             var filteredAddresses = new List<BaseAddress>();
+            ArrayOf<string> requestedProfiles = profileUris.ConvertAll(Profiles.NormalizeUri);
 
             foreach (BaseAddress baseAddress in baseAddresses)
             {
-                foreach (string profileUri in profileUris)
+                string baseProfile = TransportProfileIdentity.GetEffective(baseAddress.ProfileUri, baseAddress.Url.ToString());
+                foreach (string profileUri in requestedProfiles)
                 {
-                    if (baseAddress.ProfileUri == Profiles.NormalizeUri(profileUri))
+                    if (baseProfile == profileUri ||
+                        ServesSameScheme(baseProfile, profileUri))
                     {
-                        filteredAddresses.Add(baseAddress);
+                        filteredAddresses.Add(new BaseAddress
+                        {
+                            Url = baseAddress.Url,
+                            AlternateUrls = baseAddress.AlternateUrls,
+                            ProfileUri = baseProfile,
+                            DiscoveryUrl = baseAddress.DiscoveryUrl,
+                            RequestedProfiles = requestedProfiles
+                        });
                         break;
                     }
                 }
@@ -1246,14 +1462,16 @@ namespace Opc.Ua
                     {
                         if (alternateUrl.IdnHost == endpointUrl.IdnHost)
                         {
-                            if (!accessibleAddresses.Any(item => item.Url == alternateUrl))
+                            if (!accessibleAddresses.Any(item =>
+                                item.Url == alternateUrl && item.ProfileUri == baseAddress.ProfileUri))
                             {
                                 accessibleAddresses.Add(
                                     new BaseAddress
                                     {
                                         Url = alternateUrl,
                                         ProfileUri = baseAddress.ProfileUri,
-                                        DiscoveryUrl = alternateUrl
+                                        DiscoveryUrl = alternateUrl,
+                                        RequestedProfiles = baseAddress.RequestedProfiles
                                     });
                             }
                             break;
@@ -1338,7 +1556,8 @@ namespace Opc.Ua
                 ApplicationUri = description.ApplicationUri,
                 ApplicationType = description.ApplicationType,
                 ProductUri = description.ProductUri,
-                GatewayServerUri = description.DiscoveryProfileUri,
+                GatewayServerUri = description.GatewayServerUri,
+                DiscoveryProfileUri = description.DiscoveryProfileUri,
                 DiscoveryUrls = discoveryUrls
             };
 
@@ -1377,19 +1596,20 @@ namespace Opc.Ua
                 foreach (EndpointDescription endpoint in endpoints)
                 {
                     var endpointUrl = new UriBuilder(endpoint.EndpointUrl!);
+                    string endpointProfile = TransportProfileIdentity.GetEffective(
+                        endpoint.TransportProfileUri, endpoint.EndpointUrl!);
 
                     // find matching base address.
                     foreach (BaseAddress baseAddress in baseAddresses)
                     {
-                        bool translateHttpsEndpoint = false;
-                        if (endpoint.TransportProfileUri == Profiles.HttpsBinaryTransport &&
-                            baseAddress.ProfileUri == Profiles.HttpsBinaryTransport)
+                        string baseProfile = TransportProfileIdentity.GetEffective(
+                            baseAddress.ProfileUri, baseAddress.Url.ToString());
+                        if (!baseAddress.RequestedProfiles.IsEmpty &&
+                            !baseAddress.RequestedProfiles.Contains(endpointProfile))
                         {
-                            translateHttpsEndpoint = true;
+                            continue;
                         }
-
-                        if (endpoint.TransportProfileUri != baseAddress.ProfileUri &&
-                            !translateHttpsEndpoint)
+                        if (endpointProfile != baseProfile && !ServesSameScheme(baseProfile, endpointProfile))
                         {
                             continue;
                         }
@@ -1424,14 +1644,21 @@ namespace Opc.Ua
                         translation.SecurityMode = endpoint.SecurityMode;
                         translation.SecurityPolicyUri = endpoint.SecurityPolicyUri;
                         translation.ServerCertificate = endpoint.ServerCertificate;
-                        translation.TransportProfileUri = endpoint.TransportProfileUri;
+                        translation.TransportProfileUri = endpointProfile;
                         translation.UserIdentityTokens = endpoint.UserIdentityTokens;
                         translation.Server = application;
 
+                        // The transport profile is part of the identity: binary,
+                        // JSON and OpenAPI endpoints share a URL, security mode
+                        // and policy, so leaving it out collapses them into one.
                         if (!translations.Exists(match =>
                                 match.EndpointUrl!
                                     .Equals(translation.EndpointUrl, StringComparison.Ordinal) &&
                                 match.SecurityMode == translation.SecurityMode &&
+                                string.Equals(
+                                    match.TransportProfileUri,
+                                    translation.TransportProfileUri,
+                                    StringComparison.Ordinal) &&
                                 match.SecurityPolicyUri!.Equals(
                                     translation.SecurityPolicyUri,
                                     StringComparison.Ordinal)))
@@ -1442,10 +1669,75 @@ namespace Opc.Ua
                 }
             } while (matchPort && translations.Count == 0);
 
-            translations.Sort(
-                (ep1, ep2) => string.CompareOrdinal(ep1.EndpointUrl, ep2.EndpointUrl));
+            // Ordered by URL, then by transport profile. The HTTPS binary, JSON
+            // and OpenAPI descriptions of one listener share a URL, security mode
+            // and policy, and List.Sort is not stable - without the second key a
+            // client that picks "the first endpoint that fits" (which is what
+            // CoreClientUtils.SelectEndpoint does, having no transport filter of
+            // its own) would get an arbitrary one of the three and fail to open a
+            // channel for a profile it has no binding for. Binary sorts first, so
+            // that client keeps getting the endpoint it got before the JSON and
+            // OpenAPI twins were published at all.
+            translations.Sort((ep1, ep2) =>
+            {
+                int byUrl = string.CompareOrdinal(ep1.EndpointUrl, ep2.EndpointUrl);
+                return byUrl != 0
+                    ? byUrl
+                    : TransportProfileRank(ep1.TransportProfileUri)
+                        .CompareTo(TransportProfileRank(ep2.TransportProfileUri));
+            });
 
             return translations;
+        }
+
+        /// <summary>
+        /// Returns whether an endpoint's transport profile is served by the same
+        /// URL scheme as a base address's profile, so the endpoint belongs on
+        /// that address even though the two profile URIs differ.
+        /// </summary>
+        private static bool ServesSameScheme(
+            string? baseAddressProfileUri,
+            string? endpointProfileUri)
+        {
+            if (TransportProfileIdentity.IsHttps(baseAddressProfileUri))
+            {
+                return TransportProfileIdentity.IsHttps(endpointProfileUri);
+            }
+
+            if (Profiles.IsWssBinary(baseAddressProfileUri))
+            {
+                return Profiles.IsWssOpenApi(endpointProfileUri) ||
+                    string.Equals(
+                        endpointProfileUri,
+                        Profiles.UaWssJsonTransport,
+                        StringComparison.Ordinal);
+            }
+
+            return false;
+        }
+
+        /// <summary>
+        /// Orders transport profiles so that the binary encodings a client is
+        /// always able to speak are offered ahead of the JSON and OpenAPI ones.
+        /// </summary>
+        private static int TransportProfileRank(string? transportProfileUri)
+        {
+            if (Profiles.IsHttpsJson(transportProfileUri) ||
+                string.Equals(
+                    transportProfileUri,
+                    Profiles.UaWssJsonTransport,
+                    StringComparison.Ordinal))
+            {
+                return 1;
+            }
+
+            if (Profiles.IsHttpsOpenApi(transportProfileUri) ||
+                Profiles.IsWssOpenApi(transportProfileUri))
+            {
+                return 2;
+            }
+
+            return 0;
         }
 
         /// <summary>
@@ -1768,6 +2060,29 @@ namespace Opc.Ua
         }
 
         /// <summary>
+        /// Called after server application initialization, before <c>StartAsync</c> returns.
+        /// </summary>
+        /// <remarks>
+        /// <para>
+        /// <see cref="StartAsync(ApplicationConfiguration, CancellationToken)"/> invokes this
+        /// hook after opening all service hosts.
+        /// </para>
+        /// <para>
+        /// <see cref="StartAsync(ApplicationConfiguration, CancellationToken, Uri[])"/> invokes
+        /// this hook after opening only the additional service hosts, if any. The default
+        /// service host returned by that overload is still unopened; the caller or WCF opens
+        /// it afterwards. Overrides must not assume that the default host is accepting
+        /// connections when this hook runs.
+        /// </para>
+        /// </remarks>
+        /// <param name="cancellationToken">The cancellation token.</param>
+        protected virtual ValueTask OnServerStartedAsync(
+            CancellationToken cancellationToken = default)
+        {
+            return default;
+        }
+
+        /// <summary>
         /// Called before the server stops
         /// </summary>
         protected virtual ValueTask OnServerStoppingAsync(CancellationToken cancellationToken = default)
@@ -1820,6 +2135,12 @@ namespace Opc.Ua
         private readonly ITelemetryContext m_telemetry;
         private ITransportBindingRegistry? m_transportBindings;
 
+        /// <summary>
+        /// The budget the server created for its listeners because
+        /// <see cref="ChunkReassemblyBudget"/> was not set.
+        /// </summary>
+        private ChunkReassemblyBudget? m_defaultChunkReassemblyBudget;
+
         private bool m_disposed;
         private bool m_ownsCertificateManager;
         private readonly Lock m_stopLock = new();
@@ -1831,77 +2152,84 @@ namespace Opc.Ua
     /// </summary>
     internal static partial class ServerBaseLog
     {
+        [LoggerMessage(EventId = CoreEventIds.ServerBase + 12, Level = LogLevel.Error,
+            Message = "Omitting {TokenType} token policy {SecurityPolicy} on None endpoint {EndpointUrl}: " +
+                "a compatible RSA application certificate and non-key-agreement token policy are required.")]
+        public static partial void IncompatibleNoneEndpointTokenPolicy(
+            this ILogger logger, UserTokenType tokenType, string? securityPolicy, string? endpointUrl);
+
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 0, Level = LogLevel.Error,
             Message = "Unexpected error disposing transport listener {Name}.")]
         public static partial void ServerBaseLogMessage0(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 1, Level = LogLevel.Information,
             Message = "Create Reverse Connection to Client at {Url}.")]
-        public static partial void ServerBaseLogMessage1(this ILogger logger, global::System.Uri url);
+        public static partial void ServerBaseLogMessage1(this ILogger logger, Uri url);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 2, Level = LogLevel.Error,
             Message = "Unexpected error closing a listener {Name}.")]
         public static partial void ServerBaseLogMessage2(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 3, Level = LogLevel.Error,
             Message = "Unexpected error disposing a listener {Name}.")]
         public static partial void ServerBaseLogMessage3(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 4, Level = LogLevel.Error,
             Message = "Failed to update Instance Certificates: {ApplicationCertificateCount}")]
         public static partial void ServerBaseLogMessage4(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             int applicationCertificateCount);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 5, Level = LogLevel.Error,
             Message = "Could not load {Scheme} Stack Listener.")]
         public static partial void ServerBaseLogMessage5(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string? scheme);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 6, Level = LogLevel.Warning,
             Message = "Unable to get host addresses for hostname {Name}.")]
         public static partial void ServerBaseLogMessage6(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 7, Level = LogLevel.Error,
             Message = "Unable to get host addresses for DNS hostname {Name}.")]
         public static partial void ServerBaseLogMessage7(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 8, Level = LogLevel.Error,
             Message = "Unable to check aliases for hostname {Name}.")]
         public static partial void ServerBaseLogMessage8(
             this ILogger logger,
-            global::System.Exception? exception,
+            Exception? exception,
             string name);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 9, Level = LogLevel.Debug,
             Message = "Too many operations. Active threads: {Count}")]
-        public static partial void ServerBaseLogMessage9(this ILogger logger, int count);
+        public static partial void RequestQueueFull(this ILogger logger, int count);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 10, Level = LogLevel.Error,
             Message = "Unexpected error processing incoming request.")]
-        public static partial void ServerBaseLogMessage10(this ILogger logger, global::System.Exception? exception);
+        public static partial void RequestQueueProcessingFailed(
+            this ILogger logger, Exception? exception);
 
         [LoggerMessage(EventId = CoreEventIds.ServerBase + 11, Level = LogLevel.Error,
             Message = "Failed to fault an incoming request after an error.")]
-        public static partial void ServerBaseLogMessage11(this ILogger logger, global::System.Exception? exception);
+        public static partial void RequestFaultDeliveryFailed(
+            this ILogger logger, Exception? exception);
     }
-
 }

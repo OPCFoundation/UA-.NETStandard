@@ -159,6 +159,31 @@ namespace Opc.Ua.Wot
             nodeSet.Extensions = extensions.Count == 0 ? null : [.. extensions];
         }
 
+        /// <summary>
+        /// Parses one residue member, reporting a malformed one instead of
+        /// letting the JsonException escape the public entry point.
+        /// </summary>
+        private static JsonDocument? TryParseResidue(
+            Entry entry,
+            WotNodeSetConverterOptions options,
+            List<WotDiagnostic> diagnostics)
+        {
+            try
+            {
+                return JsonDocument.Parse(
+                    entry.Json,
+                    new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
+            }
+            catch (JsonException ex)
+            {
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ResidueInvalid,
+                    "Residue at '" + entry.Pointer + "' is not valid JSON: " + ex.Message,
+                    WotLocation.FromPointer(entry.Pointer)));
+                return null;
+            }
+        }
         internal static void RemoveDocumentSetLinks(
             UANodeSet nodeSet,
             WotDocument document,
@@ -170,31 +195,42 @@ namespace Opc.Ua.Wot
             var retained = new List<Entry>();
             foreach (Entry entry in entries)
             {
-                using var value = JsonDocument.Parse(
-                    entry.Json, new JsonDocumentOptions { MaxDepth = options.MaxJsonDepth });
-                if (entry.Pointer == "/data" &&
-                    WotNodeSetConverter.IsGeneratedEventDefinitionData(
-                        document, nodeSet, value.RootElement, options.MaxJsonDepth))
+                // Residue is document content, so a malformed member must be
+                // reported rather than thrown out of the public
+                // MergeNodeSetPartitions entry point.
+                JsonDocument? value = TryParseResidue(entry, options, diagnostics);
+                if (value is null)
                 {
+                    retained.Add(entry);
                     continue;
                 }
-                if (entry.Pointer.StartsWith("/events/", StringComparison.Ordinal) &&
-                    entry.Pointer.EndsWith("/tm:ref", StringComparison.Ordinal) &&
-                    value.RootElement.ValueKind == JsonValueKind.String &&
-                    documents.TryGetDocument(value.RootElement.GetString()!, out _))
+
+                using (value)
                 {
-                    continue;
+                    if (entry.Pointer == "/data" &&
+                        WotNodeSetConverter.IsGeneratedEventDefinitionData(
+                            document, nodeSet, value.RootElement, options.MaxJsonDepth))
+                    {
+                        continue;
+                    }
+                    if (entry.Pointer.StartsWith("/events/", StringComparison.Ordinal) &&
+                        entry.Pointer.EndsWith("/tm:ref", StringComparison.Ordinal) &&
+                        value.RootElement.ValueKind == JsonValueKind.String &&
+                        documents.TryGetDocument(value.RootElement.GetString()!, out _))
+                    {
+                        continue;
+                    }
+                    string? rel = entry.LinkRel ?? GetString(value.RootElement, "rel");
+                    string? href = entry.LinkHref ?? GetString(value.RootElement, "href");
+                    if (rel is WotNodeSetConverter.ComponentOfRel or
+                            WotNodeSetConverter.ComponentOfAliasRel &&
+                        href is not null && documents.TryGetDocument(href, out _) &&
+                        IsDocumentSetParentLink(value.RootElement))
+                    {
+                        continue;
+                    }
+                    retained.Add(entry);
                 }
-                string? rel = entry.LinkRel ?? GetString(value.RootElement, "rel");
-                string? href = entry.LinkHref ?? GetString(value.RootElement, "href");
-                if (rel is WotNodeSetConverter.ComponentOfRel or WotNodeSetConverter.ComponentOfAliasRel &&
-                    href is not null &&
-                    documents.TryGetDocument(href, out _) &&
-                    IsDocumentSetParentLink(value.RootElement))
-                {
-                    continue;
-                }
-                retained.Add(entry);
             }
             if (retained.Count == entries.Count)
             {
@@ -2467,7 +2503,7 @@ namespace Opc.Ua.Wot
             JsonNode? value,
             List<WotDiagnostic> diagnostics)
         {
-            if (root is not JsonObject rootObject || value is not JsonObject extras)
+            if (root is not JsonObject || value is not JsonObject extras)
             {
                 diagnostics.Add(new WotDiagnostic(
                     WotDiagnosticSeverity.Error,
@@ -2487,19 +2523,10 @@ namespace Opc.Ua.Wot
                     WotLocation.FromPointer(entry.Pointer)));
                 return null;
             }
-            JsonNode owner = rootObject;
-            for (int index = 0; index < tokens.Length - 2; index++)
+            JsonNode? owner = ResolveLinkOwner(root, entry.Pointer, diagnostics);
+            if (owner is null)
             {
-                if (owner is not JsonObject parent || parent[tokens[index]] is not JsonNode child)
-                {
-                    diagnostics.Add(new WotDiagnostic(
-                        WotDiagnosticSeverity.Error,
-                        WotDiagnosticCode.ResidueInvalid,
-                        "The owning node of a link residue selector does not exist.",
-                        WotLocation.FromPointer(entry.Pointer)));
-                    return null;
-                }
-                owner = child;
+                return null;
             }
             if (owner is not JsonObject linkOwner)
             {
@@ -2585,6 +2612,60 @@ namespace Opc.Ua.Wot
             return target;
         }
 
+        /// <summary>
+        /// Resolves the object whose <c>links</c> array a link residue entry
+        /// belongs to. Its pointer is "&lt;owner&gt;/links/-", so the owner is
+        /// everything before the trailing "/links/-".
+        /// </summary>
+        private static JsonNode? ResolveLinkOwner(
+            JsonNode root,
+            string pointer,
+            List<WotDiagnostic> diagnostics)
+        {
+            const string suffix = "/links/-";
+            if (!pointer.EndsWith(suffix, StringComparison.Ordinal))
+            {
+                // Not an affordance scoped capture: the Thing root owns it.
+                return root;
+            }
+
+            string ownerPointer = pointer[..^suffix.Length];
+            if (ownerPointer.Length == 0)
+            {
+                return root;
+            }
+
+            JsonNode current = root;
+            foreach (string token in ParsePointer(ownerPointer))
+            {
+                if (current is JsonObject obj && obj[token] is JsonNode child)
+                {
+                    current = child;
+                    continue;
+                }
+                if (current is JsonArray array &&
+                    int.TryParse(
+                        token,
+                        NumberStyles.None,
+                        CultureInfo.InvariantCulture,
+                        out int index) &&
+                    index >= 0 &&
+                    index < array.Count &&
+                    array[index] is JsonNode item)
+                {
+                    current = item;
+                    continue;
+                }
+                diagnostics.Add(new WotDiagnostic(
+                    WotDiagnosticSeverity.Error,
+                    WotDiagnosticCode.ResidueInvalid,
+                    $"Residue parent '{ownerPointer}' does not resolve.",
+                    WotLocation.FromPointer(pointer)));
+                return null;
+            }
+
+            return current;
+        }
         private static JsonObject? FindLink(
             JsonArray links,
             Entry entry,

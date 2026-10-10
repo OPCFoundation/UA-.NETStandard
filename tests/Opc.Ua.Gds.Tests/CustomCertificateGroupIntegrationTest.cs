@@ -87,12 +87,12 @@ namespace Opc.Ua.Gds.Tests
             {
                 await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
                 m_gdsClient.Dispose();
-                m_gdsClient = null;
+                m_gdsClient = null!;
             }
             if (m_server != null)
             {
                 await m_server.DisposeAsync().ConfigureAwait(false);
-                m_server = null;
+                m_server = null!;
             }
         }
 
@@ -174,13 +174,23 @@ namespace Opc.Ua.Gds.Tests
 #pragma warning disable IDE0007 // Use implicit type
                 NodeId defaultGroupId = ExpandedNodeId.ToNodeId(
                     ObjectIds.Directory_CertificateGroups_DefaultApplicationGroup,
-                    m_gdsClient.GDSClient.Session.NamespaceUris);
+                    m_gdsClient.GDSClient.Session!.NamespaceUris);
 #pragma warning restore IDE0007 // Use implicit type
 
                 // Verify the custom group NodeId is among the returned groups
                 NodeId customGroupNodeId = groups.ToList().FirstOrDefault(g => !Utils.IsEqual(g, defaultGroupId));
                 Assert.That(customGroupNodeId.IsNull, Is.False,
                     "The custom group NodeId must not be null");
+
+                // The identifier itself is minted by the server and may change,
+                // but the namespace it is minted in is part of the GDS contract:
+                // server-owned instance nodes live in the application record
+                // namespace, not in the companion model's.
+                Assert.That(
+                    m_gdsClient.GDSClient.Session.NamespaceUris
+                        .GetString(customGroupNodeId.NamespaceIndex),
+                    Is.EqualTo("http://opcfoundation.org/UA/GDS/applications/"),
+                    "The custom group node must live in the application record namespace");
 
                 // Read the BrowseName of the custom group node from the address space
                 Node customGroupNode = await m_gdsClient.GDSClient.Session

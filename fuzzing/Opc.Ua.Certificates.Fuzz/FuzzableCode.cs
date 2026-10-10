@@ -40,7 +40,7 @@ namespace Opc.Ua.Fuzzing
         public static void FuzzInfo()
         {
             Console.WriteLine("OPC UA certificate, CRL, PEM and ASN.1 fuzzer for afl-fuzz and libFuzzer.");
-            Console.WriteLine("Fuzzing targets for X509 CRLs, extensions, PEM, PKCS#10 and ASN.1 helpers.");
+            Console.WriteLine("Targets include certificate loading, both chain parsers and canonical CRL encoding.");
         }
 
         /// <summary>
@@ -48,6 +48,11 @@ namespace Opc.Ua.Fuzzing
         /// </summary>
         private static byte[] ReadAllBytes(Stream stream)
         {
+            if (stream == null)
+            {
+                throw new ArgumentNullException(nameof(stream));
+            }
+
             using var memoryStream = new MemoryStream();
             stream.CopyTo(memoryStream);
             return memoryStream.ToArray();

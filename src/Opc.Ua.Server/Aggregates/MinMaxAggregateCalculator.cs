@@ -110,21 +110,26 @@ namespace Opc.Ua.Server
                 return GetNoDataValue(slice);
             }
 
-            double minimumGoodValue = double.MaxValue;
-            double minimumUncertainValue = double.MaxValue;
-            double maximumGoodValue = double.MinValue;
-            double maximumUncertainValue = double.MinValue;
+            // Mantis 11426 ~0025852 (OPC Classic semantics of Minimum, Maximum, MinimumActualTime,
+            // MaximumActualTime and Range): Uncertain values are looked at as if they are Good and are
+            // candidates whatever TreatUncertainAsBad is; the status is Good unless Bad values exist in
+            // the interval or the selected extremum is Uncertain (then Uncertain_DataSubNormal), and
+            // Bad_NoData if all values are Bad.
+            double minimumValue = double.MaxValue;
+            double maximumValue = double.MinValue;
 
-            DateTime minimumGoodTimestamp = DateTime.MinValue;
-            DateTime maximumGoodTimestamp = DateTime.MinValue;
+            DateTime minimumTimestamp = DateTime.MinValue;
+            DateTime maximumTimestamp = DateTime.MinValue;
 
             TypeInfo minimumOriginalType = default;
             TypeInfo maximumOriginalType = default;
 
+            bool minimumIsUncertain = false;
+            bool maximumIsUncertain = false;
             bool badValuesExist = false;
             bool duplicatesMinimumsExist = false;
             bool duplicatesMaximumsExist = false;
-            bool goodValueExists = false;
+            bool nonBadValueExists = false;
 
             for (int ii = 0; ii < values.Count; ii++)
             {
@@ -132,7 +137,7 @@ namespace Opc.Ua.Server
                 StatusCode currentStatus = values[ii].StatusCode;
 
                 // ignore bad values.
-                if (!IsGood(values[ii]))
+                if (!IsBoundCandidate(values[ii]))
                 {
                     badValuesExist = true;
                     continue;
@@ -150,55 +155,43 @@ namespace Opc.Ua.Server
                     continue;
                 }
 
-                // check for uncertain.
-                if (StatusCode.IsUncertain(currentStatus))
-                {
-                    if (minimumUncertainValue > currentValue)
-                    {
-                        minimumUncertainValue = currentValue;
-                    }
-
-                    if (maximumUncertainValue < currentValue)
-                    {
-                        maximumUncertainValue = currentValue;
-                    }
-
-                    continue;
-                }
+                bool currentIsUncertain = StatusCode.IsUncertain(currentStatus);
 
                 // check for new minimum.
-                if (minimumGoodValue > currentValue)
+                if (!nonBadValueExists || minimumValue > currentValue)
                 {
-                    minimumGoodValue = currentValue;
-                    minimumGoodTimestamp = currentTime;
+                    minimumValue = currentValue;
+                    minimumTimestamp = currentTime;
                     minimumOriginalType = values[ii].WrappedValue.TypeInfo;
+                    minimumIsUncertain = currentIsUncertain;
                     duplicatesMinimumsExist = false;
-                    goodValueExists = true;
                 }
                 // check for duplicate minimums.
-                else if (minimumGoodValue == currentValue)
+                else if (minimumValue == currentValue)
                 {
                     duplicatesMinimumsExist = true;
                 }
 
                 // check for new maximum.
-                if (maximumGoodValue < currentValue)
+                if (!nonBadValueExists || maximumValue < currentValue)
                 {
-                    maximumGoodValue = currentValue;
-                    maximumGoodTimestamp = currentTime;
+                    maximumValue = currentValue;
+                    maximumTimestamp = currentTime;
                     maximumOriginalType = values[ii].WrappedValue.TypeInfo;
+                    maximumIsUncertain = currentIsUncertain;
                     duplicatesMaximumsExist = false;
-                    goodValueExists = true;
                 }
                 // check for duplicate maximums.
-                else if (maximumGoodValue == currentValue)
+                else if (maximumValue == currentValue)
                 {
                     duplicatesMaximumsExist = true;
                 }
+
+                nonBadValueExists = true;
             }
 
-            // check if at least one good value exists.
-            if (!goodValueExists)
+            // check if at least one non-bad value exists.
+            if (!nonBadValueExists)
             {
                 return GetNoDataValue(slice);
             }
@@ -206,8 +199,9 @@ namespace Opc.Ua.Server
             // set the status code.
             StatusCode statusCode = StatusCodes.Good;
 
-            // uncertain if any bad values exist.
-            if (badValuesExist)
+            if (badValuesExist ||
+                (valueType is 1 or 3 && minimumIsUncertain) ||
+                (valueType is 2 or 3 && maximumIsUncertain))
             {
                 statusCode = StatusCodes.UncertainDataSubNormal;
             }
@@ -220,31 +214,30 @@ namespace Opc.Ua.Server
 
             if (valueType == 1)
             {
-                processedValue = minimumGoodValue;
-                processedTimestamp = minimumGoodTimestamp;
+                processedValue = minimumValue;
+                processedTimestamp = minimumTimestamp;
                 processedType = minimumOriginalType;
                 duplicatesExist = duplicatesMinimumsExist;
             }
             else if (valueType == 2)
             {
-                processedValue = maximumGoodValue;
-                processedTimestamp = maximumGoodTimestamp;
+                processedValue = maximumValue;
+                processedTimestamp = maximumTimestamp;
                 processedType = maximumOriginalType;
                 duplicatesExist = duplicatesMaximumsExist;
             }
             else if (valueType == 3)
             {
-                processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
-                processedType = TypeInfo.Scalars.Double;
+                double range = Math.Abs(maximumValue - minimumValue);
+                processedValue = range;
+                processedType = GetRangeType(minimumOriginalType, range);
             }
 
-            // set calculated if not returning actual time and the selected sample is not at
-            // the request-direction interval start. Part 13 §5.4.3.10/§5.4.3.11 return the
-            // value with the timestamp at the start of the interval and mark it Good, Raw when
-            // the min/max sample coincides with that timestamp. For reverse reads (Part 11)
-            // the interval start is the later timestamp, so compare against the interval
-            // timestamp (GetTimestamp) rather than the chronological lower bound.
-            if (!returnActualTime && processedTimestamp != GetTimestamp(slice))
+            // Non-Good inputs that affect quality also make ActualTime results Calculated.
+            // Otherwise, preserve Raw for ActualTime and for an extremum at the
+            // request-direction interval start (the later bound for reverse reads).
+            if (StatusCode.IsUncertain(statusCode) ||
+                (!returnActualTime && processedTimestamp != GetTimestamp(slice)))
             {
                 statusCode = statusCode.WithAggregateBits(AggregateBits.Calculated);
             }
@@ -410,8 +403,9 @@ namespace Opc.Ua.Server
             }
             else if (valueType == 3)
             {
-                processedValue = Math.Abs(maximumGoodValue - minimumGoodValue);
-                processedType = TypeInfo.Scalars.Double;
+                double range = Math.Abs(maximumGoodValue - minimumGoodValue);
+                processedValue = range;
+                processedType = GetRangeType(minimumOriginalType, range);
             }
 
             // set the status code.
@@ -482,6 +476,29 @@ namespace Opc.Ua.Server
             return value
                 .WithSourceTimestamp(sliceStamp)
                 .WithServerTimestamp(sliceStamp);
+        }
+
+        /// <summary>
+        /// Returns the data type of a Range/Range2 result: the source type
+        /// (Part 13 Tables 62 and 67), or Double when the source is not a
+        /// numeric type or the range does not fit into it.
+        /// </summary>
+        private static TypeInfo GetRangeType(TypeInfo sourceType, double range)
+        {
+            if (sourceType.IsUnknown ||
+                sourceType.BuiltInType is < BuiltInType.SByte or > BuiltInType.Double)
+            {
+                return TypeInfo.Scalars.Double;
+            }
+            try
+            {
+                _ = new Variant(range).ConvertTo(sourceType.BuiltInType);
+                return sourceType;
+            }
+            catch (Exception)
+            {
+                return TypeInfo.Scalars.Double;
+            }
         }
     }
 }

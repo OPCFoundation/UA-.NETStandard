@@ -29,6 +29,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 
@@ -62,7 +64,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static OperationContext SessionContext(ISession session)
         {
             return new OperationContext(
-                new RequestHeader(), null, RequestType.CreateMonitoredItems, RequestLifetime.None, session);
+                new RequestHeader(), null!, RequestType.CreateMonitoredItems, RequestLifetime.None, session);
         }
 
         private static Mock<ISession> CreateSessionMock(NodeId id, IUserIdentity identity)
@@ -76,7 +78,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         private static SamplingGroup CreateGroup(
             IUserIdentity identity,
             double samplingInterval = 500,
-            OperationContext context = null)
+            OperationContext? context = null)
         {
             Mock<IServerInternal> mockServer = DeterministicServerMock.Create(out _);
             var mockNodeManager = new Mock<IAsyncNodeManager>();
@@ -102,6 +104,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             return item;
         }
 
+        /// <summary>
+        /// Verifies that sampling-group construction rejects a null server.
+        /// </summary>
         [Test]
         public void ConstructorWithNullServerThrows()
         {
@@ -113,6 +118,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that sampling-group construction rejects a null node manager.
+        /// </summary>
         [Test]
         public void ConstructorWithNullNodeManagerThrows()
         {
@@ -124,6 +132,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that sampling-group construction rejects null sampling rates.
+        /// </summary>
         [Test]
         public void ConstructorWithNullSamplingRatesThrows()
         {
@@ -136,6 +147,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that a sessionless sampling group requires an owner identity.
+        /// </summary>
         [Test]
         public void ConstructorSessionlessWithoutOwnerIdentityThrows()
         {
@@ -148,6 +162,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Throws.TypeOf<ArgumentNullException>());
         }
 
+        /// <summary>
+        /// Verifies that a sampling group rejects items that do not monitor data changes.
+        /// </summary>
         [Test]
         public void StartMonitoringRejectsNonDataChangeItem()
         {
@@ -160,6 +177,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a sampling group rejects disabled monitored items.
+        /// </summary>
         [Test]
         public void StartMonitoringRejectsDisabledItem()
         {
@@ -172,6 +192,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a sampling group rejects items with a mismatched sampling interval.
+        /// </summary>
         [Test]
         public void StartMonitoringRejectsMismatchedSamplingInterval()
         {
@@ -184,6 +207,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a sampling group rejects items belonging to another session.
+        /// </summary>
         [Test]
         public void StartMonitoringRejectsMismatchedSession()
         {
@@ -200,6 +226,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that a sampling group accepts a matching monitored item.
+        /// </summary>
         [Test]
         public void StartMonitoringAcceptsMatchingItem()
         {
@@ -215,6 +244,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             item.Verify(m => m.SetSamplingInterval(1000.0), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a sessionless sampling group accepts an item with the matching owner identity.
+        /// </summary>
         [Test]
         public void StartMonitoringAcceptsMatchingItemSessionlessByOwnerIdentity()
         {
@@ -234,6 +266,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             item.Verify(m => m.SetSamplingInterval(1000.0), Times.Once);
         }
 
+        /// <summary>
+        /// Verifies that a sessionless sampling group rejects an item with a different owner identity.
+        /// </summary>
         [Test]
         public void StartMonitoringRejectsMismatchedOwnerIdentitySessionless()
         {
@@ -249,6 +284,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(added, Is.False);
         }
 
+        /// <summary>
+        /// Verifies that stopping an unknown monitored item returns false.
+        /// </summary>
         [Test]
         public void StopMonitoringReturnsFalseForUnknownItem()
         {
@@ -259,6 +297,29 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(group.StopMonitoring(item.Object), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that stopping an item removes its pending addition to the sampling group.
+        /// </summary>
+        [Test]
+        public void StopMonitoringRemovesItemPendingAddition()
+        {
+            var identity = new Mock<IUserIdentity>();
+            using SamplingGroup group = CreateGroup(identity.Object);
+            Mock<ISampledDataChangeMonitoredItem> item = CreateItem();
+
+            Assert.That(
+                group.StartMonitoring(
+                    SessionlessContext(),
+                    item.Object,
+                    identity.Object),
+                Is.True);
+            Assert.That(group.StopMonitoring(item.Object), Is.True);
+            Assert.That(group.ApplyChanges(), Is.True);
+        }
+
+        /// <summary>
+        /// Verifies that modifying an unknown monitored item returns false.
+        /// </summary>
         [Test]
         public void ModifyMonitoringReturnsFalseForUnknownItem()
         {
@@ -269,6 +330,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(group.ModifyMonitoring(SessionlessContext(), item.Object), Is.False);
         }
 
+        /// <summary>
+        /// Verifies that applying changes without monitored items reports an empty sampling group.
+        /// </summary>
         [Test]
         public void ApplyChangesWithoutItemsReportsGroupEmpty()
         {
@@ -278,6 +342,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(group.ApplyChanges(), Is.True);
         }
 
+        /// <summary>
+        /// Verifies that shutting down a sampling group before it starts is safe.
+        /// </summary>
         [Test]
         public void ShutdownIsSafeWhenNotStarted()
         {
@@ -285,6 +352,72 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using SamplingGroup group = CreateGroup(identity.Object);
 
             Assert.DoesNotThrow(group.Shutdown);
+        }
+
+        /// <summary>
+        /// Verifies that an item transferred to another session is read and permission-checked
+        /// as the new owner, not as the session that created the sampling group.
+        /// </summary>
+        [Test]
+        public async Task SampleUsesSessionOfTransferredItemAsync()
+        {
+            var creatorIdentity = new Mock<IUserIdentity>();
+            var ownerIdentity = new Mock<IUserIdentity>();
+            Mock<ISession> creator = CreateSessionMock(new NodeId(1, 1), creatorIdentity.Object);
+            Mock<ISession> owner = CreateSessionMock(new NodeId(2, 1), ownerIdentity.Object);
+            OperationContext creatorContext = SessionContext(creator.Object);
+
+            var readIdentity = new TaskCompletionSource<IUserIdentity>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var permissionIdentity = new TaskCompletionSource<IUserIdentity>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            var nodeManager = new Mock<IAsyncNodeManager>();
+            nodeManager
+                .Setup(m => m.ReadAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<double>(),
+                    It.IsAny<ArrayOf<ReadValueId>>(),
+                    It.IsAny<IList<DataValue>>(),
+                    It.IsAny<IList<ServiceResult>>(),
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, double, ArrayOf<ReadValueId>, IList<DataValue>,
+                    IList<ServiceResult>, CancellationToken>(
+                    (context, _, _, _, _, _) => readIdentity.TrySetResult(context.UserIdentity))
+                .Returns(default(ValueTask));
+            nodeManager
+                .Setup(m => m.ValidateRolePermissionsAsync(
+                    It.IsAny<OperationContext>(),
+                    It.IsAny<NodeId>(),
+                    PermissionType.Read,
+                    It.IsAny<CancellationToken>()))
+                .Callback<OperationContext, NodeId, PermissionType, CancellationToken>(
+                    (context, _, _, _) => permissionIdentity.TrySetResult(context.UserIdentity))
+                .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
+
+            Mock<IServerInternal> mockServer = DeterministicServerMock.Create(out _);
+            using var group = new SamplingGroup(
+                mockServer.Object,
+                nodeManager.Object,
+                SamplingRates(),
+                creatorContext,
+                500);
+            Mock<ISampledDataChangeMonitoredItem> item = CreateItem();
+            item.SetupGet(m => m.Session).Returns(owner.Object);
+            item.Setup(m => m.GetReadValueId()).Returns(new ReadValueId
+            {
+                NodeId = new NodeId(10, 1),
+                AttributeId = Attributes.Value
+            });
+
+            Assert.That(group.StartMonitoring(creatorContext, item.Object), Is.True);
+            group.ApplyChanges();
+
+            Assert.That(
+                await readIdentity.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                Is.SameAs(ownerIdentity.Object));
+            Assert.That(
+                await permissionIdentity.Task.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false),
+                Is.SameAs(ownerIdentity.Object));
         }
     }
 }

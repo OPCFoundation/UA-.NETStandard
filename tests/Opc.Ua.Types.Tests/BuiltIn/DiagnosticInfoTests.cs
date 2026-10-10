@@ -68,10 +68,26 @@ namespace Opc.Ua.Types.Tests.BuiltIn
         }
 
         [Test]
+        public void EqualsIsSymmetricForAllDefaultInnerDiagnosticInfo()
+        {
+            var withInner = new DiagnosticInfo { InnerDiagnosticInfo = new DiagnosticInfo() };
+            var withoutInner = new DiagnosticInfo();
+
+            bool forward = withInner.Equals(withoutInner);
+            bool backward = withoutInner.Equals(withInner);
+
+            Assert.That(forward, Is.EqualTo(backward));
+            if (forward)
+            {
+                Assert.That(withInner.GetHashCode(), Is.EqualTo(withoutInner.GetHashCode()));
+            }
+        }
+
+        [Test]
         public void CopyConstructorWithNullThrowsArgumentNullException()
         {
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
-            Assert.That(() => new DiagnosticInfo((DiagnosticInfo)null),
+            Assert.That(() => new DiagnosticInfo((DiagnosticInfo)null!),
                 Throws.TypeOf<ArgumentNullException>());
 #pragma warning restore IDE0004 // Remove Unnecessary Cast
         }
@@ -143,7 +159,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Bad,
                 new LocalizedText("en", "Error"),
                 null,
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             // OperationSymbolicId=32, OperationLocalizedText=64: after >>5 they become ServiceSymbolicId=1, ServiceLocalizedText=2
@@ -162,7 +178,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
             var result = new ServiceResult(StatusCodes.Bad);
 
             Assert.That(
-                () => new DiagnosticInfo(result, DiagnosticsMasks.ServiceAll, true, null, s_logger),
+                () => new DiagnosticInfo(result, DiagnosticsMasks.ServiceAll, true, null!, s_logger),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -174,11 +190,11 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Bad,
                 LocalizedText.Null,
                 null,
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             // Pre-populate with the strings that Initialize will look up
-            stringTable.Append(result.SymbolicId);
+            stringTable.Append(result.SymbolicId!);
             stringTable.Append("http://existing.org");
 
             int originalCount = stringTable.Count;
@@ -199,7 +215,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Good,
                 new LocalizedText("de", "Fehler aufgetreten"),
                 null,
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             const DiagnosticsMasks mask = DiagnosticsMasks.ServiceLocalizedText;
@@ -218,7 +234,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Good,
                 new LocalizedText("en", "Existing error"),
                 null,
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             stringTable.Append("en");
@@ -242,7 +258,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Good,
                 LocalizedText.Null,
                 "additional debug",
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAdditionalInfo | DiagnosticsMasks.UserPermissionAdditionalInfo;
@@ -326,7 +342,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.Good,
                 LocalizedText.Null,
                 "should not appear",
-                (ServiceResult)null);
+                (ServiceResult)null!);
 
             var stringTable = new StringTable();
             const DiagnosticsMasks mask = DiagnosticsMasks.ServiceAdditionalInfo; // Missing UserPermissionAdditionalInfo
@@ -358,7 +374,7 @@ namespace Opc.Ua.Types.Tests.BuiltIn
                 StatusCodes.BadUnexpectedError,
                 new LocalizedText("en", "Inner error"),
                 null,
-                (ServiceResult)null);
+                (ServiceResult)null!);
 #pragma warning disable IDE0004 // Remove Unnecessary Cast
             var result = new ServiceResult(
                 "http://outer.org",
@@ -607,6 +623,28 @@ namespace Opc.Ua.Types.Tests.BuiltIn
 
             // Should return true because at depth 5, comparison is truncated
             Assert.That(di1, Is.EqualTo(di2));
+        }
+
+        [Test]
+        public void EqualsIsSymmetricWhenOnlyOneSideGoesBeyondMaxDepth()
+        {
+            // A1-7: a chain deeper than MaxInnerDepth and its truncated copy
+            // must compare equal in both directions (they hash alike).
+            var deep = new DiagnosticInfo(7, 0, 0, 0, null);
+            for (int i = 0; i <= DiagnosticInfo.MaxInnerDepth; i++)
+            {
+                deep = new DiagnosticInfo(1, 2, 3, 4, null) { InnerDiagnosticInfo = deep };
+            }
+            var truncated = new DiagnosticInfo(deep);
+            bool forward = deep.Equals(truncated);
+            bool backward = truncated.Equals(deep);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(forward, Is.True);
+                Assert.That(backward, Is.True);
+                Assert.That(deep.GetHashCode(), Is.EqualTo(truncated.GetHashCode()));
+            });
         }
 
         [Test]

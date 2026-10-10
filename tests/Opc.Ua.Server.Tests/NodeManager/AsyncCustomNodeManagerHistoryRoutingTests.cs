@@ -31,14 +31,13 @@
 // making CA2000 noisy without a real leak risk. Disabled file-level for the suite.
 #pragma warning disable CA2000
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Historian;
@@ -46,6 +45,9 @@ using Opc.Ua.Server.Historian.InMemory;
 
 namespace Opc.Ua.Server.Tests.NodeManager
 {
+    /// <summary>
+    /// Verifies asynchronous node-manager routing of history reads, updates, annotations, events, and continuations.
+    /// </summary>
     [TestFixture]
     [Category("Historian")]
     [Category("NodeManager")]
@@ -57,6 +59,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
         private const string TestNamespaceUri = "http://test.org/UA/HistoryRouting/";
 
+        /// <summary>
+        /// Verifies that history reads requesting continuation release invoke the release path.
+        /// </summary>
         [Test]
         public async Task HistoryReadWithReleaseContinuationPointsCallsReleaseAsync()
         {
@@ -88,6 +93,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
         }
 
+        /// <summary>
+        /// Verifies that raw-history reads on a historized variable route to its provider.
+        /// </summary>
         [Test]
         public async Task HistoryReadRawOnHistorizedVariableRoutesToProviderAsync()
         {
@@ -96,14 +104,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BaseDataVariableState variable = CreateHistoryReadVariable(h, "RawRead");
             await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
-            var provider = new InMemoryHistorianProvider();
+            InMemoryHistorianProvider provider = CreateProvider();
             h.RegisterProvider(variable.NodeId, provider);
             provider.Register(variable.NodeId);
 
             DateTime t1 = BaseTime;
             DateTime t2 = BaseTime.AddSeconds(1);
             DateTime t3 = BaseTime.AddSeconds(2);
-            await provider.InsertAsync(
+            HistorianUpdateOutcome<DataValue> insertOutcome = await provider.InsertAsync(
                 h.CreateHistorianOpContext(),
                 variable.NodeId,
                 [
@@ -112,6 +120,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     new DataValue(new Variant(30.0), StatusCodes.Good, t3, t3)
                 ],
                 CancellationToken.None).ConfigureAwait(false);
+            Assert.That(insertOutcome.OperationResults, Has.Count.EqualTo(3));
+            Assert.That(insertOutcome.OperationResults.ToArray(), Has.All.Matches<StatusCode>(StatusCode.IsGood));
 
             var details = new ReadRawModifiedDetails
             {
@@ -137,6 +147,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(historyData.DataValues[2].GetValue<double>(0), Is.EqualTo(30.0));
         }
 
+        /// <summary>
+        /// Verifies that annotation-property reads route to the parent variable's provider.
+        /// </summary>
         [Test]
         public async Task HistoryReadAnnotationsPropertyRoutesToParentProviderAsync()
         {
@@ -165,7 +178,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await h.Manager.AddNodeAsync(h.Context, default, parent).ConfigureAwait(false);
             await h.Manager.AddNodeAsync(h.Context, default, annotProp).ConfigureAwait(false);
 
-            var provider = new InMemoryHistorianProvider();
+            InMemoryHistorianProvider provider = CreateProvider();
             h.RegisterProvider(parent.NodeId, provider);
             provider.Register(parent.NodeId);
 
@@ -202,6 +215,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(annotation!.Message, Is.EqualTo("note1"));
         }
 
+        /// <summary>
+        /// Verifies that history reads on an unowned node leave the default error untouched.
+        /// </summary>
         [Test]
         public async Task HistoryReadOnUnownedNodeLeavesDefaultErrorAsync()
         {
@@ -224,6 +240,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(results[0], Is.Null);
         }
 
+        /// <summary>
+        /// Verifies that event-history reads on a notifier object route to its provider.
+        /// </summary>
         [Test]
         public async Task HistoryReadEventsOnNotifierObjectRoutesToProviderAsync()
         {
@@ -238,8 +257,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             await h.Manager.AddNodeAsync(h.Context, default, notifier).ConfigureAwait(false);
 
-            var provider = new InMemoryHistorianProvider();
+            InMemoryHistorianProvider provider = CreateProvider();
             h.RegisterProvider(notifier.NodeId, provider);
+            provider.Register(
+                notifier.NodeId,
+                CreateEventCapabilities());
 
             var eventId = new ByteString(Encoding.UTF8.GetBytes("evt-1"));
             var record = new HistorianEventRecord(
@@ -252,7 +274,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     [BrowseNames.EventType] = new Variant(ObjectTypeIds.BaseEventType),
                     [BrowseNames.Time] = new Variant((DateTimeUtc)BaseTime.AddSeconds(10)),
                     [BrowseNames.Message] = new Variant(new LocalizedText("test event"))
-                });
+                }.ToArrayOf());
 
             await provider.InsertEventsAsync(
                 h.CreateHistorianOpContext(),
@@ -287,6 +309,56 @@ namespace Opc.Ua.Server.Tests.NodeManager
         }
 
         [Test]
+        public async Task FreshHistoryEventEntryValidatesFilterDespiteOtherContinuationAsync()
+        {
+            using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
+            ushort namespaceIndex = h.Manager.NamespaceIndexes[0];
+            var notifier = new BaseObjectState(null)
+            {
+                NodeId = new NodeId("MixedEventReads", namespaceIndex),
+                BrowseName = new QualifiedName("MixedEventReads", namespaceIndex),
+                EventNotifier = EventNotifiers.HistoryRead
+            };
+            await h.Manager.AddNodeAsync(h.Context, default, notifier).ConfigureAwait(false);
+            using InMemoryHistorianProvider provider = CreateProvider();
+            h.RegisterProvider(notifier.NodeId, provider);
+            provider.Register(notifier.NodeId, CreateEventCapabilities());
+
+            var invalid = new ContentFilterElement { FilterOperator = FilterOperator.Not };
+            invalid.SetOperands([new ElementOperand(0)]);
+            var filter = new EventFilter { WhereClause = new ContentFilter { Elements = [invalid] } };
+            filter.AddSelectClause(ObjectTypeIds.BaseEventType, BrowseNames.Message, Attributes.Value);
+            var details = new ReadEventDetails
+            {
+                NumValuesPerNode = 10,
+                StartTime = BaseTime,
+                EndTime = BaseTime.AddMinutes(1),
+                Filter = filter
+            };
+            HistoryReadValueId[] nodes =
+            [
+                new() { NodeId = notifier.NodeId, ContinuationPoint = ByteString.From([1, 2, 3]) },
+                new() { NodeId = notifier.NodeId }
+            ];
+            var results = new List<HistoryReadResult> { null!, null! };
+            var errors = new List<ServiceResult> { null!, null! };
+
+            await h.Manager.HistoryReadAsync(
+                h.OperationContext, details, TimestampsToReturn.Neither,
+                false, nodes, results, errors).ConfigureAwait(false);
+
+            Assert.Multiple(() =>
+            {
+                Assert.That(results[0].StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+                Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.BadEventFilterInvalid));
+                Assert.That(results[1].HistoryData.IsNull, Is.True);
+            });
+        }
+
+        /// <summary>
+        /// Verifies that history reads reject invalid timestamp selections.
+        /// </summary>
+        [Test]
         public async Task HistoryReadWithInvalidTimestampsToReturnThrowsAsync()
         {
             using Harness h = await CreateHarnessAsync().ConfigureAwait(false);
@@ -294,7 +366,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BaseDataVariableState variable = CreateHistoryReadVariable(h, "TsInvalid");
             await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
-            var provider = new InMemoryHistorianProvider();
+            InMemoryHistorianProvider provider = CreateProvider();
             h.RegisterProvider(variable.NodeId, provider);
             provider.Register(variable.NodeId);
 
@@ -316,6 +388,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadTimestampsToReturnInvalid));
         }
 
+        /// <summary>
+        /// Verifies that raw-history reads reject missing timestamps combined with a zero value limit.
+        /// </summary>
         [Test]
         public async Task HistoryReadRawWithMissingTimestampsAndZeroMaxThrowsAsync()
         {
@@ -324,7 +399,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BaseDataVariableState variable = CreateHistoryReadVariable(h, "NoTs");
             await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
-            var provider = new InMemoryHistorianProvider();
+            InMemoryHistorianProvider provider = CreateProvider();
             h.RegisterProvider(variable.NodeId, provider);
             provider.Register(variable.NodeId);
 
@@ -347,6 +422,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationInvalid));
         }
 
+        /// <summary>
+        /// Verifies that processed-history reads reject mismatched aggregate requests.
+        /// </summary>
         [Test]
         public async Task HistoryReadProcessedAggregateMismatchThrowsAsync()
         {
@@ -355,7 +433,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BaseDataVariableState variable = CreateHistoryReadVariable(h, "AggMismatch");
             await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
-            var provider = new InMemoryHistorianProvider();
+            InMemoryHistorianProvider provider = CreateProvider();
             h.RegisterProvider(variable.NodeId, provider);
             provider.Register(variable.NodeId);
 
@@ -380,6 +458,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(ex!.StatusCode, Is.EqualTo(StatusCodes.BadAggregateListMismatch));
         }
 
+        /// <summary>
+        /// Verifies that processed reads with equal times return BadInvalidArgument per node.
+        /// </summary>
         [Test]
         public async Task HistoryReadProcessedWithEqualStartAndEndTimeReturnsBadInvalidArgumentPerNodeAsync()
         {
@@ -390,7 +471,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await h.Manager.AddNodeAsync(h.Context, default, node1).ConfigureAwait(false);
             await h.Manager.AddNodeAsync(h.Context, default, node2).ConfigureAwait(false);
 
-            var provider = new InMemoryHistorianProvider();
+            InMemoryHistorianProvider provider = CreateProvider();
             h.RegisterProvider(node1.NodeId, provider);
             h.RegisterProvider(node2.NodeId, provider);
             provider.Register(node1.NodeId);
@@ -425,6 +506,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(errors[1].StatusCode, Is.EqualTo(StatusCodes.BadInvalidArgument));
         }
 
+        /// <summary>
+        /// Verifies that historical data insertion routes to the provider.
+        /// </summary>
         [Test]
         public async Task HistoryUpdateInsertDataDispatchesToProviderAsync()
         {
@@ -433,7 +517,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BaseDataVariableState variable = CreateHistoryWriteVariable(h, "InsertData");
             await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
-            var provider = new InMemoryHistorianProvider();
+            InMemoryHistorianProvider provider = CreateProvider();
             h.RegisterProvider(variable.NodeId, provider);
             provider.Register(variable.NodeId);
 
@@ -478,6 +562,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(page.Values[0].Value.GetValue<double>(0), Is.EqualTo(42.0));
         }
 
+        /// <summary>
+        /// Verifies that raw-history deletion routes to the provider.
+        /// </summary>
         [Test]
         public async Task HistoryUpdateDeleteRawDispatchesToProviderAsync()
         {
@@ -486,7 +573,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             BaseDataVariableState variable = CreateHistoryWriteVariable(h, "DeleteRaw");
             await h.Manager.AddNodeAsync(h.Context, default, variable).ConfigureAwait(false);
 
-            var provider = new InMemoryHistorianProvider();
+            InMemoryHistorianProvider provider = CreateProvider();
             h.RegisterProvider(variable.NodeId, provider);
             provider.Register(variable.NodeId);
 
@@ -494,11 +581,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             for (int i = 0; i < 3; i++)
             {
                 DateTime t = BaseTime.AddSeconds(i);
-                await provider.InsertAsync(
+                HistorianUpdateOutcome<DataValue> insertOutcome = await provider.InsertAsync(
                     h.CreateHistorianOpContext(),
                     variable.NodeId,
                     [new DataValue(new Variant((double)i), StatusCodes.Good, t, t)],
                     CancellationToken.None).ConfigureAwait(false);
+                Assert.That(insertOutcome.OperationResults, Has.Count.EqualTo(1));
+                Assert.That(insertOutcome.OperationResults[0], Is.EqualTo(StatusCodes.GoodEntryInserted));
             }
 
             var deleteDetails = new DeleteRawModifiedDetails
@@ -534,6 +623,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(page.Values, Has.Count.EqualTo(0));
         }
 
+        /// <summary>
+        /// Verifies that historical event updates route to the provider.
+        /// </summary>
         [Test]
         public async Task HistoryUpdateUpdateEventDispatchesToProviderAsync()
         {
@@ -548,8 +640,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             await h.Manager.AddNodeAsync(h.Context, default, notifier).ConfigureAwait(false);
 
-            var provider = new InMemoryHistorianProvider();
+            InMemoryHistorianProvider provider = CreateProvider();
             h.RegisterProvider(notifier.NodeId, provider);
+            provider.Register(
+                notifier.NodeId,
+                CreateEventCapabilities());
 
             var eventId = new ByteString(Encoding.UTF8.GetBytes("upd-evt-1"));
             var filter = new EventFilter();
@@ -608,6 +703,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             Assert.That(page.Values[0].EventId, Is.EqualTo(eventId));
         }
 
+        /// <summary>
+        /// Verifies that history updates on a variable without a provider return BadHistoryOperationUnsupported.
+        /// </summary>
         [Test]
         public async Task HistoryUpdateOnVariableWithoutProviderReturnsBadHistoryOperationUnsupportedAsync()
         {
@@ -638,6 +736,36 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 nodesToUpdate, results, errors).ConfigureAwait(false);
 
             Assert.That(errors[0].StatusCode, Is.EqualTo(StatusCodes.BadHistoryOperationUnsupported));
+        }
+
+        private static InMemoryHistorianProvider CreateProvider()
+        {
+            return new InMemoryHistorianProvider(
+                new InMemoryHistorianOptions(),
+                new FakeTimeProvider(BaseTime));
+        }
+
+        private static HistorianNodeCapabilities CreateEventCapabilities()
+        {
+            return HistorianNodeCapabilities.EventReadWrite with
+            {
+                EventTypes = [ObjectTypeIds.BaseEventType],
+                MandatoryEventFields =
+                [
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.EventType)],
+                        AttributeId = Attributes.Value
+                    },
+                    new SimpleAttributeOperand
+                    {
+                        TypeDefinitionId = ObjectTypeIds.BaseEventType,
+                        BrowsePath = [new QualifiedName(BrowseNames.Time)],
+                        AttributeId = Attributes.Value
+                    }
+                ]
+            };
         }
 
         private static BaseDataVariableState CreateHistoryReadVariable(Harness h, string name)

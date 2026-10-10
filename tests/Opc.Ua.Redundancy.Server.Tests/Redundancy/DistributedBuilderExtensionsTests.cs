@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
@@ -85,6 +83,22 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(sp.GetRequiredService<IServiceLevelProvider>(), Is.SameAs(provider));
             Assert.That(sp.GetServices<IServerStartupTask>().ToArray(),
                 Has.Some.InstanceOf<ServiceLevelStartupTask>());
+        }
+
+        [Test]
+        public async Task ServiceLevelCompositionRegistersOnlyOnePublisherAsync()
+        {
+            var builder = new DiTestServerBuilder();
+            var provider = new ConstantServiceLevelProvider(210);
+            builder.UseDistributedAddressSpace()
+                .AddServerServiceLevel(new ConstantServiceLevelProvider(240))
+                .AddServerServiceLevel(provider);
+
+            await using ServiceProvider services = builder.Services.BuildServiceProvider();
+
+            Assert.That(services.GetRequiredService<IServiceLevelProvider>(), Is.SameAs(provider));
+            Assert.That(services.GetServices<IServerStartupTask>().OfType<ServiceLevelStartupTask>().Count(),
+                Is.EqualTo(1));
         }
 
         [Test]

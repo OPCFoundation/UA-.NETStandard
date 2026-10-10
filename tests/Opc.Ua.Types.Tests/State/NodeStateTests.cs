@@ -31,6 +31,9 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using System.Reflection;
+using System.Threading;
+using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Tests;
 
@@ -66,7 +69,7 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         private static BaseObjectState CreateObjectNode(
-            NodeState parent = null,
+            NodeState? parent = null,
             string name = "TestObject")
         {
             return new BaseObjectState(parent)
@@ -89,6 +92,82 @@ namespace Opc.Ua.Types.Tests.State
                 SymbolicName = name,
                 ReferenceTypeId = ReferenceTypeIds.HasProperty
             };
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public void CopyOwnsMethodArgumentsAndNestedChildren(bool useClone)
+        {
+            BaseObjectState original = CreateObjectNode();
+            var method = new MethodState(original)
+            {
+                NodeId = new NodeId(1001),
+                BrowseName = QualifiedName.From("Read"),
+                Executable = true,
+                UserExecutable = true
+            };
+            method.CreateChild(m_context, QualifiedName.From("InputArguments"), false);
+            method.CreateChild(m_context, QualifiedName.From("OutputArguments"), false);
+            Assert.That(method.InputArguments, Is.Not.Null);
+            Assert.That(method.OutputArguments, Is.Not.Null);
+            PropertyState nested = CreatePropertyChild(method.InputArguments, "Metadata");
+            method.InputArguments.AddChild(nested);
+            original.AddChild(method);
+
+            BaseObjectState copy;
+            if (useClone)
+            {
+                copy = (BaseObjectState)original.Clone();
+            }
+            else
+            {
+                copy = new BaseObjectState(null);
+                copy.Create(m_context, original);
+            }
+            var copiedMethod = (MethodState)copy.FindChild(m_context, method.BrowseName)!;
+            Assert.That(copiedMethod, Is.Not.Null);
+            BaseInstanceState copiedNested = copiedMethod.InputArguments!.FindChild(m_context, nested.BrowseName)!;
+            Assert.Multiple(() =>
+            {
+                Assert.That(copiedMethod, Is.Not.SameAs(method));
+                Assert.That(copiedMethod.Parent, Is.SameAs(copy));
+                Assert.That(copiedMethod.InputArguments, Is.Not.SameAs(method.InputArguments));
+                Assert.That(copiedMethod.OutputArguments, Is.Not.SameAs(method.OutputArguments));
+                Assert.That(copiedMethod.InputArguments.Parent, Is.SameAs(copiedMethod));
+                Assert.That(copiedMethod.OutputArguments!.Parent, Is.SameAs(copiedMethod));
+                Assert.That(copiedNested, Is.Not.SameAs(nested));
+                Assert.That(copiedNested!.Parent, Is.SameAs(copiedMethod.InputArguments));
+                Assert.That(method.Parent, Is.SameAs(original));
+                Assert.That(method.InputArguments.Parent, Is.SameAs(method));
+                Assert.That(nested.Parent, Is.SameAs(method.InputArguments));
+            });
+            copiedNested.DisplayName = LocalizedText.From("Changed");
+            Assert.That(nested.DisplayName, Is.EqualTo(LocalizedText.From("Metadata")));
+        }
+
+        [Test]
+        public void ClonePreservesAbsentArgumentsAndExternalParent()
+        {
+            BaseObjectState parent = CreateObjectNode();
+            var source = new MethodState(parent)
+            {
+                NodeId = new NodeId(1001),
+                BrowseName = QualifiedName.From("Method"),
+                Executable = true,
+                UserExecutable = false,
+                MethodDeclarationId = new NodeId(1002)
+            };
+            var copy = (MethodState)source.Clone();
+            Assert.Multiple(() =>
+            {
+                Assert.That(copy.Parent, Is.SameAs(parent));
+                Assert.That(copy.InputArguments, Is.Null);
+                Assert.That(copy.OutputArguments, Is.Null);
+                Assert.That(copy.NodeId, Is.EqualTo(source.NodeId));
+                Assert.That(copy.MethodDeclarationId, Is.EqualTo(source.MethodDeclarationId));
+                Assert.That(copy.Executable, Is.True);
+                Assert.That(copy.UserExecutable, Is.False);
+            });
         }
 
         [Test]
@@ -544,7 +623,7 @@ namespace Opc.Ua.Types.Tests.State
             PropertyState child = CreatePropertyChild(parent, "MyProp");
             parent.AddChild(child);
 
-            BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("MyProp"));
+            BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("MyProp"))!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(QualifiedName.From("MyProp")));
         }
@@ -553,7 +632,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildByBrowseNameReturnsNullForMissing()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("NonExistent"));
+            BaseInstanceState? found = parent.FindChild(m_context, QualifiedName.From("NonExistent"));
             Assert.That(found, Is.Null);
         }
 
@@ -565,7 +644,7 @@ namespace Opc.Ua.Types.Tests.State
             root.AddChild(child);
 
             var path = new List<QualifiedName> { QualifiedName.From("Level1") };
-            BaseInstanceState found = root.FindChild(m_context, path, 0);
+            BaseInstanceState found = root.FindChild(m_context, path, 0)!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(QualifiedName.From("Level1")));
         }
@@ -575,7 +654,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             BaseObjectState root = CreateObjectNode();
             var path = new List<QualifiedName> { QualifiedName.From("Missing") };
-            BaseInstanceState found = root.FindChild(m_context, path, 0);
+            BaseInstanceState? found = root.FindChild(m_context, path, 0);
             Assert.That(found, Is.Null);
         }
 
@@ -595,7 +674,7 @@ namespace Opc.Ua.Types.Tests.State
             child.SymbolicName = "SymChild";
             parent.AddChild(child);
 
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "SymChild");
+            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "SymChild")!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.SymbolicName, Is.EqualTo("SymChild"));
         }
@@ -604,7 +683,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameReturnsNullForEmpty()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, string.Empty);
+            BaseInstanceState? found = parent.FindChildBySymbolicName(m_context, string.Empty);
             Assert.That(found, Is.Null);
         }
 
@@ -612,7 +691,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameReturnsNullForNull()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, null);
+            BaseInstanceState? found = parent.FindChildBySymbolicName(m_context, null!);
             Assert.That(found, Is.Null);
         }
 
@@ -624,7 +703,7 @@ namespace Opc.Ua.Types.Tests.State
             child.SymbolicName = "Child1";
             parent.AddChild(child);
 
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "///Child1");
+            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "///Child1")!;
             Assert.That(found, Is.Not.Null);
         }
 
@@ -632,7 +711,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameReturnsNullForOnlySlashes()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "///");
+            BaseInstanceState? found = parent.FindChildBySymbolicName(m_context, "///");
             Assert.That(found, Is.Null);
         }
 
@@ -652,7 +731,7 @@ namespace Opc.Ua.Types.Tests.State
             leaf.SymbolicName = "Leaf";
             intermediate.AddChild(leaf);
 
-            BaseInstanceState found = root.FindChildBySymbolicName(m_context, "Mid/Leaf");
+            BaseInstanceState found = root.FindChildBySymbolicName(m_context, "Mid/Leaf")!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.SymbolicName, Is.EqualTo("Leaf"));
         }
@@ -661,7 +740,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindChildBySymbolicNameReturnsNullForNonExistent()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState found = parent.FindChildBySymbolicName(m_context, "DoesNotExist");
+            BaseInstanceState? found = parent.FindChildBySymbolicName(m_context, "DoesNotExist");
             Assert.That(found, Is.Null);
         }
 
@@ -678,7 +757,7 @@ namespace Opc.Ua.Types.Tests.State
 
             var children = new List<BaseInstanceState>();
             parent.GetChildren(m_context, children);
-            BaseInstanceState found = children.FirstOrDefault(c => c.BrowseName == QualifiedName.From("Prop"));
+            BaseInstanceState found = children.FirstOrDefault(c => c.BrowseName == QualifiedName.From("Prop"))!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.NodeId, Is.EqualTo(new NodeId(9001, 0)));
         }
@@ -687,7 +766,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ReplaceChildThrowsForNullChild()
         {
             BaseObjectState parent = CreateObjectNode();
-            Assert.Throws<ArgumentException>(() => parent.ReplaceChild(m_context, null));
+            Assert.Throws<ArgumentException>(() => parent.ReplaceChild(m_context, null!));
         }
 
         [Test]
@@ -702,7 +781,7 @@ namespace Opc.Ua.Types.Tests.State
         public void CreateChildWithNullBrowseNameReturnsNull()
         {
             BaseObjectState parent = CreateObjectNode();
-            BaseInstanceState result = parent.CreateChild(m_context, QualifiedName.Null);
+            BaseInstanceState? result = parent.CreateChild(m_context, QualifiedName.Null);
             Assert.That(result, Is.Null);
         }
 
@@ -866,7 +945,7 @@ namespace Opc.Ua.Types.Tests.State
         public void AddReferencesThrowsForNull()
         {
             BaseObjectState node = CreateObjectNode();
-            Assert.Throws<ArgumentNullException>(() => node.AddReferences(null));
+            Assert.Throws<ArgumentNullException>(() => node.AddReferences(null!));
         }
 
         [Test]
@@ -971,6 +1050,117 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void ClearChangeMasksKeepsChangeMadeWhileHandlersRun()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.ClearChangeMasks(m_context, false);
+            int calls = 0;
+            node.OnStateChanged = (context, sender, changes) =>
+            {
+                // a change that happens while the previous one is being reported.
+                if (calls++ == 0)
+                {
+                    sender.UpdateChangeMasks(NodeStateChangeMasks.Children);
+                }
+            };
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+            node.ClearChangeMasks(m_context, false);
+
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.Children),
+                "A change made while the handlers ran must still be pending.");
+
+            node.ClearChangeMasks(m_context, false);
+            Assert.That(calls, Is.EqualTo(2));
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.None));
+        }
+
+        [Test]
+        public async Task ClearChangeMasksAsyncKeepsChangeMadeWhileSinksRunAsync()
+        {
+            BaseObjectState node = CreateObjectNode();
+            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+            int calls = 0;
+            node.OnStateChangedAsync = async (context, sender, changes, ct) =>
+            {
+                await Task.Yield();
+                if (calls++ == 0)
+                {
+                    sender.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                }
+            };
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+            await node.ClearChangeMasksAsync(m_context, false).ConfigureAwait(false);
+
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.Value),
+                "A change made while the sinks were awaited must still be pending.");
+        }
+
+        [Test]
+        public void ClearChangeMasksDoesNotLoseBitsSetConcurrently()
+        {
+            // A bit set by another thread while ClearChangeMasks takes the pending bits
+            // must either be reported now or stay pending; the plain &= could drop it.
+            BaseObjectState node = CreateObjectNode();
+            node.ClearChangeMasks(m_context, false);
+            int reported = 0;
+            node.OnStateChanged = (context, sender, changes) =>
+            {
+                if ((changes & NodeStateChangeMasks.NonValue) != 0)
+                {
+                    Interlocked.Increment(ref reported);
+                }
+            };
+
+            // a single setter: races between two plain |= setters are not covered.
+            using var done = new CancellationTokenSource();
+            var clearer = Task.Run(() =>
+            {
+                while (!done.IsCancellationRequested)
+                {
+                    node.ClearChangeMasks(m_context, false);
+                }
+            });
+
+            try
+            {
+                for (int ii = 0; ii < 20000; ii++)
+                {
+                    int before = Volatile.Read(ref reported);
+                    // the clearer may be taking the Value bit while NonValue is set.
+                    node.UpdateChangeMasks(NodeStateChangeMasks.Value);
+                    node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+                    var watch = System.Diagnostics.Stopwatch.StartNew();
+                    while (Volatile.Read(ref reported) == before)
+                    {
+                        Assert.That(watch.Elapsed, Is.LessThan(TimeSpan.FromSeconds(5)),
+                            "A change mask bit was lost.");
+                        Thread.Yield();
+                    }
+                }
+            }
+            finally
+            {
+                done.Cancel();
+                clearer.Wait();
+            }
+        }
+
+        [Test]
+        public void ClearChangeMasksKeepsMaskWhenHandlerThrows()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.ClearChangeMasks(m_context, false);
+            node.OnStateChanged = (context, sender, changes) =>
+                throw new InvalidOperationException("sink failure");
+
+            node.UpdateChangeMasks(NodeStateChangeMasks.NonValue);
+            Assert.Throws<InvalidOperationException>(() => node.ClearChangeMasks(m_context, false));
+            Assert.That(node.ChangeMasks, Is.EqualTo(NodeStateChangeMasks.NonValue));
+        }
+
+        [Test]
         public void ClearChangeMasksInvokesOnStateChangedHandler()
         {
             BaseObjectState node = CreateObjectNode();
@@ -1019,7 +1209,7 @@ namespace Opc.Ua.Types.Tests.State
         public void DeepEqualsNullReturnsFalse()
         {
             BaseObjectState node = CreateObjectNode();
-            Assert.That(node.DeepEquals(null), Is.False);
+            Assert.That(node.DeepEquals(null!), Is.False);
         }
 
         [Test]
@@ -1262,6 +1452,188 @@ namespace Opc.Ua.Types.Tests.State
             Assert.That(child.AreEventsMonitored, Is.True);
         }
 
+        /// <summary>
+        /// Repeated excess false calls on a fresh node (counter already at zero) must not
+        /// make the counter negative; a single subsequent true call must still make
+        /// <see cref="NodeState.AreEventsMonitored"/> true.
+        /// </summary>
+        [Test]
+        public void ExcessFalseCallsDoNotPoisonCounter()
+        {
+            var node = new BaseObjectState(null);
+
+            // Fire several false calls on a node whose counter is already 0.
+            for (int i = 0; i < 10; i++)
+            {
+                node.SetAreEventsMonitored(m_context, false, false);
+            }
+
+            Assert.That(node.AreEventsMonitored, Is.False,
+                "Excess false calls must not change the false state.");
+
+            // A single true call must be sufficient to flip the flag.
+            node.SetAreEventsMonitored(m_context, true, false);
+            Assert.That(node.AreEventsMonitored, Is.True,
+                "One true call after excess false calls must make AreEventsMonitored true.");
+        }
+
+        /// <summary>
+        /// N concurrent increments followed by N concurrent decrements must leave the
+        /// counter at exactly zero so that <see cref="NodeState.AreEventsMonitored"/>
+        /// returns <see langword="false"/>.
+        /// Uses dedicated threads so that blocking at the starting gate does not
+        /// consume thread-pool threads and does not starve other parallelisable tests.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public void ConcurrentIncrementsAndDecrementsReturnToFalse()
+        {
+            const int k_threadCount = 32;
+            var node = new BaseObjectState(null);
+
+            // Phase 1: all threads increment simultaneously.
+            // Use dedicated threads + a ManualResetEventSlim gate instead of
+            // Task.Run + Barrier so that the k_threadCount blocked threads do
+            // not occupy thread-pool slots during the gate-wait period.
+            using var gate1 = new ManualResetEventSlim(false);
+            var phase1Errors = new Exception[k_threadCount];
+
+            Thread[] incThreads = [.. Enumerable.Range(0, k_threadCount).Select((_, i) =>
+            {
+                int idx = i;
+                return new Thread(() =>
+                {
+                    try
+                    {
+                        gate1.Wait();
+                        node.SetAreEventsMonitored(m_context, true, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        phase1Errors[idx] = ex;
+                    }
+                })
+                {
+                    IsBackground = true
+                };
+            })];
+
+            foreach (Thread t in incThreads)
+            {
+                t.Start();
+            }
+            gate1.Set();
+            foreach (Thread t in incThreads)
+            {
+                Assert.That(t.Join(TimeSpan.FromSeconds(15)), Is.True,
+                    "Increment thread did not complete within 15 s.");
+            }
+
+            Assert.That(phase1Errors, Has.All.Null, "An increment thread threw an exception.");
+            Assert.That(node.AreEventsMonitored, Is.True, "Counter must be positive after all increments.");
+
+            // Phase 2: all threads decrement simultaneously.
+            using var gate2 = new ManualResetEventSlim(false);
+            var phase2Errors = new Exception[k_threadCount];
+
+            Thread[] decThreads = [.. Enumerable.Range(0, k_threadCount).Select((_, i) =>
+            {
+                int idx = i;
+                return new Thread(() =>
+                {
+                    try
+                    {
+                        gate2.Wait();
+                        node.SetAreEventsMonitored(m_context, false, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        phase2Errors[idx] = ex;
+                    }
+                })
+                {
+                    IsBackground = true
+                };
+            })];
+
+            foreach (Thread t in decThreads)
+            {
+                t.Start();
+            }
+            gate2.Set();
+            foreach (Thread t in decThreads)
+            {
+                Assert.That(t.Join(TimeSpan.FromSeconds(15)), Is.True,
+                    "Decrement thread did not complete within 15 s.");
+            }
+
+            Assert.That(phase2Errors, Has.All.Null, "A decrement thread threw an exception.");
+            Assert.That(node.AreEventsMonitored, Is.False,
+                "Counter must reach zero (not go negative) after matching decrements.");
+        }
+
+        /// <summary>
+        /// Concurrent excess false calls from a count of one must clamp the counter at zero.
+        /// A single subsequent true call must therefore make
+        /// <see cref="NodeState.AreEventsMonitored"/> true.
+        /// </summary>
+        [Test]
+        [NonParallelizable]
+        public void ConcurrentExcessFalseCallsDoNotPoisonCounter()
+        {
+            const int k_threadCount = 32;
+            var node = new BaseObjectState(null);
+            node.SetAreEventsMonitored(m_context, true, false);
+
+            using var ready = new CountdownEvent(k_threadCount);
+            using var gate = new ManualResetEventSlim(false);
+            var errors = new Exception[k_threadCount];
+
+            Thread[] threads = [.. Enumerable.Range(0, k_threadCount).Select((_, index) =>
+            {
+                int idx = index;
+                return new Thread(() =>
+                {
+                    try
+                    {
+                        ready.Signal();
+                        gate.Wait();
+                        node.SetAreEventsMonitored(m_context, false, false);
+                    }
+                    catch (Exception ex)
+                    {
+                        errors[idx] = ex;
+                    }
+                })
+                {
+                    IsBackground = true
+                };
+            })];
+
+            foreach (Thread thread in threads)
+            {
+                thread.Start();
+            }
+
+            Assert.That(ready.Wait(TimeSpan.FromSeconds(15)), Is.True,
+                "Not all decrement threads reached the start gate.");
+            gate.Set();
+
+            foreach (Thread thread in threads)
+            {
+                Assert.That(thread.Join(TimeSpan.FromSeconds(15)), Is.True,
+                    "A decrement thread did not complete within 15 s.");
+            }
+
+            Assert.That(errors, Has.All.Null, "A decrement thread threw an exception.");
+            Assert.That(node.AreEventsMonitored, Is.False,
+                "Concurrent excess false calls must clamp the counter at zero.");
+
+            node.SetAreEventsMonitored(m_context, true, false);
+            Assert.That(node.AreEventsMonitored, Is.True,
+                "One true call after concurrent excess false calls must make the counter positive.");
+        }
+
         [Test]
         public void ValidateReturnsTrueByDefault()
         {
@@ -1464,6 +1836,49 @@ namespace Opc.Ua.Types.Tests.State
         }
 
         [Test]
+        public void ReadUnconfiguredUserWriteMaskReportsWriteMask()
+        {
+            // a UserWriteMask of 0 without handler is not configured and writes only
+            // check the WriteMask, so the read reports the WriteMask (Part 3 8.60:
+            // a clear bit means not writeable, which would contradict the writes).
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            var dataValue = new DataValue();
+            ServiceResult result = node.ReadAttribute(
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(
+                dataValue.WrappedValue.GetUInt32(),
+                Is.EqualTo((uint)(AttributeWriteMask.DisplayName | AttributeWriteMask.Description)));
+
+            ServiceResult write = node.WriteAttribute(
+                m_context,
+                Attributes.DisplayName,
+                default,
+                new DataValue(new Variant(LocalizedText.From("NewDisplay"))));
+            Assert.That(ServiceResult.IsGood(write), Is.True);
+
+            // an OnReadWriteMask handler narrows the reported mask too.
+            node.OnReadWriteMask = (ISystemContext _, NodeState _, ref AttributeWriteMask mask) =>
+            {
+                mask = AttributeWriteMask.Description;
+                return ServiceResult.Good;
+            };
+            result = node.ReadAttribute(
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dataValue.WrappedValue.GetUInt32(), Is.EqualTo((uint)AttributeWriteMask.Description));
+
+            // a node that is not writable at all reports 0.
+            node.OnReadWriteMask = null;
+            node.WriteMask = AttributeWriteMask.None;
+            result = node.ReadAttribute(
+                m_context, Attributes.UserWriteMask, default, default, ref dataValue);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(dataValue.WrappedValue.GetUInt32(), Is.Zero);
+        }
+
+        [Test]
         public void ReadRolePermissionsAttributeWhenSet()
         {
             BaseObjectState node = CreateObjectNode();
@@ -1528,7 +1943,7 @@ namespace Opc.Ua.Types.Tests.State
         public void ReadAttributesWithNullReturnsEmpty()
         {
             BaseObjectState node = CreateObjectNode();
-            ArrayOf<Variant> values = node.ReadAttributes(m_context, null);
+            ArrayOf<Variant> values = node.ReadAttributes(m_context, null!);
             Assert.That(values.Count, Is.Zero);
         }
 
@@ -1742,6 +2157,74 @@ namespace Opc.Ua.Types.Tests.State
             ServiceResult result = node.WriteAttribute(
                 m_context, Attributes.DisplayName, default, dv);
             Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void WriteDisplayNameAttributeDeniedByUserWriteMask()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName | AttributeWriteMask.Description;
+            node.UserWriteMask = AttributeWriteMask.Description;
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(node.DisplayName, Is.Not.EqualTo(LocalizedText.From("NewDisplay")));
+        }
+
+        [Test]
+        public void WriteDisplayNameAttributeDeniedByOnReadUserWriteMask()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+            {
+                mask = AttributeWriteMask.None;
+                return ServiceResult.Good;
+            };
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+            {
+                mask = AttributeWriteMask.DisplayName;
+                return ServiceResult.Good;
+            };
+            result = node.WriteAttribute(m_context, Attributes.DisplayName, default, dv);
+            Assert.That(ServiceResult.IsGood(result), Is.True);
+        }
+
+        [Test]
+        public void WriteDisplayNameAttributeWithThrowingOnReadUserWriteMaskIsBadUnexpectedError()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            node.UserWriteMask = AttributeWriteMask.DisplayName;
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+                throw new InvalidOperationException("handler failure");
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult? result = null;
+            Assert.DoesNotThrow(() => result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv));
+            Assert.That(result!.StatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+            Assert.That(node.DisplayName, Is.Not.EqualTo(LocalizedText.From("NewDisplay")));
+        }
+
+        [Test]
+        public void WriteDisplayNameAttributeReturnsBadOnReadUserWriteMaskResult()
+        {
+            BaseObjectState node = CreateObjectNode();
+            node.WriteMask = AttributeWriteMask.DisplayName;
+            node.UserWriteMask = AttributeWriteMask.DisplayName;
+            node.OnReadUserWriteMask = (ISystemContext context, NodeState n, ref AttributeWriteMask mask) =>
+                StatusCodes.BadUserAccessDenied;
+            var dv = new DataValue(new Variant(LocalizedText.From("NewDisplay")));
+            ServiceResult result = node.WriteAttribute(
+                m_context, Attributes.DisplayName, default, dv);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadUserAccessDenied));
+            Assert.That(node.DisplayName, Is.Not.EqualTo(LocalizedText.From("NewDisplay")));
         }
 
         [Test]
@@ -2115,12 +2598,16 @@ namespace Opc.Ua.Types.Tests.State
             original.SaveAsBinary(m_context, stream);
             stream.Position = 0;
 
-            var loaded = new BaseObjectState(null);
+            var loaded = new BaseObjectState(null)
+            {
+                UserWriteMask = AttributeWriteMask.DisplayName
+            };
             loaded.LoadAsBinary(m_context, stream);
 
             Assert.That(loaded.NodeId, Is.EqualTo(original.NodeId));
             Assert.That(loaded.BrowseName, Is.EqualTo(original.BrowseName));
             Assert.That(loaded.Description, Is.EqualTo(original.Description));
+            Assert.That(loaded.UserWriteMask, Is.EqualTo(AttributeWriteMask.None));
         }
 
         [Test]
@@ -2317,7 +2804,7 @@ namespace Opc.Ua.Types.Tests.State
             BaseObjectState node = CreateObjectNode();
             bool invoked = false;
             node.OnReportEvent = (ctx, n, e) => invoked = true;
-            node.ReportEvent(m_context, null);
+            node.ReportEvent(m_context, null!);
             Assert.That(invoked, Is.True);
         }
 
@@ -2335,7 +2822,7 @@ namespace Opc.Ua.Types.Tests.State
             bool parentEventReceived = false;
             parent.OnReportEvent = (ctx, n, e) => parentEventReceived = true;
 
-            source.ReportEvent(m_context, null);
+            source.ReportEvent(m_context, null!);
             Assert.That(parentEventReceived, Is.True);
         }
 
@@ -2370,7 +2857,7 @@ namespace Opc.Ua.Types.Tests.State
         public void FindMethodReturnsNullWhenNoMethods()
         {
             BaseObjectState node = CreateObjectNode();
-            MethodState result = node.FindMethod(m_context, new NodeId(999));
+            MethodState? result = node.FindMethod(m_context, new NodeId(999));
             Assert.That(result, Is.Null);
         }
 
@@ -2385,7 +2872,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             parent.AddChild(method);
 
-            MethodState found = parent.FindMethod(m_context, new NodeId(3001, 0));
+            MethodState found = parent.FindMethod(m_context, new NodeId(3001, 0))!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.NodeId, Is.EqualTo(new NodeId(3001, 0)));
         }
@@ -2401,7 +2888,7 @@ namespace Opc.Ua.Types.Tests.State
             };
             parent.AddChild(method);
 
-            MethodState found = parent.FindMethod(m_context, new NodeId(9999, 0));
+            MethodState? found = parent.FindMethod(m_context, new NodeId(9999, 0));
             Assert.That(found, Is.Null);
         }
 
@@ -2615,7 +3102,7 @@ namespace Opc.Ua.Types.Tests.State
             var context = new SystemContext(m_telemetry)
             {
                 NamespaceUris = m_context.NamespaceUris,
-                NodeIdFactory = null
+                NodeIdFactory = null!
             };
             var mapping = new Dictionary<NodeId, NodeId>();
             node.AssignNodeIds(context, mapping);
@@ -2633,7 +3120,7 @@ namespace Opc.Ua.Types.Tests.State
             parent.AddChild(child1);
             parent.AddChild(child2);
 
-            BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("Dup"));
+            BaseInstanceState found = parent.FindChild(m_context, QualifiedName.From("Dup"))!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.NodeId, Is.EqualTo(new NodeId(3001, 0)));
         }
@@ -2655,7 +3142,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAsPredefinedNodeCompletesLifecycleOnce()
         {
-            var node = new LifecycleProbeState(null);
+            var node = new LifecycleProbeState(null!);
 
             Assert.That(node.IsCreated, Is.False);
 
@@ -2670,7 +3157,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAsPredefinedNodeCompletesLateChild()
         {
-            var parent = new LifecycleProbeState(null);
+            var parent = new LifecycleProbeState(null!);
             parent.CreateAsPredefinedNode(m_context);
 
             var child = new LifecycleProbeState(parent);
@@ -2688,7 +3175,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAsPredefinedNodeCompletesChildAddedByOnAfterCreate()
         {
-            var parent = new ChildCreatingState(null);
+            var parent = new ChildCreatingState(null!);
 
             parent.CreateAsPredefinedNode(m_context);
 
@@ -2701,7 +3188,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAsPredefinedNodeRejectsNonConvergingLifecycle()
         {
-            var node = new NonConvergingState(null);
+            var node = new NonConvergingState(null!);
 
             Assert.That(
                 () => node.CreateAsPredefinedNode(m_context),
@@ -2715,7 +3202,7 @@ namespace Opc.Ua.Types.Tests.State
             using var cts = new System.Threading.CancellationTokenSource();
             System.Threading.CancellationToken observed = default;
             var node = new LifecycleProbeState(
-                null,
+                null!,
                 ct => observed = ct);
 
             node.CreateAsPredefinedNode(m_context, cts.Token);
@@ -2728,7 +3215,7 @@ namespace Opc.Ua.Types.Tests.State
         {
             using var cts = new System.Threading.CancellationTokenSource();
             cts.Cancel();
-            var node = new LifecycleProbeState(null);
+            var node = new LifecycleProbeState(null!);
 
             Assert.That(
                 () => node.CreateAsPredefinedNode(m_context, cts.Token),
@@ -2742,7 +3229,7 @@ namespace Opc.Ua.Types.Tests.State
         public void CreateAsPredefinedNodeResumesAfterCancellationBetweenChildren()
         {
             using var cts = new System.Threading.CancellationTokenSource();
-            var parent = new LifecycleProbeState(null);
+            var parent = new LifecycleProbeState(null!);
             var first = new LifecycleProbeState(parent, _ => cts.Cancel());
             var second = new LifecycleProbeState(parent);
             parent.AddChild(first);
@@ -2769,7 +3256,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void DeleteResetsCreatedState()
         {
-            var node = new LifecycleProbeState(null);
+            var node = new LifecycleProbeState(null!);
             node.CreateAsPredefinedNode(m_context);
 
             node.Delete(m_context);
@@ -2792,7 +3279,7 @@ namespace Opc.Ua.Types.Tests.State
         [Test]
         public void CreateAlwaysRunsLifecycle()
         {
-            var node = new LifecycleProbeState(null);
+            var node = new LifecycleProbeState(null!);
 
             node.Create(
                 m_context,
@@ -2841,9 +3328,357 @@ namespace Opc.Ua.Types.Tests.State
                 QualifiedName.From("Mid"),
                 QualifiedName.From("Leaf")
             };
-            BaseInstanceState found = root.FindChild(m_context, path, 0);
+            BaseInstanceState found = root.FindChild(m_context, path, 0)!;
             Assert.That(found, Is.Not.Null);
             Assert.That(found.BrowseName, Is.EqualTo(QualifiedName.From("Leaf")));
+        }
+
+        /// <summary>
+        /// When many threads race to call <see cref="NodeState.AddNotifier"/> on a
+        /// fresh node (m_notifiersLock is null at that point), the lazy CAS publication
+        /// ensures every add wins exactly one slot.  No entries may be silently lost.
+        /// Uses dedicated (non-thread-pool) threads so as not to starve the thread pool
+        /// during a parallel test run.
+        /// </summary>
+        [Test]
+        public void ConcurrentFirstAddNotifierPreservesAllEntries()
+        {
+            var node = new BaseObjectState(null);
+
+            const int k_count = 8;
+            BaseObjectState[] targets = [.. Enumerable.Range(0, k_count).Select(_ => new BaseObjectState(null))];
+
+            using var ready = new CountdownEvent(k_count);
+            using var gate = new ManualResetEventSlim(false);
+            var errors = new Exception[k_count];
+
+            Thread[] threads = [.. targets.Select((target, index) =>
+            {
+                int idx = index;
+                return new Thread(() =>
+                {
+                    try
+                    {
+                        ready.Signal();
+                        gate.Wait();
+                        node.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, false, target);
+                    }
+                    catch (Exception ex)
+                    {
+                        errors[idx] = ex;
+                    }
+                })
+                {
+                    IsBackground = true
+                };
+            })];
+
+            foreach (Thread t in threads)
+            {
+                t.Start();
+            }
+
+            Assert.That(ready.Wait(TimeSpan.FromSeconds(15)), Is.True,
+                "Not all AddNotifier threads reached the start gate.");
+            gate.Set();
+
+            foreach (Thread t in threads)
+            {
+                Assert.That(t.Join(TimeSpan.FromSeconds(15)), Is.True,
+                    "A thread did not complete within 15 s — possible deadlock.");
+            }
+
+            Assert.That(errors, Has.All.Null,
+                "One or more AddNotifier threads threw an unexpected exception.");
+
+            var notifiers = new List<NodeState.Notifier>();
+            node.GetNotifiers(m_context, notifiers);
+
+            Assert.That(notifiers, Has.Count.EqualTo(k_count),
+                "All concurrent AddNotifier calls must be committed (no entries lost).");
+            Assert.That(GetPrivateFieldValue(node, "m_notifiersLock"), Is.Not.Null,
+                "The first notifier mutation must publish the canonical notifier lock.");
+        }
+
+        /// <summary>
+        /// Mixed concurrent add / remove / snapshot / ReportEvent calls on the same
+        /// node must not deadlock, throw, or corrupt internal state.
+        /// Uses dedicated threads and a fixed iteration count to avoid thread-pool pressure.
+        /// </summary>
+        [Test]
+        public void ConcurrentAddRemoveSnapshotAndReportEventDoesNotDeadlock()
+        {
+            var node = new BaseObjectState(null) { NodeId = new NodeId(21000u, 1) };
+            var target = new BaseObjectState(null) { NodeId = new NodeId(21001u, 1) };
+
+            const int k_iterations = 200;
+
+            using var gate = new ManualResetEventSlim(false);
+
+            var errors = new Exception[4];
+
+            Thread[] threads =
+            [
+                new Thread(() =>
+                {
+                    try
+                    {
+                        gate.Wait();
+                        for (int i = 0; i < k_iterations; i++)
+                        {
+                            node.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, false, target);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors[0] = ex;
+                    }
+                }) { IsBackground = true },
+                new Thread(() =>
+                {
+                    try
+                    {
+                        gate.Wait();
+                        for (int i = 0; i < k_iterations; i++)
+                        {
+                            node.RemoveNotifier(m_context, target, false);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors[1] = ex;
+                    }
+                }) { IsBackground = true },
+                new Thread(() =>
+                {
+                    try
+                    {
+                        gate.Wait();
+                        var buf = new List<NodeState.Notifier>();
+                        for (int i = 0; i < k_iterations; i++)
+                        {
+                            buf.Clear();
+                            node.GetNotifiers(m_context, buf);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors[2] = ex;
+                    }
+                }) { IsBackground = true },
+                new Thread(() =>
+                {
+                    try
+                    {
+                        gate.Wait();
+                        for (int i = 0; i < k_iterations; i++)
+                        {
+                            node.ReportEvent(m_context, null!);
+                        }
+                    }
+                    catch (Exception ex)
+                    {
+                        errors[3] = ex;
+                    }
+                }) { IsBackground = true }
+            ];
+
+            foreach (Thread t in threads)
+            {
+                t.Start();
+            }
+
+            gate.Set();
+
+            foreach (Thread t in threads)
+            {
+                Assert.That(t.Join(TimeSpan.FromSeconds(15)), Is.True,
+                    "A thread did not complete within 15 s — possible deadlock.");
+            }
+
+            Assert.That(errors, Has.All.Null,
+                "One or more threads threw an unexpected exception.");
+        }
+
+        /// <summary>
+        /// Many threads racing to call <see cref="NodeState.CreateBrowser"/> on a fresh
+        /// node (m_browseLock is null at that point) must all get a valid browser and
+        /// must not deadlock.  Uses dedicated threads to avoid thread-pool saturation.
+        /// </summary>
+        [Test]
+        public void ConcurrentFirstBrowseCallsDoNotDeadlock()
+        {
+            var node = new BaseObjectState(null)
+            {
+                NodeId = new NodeId(22000u, 1),
+                BrowseName = QualifiedName.From("ConcBrowse"),
+                DisplayName = LocalizedText.From("ConcBrowse")
+            };
+            node.AddReference(ReferenceTypeIds.Organizes, false, new NodeId(22001u, 1));
+
+            const int k_threadCount = 8;
+            int browsersObtained = 0;
+            int activeCallbacks = 0;
+            int maximumActiveCallbacks = 0;
+
+            using var ready = new CountdownEvent(k_threadCount);
+            using var gate = new ManualResetEventSlim(false);
+            using var firstCallbackEntered = new ManualResetEventSlim(false);
+            using var releaseFirstCallback = new ManualResetEventSlim(false);
+            using var overlappingCallbackEntered = new ManualResetEventSlim(false);
+            var errors = new Exception[k_threadCount];
+
+            node.OnPopulateBrowser = (ctx, currentNode, browser) =>
+            {
+                int active = Interlocked.Increment(ref activeCallbacks);
+                UpdateMaximum(ref maximumActiveCallbacks, active);
+
+                if (active > 1)
+                {
+                    overlappingCallbackEntered.Set();
+                }
+
+                if (!firstCallbackEntered.IsSet)
+                {
+                    firstCallbackEntered.Set();
+                    if (!releaseFirstCallback.Wait(TimeSpan.FromSeconds(15)))
+                    {
+                        throw new TimeoutException("The first browse callback was not released.");
+                    }
+                }
+
+                Interlocked.Decrement(ref activeCallbacks);
+            };
+
+            Thread[] threads = [.. Enumerable.Range(0, k_threadCount).Select((_, index) =>
+            {
+                int idx = index;
+                return new Thread(() =>
+                {
+                    try
+                    {
+                        ready.Signal();
+                        gate.Wait();
+                        using INodeBrowser browser = node.CreateBrowser(
+                            m_context,
+                            view: null,
+                            referenceType: NodeId.Null,
+                            includeSubtypes: false,
+                            browseDirection: BrowseDirection.Both,
+                            browseName: QualifiedName.Null,
+                            additionalReferences: null,
+                            internalOnly: false);
+                        Interlocked.Increment(ref browsersObtained);
+                    }
+                    catch (Exception ex)
+                    {
+                        errors[idx] = ex;
+                    }
+                })
+                {
+                    IsBackground = true
+                };
+            })];
+
+            foreach (Thread t in threads)
+            {
+                t.Start();
+            }
+
+            Assert.That(ready.Wait(TimeSpan.FromSeconds(15)), Is.True,
+                "Not all browse threads reached the start gate.");
+            gate.Set();
+
+            try
+            {
+                Assert.That(firstCallbackEntered.Wait(TimeSpan.FromSeconds(15)), Is.True,
+                    "No browse callback entered within 15 s.");
+                Assert.That(overlappingCallbackEntered.Wait(TimeSpan.FromMilliseconds(500)), Is.False,
+                    "Concurrent browse calls entered OnPopulateBrowser at the same time.");
+            }
+            finally
+            {
+                releaseFirstCallback.Set();
+            }
+
+            foreach (Thread t in threads)
+            {
+                Assert.That(t.Join(TimeSpan.FromSeconds(15)), Is.True,
+                    "A browse thread did not complete within 15 s — possible deadlock.");
+            }
+
+            Assert.That(errors, Has.All.Null,
+                "One or more browse threads threw an unexpected exception.");
+            Assert.That(browsersObtained, Is.EqualTo(k_threadCount));
+            Assert.That(maximumActiveCallbacks, Is.EqualTo(1),
+                "Browse population callbacks must be serialized per node.");
+            Assert.That(GetPrivateFieldValue(node, "m_browseLock"), Is.Not.Null,
+                "The first browse must publish the canonical browse lock.");
+        }
+
+        /// <summary>
+        /// Read-only notifier paths on a node that never had a notifier added must not
+        /// publish the lazy notifier lock.
+        /// </summary>
+        [Test]
+        public void NotifierReadPathsOnFreshNodeDoNotPublishLock()
+        {
+            var node = new BaseObjectState(null);
+            var notifiers = new List<NodeState.Notifier>();
+
+            Assert.That(GetPrivateFieldValue(node, "m_notifiersLock"), Is.Null);
+            Assert.DoesNotThrow(() => node.GetNotifiers(m_context, notifiers));
+            Assert.DoesNotThrow(() => node.ReportEvent(m_context, null!));
+            Assert.DoesNotThrow(() => node.RemoveNotifier(m_context, new BaseObjectState(null), false));
+
+            Assert.That(notifiers, Is.Empty);
+            Assert.That(GetPrivateFieldValue(node, "m_notifiersLock"), Is.Null,
+                "Read-only notifier paths must not publish the lazy notifier lock.");
+        }
+
+        /// <summary>
+        /// After a node's only notifier is removed (so m_notifiers is set back to
+        /// null), subsequent ReportEvent and GetNotifiers calls must still work
+        /// correctly: m_notifiersLock is non-null at this point but m_notifiers is null,
+        /// so the lock must be acquired and the null check inside must be respected.
+        /// </summary>
+        [Test]
+        public void ReportEventAfterLastNotifierRemovedDoesNotThrow()
+        {
+            var source = new BaseObjectState(null) { NodeId = new NodeId(23000u, 1) };
+            var target = new BaseObjectState(null) { NodeId = new NodeId(23001u, 1) };
+
+            source.AddNotifier(m_context, ReferenceTypeIds.HasEventSource, false, target);
+            source.RemoveNotifier(m_context, target, false);
+
+            // m_notifiersLock is now non-null but m_notifiers is null.
+            Assert.DoesNotThrow(() => source.ReportEvent(m_context, null!));
+
+            var notifiers = new List<NodeState.Notifier>();
+            source.GetNotifiers(m_context, notifiers);
+            Assert.That(notifiers, Is.Empty);
+        }
+
+        private static object GetPrivateFieldValue(NodeState node, string fieldName)
+        {
+            FieldInfo field = typeof(NodeState).GetField(
+                fieldName,
+                BindingFlags.Instance | BindingFlags.NonPublic) ??
+                throw new InvalidOperationException($"Could not find NodeState.{fieldName}.");
+            return field.GetValue(node)!;
+        }
+
+        private static void UpdateMaximum(ref int maximum, int value)
+        {
+            int current;
+            do
+            {
+                current = Volatile.Read(ref maximum);
+                if (value <= current)
+                {
+                    return;
+                }
+            } while (Interlocked.CompareExchange(ref maximum, value, current) != current);
         }
 
         /// <summary>
@@ -2863,14 +3698,14 @@ namespace Opc.Ua.Types.Tests.State
 
         private sealed class LifecycleProbeState : BaseObjectState
         {
-            private readonly Action<System.Threading.CancellationToken> m_afterCreate;
+            private readonly Action<System.Threading.CancellationToken> m_afterCreate = null!;
 
             public LifecycleProbeState(
                 NodeState parent,
-                Action<System.Threading.CancellationToken> afterCreate = null)
+                Action<System.Threading.CancellationToken>? afterCreate = null)
                 : base(parent)
             {
-                m_afterCreate = afterCreate;
+                m_afterCreate = afterCreate!;
             }
 
             public int BeforeCreateCount { get; private set; }

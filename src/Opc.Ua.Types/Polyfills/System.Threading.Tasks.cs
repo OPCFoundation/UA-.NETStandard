@@ -59,7 +59,7 @@ namespace System.Threading.Tasks
             }
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeout);
-            var tcs = new TaskCompletionSource<bool>();
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
             {
                 Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
@@ -95,7 +95,7 @@ namespace System.Threading.Tasks
             }
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
             cts.CancelAfter(timeout);
-            var tcs = new TaskCompletionSource<bool>();
+            var tcs = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             using (cts.Token.Register(() => tcs.TrySetCanceled(), useSynchronizationContext: false))
             {
                 Task completedTask = await Task.WhenAny(task, tcs.Task).ConfigureAwait(false);
@@ -128,6 +128,15 @@ namespace System.Threading.Tasks
             if (task == null)
             {
                 throw new ArgumentNullException(nameof(task));
+            }
+
+            // Matches the BCL overload this stands in for: a task that has
+            // already completed is returned as it is, even for a token that
+            // is already cancelled. Without this the same call reports
+            // cancellation here and a result on net8.0+.
+            if (task.IsCompleted)
+            {
+                return task;
             }
 
             if (!cancellationToken.CanBeCanceled)
@@ -172,6 +181,13 @@ namespace System.Threading.Tasks
             if (task == null)
             {
                 throw new ArgumentNullException(nameof(task));
+            }
+
+            // See the non-generic overload: an already completed task wins
+            // over an already cancelled token, as it does in the BCL.
+            if (task.IsCompleted)
+            {
+                return task;
             }
 
             if (!cancellationToken.CanBeCanceled)

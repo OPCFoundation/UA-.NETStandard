@@ -31,6 +31,7 @@ using System;
 using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Logging;
 
 namespace Opc.Ua.Bindings
 {
@@ -43,8 +44,9 @@ namespace Opc.Ua.Bindings
     /// <remarks>
     /// <para>
     /// The JSON message envelope is the standard <c>JsonEncoder.EncodeMessage</c>
-    /// shape: a top-level object containing <c>TypeId</c> and <c>Body</c>
-    /// properties identifying the request/response. The compact
+    /// shape: the request/response encoded as an ExtensionObject (Part 6
+    /// §5.4.9), i.e. a top-level object with the <c>UaTypeId</c> of the
+    /// request/response followed by its fields inline (Part 6 §5.4.2.16). The compact
     /// (reversible) encoding flavour is mandatory per Part 6 §5.4.9 — the
     /// mapper enforces it via <see cref="JsonEncoderOptions.Compact"/>.
     /// </para>
@@ -93,6 +95,39 @@ namespace Opc.Ua.Bindings
             byte[] payload = await ReadAllBoundedAsync(body, context.MaxMessageSize, ct)
                 .ConfigureAwait(false);
 
+            return DecodeRequest(payload, context);
+        }
+
+        /// <summary>
+        /// Creates the ServiceFault for a JSON request that could not be decoded
+        /// or processed. The RequestHandle is read from the payload, so the fault
+        /// echoes it as OPC 10000-4 §7.33 recommends.
+        /// </summary>
+        /// <param name="logger">The logger for the fault.</param>
+        /// <param name="payload">The UTF-8 encoded request, if it was read.</param>
+        /// <param name="exception">The error to report.</param>
+        /// <returns>The fault response.</returns>
+        internal static ServiceFault CreateFault(ILogger logger, byte[]? payload, Exception exception)
+        {
+            return EndpointBase.CreateFault(
+                logger,
+                null,
+                exception,
+                payload == null ? 0 : RequestHandleReader.FromJson(payload));
+        }
+
+        /// <summary>
+        /// Decodes a single OPC UA service request from a JSON message payload.
+        /// </summary>
+        /// <param name="payload">The UTF-8 encoded message.</param>
+        /// <param name="context">The encoding context.</param>
+        /// <returns>The decoded service request.</returns>
+        /// <exception cref="ServiceResultException">
+        /// Thrown with <see cref="StatusCodes.BadDecodingError"/> if the payload
+        /// is malformed or not a recognized OPC UA JSON service request.
+        /// </exception>
+        internal static IServiceRequest DecodeRequest(byte[] payload, IServiceMessageContext context)
+        {
             try
             {
                 return JsonDecoder.DecodeMessage<IServiceRequest>(payload, context);
@@ -140,7 +175,7 @@ namespace Opc.Ua.Bindings
             try
             {
                 int read;
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                 while ((read = await body
                     .ReadAsync(rented.AsMemory(0, rented.Length), ct).ConfigureAwait(false)) > 0)
 #else
@@ -155,7 +190,7 @@ namespace Opc.Ua.Bindings
                             "Request body exceeds the configured MaxMessageSize ({0} bytes).",
                             maxLength);
                     }
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
                     await buffer.WriteAsync(rented.AsMemory(0, read), ct).ConfigureAwait(false);
 #else
                     await buffer.WriteAsync(rented, 0, read, ct).ConfigureAwait(false);
@@ -202,7 +237,7 @@ namespace Opc.Ua.Bindings
             }
 
             byte[] encoded = EncodeResponse(response, context);
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             await destination.WriteAsync(
                 encoded.AsMemory(0, encoded.Length),
                 ct).ConfigureAwait(false);
@@ -234,6 +269,27 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(context));
             }
 
+            try
+            {
+                return Encode(response, context);
+            }
+            catch (ServiceResultException ex) when (
+                ex.StatusCode == StatusCodes.BadEncodingLimitsExceeded &&
+                response is not ServiceFault)
+            {
+                // A response beyond MaxMessageSize or another encoding limit is
+                // reported to the client as a ServiceFault, like on the binary
+                // channels, instead of failing the transport.
+                var fault = new ServiceFault();
+                fault.ResponseHeader.Timestamp = DateTime.UtcNow;
+                fault.ResponseHeader.RequestHandle = response.ResponseHeader?.RequestHandle ?? 0;
+                fault.ResponseHeader.ServiceResult = StatusCodes.BadResponseTooLarge;
+                return Encode(fault, context);
+            }
+        }
+
+        private static byte[] Encode(IServiceResponse response, IServiceMessageContext context)
+        {
             using var memory = new MemoryStream();
             using (var encoder = new JsonEncoder(memory, context, JsonEncoderOptions.Compact))
             {

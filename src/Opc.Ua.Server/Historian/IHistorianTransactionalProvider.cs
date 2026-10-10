@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -38,8 +37,8 @@ namespace Opc.Ua.Server.Historian
     /// history updates atomically (all-or-nothing). The default
     /// <see cref="IHistorianDataProvider"/> contract is per-value
     /// best-effort; providers that offer stronger guarantees implement
-    /// this interface so the dispatcher (or callers) can prefer the
-    /// atomic path when available.
+    /// this interface for callers that explicitly request atomic updates.
+    /// The HistoryUpdate service uses per-value methods regardless of this capability.
     /// </summary>
     /// <remarks>
     /// <para>
@@ -63,28 +62,49 @@ namespace Opc.Ua.Server.Historian
         /// <summary>
         /// Inserts a batch of values atomically.
         /// </summary>
-        ValueTask<IList<StatusCode>> InsertAtomicAsync(
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing variable.</param>
+        /// <param name="values">Values to insert atomically, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// One status per value and a rollback flag; success statuses require the entire batch to commit.
+        /// </returns>
+        ValueTask<HistorianUpdateOutcome<DataValue>> InsertAtomicAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken ct);
 
         /// <summary>
         /// Replaces a batch of values atomically.
         /// </summary>
-        ValueTask<IList<StatusCode>> ReplaceAtomicAsync(
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing variable.</param>
+        /// <param name="values">Replacement values, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// Per-value statuses, replaced prior values on success, and whether the batch was rolled back.
+        /// </returns>
+        ValueTask<HistorianUpdateOutcome<DataValue>> ReplaceAtomicAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken ct);
 
         /// <summary>
         /// Upserts a batch of values atomically.
         /// </summary>
-        ValueTask<IList<StatusCode>> UpdateAtomicAsync(
+        /// <param name="context">The operation context and default modification metadata.</param>
+        /// <param name="nodeId">The historizing variable.</param>
+        /// <param name="values">Values to insert or replace atomically, in request order.</param>
+        /// <param name="ct">The cancellation token.</param>
+        /// <returns>
+        /// Per-value statuses, replaced prior values on success, and whether the batch was rolled back.
+        /// </returns>
+        ValueTask<HistorianUpdateOutcome<DataValue>> UpdateAtomicAsync(
             HistorianOperationContext context,
             NodeId nodeId,
-            IList<DataValue> values,
+            ArrayOf<DataValue> values,
             CancellationToken ct);
     }
 }

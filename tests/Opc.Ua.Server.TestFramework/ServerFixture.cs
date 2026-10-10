@@ -30,6 +30,7 @@
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Net.Sockets;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -50,14 +51,22 @@ namespace Opc.Ua.Server.TestFramework
 #pragma warning restore CA1001
         where T : ServerBase
     {
-        public IApplicationInstance Application { get; private set; }
-        public ApplicationConfiguration Config { get; private set; }
-        public T Server { get; private set; }
+        public IApplicationInstance Application { get; private set; } = null!;
+        public ApplicationConfiguration Config { get; private set; } = null!;
+        public T Server { get; private set; } = null!;
         public bool AutoAccept { get; set; }
         public bool OperationLimits { get; set; }
-        public int MaxChannelCount { get; set; } = 10;
+        // Keep room for the default 100 Sessions, one replacement channel and two protected startup floors.
+        public int MaxChannelCount { get; set; } = 103;
         public int ReverseConnectTimeout { get; set; }
         public bool AllNodeManagers { get; set; }
+
+        /// <summary>
+        /// Whether the fixture's server refuses to mint a NodeId it already
+        /// gave a different browse path. On by default, so a test run
+        /// exercises the check whatever configuration the stack was built in.
+        /// </summary>
+        public bool DetectNodeIdCollisions { get; set; } = true;
 
         public int TraceMasks { get; set; } =
             Utils.TraceMasks.Error |
@@ -84,7 +93,7 @@ namespace Opc.Ua.Server.TestFramework
         public bool DurableSubscriptionsEnabled { get; set; }
         public bool UseSamplingGroupsInReferenceNodeManager { get; set; }
         public bool ProvisioningMode { get; set; }
-        public ActivityListener ActivityListener { get; private set; }
+        public ActivityListener ActivityListener { get; private set; } = null!;
 
         /// <summary>
         /// Optional <see cref="Bindings.ITransportBindingRegistry"/>
@@ -94,7 +103,7 @@ namespace Opc.Ua.Server.TestFramework
         /// Kestrel-TCP listener fixture - without touching the
         /// process-wide static state.
         /// </summary>
-        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; }
+        public Bindings.ITransportBindingRegistry TransportBindingRegistry { get; set; } = null!;
 
         public ServerFixture(
             Func<ITelemetryContext, T> factory,
@@ -116,7 +125,7 @@ namespace Opc.Ua.Server.TestFramework
             m_logger = m_telemetry.CreateLogger<ServerFixture<T>>();
         }
 
-        public async Task LoadConfigurationAsync(string pkiRoot = null)
+        public async Task LoadConfigurationAsync(string? pkiRoot = null)
         {
             Application = new ApplicationInstance(m_telemetry)
             {
@@ -329,7 +338,7 @@ namespace Opc.Ua.Server.TestFramework
         /// </summary>
         public Task<T> StartAsync(int port = 0)
         {
-            return StartAsync(null, port);
+            return StartAsync(null!, port);
         }
 
         /// <summary>
@@ -359,10 +368,23 @@ namespace Opc.Ua.Server.TestFramework
                 {
                     await InternalStartServerAsync(testPort).ConfigureAwait(false);
                 }
-                catch (ServiceResultException sre)
-                    when (serverStartRetries > 0 &&
-                        sre.StatusCode == StatusCodes.BadNoCommunication)
+                catch (Exception ex)
+                    when (serverStartRetries > 0 && ServerFixtureUtils.IsPortUnavailable(ex))
                 {
+                    serverStartRetries--;
+                    testPort = UnsecureRandom.Shared.Next(
+                        ServerFixtureUtils.MinTestPort,
+                        ServerFixtureUtils.MaxTestPort);
+                    retryStartServer = true;
+                }
+                catch (Exception ex)
+                    when (serverStartRetries > 0 && IsAddressAlreadyInUse(ex))
+                {
+                    // The TCP listener reports a taken port as BadNoCommunication,
+                    // which the clause above retries. The HTTPS listener does not: it
+                    // lets Kestrel's IOException out verbatim, so without this the
+                    // retry designed for exactly this case never runs and the whole
+                    // fixture fails on a port race it was built to survive.
                     serverStartRetries--;
                     testPort = UnsecureRandom.Shared.Next(
                         ServerFixtureUtils.MinTestPort,
@@ -382,7 +404,7 @@ namespace Opc.Ua.Server.TestFramework
         /// <exception cref="InvalidOperationException"></exception>
         private async Task InternalStartServerAsync(int port)
         {
-            Config.ServerConfiguration.BaseAddresses
+            Config.ServerConfiguration!.BaseAddresses
                 = [$"{UriScheme}://localhost:{port}/{typeof(T).Name}"];
 
             // check the application certificate.
@@ -398,6 +420,15 @@ namespace Opc.Ua.Server.TestFramework
             T server = m_factory(m_telemetry);
             server.TransportBindings = TransportBindingRegistry
                 ?? TestTransportBindings.WithAllSchemes();
+            if (server is StandardServer nodeIdCollisionServer)
+            {
+                // On for every test server whatever configuration the stack
+                // was built in. Off is the release default, so leaving it
+                // alone would mean a release test run never exercises the
+                // check and a collision would surface as a silently replaced
+                // node instead of a failing test.
+                nodeIdCollisionServer.DetectNodeIdCollisions = DetectNodeIdCollisions;
+            }
             if (AllNodeManagers && server is StandardServer standardServer)
             {
                 Quickstarts.Servers.Utils.AddDefaultNodeManagers(standardServer);
@@ -423,12 +454,16 @@ namespace Opc.Ua.Server.TestFramework
         /// </summary>
         public void StartActivityListenerInternal(bool disableActivityLogging = false)
         {
+            // Source construction invokes ShouldListenTo synchronously, so resolve before registration.
+            ActivitySource activitySource = m_telemetry.GetActivitySource();
+            string expectedName = activitySource.Name;
+
             if (disableActivityLogging)
             {
                 // Create an instance of ActivityListener without logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
+                    ShouldListenTo = source => source.Name == expectedName,
                     Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = _ => { },
                     ActivityStopped = _ => { }
@@ -439,7 +474,7 @@ namespace Opc.Ua.Server.TestFramework
                 // Create an instance of ActivityListener and configure its properties with logging
                 ActivityListener = new ActivityListener
                 {
-                    ShouldListenTo = (source) => source.Name == m_telemetry.GetActivitySource().Name,
+                    ShouldListenTo = source => source.Name == expectedName,
                     Sample = (ref _) => ActivitySamplingResult.AllDataAndRecorded,
                     ActivityStarted = activity =>
                     {
@@ -478,7 +513,7 @@ namespace Opc.Ua.Server.TestFramework
         {
             // Cancel any in-progress startup (e.g., address space creation)
             m_startupCts?.Dispose();
-            m_startupCts = null;
+            m_startupCts = null!;
 
             // Watchdog around server / application teardown. Without it, a
             // stuck Server.StopAsync() or Application.DisposeAsync() blocks
@@ -521,11 +556,11 @@ namespace Opc.Ua.Server.TestFramework
                     "avoid pinning the dotnet test host past --blame-hang-timeout. " +
                     "References will be released to the runtime for finalization.");
                 DisposeCertificateManagers();
-                Server = null;
-                Application = null;
-                Config = null;
+                Server = null!;
+                Application = null!;
+                Config = null!;
                 ActivityListener?.Dispose();
-                ActivityListener = null;
+                ActivityListener = null!;
                 return;
             }
 
@@ -539,7 +574,7 @@ namespace Opc.Ua.Server.TestFramework
                     () => Server.Dispose(),
                     nameof(Server) + "." + nameof(Server.Dispose));
                 DisposeCertificateManagers();
-                Server = null;
+                Server = null!;
             }
             if (Application != null)
             {
@@ -552,12 +587,12 @@ namespace Opc.Ua.Server.TestFramework
                 finally
                 {
                     DisposeCertificateManagers();
-                    Application = null;
+                    Application = null!;
                 }
             }
-            Config = null;
+            Config = null!;
             ActivityListener?.Dispose();
-            ActivityListener = null;
+            ActivityListener = null!;
             await Task.Delay(100).ConfigureAwait(false);
         }
 
@@ -579,6 +614,43 @@ namespace Opc.Ua.Server.TestFramework
             {
                 serverManager.Dispose();
             }
+        }
+
+        /// <summary>
+        /// Gets whether a start failure was a taken port, anywhere in its chain.
+        /// </summary>
+        /// <remarks>
+        /// The listener that failed decides the shape: TCP raises a
+        /// <see cref="ServiceResultException"/>, while Kestrel wraps a
+        /// <see cref="SocketException"/> in an <c>AddressInUseException</c> inside an
+        /// <see cref="IOException"/>. Only the socket error at the bottom is common to
+        /// both, so that is what this looks for.
+        /// </remarks>
+        private static bool IsAddressAlreadyInUse(Exception exception)
+        {
+            for (Exception current = exception;
+                current is not null;
+                current = current.InnerException!)
+            {
+                if (current is SocketException socket &&
+                    socket.SocketErrorCode == SocketError.AddressAlreadyInUse)
+                {
+                    return true;
+                }
+
+                if (current is AggregateException aggregate)
+                {
+                    foreach (Exception inner in aggregate.InnerExceptions)
+                    {
+                        if (IsAddressAlreadyInUse(inner))
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return false;
         }
 
         private static readonly TimeSpan s_teardownTimeout = TimeSpan.FromSeconds(5);
@@ -659,7 +731,7 @@ namespace Opc.Ua.Server.TestFramework
         private void RunSyncWithTeardownWatchdog(Action action, string operationName)
         {
             using var done = new ManualResetEventSlim(false);
-            Exception captured = null;
+            Exception? captured = null;
             var worker = new Thread(() =>
             {
                 try
@@ -712,7 +784,7 @@ namespace Opc.Ua.Server.TestFramework
             }
         }
 
-        private CancellationTokenSource m_startupCts;
+        private CancellationTokenSource m_startupCts = null!;
         private readonly Func<ITelemetryContext, T> m_factory;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;

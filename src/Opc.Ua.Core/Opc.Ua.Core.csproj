@@ -11,16 +11,17 @@
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <IsAotCompatible Condition="$([MSBuild]::IsTargetFrameworkCompatible('$(TargetFramework)', 'net10.0'))">true</IsAotCompatible>
     <NoWarn>$(NoWarn);MODELGEN002</NoWarn>
-    <Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
     <InternalsVisibleTo Include="Opc.Ua.Core.Tests" />
+    <InternalsVisibleTo Include="Opc.Ua.Bindings.Https.WebApi.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.TestFramework" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Encoders.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Security.Certificates.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.MigrationAnalyzer.Core" />
     <InternalsVisibleTo Include="Opc.Ua.Bindings.Https" />
     <InternalsVisibleTo Include="Opc.Ua.Client" />
+    <InternalsVisibleTo Include="Opc.Ua.Configuration" />
     <InternalsVisibleTo Include="Opc.Ua.Server" />
     <InternalsVisibleTo Include="Opc.Ua.Server.Tests" />
     <InternalsVisibleTo Include="Opc.Ua.Core.Diagnostics" />
@@ -38,8 +39,9 @@
     <PackageReference Include="System.Threading.RateLimiting" />
     <PackageReference Include="BitFaster.Caching" />
   </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net48' OR '$(TargetFramework)' == 'net472'">
+  <ItemGroup Condition="'$(TargetFramework)' == 'net48'">
     <Reference Include="System.Net.Http" />
+    <Reference Include="System.IO.Compression" />
   </ItemGroup>
   <ItemGroup>
     <ProjectReference Include="..\Opc.Ua.Security.Certificates\Opc.Ua.Security.Certificates.csproj" />
@@ -52,8 +54,10 @@
   <PropertyGroup>
     <StackSourceGeneratorMode>Stack</StackSourceGeneratorMode>
   </PropertyGroup>
+  <!-- Makes StackSourceGeneratorMode/StackSourceGeneratorExclude compiler visible: the same props the
+       Stack NuGet package ships as build\*.props, so in-repo and package consumers share one definition. -->
+  <Import Project="..\..\tools\Opc.Ua.SourceGeneration.Stack\OPCFoundation.Opc.Ua.SourceGeneration.Stack.props" />
   <ItemGroup>
-    <CompilerVisibleProperty Include="StackSourceGeneratorMode" />
     <ProjectReference Include="..\..\tools\Opc.Ua.SourceGeneration.Stack\Opc.Ua.SourceGeneration.Stack.csproj">
       <OutputItemType>Analyzer</OutputItemType>
       <ReferenceOutputAssembly>false</ReferenceOutputAssembly>

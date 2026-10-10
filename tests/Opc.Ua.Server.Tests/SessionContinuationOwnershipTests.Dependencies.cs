@@ -163,7 +163,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(data.Count, Is.EqualTo(1));
             Assert.That(holder.HasBrowseForManager(source.Object), Is.False);
             Assert.That(holder.HasBrowseForManager(dependency.Object), Is.False);
-            Assert.That(released, Is.EqualTo(1));
+            Assert.That(released, Is.EqualTo(terminal == "SaveFailure" ? 0 : 1));
             holder.Clear();
         }
 
@@ -185,7 +185,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(point.RequiresManager(dependency.Object), Is.True);
             Assert.That(point.RequiresManager(equivalent.Object), Is.True);
             Assert.That(point.RequiresManager(unrelated.Object), Is.False);
-            Assert.That(() => point.RequiresManager(null), Throws.ArgumentNullException);
+            Assert.That(() => point.RequiresManager(null!), Throws.ArgumentNullException);
             Assert.That(() => point.SetDependencyOwners([unrelated.Object]),
                 Throws.TypeOf<InvalidOperationException>());
             Assert.That(point.RequiresManager(dependency.Object), Is.True);

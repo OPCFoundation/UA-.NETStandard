@@ -62,6 +62,9 @@ namespace Opc.Ua.Aot.Tests
             m_telemetry = telemetry;
         }
 
+        /// <summary>
+        /// Builds the fixture server configuration with its requested transport policies and certificate-store root.
+        /// </summary>
         public async Task LoadConfigurationAsync(string pkiRoot = null)
         {
             Application = new ApplicationInstance(m_telemetry)
@@ -99,7 +102,6 @@ namespace Opc.Ua.Aot.Tests
             }
 
             serverConfig
-                .SetMaxChannelCount(10)
                 .SetMaxMessageQueueSize(20)
                 .SetDiagnosticsEnabled(true)
                 .SetAuditingEnabled(true);

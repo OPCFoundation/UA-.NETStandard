@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -92,16 +94,26 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     .CreateAndActivateSessionAsync(TestContext.CurrentContext.Test.Name).ConfigureAwait(false);
                 DataValue initialValue = await ReadStartupMembershipValueAsync(initial).ConfigureAwait(false);
                 DataValue runtimeValue = await ReadStartupMembershipValueAsync(runtime).ConfigureAwait(false);
-                Assert.That(m_server.NodeManagerLifecycle.Registrations.Count, Is.EqualTo(1));
-                Assert.That(m_server.NodeManagerLifecycle.Registrations[0], Is.SameAs(registration));
+                List<NodeManagerRegistration> registrations = m_server.NodeManagerLifecycle.Registrations.ToList();
+                NodeManagerRegistration initialRegistration = registrations
+                    .Single(candidate => candidate.NamespaceUris.Contains(initial.NamespaceUri));
+                NodeManagerRegistration runtimeRegistration = registrations
+                    .Single(candidate => candidate.NamespaceUris.Contains(runtime.NamespaceUri));
+                Assert.That(runtimeRegistration, Is.SameAs(registration));
+                Assert.That(initialRegistration.Id, Is.Not.EqualTo(registration.Id));
+                Assert.That(initialRegistration.Generation, Is.EqualTo(1));
                 Assert.That(registration.NamespaceUris.Contains(initial.NamespaceUri), Is.False);
                 Assert.That(registration.NamespaceUris.Contains(runtime.NamespaceUri), Is.True);
                 Assert.That(registration.Generation, Is.EqualTo(1));
+                List<NodeManagerRegistration> retainedRegistrations = registrations
+                    .Where(candidate => !ReferenceEquals(candidate, registration)).ToList();
 
                 using var removal = new CancellationTokenSource(TimeSpan.FromSeconds(5));
                 await m_server.NodeManagerLifecycle.RemoveAsync(registration, null, removal.Token)
                     .ConfigureAwait(false);
-                Assert.That(m_server.NodeManagerLifecycle.Registrations, Is.Empty);
+                Assert.That(m_server.NodeManagerLifecycle.Registrations.ToList(),
+                    Is.EquivalentTo(retainedRegistrations),
+                    "Removing the runtime generation must preserve the adopted initial registrations.");
                 DataValue removed = await ReadStartupMembershipValueAsync(runtime).ConfigureAwait(false);
                 Assert.That(removed.StatusCode, Is.EqualTo(StatusCodes.BadNodeIdUnknown));
                 Assert.That(initialValue.StatusCode, Is.EqualTo(StatusCodes.Good));

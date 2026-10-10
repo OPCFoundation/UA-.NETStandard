@@ -118,6 +118,30 @@ namespace Opc.Ua.Server.Tests
             return new OperationContext(m_sessionMock.Object, DiagnosticsMasks.None);
         }
 
+        [Test]
+        public void SamplingReportingModeChangesDoNotWrapDisabledDiagnostics()
+        {
+            using Subscription subscription = CreateSubscription();
+            MethodInfo method = typeof(Subscription).GetMethod(
+                "ModifyItemMonitoringMode",
+                BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+            method.Invoke(
+                subscription,
+                [0d, MonitoringMode.Reporting, MonitoringMode.Sampling]);
+            Assert.That(subscription.Diagnostics.DisabledMonitoredItemCount, Is.Zero);
+
+            method.Invoke(
+                subscription,
+                [0d, MonitoringMode.Reporting, MonitoringMode.Disabled]);
+            Assert.That(subscription.Diagnostics.DisabledMonitoredItemCount, Is.EqualTo(1u));
+
+            method.Invoke(
+                subscription,
+                [0d, MonitoringMode.Disabled, MonitoringMode.Sampling]);
+            Assert.That(subscription.Diagnostics.DisabledMonitoredItemCount, Is.Zero);
+        }
+
         private static void InjectSentMessages(Subscription subscription, params NotificationMessage[] messages)
         {
             FieldInfo queueField = typeof(Subscription).GetField("m_messageQueue",
@@ -128,8 +152,14 @@ namespace Opc.Ua.Server.Tests
             PropertyInfo sentMessagesProperty = messageQueue.GetType().GetProperty("SentMessages",
                 BindingFlags.Public | BindingFlags.Instance)
                 ?? throw new InvalidOperationException("Property SentMessages not found");
-            var sentMessages = (List<NotificationMessage>)sentMessagesProperty.GetValue(messageQueue);
-            sentMessages.AddRange(messages);
+            var sentMessages = (List<NotificationMessage>)sentMessagesProperty.GetValue(messageQueue)!;
+            sentMessages!.AddRange(messages);
+
+            // the injected messages were sent (returned by a Publish response).
+            FieldInfo lastSentField = messageQueue.GetType().GetField("m_lastSentMessage",
+                BindingFlags.NonPublic | BindingFlags.Instance)
+                ?? throw new InvalidOperationException("Field m_lastSentMessage not found");
+            lastSentField.SetValue(messageQueue, sentMessages.Count);
         }
 
         [Test]
@@ -137,7 +167,7 @@ namespace Opc.Ua.Server.Tests
         {
             Assert.That(
                 () => new Subscription(
-                    server: null,
+                    server: null!,
                     m_sessionMock.Object,
                     subscriptionId: 1,
                     publishingInterval: 1000,
@@ -156,7 +186,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(
                 () => new Subscription(
                     m_serverMock.Object,
-                    session: null,
+                    session: null!,
                     subscriptionId: 1,
                     publishingInterval: 1000,
                     maxLifetimeCount: 10,
@@ -290,7 +320,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(message, Is.Not.Null);
             Assert.That(message.NotificationData, Has.Count.EqualTo(1));
             bool hasNotification = message.NotificationData[0]
-                .TryGetValue(out StatusChangeNotification notification);
+                .TryGetValue(out StatusChangeNotification? notification);
             Assert.That(hasNotification, Is.True);
             Assert.That(notification, Is.Not.Null);
             Assert.That(notification.Status, Is.EqualTo(StatusCodes.BadTimeout));
@@ -318,7 +348,7 @@ namespace Opc.Ua.Server.Tests
             NotificationMessage message = subscription.Publish(
                 context,
                 out _,
-                out _);
+                out _)!;
 
             Assert.That(message, Is.Null);
         }
@@ -333,7 +363,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(message, Is.Not.Null);
             Assert.That(message.NotificationData, Has.Count.EqualTo(1));
             bool hasNotification = message.NotificationData[0]
-                .TryGetValue(out StatusChangeNotification notification);
+                .TryGetValue(out StatusChangeNotification? notification);
             Assert.That(hasNotification, Is.True);
             Assert.That(notification, Is.Not.Null);
             Assert.That(notification.Status, Is.EqualTo(StatusCodes.GoodSubscriptionTransferred));
@@ -385,6 +415,24 @@ namespace Opc.Ua.Server.Tests
             subscription.SetSubscriptionDurable(maxLifetimeCount: newLifetimeCount);
 
             Assert.That(subscription.Diagnostics.MaxLifetimeCount, Is.EqualTo(newLifetimeCount));
+        }
+
+        /// <summary>
+        /// Review U9: the durable lifetime is at least three keep-alive intervals, so the
+        /// subscription cannot expire before its keep-alive is due.
+        /// </summary>
+        [Test]
+        public void SetSubscriptionDurableKeepsTheLifetimeAtLeastThreeKeepAlives()
+        {
+            m_queueFactoryMock.Setup(f => f.SupportsDurableQueues).Returns(true);
+            using Subscription subscription = CreateSubscription(
+                publishingInterval: 2_000_000,
+                maxLifetimeCount: 3,
+                maxKeepAliveCount: 1);
+
+            subscription.SetSubscriptionDurable(maxLifetimeCount: 1);
+
+            Assert.That(subscription.Diagnostics.MaxLifetimeCount, Is.EqualTo(3u));
         }
 
         [Test]
@@ -513,7 +561,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            ServiceResult result = subscription.Acknowledge(context, sequenceNumber: 0);
+            ServiceResult result = subscription.Acknowledge(context, sequenceNumber: 0)!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadSequenceNumberInvalid));
@@ -525,7 +573,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            ServiceResult result = subscription.Acknowledge(context, sequenceNumber: 42);
+            ServiceResult result = subscription.Acknowledge(context, sequenceNumber: 42)!;
 
             Assert.That(result, Is.Not.Null);
             Assert.That(result.Code, Is.EqualTo(StatusCodes.BadSequenceNumberUnknown));
@@ -542,7 +590,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(subscription.AvailableSequenceNumbersForRetransmission(), Has.Count.EqualTo(1));
 
-            ServiceResult result = subscription.Acknowledge(context, sequenceNumber: 5);
+            ServiceResult? result = subscription.Acknowledge(context, sequenceNumber: 5);
 
             Assert.That(result, Is.Null, "Successful acknowledge returns null ServiceResult");
             Assert.That(subscription.AvailableSequenceNumbersForRetransmission(), Is.Empty);
@@ -557,7 +605,7 @@ namespace Opc.Ua.Server.Tests
             var message = new NotificationMessage { SequenceNumber = 10 };
             InjectSentMessages(subscription, message);
 
-            ServiceResult result = subscription.Acknowledge(context, sequenceNumber: 10);
+            ServiceResult? result = subscription.Acknowledge(context, sequenceNumber: 10);
 
             Assert.That(result, Is.Null);
         }
@@ -659,7 +707,7 @@ namespace Opc.Ua.Server.Tests
             NotificationMessage message = subscription.Publish(
                 context,
                 out ArrayOf<uint> availableSequenceNumbers,
-                out bool moreNotifications);
+                out bool moreNotifications)!;
 
             Assert.That(message, Is.Not.Null);
             Assert.That(message.NotificationData, Is.Empty,
@@ -686,7 +734,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
 
             Assert.That(
-                () => subscription.Publish(context: null, out _, out _),
+                () => subscription.Publish(context: null!, out _, out _),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -698,7 +746,7 @@ namespace Opc.Ua.Server.Tests
 
             subscription.PublishTimeout();
 
-            NotificationMessage result = subscription.Publish(context, out _, out _);
+            NotificationMessage? result = subscription.Publish(context, out _, out _);
 
             Assert.That(result, Is.Null);
         }
@@ -731,7 +779,7 @@ namespace Opc.Ua.Server.Tests
 
             Assert.That(
                 () => subscription.SetTriggering(
-                    context: null,
+                    context: null!,
                     triggeringItemId: 1,
                     linksToAdd: [],
                     linksToRemove: [],
@@ -748,7 +796,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
 
             Assert.That(
-                () => subscription.Republish(context: null, retransmitSequenceNumber: 1),
+                () => subscription.Republish(context: null!, retransmitSequenceNumber: 1),
                 Throws.TypeOf<ArgumentNullException>());
         }
 
@@ -766,7 +814,7 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            await subscription.DeleteAsync(context);
+            await subscription.DeleteAsync(context).ConfigureAwait(false);
 
             Assert.That(subscription.IsDeleted, Is.True);
         }
@@ -777,30 +825,30 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            await subscription.DeleteAsync(context);
+            await subscription.DeleteAsync(context).ConfigureAwait(false);
 
             Assert.Multiple(() =>
             {
                 AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
-                    () => subscription.Modify(context, 1000, 10, 5, 0, 0)));
+                    () => subscription.Modify(context, 1000, 10, 5, 0, 0))!);
                 AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
-                    () => subscription.SetPublishingMode(context, publishingEnabled: false)));
+                    () => subscription.SetPublishingMode(context, publishingEnabled: false))!);
                 AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
-                    () => subscription.ResendData(context)));
+                    () => subscription.ResendData(context))!);
                 AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
-                    () => subscription.Acknowledge(context, sequenceNumber: 1)));
+                    () => subscription.Acknowledge(context, sequenceNumber: 1))!);
                 AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
-                    () => subscription.Republish(context, retransmitSequenceNumber: 1)));
+                    () => subscription.Republish(context, retransmitSequenceNumber: 1))!);
                 AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
-                    () => subscription.GetMonitoredItems(out _, out _)));
+                    () => subscription.GetMonitoredItems(out _, out _))!);
                 AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
-                    () => subscription.SetSubscriptionDurable(maxLifetimeCount: 100)));
+                    () => subscription.SetSubscriptionDurable(maxLifetimeCount: 100))!);
                 AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
-                    () => subscription.ValidateConditionRefresh(context)));
+                    () => subscription.ValidateConditionRefresh(context))!);
                 AssertBadSubscriptionId(Assert.Throws<ServiceResultException>(
                     () => subscription.SetTriggering(
                         context, triggeringItemId: 1, linksToAdd: [], linksToRemove: [],
-                        out _, out _, out _, out _)));
+                        out _, out _, out _, out _))!);
             });
         }
 
@@ -810,21 +858,21 @@ namespace Opc.Ua.Server.Tests
             using Subscription subscription = CreateSubscription();
             OperationContext context = CreateOperationContext();
 
-            await subscription.DeleteAsync(context);
+            await subscription.DeleteAsync(context).ConfigureAwait(false);
 
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.CreateMonitoredItemsAsync(
-                    context, TimestampsToReturn.Both, [])));
+                    context, TimestampsToReturn.Both, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.ModifyMonitoredItemsAsync(
-                    context, TimestampsToReturn.Both, [])));
+                    context, TimestampsToReturn.Both, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
-                async () => await subscription.DeleteMonitoredItemsAsync(context, [])));
+                async () => await subscription.DeleteMonitoredItemsAsync(context, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
                 async () => await subscription.SetMonitoringModeAsync(
-                    context, MonitoringMode.Reporting, [])));
+                    context, MonitoringMode.Reporting, []).ConfigureAwait(false)));
             AssertBadSubscriptionId(Assert.ThrowsAsync<ServiceResultException>(
-                async () => await subscription.ConditionRefreshAsync()));
+                async () => await subscription.ConditionRefreshAsync().ConfigureAwait(false)));
         }
 
         private static void AssertBadSubscriptionId(ServiceResultException ex)

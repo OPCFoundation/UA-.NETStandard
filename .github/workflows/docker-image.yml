@@ -1,53 +1,204 @@
-name: Docker Sample Images CI
+name: Images CI
 
 on:
   push:
     branches: [ master, release/*, docker* ]
-    paths-ignore:
-    - 'docs/**'
-    - 'tests/**'
+    # No paths-ignore here either: every push to master or release/* must
+    # report `images summary`, which the Release ruleset requires before a
+    # release branch can be cut from that commit. The discover job skips the
+    # image builds for documentation- or test-only pushes instead.
   pull_request:
-    branches: [ master ]
-    paths-ignore:
-    - 'docs/**'
-    - 'tests/**'
+    branches: [ master, main, master378, develop/*, release/* ]
+    # NOTE: deliberately no `paths-ignore` filter, and the same branch list as
+    # the `CI` workflow so both gates report on exactly the same pull requests.
+    # A workflow that is filtered out by `paths`/`paths-ignore` never reports
+    # its checks at all, and a required status check that never reports leaves
+    # a pull request permanently "Expected — waiting for status to be
+    # reported". `images summary` below is designed to be that required check,
+    # so this workflow has to trigger on every pull request. The docs/tests
+    # exclusion is applied inside the `discover` job instead, which skips the
+    # expensive image builds while still letting the summary report.
+  # Rebuild and republish every image on demand, for example after a base
+  # image security update that changes nothing in this repository.
+  workflow_dispatch:
 
+# Pull requests and feature branches cancel a superseded run: only the newest
+# commit's result matters there. A push to a protected line (master, main,
+# master378, release/*) never cancels, and each commit gets its own group,
+# because a queued run in a shared group is replaced as well as a running one
+# being cancelled. Every protected commit therefore finishes its required
+# checks ('build-and-test summary', 'images summary'), which the Release
+# ruleset demands before a release/<major>.<minor> branch can be cut from it.
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || ((github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) && github.sha) || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' || !(github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master378' || startsWith(github.ref, 'refs/heads/release/')) }}
 
 env:
   REGISTRY: ghcr.io
   DOCKERSIGN: false
+  # Every published sample image. `publish-samples` compiles each project
+  # once, natively, and `build-and-push-image` runs one leg per entry that
+  # only copies the published output into the multi-platform image.
+  IMAGES: >-
+    [
+      {"image": "refserver", "project": "samples/Reference/ConsoleReferenceServer/ConsoleReferenceServer.csproj", "dockerfile": "./samples/Reference/ConsoleReferenceServer/Dockerfile"},
+      {"image": "ldsserver", "project": "samples/Lds/ConsoleLdsServer/ConsoleLdsServer.csproj", "dockerfile": "./samples/Lds/ConsoleLdsServer/Dockerfile"},
+      {"image": "boilerserver", "project": "samples/MinimalApi/MinimalBoilerServer/MinimalBoilerServer.csproj", "dockerfile": "./samples/MinimalApi/MinimalBoilerServer/Dockerfile"},
+      {"image": "calcserver", "project": "samples/MinimalApi/MinimalCalcServer/MinimalCalcServer.csproj", "dockerfile": "./samples/MinimalApi/MinimalCalcServer/Dockerfile"},
+      {"image": "mcpserver", "project": "tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj", "dockerfile": "./tools/Opc.Ua.Mcp/Dockerfile"},
+      {"image": "redundantserver", "project": "samples/Redundancy/RedundantServer/RedundantServer.csproj", "dockerfile": "./samples/Redundancy/RedundantServer/Dockerfile"},
+      {"image": "pumpserver", "project": "samples/DI/PumpDeviceIntegrationServer/PumpDeviceIntegrationServer.csproj", "dockerfile": "./samples/DI/PumpDeviceIntegrationServer/Dockerfile"},
+      {"image": "redundantclient", "project": "samples/Redundancy/RedundantClient/RedundantClient.csproj", "dockerfile": "./samples/Redundancy/RedundantClient/Dockerfile"},
+      {"image": "redundantpubsub", "project": "samples/Redundancy/RedundantPubSub/RedundantPubSub.csproj", "dockerfile": "./samples/Redundancy/RedundantPubSub/Dockerfile"},
+      {"image": "pubsubclient", "project": "samples/PubSub/ConsoleReferencePubSubClient/ConsoleReferencePubSubClient.csproj", "dockerfile": "./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile"}
+    ]
 
 jobs:
+  discover:
+    name: Discover image changes
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    outputs:
+      relevant_changes: ${{ steps.relevance.outputs.relevant_changes }}
+      images: ${{ steps.images.outputs.images }}
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        # Full history so the path-relevance check below can diff a pull
+        # request against its merge base.
+        fetch-depth: 0
+    - name: Resolve path relevance
+      id: relevance
+      shell: pwsh
+      env:
+        EVENT_NAME: ${{ github.event_name }}
+        BASE_SHA: ${{ github.event.pull_request.base.sha }}
+        BEFORE_SHA: ${{ github.event.before }}
+      run: |
+        # Reproduces the `paths-ignore` allow-list that used to sit on both
+        # triggers: an image is rebuilt for any change that is not purely
+        # documentation or test code. Filtering the whole workflow out would
+        # stop `images summary` from ever reporting, which would block every
+        # documentation-only pull request, and every documentation-only push
+        # as a release-branch cut point, since the check is required.
+        $relevantChanges = $true
+        $range = $null
+        if ($env:EVENT_NAME -eq 'pull_request' -and -not [string]::IsNullOrWhiteSpace($env:BASE_SHA)) {
+            # Triple-dot: diff from the merge base, not from the current base
+            # branch head, so a change that landed on the base branch after
+            # this one was cut is not misread as an image-relevant change.
+            $range = "$($env:BASE_SHA)...HEAD"
+        }
+        elseif ($env:EVENT_NAME -eq 'push' -and $env:BEFORE_SHA -match '^[0-9a-f]{40}$' -and
+            $env:BEFORE_SHA -notmatch '^0+$') {
+            # A new branch has an all-zero 'before', and a force push can name
+            # a commit this clone does not have: build everything in both cases
+            # rather than guess what changed.
+            & git cat-file -e "$($env:BEFORE_SHA)^{commit}" 2>$null
+            if ($LASTEXITCODE -eq 0) {
+                $range = "$($env:BEFORE_SHA)..HEAD"
+            }
+        }
+        if ($range) {
+            $changed = @(& git diff --name-only $range)
+            if ($LASTEXITCODE -ne 0) {
+                throw (
+                    "Could not diff '$range' (git exit code $LASTEXITCODE). " +
+                    'Refusing to skip required image builds.')
+            }
+            $relevantChanges = $false
+            foreach ($file in $changed) {
+                if ($file -like 'docs/*' -or $file -like 'tests/*') {
+                    continue
+                }
+                $relevantChanges = $true
+                break
+            }
+            Write-Host "Changed files: $(@($changed).Count); image-relevant: $relevantChanges"
+        }
+        "relevant_changes=$($relevantChanges.ToString().ToLowerInvariant())" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append
+    - name: Resolve image matrix
+      id: images
+      shell: pwsh
+      run: |
+        $images = @($env:IMAGES | ConvertFrom-Json)
+        "images=$(ConvertTo-Json -InputObject $images -Compress)" |
+            Out-File -FilePath $env:GITHUB_OUTPUT -Append
+
+  publish-samples:
+    # Compiles every sample once, natively on the x64 runner. The output is
+    # framework-dependent portable IL (no runtime identifier, no app host), so
+    # the same files serve linux/amd64 and linux/arm64. Compiling inside the
+    # image build instead ran the SDK for arm64 under QEMU emulation, which
+    # took over an hour per image.
+    name: Publish sample applications
+    needs: discover
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+    - uses: actions/checkout@v7
+      with:
+        fetch-depth: 0
+
+    - name: Set up .NET 10
+      uses: actions/setup-dotnet@v6
+      with:
+        dotnet-version: '10.0.401'
+
+    - name: Set Version
+      shell: pwsh
+      run: ./.azurepipelines/set-version.ps1
+
+    - name: Publish samples
+      shell: pwsh
+      run: |
+        # The same options the Dockerfiles use when they build from source.
+        $options = @(
+            '-c', 'Release',
+            '-f', 'net10.0',
+            '-p:PublishAot=false',
+            '-p:UseAppHost=false',
+            '-p:CustomTestTarget=net10.0',
+            '-p:Dockerbuild=true',
+            "-p:Version=$env:NBGV_Version",
+            "-p:AssemblyVersion=$env:NBGV_SimpleVersion",
+            "-p:FileVersion=$env:NBGV_Version",
+            "-p:InformationalVersion=$env:NBGV_AssemblyInformationalVersion")
+        foreach ($entry in @($env:IMAGES | ConvertFrom-Json)) {
+            Write-Host "::group::$($entry.image) ($($entry.project))"
+            & dotnet publish $entry.project @options -o "artifacts/docker/publish/$($entry.image)"
+            $exitCode = $LASTEXITCODE
+            Write-Host '::endgroup::'
+            if ($exitCode -ne 0) {
+                throw "Publishing $($entry.project) failed (exit code $exitCode)."
+            }
+        }
+
+    - name: Upload published samples
+      uses: actions/upload-artifact@v7
+      with:
+        name: docker-publish
+        path: artifacts/docker/publish
+        if-no-files-found: error
+        retention-days: 1
+
   build-and-push-image:
+    name: build-and-push-image (${{ matrix.image }})
+    needs:
+    - discover
+    - publish-samples
+    # Skipped rather than filtered out when nothing image-relevant changed, so
+    # the summary below still reports a result.
+    if: ${{ needs.discover.outputs.relevant_changes == 'true' }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
-        include:
-          # Sample servers
-          - image: refserver
-            dockerfile: ./samples/Reference/ConsoleReferenceServer/Dockerfile
-          - image: ldsserver
-            dockerfile: ./samples/Lds/ConsoleLdsServer/Dockerfile
-          - image: boilerserver
-            dockerfile: ./samples/MinimalApi/MinimalBoilerServer/Dockerfile
-          - image: calcserver
-            dockerfile: ./samples/MinimalApi/MinimalCalcServer/Dockerfile
-          - image: mcpserver
-            dockerfile: ./tools/Opc.Ua.Mcp/Dockerfile
-          - image: redundantserver
-            dockerfile: ./samples/Redundancy/RedundantServer/Dockerfile
-          # Redundant client
-          - image: redundantclient
-            dockerfile: ./samples/Redundancy/RedundantClient/Dockerfile
-          # PubSub samples
-          - image: redundantpubsub
-            dockerfile: ./samples/Redundancy/RedundantPubSub/Dockerfile
-          - image: pubsubclient
-            dockerfile: ./samples/PubSub/ConsoleReferencePubSubClient/Dockerfile
+        include: ${{ fromJSON(needs.discover.outputs.images) }}
     env:
       IMAGE_NAME: ${{ matrix.image }}
       IS_NOT_PR: ${{ !github.head_ref && true }}
@@ -63,10 +214,10 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up .NET 8
+    - name: Set up .NET 10
       uses: actions/setup-dotnet@v6
       with:
-        dotnet-version: '8.x'
+        dotnet-version: '10.0.401'
 
     - name: Set Version
       shell: pwsh
@@ -95,24 +246,115 @@ jobs:
         password: ${{ secrets.GITHUB_TOKEN }}
 
     - name: Prepare Tag Repo Info
+      env:
+        # Same rule as the ref below: pass values into the script as data
+        # rather than interpolating them into its source.
+        SOURCE_REPOSITORY: ${{ github.repository }}
       run: |
-        echo IMAGE_REPOSITORY=${{ env.REGISTRY }}/$(echo ${{ github.repository }} | tr '[:upper:]' '[:lower:]' | awk '{gsub(/-|\./, "")}1')/${{ env.IMAGE_NAME }} >> $GITHUB_ENV
-        echo IMAGE_VERSION=$(echo ${{ env.NBGV_Version }}${{ env.NBGV_PrereleaseVersion }}) >> $GITHUB_ENV
+        set -euo pipefail
+        repository=$(printf '%s' "$SOURCE_REPOSITORY" \
+          | tr '[:upper:]' '[:lower:]' \
+          | awk '{gsub(/-|\./, "")}1')
+        echo "IMAGE_REPOSITORY=${REGISTRY}/${repository}/${IMAGE_NAME}" >> "$GITHUB_ENV"
+        # Use NBGV's canonical NuGet SemVer rather than NBGV_Version, whose
+        # fourth component is a git-height build number. Stable image tags
+        # must align with the explicit M.m.p package release version.
+        #
+        # Strip any "+<metadata>" before the value becomes a tag: '+' is not
+        # a legal Docker tag character, so build-push-action would fail on it.
+        # With version.json's current "nugetPackageVersion.semVer: 2" NBGV
+        # already folds the commit id into a prerelease segment instead
+        # (measured on nbgv 3.7.115: "2.0.0-preview.24.gd602b190a4", no '+'),
+        # so this is a no-op today and exists so a version.json change cannot
+        # silently break every image build.
+        version="${NBGV_NuGetPackageVersion%%+*}"
+        # Fail closed on anything else a tag may not contain, rather than
+        # letting the registry reject the push after the whole image is built.
+        if ! printf '%s' "$version" | grep -Eq '^[A-Za-z0-9_][A-Za-z0-9._-]{0,127}$'; then
+          echo "Version '${NBGV_NuGetPackageVersion}' does not yield a usable Docker tag." >&2
+          exit 1
+        fi
+        echo "IMAGE_VERSION=${version}" >> "$GITHUB_ENV"
 
     - name: Prepare Tag Branch info
-      if: env.NBGV_PublicRelease == 'False'
+      # Append a branch-derived suffix to the version/"latest" tags for
+      # every build that is not an exact stable release - not just a
+      # non-public-release build. NBGV_PublicRelease is true for the whole
+      # duration a canonical release/<major>.<minor> branch is eligible to
+      # publish, including every commit while it is still stabilizing the
+      # next patch (e.g. "2.0.1-preview.3"); without this, an in-progress
+      # release-branch commit would overwrite the global "latest" image tag
+      # before the release is actually approved. Only the exact stable
+      # commit (NBGV_PrereleaseVersion empty) skips the suffix. See
+      # docs/ReleaseProcess.md.
+      if: env.NBGV_PublicRelease == 'False' || env.NBGV_PrereleaseVersion != ''
+      env:
+        # Never interpolate github.ref into the script body: a ref is
+        # attacker-influenced text and git permits shell metacharacters such
+        # as ';', '$', '`' and quotes in a branch name, which would execute
+        # here. Pass it as data and transform the quoted variable instead.
+        SOURCE_REF: ${{ github.ref }}
       run: |
-        echo IMAGE_TAG=-$(echo ${{ github.ref }} | tr '[:upper:]' '[:lower:]' |  awk '{sub(/([^\/]*\/){2}/,""); gsub(/\/|_/, "-")}1') >> $GITHUB_ENV
+        set -euo pipefail
+        # Strip "refs/heads/" (two slash-terminated segments) and reduce the
+        # remainder to the characters a Docker tag may contain, so neither the
+        # later tag-assembly steps nor the registry can receive anything else.
+        suffix=$(printf '%s' "$SOURCE_REF" \
+          | tr '[:upper:]' '[:lower:]' \
+          | awk '{sub(/([^\/]*\/){2}/,""); gsub(/\/|_/, "-"); gsub(/[^a-z0-9.-]/, "-")}1')
+        if [ -z "$suffix" ]; then
+          echo "Unable to derive an image tag suffix from '$SOURCE_REF'." >&2
+          exit 1
+        fi
+        echo "IMAGE_TAG=-${suffix}" >> "$GITHUB_ENV"
+
+    - name: Determine release line precedence
+      # Only the newest canonical release/<major>.<minor> line may move the
+      # unqualified ":latest" and ":release" aliases. Without this, a later
+      # 2.0.x maintenance release would drag both aliases back to the older
+      # minor after 2.1.x had already published, contradicting the guarantee
+      # in docs/ReleaseProcess.md that older maintenance lines cannot move
+      # them backwards. Fails closed: if the newest line cannot be
+      # determined, this build is treated as a superseded line and only
+      # publishes line-specific aliases.
+      if: ${{ env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
+      run: |
+        set -euo pipefail
+        highest=$(git ls-remote --heads origin 'refs/heads/release/*' \
+          | sed -E 's#.*refs/heads/release/##' \
+          | grep -E '^[0-9]+\.[0-9]+$' \
+          | sort -t. -k1,1n -k2,2n \
+          | tail -n1 || true)
+        echo "Newest canonical release line: '${highest:-<none>}'; this build: '${NBGV_MajorMinorVersion}'"
+        if [ -n "$highest" ] && [ "$highest" = "${NBGV_MajorMinorVersion}" ]; then
+          echo "IS_NEWEST_RELEASE_LINE=true" >> "$GITHUB_ENV"
+        else
+          echo "IS_NEWEST_RELEASE_LINE=false" >> "$GITHUB_ENV"
+        fi
 
     - name: Prepare version and latest tag
       run: |
-        echo TAG_BRANCH=$(echo ${{ env.IMAGE_REPOSITORY }}:${{ env.IMAGE_VERSION }}${{ env.IMAGE_TAG }}) >> $GITHUB_ENV
-        echo TAG_LATEST=$(echo ${{ env.IMAGE_REPOSITORY }}:latest${{ env.IMAGE_TAG }}) >> $GITHUB_ENV
+        set -euo pipefail
+        echo "TAG_BRANCH=${IMAGE_REPOSITORY}:${IMAGE_VERSION}${IMAGE_TAG:-}" >> "$GITHUB_ENV"
+        latest_suffix="${IMAGE_TAG:-}"
+        if [ "${IS_NEWEST_RELEASE_LINE:-}" = "false" ]; then
+          # Stable release on a superseded maintenance line: leave ":latest"
+          # on the newest line and publish a line-specific alias instead.
+          latest_suffix="-${NBGV_MajorMinorVersion}"
+        fi
+        echo "TAG_LATEST=${IMAGE_REPOSITORY}:latest${latest_suffix}" >> "$GITHUB_ENV"
 
     - name: Prepare Release tags
       if: ${{ env.NBGV_PublicRelease == 'True' && env.NBGV_PrereleaseVersion == '' && env.IS_NOT_PR == 'true' }}
       run: |
-        echo TAG_RELEASE=,${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_MajorMinorVersion }},${{ env.IMAGE_REPOSITORY }}:${{ env.NBGV_SimpleVersion }},${{ env.IMAGE_REPOSITORY }}:release >> $GITHUB_ENV
+        set -euo pipefail
+        # Every release line keeps its exact version and major.minor tags;
+        # only the newest line also claims the unqualified ":release" alias.
+        tags=",${IMAGE_REPOSITORY}:${NBGV_MajorMinorVersion},${IMAGE_REPOSITORY}:${NBGV_SimpleVersion}"
+        if [ "${IS_NEWEST_RELEASE_LINE:-}" = "true" ]; then
+          tags="${tags},${IMAGE_REPOSITORY}:release"
+        fi
+        echo "TAG_RELEASE=${tags}" >> "$GITHUB_ENV"
 
     # Extract metadata (tags, labels) for Docker
     # https://github.com/docker/metadata-action
@@ -122,20 +364,25 @@ jobs:
       with:
         images: ${{ env.IMAGE_REPOSITORY }}
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v4
+    - name: Download published samples
+      uses: actions/download-artifact@v8
+      with:
+        name: docker-publish
+        path: artifacts/docker/publish
 
     # Build and push Docker image with Buildx (don't push on PR)
     # https://github.com/docker/build-push-action
+    # The "prebuilt" stage only copies the output of publish-samples into the
+    # runtime base image, so no instruction runs for a foreign platform and
+    # QEMU is not needed for the arm64 image.
     - name: Build and push Docker image
       id: build-and-push
       uses: docker/build-push-action@v7
       with:
         context: .
         build-args: |
-          Version=${{ env.NBGV_Version }}
-          SimpleVersion=${{ env.NBGV_SimpleVersion }}
-          InformationalVersion=${{ env.NBGV_AssemblyInformationalVersion }}
+          PUBLISH_SOURCE=prebuilt
+          PUBLISH_DIR=artifacts/docker/publish/${{ matrix.image }}
         push: ${{ github.event_name != 'pull_request' }}
         tags: ${{ env.TAG_BRANCH }},${{ env.TAG_LATEST }}${{ env.TAG_RELEASE }}
         platforms: linux/amd64,linux/arm64/v8
@@ -157,3 +404,57 @@ jobs:
       run: |
         echo Signing ${{ env.IMAGE_REPOSITORY }}@${{ steps.build-and-push.outputs.digest }}
         echo "${{ env.IMAGE_REPOSITORY }}" | xargs -I {} cosign sign {}@${{ steps.build-and-push.outputs.digest }}
+
+  images-summary:
+    # The single fixed-name check for every image in the matrix above. Matrix
+    # job names carry their image in parentheses, so they change whenever an
+    # image is added or renamed and cannot be pinned in a ruleset. This job's
+    # name never changes, so branch protection can require `images summary`
+    # once and automatically cover every present and future image.
+    name: images summary
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    if: ${{ always() }}
+    needs:
+    - discover
+    - publish-samples
+    - build-and-push-image
+    steps:
+    - name: Evaluate job results
+      shell: pwsh
+      env:
+        RELEVANT_CHANGES: ${{ needs.discover.outputs.relevant_changes }}
+        DISCOVER_RESULT: ${{ needs.discover.result }}
+        PUBLISH_RESULT: ${{ needs.publish-samples.result }}
+        IMAGES_RESULT: ${{ needs.build-and-push-image.result }}
+      run: |
+        if ($env:RELEVANT_CHANGES -eq 'true') {
+          Write-Host 'This change is image-relevant; every sample image was built.'
+        }
+        else {
+          Write-Host 'Only documentation or test code changed; the image matrix is expected to be skipped.'
+        }
+
+        $results = [ordered]@{
+          'discover'             = $env:DISCOVER_RESULT
+          'publish-samples'      = $env:PUBLISH_RESULT
+          'build-and-push-image' = $env:IMAGES_RESULT
+        }
+
+        $bad = @()
+        foreach ($job in $results.GetEnumerator()) {
+          Write-Host "$($job.Key): $($job.Value)"
+          # A matrix job aggregates to 'success' only when every leg succeeded,
+          # so one broken image fails this gate. 'skipped' is a valid outcome -
+          # nothing image-relevant changed for this event.
+          if (@('success', 'skipped') -notcontains $job.Value) {
+            $bad += "$($job.Key)=$($job.Value)"
+          }
+        }
+
+        if ($bad.Count -gt 0) {
+          Write-Host "::error::Image builds did not succeed: $($bad -join ', ')"
+          exit 1
+        }
+        Write-Host 'All image builds succeeded or were intentionally skipped.'

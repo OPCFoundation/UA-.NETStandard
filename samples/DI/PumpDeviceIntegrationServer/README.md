@@ -1,5 +1,11 @@
 # PumpDeviceIntegrationServer
 
+The pump measurements use the fluent historian with automatic capture enabled.
+The first measurement configures the shared capture sink explicitly with an
+8,192-sample bounded queue, 128-value target batches, a 50 ms batch window, and
+`DropOldest` overload behavior. Subsequent historized pump variables reuse the
+same per-node-manager capture pipeline.
+
 A self-contained, NativeAOT-friendly OPC UA server that demonstrates
 the [OPC 40223 Pumps companion specification](https://reference.opcfoundation.org/specs/OPC-40223)
 with a full live simulation, wired through the fluent
@@ -159,14 +165,15 @@ sequenceDiagram
     DI->>Factory: CreateAsync(server, configuration)
     Factory->>NM: new PumpNodeManager(.., postSetupRunner, options)
     NM->>NM: LoadPredefinedNodesAsync<br/>AddOpcUaDi + Machinery + Pumps
-    NM->>NM: OnAddressSpaceReadyAsync
+    NM->>NM: ConfigureAsync(builder, ct)
     loop for each of N pumps
         NM->>NM: ConfigureInstancesAsync → Pump_n (PumpType)
         NM->>NM: MaterialiseNameplate + optional children
     end
-    NM->>NM: CreateFluentBuilder().Configure(Configure).Seal()
+    NM->>NM: Configure(builder)
     Note over NM: Configure wires identification, maintenance,<br/>measurements, alarms and history per pump
-    Note over NM: Seal starts the 250 ms simulation loop
+    NM->>NM: await builder.SealAsync(ct)
+    Note over NM: SealAsync registers staged root notifiers<br/>and starts the 250 ms simulation loop
     NM->>Runner: post-setup pipeline
     Runner->>NM: TopologyElement(pumpNodeId).WithFunctionalGroup("Diagnostics")
 ```
@@ -394,7 +401,8 @@ self-contained stage and streams the live OPC UA values into
 ## Running in Docker
 
 A [`Dockerfile`](./Dockerfile) is provided that builds the Release
-publish output on the .NET **AzureLinux 3** base images and runs it as a
+publish output with the .NET **Azure Linux 3** SDK and runs it on the
+Azure Linux 3 distroless-extra runtime image as a
 non-root user.
 
 > **Build from the repository root**, not from this folder. The image
@@ -433,9 +441,14 @@ docker run --rm -p 62542:62542 `
            pumpdeviceintegrationserver:local
 ```
 
-The image is built and published to the GitHub Container Registry by the
-[`pump-device-integration-server-docker.yml`](../../../.github/workflows/pump-device-integration-server-docker.yml)
-workflow on every push to `master` and on manual dispatch.
+The image is built and published to the GitHub Container Registry as
+`ghcr.io/opcfoundation/uanetstandard/pumpserver` by the
+[`docker-image.yml`](../../../.github/workflows/docker-image.yml) (`Images CI`)
+workflow, alongside every other sample image: built without publishing on
+every pull request, and published on pushes to `master` and `release/*`
+and on manual dispatch. See
+[Container support](../../../docs/ContainerReferenceServer.md) for the
+tag scheme.
 
 ## What the sample demonstrates
 

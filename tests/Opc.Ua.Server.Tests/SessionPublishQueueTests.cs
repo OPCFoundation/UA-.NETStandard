@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -78,8 +79,8 @@ namespace Opc.Ua.Server.Tests
         [Test]
         public void Constructor_NullArgs_ThrowsArgumentNullException()
         {
-            Assert.Throws<ArgumentNullException>(() => new SessionPublishQueue(null, m_sessionMock.Object, kMaxPublishRequests));
-            Assert.Throws<ArgumentNullException>(() => new SessionPublishQueue(m_serverMock.Object, null, kMaxPublishRequests));
+            Assert.Throws<ArgumentNullException>(() => new SessionPublishQueue(null!, m_sessionMock.Object, kMaxPublishRequests));
+            Assert.Throws<ArgumentNullException>(() => new SessionPublishQueue(m_serverMock.Object, null!, kMaxPublishRequests));
         }
 
         [Test]
@@ -93,22 +94,90 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
-        public void PublishAsync_QueueFull_ThrowsBadTooManyPublishRequests()
+        public void PublishAsync_QueueFull_FailsOldestRequestAndQueuesNewRequest()
         {
-            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, 1);
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
 
             var subMock = new Mock<ISubscriptionPublishPipeline>();
             subMock.Setup(s => s.Id).Returns(1);
             queue.Add(subMock.Object);
 
-            // First publish request should be queued
-            Task<ISubscriptionPublishPipeline> task1 = queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
-            Assert.That(task1.IsCompleted, Is.False);
+            var queued = new List<Task<ISubscriptionPublishPipeline>>();
+            for (int ii = 0; ii < kMaxPublishRequests; ii++)
+            {
+                queued.Add(queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None));
+            }
+            Assert.That(queued.TrueForAll(t => !t.IsCompleted), Is.True);
 
-            // Second publish request should fail because max queue size is 1
+            // OPC 10000-4, 5.14.5.1: the oldest request is de-queued, the new one is queued.
+            Task<ISubscriptionPublishPipeline> newRequest =
+                queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+
             ServiceResultException ex =
-                Assert.CatchAsync<ServiceResultException>(() => queue.PublishAsync("channel2", DateTime.MaxValue, false, null, CancellationToken.None));
+                Assert.CatchAsync<ServiceResultException>(async () => await queued[0].ConfigureAwait(false));
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
+            Assert.That(newRequest.IsCompleted, Is.False);
+            Assert.That(queued.GetRange(1, kMaxPublishRequests - 1).TrueForAll(t => !t.IsCompleted), Is.True);
+
+            // Capacity accounting stays exact: the next request evicts the next oldest only.
+            Task<ISubscriptionPublishPipeline> nextRequest =
+                queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            Assert.That(queued[1].IsFaulted, Is.True);
+            Assert.That(queued[2].IsCompleted, Is.False);
+            Assert.That(nextRequest.IsCompleted, Is.False);
+        }
+
+        [Test]
+        public void PublishAsync_RequeueWhenQueueFull_DoesNotFailQueuedRequests()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+
+            var queued = new List<Task<ISubscriptionPublishPipeline>>();
+            for (int ii = 0; ii < kMaxPublishRequests; ii++)
+            {
+                queued.Add(queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None));
+            }
+
+            // A requeued request is already being processed and is not a new Publish request.
+            Task<ISubscriptionPublishPipeline> requeued =
+                queue.PublishAsync("channel1", DateTime.MaxValue, true, null, CancellationToken.None);
+
+            Assert.That(requeued.IsCompleted, Is.False);
+            Assert.That(queued.TrueForAll(t => !t.IsCompleted), Is.True);
+        }
+
+        [Test]
+        public void PublishAsync_AcceptsMoreRequestsThanSubscriptions()
+        {
+            // The configured limit is lower than the number of Subscriptions.
+            const int subscriptionCount = 3;
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, 1);
+
+            for (uint id = 1; id <= subscriptionCount; id++)
+            {
+                var subMock = new Mock<ISubscriptionPublishPipeline>();
+                subMock.Setup(s => s.Id).Returns(id);
+                queue.Add(subMock.Object);
+            }
+
+            // OPC 10000-4, 5.14.5.1: more queued Publish requests than Subscriptions are accepted.
+            var queued = new List<Task<ISubscriptionPublishPipeline>>();
+            for (int ii = 0; ii <= subscriptionCount; ii++)
+            {
+                queued.Add(queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None));
+            }
+            Assert.That(queued.TrueForAll(t => !t.IsCompleted), Is.True);
+
+            Task<ISubscriptionPublishPipeline> overflow =
+                queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            ServiceResultException ex =
+                Assert.CatchAsync<ServiceResultException>(async () => await queued[0].ConfigureAwait(false));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTooManyPublishRequests));
+            Assert.That(overflow.IsCompleted, Is.False);
         }
 
         [Test]
@@ -144,7 +213,7 @@ namespace Opc.Ua.Server.Tests
             subscription1.Setup(s => s.Id).Returns(1);
             subscription1.Setup(s => s.Priority).Returns(1);
             subscription1
-                .Setup(s => s.PublishTimerExpired())
+                .Setup(s => s.PublishTimerExpired(It.IsAny<bool>()))
                 .Callback(() => timerOrder.Add(subscription1.Object))
                 .Returns(() => publishingState);
             queue.Add(subscription1.Object);
@@ -153,7 +222,7 @@ namespace Opc.Ua.Server.Tests
             subscription2.Setup(s => s.Id).Returns(2);
             subscription2.Setup(s => s.Priority).Returns(1);
             subscription2
-                .Setup(s => s.PublishTimerExpired())
+                .Setup(s => s.PublishTimerExpired(It.IsAny<bool>()))
                 .Callback(() => timerOrder.Add(subscription2.Object))
                 .Returns(() => publishingState);
             queue.Add(subscription2.Object);
@@ -217,7 +286,7 @@ namespace Opc.Ua.Server.Tests
             subscription1.Setup(s => s.Id).Returns(1);
             subscription1.Setup(s => s.Priority).Returns(() => GetPriority(subscription1.Object));
             subscription1
-                .Setup(s => s.PublishTimerExpired())
+                .Setup(s => s.PublishTimerExpired(It.IsAny<bool>()))
                 .Callback(() => timerOrder.Add(subscription1.Object))
                 .Returns(PublishingState.NotificationsAvailable);
             queue.Add(subscription1.Object);
@@ -225,7 +294,7 @@ namespace Opc.Ua.Server.Tests
             subscription2.Setup(s => s.Id).Returns(2);
             subscription2.Setup(s => s.Priority).Returns(() => GetPriority(subscription2.Object));
             subscription2
-                .Setup(s => s.PublishTimerExpired())
+                .Setup(s => s.PublishTimerExpired(It.IsAny<bool>()))
                 .Callback(() => timerOrder.Add(subscription2.Object))
                 .Returns(PublishingState.NotificationsAvailable);
             queue.Add(subscription2.Object);
@@ -288,7 +357,7 @@ namespace Opc.Ua.Server.Tests
             using var requestLifetime = new RequestLifetime();
             var context = new OperationContext(
                 new RequestHeader { RequestHandle = requestHandle },
-                null,
+                null!,
                 RequestType.Publish,
                 requestLifetime,
                 sessionMock.Object);
@@ -312,7 +381,7 @@ namespace Opc.Ua.Server.Tests
             Assert.That(task.IsCanceled, Is.True, "The parked Publish request must complete as canceled.");
             Assert.That(
                 context.OperationStatus.Code,
-                Is.EqualTo(StatusCodes.BadRequestCancelledByRequest),
+                Is.EqualTo(StatusCodes.BadRequestCancelledByClient),
                 "The canceled Publish must carry the Cancel service status code.");
         }
 
@@ -359,7 +428,7 @@ namespace Opc.Ua.Server.Tests
 
             var subMock = new Mock<ISubscriptionPublishPipeline>();
             subMock.Setup(s => s.Id).Returns(1);
-            subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
             queue.Add(subMock.Object);
 
             Task<ISubscriptionPublishPipeline> task = queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
@@ -471,7 +540,7 @@ namespace Opc.Ua.Server.Tests
                 new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 10 }
             ];
 
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
+            var context = new OperationContext(new RequestHeader(), null!, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
 
             queue.Acknowledge(context, acks, out ArrayOf<StatusCode> results, out ArrayOf<DiagnosticInfo> diagInfos);
 
@@ -489,12 +558,42 @@ namespace Opc.Ua.Server.Tests
                 new SubscriptionAcknowledgement { SubscriptionId = 99, SequenceNumber = 10 }
             ];
 
-            var context = new OperationContext(new RequestHeader(), null, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
+            var context = new OperationContext(new RequestHeader(), null!, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
 
             queue.Acknowledge(context, acks, out ArrayOf<StatusCode> results, out ArrayOf<DiagnosticInfo> diagInfos);
 
             Assert.That(results.Count, Is.EqualTo(1));
             Assert.That(results[0], Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+        }
+
+        [Test]
+        public void Acknowledge_SubscriptionThrows_ReturnsPerAckResultAndKeepsOtherResults()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            // A subscription deleted/transferred concurrently throws from Acknowledge.
+            var deleted = new Mock<ISubscriptionPublishPipeline>();
+            deleted.Setup(s => s.Id).Returns(1);
+            deleted.Setup(s => s.Acknowledge(It.IsAny<OperationContext>(), It.IsAny<uint>()))
+                .Throws(new ServiceResultException(StatusCodes.BadSubscriptionIdInvalid));
+            var healthy = new Mock<ISubscriptionPublishPipeline>();
+            healthy.Setup(s => s.Id).Returns(2);
+            healthy.Setup(s => s.Acknowledge(It.IsAny<OperationContext>(), 10))
+                .Returns(StatusCodes.Good);
+            queue.Add(deleted.Object);
+            queue.Add(healthy.Object);
+
+            var acks = (ArrayOf<SubscriptionAcknowledgement>)[
+                new SubscriptionAcknowledgement { SubscriptionId = 1, SequenceNumber = 5 },
+                new SubscriptionAcknowledgement { SubscriptionId = 2, SequenceNumber = 10 }
+            ];
+            var context = new OperationContext(new RequestHeader(), null!, RequestType.Publish, RequestLifetime.None, m_sessionMock.Object);
+
+            queue.Acknowledge(context, acks, out ArrayOf<StatusCode> results, out _);
+
+            Assert.That(results.Count, Is.EqualTo(2));
+            Assert.That(results[0], Is.EqualTo(StatusCodes.BadSubscriptionIdInvalid));
+            Assert.That(results[1], Is.EqualTo(StatusCodes.Good));
         }
 
         [Test]
@@ -509,7 +608,7 @@ namespace Opc.Ua.Server.Tests
             Task<ISubscriptionPublishPipeline> task = queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
 
             // Mark sub as publishing by manually triggering assignment
-            subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
             queue.PublishTimerExpired();
 
             Task<ISubscriptionPublishPipeline> task2 = queue.PublishAsync("channel2", DateTime.MaxValue, false, null, CancellationToken.None);
@@ -533,13 +632,37 @@ namespace Opc.Ua.Server.Tests
 
             Task<ISubscriptionPublishPipeline> task = queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
 
-            subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
             queue.PublishTimerExpired(); // Gets assigned, sets ReadyToPublish = true, Publishing = true
 
             queue.PublishCompleted(subMock.Object, moreNotifications: false);
 
             Task<ISubscriptionPublishPipeline> task2 = queue.PublishAsync("channel2", DateTime.MaxValue, false, null, CancellationToken.None);
             Assert.That(task2.IsCompleted, Is.False); // Still incomplete because it's no longer ready
+        }
+
+        /// <summary>
+        /// Review U9: the publish timer tells the subscriptions whether a Publish request is
+        /// queued (PublishingReqQueued, OPC 10000-4 §5.14.1.3).
+        /// </summary>
+        [Test]
+        public void PublishTimerPassesWhetherAPublishRequestIsQueued()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.Idle);
+            queue.Add(subMock.Object);
+
+            queue.PublishTimerExpired();
+            subMock.Verify(s => s.PublishTimerExpired(false), Times.Once);
+
+            Task<ISubscriptionPublishPipeline> task = queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            Assert.That(task.IsCompleted, Is.False);
+
+            queue.PublishTimerExpired();
+            subMock.Verify(s => s.PublishTimerExpired(true), Times.Once);
         }
 
         [Test]
@@ -554,7 +677,7 @@ namespace Opc.Ua.Server.Tests
             // Make it ready
             queue.Requeue(subMock.Object);
 
-            subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.Idle);
+            subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.Idle);
             queue.PublishTimerExpired(); // Should set ReadyToPublish = false
 
             Task<ISubscriptionPublishPipeline> task = queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
@@ -602,6 +725,153 @@ namespace Opc.Ua.Server.Tests
         }
 
         [Test]
+        public void PublishAsyncWithMaximumTimeoutHintParksRequest()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+
+            // OPC 10000-4, 7.33: any UInt32 TimeoutHint is valid; the largest one exceeds
+            // the timer range of CancellationTokenSource on every platform.
+            DateTime deadline = DateTime.UtcNow.AddMilliseconds(uint.MaxValue);
+            Task<ISubscriptionPublishPipeline>? task = null;
+            Assert.DoesNotThrow(() => task = queue.PublishAsync(
+                "channel1", deadline, false, null, CancellationToken.None));
+
+            Assert.That(task!.IsCompleted, Is.False);
+
+            subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
+            queue.PublishTimerExpired();
+            Assert.That(task.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(task.Result, Is.SameAs(subMock.Object));
+        }
+
+        [Test]
+        public void PublishAsyncWithTimeoutHintBeyondTimerRangeTimesOutAtDeadline()
+        {
+            var timeProvider = new FakeTimeProvider();
+            using var queue = new SessionPublishQueue(
+                m_serverMock.Object,
+                m_sessionMock.Object,
+                kMaxPublishRequests,
+                timeProvider);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+
+            // A 30 day TimeoutHint exceeds the Int32.MaxValue ms (~24.86 days) timer limit:
+            // the request must not time out before its deadline (OPC 10000-4, 7.33).
+            TimeSpan hint = TimeSpan.FromDays(30);
+            DateTime deadline = timeProvider.GetUtcNow().UtcDateTime + hint;
+            Task<ISubscriptionPublishPipeline> task = queue.PublishAsync(
+                "channel1", deadline, false, null, CancellationToken.None);
+
+            timeProvider.Advance(TimeSpan.FromMilliseconds(int.MaxValue) + TimeSpan.FromSeconds(1));
+            Assert.That(task.IsCompleted, Is.False);
+
+            timeProvider.Advance(hint - TimeSpan.FromMilliseconds(int.MaxValue) - TimeSpan.FromSeconds(2));
+            Assert.That(task.IsCompleted, Is.False);
+
+            timeProvider.Advance(TimeSpan.FromSeconds(2));
+            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadTimeout));
+        }
+
+        [Test]
+        public void RequeueServesParkedRequest()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            queue.Add(subMock.Object);
+
+            Task<ISubscriptionPublishPipeline> first = queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            Task<ISubscriptionPublishPipeline> second = queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+
+            subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
+            queue.PublishTimerExpired();
+            Assert.That(first.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(second.IsCompleted, Is.False);
+
+            // The first request returned a status message instead and put the
+            // subscription back: the parked request must be served right away.
+            queue.Requeue(subMock.Object);
+
+            Assert.That(second.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(second.Result, Is.SameAs(subMock.Object));
+        }
+
+        [Test]
+        public void RestoreTransferClaimServesParkedRequestWhenReady()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            subMock.Setup(s => s.TryBeginTransfer(It.IsAny<ISession>())).Returns(true);
+            queue.Add(subMock.Object);
+
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subMock.Object,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim? claim),
+                Is.True);
+
+            Task<ISubscriptionPublishPipeline> parked = queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+
+            // An in-flight Publish completes with more notifications while claimed.
+            queue.PublishCompleted(subMock.Object, moreNotifications: true);
+            Assert.That(parked.IsCompleted, Is.False);
+
+            // The transfer rolls back: the parked request gets the ready subscription.
+            Assert.That(queue.RestoreTransferClaim(claim!), Is.True);
+
+            Assert.That(parked.Status, Is.EqualTo(TaskStatus.RanToCompletion));
+            Assert.That(parked.Result, Is.SameAs(subMock.Object));
+        }
+
+        [Test]
+        public void PublishAsyncParksWhileOnlySubscriptionIsClaimedForTransfer()
+        {
+            using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
+
+            var subMock = new Mock<ISubscriptionPublishPipeline>();
+            subMock.Setup(s => s.Id).Returns(1);
+            subMock.Setup(s => s.TryBeginTransfer(It.IsAny<ISession>())).Returns(true);
+            queue.Add(subMock.Object);
+
+            Assert.That(
+                queue.TryClaimForTransfer(
+                    subMock.Object,
+                    m_sessionMock.Object,
+                    out SessionPublishQueue.SubscriptionTransferClaim? claim),
+                Is.True);
+
+            // OPC 10000-4, 5.14.5: the session still owns the subscription.
+            Task<ISubscriptionPublishPipeline> parked = queue.PublishAsync(
+                "channel1", DateTime.MaxValue, false, null, CancellationToken.None);
+            Assert.That(parked.IsCompleted, Is.False);
+
+            queue.RemoveQueuedRequests();
+            Assert.That(parked.IsCompleted, Is.False);
+
+            // The transfer completes, so the session no longer owns a subscription.
+            queue.CompleteTransferClaim(claim!);
+            queue.RemoveQueuedRequests();
+
+            ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => parked);
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadNoSubscription));
+        }
+
+        [Test]
         public void RemoveQueuedRequests_NoSubscriptions_FailsRequests()
         {
             using var queue = new SessionPublishQueue(m_serverMock.Object, m_sessionMock.Object, kMaxPublishRequests);
@@ -637,7 +907,7 @@ namespace Opc.Ua.Server.Tests
             // Mock the session to return false for this channel
             m_sessionMock.Setup(s => s.IsSecureChannelValid("invalid_channel")).Returns(false);
 
-            subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
             queue.PublishTimerExpired(); // Triggers assignment
 
             ServiceResultException ex = Assert.CatchAsync<ServiceResultException>(() => task);
@@ -705,7 +975,7 @@ namespace Opc.Ua.Server.Tests
             Task<ISubscriptionPublishPipeline> taskB = queue.PublishAsync("channel1", DateTime.MaxValue, true, null, CancellationToken.None);
             Task<ISubscriptionPublishPipeline> taskC = queue.PublishAsync("channel1", DateTime.MaxValue, false, null, CancellationToken.None);
 
-            subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
 
             // First expiration should complete taskB because it was requeued (added to front)
             queue.PublishTimerExpired();
@@ -719,7 +989,7 @@ namespace Opc.Ua.Server.Tests
             // Need another subscription to fulfill the next request
             var subMock2 = new Mock<ISubscriptionPublishPipeline>();
             subMock2.Setup(s => s.Id).Returns(2);
-            subMock2.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            subMock2.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
             queue.Add(subMock2.Object);
 
             // Second expiration should complete taskA (it was the first added with requeue=false)
@@ -733,7 +1003,7 @@ namespace Opc.Ua.Server.Tests
             // Need a third subscription to fulfill the last request
             var subMock3 = new Mock<ISubscriptionPublishPipeline>();
             subMock3.Setup(s => s.Id).Returns(3);
-            subMock3.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+            subMock3.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
             queue.Add(subMock3.Object);
 
             // Third expiration should complete taskC
@@ -755,7 +1025,7 @@ namespace Opc.Ua.Server.Tests
                 var subMock = new Mock<ISubscriptionPublishPipeline>();
                 subMock.Setup(s => s.Id).Returns((uint)(i + 1));
                 subMock.Setup(s => s.Priority).Returns((byte)(i % 5));
-                subMock.Setup(s => s.PublishTimerExpired()).Returns(PublishingState.NotificationsAvailable);
+                subMock.Setup(s => s.PublishTimerExpired(It.IsAny<bool>())).Returns(PublishingState.NotificationsAvailable);
                 subs.Add(subMock);
                 queue.Add(subMock.Object);
             }

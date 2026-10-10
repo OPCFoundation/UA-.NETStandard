@@ -29,6 +29,8 @@
 
 using System.Collections.Generic;
 using System.Xml;
+using Microsoft.CodeAnalysis.CSharp;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
 using NUnit.Framework;
 
 namespace Opc.Ua.SourceGeneration.Shared.Tests
@@ -64,6 +66,84 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
                 Is.EqualTo(expected));
         }
 
+        /// <summary>
+        /// Regression: the preserve-case overload must sanitize the name into a
+        /// legal identifier without touching the casing the model author chose.
+        /// Used for constants whose name is part of the generated public API.
+        /// </summary>
+        [TestCase("Pump 1", "Pump1")]
+        [TestCase("pump", "pump")]
+        [TestCase("Pump-1", "Pump_1")]
+        [TestCase("1Pump", "_1Pump")]
+        [TestCase("class", "@class")]
+        [TestCase("", "Value")]
+        [TestCase(null, "Value")]
+        public void ToCSharpIdentifierPreserveCaseKeepsCasing(string? input, string expected)
+        {
+            Assert.That(input!.ToCSharpIdentifierPreserveCase(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Regression: descriptions taken from a NodeSet go into BSD/XSD schema
+        /// documents as character data, so the XML markup characters have to be
+        /// escaped or the emitted schema is not well formed.
+        /// </summary>
+        [TestCase("A&C", "A&amp;C")]
+        [TestCase("a < b > c", "a &lt; b &gt; c")]
+        [TestCase("plain", "plain")]
+        [TestCase("", "")]
+        [TestCase(null, "")]
+        public void AsXmlTextEscapesMarkupCharacters(string? input, string expected)
+        {
+            Assert.That(input!.AsXmlText(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Attribute values additionally need the double quote escaped.
+        /// </summary>
+        [TestCase("a\"b", "a&quot;b")]
+        [TestCase("A&C", "A&amp;C")]
+        public void AsXmlAttributeValueEscapesQuotes(string input, string expected)
+        {
+            Assert.That(input.AsXmlAttributeValue(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// An element name is not character data, so escaping cannot rescue one
+        /// that is not an NCName - "Read&amp;Write" written as "Read&amp;amp;Write"
+        /// still decodes to something xs:element/@name does not accept.
+        /// </summary>
+        [TestCase("Value", true)]
+        [TestCase("_value", true)]
+        [TestCase("Value1", true)]
+        [TestCase("Read&Write", false)]
+        [TestCase("Value Id", false)]
+        [TestCase("1Value", false)]
+        [TestCase("a:b", false)]
+        [TestCase("a<b", false)]
+        [TestCase("", false)]
+        [TestCase(null, false)]
+        public void IsValidXmlNameAcceptsOnlyNCNames(string? input, bool expected)
+        {
+            Assert.That(input!.IsValidXmlName(), Is.EqualTo(expected));
+        }
+
+        /// <summary>
+        /// Regression: NodeIdGenerator interpolated the string identifier into a
+        /// C# literal unescaped, so a PLC style id with a backslash produced
+        /// source that does not compile.
+        /// </summary>
+        [Test]
+        public void AsStringLiteralEscapesBackslashAndQuote()
+        {
+            Assert.That(
+                "PLC1\\DB10.Tag".AsStringLiteral(),
+                Is.EqualTo("\"PLC1\\\\DB10.Tag\""));
+            Assert.That(
+                "say \"hi\"".AsStringLiteral(),
+                Is.EqualTo("\"say \\\"hi\\\"\""));
+        }
+
         [Test]
         public void AsStringLiteralEscapesUnicodeLineSeparators()
         {
@@ -74,6 +154,32 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
                 Is.EqualTo("\"Next\\u0085Line\\u2028Paragraph\\u2029End\""));
         }
 
+        /// <summary>
+        /// Regression: Escape() only escaped backslash and quote, so a
+        /// [DataTypeField(Name = ...)] or namespace string containing a line
+        /// terminator produced an unterminated literal (CS1010). Escape() and
+        /// AsStringLiteral() must round-trip any value through a C# literal.
+        /// </summary>
+        [TestCase("a\nb")]
+        [TestCase("a\r\nb")]
+        [TestCase("Next\u0085Line\u2028Paragraph\u2029End")]
+        [TestCase("tab\there \"quoted\" back\\slash \u0001 \u007f")]
+        public void EscapeAndAsStringLiteralRoundTripThroughACSharpLiteral(string value)
+        {
+            Assert.Multiple(() =>
+            {
+                AssertParsesAsLiteralOf("\"" + value.Escape() + "\"", value);
+                AssertParsesAsLiteralOf(value.AsStringLiteral(), value);
+            });
+        }
+
+        private static void AssertParsesAsLiteralOf(string code, string expected)
+        {
+            ExpressionSyntax expression = SyntaxFactory.ParseExpression(code);
+            Assert.That(expression.GetDiagnostics(), Is.Empty, code);
+            Assert.That(expression, Is.InstanceOf<LiteralExpressionSyntax>(), code);
+            Assert.That(((LiteralExpressionSyntax)expression).Token.ValueText, Is.EqualTo(expected), code);
+        }
         /// <summary>
         /// Tests that IsNull returns the expected result for various XmlQualifiedName inputs.
         /// </summary>
@@ -108,10 +214,10 @@ namespace Opc.Ua.SourceGeneration.Shared.Tests
         public void ToLowerCamelCase_NullInput_ReturnsNull()
         {
             // Arrange
-            const string input = null;
+            const string? input = null;
 
             // Act
-            string result = input.ToLowerCamelCase();
+            string result = input!.ToLowerCamelCase();
 
             // Assert
             Assert.That(result, Is.Null);

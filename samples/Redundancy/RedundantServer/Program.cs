@@ -111,6 +111,30 @@ bool enableFastReconnect =
 // unlike the default in-memory store, which is private to each container.
 string consistency = (builder.Configuration["HA_CONSISTENCY"] ?? "eventual").Trim().ToLowerInvariant();
 bool useStrongConsistency = consistency is "strong";
+bool enableDistributedHistorian = bool.TryParse(
+    builder.Configuration["HA_HISTORIAN"],
+    out bool configuredHistorian)
+        ? configuredHistorian
+        : useStrongConsistency && !activeActive;
+if (enableDistributedHistorian)
+{
+    if (activeActive || !useStrongConsistency)
+    {
+        Console.Error.WriteLine(
+            "The distributed historian supports only a strongly consistent active/passive topology. " +
+            "Set HA_MODE=ap and HA_CONSISTENCY=strong, or disable HA_HISTORIAN.");
+        Environment.ExitCode = 1;
+        return;
+    }
+    if (recordKey == null)
+    {
+        Console.Error.WriteLine(
+            "The distributed historian requires protected shared records. Set HA_RECORD_KEY to the same " +
+            "base64 32-byte key on every replica; HA_INSECURE cannot be used with HA_HISTORIAN.");
+        Environment.ExitCode = 1;
+        return;
+    }
+}
 
 // Optional GetEndpoints load direction: when HA_BALANCING_URL is set, a GetEndpoints
 // request on that (virtual/load-balancer) discovery URL is answered with the best
@@ -265,6 +289,31 @@ else
             s.EnableFastReconnect = enableFastReconnect);
 }
 
+if (redundancyMode != RedundancySupport.None)
+{
+    ua.UseReplicaNodeIdentity(
+        builder.Configuration["HA_REPLICA_SET"] ?? "opcfoundation-ha-sample",
+        [HaSampleNodeManagerFactory.NamespaceUri],
+        writerAssignedIds: !activeActive);
+}
+
+if (enableDistributedHistorian)
+{
+    ua.UseDistributedHistorian(options =>
+    {
+        // Keep pages deliberately small so the sample visibly exercises portable
+        // continuation points during active-replica failover.
+        options.MaxValuesPerPage = 2;
+        // Keep the sample's stale-writer fencing window short enough for an
+        // operator-driven failover to demonstrate promoted-writer visibility.
+        options.WriterFenceLeaseDuration = TimeSpan.FromSeconds(5);
+        options.Capabilities = options.Capabilities with
+        {
+            EventTypes = [ObjectTypeIds.BaseEventType]
+        };
+    });
+}
+
 ua.AddServerRedundancy(r =>
 {
     r.Mode = redundancyMode;
@@ -316,7 +365,7 @@ byte displayedServiceLevel = redundancyMode == RedundancySupport.None
     ? ServiceLevels.Maximum
     : GetDisplayedServiceLevel(activeActive, redundancyMode);
 Console.WriteLine(
-    "HA sample node '{0}' listening at {1}; HA_MODE={2}; REDUNDANCY_MODE={3}; ServiceLevel={4} ({5}).",
+    "HA sample node '{0}' configured for {1}; HA_MODE={2}; REDUNDANCY_MODE={3}; ServiceLevel={4} ({5}).",
     nodeId,
     endpointUrl,
     haMode,
@@ -334,6 +383,8 @@ if (redundancyMode is RedundancySupport.Cold or
 }
 Console.WriteLine("RequestServerStateChange is enabled for administrator-driven Maintenance/NoData failover.");
 
+builder.Services.AddSingleton<IServerStartupTask>(
+    static _ => new HaSampleSimulationStartupTask());
 await builder.Build().RunAsync().ConfigureAwait(false);
 
 static RedundancySupport ParseRedundancyMode(string? value, RedundancySupport defaultMode)

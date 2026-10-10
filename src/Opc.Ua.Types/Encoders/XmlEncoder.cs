@@ -53,7 +53,6 @@ namespace Opc.Ua
             m_nestingLevel = 0;
 
             XmlWriterSettings settings = CoreUtils.DefaultXmlWriterSettings();
-            settings.CheckCharacters = false;
             settings.ConformanceLevel = ConformanceLevel.Auto;
             settings.NamespaceHandling = NamespaceHandling.OmitDuplicates;
             settings.NewLineHandling = NewLineHandling.Replace;
@@ -295,7 +294,7 @@ namespace Opc.Ua
             PushNamespace(Namespaces.OpcUaXsd);
 
             // write the message.
-            WriteEncodeable(typeof(T).Name, message);
+            WriteEncodeable(message.GetType().Name, message);
 
             PopNamespace();
         }
@@ -312,7 +311,7 @@ namespace Opc.Ua
             PushNamespace(Namespaces.OpcUaXsd);
 
             // write the message.
-            WriteEncodeable(typeof(T).Name, message, encodeableTypeId);
+            WriteEncodeable(message.GetType().Name, message, encodeableTypeId);
 
             PopNamespace();
         }
@@ -438,17 +437,94 @@ namespace Opc.Ua
             if (BeginField(fieldName, value == null, true, isArrayElement || PreserveStringValues))
             {
                 // check the length.
-                if (Context.MaxStringLength > 0 && Context.MaxStringLength < value!.Length)
-                {
-                    throw new ServiceResultException(StatusCodes.BadEncodingLimitsExceeded);
-                }
+                EncodingLimits.CheckStringLength(Context.MaxStringLength, value);
 
-                if (PreserveStringValues || !string.IsNullOrWhiteSpace(value))
+                // Write whitespace only strings verbatim (xs:string preserves
+                // whitespace, Part 6 5.3.1.5); XmlDecoder/XmlParser read them
+                // back unchanged. Only NodeSet/design importers opt in to read
+                // such an element as "" (XmlDecoder.TreatWhitespaceOnlyStringsAsEmpty)
+                // because pretty-printed NodeSets use it for empty values.
+                if (!string.IsNullOrEmpty(value))
                 {
-                    m_writer.WriteString(value);
+                    CheckXmlChars(value!);
+                    WriteText(value!);
                 }
 
                 EndField(fieldName);
+            }
+        }
+
+        /// <summary>
+        /// Writes element text so that every carriage return survives the
+        /// round trip. XML 1.0 2.11 makes readers turn a literal CR or CRLF
+        /// into LF, so only the character reference &#xD; keeps a CR. The
+        /// writer may come from the caller with any NewLineHandling, so the
+        /// CRs are written as character entities here.
+        /// </summary>
+        private void WriteText(string value)
+        {
+            int start = 0;
+            int index;
+            while ((index = value.IndexOf('\r', start)) >= 0)
+            {
+                if (index > start)
+                {
+                    m_writer.WriteString(value.Substring(start, index - start));
+                }
+                m_writer.WriteCharEntity('\r');
+                start = index + 1;
+            }
+            if (start == 0)
+            {
+                m_writer.WriteString(value);
+            }
+            else if (start < value.Length)
+            {
+                m_writer.WriteString(value.Substring(start));
+            }
+        }
+
+        /// <summary>
+        /// Throws BadEncodingError for a string XML 1.0 cannot represent.
+        /// </summary>
+        /// <remarks>
+        /// xs:string (Part 6 5.3.1.5) only holds XML characters: most C0 control
+        /// characters, U+FFFE/U+FFFF and unpaired surrogates have no XML form,
+        /// not even as a character reference. Writing them produced a document
+        /// that every XML parser, XmlDecoder included, rejects as a whole, or
+        /// left the writer in an error state.
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        private static void CheckXmlChars(string value)
+        {
+            try
+            {
+                XmlConvert.VerifyXmlChars(value);
+            }
+            catch (XmlException xe)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "String cannot be encoded in XML: {0}",
+                    xe.Message);
+            }
+
+            // a surrogate is only a character as part of a pair.
+            for (int ii = 0; ii < value.Length; ii++)
+            {
+                if (char.IsHighSurrogate(value[ii]) &&
+                    ii + 1 < value.Length &&
+                    char.IsLowSurrogate(value[ii + 1]))
+                {
+                    ii++;
+                }
+                else if (char.IsSurrogate(value[ii]))
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadEncodingError,
+                        "String cannot be encoded in XML: unpaired surrogate at index {0}.",
+                        ii);
+                }
             }
         }
 
@@ -457,7 +533,17 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, false, false))
             {
-                m_writer.WriteValue((DateTime)value);
+                if (value.Value == 0)
+                {
+                    // "The earliest date/time value on a DevelopmentPlatform
+                    // shall be encoded in XML as '0001-01-01T00:00:00Z'"
+                    // (Part 6 5.3.1.6); it converts to 1601 in .NET.
+                    m_writer.WriteString("0001-01-01T00:00:00Z");
+                }
+                else
+                {
+                    m_writer.WriteValue((DateTime)value);
+                }
                 EndField(fieldName);
             }
         }
@@ -478,14 +564,14 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteByteString(string? fieldName, ByteString value)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             WriteByteString(fieldName, value.Span);
 #else
             WriteByteString(fieldName, value, false);
 #endif
         }
 
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
         /// <summary>
         /// Writes a byte string to the stream.
         /// </summary>
@@ -520,7 +606,7 @@ namespace Opc.Ua
 
         private void WriteByteString(string? fieldName, ByteString value, bool isArrayElement)
         {
-#if NETSTANDARD2_1_OR_GREATER || NET5_0_OR_GREATER
+#if NET5_0_OR_GREATER
             WriteByteString(fieldName, value.Span, isArrayElement);
 #else
             if (BeginField(fieldName, value.IsNull, true, isArrayElement))
@@ -547,9 +633,61 @@ namespace Opc.Ua
         {
             if (BeginField(fieldName, value.IsEmpty, true, isArrayElement))
             {
-                m_writer.WriteRaw(value.OuterXml ?? string.Empty);
+                WriteXmlBody(value, Context.MaxStringLength);
                 EndField(fieldName);
             }
+        }
+
+        /// <summary>
+        /// Writes XML that is kept as raw XML: an XmlElement value or the body
+        /// of an ExtensionObject of an unknown type.
+        /// </summary>
+        /// <remarks>
+        /// The XML is parsed first: writing unparsable (or injected) markup
+        /// would produce a document no decoder can read, and an XML
+        /// declaration or DOCTYPE - which may only appear at the start of a
+        /// document - would be injected into the middle of this one. The
+        /// element is copied without its prolog, as a single root
+        /// (Part 6 5.3.1.9, 5.3.1.16), keeping its whitespace, and bounded by
+        /// MaxStringLength and the XML element depth limit.
+        /// </remarks>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteXmlBody(XmlElement value, int maxStringLength)
+        {
+            string body;
+            try
+            {
+                using var reader = XmlReader.Create(
+                    new StringReader(value.OuterXml ?? string.Empty),
+                    CoreUtils.DefaultXmlReaderSettings());
+                if (reader.MoveToContent() != XmlNodeType.Element)
+                {
+                    throw new XmlException("The XML has no root element.");
+                }
+
+                // an element in no namespace declares it, so it is not taken
+                // into the default namespace in scope where it is written.
+                body = EncodingLimits.ReadXmlElementContent(
+                    reader,
+                    EncodingLimits.GetMaxXmlElementDepth(Context),
+                    maxStringLength,
+                    declareNoNamespace: true);
+
+                // the reader rejects a second root element or trailing text.
+                while (reader.Read())
+                {
+                }
+            }
+            catch (XmlException xe)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "XML body is not a single well formed element: {0}",
+                    xe.Message);
+            }
+
+            // written raw: the indenting writer would add whitespace inside it.
+            m_writer.WriteRaw(body);
         }
 
         /// <inheritdoc/>
@@ -648,47 +786,56 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo? value)
         {
-            WriteDiagnosticInfo(fieldName, value, 0);
+            WriteDiagnosticInfo(fieldName, value, 0, false);
         }
 
         /// <summary>
         /// Writes a DiagnosticInfo to the stream.
         /// </summary>
-        private void WriteDiagnosticInfo(string? fieldName, DiagnosticInfo? value, int depth)
+        private void WriteDiagnosticInfo(
+            string? fieldName,
+            DiagnosticInfo? value,
+            int depth,
+            bool isArrayElement)
         {
             CheckAndIncrementNestingLevel();
-
-            if (BeginField(fieldName, value == null, true))
+            try
             {
-                PushNamespace(Namespaces.OpcUaXsd);
-
-                if (value != null)
+                if (BeginField(fieldName, value == null, true, isArrayElement))
                 {
-                    WriteInt32("SymbolicId", value.SymbolicId);
-                    WriteInt32("NamespaceUri", value.NamespaceUri);
-                    WriteInt32("Locale", value.Locale);
-                    WriteInt32("LocalizedText", value.LocalizedText);
-                    WriteString("AdditionalInfo", value.AdditionalInfo);
-                    WriteStatusCode("InnerStatusCode", value.InnerStatusCode);
-                    if (depth < DiagnosticInfo.MaxInnerDepth)
+                    PushNamespace(Namespaces.OpcUaXsd);
+
+                    if (value != null)
                     {
-                        WriteDiagnosticInfo(
-                            "InnerDiagnosticInfo",
-                            value.InnerDiagnosticInfo,
-                            depth + 1);
+                        WriteInt32("SymbolicId", value.SymbolicId);
+                        WriteInt32("NamespaceUri", value.NamespaceUri);
+                        WriteInt32("Locale", value.Locale);
+                        WriteInt32("LocalizedText", value.LocalizedText);
+                        WriteString("AdditionalInfo", value.AdditionalInfo);
+                        WriteStatusCode("InnerStatusCode", value.InnerStatusCode);
+                        if (depth < DiagnosticInfo.MaxInnerDepth)
+                        {
+                            WriteDiagnosticInfo(
+                                "InnerDiagnosticInfo",
+                                value.InnerDiagnosticInfo,
+                                depth + 1,
+                                false);
+                        }
+                        else
+                        {
+                            Logger.InnerDiagnosticInfoDropped(DiagnosticInfo.MaxInnerDepth);
+                        }
                     }
-                    else
-                    {
-                        Logger.InnerDiagnosticInfoDropped(DiagnosticInfo.MaxInnerDepth);
-                    }
+
+                    PopNamespace();
+
+                    EndField(fieldName);
                 }
-
-                PopNamespace();
-
-                EndField(fieldName);
             }
-
-            m_nestingLevel--;
+            finally
+            {
+                m_nestingLevel--;
+            }
         }
 
         /// <inheritdoc/>
@@ -790,7 +937,15 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public void WriteDataValue(string? fieldName, in DataValue value)
         {
-            if (BeginField(fieldName, value.IsNull, true))
+            WriteDataValue(fieldName, value, false);
+        }
+
+        /// <summary>
+        /// Writes a DataValue to the stream.
+        /// </summary>
+        private void WriteDataValue(string? fieldName, in DataValue value, bool isArrayElement)
+        {
+            if (BeginField(fieldName, value.IsNull, true, isArrayElement))
             {
                 PushNamespace(Namespaces.OpcUaXsd);
 
@@ -849,13 +1004,18 @@ namespace Opc.Ua
 
                 WriteNodeId("TypeId", localTypeId);
 
-                // write the body.
-                m_writer.WriteStartElement("Body", Namespaces.OpcUaXsd);
+                // a TypeId without a body leaves out the optional Body element
+                // (Part 6 5.3.1.16), as the decoders read it.
+                if (value.Encoding != ExtensionObjectEncoding.None)
+                {
+                    // write the body.
+                    m_writer.WriteStartElement("Body", Namespaces.OpcUaXsd);
 
-                WriteExtensionObjectBody(value);
+                    WriteExtensionObjectBody(value);
 
-                // end of body.
-                m_writer.WriteEndElement();
+                    // end of body.
+                    m_writer.WriteEndElement();
+                }
 
                 EndField(fieldName);
                 PopNamespace();
@@ -873,15 +1033,19 @@ namespace Opc.Ua
             where T : IEncodeable
         {
             CheckAndIncrementNestingLevel();
-
-            if (BeginField(fieldName, EqualityComparer<T>.Default.Equals(value, default!), true))
+            try
             {
-                value?.Encode(this);
+                if (BeginField(fieldName, EqualityComparer<T>.Default.Equals(value, default!), true))
+                {
+                    value?.Encode(this);
 
-                EndField(fieldName);
+                    EndField(fieldName);
+                }
             }
-
-            m_nestingLevel--;
+            finally
+            {
+                m_nestingLevel--;
+            }
         }
 
         /// <inheritdoc/>
@@ -918,6 +1082,8 @@ namespace Opc.Ua
                 {
                     if (!string.IsNullOrEmpty(value.Symbol))
                     {
+                        // the symbol may come from a peer (e.g. a JSON value).
+                        CheckXmlChars(value.Symbol!);
                         m_writer.WriteString(CoreUtils.Format("{0}_{1}",
                             value.Symbol!,
                             value.Value));
@@ -1463,7 +1629,9 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDiagnosticInfo("DiagnosticInfo", values[ii]);
+                        // Part 6 5.3.4: a null element is written as a nil
+                        // element so later entries keep their position.
+                        WriteDiagnosticInfo("DiagnosticInfo", values[ii], 0, true);
                     }
                 }
 
@@ -1571,7 +1739,9 @@ namespace Opc.Ua
                 {
                     for (int ii = 0; ii < values.Count; ii++)
                     {
-                        WriteDataValue("DataValue", values[ii]);
+                        // Part 6 5.3.4: a null element is written as a nil
+                        // element so later entries keep their position.
+                        WriteDataValue("DataValue", values[ii], true);
                     }
                 }
 
@@ -1634,11 +1804,45 @@ namespace Opc.Ua
                 // encode each element in the array.
                 for (int ii = 0; ii < values.Count; ii++)
                 {
+                    if (values[ii] == null)
+                    {
+                        WriteNullEncodeableArrayElement<T>(encodeableTypeId);
+                        continue;
+                    }
                     WriteEncodeable(values[ii]);
                 }
 
                 EndField(fieldName);
             }
+        }
+
+        /// <summary>
+        /// Writes a null element of an encodeable array as a nil element named
+        /// like the elements the decoder reads, so that it is not dropped and
+        /// the positions of the following elements do not shift (Part 6 5.3.4).
+        /// </summary>
+        /// <typeparam name="T">The element type of the array.</typeparam>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteNullEncodeableArrayElement<T>(ExpandedNodeId encodeableTypeId)
+            where T : IEncodeable
+        {
+            XmlQualifiedName? xmlName = Context.Factory.TryGetEncodeableType(
+                encodeableTypeId, out IEncodeableType? encodeableType)
+                ? encodeableType.XmlName
+                : TypeInfo.GetXmlName(typeof(T));
+            if (xmlName == null || string.IsNullOrEmpty(xmlName.Name))
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadEncodingError,
+                    "Cannot encode a null element of an array of {0}.",
+                    typeof(T).Name);
+            }
+
+            PushNamespace(xmlName.Namespace == Namespaces.OpcUa
+                ? Namespaces.OpcUaXsd
+                : xmlName.Namespace);
+            BeginField(xmlName.Name, true, true, true);
+            PopNamespace();
         }
 
         /// <inheritdoc/>
@@ -1654,20 +1858,32 @@ namespace Opc.Ua
             ExpandedNodeId encodeableTypeId) where T : IEncodeable
         {
             CheckAndIncrementNestingLevel();
-
-            if (BeginField("Matrix", values.IsNull, true, true))
+            try
             {
-                PushNamespace(Namespaces.OpcUaXsd);
-                if (!values.IsNull)
+                // The Dimensions of an XML Matrix must all be greater than zero
+                // (OPC 10000-6 5.3.1.17), so an empty matrix is written as null,
+                // which is equivalent to an empty array (5.1.11).
+                bool isNull = values.IsNull || values.Count == 0;
+                if (BeginField(fieldName, isNull, true, true))
                 {
-                    WriteInt32Array("Dimensions", values.Dimensions);
-                    WriteEncodeableArray("Elements", values.ToArrayOf(), encodeableTypeId);
+                    PushNamespace(Namespaces.OpcUaXsd);
+                    if (!isNull)
+                    {
+                        // The field element is of the Matrix type (5.3.4) with at
+                        // least two dimensions (5.3.1.17).
+                        WriteInt32Array("Dimensions", MatrixOf.GetInlineMatrixDimensions(
+                            values.Dimensions,
+                            values.Count));
+                        WriteEncodeableArray("Elements", values.ToArrayOf(), encodeableTypeId);
+                    }
+                    PopNamespace();
+                    EndField(fieldName);
                 }
-                PopNamespace();
-                EndField("Matrix");
             }
-
-            m_nestingLevel--;
+            finally
+            {
+                m_nestingLevel--;
+            }
         }
 
         /// <inheritdoc/>
@@ -1702,7 +1918,7 @@ namespace Opc.Ua
                 // encode each element in the array.
                 foreach (T value in values)
                 {
-                    WriteEnumerated(xmlName.Name, value);
+                    WriteEnumeratedElement(xmlName.Name, EnumHelper.EnumToInt32(value), value.ToString());
                 }
 
                 PopNamespace();
@@ -1732,7 +1948,7 @@ namespace Opc.Ua
                         ?? new XmlQualifiedName("Enumerated", Namespaces.OpcUaXsd);
 
                     PushNamespace(xmlName.Namespace);
-                    WriteEnumerated(xmlName.Name, value);
+                    WriteEnumeratedElement(xmlName.Name, value.Value, value.Symbol);
                     PopNamespace();
                 }
 
@@ -1740,6 +1956,23 @@ namespace Opc.Ua
             }
         }
 
+        /// <summary>
+        /// Writes an element of an enumeration array. Unlike a field, an
+        /// array element is written also for the value 0, which would
+        /// otherwise be dropped from the array (OPC 10000-6 5.3.4).
+        /// </summary>
+        private void WriteEnumeratedElement(string name, int value, string? symbol)
+        {
+            if (!string.IsNullOrEmpty(symbol))
+            {
+                CheckXmlChars(symbol!);
+            }
+            m_writer.WriteStartElement(name, m_namespaces.Peek());
+            m_writer.WriteString(string.IsNullOrEmpty(symbol)
+                ? value.ToString(CultureInfo.InvariantCulture)
+                : CoreUtils.Format("{0}_{1}", symbol!, value));
+            m_writer.WriteEndElement();
+        }
         /// <inheritdoc/>
         public void WriteSwitchField(uint switchField, out string? fieldName)
         {
@@ -1754,9 +1987,215 @@ namespace Opc.Ua
         }
 
         /// <inheritdoc/>
+        /// <remarks>
+        /// A named field is the raw value of a structure field, whose
+        /// matrix is written as an inline matrix (OPC 10000-6 5.2.5, 5.3.4).
+        /// Without a field name the content of the Variant is written with
+        /// the Variant rules (the way <see cref="WriteVariant"/> writes it),
+        /// e.g. the value of a Variable in a NodeSet or a serialized Variant:
+        /// a null matrix is a nil ListOf element, a matrix with a single
+        /// dimension an array.
+        /// A named scalar or array of a built-in type is written like the
+        /// typed writer of its type writes a structure field (OPC 10000-6
+        /// 5.3.1, 5.3.4, 5.3.5): <c>&lt;A&gt;1&lt;/A&gt;</c> and an array
+        /// as <c>&lt;A&gt;&lt;Int32&gt;1&lt;/Int32&gt;...&lt;/A&gt;</c>, not
+        /// wrapped as a Variant body (<c>&lt;A&gt;&lt;Int32&gt;</c>,
+        /// <c>&lt;A&gt;&lt;ListOfInt32&gt;</c>) as earlier versions did.
+        /// </remarks>
         public void WriteVariantValue(string? fieldName, in Variant value)
         {
-            WriteVariantValue(fieldName, in value, true);
+            if (fieldName != null && TryWriteFieldValue(this, fieldName, in value))
+            {
+                return;
+            }
+            WriteVariantValue(fieldName, in value, fieldName != null);
+        }
+
+        /// <summary>
+        /// Writes a structure field value of a built-in scalar or array type
+        /// with the typed writer of the type (OPC 10000-6 5.3.1, 5.3.4,
+        /// 5.3.5), the way generated code writes the field. False for a
+        /// value without type information, a matrix and the types that are
+        /// not written as a field of their own type.
+        /// </summary>
+        private static bool TryWriteFieldValue(XmlEncoder encoder, string fieldName, in Variant value)
+        {
+            TypeInfo typeInfo = value.TypeInfo;
+            if (typeInfo.IsUnknown)
+            {
+                return false;
+            }
+            if (typeInfo.ValueRank == ValueRanks.Scalar)
+            {
+                switch (typeInfo.BuiltInType)
+                {
+                    case BuiltInType.Boolean:
+                        encoder.WriteBoolean(fieldName, value.GetBoolean());
+                        return true;
+                    case BuiltInType.SByte:
+                        encoder.WriteSByte(fieldName, value.GetSByte());
+                        return true;
+                    case BuiltInType.Byte:
+                        encoder.WriteByte(fieldName, value.GetByte());
+                        return true;
+                    case BuiltInType.Int16:
+                        encoder.WriteInt16(fieldName, value.GetInt16());
+                        return true;
+                    case BuiltInType.UInt16:
+                        encoder.WriteUInt16(fieldName, value.GetUInt16());
+                        return true;
+                    case BuiltInType.Int32:
+                        encoder.WriteInt32(fieldName, value.GetInt32());
+                        return true;
+                    case BuiltInType.UInt32:
+                        encoder.WriteUInt32(fieldName, value.GetUInt32());
+                        return true;
+                    case BuiltInType.Int64:
+                        encoder.WriteInt64(fieldName, value.GetInt64());
+                        return true;
+                    case BuiltInType.UInt64:
+                        encoder.WriteUInt64(fieldName, value.GetUInt64());
+                        return true;
+                    case BuiltInType.Float:
+                        encoder.WriteFloat(fieldName, value.GetFloat());
+                        return true;
+                    case BuiltInType.Double:
+                        encoder.WriteDouble(fieldName, value.GetDouble());
+                        return true;
+                    case BuiltInType.String:
+                        encoder.WriteString(fieldName, value.GetString());
+                        return true;
+                    case BuiltInType.DateTime:
+                        encoder.WriteDateTime(fieldName, value.GetDateTime());
+                        return true;
+                    case BuiltInType.Guid:
+                        encoder.WriteGuid(fieldName, value.GetGuid());
+                        return true;
+                    case BuiltInType.ByteString:
+                        encoder.WriteByteString(fieldName, value.GetByteString());
+                        return true;
+                    case BuiltInType.XmlElement:
+                        encoder.WriteXmlElement(fieldName, value.GetXmlElement());
+                        return true;
+                    case BuiltInType.NodeId:
+                        encoder.WriteNodeId(fieldName, value.GetNodeId());
+                        return true;
+                    case BuiltInType.ExpandedNodeId:
+                        encoder.WriteExpandedNodeId(fieldName, value.GetExpandedNodeId());
+                        return true;
+                    case BuiltInType.StatusCode:
+                        encoder.WriteStatusCode(fieldName, value.GetStatusCode());
+                        return true;
+                    case BuiltInType.QualifiedName:
+                        encoder.WriteQualifiedName(fieldName, value.GetQualifiedName());
+                        return true;
+                    case BuiltInType.LocalizedText:
+                        encoder.WriteLocalizedText(fieldName, value.GetLocalizedText());
+                        return true;
+                    case BuiltInType.ExtensionObject:
+                        encoder.WriteExtensionObject(fieldName, value.GetExtensionObject());
+                        return true;
+                    case BuiltInType.DataValue:
+                        encoder.WriteDataValue(fieldName, value.GetDataValue());
+                        return true;
+                    case BuiltInType.Enumeration when value.IsNull:
+                        encoder.WriteEnumerated(fieldName, default(EnumValue));
+                        return true;
+                    case BuiltInType.Enumeration when value.TryGetValue(out EnumValue enumValue):
+                        encoder.WriteEnumerated(fieldName, enumValue);
+                        return true;
+                    default:
+                        return false;
+                }
+            }
+            if (typeInfo.ValueRank != ValueRanks.OneDimension ||
+                value.IsInlineMatrix(out _))
+            {
+                return false;
+            }
+            switch (typeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    encoder.WriteBooleanArray(fieldName, value.GetBooleanArray());
+                    return true;
+                case BuiltInType.SByte:
+                    encoder.WriteSByteArray(fieldName, value.GetSByteArray());
+                    return true;
+                case BuiltInType.Byte:
+                    encoder.WriteByteArray(fieldName, value.GetByteArray());
+                    return true;
+                case BuiltInType.Int16:
+                    encoder.WriteInt16Array(fieldName, value.GetInt16Array());
+                    return true;
+                case BuiltInType.UInt16:
+                    encoder.WriteUInt16Array(fieldName, value.GetUInt16Array());
+                    return true;
+                case BuiltInType.Int32:
+                    encoder.WriteInt32Array(fieldName, value.GetInt32Array());
+                    return true;
+                case BuiltInType.UInt32:
+                    encoder.WriteUInt32Array(fieldName, value.GetUInt32Array());
+                    return true;
+                case BuiltInType.Int64:
+                    encoder.WriteInt64Array(fieldName, value.GetInt64Array());
+                    return true;
+                case BuiltInType.UInt64:
+                    encoder.WriteUInt64Array(fieldName, value.GetUInt64Array());
+                    return true;
+                case BuiltInType.Float:
+                    encoder.WriteFloatArray(fieldName, value.GetFloatArray());
+                    return true;
+                case BuiltInType.Double:
+                    encoder.WriteDoubleArray(fieldName, value.GetDoubleArray());
+                    return true;
+                case BuiltInType.String:
+                    encoder.WriteStringArray(fieldName, value.GetStringArray());
+                    return true;
+                case BuiltInType.DateTime:
+                    encoder.WriteDateTimeArray(fieldName, value.GetDateTimeArray());
+                    return true;
+                case BuiltInType.Guid:
+                    encoder.WriteGuidArray(fieldName, value.GetGuidArray());
+                    return true;
+                case BuiltInType.ByteString:
+                    encoder.WriteByteStringArray(fieldName, value.GetByteStringArray());
+                    return true;
+                case BuiltInType.XmlElement:
+                    encoder.WriteXmlElementArray(fieldName, value.GetXmlElementArray());
+                    return true;
+                case BuiltInType.NodeId:
+                    encoder.WriteNodeIdArray(fieldName, value.GetNodeIdArray());
+                    return true;
+                case BuiltInType.ExpandedNodeId:
+                    encoder.WriteExpandedNodeIdArray(fieldName, value.GetExpandedNodeIdArray());
+                    return true;
+                case BuiltInType.StatusCode:
+                    encoder.WriteStatusCodeArray(fieldName, value.GetStatusCodeArray());
+                    return true;
+                case BuiltInType.QualifiedName:
+                    encoder.WriteQualifiedNameArray(fieldName, value.GetQualifiedNameArray());
+                    return true;
+                case BuiltInType.LocalizedText:
+                    encoder.WriteLocalizedTextArray(fieldName, value.GetLocalizedTextArray());
+                    return true;
+                case BuiltInType.ExtensionObject:
+                    encoder.WriteExtensionObjectArray(fieldName, value.GetExtensionObjectArray());
+                    return true;
+                case BuiltInType.DataValue:
+                    encoder.WriteDataValueArray(fieldName, value.GetDataValueArray());
+                    return true;
+                case BuiltInType.Variant:
+                    encoder.WriteVariantArray(fieldName, value.GetVariantArray());
+                    return true;
+                case BuiltInType.Enumeration when value.IsNull:
+                    encoder.WriteEnumeratedArray(fieldName, default(ArrayOf<EnumValue>));
+                    return true;
+                case BuiltInType.Enumeration when value.TryGetValue(out ArrayOf<EnumValue> enumValues):
+                    encoder.WriteEnumeratedArray(fieldName, enumValues);
+                    return true;
+                default:
+                    return false;
+            }
         }
 
         /// <summary>
@@ -1779,17 +2218,29 @@ namespace Opc.Ua
                 // encode xml body.
                 else if (extensionObject.TryGetAsXml(out XmlElement xml))
                 {
-                    using var reader = XmlReader.Create(
-                        new StringReader(xml.OuterXml ?? string.Empty),
-                        CoreUtils.DefaultXmlReaderSettings());
-                    m_writer.WriteNode(reader, false);
+                    // the body is not validated when it is received (e.g. an
+                    // XML body of an unknown type in a binary message).
+                    // like the decoders, a body is not bounded by MaxStringLength.
+                    WriteXmlBody(xml, 0);
                 }
                 else if (extensionObject.TryGetValue(out IEncodeable? encodeable))
                 {
                     // encode extension object in xml.
                     XmlQualifiedName? xmlName = TypeInfo.GetXmlName(encodeable, Context);
                     m_writer.WriteStartElement(xmlName!.Name, xmlName.Namespace);
-                    encodeable!.Encode(this);
+
+                    // count the body against the nesting budget like
+                    // XmlDecoder.ReadExtensionObject does.
+                    CheckAndIncrementNestingLevel();
+                    try
+                    {
+                        encodeable!.Encode(this);
+                    }
+                    finally
+                    {
+                        m_nestingLevel--;
+                    }
+
                     m_writer.WriteEndElement();
                 }
                 else
@@ -1826,438 +2277,53 @@ namespace Opc.Ua
             }
             try
             {
-                // check for null.
-                if (value.IsNull)
+                // A raw matrix field value is always an inline matrix, also
+                // when the Variant lost the matrix type info (a null or an
+                // empty MatrixOf).
+                bool isInlineMatrix = false;
+                bool isNullMatrix = false;
+                if (writeRawValue && !value.TypeInfo.IsScalar)
+                {
+                    isInlineMatrix = value.IsInlineMatrix(out isNullMatrix);
+                }
+
+                // check for null. The Dimensions of an XML Matrix must all be
+                // greater than zero (OPC 10000-6 5.3.1.17), so an empty inline
+                // matrix is written as null, which is equivalent to an empty
+                // array (5.1.11).
+                if (value.IsNull ||
+                    (isInlineMatrix && (isNullMatrix || value.IsEmptyMatrix)))
                 {
                     m_writer.WriteAttributeString("xsi", "nil", Namespaces.XmlSchemaInstance, "true");
+                    return;
+                }
+
+                // An empty matrix Variant has no valid Dimensions and is
+                // written as an empty array (OPC 10000-6 5.2.2.16, 5.3.1.17).
+                if (!writeRawValue && value.IsEmptyMatrix)
+                {
+                    WriteVariantValue(null, value.ToEmptyArray(), false);
                     return;
                 }
                 try
                 {
                     PushNamespace(Namespaces.OpcUaXsd);
 
+                    // Each form is written by its own method. A Variant nested in a
+                    // Variant array, a DataValue or an ExtensionObject recurses through
+                    // here, and a single method holding the temporaries of all three
+                    // switches made every nesting level cost several KB of stack.
                     if (value.TypeInfo.IsScalar)
                     {
-                        // write scalar.
-                        switch (value.TypeInfo.BuiltInType)
-                        {
-                            case BuiltInType.Boolean:
-                                WriteBoolean("Boolean", value.GetBoolean());
-                                return;
-                            case BuiltInType.SByte:
-                                WriteSByte("SByte", value.GetSByte());
-                                return;
-                            case BuiltInType.Byte:
-                                WriteByte("Byte", value.GetByte());
-                                return;
-                            case BuiltInType.Int16:
-                                WriteInt16("Int16", value.GetInt16());
-                                return;
-                            case BuiltInType.UInt16:
-                                WriteUInt16("UInt16", value.GetUInt16());
-                                return;
-                            // case BuiltInType.Enumeration when writeRawValue:
-                            //     WriteEnumerated("Enumeration", value.GetEnumeration());
-                            case BuiltInType.Int32:
-                            case BuiltInType.Enumeration:
-                                WriteInt32("Int32", value.GetInt32());
-                                return;
-                            case BuiltInType.UInt32:
-                                WriteUInt32("UInt32", value.GetUInt32());
-                                return;
-                            case BuiltInType.Int64:
-                                WriteInt64("Int64", value.GetInt64());
-                                return;
-                            case BuiltInType.UInt64:
-                                WriteUInt64("UInt64", value.GetUInt64());
-                                return;
-                            case BuiltInType.Float:
-                                WriteFloat("Float", value.GetFloat());
-                                return;
-                            case BuiltInType.Double:
-                                WriteDouble("Double", value.GetDouble());
-                                return;
-                            case BuiltInType.String:
-                                WriteString("String", value.GetString());
-                                return;
-                            case BuiltInType.DateTime:
-                                WriteDateTime("DateTime", value.GetDateTime());
-                                return;
-                            case BuiltInType.Guid:
-                                WriteGuid("Guid", value.GetGuid());
-                                return;
-                            case BuiltInType.ByteString:
-                                WriteByteString("ByteString", value.GetByteString());
-                                return;
-                            case BuiltInType.XmlElement:
-                                WriteXmlElement("XmlElement", value.GetXmlElement());
-                                return;
-                            case BuiltInType.NodeId:
-                                WriteNodeId("NodeId", value.GetNodeId());
-                                return;
-                            case BuiltInType.ExpandedNodeId:
-                                WriteExpandedNodeId("ExpandedNodeId", value.GetExpandedNodeId());
-                                return;
-                            case BuiltInType.StatusCode:
-                                WriteStatusCode("StatusCode", value.GetStatusCode());
-                                return;
-                            case BuiltInType.QualifiedName:
-                                WriteQualifiedName("QualifiedName", value.GetQualifiedName());
-                                return;
-                            case BuiltInType.LocalizedText:
-                                WriteLocalizedText("LocalizedText", value.GetLocalizedText());
-                                return;
-                            case BuiltInType.ExtensionObject:
-                                WriteExtensionObject("ExtensionObject", value.GetExtensionObject());
-                                return;
-                            case BuiltInType.DataValue:
-                                WriteDataValue("DataValue", value.GetDataValue());
-                                return;
-                            case BuiltInType.Null:
-                            case BuiltInType.Variant:
-                            case BuiltInType.DiagnosticInfo:
-                            case BuiltInType.Number:
-                            case BuiltInType.Integer:
-                            case BuiltInType.UInteger:
-                                throw new ServiceResultException(
-                                    StatusCodes.BadEncodingError,
-                                    CoreUtils.Format(
-                                        "Type '{0}' is not allowed in an Variant.",
-                                        value.TypeInfo));
-                            default:
-                                throw ServiceResultException.Unexpected(
-                                    $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
-                        }
+                        WriteScalarVariantContents(in value);
                     }
-                    else if (value.TypeInfo.IsArray)
+                    else if (value.TypeInfo.IsArray && !isInlineMatrix)
                     {
-                        // write array.
-                        switch (value.TypeInfo.BuiltInType)
-                        {
-                            case BuiltInType.Boolean:
-                                WriteBooleanArray("ListOfBoolean", value.GetBooleanArray());
-                                return;
-                            case BuiltInType.SByte:
-                                WriteSByteArray("ListOfSByte", value.GetSByteArray());
-                                return;
-                            case BuiltInType.Byte:
-                                WriteByteArray("ListOfByte", value.GetByteArray());
-                                return;
-                            case BuiltInType.Int16:
-                                WriteInt16Array("ListOfInt16", value.GetInt16Array());
-                                return;
-                            case BuiltInType.UInt16:
-                                WriteUInt16Array("ListOfUInt16", value.GetUInt16Array());
-                                return;
-                            // case BuiltInType.Enumeration when writeRawValue:
-                            //     WriteEnumerated("ListOfEnumeration", value.GetEnumerationArray());
-                            case BuiltInType.Int32:
-                            case BuiltInType.Enumeration:
-                                WriteInt32Array("ListOfInt32", value.GetInt32Array());
-                                return;
-                            case BuiltInType.UInt32:
-                                WriteUInt32Array("ListOfUInt32", value.GetUInt32Array());
-                                return;
-                            case BuiltInType.Int64:
-                                WriteInt64Array("ListOfInt64", value.GetInt64Array());
-                                return;
-                            case BuiltInType.UInt64:
-                                WriteUInt64Array("ListOfUInt64", value.GetUInt64Array());
-                                return;
-                            case BuiltInType.Float:
-                                WriteFloatArray("ListOfFloat", value.GetFloatArray());
-                                return;
-                            case BuiltInType.Double:
-                                WriteDoubleArray("ListOfDouble", value.GetDoubleArray());
-                                return;
-                            case BuiltInType.String:
-                                WriteStringArray("ListOfString", value.GetStringArray());
-                                return;
-                            case BuiltInType.DateTime:
-                                WriteDateTimeArray("ListOfDateTime", value.GetDateTimeArray());
-                                return;
-                            case BuiltInType.Guid:
-                                WriteGuidArray("ListOfGuid", value.GetGuidArray());
-                                return;
-                            case BuiltInType.ByteString:
-                                WriteByteStringArray("ListOfByteString", value.GetByteStringArray());
-                                return;
-                            case BuiltInType.XmlElement:
-                                WriteXmlElementArray("ListOfXmlElement", value.GetXmlElementArray());
-                                return;
-                            case BuiltInType.NodeId:
-                                WriteNodeIdArray("ListOfNodeId", value.GetNodeIdArray());
-                                return;
-                            case BuiltInType.ExpandedNodeId:
-                                WriteExpandedNodeIdArray(
-                                    "ListOfExpandedNodeId",
-                                    value.GetExpandedNodeIdArray());
-                                return;
-                            case BuiltInType.StatusCode:
-                                WriteStatusCodeArray("ListOfStatusCode", value.GetStatusCodeArray());
-                                return;
-                            case BuiltInType.QualifiedName:
-                                WriteQualifiedNameArray("ListOfQualifiedName", value.GetQualifiedNameArray());
-                                return;
-                            case BuiltInType.LocalizedText:
-                                WriteLocalizedTextArray("ListOfLocalizedText", value.GetLocalizedTextArray());
-                                return;
-                            case BuiltInType.ExtensionObject:
-                                WriteExtensionObjectArray(
-                                    "ListOfExtensionObject",
-                                    value.GetExtensionObjectArray());
-                                return;
-                            case BuiltInType.DataValue:
-                                WriteDataValueArray("ListOfDataValue", value.GetDataValueArray());
-                                return;
-                            case BuiltInType.Variant:
-                                WriteVariantArray("ListOfVariant", value.GetVariantArray());
-                                return;
-                            case BuiltInType.Null:
-                            case BuiltInType.DiagnosticInfo:
-                            case BuiltInType.Number:
-                            case BuiltInType.Integer:
-                            case BuiltInType.UInteger:
-                                throw new ServiceResultException(
-                                    StatusCodes.BadEncodingError,
-                                    CoreUtils.Format(
-                                        "Type '{0}' is not allowed in an Variant.",
-                                        value.TypeInfo));
-                            default:
-                                throw ServiceResultException.Unexpected(
-                                    $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
-                        }
+                        WriteArrayVariantContents(in value);
                     }
                     else
                     {
-                        CheckAndIncrementNestingLevel();
-
-                        if (BeginField("Matrix", value.IsNull, true, true))
-                        {
-                            const string elements = "Elements";
-
-                            // A multi-dimensional Variant must carry Dimensions
-                            // where every entry is greater than zero and the
-                            // product equals the flattened element count (Part 6
-                            // 5.2.2.16). Refuse to emit inconsistent dimensions
-                            // (e.g. a zero dimension produced by an empty matrix)
-                            // instead of writing wire data a conforming peer must
-                            // reject with BadDecodingError.
-                            void WriteDimensions<T>(MatrixOf<T> matrix)
-                            {
-                                if (!MatrixOf.IsValidMatrix(matrix.Dimensions))
-                                {
-                                    throw ServiceResultException.Create(
-                                        StatusCodes.BadEncodingError,
-                                        "Cannot encode a matrix Variant with " +
-                                        "inconsistent Dimensions [{0}].",
-                                        string.Join(",", matrix.Dimensions));
-                                }
-                                WriteInt32Array("Dimensions", matrix.Dimensions);
-                            }
-
-                            PushNamespace(Namespaces.OpcUaXsd);
-                            if (!value.IsNull)
-                            {
-                                switch (value.TypeInfo.BuiltInType)
-                                {
-                                    case BuiltInType.Boolean:
-                                    {
-                                        MatrixOf<bool> matrix = value.GetBooleanMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteBooleanArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.SByte:
-                                    {
-                                        MatrixOf<sbyte> matrix = value.GetSByteMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteSByteArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.Byte:
-                                    {
-                                        MatrixOf<byte> matrix = value.GetByteMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteByteArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.Int16:
-                                    {
-                                        MatrixOf<short> matrix = value.GetInt16Matrix();
-                                        WriteDimensions(matrix);
-                                        WriteInt16Array(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.UInt16:
-                                    {
-                                        MatrixOf<ushort> matrix = value.GetUInt16Matrix();
-                                        WriteDimensions(matrix);
-                                        WriteUInt16Array(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    // case BuiltInType.Enumeration when writeRawValue:
-                                    // {
-                                    //     MatrixOf<int> matrix = value.GetEnumerationMatrix();
-                                    //     WriteDimensions(matrix);
-                                    //     WriteEnumeratedArray(elements, matrix.ToArrayOf());
-                                    //     break;
-                                    // }
-                                    case BuiltInType.Int32:
-                                    case BuiltInType.Enumeration:
-                                    {
-                                        MatrixOf<int> matrix = value.GetInt32Matrix();
-                                        WriteDimensions(matrix);
-                                        WriteInt32Array(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.UInt32:
-                                    {
-                                        MatrixOf<uint> matrix = value.GetUInt32Matrix();
-                                        WriteDimensions(matrix);
-                                        WriteUInt32Array(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.Int64:
-                                    {
-                                        MatrixOf<long> matrix = value.GetInt64Matrix();
-                                        WriteDimensions(matrix);
-                                        WriteInt64Array(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.UInt64:
-                                    {
-                                        MatrixOf<ulong> matrix = value.GetUInt64Matrix();
-                                        WriteDimensions(matrix);
-                                        WriteUInt64Array(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.Float:
-                                    {
-                                        MatrixOf<float> matrix = value.GetFloatMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteFloatArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.Double:
-                                    {
-                                        MatrixOf<double> matrix = value.GetDoubleMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteDoubleArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.String:
-                                    {
-                                        MatrixOf<string> matrix = value.GetStringMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteStringArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.DateTime:
-                                    {
-                                        MatrixOf<DateTimeUtc> matrix = value.GetDateTimeMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteDateTimeArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.Guid:
-                                    {
-                                        MatrixOf<Uuid> matrix = value.GetGuidMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteGuidArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.ByteString:
-                                    {
-                                        MatrixOf<ByteString> matrix = value.GetByteStringMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteByteStringArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.XmlElement:
-                                    {
-                                        MatrixOf<XmlElement> matrix = value.GetXmlElementMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteXmlElementArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.NodeId:
-                                    {
-                                        MatrixOf<NodeId> matrix = value.GetNodeIdMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteNodeIdArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.ExpandedNodeId:
-                                    {
-                                        MatrixOf<ExpandedNodeId> matrix = value.GetExpandedNodeIdMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteExpandedNodeIdArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.StatusCode:
-                                    {
-                                        MatrixOf<StatusCode> matrix = value.GetStatusCodeMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteStatusCodeArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.QualifiedName:
-                                    {
-                                        MatrixOf<QualifiedName> matrix = value.GetQualifiedNameMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteQualifiedNameArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.LocalizedText:
-                                    {
-                                        MatrixOf<LocalizedText> matrix = value.GetLocalizedTextMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteLocalizedTextArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.ExtensionObject:
-                                    {
-                                        MatrixOf<ExtensionObject> matrix = value.GetExtensionObjectMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteExtensionObjectArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.DataValue:
-                                    {
-                                        MatrixOf<DataValue> matrix = value.GetDataValueMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteDataValueArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.Variant:
-                                    {
-                                        MatrixOf<Variant> matrix = value.GetVariantMatrix();
-                                        WriteDimensions(matrix);
-                                        WriteVariantArray(elements, matrix.ToArrayOf());
-                                        break;
-                                    }
-                                    case BuiltInType.DiagnosticInfo:
-                                    case BuiltInType.Null:
-                                    case BuiltInType.Number:
-                                    case BuiltInType.Integer:
-                                    case BuiltInType.UInteger:
-                                        throw ServiceResultException.Create(
-                                            StatusCodes.BadEncodingError,
-                                            "Unexpected type encountered while encoding a Variant: {0}",
-                                            value.TypeInfo);
-                                    default:
-                                        throw ServiceResultException.Unexpected(
-                                            $"Unexpected BuiltInType {value.TypeInfo}");
-                                }
-                            }
-
-                            PopNamespace();
-
-                            EndField("Matrix");
-                        }
-
-                        m_nestingLevel--;
+                        WriteMatrixVariantContents(in value, writeRawValue);
                     }
                 }
                 finally
@@ -2272,6 +2338,459 @@ namespace Opc.Ua
                     PopNamespace();
                     EndField(fieldName);
                 }
+            }
+        }
+
+        /// <summary>
+        /// Writes the contents of a scalar variant.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteScalarVariantContents(in Variant value)
+        {
+            // write scalar.
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    WriteBoolean("Boolean", value.GetBoolean());
+                    return;
+                case BuiltInType.SByte:
+                    WriteSByte("SByte", value.GetSByte());
+                    return;
+                case BuiltInType.Byte:
+                    WriteByte("Byte", value.GetByte());
+                    return;
+                case BuiltInType.Int16:
+                    WriteInt16("Int16", value.GetInt16());
+                    return;
+                case BuiltInType.UInt16:
+                    WriteUInt16("UInt16", value.GetUInt16());
+                    return;
+                // case BuiltInType.Enumeration when writeRawValue:
+                //     WriteEnumerated("Enumeration", value.GetEnumeration());
+                case BuiltInType.Int32:
+                case BuiltInType.Enumeration:
+                    WriteInt32("Int32", value.GetInt32());
+                    return;
+                case BuiltInType.UInt32:
+                    WriteUInt32("UInt32", value.GetUInt32());
+                    return;
+                case BuiltInType.Int64:
+                    WriteInt64("Int64", value.GetInt64());
+                    return;
+                case BuiltInType.UInt64:
+                    WriteUInt64("UInt64", value.GetUInt64());
+                    return;
+                case BuiltInType.Float:
+                    WriteFloat("Float", value.GetFloat());
+                    return;
+                case BuiltInType.Double:
+                    WriteDouble("Double", value.GetDouble());
+                    return;
+                case BuiltInType.String:
+                    // a null String keeps its type as <String xsi:nil="true"/>
+                    // (Part 6 5.3.1.17)
+                    WriteString("String", value.GetString(), true);
+                    return;
+                case BuiltInType.DateTime:
+                    WriteDateTime("DateTime", value.GetDateTime());
+                    return;
+                case BuiltInType.Guid:
+                    WriteGuid("Guid", value.GetGuid());
+                    return;
+                case BuiltInType.ByteString:
+                    WriteByteString("ByteString", value.GetByteString(), true);
+                    return;
+                case BuiltInType.XmlElement:
+                    WriteXmlElement("XmlElement", value.GetXmlElement(), true);
+                    return;
+                case BuiltInType.NodeId:
+                    WriteNodeId("NodeId", value.GetNodeId(), true);
+                    return;
+                case BuiltInType.ExpandedNodeId:
+                    WriteExpandedNodeId("ExpandedNodeId", value.GetExpandedNodeId(), true);
+                    return;
+                case BuiltInType.StatusCode:
+                    WriteStatusCode("StatusCode", value.GetStatusCode());
+                    return;
+                case BuiltInType.QualifiedName:
+                    WriteQualifiedName("QualifiedName", value.GetQualifiedName(), true);
+                    return;
+                case BuiltInType.LocalizedText:
+                    WriteLocalizedText("LocalizedText", value.GetLocalizedText(), true);
+                    return;
+                case BuiltInType.ExtensionObject:
+                    WriteExtensionObject("ExtensionObject", value.GetExtensionObject(), true);
+                    return;
+                case BuiltInType.DataValue:
+                    WriteDataValue("DataValue", value.GetDataValue(), true);
+                    return;
+                case BuiltInType.Null:
+                case BuiltInType.Variant:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingError,
+                        CoreUtils.Format(
+                            "Type '{0}' is not allowed in an Variant.",
+                            value.TypeInfo));
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Writes the contents of a one-dimensional variant array.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteArrayVariantContents(in Variant value)
+        {
+            // write array.
+            switch (value.TypeInfo.BuiltInType)
+            {
+                case BuiltInType.Boolean:
+                    WriteBooleanArray("ListOfBoolean", value.GetBooleanArray());
+                    return;
+                case BuiltInType.SByte:
+                    WriteSByteArray("ListOfSByte", value.GetSByteArray());
+                    return;
+                case BuiltInType.Byte:
+                    WriteByteArray("ListOfByte", value.GetByteArray());
+                    return;
+                case BuiltInType.Int16:
+                    WriteInt16Array("ListOfInt16", value.GetInt16Array());
+                    return;
+                case BuiltInType.UInt16:
+                    WriteUInt16Array("ListOfUInt16", value.GetUInt16Array());
+                    return;
+                // case BuiltInType.Enumeration when writeRawValue:
+                //     WriteEnumerated("ListOfEnumeration", value.GetEnumerationArray());
+                case BuiltInType.Int32:
+                case BuiltInType.Enumeration:
+                    WriteInt32Array("ListOfInt32", value.GetInt32Array());
+                    return;
+                case BuiltInType.UInt32:
+                    WriteUInt32Array("ListOfUInt32", value.GetUInt32Array());
+                    return;
+                case BuiltInType.Int64:
+                    WriteInt64Array("ListOfInt64", value.GetInt64Array());
+                    return;
+                case BuiltInType.UInt64:
+                    WriteUInt64Array("ListOfUInt64", value.GetUInt64Array());
+                    return;
+                case BuiltInType.Float:
+                    WriteFloatArray("ListOfFloat", value.GetFloatArray());
+                    return;
+                case BuiltInType.Double:
+                    WriteDoubleArray("ListOfDouble", value.GetDoubleArray());
+                    return;
+                case BuiltInType.String:
+                    WriteStringArray("ListOfString", value.GetStringArray());
+                    return;
+                case BuiltInType.DateTime:
+                    WriteDateTimeArray("ListOfDateTime", value.GetDateTimeArray());
+                    return;
+                case BuiltInType.Guid:
+                    WriteGuidArray("ListOfGuid", value.GetGuidArray());
+                    return;
+                case BuiltInType.ByteString:
+                    WriteByteStringArray("ListOfByteString", value.GetByteStringArray());
+                    return;
+                case BuiltInType.XmlElement:
+                    WriteXmlElementArray("ListOfXmlElement", value.GetXmlElementArray());
+                    return;
+                case BuiltInType.NodeId:
+                    WriteNodeIdArray("ListOfNodeId", value.GetNodeIdArray());
+                    return;
+                case BuiltInType.ExpandedNodeId:
+                    WriteExpandedNodeIdArray(
+                        "ListOfExpandedNodeId",
+                        value.GetExpandedNodeIdArray());
+                    return;
+                case BuiltInType.StatusCode:
+                    WriteStatusCodeArray("ListOfStatusCode", value.GetStatusCodeArray());
+                    return;
+                case BuiltInType.QualifiedName:
+                    WriteQualifiedNameArray("ListOfQualifiedName", value.GetQualifiedNameArray());
+                    return;
+                case BuiltInType.LocalizedText:
+                    WriteLocalizedTextArray("ListOfLocalizedText", value.GetLocalizedTextArray());
+                    return;
+                case BuiltInType.ExtensionObject:
+                    WriteExtensionObjectArray(
+                        "ListOfExtensionObject",
+                        value.GetExtensionObjectArray());
+                    return;
+                case BuiltInType.DataValue:
+                    WriteDataValueArray("ListOfDataValue", value.GetDataValueArray());
+                    return;
+                case BuiltInType.Variant:
+                    WriteVariantArray("ListOfVariant", value.GetVariantArray());
+                    return;
+                case BuiltInType.Null:
+                case BuiltInType.DiagnosticInfo:
+                case BuiltInType.Number:
+                case BuiltInType.Integer:
+                case BuiltInType.UInteger:
+                    throw new ServiceResultException(
+                        StatusCodes.BadEncodingError,
+                        CoreUtils.Format(
+                            "Type '{0}' is not allowed in an Variant.",
+                            value.TypeInfo));
+                default:
+                    throw ServiceResultException.Unexpected(
+                        $"Unexpected BuiltInType {value.TypeInfo.BuiltInType}");
+            }
+        }
+
+        /// <summary>
+        /// Writes the contents of a multi-dimensional variant.
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private void WriteMatrixVariantContents(in Variant value, bool writeRawValue)
+        {
+            CheckAndIncrementNestingLevel();
+            try
+            {
+                // A matrix Variant is a Matrix element (5.3.1.17). A
+                // matrix structure field is of the Matrix type itself:
+                // the field element directly contains Dimensions and
+                // Elements, without a Matrix wrapper (OPC 10000-6 5.3.4).
+                bool wrapInMatrix = !writeRawValue;
+                if (!wrapInMatrix || BeginField("Matrix", value.IsNull, true, true))
+                {
+                    const string elements = "Elements";
+
+                    // A Matrix must carry Dimensions where every entry
+                    // is greater than zero and the product equals the
+                    // flattened element count (Part 6 5.2.2.16,
+                    // 5.3.1.17). Refuse to emit inconsistent dimensions
+                    // instead of writing data a conforming peer must
+                    // reject with BadDecodingError. An empty matrix was
+                    // written as null or an empty array above.
+                    void WriteDimensions<T>(MatrixOf<T> matrix)
+                    {
+                        int[] dimensions = matrix.Dimensions;
+                        if (!MatrixOf.IsValidMatrix(dimensions))
+                        {
+                            throw ServiceResultException.Create(
+                                StatusCodes.BadEncodingError,
+                                "Cannot encode a matrix Variant with " +
+                                "inconsistent Dimensions [{0}].",
+                                string.Join(",", dimensions));
+                        }
+                        WriteInt32Array("Dimensions", dimensions);
+                    }
+
+                    PushNamespace(Namespaces.OpcUaXsd);
+                    if (!value.IsNull)
+                    {
+                        switch (value.TypeInfo.BuiltInType)
+                        {
+                            case BuiltInType.Boolean:
+                            {
+                                MatrixOf<bool> matrix = value.GetBooleanMatrix();
+                                WriteDimensions(matrix);
+                                WriteBooleanArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.SByte:
+                            {
+                                MatrixOf<sbyte> matrix = value.GetSByteMatrix();
+                                WriteDimensions(matrix);
+                                WriteSByteArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.Byte:
+                            {
+                                MatrixOf<byte> matrix = value.GetByteMatrix();
+                                WriteDimensions(matrix);
+                                WriteByteArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.Int16:
+                            {
+                                MatrixOf<short> matrix = value.GetInt16Matrix();
+                                WriteDimensions(matrix);
+                                WriteInt16Array(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.UInt16:
+                            {
+                                MatrixOf<ushort> matrix = value.GetUInt16Matrix();
+                                WriteDimensions(matrix);
+                                WriteUInt16Array(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            // case BuiltInType.Enumeration when writeRawValue:
+                            // {
+                            //     MatrixOf<int> matrix = value.GetEnumerationMatrix();
+                            //     WriteDimensions(matrix);
+                            //     WriteEnumeratedArray(elements, matrix.ToArrayOf());
+                            //     break;
+                            // }
+                            case BuiltInType.Int32:
+                            case BuiltInType.Enumeration:
+                            {
+                                MatrixOf<int> matrix = value.GetInt32Matrix();
+                                WriteDimensions(matrix);
+                                WriteInt32Array(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.UInt32:
+                            {
+                                MatrixOf<uint> matrix = value.GetUInt32Matrix();
+                                WriteDimensions(matrix);
+                                WriteUInt32Array(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.Int64:
+                            {
+                                MatrixOf<long> matrix = value.GetInt64Matrix();
+                                WriteDimensions(matrix);
+                                WriteInt64Array(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.UInt64:
+                            {
+                                MatrixOf<ulong> matrix = value.GetUInt64Matrix();
+                                WriteDimensions(matrix);
+                                WriteUInt64Array(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.Float:
+                            {
+                                MatrixOf<float> matrix = value.GetFloatMatrix();
+                                WriteDimensions(matrix);
+                                WriteFloatArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.Double:
+                            {
+                                MatrixOf<double> matrix = value.GetDoubleMatrix();
+                                WriteDimensions(matrix);
+                                WriteDoubleArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.String:
+                            {
+                                MatrixOf<string> matrix = value.GetStringMatrix();
+                                WriteDimensions(matrix);
+                                WriteStringArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.DateTime:
+                            {
+                                MatrixOf<DateTimeUtc> matrix = value.GetDateTimeMatrix();
+                                WriteDimensions(matrix);
+                                WriteDateTimeArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.Guid:
+                            {
+                                MatrixOf<Uuid> matrix = value.GetGuidMatrix();
+                                WriteDimensions(matrix);
+                                WriteGuidArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.ByteString:
+                            {
+                                MatrixOf<ByteString> matrix = value.GetByteStringMatrix();
+                                WriteDimensions(matrix);
+                                WriteByteStringArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.XmlElement:
+                            {
+                                MatrixOf<XmlElement> matrix = value.GetXmlElementMatrix();
+                                WriteDimensions(matrix);
+                                WriteXmlElementArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.NodeId:
+                            {
+                                MatrixOf<NodeId> matrix = value.GetNodeIdMatrix();
+                                WriteDimensions(matrix);
+                                WriteNodeIdArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.ExpandedNodeId:
+                            {
+                                MatrixOf<ExpandedNodeId> matrix = value.GetExpandedNodeIdMatrix();
+                                WriteDimensions(matrix);
+                                WriteExpandedNodeIdArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.StatusCode:
+                            {
+                                MatrixOf<StatusCode> matrix = value.GetStatusCodeMatrix();
+                                WriteDimensions(matrix);
+                                WriteStatusCodeArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.QualifiedName:
+                            {
+                                MatrixOf<QualifiedName> matrix = value.GetQualifiedNameMatrix();
+                                WriteDimensions(matrix);
+                                WriteQualifiedNameArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.LocalizedText:
+                            {
+                                MatrixOf<LocalizedText> matrix = value.GetLocalizedTextMatrix();
+                                WriteDimensions(matrix);
+                                WriteLocalizedTextArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.ExtensionObject:
+                            {
+                                MatrixOf<ExtensionObject> matrix = value.GetExtensionObjectMatrix();
+                                WriteDimensions(matrix);
+                                WriteExtensionObjectArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.DataValue:
+                            {
+                                MatrixOf<DataValue> matrix = value.GetDataValueMatrix();
+                                WriteDimensions(matrix);
+                                WriteDataValueArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.Variant:
+                            {
+                                MatrixOf<Variant> matrix = value.GetVariantMatrix();
+                                WriteDimensions(matrix);
+                                WriteVariantArray(elements, matrix.ToArrayOf());
+                                break;
+                            }
+                            case BuiltInType.DiagnosticInfo:
+                            case BuiltInType.Null:
+                            case BuiltInType.Number:
+                            case BuiltInType.Integer:
+                            case BuiltInType.UInteger:
+                                throw ServiceResultException.Create(
+                                    StatusCodes.BadEncodingError,
+                                    "Unexpected type encountered while encoding a Variant: {0}",
+                                    value.TypeInfo);
+                            default:
+                                throw ServiceResultException.Unexpected(
+                                    $"Unexpected BuiltInType {value.TypeInfo}");
+                        }
+                    }
+
+                    PopNamespace();
+
+                    if (wrapInMatrix)
+                    {
+                        EndField("Matrix");
+                    }
+                }
+            }
+            finally
+            {
+                m_nestingLevel--;
             }
         }
 
@@ -2361,6 +2880,7 @@ namespace Opc.Ua
                     "Maximum nesting level of {0} was exceeded",
                     Context.MaxEncodingNestingLevels);
             }
+            EncodingLimits.EnsureSufficientStack();
             m_nestingLevel++;
         }
 

@@ -55,7 +55,9 @@ namespace Opc.Ua.SourceGeneration
                 /// Data type definitions for all [DataType]-annotated types in the {{Tokens.NamespaceUri}} namespace.
                 /// </summary>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+                #if !OPCUA_FUZZING_COVERAGE
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+                #endif
                 {{Tokens.AccessModifier}} static partial class {{Tokens.DataTypeDefinitionsClass}}
                 {
                     {{Tokens.ListOfDataTypeDefinitions}}
@@ -65,7 +67,9 @@ namespace Opc.Ua.SourceGeneration
                 /// Extension methods to add [DataType]-annotated types to an encodeable factory.
                 /// </summary>
                 [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+                #if !OPCUA_FUZZING_COVERAGE
                 [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
+                #endif
                 {{Tokens.AccessModifier}} static partial class {{Tokens.Namespace}}DataTypeExtensions
                 {
                     /// <summary>
@@ -434,6 +438,18 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Partial declaration of a type that contains a nested
+        /// source-annotated type. Nested once per containing level.
+        /// </summary>
+        public static readonly TemplateString ContainingType = TemplateString.Parse(
+            $$"""
+            {{Tokens.TypeName}}
+            {
+                {{Tokens.ListOfTypes}}
+            }
+            """);
+
+        /// <summary>
         /// Clone/MemberwiseClone methods for a class. Clone delegates to
         /// MemberwiseClone, which starts from a shallow copy of the whole
         /// object - carrying every field, including inherited ones - and
@@ -507,8 +523,10 @@ namespace Opc.Ua.SourceGeneration
             TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.ClassName}}>
+            #endif
+            {{Tokens.AccessModifier}} sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EncodeableType<{{Tokens.TypeName}}>
             {
                 /// <summary>
                 /// The singleton instance of the activator.
@@ -518,12 +536,12 @@ namespace Opc.Ua.SourceGeneration
 
                 /// <inheritdoc/>
                 public override global::System.Xml.XmlQualifiedName XmlName { get; } =
-                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.BrowseNameLiteral}}", {{Tokens.XmlNamespaceUri}});
 
                 /// <inheritdoc/>
                 public override global::Opc.Ua.IEncodeable CreateInstance()
                 {
-                    return new {{Tokens.ClassName}}();
+                    return new {{Tokens.TypeName}}();
                 }
 
                 /// <inheritdoc/>
@@ -536,6 +554,46 @@ namespace Opc.Ua.SourceGeneration
             """);
 
         /// <summary>
+        /// Structure definition of a source-annotated structure deriving from
+        /// another encodeable whose activator exposes a definition. Encode()
+        /// writes the base fields first, so the definition starts with the
+        /// base definition's fields.
+        /// </summary>
+        public static readonly TemplateString DerivedStructureDefinition = TemplateString.Parse(
+            $$"""
+            /// <summary>
+            /// The structure definition for the {{Tokens.BrowseName}} DataType.
+            /// </summary>
+            public static global::Opc.Ua.StructureDefinition Create{{Tokens.ClassName}}(
+                global::Opc.Ua.NamespaceTable namespaceUris)
+            {
+                var baseDefinition = {{Tokens.BaseType}}.Instance.GetDataTypeDefinition(namespaceUris)
+                    as global::Opc.Ua.StructureDefinition;
+                var fields = new global::System.Collections.Generic.List<global::Opc.Ua.StructureField>();
+                if (baseDefinition != null && !baseDefinition.Fields.IsNull)
+                {
+                    fields.AddRange(baseDefinition.Fields.ToArray());
+                }
+                int firstExplicitFieldIndex = fields.Count;
+                fields.AddRange(new global::Opc.Ua.StructureField[]
+                {
+                    {{Tokens.ListOfFields}}
+                });
+                return new global::Opc.Ua.StructureDefinition
+                {
+                    BaseDataType = global::Opc.Ua.ExpandedNodeId.ToNodeId(
+                        {{Tokens.BaseType}}.Instance.CreateInstance().TypeId,
+                        namespaceUris),
+                    StructureType = baseDefinition != null
+                        ? baseDefinition.StructureType
+                        : global::Opc.Ua.StructureType.Structure,
+                    FirstExplicitFieldIndex = firstExplicitFieldIndex,
+                    Fields = fields.ToArray()
+                };
+            }
+            """);
+
+        /// <summary>
         /// Enumeration activator for a source-annotated enum type that also
         /// exposes its data type definition. References a namespace-unique
         /// definitions class (<see cref="Tokens.DataTypeDefinitionsClass"/>).
@@ -544,8 +602,10 @@ namespace Opc.Ua.SourceGeneration
             TemplateString.Parse(
             $$"""
             [global::System.CodeDom.Compiler.GeneratedCodeAttribute("{{Tokens.Tool}}", "{{Tokens.Version}}")]
+            #if !OPCUA_FUZZING_COVERAGE
             [global::System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverageAttribute()]
-            public sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.ClassName}}>
+            #endif
+            {{Tokens.AccessModifier}} sealed class {{Tokens.ClassName}}Activator : global::Opc.Ua.EnumeratedType<{{Tokens.TypeName}}>
             {
                 /// <summary>
                 /// The singleton instance of the activator.
@@ -555,7 +615,7 @@ namespace Opc.Ua.SourceGeneration
 
                 /// <inheritdoc/>
                 public override global::System.Xml.XmlQualifiedName XmlName { get; } =
-                    new global::System.Xml.XmlQualifiedName("{{Tokens.ClassName}}", {{Tokens.XmlNamespaceUri}});
+                    new global::System.Xml.XmlQualifiedName("{{Tokens.BrowseNameLiteral}}", {{Tokens.XmlNamespaceUri}});
 
                 /// <inheritdoc/>
                 public override global::Opc.Ua.DataTypeDefinition GetDataTypeDefinition(

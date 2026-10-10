@@ -148,7 +148,7 @@ namespace Opc.Ua
         public int CompareTo(byte[]? other)
         {
             return other == null || other.Length == 0 ?
-                IsEmpty ? 0 : -1 :
+                IsEmpty ? 0 : 1 :
                 CompareTo(other.AsSpan());
         }
 

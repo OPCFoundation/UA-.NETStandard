@@ -169,6 +169,26 @@ namespace Opc.Ua.Bindings
             = s_routes.ToFrozenDictionary(r => r.RequestType);
 
         /// <summary>
+        /// The paths of the services a client can invoke without
+        /// CreateSession / ActivateSession (OPC 10000-4, 6.3). They are the
+        /// paths of <c>opc.ua.openapi.sessionless.json</c>.
+        /// </summary>
+        private static readonly FrozenSet<string> s_sessionlessPaths = new[]
+        {
+            "/read",
+            "/write",
+            "/historyread",
+            "/historyupdate",
+            "/call",
+            "/browse",
+            "/browsenext",
+            "/translate"
+        }.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
+
+        private static readonly WebApiServiceRoute[] s_sessionlessRoutes
+            = Array.FindAll(s_routes, r => s_sessionlessPaths.Contains(r.Path));
+
+        /// <summary>
         /// All routes defined by <c>opc.ua.openapi.allservices.json</c>,
         /// grouped by service set in spec order.
         /// </summary>
@@ -179,6 +199,29 @@ namespace Opc.Ua.Bindings
         /// the count in <c>opc.ua.openapi.allservices.json</c>.
         /// </summary>
         public static int Count => s_routes.Length;
+
+        /// <summary>
+        /// Returns the routes of <paramref name="serviceSet"/> in the
+        /// order of <see cref="Routes"/>.
+        /// </summary>
+        /// <param name="serviceSet">The service set to return the routes of.</param>
+        /// <returns>
+        /// <see cref="Routes"/> for <see cref="WebApiServiceSet.AllServices"/>;
+        /// the eight routes of <c>opc.ua.openapi.sessionless.json</c> for
+        /// <see cref="WebApiServiceSet.Sessionless"/>.
+        /// </returns>
+        /// <exception cref="ArgumentOutOfRangeException">
+        /// <paramref name="serviceSet"/> is not a defined value.
+        /// </exception>
+        public static ArrayOf<WebApiServiceRoute> GetRoutes(WebApiServiceSet serviceSet)
+        {
+            return serviceSet switch
+            {
+                WebApiServiceSet.AllServices => s_routes,
+                WebApiServiceSet.Sessionless => s_sessionlessRoutes,
+                _ => throw new ArgumentOutOfRangeException(nameof(serviceSet))
+            };
+        }
 
         /// <summary>
         /// Looks up a route by its URL path (e.g. <c>/read</c>).

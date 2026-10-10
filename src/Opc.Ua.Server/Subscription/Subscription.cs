@@ -41,7 +41,7 @@ namespace Opc.Ua.Server
     /// Manages a subscription created by a client.
     /// </summary>
     public class Subscription :
-        ISubscription,
+
         ISubscriptionPublishPipeline,
         ISubscriptionMonitoredItemLifecycle
     {
@@ -198,7 +198,53 @@ namespace Opc.Ua.Server
             await subscription.RestoreMonitoredItemsAsync(storedSubscription.MonitoredItems, cancellationToken)
                 .ConfigureAwait(false);
 
+            subscription.RestoreTriggeringLinks(
+                (storedSubscription as IStoredSubscriptionTriggering)?.TriggeringLinks);
+
             return subscription;
+        }
+
+        /// <summary>
+        /// Rebuilds the triggering links between restored monitored items
+        /// (OPC 10000-4 §5.13.1.6). Links to or from items that could not be restored
+        /// are dropped.
+        /// </summary>
+        private void RestoreTriggeringLinks(
+            IReadOnlyDictionary<uint, IReadOnlyList<uint>>? triggeringLinks)
+        {
+            if (triggeringLinks == null)
+            {
+                return;
+            }
+
+            lock (m_lock)
+            {
+                foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
+                {
+                    if (link.Value == null || !m_monitoredItems.ContainsKey(link.Key))
+                    {
+                        continue;
+                    }
+
+                    var triggeredItems = new List<ITriggeredMonitoredItem>(link.Value.Count);
+                    foreach (uint linkedItemId in link.Value)
+                    {
+                        if (m_monitoredItems.TryGetValue(
+                                linkedItemId,
+                                out LinkedListNode<IMonitoredItem>? linkedNode) &&
+                            linkedNode.Value is ITriggeredMonitoredItem triggeredItem &&
+                            !triggeredItems.Exists(item => item.Id == linkedItemId))
+                        {
+                            triggeredItems.Add(triggeredItem);
+                        }
+                    }
+
+                    if (triggeredItems.Count > 0)
+                    {
+                        m_itemsToTrigger[link.Key] = triggeredItems;
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -236,7 +282,7 @@ namespace Opc.Ua.Server
             m_lifetimeCounter = storedSubscription.LifetimeCounter;
             m_maxKeepAliveCount = storedSubscription.MaxKeepaliveCount;
             m_maxNotificationsPerPublish = storedSubscription.MaxNotificationsPerPublish;
-            m_publishingEnabled = false;
+            m_publishingEnabled = storedSubscription is not IStoredSubscriptionState storedState || storedState.PublishingEnabled;
             Priority = storedSubscription.Priority;
             m_publishTimerExpiry = m_timeProvider.GetTimestampMilliseconds() +
                 (long)storedSubscription.PublishingInterval;
@@ -253,13 +299,17 @@ namespace Opc.Ua.Server
                 m_server.EventManager);
             m_supportsDurable = m_server.MonitoredItemQueueFactory.SupportsDurableQueues;
             IsDurable = storedSubscription.IsDurable;
-            // UserIdentityToken is null for anonymous sessions; preserve the saved-owner
-            // identity in that case (the field already supports null).
+            // UserIdentityToken is null for anonymous sessions; the owner is then an
+            // anonymous identity, so EffectiveIdentity is never null before a Session
+            // reclaims the subscription (TransferSubscriptions checks its token type).
             m_savedOwnerIdentity = storedSubscription.UserIdentityToken != null
                 ? new UserIdentity(storedSubscription.UserIdentityToken)
+                : new UserIdentity();
+            m_ownerUserTokenType = m_savedOwnerIdentity.TokenType;
+            m_ownerClientApplicationUri = storedSubscription is IStoredSubscriptionState ownerState
+                ? ownerState.OwnerClientApplicationUri
                 : null;
-            m_ownerUserTokenType = m_savedOwnerIdentity?.TokenType ?? UserTokenType.Anonymous;
-            if (m_savedOwnerIdentity != null)
+            if (storedSubscription.UserIdentityToken != null)
             {
                 ClientUserIdResolver.TryResolveContinuityKey(
                     m_savedOwnerIdentity.TokenHandler,
@@ -611,20 +661,16 @@ namespace Opc.Ua.Server
         /// <summary>
         /// Deletes the subscription.
         /// </summary>
+        /// <remarks>
+        /// Once deletion starts, monitored-item cleanup is not cancelled. Diagnostics
+        /// teardown follows that cleanup so cancellation or shutdown cannot leave items registered.
+        /// </remarks>
         public async ValueTask DeleteAsync(OperationContext context, CancellationToken cancellationToken = default)
         {
             // Mark the subscription deleted first so any concurrent service call that reaches a
             // publicly callable method fails fast with Bad_SubscriptionIdInvalid instead of
             // operating on a subscription that is being torn down.
             Volatile.Write(ref m_deleted, 1);
-
-            // delete the diagnostics.
-            if (!m_diagnosticsId.IsNull)
-            {
-                ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(Session);
-                await m_server.DiagnosticsNodeManager
-                    .DeleteSubscriptionDiagnosticsAsync(systemContext, m_diagnosticsId, cancellationToken).ConfigureAwait(false);
-            }
 
             try
             {
@@ -634,7 +680,7 @@ namespace Opc.Ua.Server
                 List<IMonitoredItem> monitoredItems;
                 lock (m_lock)
                 {
-                    monitoredItems = m_monitoredItems.Values.Select(node => node.Value).ToList();
+                    monitoredItems = [.. m_monitoredItems.Values.Select(node => node.Value)];
                     m_monitoredItems.Clear();
                     m_itemsToTrigger.Clear();
                     m_itemsToCheck.Clear();
@@ -663,14 +709,18 @@ namespace Opc.Ua.Server
                         errors.Add(null!);
                     }
 
-                    await m_server.NodeManager
-                        .DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, cancellationToken)
-                        .ConfigureAwait(false);
-
-                    // dispose the monitored items.
-                    foreach (IMonitoredItem monitoredItem in monitoredItems)
+                    try
                     {
-                        monitoredItem?.Dispose();
+                        await m_server.NodeManager
+                            .DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, CancellationToken.None)
+                            .ConfigureAwait(false);
+                    }
+                    finally
+                    {
+                        foreach (IMonitoredItem monitoredItem in monitoredItems)
+                        {
+                            monitoredItem?.Dispose();
+                        }
                     }
                 }
             }
@@ -678,12 +728,30 @@ namespace Opc.Ua.Server
             {
                 m_logger.DeleteItemsForSubscriptionFailed(e);
             }
+
+            if (!m_diagnosticsId.IsNull)
+            {
+                ServerSystemContext systemContext = m_server.DefaultSystemContext.Copy(Session);
+                await m_server.DiagnosticsNodeManager.DeleteSubscriptionDiagnosticsAsync(
+                    systemContext, m_diagnosticsId, CancellationToken.None).ConfigureAwait(false);
+            }
         }
 
         /// <summary>
         /// Checks if the subscription is ready to publish.
         /// </summary>
         PublishingState ISubscriptionPublishPipeline.PublishTimerExpired()
+        {
+            return PublishTimerExpired(publishRequestQueued: false);
+        }
+
+        /// <inheritdoc/>
+        PublishingState ISubscriptionPublishPipeline.PublishTimerExpired(bool publishRequestQueued)
+        {
+            return PublishTimerExpired(publishRequestQueued);
+        }
+
+        private PublishingState PublishTimerExpired(bool publishRequestQueued)
         {
             lock (m_lock)
             {
@@ -714,23 +782,43 @@ namespace Opc.Ua.Server
                     m_publishTimerExpiry += (long)m_publishingInterval;
                 }
 
-                // check lifetime has elapsed.
-                if (m_waitingForPublish)
+                // OPC 10000-4 §5.14.1.2 row 27: the LifetimeCounter is decremented when the
+                // publishing timer expires while no Publish request is queued
+                // (PublishingReqQueued == FALSE) and reset while one is queued, in the NORMAL,
+                // LATE and KEEPALIVE states alike. It is also reset when a NotificationMessage
+                // or keep-alive is sent or a request acknowledges a message, so it only
+                // reaches MaxLifetimeCount when the client has stopped sending Publish
+                // requests. A subscription already waiting for a request (LATE) did not get
+                // the queued one, so it keeps counting.
+                if (publishRequestQueued && !m_waitingForPublish)
+                {
+                    m_lifetimeCounter = 0;
+                }
+                else
                 {
                     m_lifetimeCounter++;
+                }
 
-                    lock (m_diagnosticsLock)
+                // A subscription that was already waiting for a Publish request when the
+                // timer expired has entered the LATE state; count the entry only once per
+                // episode (Part 5 §12.15 latePublishRequestCount).
+                bool enteredLate = m_waitingForPublish && !m_isLate;
+                m_isLate = m_waitingForPublish;
+
+                lock (m_diagnosticsLock)
+                {
+                    if (enteredLate)
                     {
                         Diagnostics.LatePublishRequestCount++;
-                        Diagnostics.CurrentLifetimeCount = m_lifetimeCounter;
-                        MarkDiagnosticsDirty();
                     }
+                    Diagnostics.CurrentLifetimeCount = m_lifetimeCounter;
+                    MarkDiagnosticsDirty();
+                }
 
-                    if (m_lifetimeCounter >= m_maxLifetimeCount)
-                    {
-                        TraceState(LogLevel.Information, TraceStateId.Deleted, "EXPIRED");
-                        return PublishingState.Expired;
-                    }
+                if (m_lifetimeCounter >= m_maxLifetimeCount)
+                {
+                    TraceState(LogLevel.Information, TraceStateId.Deleted, "EXPIRED");
+                    return PublishingState.Expired;
                 }
 
                 // increment keep alive counter.
@@ -745,70 +833,10 @@ namespace Opc.Ua.Server
                 // check for monitored items.
                 if (m_publishingEnabled && Session != null)
                 {
-                    // check for monitored items that are ready to publish.
-                    LinkedListNode<IMonitoredItem>? current = m_itemsToCheck.First;
-                    bool itemsTriggered = false;
+                    PromoteReadyMonitoredItems();
 
-                    while (current != null)
-                    {
-                        LinkedListNode<IMonitoredItem>? next = current.Next;
-                        IMonitoredItem monitoredItem = current.Value;
-
-                        // check if the item is ready to publish.
-                        if (monitoredItem.IsResendData || monitoredItem.IsReadyToPublish)
-                        {
-                            m_itemsToCheck.Remove(current);
-                            m_itemsToPublish.AddLast(current);
-                        }
-
-                        // Check for triggering only if there are triggered items configured
-                        if (m_itemsToTrigger.Count > 0)
-                        {
-                            bool isReadyToTrigger = monitoredItem.IsReadyToTrigger;
-
-                            // update any triggered items.
-                            if (isReadyToTrigger &&
-                                m_itemsToTrigger.TryGetValue(
-                                    current.Value.Id,
-                                    out List<ITriggeredMonitoredItem>? triggeredItems))
-                            {
-                                for (int ii = 0; ii < triggeredItems.Count; ii++)
-                                {
-                                    if (triggeredItems[ii].SetTriggered())
-                                    {
-                                        itemsTriggered = true;
-                                    }
-                                }
-
-                                // clear ReadyToTrigger flag after trigger
-                                monitoredItem.IsReadyToTrigger = false;
-                            }
-                        }
-
-                        current = next;
-                    }
-
-                    // need to go through the list again if items were triggered.
-                    if (itemsTriggered)
-                    {
-                        current = m_itemsToCheck.First;
-
-                        while (current != null)
-                        {
-                            LinkedListNode<IMonitoredItem>? next = current.Next;
-                            IMonitoredItem monitoredItem = current.Value;
-
-                            if (monitoredItem.IsReadyToPublish)
-                            {
-                                m_itemsToCheck.Remove(current);
-                                m_itemsToPublish.AddLast(current);
-                            }
-
-                            current = next;
-                        }
-                    }
-
-                    if (m_itemsToPublish.Count > 0)
+                    if (m_itemsToPublish.Count > 0 ||
+                        m_messageQueue.LastSentMessage < m_messageQueue.SentCount)
                     {
                         if (!m_waitingForPublish)
                         {
@@ -837,6 +865,134 @@ namespace Opc.Ua.Server
             }
         }
 
+        /// <summary>
+        /// Moves the monitored items that have data to report from the check list to the
+        /// publish list, including items linked to a triggering item that has data.
+        /// </summary>
+        /// <remarks>The caller holds <c>m_lock</c>.</remarks>
+        private void PromoteReadyMonitoredItems()
+        {
+            // check for monitored items that are ready to publish.
+            LinkedListNode<IMonitoredItem>? current = m_itemsToCheck.First;
+            bool itemsTriggered = false;
+
+            while (current != null)
+            {
+                LinkedListNode<IMonitoredItem>? next = current.Next;
+                IMonitoredItem monitoredItem = current.Value;
+
+                // check if the item is ready to publish.
+                if (IsReadyToReport(monitoredItem))
+                {
+                    m_itemsToCheck.Remove(current);
+                    m_itemsToPublish.AddLast(current);
+                }
+
+                // update any triggered items.
+                if (TriggerLinkedItems(monitoredItem, promoteTriggeredItems: false))
+                {
+                    itemsTriggered = true;
+                }
+
+                current = next;
+            }
+
+            // need to go through the list again if items were triggered.
+            if (itemsTriggered)
+            {
+                current = m_itemsToCheck.First;
+
+                while (current != null)
+                {
+                    LinkedListNode<IMonitoredItem>? next = current.Next;
+                    IMonitoredItem monitoredItem = current.Value;
+
+                    if (IsReadyToReport(monitoredItem))
+                    {
+                        m_itemsToCheck.Remove(current);
+                        m_itemsToPublish.AddLast(current);
+                    }
+
+                    current = next;
+                }
+            }
+        }
+
+        /// <summary>
+        /// Returns whether a monitored item has notifications to report. A DISABLED item
+        /// reports nothing and a SAMPLING item only reports when it was triggered (OPC
+        /// 10000-4 §5.12.1.3, §5.13.1.6), so a pending resend (ResendData, a transfer with
+        /// initial values) only counts for a REPORTING item. Applied by the pipeline so the
+        /// rule holds for every <see cref="IMonitoredItem"/> implementation.
+        /// </summary>
+        private static bool IsReadyToReport(IMonitoredItem monitoredItem)
+        {
+            switch (monitoredItem.MonitoringMode)
+            {
+                case MonitoringMode.Reporting:
+                    return monitoredItem.IsResendData || monitoredItem.IsReadyToPublish;
+                case MonitoringMode.Sampling:
+                    return monitoredItem.IsReadyToPublish;
+                default:
+                    return false;
+            }
+        }
+
+        /// <summary>
+        /// The ApplicationUri of the client that owns the subscription, also known
+        /// while the subscription is abandoned or restored without a session.
+        /// </summary>
+        internal string? OwnerClientApplicationUri
+            => Session?.ClientApplicationUri ?? m_ownerClientApplicationUri;
+
+        /// <summary>
+        /// Triggers the items linked to a triggering item that has queued a notification
+        /// since its links were last evaluated (OPC 10000-4 §5.13.1.6).
+        /// </summary>
+        /// <remarks>
+        /// The caller holds <c>m_lock</c>. When <paramref name="promoteTriggeredItems"/> is
+        /// set, linked items that became ready are moved from the check list to the end of
+        /// the publish list so the publish pass in progress reports them.
+        /// </remarks>
+        /// <returns><c>true</c> when at least one linked item was triggered.</returns>
+        private bool TriggerLinkedItems(IMonitoredItem monitoredItem, bool promoteTriggeredItems)
+        {
+            if (m_itemsToTrigger.Count == 0 ||
+                !monitoredItem.IsReadyToTrigger ||
+                !m_itemsToTrigger.TryGetValue(
+                    monitoredItem.Id,
+                    out List<ITriggeredMonitoredItem>? triggeredItems))
+            {
+                return false;
+            }
+
+            bool itemsTriggered = false;
+            for (int ii = 0; ii < triggeredItems.Count; ii++)
+            {
+                if (!triggeredItems[ii].SetTriggered())
+                {
+                    continue;
+                }
+
+                itemsTriggered = true;
+
+                if (promoteTriggeredItems &&
+                    m_monitoredItems.TryGetValue(
+                        triggeredItems[ii].Id,
+                        out LinkedListNode<IMonitoredItem>? triggeredNode) &&
+                    ReferenceEquals(triggeredNode.List, m_itemsToCheck) &&
+                    IsReadyToReport(triggeredNode.Value))
+                {
+                    m_itemsToCheck.Remove(triggeredNode);
+                    m_itemsToPublish.AddLast(triggeredNode);
+                }
+            }
+
+            // clear ReadyToTrigger flag after trigger
+            monitoredItem.IsReadyToTrigger = false;
+            return itemsTriggered;
+        }
+
         /// <inheritdoc/>
         public bool IsTransferIdentityCompatible(ISession targetSession)
         {
@@ -845,28 +1001,45 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(targetSession));
             }
 
+            ISession? ownerSession = Session;
+            UserTokenType ownerTokenType = ownerSession?.IdentityToken.TokenType ?? m_ownerUserTokenType;
             UserTokenType targetTokenType = targetSession.IdentityToken.TokenType;
-            if (m_ownerUserTokenType == UserTokenType.Anonymous ||
+            if (ownerTokenType == UserTokenType.Anonymous ||
                 targetTokenType == UserTokenType.Anonymous)
             {
-                return m_ownerUserTokenType == UserTokenType.Anonymous &&
+                return ownerTokenType == UserTokenType.Anonymous &&
                     targetTokenType == UserTokenType.Anonymous &&
-                    !string.IsNullOrEmpty(m_ownerClientApplicationUri) &&
+                    !string.IsNullOrEmpty(ownerSession?.ClientApplicationUri ?? m_ownerClientApplicationUri) &&
                     string.Equals(
-                        m_ownerClientApplicationUri,
+                        ownerSession?.ClientApplicationUri ?? m_ownerClientApplicationUri,
                         targetSession.ClientApplicationUri,
                         StringComparison.Ordinal);
+            }
+
+            if (ownerSession != null)
+            {
+                return ClientUserIdResolver.TryResolveContinuityKey(
+                        ownerSession.IdentityToken,
+                        ownerSession.Identity,
+                        out string? ownerClientUserId) &&
+                    ownerClientUserId != null &&
+                    ClientUserIdResolver.TryResolveContinuityKey(
+                        targetSession.IdentityToken,
+                        targetSession.Identity,
+                        out string? currentTargetClientUserId) &&
+                    currentTargetClientUserId != null &&
+                    string.Equals(ownerClientUserId, currentTargetClientUserId, StringComparison.Ordinal);
             }
 
             return m_ownerClientUserId != null &&
                 ClientUserIdResolver.TryResolveContinuityKey(
                     targetSession.IdentityToken,
                     targetSession.Identity,
-                    out string? targetClientUserId) &&
-                targetClientUserId != null &&
+                    out string? restoredTargetClientUserId) &&
+                restoredTargetClientUserId != null &&
                 string.Equals(
                     m_ownerClientUserId,
-                    targetClientUserId,
+                    restoredTargetClientUserId,
                     StringComparison.Ordinal);
         }
 
@@ -918,7 +1091,7 @@ namespace Opc.Ua.Server
                         StatusCodes.BadSubscriptionIdInvalid,
                         "Subscription source changed during transfer.");
                 }
-                monitoredItems = m_monitoredItems.Select(v => v.Value.Value).ToList();
+                monitoredItems = [.. m_monitoredItems.Select(v => v.Value.Value)];
             }
 
             var errors = new List<ServiceResult>(monitoredItems.Count);
@@ -1069,6 +1242,14 @@ namespace Opc.Ua.Server
                     m_subscription.Session = m_destinationSession;
                 }
 
+                if (m_subscription.m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
+                {
+                    diagnosticsNodeManager.RelinkSubscriptionDiagnostics(
+                        m_subscription.m_diagnosticsId,
+                        m_sourceSession?.Id ?? default,
+                        m_destinationSession.Id);
+                }
+
                 m_subscription.UpdateDiagnostics(
                     diagnostics => diagnostics.SessionId = m_destinationSession.Id);
             }
@@ -1087,6 +1268,7 @@ namespace Opc.Ua.Server
             /// <param name="cancellationToken">The unused cancellation token.</param>
             /// <returns>A task that completes when rollback has finished.</returns>
             /// <exception cref="AggregateException">One or more rollback steps failed.</exception>
+            /// <exception cref="ServiceResultException"></exception>
             public ValueTask RollbackAsync(CancellationToken cancellationToken)
             {
                 _ = cancellationToken;
@@ -1105,6 +1287,14 @@ namespace Opc.Ua.Server
                                 StatusCodes.BadSubscriptionIdInvalid,
                                 "Subscription ownership changed while rolling back transfer.");
                         }
+                    }
+
+                    if (m_subscription.m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
+                    {
+                        diagnosticsNodeManager.RelinkSubscriptionDiagnostics(
+                            m_subscription.m_diagnosticsId,
+                            m_destinationSession.Id,
+                            m_sourceSession?.Id ?? default);
                     }
 
                     m_subscription.UpdateDiagnostics(
@@ -1251,6 +1441,15 @@ namespace Opc.Ua.Server
                 }
 
                 m_savedOwnerIdentity = closingSession.EffectiveIdentity;
+                UpdateOwnerIdentity(closingSession);
+                if (!m_diagnosticsId.IsNull &&
+                    m_server.DiagnosticsNodeManager is DiagnosticsNodeManager diagnosticsNodeManager)
+                {
+                    diagnosticsNodeManager.RelinkSubscriptionDiagnostics(
+                        m_diagnosticsId,
+                        closingSession.Id,
+                        default);
+                }
                 Session = null!;
             }
 
@@ -1308,6 +1507,19 @@ namespace Opc.Ua.Server
             lock (m_diagnosticsLock)
             {
                 Diagnostics.MonitoringQueueOverflowCount++;
+                MarkDiagnosticsDirty();
+            }
+        }
+
+        /// <summary>
+        /// Update the event queue overflow count when a monitored item reports an
+        /// EventQueueOverflowEventType event (OPC 10000-5 §12.15).
+        /// </summary>
+        void ISubscriptionPublishPipeline.EventQueueOverflowHandler()
+        {
+            lock (m_diagnosticsLock)
+            {
+                Diagnostics.EventQueueOverflowCount++;
                 MarkDiagnosticsDirty();
             }
         }
@@ -1399,6 +1611,7 @@ namespace Opc.Ua.Server
                         // TraceState(LogLevel.Trace, TraceStateId.Items, Utils.Format("PUBLISH #{0}", message.SequenceNumber));
                         ResetKeepaliveCount();
                         m_waitingForPublish = moreNotifications;
+                        m_isLate = false;
                         ResetLifetimeCount();
                     }
                 }
@@ -1412,8 +1625,7 @@ namespace Opc.Ua.Server
         /// </summary>
         NotificationMessage ISubscriptionPublishPipeline.PublishTimeout()
         {
-            NotificationMessage? message = null;
-
+            NotificationMessage? message;
             lock (m_lock)
             {
                 m_expired = true;
@@ -1442,8 +1654,7 @@ namespace Opc.Ua.Server
         /// </summary>
         NotificationMessage ISubscriptionPublishPipeline.SubscriptionTransferred()
         {
-            NotificationMessage? message = null;
-
+            NotificationMessage? message;
             lock (m_lock)
             {
                 message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
@@ -1481,14 +1692,29 @@ namespace Opc.Ua.Server
             // check if a keep alive should be sent if there is no data.
             bool keepAliveIfNoData = m_keepAliveCounter >= m_maxKeepAliveCount;
 
+            // The publish timer only moves ready monitored items to the publish list while a
+            // Session owns the subscription. Values queued while it was abandoned (durable
+            // subscriptions, TransferSubscriptions) are still in the check list when the first
+            // Publish after the transfer arrives with the keep-alive already due. A keep-alive
+            // is only sent when no notifications are available (OPC 10000-4 §5.14.1.1).
+            if (keepAliveIfNoData && m_publishingEnabled && m_itemsToPublish.Count == 0)
+            {
+                PromoteReadyMonitoredItems();
+            }
+
             List<uint> availableSequenceNumberList = [];
 
             moreNotifications = false;
 
-            NotificationMessage? queuedMessage = m_messageQueue.TryDequeueQueued(
-                availableSequenceNumberList,
-                m_itemsToPublish.Count > 0,
-                out moreNotifications);
+            // OPC 10000-4 §5.14.1.2: while PublishingEnabled is FALSE a Publish request only
+            // yields a keep-alive. Messages already built for a previous Publish stay queued
+            // until publishing is enabled again.
+            NotificationMessage? queuedMessage = m_publishingEnabled
+                ? m_messageQueue.TryDequeueQueued(
+                    availableSequenceNumberList,
+                    m_itemsToPublish.Count > 0,
+                    out moreNotifications)
+                : null;
             if (queuedMessage != null)
             {
                 m_waitingForPublish = moreNotifications;
@@ -1512,17 +1738,48 @@ namespace Opc.Ua.Server
                 // check for monitored items that are ready to publish.
                 LinkedListNode<IMonitoredItem>? current = m_itemsToPublish.First;
 
-                //Limit the amount of values a monitored item publishes at once
+                uint messageBudget = Math.Max(1u, m_messageQueue.MaxMessageCount);
                 uint maxNotificationsPerMonitoredItem =
                     m_maxNotificationsPerPublish == 0
                         ? uint.MaxValue
-                        : m_maxNotificationsPerPublish * 3;
+                        : (uint)Math.Min(uint.MaxValue, (ulong)m_maxNotificationsPerPublish * 3);
 
-                while (current != null)
+                while (current != null && messages.Count < messageBudget)
                 {
-                    LinkedListNode<IMonitoredItem>? next = current.Next;
                     IMonitoredItem monitoredItem = current.Value;
+
+                    // A triggering item that is still draining a backlog stays in the publish
+                    // list and is never re-evaluated by the publish timer. Trigger its links
+                    // before its queue is drained, which clears its trigger flag, so every
+                    // notification it reports triggers the linked items (OPC 10000-4
+                    // §5.13.1.6). Linked items that became ready are appended to this pass.
+                    TriggerLinkedItems(monitoredItem, promoteTriggeredItems: true);
+
+                    LinkedListNode<IMonitoredItem>? next = current.Next;
+
+                    // An item that left REPORTING after it was queued for publishing must
+                    // not report: a DISABLED item never, a SAMPLING item only when
+                    // triggered, and a pending resend does not count for either.
+                    MonitoringMode monitoringMode = monitoredItem.MonitoringMode;
+                    if (monitoringMode == MonitoringMode.Disabled ||
+                        (monitoringMode == MonitoringMode.Sampling && !monitoredItem.IsReadyToPublish))
+                    {
+                        m_itemsToPublish.Remove(current);
+                        m_itemsToCheck.AddLast(current);
+                        current = next;
+                        continue;
+                    }
+
                     bool hasMoreValuesToPublish;
+                    uint notificationLimit = maxNotificationsPerMonitoredItem;
+                    if (m_maxNotificationsPerPublish > 0)
+                    {
+                        // Reserve room for every value before taking it out of its monitored-item queue.
+                        ulong remaining = (((ulong)messageBudget - (uint)messages.Count) * m_maxNotificationsPerPublish) -
+                            (ulong)events.Count -
+                            (ulong)datachanges.Count;
+                        notificationLimit = (uint)Math.Min(notificationLimit, remaining);
+                    }
 
                     if ((monitoredItem.MonitoredItemType & MonitoredItemTypeMask.DataChange) != 0)
                     {
@@ -1530,7 +1787,7 @@ namespace Opc.Ua.Server
                             context,
                             datachanges,
                             datachangeDiagnostics,
-                            maxNotificationsPerMonitoredItem,
+                            notificationLimit,
                             m_logger);
                     }
                     else
@@ -1538,7 +1795,7 @@ namespace Opc.Ua.Server
                         hasMoreValuesToPublish = ((IEventMonitoredItem)monitoredItem).Publish(
                             context,
                             events,
-                            maxNotificationsPerMonitoredItem);
+                            notificationLimit);
                     }
 
                     // if item has more values to publish leave it at the front of the list
@@ -1551,9 +1808,9 @@ namespace Opc.Ua.Server
                         m_itemsToCheck.AddLast(current);
                     }
 
-                    // check there are enough notifications for a message.
-                    if (m_maxNotificationsPerPublish > 0 &&
-                        events.Count + datachanges.Count > m_maxNotificationsPerPublish)
+                    while (m_maxNotificationsPerPublish > 0 &&
+                        events.Count + datachanges.Count >= m_maxNotificationsPerPublish &&
+                        messages.Count < messageBudget)
                     {
                         // construct message.
                         int eventCount = events.Count;
@@ -1576,13 +1833,6 @@ namespace Opc.Ua.Server
                                 events.Count);
                             Diagnostics.NotificationsCount += (uint)notificationCount;
                             MarkDiagnosticsDirty();
-                        }
-
-                        //stop fetching messages from MIs when message queue is full to avoid discards
-                        // use MaxMessageCount - 2 to put remaining values into the last allowed message (each MI is allowed to publish 3 up to messages at once)
-                        if (messages.Count >= m_messageQueue.MaxMessageCount - 2)
-                        {
-                            break;
                         }
                     }
 
@@ -1644,10 +1894,12 @@ namespace Opc.Ua.Server
             {
                 // create a keep alive message.
                 var message = (NotificationMessage)NotificationMessageActivator.Instance.CreateInstance();
-                message.SequenceNumber = m_messageQueue.NextSequenceNumber;
                 message.PublishTime = DateTimeUtc.Now;
 
-                // return the available sequence numbers.
+                // Messages held back while publishing is disabled are sent next, so the
+                // keep-alive carries the first of them as the next sequence number and
+                // only advertises the messages already sent for republish.
+                message.SequenceNumber = m_messageQueue.KeepAliveSequenceNumber;
                 m_messageQueue.FillAvailableSequenceNumbers(availableSequenceNumberList);
 
                 // TraceState(LogLevel.Trace, TraceStateId.Items, "PUBLISH KEEPALIVE");
@@ -1659,13 +1911,18 @@ namespace Opc.Ua.Server
                 messages,
                 availableSequenceNumberList,
                 out moreNotifications,
-                out uint newlyUnacknowledgedCount);
+                out uint discardedMessageCount);
+            moreNotifications |= m_itemsToPublish.Count > 0;
 
-            if (newlyUnacknowledgedCount > 0)
+            if (discardedMessageCount > 0)
             {
+                // Messages dropped unsent on overflow or evicted from the retransmission queue
+                // were discarded before the client acknowledged them (Part 5
+                // SubscriptionDiagnosticsDataType). The UnacknowledgedMessageCount is recomputed
+                // from the queue by Publish.
                 lock (m_diagnosticsLock)
                 {
-                    Diagnostics.UnacknowledgedMessageCount += newlyUnacknowledgedCount;
+                    Diagnostics.DiscardedMessageCount += discardedMessageCount;
                     MarkDiagnosticsDirty();
                 }
             }
@@ -1781,12 +2038,6 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(context));
             }
             ThrowIfDeleted();
-
-            lock (m_diagnosticsLock)
-            {
-                Diagnostics.RepublishMessageRequestCount++;
-                MarkDiagnosticsDirty();
-            }
 
             lock (m_lock)
             {
@@ -1970,7 +2221,7 @@ namespace Opc.Ua.Server
 
                 if (!m_monitoredItems.TryGetValue(
                     triggeringItemId,
-                    out LinkedListNode<IMonitoredItem>? triggerNode))
+                    out LinkedListNode<IMonitoredItem>? triggeringNode))
                 {
                     throw new ServiceResultException(StatusCodes.BadMonitoredItemIdInvalid);
                 }
@@ -2026,6 +2277,10 @@ namespace Opc.Ua.Server
                         removeDiagnosticInfoList!.Add(null!);
                     }
                 }
+
+                // The trigger flag is only consumed while the item has links, so it can still
+                // carry a notification queued before the first link existed.
+                bool hadLinks = triggeredItems.Count > 0;
 
                 // add new links.
                 for (int ii = 0; ii < linksToAdd.Count; ii++)
@@ -2103,6 +2358,13 @@ namespace Opc.Ua.Server
                 {
                     m_itemsToTrigger.Remove(triggeringItemId);
                 }
+                else if (!hadLinks)
+                {
+                    // OPC 10000-4 §5.13.1.6: the first trigger occurs when the first
+                    // notification is queued for the triggering item after the link was
+                    // created, so discard a flag left over from before the first link.
+                    triggeringNode.Value.IsReadyToTrigger = false;
+                }
 
                 // clear diagnostics if not required.
                 if (!diagnosticsExist)
@@ -2121,11 +2383,42 @@ namespace Opc.Ua.Server
         /// Adds monitored items to a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
+        public ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsAsync(
             OperationContext context,
             TimestampsToReturn timestampsToReturn,
             ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
             CancellationToken cancellationToken = default)
+        {
+            return CreateMonitoredItemsCoreAsync(
+                context,
+                timestampsToReturn,
+                itemsToCreate,
+                null,
+                cancellationToken);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<CreateMonitoredItemsResponse> ISubscriptionPublishPipeline.CreateMonitoredItemsAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            MonitoredItemCountChange countChange,
+            CancellationToken cancellationToken)
+        {
+            return CreateMonitoredItemsCoreAsync(
+                context,
+                timestampsToReturn,
+                itemsToCreate,
+                countChange,
+                cancellationToken);
+        }
+
+        private async ValueTask<CreateMonitoredItemsResponse> CreateMonitoredItemsCoreAsync(
+            OperationContext context,
+            TimestampsToReturn timestampsToReturn,
+            ArrayOf<MonitoredItemCreateRequest> itemsToCreate,
+            MonitoredItemCountChange? countChange,
+            CancellationToken cancellationToken)
         {
             if (context == null)
             {
@@ -2156,102 +2449,152 @@ namespace Opc.Ua.Server
                 filterResults.Add(null!);
             }
 
-            await m_server.NodeManager.CreateMonitoredItemsAsync(
-                context,
-                Id,
-                m_publishingInterval,
-                timestampsToReturn,
-                itemsToCreate,
-                errors,
-                filterResults,
-                monitoredItems,
-                IsDurable,
-                cancellationToken).ConfigureAwait(false);
-
-            // allocate results.
-            bool diagnosticsExist = false;
-            var results = new List<MonitoredItemCreateResult>(count);
-            List<DiagnosticInfo>? diagnosticInfos = null;
-            if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+            bool ownershipTransferred = false;
+            try
             {
-                diagnosticInfos = new List<DiagnosticInfo>(count);
-            }
+                await m_server.NodeManager.CreateMonitoredItemsAsync(
+                    context,
+                    Id,
+                    m_publishingInterval,
+                    timestampsToReturn,
+                    itemsToCreate,
+                    errors,
+                    filterResults,
+                    monitoredItems,
+                    IsDurable,
+                    cancellationToken).ConfigureAwait(false);
 
-            lock (m_lock)
-            {
-                // check session again after CreateMonitoredItems.
-                VerifySession(context);
-
-                for (int ii = 0; ii < errors.Count; ii++)
+                bool diagnosticsExist = false;
+                var results = new List<MonitoredItemCreateResult>(count);
+                List<DiagnosticInfo>? diagnosticInfos = null;
+                if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
                 {
-                    // update results.
-                    MonitoredItemCreateResult? result = null;
-
-                    if (ServiceResult.IsBad(errors[ii]))
-                    {
-                        result = new MonitoredItemCreateResult { StatusCode = errors[ii].Code };
-
-                        if (filterResults[ii] != null)
-                        {
-                            result.FilterResult = new ExtensionObject(filterResults[ii]);
-                        }
-                    }
-                    else
-                    {
-                        IMonitoredItem monitoredItem = monitoredItems[ii];
-
-                        if (monitoredItem != null)
-                        {
-                            monitoredItem.SubscriptionCallback = this;
-
-                            LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(
-                                monitoredItem);
-                            m_monitoredItems.Add(monitoredItem.Id, node);
-
-                            errors[ii] = monitoredItem.GetCreateResult(out result);
-
-                            // update sampling interval diagnostics.
-                            AddItemToSamplingInterval(
-                                result.RevisedSamplingInterval,
-                                itemsToCreate[ii].MonitoringMode);
-                        }
-                    }
-
-                    results.Add(result!);
-
-                    // update diagnostics.
-                    if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
-                    {
-                        DiagnosticInfo? diagnosticInfo = null;
-
-                        if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
-                        {
-                            diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
-                                m_server,
-                                context,
-                                errors[ii],
-                                m_logger);
-                            diagnosticsExist = true;
-                        }
-
-                        diagnosticInfos!.Add(diagnosticInfo!);
-                    }
+                    diagnosticInfos = new List<DiagnosticInfo>(count);
                 }
 
-                // clear diagnostics if not required.
-                if (!diagnosticsExist && diagnosticInfos != null)
+                lock (m_lock)
                 {
-                    diagnosticInfos.Clear();
+                    cancellationToken.ThrowIfCancellationRequested();
+                    ThrowIfDeleted();
+                    VerifySession(context);
+                    ownershipTransferred = true;
+
+                    for (int ii = 0; ii < errors.Count; ii++)
+                    {
+                        MonitoredItemCreateResult? result = null;
+                        if (ServiceResult.IsBad(errors[ii]))
+                        {
+                            result = new MonitoredItemCreateResult { StatusCode = errors[ii].Code };
+
+                            if (filterResults[ii] != null)
+                            {
+                                result.FilterResult = new ExtensionObject(filterResults[ii]);
+                            }
+                        }
+                        else
+                        {
+                            IMonitoredItem monitoredItem = monitoredItems[ii];
+                            if (monitoredItem != null)
+                            {
+                                monitoredItem.SubscriptionCallback = this;
+
+                                LinkedListNode<IMonitoredItem> node = m_itemsToCheck.AddLast(monitoredItem);
+                                m_monitoredItems.Add(monitoredItem.Id, node);
+                                countChange?.Increment();
+
+                                errors[ii] = monitoredItem.GetCreateResult(out result);
+
+                                // e.g. per-clause EventFilterResult for a partially valid filter.
+                                if (filterResults[ii] != null && result.FilterResult.IsNull)
+                                {
+                                    result.FilterResult = new ExtensionObject(filterResults[ii]);
+                                }
+
+                                AddItemToSamplingInterval(
+                                    result.RevisedSamplingInterval,
+                                    itemsToCreate[ii].MonitoringMode);
+                            }
+                        }
+
+                        results.Add(result!);
+
+                        if ((context.DiagnosticsMask & DiagnosticsMasks.OperationAll) != 0)
+                        {
+                            DiagnosticInfo? diagnosticInfo = null;
+                            if (errors[ii] != null && errors[ii].Code != StatusCodes.Good)
+                            {
+                                diagnosticInfo = ServerUtils.CreateDiagnosticInfo(
+                                    m_server, context, errors[ii], m_logger);
+                                diagnosticsExist = true;
+                            }
+
+                            diagnosticInfos!.Add(diagnosticInfo!);
+                        }
+                    }
+                    if (!diagnosticsExist && diagnosticInfos != null)
+                    {
+                        diagnosticInfos.Clear();
+                    }
+                    TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS CREATED");
                 }
-
-                TraceState(LogLevel.Information, TraceStateId.Items, "ITEMS CREATED");
+                return new CreateMonitoredItemsResponse
+                {
+                    Results = results,
+                    DiagnosticInfos = diagnosticInfos!
+                };
             }
-
-            return new CreateMonitoredItemsResponse
+            finally
             {
-                Results = results,
-                DiagnosticInfos = diagnosticInfos!
-            };
+                if (!ownershipTransferred)
+                {
+                    await DeleteUnattachedMonitoredItemsAsync(context, monitoredItems).ConfigureAwait(false);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Deletes and disposes created monitored items whose ownership was not transferred to the subscription.
+        /// </summary>
+        private async ValueTask DeleteUnattachedMonitoredItemsAsync(
+            OperationContext context,
+            List<IMonitoredItem> monitoredItems)
+        {
+            List<IMonitoredItem> created = monitoredItems.FindAll(item => item != null);
+            if (created.Count == 0)
+            {
+                return;
+            }
+            var errors = new ServiceResult[created.Count];
+            try
+            {
+                await m_server.NodeManager.DeleteMonitoredItemsAsync(
+                    context, Id, created, errors, CancellationToken.None).ConfigureAwait(false);
+                foreach (ServiceResult error in errors)
+                {
+                    if (ServiceResult.IsBad(error))
+                    {
+                        m_logger.DeleteItemsForSubscriptionFailed(error.GetServiceResultException());
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                m_logger.DeleteItemsForSubscriptionFailed(ex);
+            }
+            finally
+            {
+                foreach (IMonitoredItem item in created)
+                {
+                    try
+                    {
+                        item.Dispose();
+                    }
+                    catch (Exception ex)
+                    {
+                        m_logger.DeleteItemsForSubscriptionFailed(ex);
+                    }
+                }
+            }
         }
 
         /// <summary>
@@ -2320,7 +2663,7 @@ namespace Opc.Ua.Server
                     {
                         Diagnostics.DisabledMonitoredItemCount++;
                     }
-                    else
+                    else if (oldMode == MonitoringMode.Disabled)
                     {
                         Diagnostics.DisabledMonitoredItemCount--;
                     }
@@ -2502,10 +2845,28 @@ namespace Opc.Ua.Server
         /// Deletes the monitored items in a subscription.
         /// </summary>
         /// <exception cref="ArgumentNullException"><paramref name="context"/> is <c>null</c>.</exception>
-        public async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
+        public ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsAsync(
             OperationContext context,
             ArrayOf<uint> monitoredItemIds,
             CancellationToken cancellationToken = default)
+        {
+            return DeleteMonitoredItemsCoreAsync(context, monitoredItemIds, null);
+        }
+
+        /// <inheritdoc/>
+        ValueTask<DeleteMonitoredItemsResponse> ISubscriptionPublishPipeline.DeleteMonitoredItemsAsync(
+            OperationContext context,
+            ArrayOf<uint> monitoredItemIds,
+            MonitoredItemCountChange countChange,
+            CancellationToken cancellationToken)
+        {
+            return DeleteMonitoredItemsCoreAsync(context, monitoredItemIds, countChange);
+        }
+
+        private async ValueTask<DeleteMonitoredItemsResponse> DeleteMonitoredItemsCoreAsync(
+            OperationContext context,
+            ArrayOf<uint> monitoredItemIds,
+            MonitoredItemCountChange? countChange)
         {
             if (context == null)
             {
@@ -2569,13 +2930,12 @@ namespace Opc.Ua.Server
 
                     // remove the item from the internal lists.
                     m_monitoredItems.Remove(monitoredItemIds[ii]);
+                    countChange?.Decrement();
                     m_itemsToTrigger.Remove(monitoredItemIds[ii]);
-
-                    //remove the links towards the deleted monitored item
-                    List<ITriggeredMonitoredItem>? triggeredItems = null;
                     foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> item in m_itemsToTrigger)
                     {
-                        triggeredItems = item.Value;
+                        //remove the links towards the deleted monitored item
+                        List<ITriggeredMonitoredItem>? triggeredItems = item.Value;
                         for (int jj = 0; jj < triggeredItems.Count; jj++)
                         {
                             if (triggeredItems[jj].Id == monitoredItemIds[ii])
@@ -2605,7 +2965,12 @@ namespace Opc.Ua.Server
             // update items.
             if (validItems)
             {
-                await m_server.NodeManager.DeleteMonitoredItemsAsync(context, Id, monitoredItems, errors, cancellationToken)
+                await m_server.NodeManager.DeleteMonitoredItemsAsync(
+                    context,
+                    Id,
+                    monitoredItems,
+                    errors,
+                    CancellationToken.None)
                     .ConfigureAwait(false);
             }
 
@@ -2631,8 +2996,10 @@ namespace Opc.Ua.Server
                         results.Add(error.StatusCode);
                     }
 
-                    // update diagnostics.
-                    if (ServiceResult.IsGood(error))
+                    // update diagnostics for every item that was removed from the
+                    // subscription above, even if its NodeManager reported a failure: the
+                    // item is gone and must no longer be counted.
+                    if (monitoredItems[ii] != null)
                     {
                         RemoveItemToSamplingInterval(
                             originalSamplingIntervals[ii],
@@ -2959,6 +3326,12 @@ namespace Opc.Ua.Server
 
             lock (m_lock)
             {
+                // nothing to do if no event subscriptions.
+                if (monitoredItems.Count == 0)
+                {
+                    return;
+                }
+
                 // generate start event.
                 var e = new RefreshStartEventState(null);
 
@@ -2977,68 +3350,86 @@ namespace Opc.Ua.Server
                     false);
                 e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
 
-                // build list of items to refresh.
-                foreach (IEventMonitoredItem monitoredItem in monitoredItems)
-                {
-                    IEventMonitoredItem eventMonitoredItem = monitoredItem;
+                // OPC 10000-9 §5.5.7: the refresh is in progress from the RefreshStartEvent
+                // until the RefreshEndEvent has been queued. The flag is set and cleared under
+                // m_lock together with queueing those events so ValidateConditionRefresh never
+                // observes a gap.
+                m_refreshInProgress = true;
 
-                    if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                // build list of items to refresh.
+                try
+                {
+                    foreach (IEventMonitoredItem monitoredItem in monitoredItems)
                     {
-                        // queue start refresh event.
-                        eventMonitoredItem.QueueEvent(e, true);
+                        IEventMonitoredItem eventMonitoredItem = monitoredItem;
+
+                        if (eventMonitoredItem != null && eventMonitoredItem.EventFilter != null)
+                        {
+                            // queue start refresh event.
+                            eventMonitoredItem.QueueEvent(e, true);
+                        }
                     }
                 }
-
-                // nothing to do if no event subscriptions.
-                if (monitoredItems.Count == 0)
+                catch
                 {
-                    return;
+                    m_refreshInProgress = false;
+                    throw;
                 }
             }
 
             // tell the NodeManagers to report the current state of the conditions.
             try
             {
-                m_refreshInProgress = true;
-
                 using var operationContext = new OperationContext(Session, DiagnosticsMasks.None);
                 await m_server.NodeManager.ConditionRefreshAsync(operationContext, monitoredItems, cancellationToken)
                     .ConfigureAwait(false);
             }
-            finally
+            catch
             {
-                m_refreshInProgress = false;
+                lock (m_lock)
+                {
+                    m_refreshInProgress = false;
+                }
+                throw;
             }
 
             lock (m_lock)
             {
-                // generate start event.
-                var e = new RefreshEndEventState(null);
-
-                var message = new TranslationInfo(
-                    "RefreshEndEvent",
-                    "en-US",
-                    Utils.Format(messageTemplate, "completed"));
-
-                e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
-
-                e.SetChildValue(systemContext, BrowseNames.SourceNode, m_diagnosticsId, false);
-                e.SetChildValue(
-                    systemContext,
-                    BrowseNames.SourceName,
-                    Utils.Format("Subscription/{0}", Id),
-                    false);
-                e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
-
-                // send refresh end event.
-                for (int ii = 0; ii < monitoredItems.Count; ii++)
+                try
                 {
-                    IEventMonitoredItem monitoredItem = monitoredItems[ii];
+                    // generate end event.
+                    var e = new RefreshEndEventState(null);
 
-                    if (monitoredItem.EventFilter != null)
+                    var message = new TranslationInfo(
+                        "RefreshEndEvent",
+                        "en-US",
+                        Utils.Format(messageTemplate, "completed"));
+
+                    e.Initialize(systemContext, null, EventSeverity.Low, new LocalizedText(message));
+
+                    e.SetChildValue(systemContext, BrowseNames.SourceNode, m_diagnosticsId, false);
+                    e.SetChildValue(
+                        systemContext,
+                        BrowseNames.SourceName,
+                        Utils.Format("Subscription/{0}", Id),
+                        false);
+                    e.SetChildValue(systemContext, BrowseNames.ReceiveTime, DateTimeUtc.Now, false);
+
+                    // send refresh end event.
+                    for (int ii = 0; ii < monitoredItems.Count; ii++)
                     {
-                        monitoredItem.QueueEvent(e, true);
+                        IEventMonitoredItem monitoredItem = monitoredItems[ii];
+
+                        if (monitoredItem.EventFilter != null)
+                        {
+                            monitoredItem.QueueEvent(e, true);
+                        }
                     }
+                }
+                finally
+                {
+                    // the refresh ends once its RefreshEndEvent has been queued.
+                    m_refreshInProgress = false;
                 }
 
                 // TraceState("CONDITION REFRESH");
@@ -3069,7 +3460,12 @@ namespace Opc.Ua.Server
                 // clear lifetime counter.
                 ResetLifetimeCount();
 
-                m_maxLifetimeCount = maxLifetimeCount;
+                // the lifetime must be at least three keep-alive intervals (Part 4
+                // 5.14.2.2), or the subscription expires before its keep-alive is due.
+                ulong minimumLifetimeCount = 3UL * m_maxKeepAliveCount;
+                m_maxLifetimeCount = (uint)Math.Min(
+                    uint.MaxValue,
+                    Math.Max(maxLifetimeCount, minimumLifetimeCount));
 
                 // update diagnostics
                 lock (m_diagnosticsLock)
@@ -3116,30 +3512,48 @@ namespace Opc.Ua.Server
         /// </summary>
         public IStoredSubscription ToStorableSubscription()
         {
-            var monitoredItemsToStore = new List<IStoredMonitoredItem>();
-
-            foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> kvp in m_monitoredItems)
+            lock (m_lock)
             {
-                monitoredItemsToStore.Add(kvp.Value.Value.ToStorableMonitoredItem());
+                var monitoredItemsToStore = new List<IStoredMonitoredItem>();
+
+                foreach (KeyValuePair<uint, LinkedListNode<IMonitoredItem>> kvp in m_monitoredItems)
+                {
+                    monitoredItemsToStore.Add(kvp.Value.Value.ToStorableMonitoredItem());
+                }
+
+                Dictionary<uint, IReadOnlyList<uint>>? triggeringLinks = null;
+                foreach (KeyValuePair<uint, List<ITriggeredMonitoredItem>> link in m_itemsToTrigger)
+                {
+                    if (link.Value.Count == 0)
+                    {
+                        continue;
+                    }
+
+                    triggeringLinks ??= [];
+                    triggeringLinks[link.Key] = [.. link.Value.Select(item => item.Id)];
+                }
+
+                return new StoredSubscription
+                {
+                    SentMessages = m_messageQueue.CreateSnapshot(),
+                    Id = Id,
+                    SequenceNumber = m_messageQueue.NextSequenceNumber,
+                    LastSentMessage = m_messageQueue.LastSentMessage,
+                    LifetimeCounter = m_lifetimeCounter,
+                    MaxKeepaliveCount = m_maxKeepAliveCount,
+                    MaxLifetimeCount = m_maxLifetimeCount,
+                    MaxMessageCount = m_messageQueue.MaxMessageCount,
+                    MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
+                    Priority = Priority,
+                    PublishingInterval = PublishingInterval,
+                    UserIdentityToken = EffectiveIdentity?.TokenHandler.Token!,
+                    PublishingEnabled = m_publishingEnabled,
+                    OwnerClientApplicationUri = m_ownerClientApplicationUri,
+                    MonitoredItems = monitoredItemsToStore,
+                    TriggeringLinks = triggeringLinks,
+                    IsDurable = IsDurable
+                };
             }
-
-            return new StoredSubscription
-            {
-                SentMessages = m_messageQueue.SentMessages,
-                Id = Id,
-                SequenceNumber = m_messageQueue.NextSequenceNumber,
-                LastSentMessage = m_messageQueue.LastSentMessage,
-                LifetimeCounter = m_lifetimeCounter,
-                MaxKeepaliveCount = m_maxKeepAliveCount,
-                MaxLifetimeCount = m_maxLifetimeCount,
-                MaxMessageCount = m_messageQueue.MaxMessageCount,
-                MaxNotificationsPerPublish = m_maxNotificationsPerPublish,
-                Priority = Priority,
-                PublishingInterval = PublishingInterval,
-                UserIdentityToken = EffectiveIdentity?.TokenHandler.Token!,
-                MonitoredItems = monitoredItemsToStore,
-                IsDurable = IsDurable
-            };
         }
 
         /// <summary>
@@ -3368,6 +3782,7 @@ namespace Opc.Ua.Server
         private uint m_keepAliveCounter;
         private uint m_lifetimeCounter;
         private bool m_waitingForPublish;
+        private bool m_isLate;
         private readonly SentMessageQueue m_messageQueue;
         private readonly Dictionary<uint, LinkedListNode<IMonitoredItem>> m_monitoredItems;
         private readonly LinkedList<IMonitoredItem> m_itemsToCheck;
@@ -3427,5 +3842,4 @@ namespace Opc.Ua.Server
             this ILogger logger,
             uint subscriptionId);
     }
-
 }

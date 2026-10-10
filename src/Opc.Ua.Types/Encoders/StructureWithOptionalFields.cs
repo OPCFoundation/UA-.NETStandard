@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using System.Xml;
+using Opc.Ua.Types;
 
 namespace Opc.Ua.Encoders
 {
@@ -61,16 +62,32 @@ namespace Opc.Ua.Encoders
 
             // build optional field mask attribute
             uint optionalFieldMask = 1;
+            int optionalFields = 0;
             foreach (Field property in PropertyList)
             {
                 property.OptionalFieldMask = 0;
                 if (property.IsOptional)
                 {
+                    // OPC 10000-6 5.2.7: the EncodingMask is a 32-bit unsigned
+                    // integer and each optional field is assigned exactly one
+                    // bit, so a 33rd optional field cannot be represented.
+                    if (++optionalFields > MaxOptionalFields)
+                    {
+                        throw new ArgumentException(
+                            $"The structure has more than {MaxOptionalFields} optional fields.",
+                            nameof(structureDefinition));
+                    }
                     property.OptionalFieldMask = optionalFieldMask;
                     optionalFieldMask <<= 1;
                 }
             }
         }
+
+        /// <summary>
+        /// The most optional fields a structure can have: one per bit of the
+        /// 32-bit EncodingMask (OPC 10000-6 5.2.7).
+        /// </summary>
+        public const int MaxOptionalFields = 32;
 
         /// <summary>
         /// Copy constructor
@@ -93,6 +110,37 @@ namespace Opc.Ua.Encoders
         public override object Clone()
         {
             return new StructureWithOptionalFields(this);
+        }
+
+        /// <summary>
+        /// Checks the bits of a decoded EncodingMask that are not assigned to
+        /// an optional field. Binary decoders shall report an error if they
+        /// are not 0 (OPC 10000-6 5.2.7); XML decoders shall ignore them
+        /// (5.3.6), and so does the JSON decoder, which clears them.
+        /// </summary>
+        /// <exception cref="ServiceResultException">with
+        /// <see cref="StatusCodes.BadDecodingError"/> for unassigned bits in
+        /// the binary encoding.</exception>
+        internal static uint ValidateEncodingMask(
+            IDecoder decoder,
+            uint encodingMask,
+            uint assignedBits)
+        {
+            uint unassignedBits = encodingMask & ~assignedBits;
+            if (unassignedBits == 0)
+            {
+                return encodingMask;
+            }
+            if (decoder.EncodingType == EncodingType.Binary)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadDecodingError,
+                    "EncodingMask 0x{0:X8} has bits set that are not assigned " +
+                    "to an optional field (0x{1:X8}).",
+                    encodingMask,
+                    assignedBits);
+            }
+            return encodingMask & assignedBits;
         }
 
         /// <inheritdoc/>
@@ -147,6 +195,16 @@ namespace Opc.Ua.Encoders
 
                 EncodingMask = decoder.ReadEncodingMask(masks);
             }
+
+            uint assignedBits = 0;
+            foreach (Field property in PropertyList)
+            {
+                if (property.IsOptional)
+                {
+                    assignedBits |= property.OptionalFieldMask;
+                }
+            }
+            EncodingMask = ValidateEncodingMask(decoder, EncodingMask, assignedBits);
 
             foreach (Field property in PropertyList)
             {

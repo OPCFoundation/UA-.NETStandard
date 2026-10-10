@@ -371,7 +371,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 for (int ii = 0; ii < published.NotificationMessage.NotificationData.Count; ii++)
                 {
                     if (published.NotificationMessage.NotificationData[ii].TryGetValue(
-                        out EventNotificationList events))
+                        out EventNotificationList? events))
                     {
                         Assert.That(events.Events, Has.Count.EqualTo(1));
                         Assert.That(events.Events[0].ClientHandle, Is.EqualTo(1));
@@ -525,7 +525,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                     }
                     await AddRootNotifierAsync(root, cancellationToken).ConfigureAwait(false);
                 }
-                builder.Seal();
+                await builder.SealAsync(cancellationToken).ConfigureAwait(false);
             }
 
             private readonly ArrayOf<ControlledEventSource> m_sources;

@@ -27,8 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -175,6 +173,105 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 peer.Close();
             }
+        }
+
+        /// <summary>
+        /// OPC 10000-6 §7.1.2.6: the Client returns Bad_TcpEndpointUrlInvalid and closes the connection if the
+        /// ServerUri or EndpointUrl exceeds 4096 bytes; a missing or relative EndpointUrl is not a valid URL either.
+        /// </summary>
+        [TestCase(4097, 20, TestName = "ServerUriTooLong")]
+        [TestCase(20, 4097, TestName = "EndpointUrlTooLong")]
+        [TestCase(-1, 20, TestName = "ServerUriNull")]
+        [TestCase(20, -1, TestName = "EndpointUrlNull")]
+        [TestCase(20, 0, TestName = "EndpointUrlRelative")]
+        public async Task InvalidReverseHelloIsRejectedWithEndpointUrlInvalidAsync(
+            int serverUriLength,
+            int endpointUrlLength)
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            using TcpReverseConnectChannel channel = BuildChannel(listenerMock);
+            var buffers = new BufferManager("rcc-invalid-hello", 8192, m_telemetry);
+            (InProcessTransport client, InProcessTransport peer) =
+                InProcessTransport.CreatePair(buffers, 8192, m_telemetry);
+            using var timeout = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            try
+            {
+                channel.Attach(channelId: 5u, transport: client);
+                await peer.SendChunkAsync(
+                    BuildReverseHello(
+                        CreateString("urn:server:", serverUriLength),
+                        endpointUrlLength == 0 ? "relative/path" : CreateString("opc.tcp://host/", endpointUrlLength)),
+                    timeout.Token).ConfigureAwait(false);
+
+                ArraySegment<byte> error = await peer.ReceiveChunkAsync(timeout.Token).ConfigureAwait(false);
+
+                Assert.That(BitConverter.ToUInt32(error.Array!, error.Offset), Is.EqualTo(TcpMessageType.Error));
+                Assert.That(
+                    BitConverter.ToUInt32(error.Array!, error.Offset + 8),
+                    Is.EqualTo((uint)StatusCodes.BadTcpEndpointUrlInvalid));
+                listenerMock.Verify(
+                    l => l.TransferListenerChannelAsync(It.IsAny<uint>(), It.IsAny<string>(), It.IsAny<Uri>()),
+                    Times.Never());
+            }
+            finally
+            {
+                peer.Close();
+            }
+        }
+
+        [TestCase("", TestName = "ServerUriEmpty")]
+        [TestCase("   ", TestName = "ServerUriWhitespace")]
+        public async Task ReverseHelloWithEmptyServerUriIsRejectedAsync(string serverUri)
+        {
+            Mock<ITcpChannelListener> listenerMock = CreateListenerMock();
+            using TcpReverseConnectChannel channel = BuildChannel(listenerMock);
+            var buffers = new BufferManager("rcc-empty-serveruri", 8192, m_telemetry);
+            (InProcessTransport client, InProcessTransport peer) =
+                InProcessTransport.CreatePair(buffers, 8192, m_telemetry);
+            using var timeout = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(10));
+
+            try
+            {
+                channel.Attach(channelId: 6u, transport: client);
+                await peer.SendChunkAsync(
+                    BuildReverseHello(serverUri, "opc.tcp://host/endpoint"),
+                    timeout.Token).ConfigureAwait(false);
+
+                ArraySegment<byte> error = await peer.ReceiveChunkAsync(timeout.Token).ConfigureAwait(false);
+
+                Assert.That(BitConverter.ToUInt32(error.Array!, error.Offset), Is.EqualTo(TcpMessageType.Error));
+                Assert.That(
+                    BitConverter.ToUInt32(error.Array!, error.Offset + 8),
+                    Is.EqualTo((uint)StatusCodes.BadTcpEndpointUrlInvalid));
+                listenerMock.Verify(
+                    l => l.TransferListenerChannelAsync(It.IsAny<uint>(), It.IsAny<string>(), It.IsAny<Uri>()),
+                    Times.Never());
+            }
+            finally
+            {
+                peer.Close();
+            }
+        }
+
+        private static string? CreateString(string prefix, int length)
+        {
+            return length < 0 ? null : prefix + new string('x', length - prefix.Length);
+        }
+
+        private byte[] BuildReverseHello(string? serverUri, string? endpointUrl)
+        {
+            byte[] buffer = new byte[8192];
+            using var encoder = new BinaryEncoder(buffer, 0, buffer.Length, m_quotas.MessageContext);
+            encoder.WriteUInt32(null, TcpMessageType.ReverseHello);
+            encoder.WriteUInt32(null, 0);
+            encoder.WriteString(null, serverUri);
+            encoder.WriteString(null, endpointUrl);
+            int length = encoder.Close();
+            BitConverter.GetBytes(length).CopyTo(buffer, 4);
+            byte[] chunk = new byte[length];
+            Array.Copy(buffer, chunk, length);
+            return chunk;
         }
 
         // ── Helpers ───────────────────────────────────────────────────────────

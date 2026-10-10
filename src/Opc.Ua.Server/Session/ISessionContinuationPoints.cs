@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 
 namespace Opc.Ua.Server
 {
@@ -65,10 +67,20 @@ namespace Opc.Ua.Server
 
         /// <summary>
         /// Saves a history continuation point, dropping and disposing the oldest when the
-        /// limit is reached.
+        /// limit is reached. Ownership transfers to the session when this method is called;
+        /// the implementation disposes the point if it cannot retain it.
         /// </summary>
         /// <param name="continuationPoint">The continuation point.</param>
         void SaveHistory(IHistoryContinuationPoint continuationPoint);
+
+        /// <summary>
+        /// Saves and durably mirrors a portable history continuation point. Ownership transfers
+        /// to the session when this method is called; the implementation disposes the point if
+        /// persistence fails.
+        /// </summary>
+        ValueTask SaveHistoryAsync(
+            IHistoryContinuationPoint continuationPoint,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Restores and removes an available history continuation point. The caller must
@@ -78,6 +90,21 @@ namespace Opc.Ua.Server
         /// <param name="continuationPoint">The identifier the client returned.</param>
         /// <returns>The continuation point, or <c>null</c> when it is not held.</returns>
         IHistoryContinuationPoint? RestoreHistory(ByteString continuationPoint);
+
+        /// <summary>
+        /// Releases and disposes a history continuation point without resuming it.
+        /// Portable records are scheduled for durable removal.
+        /// </summary>
+        bool ReleaseHistory(ByteString continuationPoint);
+
+        /// <summary>
+        /// Atomically claims and removes a portable history continuation point, transferring
+        /// ownership to the caller. The caller must dispose it, save a successor, or restore it
+        /// when the resumed operation does not complete.
+        /// </summary>
+        ValueTask<IHistoryContinuationPoint?> RestoreHistoryAsync(
+            ByteString continuationPoint,
+            CancellationToken cancellationToken = default);
 
         /// <summary>
         /// Invalidates points requiring a node manager that is going away, so nothing

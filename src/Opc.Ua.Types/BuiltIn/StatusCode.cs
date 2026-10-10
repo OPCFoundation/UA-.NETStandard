@@ -278,7 +278,7 @@ namespace Opc.Ua
             uint code = Code;
             code &= 0x0000FFFF;
             code |= bits & 0xFFFF0000;
-            return new StatusCode(code, SymbolicId);
+            return WithCode(code);
         }
 
         /// <summary>
@@ -295,7 +295,7 @@ namespace Opc.Ua
             uint code = Code;
             code &= 0x0000FFFF;
             code |= statusCode.CodeBits & 0xFFFF0000;
-            return new StatusCode(code, SymbolicId);
+            return WithCode(code);
         }
 
         /// <summary>
@@ -335,7 +335,25 @@ namespace Opc.Ua
         [Pure]
         public StatusCode WithSubCode(uint subCode)
         {
-            return new StatusCode(0x0FFF0000 & subCode, SymbolicId);
+            // keep the severity and flag bits (Part 4 7.38.1).
+            uint code = Code;
+            code &= ~0x0FFF0000u;
+            code |= subCode & 0x0FFF0000;
+            return WithCode(code);
+        }
+
+        /// <summary>
+        /// Returns a status code with <paramref name="code"/>, keeping the
+        /// symbolic id only while the code bits it names are unchanged.
+        /// </summary>
+        private StatusCode WithCode(uint code)
+        {
+            if ((code & 0xFFFF0000) == CodeBits)
+            {
+                return new StatusCode(code, SymbolicId);
+            }
+            // Re-resolve the symbol of the new code bits.
+            return new StatusCode(code);
         }
 
         /// <summary>
@@ -914,6 +932,7 @@ namespace Opc.Ua
                 StatusCodes.BadAttributeIdInvalid,
                 StatusCodes.BadIndexRangeInvalid,
                 StatusCodes.BadIndexRangeNoData,
+                StatusCodes.BadIndexRangeDataMismatch,
                 StatusCodes.BadDataEncodingInvalid,
                 StatusCodes.BadDataEncodingUnsupported,
                 StatusCodes.BadNotReadable,

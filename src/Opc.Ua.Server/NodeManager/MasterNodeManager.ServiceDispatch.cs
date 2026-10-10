@@ -94,8 +94,9 @@ namespace Opc.Ua.Server
                 case PerformUpdateType.Update:
                     return PermissionType.InsertHistory | PermissionType.ModifyHistory;
                 case PerformUpdateType.Replace:
-                case PerformUpdateType.Remove:
                     return PermissionType.ModifyHistory;
+                case PerformUpdateType.Remove:
+                    return PermissionType.DeleteHistory;
                 default:
                     Debug.Fail($"Unexpected update type {updateType}");
                     return PermissionType.ModifyHistory;
@@ -458,20 +459,6 @@ namespace Opc.Ua.Server
                 monitoredItems,
                 savedOwnerIdentity,
                 cancellationToken);
-        }
-
-        /// <summary>
-        /// Pre-hydrates monitored-item data/event queues from the configured
-        /// <see cref="ISubscriptionStore"/> so the synchronous monitored-item creation path can
-        /// consume them without blocking on an asynchronous store.
-        /// </summary>
-        /// <param name="itemsToRestore">The monitored items being restored.</param>
-        /// <param name="cancellationToken">A token to cancel the operation.</param>
-        private ValueTask PreHydrateMonitoredItemQueuesAsync(
-            IList<IStoredMonitoredItem> itemsToRestore,
-            CancellationToken cancellationToken)
-        {
-            return m_serviceDispatch.PreHydrateMonitoredItemQueuesAsync(itemsToRestore, cancellationToken);
         }
 
         /// <summary>
@@ -875,20 +862,84 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
+        /// The permissions that are granted on type hierarchy nodes
+        /// (<see cref="NodeMetadata.IsPartOfTypeHierarchy"/>) regardless of
+        /// their RolePermissions and AccessRestrictions: browsing a type, reading
+        /// its attributes (including the Value of InstanceDeclarations) and reading
+        /// its RolePermissions. This keeps the type system discoverable by generic
+        /// clients even though the InstanceDeclarations carry the permissions of the
+        /// instances they describe. Every other permission (Part 3 §8.55), for
+        /// example ReceiveEvents on an EventType, Call on a Method declared on a
+        /// type, or Write/AddReference/DeleteNode, is enforced on type nodes as on
+        /// any other node.
+        /// </summary>
+        internal const PermissionType TypeHierarchyVisibilityPermissions =
+            PermissionType.Browse |
+            PermissionType.ReadRolePermissions |
+            PermissionType.Read;
+
+        /// <summary>
+        /// Returns true if the requested permission is satisfied by the type
+        /// hierarchy visibility exemption.
+        /// </summary>
+        private static bool IsTypeHierarchyVisibilityRequest(
+            in PermissionMetadata nodeMetadata,
+            PermissionType requestedPermission)
+        {
+            return nodeMetadata.IsPartOfTypeHierarchy &&
+                (requestedPermission & ~TypeHierarchyVisibilityPermissions) == 0;
+        }
+
+        /// <summary>
         /// Validate the AccessRestrictions attribute
         /// </summary>
         /// <param name="context">The Operation Context</param>
         /// <param name="nodeMetadata">Metadata</param>
         /// <returns>Good if the AccessRestrictions passes the validation</returns>
+        /// <remarks>
+        /// The type hierarchy exemption is applied as for a visibility (Browse/Read)
+        /// request. Use the overload taking the requested permission to enforce the
+        /// restrictions on type nodes for any other operation.
+        /// </remarks>
         protected internal static ServiceResult ValidateAccessRestrictions(
             OperationContext context,
             NodeMetadata nodeMetadata)
         {
+            return ValidateAccessRestrictions(context, nodeMetadata, PermissionType.None);
+        }
+
+        /// <summary>
+        /// Validate the AccessRestrictions attribute for the requested permission.
+        /// </summary>
+        /// <param name="context">The Operation Context</param>
+        /// <param name="nodeMetadata">Metadata</param>
+        /// <param name="requestedPermission">The permission the operation requires.</param>
+        /// <returns>Good if the AccessRestrictions passes the validation</returns>
+        protected internal static ServiceResult ValidateAccessRestrictions(
+            OperationContext context,
+            NodeMetadata nodeMetadata,
+            PermissionType requestedPermission)
+        {
+            return ValidateAccessRestrictions(
+                context,
+                PermissionMetadata.From(nodeMetadata),
+                requestedPermission);
+        }
+
+        /// <summary>
+        /// Validate the AccessRestrictions attribute for the requested permission.
+        /// </summary>
+        internal static ServiceResult ValidateAccessRestrictions(
+            OperationContext context,
+            in PermissionMetadata nodeMetadata,
+            PermissionType requestedPermission)
+        {
             ServiceResult serviceResult = StatusCodes.Good;
 
             // Type hierarchy nodes (ObjectType/VariableType and their children)
-            // are universally accessible regardless of AccessRestrictions.
-            if (nodeMetadata.IsPartOfTypeHierarchy)
+            // stay browsable and readable regardless of AccessRestrictions; any
+            // other operation on them is restricted like on any other node.
+            if (IsTypeHierarchyVisibilityRequest(nodeMetadata, requestedPermission))
             {
                 return serviceResult;
             }
@@ -965,15 +1016,39 @@ namespace Opc.Ua.Server
             PermissionType requestedPermission,
             ILogger? logger = null)
         {
-            if (nodeMetadata == null || requestedPermission == PermissionType.None)
+            if (nodeMetadata == null)
+            {
+                // no permission is required hence the validation passes
+                return StatusCodes.Good;
+            }
+
+            return ValidateRolePermissions(
+                context,
+                PermissionMetadata.From(nodeMetadata),
+                requestedPermission,
+                logger);
+        }
+
+        /// <summary>
+        /// Validates the role permissions
+        /// </summary>
+        internal static ServiceResult ValidateRolePermissions(
+            OperationContext context,
+            in PermissionMetadata nodeMetadata,
+            PermissionType requestedPermission,
+            ILogger? logger = null)
+        {
+            if (requestedPermission == PermissionType.None)
             {
                 // no permission is required hence the validation passes
                 return StatusCodes.Good;
             }
 
             // Type hierarchy nodes (ObjectType/VariableType and their children)
-            // are universally accessible regardless of RolePermissions.
-            if (nodeMetadata.IsPartOfTypeHierarchy)
+            // stay browsable and readable regardless of RolePermissions. All other
+            // permissions are enforced (Part 3 §8.55), e.g. ReceiveEvents on the
+            // EventType of an event or Call on a Method declared on a type.
+            if (IsTypeHierarchyVisibilityRequest(nodeMetadata, requestedPermission))
             {
                 return StatusCodes.Good;
             }
@@ -1085,9 +1160,8 @@ namespace Opc.Ua.Server
                 if (commonRoleIdPermissions.TryGetValue(currentRoleId, out PermissionType value))
                 {
                     userActualPermissions |= value;
-                    if ((value & requestedPermission) != PermissionType.None)
+                    if ((userActualPermissions & requestedPermission) == requestedPermission)
                     {
-                        // there is one role that current session has na is listed in requested role
                         return StatusCodes.Good;
                     }
                 }

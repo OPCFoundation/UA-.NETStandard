@@ -35,8 +35,6 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
-#nullable enable
-
 using System;
 using System.Collections.Generic;
 using System.Threading.Tasks;
@@ -203,6 +201,44 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(loaded, Is.Null);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ProtectedSessionRejectsTransplantOrEmptyContextAsync(bool emptyContext)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(23));
+            var store = new SharedKeyValueSessionStore(kv, m_context, protector);
+            SharedSessionEntry source = NewEntry("source");
+            SharedSessionEntry target = emptyContext ? source : NewEntry("target");
+            await store.PutAsync(source).ConfigureAwait(false);
+            string sourceKey = SharedKeyValueSessionStore.KeyFor(source.AuthenticationToken);
+            string targetKey = SharedKeyValueSessionStore.KeyFor(target.AuthenticationToken);
+            (bool found, ByteString record) = await kv.TryGetAsync(sourceKey).ConfigureAwait(false);
+            Assert.That(found, Is.True);
+            ByteString invalid = record;
+            if (emptyContext)
+            {
+                Assert.That(protector.TryUnprotectOwned(
+                    RecordProtectionContext.Create("session", sourceKey), record, out byte[] plaintext), Is.True);
+                try
+                {
+                    invalid = protector.Protect(default, ByteString.From(plaintext));
+                }
+                finally
+                {
+                    CryptoUtils.ZeroMemory(plaintext);
+                }
+            }
+            await kv.SetAsync(targetKey, invalid).ConfigureAwait(false);
+
+            Assert.That(await store.TryGetAsync(target.AuthenticationToken).ConfigureAwait(false), Is.Null);
+            await kv.SetAsync(sourceKey, record).ConfigureAwait(false);
+            SharedSessionEntry? retained = await store.TryGetAsync(source.AuthenticationToken).ConfigureAwait(false);
+            Assert.That(retained, Is.Not.Null);
+            Assert.That(retained!.AuthenticationToken, Is.EqualTo(source.AuthenticationToken));
+            Assert.That(retained.SecretMaterial, Is.EqualTo(source.SecretMaterial));
+        }
+
         [Test]
         public async Task CorruptSessionEntryIsRejectedAndLoggedAsync()
         {
@@ -266,6 +302,55 @@ namespace Opc.Ua.Server.Tests.Redundancy
             Assert.That(loaded.HasActivatedUserIdentity, Is.False);
         }
 
+        /// <summary>
+        /// PR review 4168294597: the client certificate provenance is mirrored, so a
+        /// restored Session is not a trusted application when the original was not.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public async Task ClientCertificateProvenanceRoundTripsAsync(bool validated)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("tok-provenance-" + validated) with
+            {
+                ClientCertificateValidated = validated
+            };
+
+            await store.PutAsync(entry).ConfigureAwait(false);
+            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.SecurityStateVersion, Is.EqualTo(SharedSessionEntry.CurrentSecurityStateVersion));
+            Assert.That(loaded.ClientCertificateValidated, Is.EqualTo(validated));
+        }
+
+        /// <summary>
+        /// PR review 4168294597: an entry written before the provenance was mirrored
+        /// (security state version 3) still decodes, with the certificate treated as
+        /// not validated (fail closed).
+        /// </summary>
+        [Test]
+        public async Task VersionThreeEntryDecodesWithAnUnvalidatedCertificateAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("tok-version-three") with
+            {
+                SecurityStateVersion = 3,
+                ClientCertificateValidated = true
+            };
+
+            await store.PutAsync(entry).ConfigureAwait(false);
+            SharedSessionEntry? loaded = await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false);
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded!.SecurityStateVersion, Is.EqualTo(3));
+            Assert.That(loaded.HasActivatedUserIdentity, Is.True);
+            Assert.That(loaded.ClientUserId, Is.EqualTo(entry.ClientUserId));
+            Assert.That(loaded.ClientCertificateValidated, Is.False);
+        }
+
         [Test]
         public async Task KeyspaceDoesNotExposeRawTokenAsync()
         {
@@ -287,6 +372,231 @@ namespace Opc.Ua.Server.Tests.Redundancy
             (bool legacyFound, _) = await kv.TryGetAsync("session/" + tokenText).ConfigureAwait(false);
             Assert.That(legacyFound, Is.False);
             Assert.That(await store.TryGetAsync(entry.AuthenticationToken).ConfigureAwait(false), Is.Not.Null);
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-1/RS-2/RS-4/RS-8: the version 5 state (liveness heartbeat, owner,
+        /// original server certificate, EphemeralKey requirement) round-trips.
+        /// </summary>
+        [Test]
+        public async Task VersionFiveStateRoundTripsAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("v5") with
+            {
+                LastContactAt = DateTimeUtc.From(new DateTime(2026, 10, 8, 12, 0, 0, DateTimeKind.Utc)),
+                OwnerId = "replica-a",
+                ServerCertificate = ByteString.From(CreateBytes(48, 9)),
+                UserTokenRequiresEphemeralKey = true
+            };
+
+            await store.PutAsync(entry);
+            SharedSessionEntry? read = await store.TryGetAsync(entry.AuthenticationToken);
+
+            Assert.That(read, Is.Not.Null);
+            Assert.That(read!.SecurityStateVersion, Is.EqualTo(5u));
+            Assert.That(read.LastContactAt, Is.EqualTo(entry.LastContactAt));
+            Assert.That(read.OwnerId, Is.EqualTo("replica-a"));
+            Assert.That(read.ServerCertificate, Is.EqualTo(entry.ServerCertificate));
+            Assert.That(read.UserTokenRequiresEphemeralKey, Is.True);
+        }
+
+        [Test]
+        public async Task VersionFourEntryDecodesWithoutOwnerAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("v4") with
+            {
+                SecurityStateVersion = 4,
+                OwnerId = "ignored",
+                ClientCertificateValidated = true
+            };
+
+            await store.PutAsync(entry);
+            SharedSessionEntry? read = await store.TryGetAsync(entry.AuthenticationToken);
+
+            Assert.That(read, Is.Not.Null);
+            Assert.That(read!.SecurityStateVersion, Is.EqualTo(4u));
+            Assert.That(read.ClientCertificateValidated, Is.True);
+            Assert.That(read.OwnerId, Is.Null);
+            Assert.That(read.LastContactAt.IsNull, Is.True);
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-2: a conditional replace or remove succeeds only against the
+        /// version it was read from, so a stale replica cannot overwrite or delete the
+        /// entry another replica has updated meanwhile.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ConditionalWritesFailAfterAConcurrentChangeAsync(bool protect)
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            using var protector = new AesCbcHmacRecordProtector(MakeKey(3));
+            var store = new SharedKeyValueSessionStore(kv, m_context, protect ? protector : null);
+            SharedSessionEntry entry = NewEntry("conditional");
+            await store.PutAsync(entry);
+
+            SharedSessionEntry staleRead = (await store.TryGetAsync(entry.AuthenticationToken))!;
+            SharedSessionEntry freshRead = (await store.TryGetAsync(entry.AuthenticationToken))!;
+            Assert.That(
+                await store.TryReplaceAsync(freshRead, freshRead with { OwnerId = "replica-b" }),
+                Is.True);
+
+            Assert.That(
+                await store.TryReplaceAsync(staleRead, staleRead with { OwnerId = "replica-a" }),
+                Is.False);
+            Assert.That(await store.TryRemoveAsync(staleRead), Is.False);
+            Assert.That((await store.TryGetAsync(entry.AuthenticationToken))!.OwnerId, Is.EqualTo("replica-b"));
+
+            SharedSessionEntry current = (await store.TryGetAsync(entry.AuthenticationToken))!;
+            Assert.That(await store.TryRemoveAsync(current), Is.True);
+            Assert.That(await store.TryGetAsync(entry.AuthenticationToken), Is.Null);
+        }
+
+        [Test]
+        public async Task ConditionalWriteRejectsAnEntryNotReadFromTheStoreAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("unread");
+            await store.PutAsync(entry);
+
+            Assert.That(await store.TryReplaceAsync(entry, entry with { OwnerId = "x" }), Is.False);
+            Assert.That(await store.TryRemoveAsync(entry), Is.False);
+        }
+
+        [Test]
+        public async Task ReplacedEntryCanBeReplacedAgainAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            SharedSessionEntry entry = NewEntry("chained");
+            await store.PutAsync(entry);
+
+            SharedSessionEntry read = (await store.TryGetAsync(entry.AuthenticationToken))!;
+            SharedSessionEntry first = read with { OwnerId = "a" };
+            Assert.That(await store.TryReplaceAsync(read, first), Is.True);
+            Assert.That(await store.TryReplaceAsync(first, first with { OwnerId = "b" }), Is.True);
+            Assert.That((await store.TryGetAsync(entry.AuthenticationToken))!.OwnerId, Is.EqualTo("b"));
+        }
+
+        /// <summary>
+        /// The CRDT gossip store has no compare-and-swap; conditional writes fall back
+        /// to a compare followed by a write.
+        /// </summary>
+        [Test]
+        public async Task ConditionalWritesWorkOverAStoreWithoutCompareAndSwapAsync()
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var kv = new NoCompareAndSwapStore(inner);
+            var store = new SharedKeyValueSessionStore(kv, m_context, NullRecordProtector.Instance);
+            SharedSessionEntry entry = NewEntry("no-cas");
+            await store.PutAsync(entry);
+
+            SharedSessionEntry stale = (await store.TryGetAsync(entry.AuthenticationToken))!;
+            SharedSessionEntry read = (await store.TryGetAsync(entry.AuthenticationToken))!;
+            Assert.That(await store.TryReplaceAsync(read, read with { OwnerId = "b" }), Is.True);
+            Assert.That(await store.TryReplaceAsync(stale, stale with { OwnerId = "a" }), Is.False);
+
+            SharedSessionEntry current = (await store.TryGetAsync(entry.AuthenticationToken))!;
+            Assert.That(await store.TryRemoveAsync(current), Is.True);
+            Assert.That(await store.TryGetAsync(entry.AuthenticationToken), Is.Null);
+        }
+
+        [Test]
+        public async Task EnumerateReturnsTheStoredEntriesAsync()
+        {
+            using var kv = new InMemorySharedKeyValueStore();
+            var store = new SharedKeyValueSessionStore(kv, m_context);
+            await store.PutAsync(NewEntry("first"));
+            await store.PutAsync(NewEntry("second"));
+            await kv.SetAsync("session/garbage", ByteString.From(new byte[] { 1, 2, 3 }));
+            await kv.SetAsync("other/key", ByteString.From(new byte[] { 4 }));
+
+            var tokens = new List<string>();
+            await foreach (SharedSessionEntry entry in store.EnumerateAsync())
+            {
+                tokens.Add(entry.AuthenticationToken.ToString());
+                Assert.That(await store.TryRemoveAsync(entry), Is.True, "enumerated entries are conditional-write capable");
+            }
+
+            Assert.That(tokens, Has.Count.EqualTo(2));
+        }
+
+        /// <summary>
+        /// Issue #4627 RS-7: the public constructor no longer silently writes session
+        /// secrets in cleartext to an external store.
+        /// </summary>
+        [Test]
+        public void ExternalStoreWithoutProtectorIsRejected()
+        {
+            using var inner = new InMemorySharedKeyValueStore();
+            var external = new NoCompareAndSwapStore(inner);
+
+            Assert.That(
+                () => new SharedKeyValueSessionStore(external, m_context),
+                Throws.InvalidOperationException);
+            Assert.That(
+                () => new SharedKeyValueSessionStore(external, m_context, NullRecordProtector.Instance),
+                Throws.Nothing);
+            Assert.That(
+                () => new SharedKeyValueSessionStore(inner, m_context),
+                Throws.Nothing);
+        }
+
+        /// <summary>
+        /// An external store (not in memory) that does not support compare-and-swap,
+        /// like the CRDT gossip store.
+        /// </summary>
+        internal sealed class NoCompareAndSwapStore : ISharedKeyValueStore
+        {
+            public NoCompareAndSwapStore(InMemorySharedKeyValueStore inner)
+            {
+                m_inner = inner;
+            }
+
+            public ValueTask<(bool Found, ByteString Value)> TryGetAsync(string key, System.Threading.CancellationToken ct = default)
+            {
+                return m_inner.TryGetAsync(key, ct);
+            }
+
+            public ValueTask SetAsync(string key, ByteString value, System.Threading.CancellationToken ct = default)
+            {
+                return m_inner.SetAsync(key, value, ct);
+            }
+
+            public ValueTask<bool> CompareAndSwapAsync(
+                string key,
+                ByteString expected,
+                ByteString value,
+                System.Threading.CancellationToken ct = default)
+            {
+                throw new NotSupportedException();
+            }
+
+            public ValueTask<bool> DeleteAsync(string key, System.Threading.CancellationToken ct = default)
+            {
+                return m_inner.DeleteAsync(key, ct);
+            }
+
+            public IAsyncEnumerable<KeyValuePair<string, ByteString>> ScanAsync(
+                string keyPrefix,
+                System.Threading.CancellationToken ct = default)
+            {
+                return m_inner.ScanAsync(keyPrefix, ct);
+            }
+
+            public IAsyncEnumerable<KeyValueChange> WatchAsync(
+                string keyPrefix,
+                System.Threading.CancellationToken ct = default)
+            {
+                return m_inner.WatchAsync(keyPrefix, ct);
+            }
+
+            private readonly InMemorySharedKeyValueStore m_inner;
         }
 
         private static bool Contains(byte[] haystack, byte[] needle)

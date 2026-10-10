@@ -27,6 +27,7 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
+using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
 using Opc.Ua.Client.TestFramework;
@@ -134,12 +135,15 @@ namespace Opc.Ua.Sessions.Tests
         [Order(260)]
         [TestCase(true)]
         [TestCase(false)]
+        [CancelAfter(120_000)]
         public Task ReconnectSessionOnAlternateChannelWithSavedSessionSecretsSecurityNoneAsync(
-            bool anonymous)
+            bool anonymous,
+            CancellationToken ct)
         {
             return m_clientTest.ReconnectSessionOnAlternateChannelWithSavedSessionSecretsAsync(
                 SecurityPolicies.None,
-                anonymous);
+                anonymous,
+                ct);
         }
 
         [Theory]

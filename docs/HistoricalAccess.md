@@ -1,17 +1,23 @@
 # Historical Access (OPC UA Part 11)
 
-## Overview
+## Contents
 
-The .NET Standard stack implements OPC UA Part 11 Historical Access end-to-end via a clean **provider model** that lets you back historizing variables with any time-series storage engine. A reference-quality **in-memory engine** ships in `Opc.Ua.Server` so getting started requires no extra packages.
-
-This document is split into:
-
+- [Overview](#overview)
 - **[Architecture](#architecture)** and **[Scope](#scope)** — what's implemented and how it fits together.
 - **[Server developer guide](#server-developer-guide)** — quick start, fluent builder, the registry, per-NodeManager wiring, annotations, configuration node.
-- **[Provider author guide](#provider-author-guide)** — interface-by-interface contract for writing a custom historian, including resume tokens, pagination, status codes, error semantics, thread-safety.
+- **[Provider author guide](#provider-author-guide)** — interface-by-interface contract for a custom historian, including resume tokens, pagination, status codes, error semantics, and thread safety.
 - **[Client developer guide](#client-developer-guide)** — `HistoryClient` usage patterns.
+- [Automatic value capture](#automatic-value-capture)
 - **[Capability discovery](#capability-discovery)** and **[Auditing](#auditing)**.
-- **[Limitations and roadmap](#limitations-and-roadmap)**.
+- [Part 11 profile conformance catalog](#part-11-profile-conformance-catalog)
+- [Limitations and roadmap](#limitations-and-roadmap)
+
+## Overview
+
+The .NET Standard stack implements OPC UA Part 11 Historical Access through
+a **provider model**. Use it to back historizing variables with any
+time-series storage engine. `Opc.Ua.Server` also includes an
+**in-memory engine**, so you can get started without extra packages.
 
 ## Architecture
 
@@ -22,10 +28,12 @@ This document is split into:
 │  Opc.Ua.Client.Historian.HistoryClient                        │
 │    ├ ReadRawAsync / ReadModifiedAsync     (IAsyncEnumerable)  │
 │    ├ ReadAtTimeAsync / ReadProcessedAsync (IAsyncEnumerable)  │
-│    ├ ReadAnnotationsAsync                 (IAsyncEnumerable)  │
+│    ├ ReadAnnotationsAsync / ReadEventsAsync                   │
 │    ├ InsertAsync / ReplaceAsync / UpdateAsync                 │
+│    ├ InsertEventsAsync / ReplaceEventsAsync                   │
+│    ├ UpdateEventsAsync / DeleteEventsAsync                    │
 │    ├ DeleteRawAsync / DeleteAtTimeAsync                       │
-│    ├ WriteAnnotationAsync / DeleteAnnotationAsync             │
+│    ├ UpdateStructureDataAsync / WriteAnnotationsAsync         │
 │    ├ GetServerCapabilitiesAsync / GetConfigurationAsync       │
 │    └ session.Historian() extension                            │
 └──────────┬────────────────────────────────────────────────────┘
@@ -62,18 +70,17 @@ This release ships the following Part 11 capabilities:
 | Feature                                | Status     |
 | -------------------------------------- | ---------- |
 | Read raw history                       | ✅ Shipped |
-| Read modified history                  | ✅ Shipped |
-| Read processed (aggregates)            | ✅ Shipped — streaming `AggregateManager` fallback (paginated via buffered output) or provider push-down. All 37 Part 13 v1.05.07 functions; see the [Aggregates (Part 13)](Aggregates.md) guide. |
+| Read modified history                  | ✅ Shipped — `HistoryClient.ReadModifiedAsync` returns each `DataValue` with its `ModificationInfo`. |
+| Read processed (aggregates)            | ✅ Shipped — the server rejects aggregate identifiers not registered with `AggregateManager` before provider execution, then uses native provider push-down or the streaming calculator fallback. All 37 Part 13 v1.05.07 functions; see the [Aggregates (Part 13)](Aggregates.md) guide. |
 | Read at-time                           | ✅ Shipped via interpolation fallback or provider push-down |
-| Insert / Replace / Update raw values   | ✅ Shipped — per-value best-effort by default, atomic via `IHistorianTransactionalProvider` |
+| Insert / Replace / Update raw values   | ✅ Shipped — HistoryUpdate uses per-value best-effort, including providers with explicit atomic batch APIs |
 | Delete raw / Delete at-time            | ✅ Shipped |
-| Annotations (read / write / delete)    | ✅ Shipped — server dispatcher routes the `Annotations` Property to the parent variable's `IHistorianAnnotationProvider`. Fluent `Historize(...)` auto-creates the Annotations property and sets its access-level bits when the provider advertises `InsertAnnotation`. Client surfaces it via `HistoryClient.{Read,Write,Delete}AnnotationAsync`. |
+| Annotations (read / write / delete)    | ✅ Shipped — server dispatcher routes the `Annotations` Property to the parent variable's `IHistorianAnnotationProvider`. Fluent `Historize(...)` auto-creates the Annotations property and sets its access-level bits when the provider advertises `InsertAnnotation`. Client supports single and batched writes/removes through `WriteAnnotationAsync`, `WriteAnnotationsAsync`, and `UpdateStructureDataAsync`. |
 | `HistoryServerCapabilities` population | ✅ Shipped (union of registered providers). `AggregateFunctions` folder populated by `AggregateManager.RegisterFactoryAsync` → `DiagnosticsNodeManager.AddAggregateFunctionAsync`. |
-| Event history (read / write / delete)  | ✅ Shipped — `IHistorianEventProvider`, dispatcher event paths, `InMemoryHistorianProvider` event store. `SelectClauses` projected by browse-name lookup; `WhereClause` evaluated server-side via `HistorianEventFilterTarget` + the framework's `FilterEvaluator`. |
-| `HistoricalDataConfigurationType`      | ✅ Shipped — eager install via `HistorianBuilder.Historize(..., installConfigurationNode: true, systemContext)`; lazy install on first browse via `installConfigurationOnBrowse: true` (attaches a self-detaching `OnPopulateBrowser` handler). |
-| Sync `CustomNodeManager2` wiring       | ✅ Shipped — sync hooks route through `HistorianDispatcher` (sync-over-async). |
-| Fluent registration                    | ✅ Shipped — `server.UseHistorian().UseInMemory().Historize(variable).RegisterAsDefault()`. |
-| Audit events for HistoryUpdate         | ✅ Shipped — dispatcher reports `AuditHistoryValueUpdateEvent`, `AuditHistoryAnnotationUpdateEvent`, `AuditHistoryRawModifyDeleteEvent`, `AuditHistoryAtTimeDeleteEvent`, `AuditHistoryEventUpdateEvent`, `AuditHistoryEventDeleteEvent` after successful update operations. `OldValues` field is empty (the dispatcher does not perform a read-before-write). |
+| Event history (read / write / delete)  | ✅ Shipped — `IHistorianEventProvider`, queued automatic capture after both synchronous and asynchronous live event forwarding, dispatcher event paths, `InMemoryHistorianProvider` event store, and full `HistoryClient` read/insert/replace/update/delete APIs. Select clauses use complete type/attribute/path/range identity and `WhereClause` is evaluated server-side. |
+| `HistoricalDataConfigurationType`      | ✅ Shipped — install asynchronously with `await HistorianBuilder.HistorizeAsync(variable, systemContext, ...)`. |
+| Fluent registration                    | ✅ Shipped — `server.UseHistorian().UseInMemoryProvider().RegisterAsDefault()`. |
+| Audit events for HistoryUpdate         | ✅ Shipped — dispatcher reports value, annotation, raw-delete, at-time-delete, event-update, and event-delete audit events using provider-returned old values. |
 
 ## Server developer guide
 
@@ -128,33 +135,67 @@ var unbounded = new InMemoryHistorianProvider(new InMemoryHistorianOptions
 });
 ```
 
-When both limits are set, the provider enforces both and the stricter limit wins. The retention window is measured from
-the newest source timestamp observed for that node, so deterministic replay and backfill do not depend on server wall
-clock time.
+When both limits are set, the provider enforces both. **Raw retention uses UTC wall-clock time**, not the newest
+stored timestamp. A future-dated sample cannot move the retention horizon or erase current history. The cutoff is
+inclusive: a sample exactly one retention period old is retained; an older insert or inserting update returns
+`BadOutOfRange` without creating an INSERT modification. A full sample-count archive likewise rejects an entry
+whose composite key would cause it to be evicted immediately. Expired raw values are also removed on reads, except
+for the newest stored value at or before the cutoff: it remains the retained window's start bound, including when
+a value has not changed during the entire window. A value exactly at the cutoff supersedes any older start bound.
+The hard sample cap still applies to this bound. Raw reads and the at-time/processed fallbacks share this retained
+archive, so reading raw history does not erase a bound needed by subsequent interpolation or aggregation.
+
+For deterministic replay, inject a `TimeProvider` into
+`new InMemoryHistorianProvider(options, timeProvider)`, or explicitly set `RawDataRetentionPeriod = TimeSpan.Zero`.
+The fluent builder uses the server's injected clock automatically. Deleting a newer value does not rewind time or
+make expired backfill valid again.
+The once-seeded ReferenceServer and TestData sample histories explicitly use unbounded raw retention.
+
+Modified history has a separate finite default of **10,000 entries per node**, controlled by
+`MaxModifiedEntriesPerNode`; set it to zero only when unbounded modified history is intentional. Its FIFO log and
+composite-key prior-value index keep eviction and raw `ExtraData` lookup independent of total historical traffic.
+Explicit HistoryUpdate inserts remain visible as INSERT modifications, but do not set `ExtraData` by themselves.
+Retained prior versions or associated annotations set that bit consistently on raw, exact-time, and bounding values.
+The bulk auto-capture path does not create INSERT modification copies.
+
+The one-hour raw retention period and 10,000-entry modified-history capacity are in-memory provider policies,
+not OPC UA defaults. Rejection of a timestamp outside the archive's supported range follows
+[Part 11, 6.9.2.2](https://reference.opcfoundation.org/specs/OPC-10000-11/6.9.2.2).
+INSERT modification records follow
+[Part 11, 6.5.3.3](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.3);
+the separate `ExtraData` conditions are defined in
+[Part 11, 6.5.3.2](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.2).
 
 ### Fluent builder (`server.UseHistorian()…`)
 
-For the most common case — one provider per server, default fallback — use the fluent builder. It rolls up provider registration, per-variable `Historizing`/access-level flags, optional `Annotations` property creation, and lazy `HistoricalDataConfigurationType` install in one chain:
+For the most common case — one provider per server, default fallback — use the fluent builder. It rolls up provider registration, per-variable `Historizing`/access-level flags, optional `Annotations` property creation, and asynchronous `HistoricalDataConfigurationType` installation:
 
 ```csharp
 using Opc.Ua.Server.Historian;
 using Opc.Ua.Server.Historian.InMemory;
 
 // inside your NodeManager.CreateAddressSpace:
-InMemoryHistorianProvider historian = Server
+HistorianBuilder historian = Server
     .UseHistorian()
-    .UseInMemory()                  // or .UseProvider(yourProvider)
-    .Historize(
-        temperature,
-        historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
-        setHistorizing: true,
-        installConfigurationOnBrowse: true,   // lazy companion object install
-        systemContext: SystemContext,
-        capabilities: HistorianNodeCapabilities.ReadWrite)
-    .Historize(pressure, ...)
-    .RegisterAsDefault()            // make the provider the server-wide fallback
-    .Provider as InMemoryHistorianProvider;
+    .UseInMemoryProvider()          // or .UseProvider(yourProvider)
+    .RegisterAsDefault();           // make the provider the server-wide fallback
+
+await historian.HistorizeAsync(
+    temperature,
+    SystemContext,
+    historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+    capabilities: HistorianNodeCapabilities.ReadWrite);
+
+historian.Historize(
+    pressure,
+    historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite,
+    systemContext: SystemContext,
+    capabilities: HistorianNodeCapabilities.ReadWrite);
 ```
+
+`historyAccessLevel` defaults to `AccessLevels.HistoryRead`: a historized
+variable is read-only for HistoryUpdate unless `HistoryWrite` is requested
+explicitly.
 
 `HistorianBuilder` ships three explicit registration scopes — pick the one that matches the scope of your storage backend:
 
@@ -208,6 +249,12 @@ builder.Variable<int>("AuditLog")
        .OnRead(GetAuditValue)
        .Historize(provider: mySqliteProvider);
 
+// History is read-only by default (historyAccessLevel = HistoryRead).
+// HistoryUpdate needs an explicit opt-in; restrict it with RolePermissions.
+builder.Variable<double>("CorrectableSetpoint")
+       .Historize(
+           historyAccessLevel: AccessLevels.HistoryRead | AccessLevels.HistoryWrite);
+
 // Per-call capabilities — the same HistorianNodeCapabilities POCO the
 // HistorianBuilder uses; propagated to the provider's GetCapabilitiesAsync.
 builder.Variable<double>("ReadOnlySensor")
@@ -217,7 +264,27 @@ builder.Variable<double>("ReadOnlySensor")
            InsertData = false, ReplaceData = false,
            DeleteRaw = false, DeleteAtTime = false,
        });
+
+// The archive owns the live Historizing state. Register history access and
+// provider routing without overwriting the current attribute value.
+builder.Variable<double>("ArchiveControlled")
+       .Historize(
+           historizing: null,
+           autoCapture: false);
 ```
+
+The nullable `historizing` argument controls only the OPC UA
+`BaseVariableState.Historizing` attribute:
+
+| Value | Behavior |
+| --- | --- |
+| `true` (default) | Sets `Historizing = true`, preserving existing fluent behavior. |
+| `false` | Explicitly sets `Historizing = false`. |
+| `null` | Leaves the current provider- or application-owned value unchanged. |
+
+Provider registration, requested `HistoryRead` / `HistoryWrite` access bits,
+historical configuration installation, and automatic capture are independent
+from this attribute choice.
 
 Source-generated typed traversal works the same way — the trailing `.Historize()` attaches to any `IVariableBuilder<T>`:
 
@@ -296,9 +363,39 @@ default historian registration, or a node-manager
 surface. See [Server address-space metadata](NodeManagers.md#server-address-space-metadata)
 for the startup sequence.
 
+Hosted registrations are staged before `MasterNodeManager` startup, so
+reconciliation and the initial `HistoryServerCapabilities` rollup see the
+configured provider. Distributed historians also complete validation,
+recovery, continuation-store initialization, fencing, and leader-election
+startup through `IServerPreStartupTask` before any NodeManager is exposed.
+Startup fails if this consistency initialization fails.
+
 ### Annotations
 
-The historian framework natively understands the OPC UA convention that annotations live on the `Annotations` property of a historizing variable (`HasProperty` reference, `BrowseName = "Annotations"`, `DataType = Annotation`, `ValueRank = OneDimension`). Clients address the property NodeId, the framework translates property → parent variable NodeId before calling `IHistorianAnnotationProvider`, so providers only ever see the variable NodeId.
+Annotations live on a historizing variable's `Annotations` property (`HasProperty`, `DataType = Annotation`,
+`ValueRank = OneDimension`). Clients address that property; the dispatcher translates it to the parent variable
+NodeId before invoking the provider.
+
+The dispatcher prefers `IHistorianTimestampedAnnotationProvider` when available. Its `HistorianAnnotation` payload
+preserves the source timestamp of the annotated value separately from `Annotation.AnnotationTime`. The in-memory
+archive identifies an annotation by **(SourceTimestamp, AnnotationTime)**: equal annotation times on different
+values do not collide, and replacement cannot move an annotation to a different value.
+
+Timestamped reads filter and order by source time, then annotation time. Both directions support exclusive composite
+resume tokens, bounded pages, and open-ended quotas. Exact-time reads return every annotation at that source time.
+The `IHistorianAnnotationProvider` interface remains available for backends that key annotations by annotation
+time alone: writes map source time to annotation time, and reads order/filter by annotation time. Use the
+timestamped API to update annotations whose two timestamps differ.
+
+The standard-history access path is defined in
+[Part 11, 5.1.2](https://reference.opcfoundation.org/specs/OPC-10000-11/5.1.2);
+[6.6.6](https://reference.opcfoundation.org/specs/OPC-10000-11/6.6.6) distinguishes annotation creation time from
+the annotated value's source timestamp. The composite identity and tie-break ordering above are the provider's
+documented storage contract, not a claim that OPC UA mandates that exact database key.
+
+Annotation updates preserve one result for every input `DataValue`, including `BadInvalidArgument` placeholders
+for null or undecodable values. A provider response with the wrong result count becomes `BadUnexpectedError` for
+each requested item rather than shifting subsequent statuses.
 
 The fluent builder auto-creates the property when the supplied capabilities advertise `InsertAnnotation = true`:
 
@@ -313,15 +410,92 @@ When the capability is set but the property already exists (e.g. from a nodeset 
 
 ### `HistoricalDataConfigurationType` companion object
 
-The Part 11 §5.2.3 companion object is installed via the fluent builder — eagerly or lazily:
+The Part 11 §5.2.3 companion object is installed asynchronously:
 
 | Mode | Argument | Behavior |
 | --- | --- | --- |
-| Eager | `installConfigurationNode: true, systemContext: ctx` | Runs `HistoricalDataConfigurationInstaller.EnsureInstalledAsync` immediately, blocking on `Historize(...)`. |
-| Lazy (recommended) | `installConfigurationOnBrowse: true, systemContext: ctx` | Attaches a self-detaching `OnPopulateBrowser` handler that installs on the first Browse against the variable. Cost is zero until needed; install is then synchronous over `GetAwaiter().GetResult()`. |
-| Off | both `false` | No companion object. Clients see only the raw value. |
+| Installed | `await builder.HistorizeAsync(variable, context, ...)` | Awaits provider capability discovery and installs the companion before returning. |
+| Off | `builder.Historize(variable, ...)` | No companion object. Clients see only the historical value. |
 
 The companion's property values are populated from `HistorianNodeCapabilities.Stepped / Definition / MaxTimeInterval / MinTimeInterval / ExceptionDeviation / StartOfArchive` — populate these on the capability set you pass to `Historize(...)`.
+
+### Aggregate-filtered monitored items
+
+`AsyncCustomNodeManager` resolves the node's historian when it validates an
+`AggregateFilter`. When a historian resolves, the revised processing interval
+honors the monitored-item sampling interval, the server-wide minimum, and the
+provider's
+`MinTimeInterval` (or `MaxTimeInterval` when no minimum is supplied).
+`ServerAggregateFilter.Stepped` and server-default
+`AggregateConfiguration` values come from the same per-node
+`HistorianNodeCapabilities`. The returned `AggregateFilterResult` contains
+these revised values. If the queue window requires advancing `StartTime`, it is
+clamped directly to the earliest time retained by the queue.
+
+Without a resolved historian, the existing aggregate revision behavior is
+preserved: the processing interval is at least the monitored-item sampling
+interval and the start time is clamped directly to the retained queue window.
+
+When a revised aggregate `StartTime` is in the past and the provider implements
+`IHistorianDataProvider`, the async node-manager path:
+
+- Reads raw history from `StartTime` to one captured server time.
+- Queues the history oldest-to-newest before live delivery begins.
+- Buffers live values that arrive during the read, then delivers them after
+  the historical window. It never queues the current value ahead of history.
+
+The following cases keep the normal current-value initialization:
+
+- The start time is in the future.
+- The monitored attribute is not `Value`.
+- The node has no raw historian.
+
+If a provider read fails, the server queues an error notification and keeps
+the monitored item active for later live values; it does not silently fall
+back. If the live-value buffer overflows, creation fails because the server
+can no longer guarantee history-to-live ordering.
+
+The server protects required priming-error notifications while the live queue
+size is greater than one. A queue size of one retains only the newest
+notification, even after a resize. Later samples can replace an error before
+publication, as specified in
+[Part 4, 5.13.1.5](https://reference.opcfoundation.org/specs/OPC-10000-4/5.13.1.5).
+Growing a single-value queue does not restore protection.
+
+Priming protection is transient queue state. Durable restore retains the
+monitored-item definition, last value or error, and stored raw queue values.
+It does not restore priming protection or synthesize a notification missing
+from the stored queue. The sample store uses format 1; shared-store
+definitions use format 3. The system does not support interim formats with
+notification-priority metadata (sample format 2 and shared format 4).
+
+Modifying an existing monitored item to a past-start aggregate uses the same
+history-before-live handoff whenever the aggregate calculator changes.
+Equivalent filter revisions do not replay history or replace the calculator.
+If post-commit priming fails, the existing monitored item stays registered,
+queues an error notification under the same queue-size rules, and continues
+with later live values.
+
+Custom monitored-item implementations can preserve the same ordering by
+implementing `IInitialValueMonitoredItem`.
+
+[Part 4, 7.22.4](https://reference.opcfoundation.org/specs/OPC-10000-4/7.22.4)
+allows past start times and server revision; it does not require
+every server to read history or prescribe where aggregation is implemented.
+This stack supports historical initialization when the resolved provider can
+supply it. `AggregationFilterHandler` owns calculator changes, bounded live
+buffering, overlap identities, and aggregate output. `MonitoredItem` delegates
+that work while retaining its normal filtering, notification, and lifecycle
+responsibilities.
+The effective filter has one `IMonitoringFilter` owner: protocol filters expose
+themselves directly, while `AggregationFilterHandler` retains the current
+definition during preparation and commits its replacement atomically with the
+monitored-item change. The original client filter remains separate from the
+effective server-revised definition.
+
+The synchronous `CustomNodeManager` path retains its synchronous aggregate
+revision and current-value initialization behavior; it does not block on
+asynchronous provider capabilities.
 
 ### `ServerSystemContext.Server`
 
@@ -348,7 +522,7 @@ public abstract class HistorianProviderBase : IHistorianProvider
     public virtual ValueTask<bool> IsHistorizingAsync(NodeId nodeId, CancellationToken ct);
     public virtual ValueTask<HistorianNodeCapabilities> GetCapabilitiesAsync(NodeId nodeId, CancellationToken ct);
 
-    protected static IList<StatusCode> RepeatStatus(StatusCode code, int count);
+    protected static ArrayOf<StatusCode> RepeatStatus(StatusCode code, int count);
 }
 ```
 
@@ -386,12 +560,14 @@ public sealed class MyTsdbProvider :
 | --- | --- | --- |
 | `IHistorianProvider` | Every provider | Umbrella — `IsHistorizingAsync`, `GetCapabilitiesAsync`. |
 | `IHistorianDataProvider` | Raw read + Insert / Replace / Update / DeleteRaw / DeleteAtTime | Core read+write surface. |
-| `IHistorianModifiedProvider` | Read modified history (Part 11 §5.2.5) | Stores prior versions of replaced/deleted values plus `ModificationInfo`. |
+| `IHistorianModifiedProvider` | Modified history | INSERT records and retained prior versions with modification metadata. |
 | `IHistorianAtTimeProvider` | Native at-time reads | Optional. Framework falls back to interpolation over raw reads if absent. |
 | `IHistorianProcessedProvider` | Native aggregate push-down | Optional. Framework falls back to streaming through `AggregateManager` if absent. |
-| `IHistorianAnnotationProvider` | Annotations | Read / Insert / Replace / Update / Delete annotations keyed by `AnnotationTime`. |
+| `IHistorianAnnotationProvider` | Annotations keyed by annotation time | Maps source time to `AnnotationTime` on writes. |
+| `IHistorianTimestampedAnnotationProvider` | Timestamped annotations | Keys and pages by both timestamps. |
 | `IHistorianEventProvider` | Event history | Read / Insert / Replace / Update / Delete events keyed by `EventId`. |
-| `IHistorianTransactionalProvider` | Atomic batch updates | Optional. Per-value best-effort is the default. |
+| `IHistorianStructuredDataProvider` | StructuredHistoryData (Part 11 §6.8.3) | Update-only. Entries are keyed by the composite `HistoricalValueKey`; reads go through the raw / modified / at-time interfaces. |
+| `IHistorianTransactionalProvider` | Atomic batch updates | Optional. Application callers explicitly select atomic methods; the HistoryUpdate dispatcher always uses per-value methods. |
 
 Implement only what your backend supports. The dispatcher returns `BadHistoryOperationUnsupported` for operations the resolved provider doesn't implement.
 
@@ -415,11 +591,25 @@ public sealed class HistorianOperationContext
 
 ### Read pagination — `HistorianResumeToken` and `HistorianPage<T>`
 
+For raw and timestamped annotation reads, `MaxValues` is the client's `NumValuesPerNode`; `PageLimit` is the server's
+per-page limit. The in-memory provider uses the minimum nonzero limit, additionally capped at 1,000 items.
+For a bounded time window the client limit applies to each page, with a continuation for remaining data.
+For an open-ended request it limits the total across all pages, so the cursor carries the remaining quota.
+Bounds count toward the raw-read quota. Portable annotation continuations retain both limits in codec version 5;
+the codec still reads earlier envelope versions.
+
+This distinction follows [Part 11, 6.5.3.1](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.1)
+and [6.5.3.2](https://reference.opcfoundation.org/specs/OPC-10000-11/6.5.3.2): with both endpoints and a count,
+additional values in the specified time domain require a continuation; with only one endpoint, the count defines
+the extent of that domain. [6.3](https://reference.opcfoundation.org/specs/OPC-10000-11/6.3) permits smaller server
+responses but never a response above the client maximum. The 1,000-item cap is a provider resource limit, not a
+replacement for the client's count or an OPC UA fixed page size.
+
 Read methods return `ValueTask<HistorianPage<T>>`. A page is:
 
 ```csharp
 public readonly record struct HistorianPage<T>(
-    IReadOnlyList<T> Values,
+    ArrayOf<T> Values,
     HistorianResumeToken NextToken = default)
 {
     public bool IsFinal => NextToken.IsEmpty;   // computed
@@ -429,7 +619,7 @@ public readonly record struct HistorianPage<T>(
 A resume token is opaque bytes:
 
 ```csharp
-public readonly record struct HistorianResumeToken(ReadOnlyMemory<byte> State)
+public readonly record struct HistorianResumeToken(ByteString State)
 {
     public bool IsEmpty => State.IsEmpty;
 }
@@ -469,6 +659,26 @@ Mirrored continuation envelopes contain identifiers and owner metadata, not reco
 provider state. A standby consumes that metadata for cleanup but cannot resume opaque history
 state from it.
 
+Resuming a continuation is an atomic claim. The dispatcher keeps the claimed
+state unchanged until it has durably saved a fresh successor. Provider,
+filtering, projection, encoding, cancellation, and successor-persistence
+failures restore the original continuation so the client can retry the same
+identifier. A successful page retires the old identifier, preserving
+single-use semantics.
+
+The shared continuation store gives each persisted envelope a distinct
+incarnation. Deferred cleanup conditionally deletes only that exact protected
+record, so a delayed cleanup cannot delete a restored continuation with the
+same identifier. Indeterminate save failures schedule the same conditional
+cleanup whether they were creating a record or replacing a claim marker.
+
+The asynchronous release path claims the portable record before acknowledging
+release. Synchronous session teardown only schedules cleanup and is not a
+crash-durable acknowledgement. Orderly store disposal drains queued cleanup
+within a bounded grace period, then cancels outstanding work and reports the
+timeout through diagnostics. Retained envelopes are subject to the store's
+expiration checks when loaded or claimed.
+
 A typical token encoding is the next sample's timestamp:
 
 ```csharp
@@ -476,7 +686,7 @@ private static HistorianResumeToken EncodeTimestamp(DateTime ts)
 {
     var bytes = new byte[8];
     BinaryPrimitives.WriteInt64LittleEndian(bytes, ts.ToBinary());
-    return new HistorianResumeToken(bytes);
+    return new HistorianResumeToken(ByteString.From(bytes));
 }
 
 private static DateTime DecodeTimestamp(HistorianResumeToken token)
@@ -487,7 +697,12 @@ private static DateTime DecodeTimestamp(HistorianResumeToken token)
 
 ### Update semantics and status codes
 
-All update methods return one `StatusCode` per input value (`IList<StatusCode>`) — **never throw for per-value failures**. Validate inputs and surface the per-value outcome:
+All update methods return a `HistorianUpdateOutcome<T>`. Its
+`OperationResults` is an `ArrayOf<StatusCode>` with exactly one entry per
+input value; `OldValues` carries replaced or deleted values for auditing;
+`DiagnosticInfos` is either empty or aligned with `OperationResults`; and
+`TransactionRolledBack` identifies an atomic rollback. Providers **never throw
+for per-value failures**. Validate inputs and surface the per-value outcome:
 
 | Operation | Per-value success | Per-value expected failures |
 | --- | --- | --- |
@@ -495,20 +710,37 @@ All update methods return one `StatusCode` per input value (`IList<StatusCode>`)
 | `ReplaceAsync` | `Good` / `GoodEntryReplaced` | `BadNoEntryExists` when no entry exists at the timestamp. |
 | `UpdateAsync` (upsert) | `GoodEntryInserted` or `GoodEntryReplaced` | n/a (insert if absent, replace if present). |
 | `DeleteRawAsync` | `Good` for the whole range | `BadInvalidArgument` etc. for malformed ranges; do not fail per-sample. Returns a single `StatusCode`, not a list. |
-| `DeleteAtTimeAsync` | `Good` per timestamp | `BadNoEntryExists` when the exact timestamp has nothing to delete. |
+| `DeleteAtTimeAsync` | `Good` per timestamp | Deletes every raw or structured entry at that source timestamp, including each composite uniqueness key. Returns `BadNoEntryExists` when the exact timestamp has nothing to delete. |
 | Annotation variants | Same patterns, keyed by `AnnotationTime`. | Same status codes. |
 | Event variants | Same patterns, keyed by `EventId`. | `BadNoEntryExists` / `BadEntryExists`. |
 
-**`SourceTimestamp` uniqueness rule**: a historizing variable has at most one live value per source timestamp. Replace logs the prior value in modified history; subsequent replaces overwrite the live value but each Replace adds another modification entry.
+**`SourceTimestamp` uniqueness rule**: a historizing variable has at most one live value per source timestamp. Explicit
+`HistoryUpdate` Insert operations log the inserted value as an `INSERT` modified-history entry, and Update operations
+that create a new entry do the same. Replace logs the prior value in modified history; subsequent replaces overwrite the
+live value but each Replace adds another modification entry. Automatic live-value capture uses the bulk insert path and
+does not create modified-history entries.
 
 **`DeleteRaw` interval semantics**: the framework supplies a half-open interval `[startTime, endTime)`. Providers must delete every value whose `SourceTimestamp` falls in that interval. The `isDeleteModified` flag selects whether the modified-history log is cleared instead of the live values.
 
 ### Atomic batch updates (`IHistorianTransactionalProvider`)
 
-The default contract is per-value best-effort. If your backend supports atomic batch commits, additionally implement `IHistorianTransactionalProvider`. The dispatcher prefers the atomic path when both are available. The atomic contract:
+The HistoryUpdate service uses per-value best-effort updates even when the provider implements
+`IHistorianTransactionalProvider`. A conflicting or invalid value gets its own failure status while applicable values
+are persisted. This preserves the one-result-per-value contract of Part 4 §5.11.5.2 and the Insert/Replace status
+semantics of Part 11 §6.9.2. OPC UA has no client flag for requesting an atomic HistoryUpdate.
+
+**Behavior change:** implementing the transaction interface no longer implicitly makes service requests atomic.
+Applications that require all-or-nothing updates can call `InsertAtomicAsync`, `ReplaceAtomicAsync`, or
+`UpdateAtomicAsync` explicitly on the provider. Those methods retain their existing contract:
 
 - If every input value is applicable, return one success status per value and commit.
 - If any value cannot be applied, return the per-value failure code(s) and roll back the entire batch — the archive is left in its pre-call state.
+
+The in-memory provider projects only the current batch's changes. Uncapped stores do not copy or sort existing
+archive keys. With a sample cap, preflight merges batch-added keys with an ordered cursor over the archive prefix
+that would be evicted, keeping projection work proportional to the batch rather than total archive size. It tracks
+retention-bound replacement and quota eviction in input order, preserving duplicate/replacement decisions and
+per-operation rollback statuses before committing.
 
 ### Modified history
 
@@ -518,25 +750,112 @@ Implement `IHistorianModifiedProvider` if your backend retains prior versions of
 public readonly record struct ModifiedDataValue(DataValue Value, ModificationInfo Info);
 ```
 
-`Info.UpdateType` distinguishes replaced (`Replace`) values from deleted (`Delete`) entries; `Info.UserName` and `Info.ModificationTime` come from the original update's `HistorianOperationContext.DefaultModificationInfo`.
+`Info.UpdateType` distinguishes inserted (`Insert`), replaced (`Replace`) and deleted (`Delete`) entries. Explicit
+HistoryUpdate inserts, including Update operations that insert a missing value, carry the inserted value. Automatic
+live-value capture is not a HistoryUpdate and does not populate modified history. `Info.UserName` and
+`Info.ModificationTime` come from the original update's `HistorianOperationContext.DefaultModificationInfo`.
+
+Modified history is ordered by
+`(SourceTimestamp, ModificationTime, Sequence)`. The in-memory provider's
+keyset continuation carries the complete tuple, so paging remains lossless
+when a same-timestamp modification is added between pages; it also accepts
+legacy sequence-only tokens issued by earlier builds. The distributed
+provider instead pins an immutable archive generation and pages by offset.
+
+The in-memory provider accepts equal start and end times as an inclusive exact-instant modified read,
+consistent with its raw, event and annotation reads. Only that source timestamp is returned; multiple
+modifications remain ordered and can span continuation pages.
 
 ### Processed (aggregate) reads
 
 If your backend can compute aggregates server-side (Cassandra / Influx / TimescaleDB downsampling, ksql window functions, etc.) implement `IHistorianProcessedProvider`. Otherwise omit the interface — the framework will:
 
 1. Iterate `IHistorianDataProvider.ReadRawAsync` pages with `ReturnBounds = true`.
-2. Stream raw values through the `AggregateManager`'s `IAggregateCalculator`.
+2. Stream raw values through the `AggregateManager`'s `IAggregateCalculator`, using the node's
+   `Stepped` setting and draining completed intervals after each sample.
 3. Buffer the calculator output and emit it page-by-page back to the client (`MaxValuesPerPage = 1000` per buffered page).
+
+The fallback permits at most 100,000 buffered outputs. Exceeding that limit returns
+`Bad_TooManyOperations` before fetching further raw pages, rather than returning a partial successful
+result. When `UseServerCapabilitiesDefaults` is selected, both native and fallback requests use the
+node's advertised `DefaultAggregateConfiguration`; explicit request settings do not mutate those defaults.
+
+`AnnotationCount` counts annotation timestamps in half-open processing
+intervals. A zero processing interval produces one count over the complete
+requested domain. Every returned count is an `Int32` with `Good, Calculated`;
+the requested end time is excluded, and reverse-time requests preserve the
+same directional interval rules.
 
 ### At-time reads
 
-`IHistorianAtTimeProvider` returns exactly one `DataValue` per requested timestamp, in input order. Providers without this interface get a streaming framework fallback that interpolates linearly between numeric raw samples (or returns the nearest bound for `UseSimpleBounds`).
+`IHistorianAtTimeProvider` returns exactly one `DataValue` per requested
+timestamp, in input order. An exact value preserves its quality and carries
+the Raw information bits. Otherwise the node's `Stepped` setting selects
+stepped or sloped interpolation and the result carries the Interpolated bits.
+`UseSimpleBounds=true` uses the nearest raw values as bounds; it does not return
+the nearest sample. `UseSimpleBounds=false` uses the nearest non-Bad values and
+marks the result Uncertain when Bad samples were skipped. Providers without
+this interface use the same calculation through the raw-read fallback. When the
+fallback scans 100,000 raw values without finding a bound for a requested time,
+that time returns `Bad_BoundNotSupported` (Part 11 §4.6) and the other requested
+times are still answered.
 
 ### Annotations
 
 `IHistorianAnnotationProvider` exposes Read/Insert/Replace/Update/Delete. Annotations are keyed by `Annotation.AnnotationTime`. The framework translates the property NodeId → variable NodeId before calling the provider, so the `nodeId` parameter is always the variable.
 
+### Structured history data
+
+`IHistorianStructuredDataProvider` is the update surface for StructuredHistoryData (Part 11 §6.8.3, `UpdateStructureDataDetails`). It is deliberately **update only** — structured entries are read back through `ReadRawAsync`, `ReadModifiedAsync` and the at-time path, so raw and structured history share one read pipeline and one continuation-point format.
+
+The difference to raw history is *identity*. Raw values are unique by `SourceTimestamp`; a structured variable may hold several entries at one instant (for example one `KeyValuePair` per named reading of a capture). Entries are therefore addressed by the composite key:
+
+```csharp
+public readonly record struct HistoricalValueKey(DateTimeUtc SourceTimestamp, ByteString UniquenessKey);
+```
+
+`UniquenessKey` comes from an `IHistorianStructuredDataKeySelector`, the seam that defines "the same entry" for a structure type:
+
+```csharp
+public interface IHistorianStructuredDataKeySelector
+{
+    ArrayOf<QualifiedName> UniquenessFields { get; }
+    bool TryGetUniquenessKey(in DataValue value, out ByteString uniquenessKey);
+}
+```
+
+Two selectors ship with the stack:
+
+| Selector | Uniqueness | Use for |
+| --- | --- | --- |
+| `TimestampStructuredDataKeySelector` | `SourceTimestamp` | Default. One entry per timestamp — the raw-history rule (annotations, single-structure archives). |
+| `KeyValuePairStructuredDataKeySelector` | `SourceTimestamp` + `Key` | Archives of standard `Opc.Ua.KeyValuePair` values. |
+
+Ordinary raw variables use an empty uniqueness key, so the composite key degenerates to the source timestamp and existing behaviour (including bounds, retention and paging) is unchanged. The in-memory provider opts a node into structured storage with:
+
+```csharp
+provider.RegisterStructured(nodeId, KeyValuePairStructuredDataKeySelector.Instance);
+
+await provider.InsertStructuredDataAsync(context, nodeId,
+    new[] { temperatureAtT0, pressureAtT0 }, ct);   // same SourceTimestamp, different Key
+```
+
+Update semantics (per entry, best effort):
+
+| Operation | Status |
+| --- | --- |
+| `Insert` on an existing composite key | `BadEntryExists` |
+| `Replace` / `Remove` on an absent composite key | `BadNoEntryExists` |
+| `Update` | Upsert on the composite key |
+| Value that is not the node's structure | `BadTypeMismatch` |
+
+Changing a uniqueness field changes the entry identity: `Replace` then returns `BadNoEntryExists` and the client must `Remove` the old entry and `Insert` the new one. Every replaced, updated and removed version is retained in modified history, so `ReadModifiedAsync` returns the full trail even when several entries share a timestamp. Raw and modified reads page with exclusive composite cursors, so entries that share a timestamp are never lost or duplicated across a page boundary. `DeleteAtTime` removes the complete set of entries stored at a timestamp, and `ReturnBounds` yields the adjacent entry in composite-key order on each side of the window.
+
 ### Event history
+
+Event reads include the request's start time and exclude its end time in either direction.
+Reverse reads therefore include the later start boundary and exclude the earlier end boundary.
+Paging retains timestamp and insertion-sequence ordering, including events sharing a timestamp.
 
 `IHistorianEventProvider` works on notifier NodeIds. Events are keyed by `HistorianEventRecord.EventId` (within a notifier) and timestamped by `SourceTimestamp`:
 
@@ -545,20 +864,70 @@ public sealed record HistorianEventRecord(
     ByteString EventId,
     NodeId EventType,
     DateTimeUtc SourceTimestamp,
-    IReadOnlyDictionary<string, Variant> Fields);
+    ArrayOf<KeyValuePair<string, Variant>> Fields)
+{
+    public ArrayOf<KeyValuePair<HistorianEventFieldKey, Variant>>
+        QualifiedFields { get; init; }
+
+    public bool TryGetField(string path, out Variant value);
+    public bool TryGetQualifiedField(
+        HistorianEventFieldKey key,
+        out Variant value);
+}
 ```
 
-`Fields` maps the last segment of each event `SimpleAttributeOperand` browse path to its value. The framework's select-clause projection walks the dictionary by browse-name; for nested browse-paths the provider concatenates segments with "/" in the key.
+`QualifiedFields` preserves the select clause's type definition, attribute,
+browse path, and index range. `Fields` is a compatibility view keyed by the
+slash-separated browse path.
+
+The empty browse path with `AttributeId = NodeId` denotes a stored node identity, such as `ConditionId` when the
+operand is rooted at `ConditionType`; it is not an alias for `EventType`. Selection and filtering first resolve the
+exact qualified field, then an unambiguous compatible-type field using the server type tree. An absent identity
+returns a null Variant. The context-free projection helper resolves stored identities without inventing a type.
+
+`HistorianNodeCapabilities.EventFields` lists additional fields the historian
+can retain, while `MandatoryEventFields` lists additional fields that an
+Insert/Update filter must provide. Fields that are invalid for the selected
+EventType or cannot be retained are omitted and return `GoodDataIgnored`;
+requested operation diagnostics identify their select-clause indexes and
+symbolic browse paths.
+
+Client event-update validation accepts inherited standard fields rooted at
+`BaseEventType` or any EventType subtype. Structural requirements remain
+unchanged: standard fields use `Attributes.Value`, one namespace-zero browse
+path segment, and the exact standard browse name. A field supplied through
+both a base and subtype root is still a duplicate.
 
 WhereClause evaluation runs on the framework side via `FilterEvaluator` + the `HistorianEventFilterTarget` adapter, but providers that can push filters down should evaluate `request.Filter.WhereClause` themselves and return only matching events (the framework re-evaluates the clause for correctness, so push-down is purely an optimisation).
 
-### Per-node capabilities
-
-`GetCapabilitiesAsync(nodeId, ct)` may return different sets per node. Two static presets are provided as starting points:
+Use `HistorizeEventsAsync` after the notifier is part of the address space.
+Events reported through either node API are forwarded to the normal live-event
+sink first, then snapshotted into a bounded queue so historian I/O cannot
+suppress live delivery:
 
 ```csharp
-HistorianNodeCapabilities.ReadOnly;   // raw reads only
-HistorianNodeCapabilities.ReadWrite;  // all updates + annotations enabled
+await historian.HistorizeEventsAsync(
+    notifier,
+    SystemContext,
+    capabilities: eventCapabilities);
+
+await notifier.ReportEventAsync(SystemContext, eventState, cancellationToken);
+```
+
+The capture path always retains the mandatory `BaseEventType` fields and adds
+any operands configured through `HistorianNodeCapabilities.EventFields`.
+
+### Per-node capabilities
+
+`GetCapabilitiesAsync(nodeId, ct)` may return different sets per node. Static
+presets keep ordinary data, structured data, and event registration truthful:
+
+```csharp
+HistorianNodeCapabilities.ReadOnly;            // data reads only
+HistorianNodeCapabilities.DataReadWrite;       // ordinary data CRUD
+HistorianNodeCapabilities.StructuredReadWrite; // structured CRUD/read paths
+HistorianNodeCapabilities.EventReadWrite;      // historical event CRUD
+HistorianNodeCapabilities.ReadWrite;            // combined adapter/test preset
 ```
 
 Always set the `HistoricalDataConfigurationType` advisory fields (`Stepped`, `Definition`, `MaxTimeInterval`, `MinTimeInterval`, `ExceptionDeviation`, `StartOfArchive`, `StartOfOnlineArchive`) on the capability set you return for nodes whose companion object you want the framework to install.
@@ -608,7 +977,7 @@ public sealed class MyTsdbProvider :
         DateTime windowStart = resumeAt > DateTime.MinValue ? resumeAt : request.StartTime;
 
         // Issue the time-range query against your store, page-sized.
-        IList<DataValue> raw = await _backend.QueryAsync(
+        ArrayOf<DataValue> raw = await _backend.QueryAsync(
             request.NodeId, windowStart, request.EndTime,
             limit: PageSize, isForward: request.IsForward, ct).ConfigureAwait(false);
 
@@ -624,9 +993,9 @@ public sealed class MyTsdbProvider :
         return new HistorianPage<HistoricalDataValue>(values, next);
     }
 
-    public async ValueTask<IList<StatusCode>> InsertAsync(
+    public async ValueTask<HistorianUpdateOutcome<DataValue>> InsertAsync(
         HistorianOperationContext context, NodeId nodeId,
-        IList<DataValue> values, CancellationToken ct)
+        ArrayOf<DataValue> values, CancellationToken ct)
     {
         var statuses = new StatusCode[values.Count];
         for (int i = 0; i < values.Count; i++)
@@ -636,7 +1005,7 @@ public sealed class MyTsdbProvider :
                 ? StatusCodes.GoodEntryInserted
                 : StatusCodes.BadEntryExists;
         }
-        return statuses;
+        return new HistorianUpdateOutcome<DataValue>(statuses);
     }
 
     // … Replace / Update / DeleteRaw / DeleteAtTime / ReadModified
@@ -675,11 +1044,16 @@ await foreach (DataValue v in historian.ReadRawAsync(
     Console.WriteLine($"{v.SourceTimestamp:o}  {v.Value}");
 }
 
-// Modified history
-await foreach (DataValue v in historian.ReadModifiedAsync(
+// Modified history: prior value plus who/when/how it was changed
+await foreach (ModifiedHistoryValue modified in historian.ReadModifiedAsync(
     nodeId: temperatureNodeId,
     startTime: DateTime.UtcNow.AddDays(-1),
-    endTime: DateTime.UtcNow)) { /* … */ }
+    endTime: DateTime.UtcNow))
+{
+    Console.WriteLine(
+        $"{modified.Value.SourceTimestamp:o} " +
+        $"{modified.Info.UpdateType} by {modified.Info.UserName}");
+}
 
 // Processed (aggregate) — 1-minute Average buckets
 await foreach (DataValue v in historian.ReadProcessedAsync(
@@ -705,6 +1079,36 @@ await foreach (Annotation a in historian.ReadAnnotationsAsync(
 {
     Console.WriteLine($"{a.AnnotationTime:o} {a.UserName}: {a.Message}");
 }
+
+// Historical events. Each field list follows the select-clause order.
+var eventFilter = new EventFilter();
+eventFilter.AddSelectClause(
+    ObjectTypeIds.BaseEventType,
+    BrowseNames.EventId,
+    Attributes.Value);
+eventFilter.AddSelectClause(
+    ObjectTypeIds.BaseEventType,
+    BrowseNames.EventType,
+    Attributes.Value);
+eventFilter.AddSelectClause(
+    ObjectTypeIds.BaseEventType,
+    BrowseNames.Time,
+    Attributes.Value);
+eventFilter.AddSelectClause(
+    ObjectTypeIds.BaseEventType,
+    BrowseNames.Message,
+    Attributes.Value);
+
+await foreach (HistoryEventFieldList fields in historian.ReadEventsAsync(
+    nodeId: notifierId,
+    startTime: DateTime.UtcNow.AddHours(-1),
+    endTime: DateTime.UtcNow,
+    filter: eventFilter))
+{
+    fields.EventFields[0].TryGetValue(out ByteString eventId);
+    fields.EventFields[3].TryGetValue(out LocalizedText message);
+    Console.WriteLine($"{eventId}: {message}");
+}
 ```
 
 ### Writes
@@ -729,7 +1133,7 @@ await historian.DeleteRawAsync(temperatureNodeId, fromUtc, untilUtc);
 // Delete by exact timestamps
 await historian.DeleteAtTimeAsync(temperatureNodeId, new[] { tsA, tsB });
 
-// Annotations
+// Single annotation
 await historian.WriteAnnotationAsync(
     variableId: temperatureNodeId,
     annotationTime: DateTime.UtcNow,
@@ -739,7 +1143,51 @@ await historian.WriteAnnotationAsync(
 await historian.DeleteAnnotationAsync(
     variableId: temperatureNodeId,
     annotationTime: when);
+
+// Batched annotations use one UpdateStructureDataDetails service operation.
+ArrayOf<Annotation> annotations =
+[
+    new Annotation
+    {
+        AnnotationTime = t1,
+        Message = "calibration started",
+        UserName = "alice"
+    },
+    new Annotation
+    {
+        AnnotationTime = t2,
+        Message = "calibration completed",
+        UserName = "alice"
+    }
+];
+await historian.WriteAnnotationsAsync(temperatureNodeId, annotations);
+await historian.WriteAnnotationsAsync(
+    temperatureNodeId,
+    annotations,
+    PerformUpdateType.Remove);
+
+// Event writes use the same filter and field order as event reads.
+var historicalEvent = new HistoryEventFieldList
+{
+    EventFields =
+    [
+        new Variant(eventId),
+        new Variant(ObjectTypeIds.BaseEventType),
+        new Variant((DateTimeUtc)DateTime.UtcNow),
+        new Variant(new LocalizedText("maintenance started"))
+    ]
+};
+await historian.InsertEventsAsync(notifierId, eventFilter, [historicalEvent]);
+await historian.ReplaceEventsAsync(notifierId, eventFilter, [historicalEvent]);
+await historian.UpdateEventsAsync(notifierId, eventFilter, [historicalEvent]);
+await historian.DeleteEventsAsync(notifierId, [eventId]);
 ```
+
+`PerformUpdateType.Remove` is valid for `UpdateStructureDataDetails`, including
+annotation removal through `UpdateStructureDataAsync` or
+`WriteAnnotationsAsync`. It is not valid for `UpdateDataDetails` in Part 11
+v1.05.07. Use `DeleteAtTimeAsync` to remove exact raw values and
+`DeleteRawAsync` to remove a raw time range.
 
 ### Discovery — capabilities and configuration
 
@@ -782,10 +1230,29 @@ if (cfg.HasConfiguration)
        • flush:
             provider is IHistorianBulkInsertProvider  → InsertBatchAsync
             else                                      → per-node InsertAsync
-       • exceptions logged, never propagated
+       • provider exceptions count lost samples and leave the consumer running
 ```
 
-The capture path is **best-effort**. When the queue is full, the default `CaptureFullMode.DropOldest` keeps the freshest data; switch to `Wait` if losing samples is unacceptable (back-pressures the value-setting thread). Providers that need durable persistence guarantees should also expose the explicit `HistoryUpdate` Insert path to callers — this captures via `HistorianDispatcher.DispatchUpdateDataAsync` with full per-value status feedback.
+The capture path is **best-effort under overload**. When the queue is full,
+`CaptureFullMode.DropOldest` keeps the freshest data and
+`CaptureFullMode.DropNewest` preserves the queued backlog. A synchronous value
+callback is never blocked on asynchronous storage. Applications that cannot
+drop samples must use the explicit `HistoryUpdate` Insert path or an
+application-owned durable queue, which provides awaited persistence and full
+per-value status feedback.
+
+A non-shutdown provider exception drops the failed call's samples, increments `DroppedSampleCount`, and leaves the
+consumer available for later batches. In the per-node fallback, successful nodes are not counted as dropped and a
+failed node does not prevent the remaining nodes from being flushed. Provider bad-status results instead increment
+`RejectedSampleCount`. Failure warnings are limited to one per 30 seconds per sink; counters are never rate-limited.
+Unexpected consumer termination remains an explicit error, and later discarded samples are still counted.
+
+Each capture pump owns one consumer task and a bounded channel; it does not spawn work per sample. Disposal closes
+the writer and drains the consumer for up to five seconds. A timeout cancels the pump and surfaces an error without
+starting further provider calls. An already-running provider must cooperate with cancellation; the framework cannot
+forcibly terminate it. Its token resources remain valid until it actually completes. A one-shot, static completion
+callback observes any late task failure and releases only the token source, without capturing the disposed pump,
+server, or request context. Normal graceful draining is preserved.
 
 ### What triggers a capture
 
@@ -820,7 +1287,7 @@ builder.Variable<double>("FastSignal")
            MaxQueuedSamples = 16_384,
            BatchTarget = 256,
            BatchWindow = TimeSpan.FromMilliseconds(10),
-           FullMode = CaptureFullMode.Wait,   // back-pressure, no drops
+           FullMode = CaptureFullMode.DropOldest,
        });
 ```
 
@@ -829,7 +1296,7 @@ builder.Variable<double>("FastSignal")
 | `MaxQueuedSamples` | 4096 | Queue depth before `FullMode` kicks in. |
 | `BatchTarget` | 64 | Sample count per flush. Bigger → fewer provider calls. |
 | `BatchWindow` | 25 ms | Max wait for a partial batch. Bigger → fewer flushes; smaller → lower capture latency. |
-| `FullMode` | `DropOldest` | `DropOldest` / `DropNewest` / `Wait`. |
+| `FullMode` | `DropOldest` | `DropOldest` or `DropNewest`. |
 
 ### Implementing `IHistorianBulkInsertProvider`
 
@@ -841,15 +1308,15 @@ public sealed class MyTsdbProvider :
     IHistorianDataProvider,
     IHistorianBulkInsertProvider
 {
-    public ValueTask<IReadOnlyDictionary<NodeId, IList<StatusCode>>> InsertBatchAsync(
+    public ValueTask<ArrayOf<HistorianUpdateOutcome<DataValue>>> InsertBatchAsync(
         HistorianOperationContext context,
-        IReadOnlyDictionary<NodeId, IList<DataValue>> batch,
+        ArrayOf<HistorianDataBatch> batch,
         CancellationToken ct)
     {
         // One transaction, one round-trip — far cheaper than N InsertAsync calls.
         // Apply per-value semantics (BadEntryExists when the SourceTimestamp
-        // already exists, GoodEntryInserted on success), then return the
-        // map keyed by the same NodeIds as the input batch.
+        // already exists, GoodEntryInserted on success), then return one
+        // HistorianUpdateOutcome in the same position as each input batch entry.
     }
 
     // ... per-node InsertAsync / Replace / Update fallback ...
@@ -866,7 +1333,8 @@ The rollup runs both when the capabilities node is freshly created by `Diagnosti
 
 ## Auditing
 
-The dispatcher reports the following audit events after a successful `HistoryUpdate` call, using `IServerInternal.ReportAuditEvent` (resolved via `ServerSystemContext.Server as IAuditEventServer`):
+The dispatcher reports the following audit events for successful and failed
+`HistoryUpdate` attempts, using `IServerInternal.ReportAuditEvent`:
 
 | Update kind | Audit event type |
 | --- | --- |
@@ -877,14 +1345,50 @@ The dispatcher reports the following audit events after a successful `HistoryUpd
 | Event insert/replace/update | `AuditHistoryEventUpdateEventType` |
 | Event delete | `AuditHistoryEventDeleteEventType` |
 
-The dispatcher does **not** perform a read-before-write, so the audit event's `OldValues` field is empty by default. Providers that want full audit fidelity should perform the read themselves and attach the prior values to the operation details before invoking the dispatcher.
+Provider update methods return `HistorianUpdateOutcome<T>`, including the
+prior values replaced or deleted by the same atomic storage operation. The
+dispatcher uses those values directly, avoiding a racy read-before-write.
+
+## Part 11 profile conformance catalog
+
+`Opc.Ua.HistoricalAccessProfileCatalog` (in `Opc.Ua.Core`) is a machine-readable
+inventory of every released UACore 1.05 profile whose name contains
+"Historical" — 15 Server facets and 22 Client facets, 37 in total. Each
+`HistoricalAccessProfileDescriptor` records the profile's name, URI, side
+(`Server`/`Client`), functional family (raw/server-timestamp, modified,
+at-time, aggregate, annotation, structured, raw updates, or events), and its
+mandatory conformance unit names. `Opc.Ua.HistoricalAggregateFunctionCatalog`
+separately maps all 37 standard OPC UA aggregate functions to the optional
+conformance units of the two Aggregate profiles.
+
+All 15 Server descriptors are verified for capability-gated advertisement.
+`HistorianProfileCatalog` requires the exact provider interface and exact
+capability flags for each profile URI; an Insert-only provider cannot claim
+Replace, Update, or Delete, and event read does not imply event write. The
+ReferenceServer derives its complete `ServerProfileArray` and mandatory
+conformance-unit set from this catalog, then adds the optional conformance unit
+for each of the 37 aggregate functions it exposes.
+
+Client descriptors remain `IsAdvertised == false` because clients do not write
+Server `ServerProfileArray` entries. Their implementation is verified through
+the client and integration suites. `HistoricalAccessProfileEvidenceCatalog`
+maps every one of the 37 profiles to production modules, automated tests, and
+the in-repository reference samples.
 
 ## Limitations and roadmap
 
-- **Streaming (non-buffered) processed-read continuation** — current buffered approach is correct but `O(time-range)` memory. A true streaming impl needs aggregate-calculator state-resume across pages (calculator API doesn't currently support serialization; would need additions).
-- **Provider paging limits** — the stock in-memory event reader does not issue continuation tokens. Native processed-provider continuation tokens are not yet wired to the framework cache; the buffered framework processed-read path does issue and retain continuations. Generation retention does not add either missing paging capability.
-- **`HistoricalEventConfigurationType`** companion object auto-install for event notifiers is not implemented.
-- **Event filter subtype resolution** — `HistorianEventFilterTarget.IsTypeOf` requires either an exact type match or a populated `TypeTree` to resolve subtypes; providers that store events with a leaf type id get full subtype semantics for free.
-- **Audit `OldValues` fidelity** — the dispatcher reports audit events with an empty `OldValues` array; providers wishing to populate the previous values should perform a read-before-write themselves and attach the result to the operation details before invoking the dispatcher.
-- **No persistent storage** — the bundled `InMemoryHistorianProvider` is non-persistent. Plug in your own provider for production storage.
-- **MaxValuesPerNode** is the provider's responsibility; the dispatcher cannot safely cap output without losing data (the provider's resume token is opaque to the dispatcher).
+- **Eventual active/active history is unsupported** — ordered history,
+  modification chains, deletes, events, and atomic batches have no CRDT merge
+  contract. `UseDistributedHistorian` therefore requires a linearizable
+  active/passive topology and fails closed otherwise. Raft-backed reads commit
+  a no-op barrier before accessing local materialized state, so a promoted
+  replica cannot serve a pre-promotion snapshot; reads time out or cancel when
+  no leader/quorum can complete the barrier.
+- **Framework aggregate fallback buffers output** — providers without
+  `IHistorianProcessedProvider` use the correct bounded framework calculator
+  fallback, which buffers at most 100,000 output values. Distributed or
+  high-volume providers should implement native processed paging.
+- **The in-memory adapter is intentionally ephemeral** — use
+  `SharedKeyValueHistorianProvider` for protected, strongly consistent
+  active/passive persistence, or implement the provider interfaces for another
+  durable backend.

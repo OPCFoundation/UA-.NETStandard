@@ -3,7 +3,6 @@
     <OutputType>Exe</OutputType>
     <TargetFrameworks>$(TestsTargetFrameworks)</TargetFrameworks>
     <RootNamespace>Opc.Ua.Di.Tests</RootNamespace>
-    <Nullable>enable</Nullable>
     <GenerateProgramFile>false</GenerateProgramFile>
     <NoWarn>$(NoWarn);CS1591;CA2007;CA2000;CA1014</NoWarn>
   </PropertyGroup>
@@ -37,39 +36,13 @@
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Server\Opc.Ua.Di.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Robotics.Server\Opc.Ua.Robotics.Server.csproj" />
     <ProjectReference Include="..\..\src\Opc.Ua.Di.Client\Opc.Ua.Di.Client.csproj" />
-    <!-- PumpDeviceIntegrationServer matches AppTargetFrameworks (net48/net8.0/net9.0/net10.0).
-         The DI tests also target net472 where PumpDeviceIntegrationServer does not exist,
-         so the reference and the Pump-specific fixtures are skipped on net472. -->
-    <ProjectReference Include="..\..\samples\DI\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj"
-                      Condition="'$(TargetFramework)' != 'net472'" />
-    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj"
-                      Condition="'$(TargetFramework)' != 'net472'" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Client\Opc.Ua.Positioning.Client.csproj"
-                      Condition="'$(TargetFramework)' != 'net472'" />
-    <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj"
-                      Condition="'$(TargetFramework)' != 'net472'" />
-    <ProjectReference Include="..\..\samples\Robotics\MinimalRobotServer\MinimalRobotServer.csproj"
-                      Condition="'$(TargetFramework)' != 'net472'" />
-    <ProjectReference Include="..\..\samples\OpenUsd\SiteCompositionServer\SiteCompositionServer.csproj"
-                      Condition="'$(TargetFramework)' != 'net472'" />
+    <ProjectReference Include="..\..\samples\DI\PumpDeviceIntegrationServer\PumpDeviceIntegrationServer.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.OpenUsd.Client\Opc.Ua.OpenUsd.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Client\Opc.Ua.Positioning.Client.csproj" />
+    <ProjectReference Include="..\..\src\Opc.Ua.Positioning.Server\Opc.Ua.Positioning.Server.csproj" />
+    <ProjectReference Include="..\..\samples\Robotics\MinimalRobotServer\MinimalRobotServer.csproj" />
+    <ProjectReference Include="..\..\samples\OpenUsd\SiteCompositionServer\SiteCompositionServer.csproj" />
     <ProjectReference Include="..\Opc.Ua.Client.TestFramework\Opc.Ua.Client.TestFramework.csproj" />
     <ProjectReference Include="..\Opc.Ua.Server.TestFramework\Opc.Ua.Server.TestFramework.csproj" />
-  </ItemGroup>
-  <ItemGroup Condition="'$(TargetFramework)' == 'net472'">
-    <Compile Remove="PumpAddressSpaceComplianceTests.cs" />
-    <Compile Remove="PumpDatasheetConformanceTests.cs" />
-    <Compile Remove="PumpHostingIntegrationTests.cs" />
-    <Compile Remove="PumpHostedReferenceTests.cs" />
-    <Compile Remove="PumpInstanceNodeIdRegressionTests.cs" />
-    <Compile Remove="PumpNodeManagerFactoryTests.cs" />
-    <Compile Remove="PumpTypeInstanceTests.cs" />
-    <Compile Remove="PumpsNodeSetLoadingTests.cs" />
-    <Compile Remove="PumpOpenUsdE2eTests.cs" />
-    <Compile Remove="SiteFederationE2eTests.cs" />
-    <Compile Remove="RobotOpenUsdE2eTests.cs" />
-    <Compile Remove="RobotMobilityTests.cs" />
-    <Compile Remove="RobotKinematicsTests.cs" />
-    <Compile Remove="CellChoreographyTests.cs" />
-    <Compile Remove="TopologyElementBuilderTests.cs" />
   </ItemGroup>
 </Project>

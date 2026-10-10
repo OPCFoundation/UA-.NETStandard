@@ -31,7 +31,10 @@
 // adds noise without a behavioural benefit. Disabled file-level for the suite.
 #pragma warning disable CA2007
 
+using System;
 using System.Threading.Tasks;
+using Crdt;
+using Crdt.Transport;
 using Microsoft.Extensions.DependencyInjection;
 using NUnit.Framework;
 using Opc.Ua.Redundancy;
@@ -118,6 +121,51 @@ namespace Opc.Ua.Server.Tests.Redundancy
                 Is.InstanceOf<RaftSharedKeyValueStore>());
             Assert.That(provider.GetRequiredService<ILeaderElection>(),
                 Is.InstanceOf<RaftLeaderElection>());
+        }
+
+        /// <summary>
+        /// Aggregates mandatory sequence and configured lease keys without moving CRDT payload keyspaces to Raft.
+        /// </summary>
+        [Test]
+        public async Task DistributedAddressSpaceKeepsCoordinationStrongWithCustomPrefixesAsync()
+        {
+            await using var network = new InMemoryNetwork();
+            await using var crdt = new ReplicatedSharedKeyValueStore(
+                ReplicaId.New(), network.CreateTransport(), TimeProvider.System, CrdtReaderOptions.Default);
+            var services = new ServiceCollection();
+            services.AddOpcUa().AddServer(_ => { })
+                .UseRedundancyConsistency(options =>
+                {
+                    options.StrongKeyPrefixes = ["custom/"];
+                    options.BulkStoreFactory = _ => crdt;
+                    options.UseRaftLeaderElection = false;
+                })
+                .UseDistributedAddressSpace(options =>
+                {
+                    options.UseLeaderElection = true;
+                    options.LeaseKey = "addressspace/custom-leader";
+                });
+            await using ServiceProvider provider = services.BuildServiceProvider();
+            ISharedKeyValueStore store = provider.GetRequiredService<ISharedKeyValueStore>();
+            Assert.That(store, Is.InstanceOf<HybridSharedKeyValueStore>());
+            var hybrid = (HybridSharedKeyValueStore)store;
+
+            Assert.That(hybrid.IsStrongKey(InMemoryNodeStateStore.SequenceKey), Is.True);
+            Assert.That(hybrid.IsStrongKey("addressspace/custom-leader"), Is.True);
+            Assert.That(hybrid.IsStrongKey("custom/other"), Is.True);
+            Assert.That(hybrid.IsStrongKey("n/ns=1;s=payload"), Is.False);
+            Assert.That(hybrid.IsStrongKey("v/ns=1;s=payload"), Is.False);
+            Assert.That(hybrid.IsStrongKey("dlog/00000000000000000001"), Is.False);
+            Assert.That(hybrid.IsLinearizable(InMemoryNodeStateStore.SequenceKey), Is.True);
+            Assert.That(hybrid.IsProcessLocal(InMemoryNodeStateStore.SequenceKey), Is.False);
+            Assert.That(provider.GetRequiredService<ILeaderElection>(), Is.InstanceOf<SharedStoreLeaseElection>());
+
+            bool reserved = await hybrid.CompareAndSwapAsync(
+                InMemoryNodeStateStore.SequenceKey, default, new ByteString(new byte[sizeof(ulong)]))
+                .ConfigureAwait(false);
+            Assert.That(reserved, Is.True);
+            (bool misplaced, _) = await crdt.TryGetAsync(InMemoryNodeStateStore.SequenceKey).ConfigureAwait(false);
+            Assert.That(misplaced, Is.False);
         }
     }
 }

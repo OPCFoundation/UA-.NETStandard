@@ -82,7 +82,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(documents.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument view = result.Value;
+            using WotDocument? view = result.Value;
 
             Assert.That(result.Success, Is.False);
             Assert.That(result.Value, Is.Null);
@@ -163,7 +163,7 @@ namespace Opc.Ua.Types.Tests.Wot
             Assert.That(diagnostics.Any(diagnostic =>
                 diagnostic.Code == WotDiagnosticCode.ProjectionSelectorInvalid &&
                 diagnostic.Severity == WotDiagnosticSeverity.Error), Is.True);
-            Assert.That(parsed.Sources[0].Filters.Count, Is.Zero);
+            Assert.That(parsed.Required().Sources[0].Filters.Count, Is.Zero);
         }
 
         [TestCase("[]")]
@@ -207,7 +207,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var diagnostics = new List<WotDiagnostic>();
             var defaults = WotProjection.Parse(unconfigured, diagnostics);
             Assert.That(diagnostics, Is.Empty);
-            Assert.That(defaults.Sources[0].Routing, Is.EqualTo(WotProjectionRouting.Source));
+            Assert.That(defaults.Required().Sources[0].Routing, Is.EqualTo(WotProjectionRouting.Source));
             Assert.That(defaults.Sources[0].SourceDigest, Is.Null);
             Assert.That(defaults.Sources[0].NamePrefix, Is.Null);
             Assert.That(defaults.Sources[0].Filters.Count, Is.Zero);
@@ -228,7 +228,7 @@ namespace Opc.Ua.Types.Tests.Wot
             var parsed = WotProjection.Parse(configured, diagnostics);
 
             Assert.That(diagnostics, Is.Empty);
-            WotProjectionManifestSource actual = parsed.Sources[0];
+            WotProjectionManifestSource actual = parsed.Required().Sources[0];
             Assert.That(actual.SourceDigest, Is.EqualTo(digest));
             Assert.That(actual.Routing, Is.EqualTo(WotProjectionRouting.Projection));
             Assert.That(actual.NamePrefix, Is.EqualTo("selected"));
@@ -316,10 +316,10 @@ namespace Opc.Ua.Types.Tests.Wot
             var resolver = new WotProjectionResolver(source.Object);
 
             WotConversionResult<WotDocument> result = await resolver.ResolveAsync(document).ConfigureAwait(false);
-            using WotDocument resolved = result.Value;
+            using WotDocument? resolved = result.Value;
 
             Assert.That(result.Success, Is.True, string.Join("; ", result.Diagnostics));
-            Assert.That(resolved.Properties.Keys, Is.EqualTo(s_expectedPrefixedNames));
+            Assert.That(resolved.Required().Properties.Keys, Is.EqualTo(s_expectedPrefixedNames));
             Assert.That(sourceDocument["properties"]!["\U00010428MixedCase"], Is.Not.Null);
         }
 

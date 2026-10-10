@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Server.Fluent;
@@ -86,7 +87,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         /// </summary>
         private sealed class CustomFactory : FakeGeneratedFactory
         {
-            public INodeManager LastCreated { get; private set; }
+            public INodeManager LastCreated { get; private set; } = null!;
 
             public override ArrayOf<string> NamespacesUris => [kPrimaryUri, kInstanceUri];
 
@@ -105,7 +106,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         {
             var factory = new CustomFactory();
 
-            string[] uris = factory.NamespacesUris.ToArray();
+            string[] uris = factory.NamespacesUris.ToArray()!;
 
             Assert.That(uris, Is.EqualTo([kPrimaryUri, kInstanceUri]));
         }
@@ -143,10 +144,10 @@ namespace Opc.Ua.Server.Tests.Fluent
         /// NodeManagerTemplates.cs (CreateAddressSpace section).
         /// </summary>
         [Test]
-        public void GeneratedManagerWiringSequence_FiresOnNodeAddedAfterSeal()
+        public async Task GeneratedManagerWiringSequence_FiresOnNodeAddedAfterSealAsync()
         {
             const ushort kNs = 2;
-            var ctx = new SystemContext(telemetry: null);
+            var ctx = new SystemContext(telemetry: null!);
 
             var root = new BaseObjectState(parent: null)
             {
@@ -174,10 +175,10 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             var builder = new NodeManagerBuilder(
                 ctx,
-                Mock.Of<IAsyncNodeManager>(),
+                FluentTestNodeManager.Create(kNs),
                 kNs,
-                q => roots.TryGetValue(q, out NodeState n) ? n : null,
-                id => byId.TryGetValue(id, out NodeState n) ? n : null,
+                q => (roots.TryGetValue(q, out NodeState? n) ? n : null)!,
+                id => (byId.TryGetValue(id, out NodeState? n) ? n : null)!,
                 _ => []);
 
             int nodeAddedCount = 0;
@@ -185,7 +186,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             // The contract: Configure registers callbacks, Seal closes the
             // builder, then NotifyNodeAdded replays for predefined nodes.
-            builder.Seal();
+            await builder.SealAsync();
             foreach (NodeState n in byId.Values)
             {
                 builder.Dispatcher.NotifyNodeAdded(ctx, n);

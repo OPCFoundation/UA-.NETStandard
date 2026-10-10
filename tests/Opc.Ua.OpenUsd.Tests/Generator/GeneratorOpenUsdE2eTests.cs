@@ -127,8 +127,15 @@ namespace Opc.Ua.OpenUsd.Tests.Generator
                 m_clientConfig.SecurityConfiguration, m_telemetry);
             m_clientConfig.CertificateManager.AcceptError = static (cert, err) => true;
 
+            // 90 attempts (~45s): this fixture materialises two full generator sets
+            // with state machines, protection alarms and OpenUsd bindings before the
+            // endpoint opens. That start-up cost, combined with slower JIT/crypto on
+            // .NET Framework, was observed to exceed a 40-attempt (~20s) budget on
+            // net48 CI agents even though the server was healthy and became ready
+            // shortly after - see the equally complex RobotOpenUsdE2eTests fixture,
+            // which already uses this larger budget for the same reason.
             EndpointDescription? endpointDescription = null;
-            for (int attempt = 0; attempt < 40 && endpointDescription == null; attempt++)
+            for (int attempt = 0; attempt < 90 && endpointDescription == null; attempt++)
             {
                 try
                 {

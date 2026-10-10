@@ -122,11 +122,11 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void GeneratedManagerSuppliesTypedStatesForImportedNodes()
         {
             NodeState device = m_manager.Find(
-                Id(NodeSetImportTestModel.OverlayDeviceIdentifier));
+                Id(NodeSetImportTestModel.OverlayDeviceIdentifier))!;
             NodeState calibrate = m_manager.Find(
-                Id(NodeSetImportTestModel.OverlayDeviceCalibrateIdentifier));
+                Id(NodeSetImportTestModel.OverlayDeviceCalibrateIdentifier))!;
             NodeState value = m_manager.Find(
-                Id(NodeSetImportTestModel.ReplacedDeviceValueIdentifier));
+                Id(NodeSetImportTestModel.ReplacedDeviceValueIdentifier))!;
 
             Assert.Multiple(() =>
             {
@@ -142,17 +142,17 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void ImportedNodesOfOneBatchLinkAcrossDocuments()
         {
             var device = (DeviceState)m_manager.Find(
-                Id(NodeSetImportTestModel.OverlayDeviceIdentifier));
+                Id(NodeSetImportTestModel.OverlayDeviceIdentifier))!;
             NodeState calibrate = m_manager.Find(
-                Id(NodeSetImportTestModel.OverlayDeviceCalibrateIdentifier));
+                Id(NodeSetImportTestModel.OverlayDeviceCalibrateIdentifier))!;
             var children = new List<BaseInstanceState>();
-            device.GetChildren(m_manager.SystemContext, children);
+            device!.GetChildren(m_manager.SystemContext, children);
 
             Assert.Multiple(() =>
             {
                 // The method comes from the second document, its parent from
                 // the first one.
-                Assert.That(((BaseInstanceState)calibrate).Parent, Is.SameAs(device));
+                Assert.That(((BaseInstanceState)calibrate!).Parent, Is.SameAs(device));
                 Assert.That(children, Does.Contain(calibrate));
                 Assert.That(device.Calibrate, Is.SameAs(calibrate));
             });
@@ -162,11 +162,11 @@ namespace Opc.Ua.Server.Tests.Fluent
         public void ImportedChildReplacesTheGeneratedPlaceholder()
         {
             var device = (DeviceState)m_manager.Find(
-                Id(NodeSetImportTestModel.GeneratedDeviceIdentifier));
+                Id(NodeSetImportTestModel.GeneratedDeviceIdentifier))!;
             NodeState imported = m_manager.Find(
-                Id(NodeSetImportTestModel.ReplacedDeviceValueIdentifier));
+                Id(NodeSetImportTestModel.ReplacedDeviceValueIdentifier))!;
             var children = new List<BaseInstanceState>();
-            device.GetChildren(m_manager.SystemContext, children);
+            device!.GetChildren(m_manager.SystemContext, children);
 
             Assert.Multiple(() =>
             {
@@ -207,7 +207,7 @@ namespace Opc.Ua.Server.Tests.Fluent
                 // document's back.
                 Assert.That(
                     BrowseNames(overlayDevice),
-                    Is.EquivalentTo(new[] { "Calibrate" }));
+                    Is.EquivalentTo(s_overlayDeviceBrowseNames));
                 // The generated Device exposes the imported replacement, and
                 // exposes it exactly once.
                 Assert.That(
@@ -230,7 +230,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             {
                 Assert.That(factories.Count, Is.GreaterThan(0));
                 Assert.That(
-                    factories.ToArray()
+                    factories.ToArray()!
                         .Select(factory =>
                             $"{factory.NodeClass}|{factory.Discriminator}|{factory.DiscriminatorId}")
                         .Distinct(StringComparer.Ordinal)
@@ -267,10 +267,10 @@ namespace Opc.Ua.Server.Tests.Fluent
             uint identifier)
         {
             var expected = new ExpandedNodeId(identifier, NodeSetImportTestModel.NamespaceUri);
-            INodeSetImportFactory match = factories.ToArray().FirstOrDefault(factory =>
+            INodeSetImportFactory match = factories.ToArray()!.FirstOrDefault(factory =>
                 factory.NodeClass == nodeClass &&
                 factory.Discriminator == discriminator &&
-                factory.DiscriminatorId == expected);
+                factory.DiscriminatorId == expected)!;
             Assert.That(
                 match,
                 Is.Not.Null,
@@ -306,7 +306,7 @@ namespace Opc.Ua.Server.Tests.Fluent
         private static IEnumerable<string> BrowseNames(BrowseResponse response)
         {
             return References(response)
-                .Select(reference => reference.BrowseName.Name);
+                .Select(reference => reference.BrowseName.Name!);
         }
 
         private async Task<BrowseResponse> BrowseAsync(NodeId nodeId)
@@ -326,7 +326,7 @@ namespace Opc.Ua.Server.Tests.Fluent
             RequestHeader requestHeader = m_requestHeader;
             requestHeader.Timestamp = DateTimeUtc.Now;
             BrowseResponse response = await services
-                .BrowseAsync(requestHeader, view: null, requestedMaxReferencesPerNode: 0, nodesToBrowse)
+                .BrowseAsync(requestHeader, view: null!, requestedMaxReferencesPerNode: 0, nodesToBrowse)
                 .ConfigureAwait(false);
 
             ServerFixtureUtils.ValidateResponse(response.ResponseHeader, response.Results, nodesToBrowse);
@@ -338,5 +338,7 @@ namespace Opc.Ua.Server.Tests.Fluent
 
             return response;
         }
+
+        private static readonly string[] s_overlayDeviceBrowseNames = ["Calibrate"];
     }
 }

@@ -14,7 +14,7 @@
 # The final image runs as a non-root user and listens on 0.0.0.0:62640
 # (override host/port via the `host` / `port` environment variables).
 
-FROM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/sdk:10.0-azurelinux3.0 AS build
 WORKDIR /src
 
 # JIT is disabled for the source generators unless W^X is turned off on
@@ -72,29 +72,25 @@ RUN dotnet publish "samples/AI/ModelManagementServer/ModelManagementServer.cspro
         -p:InformationalVersion=${InformationalVersion} \
         -o /app/publish
 
-FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS final
+FROM --platform=$BUILDPLATFORM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0 AS layout
 
-# AzureLinux forces the SymCrypt OpenSSL provider as the default for all
+# Azure Linux forces the SymCrypt OpenSSL provider as the default for all
 # EVP operations. SymCrypt's ECDSA SignHash path rejects the self-signing
 # call the OPC UA stack makes when creating its ECC application-instance
 # certificate. Clearing the forced default lets the standard OpenSSL
 # default provider handle ECDSA.
-RUN sed -i 's/^default_properties = .*/default_properties = ""/' /etc/pki/tls/openssl.cnf
+COPY --from=build /app/publish /layout/app/
+RUN mkdir -p /openssl /layout/app/pki /layout/run/secrets/ai \
+    && cp -p /etc/pki/tls/openssl.cnf /openssl/openssl.cnf \
+    && sed -i 's/^default_properties = .*/default_properties = ""/' /openssl/openssl.cnf \
+    && chown -R $APP_UID:0 /layout/app /layout/run/secrets/ai \
+    && chmod -R g=u /layout/app /layout/run/secrets/ai
 
+FROM mcr.microsoft.com/dotnet/runtime:10.0-azurelinux3.0-distroless-extra AS final
+COPY --from=layout /openssl/openssl.cnf /etc/pki/tls/openssl.cnf
+COPY --from=layout /layout/ /
 WORKDIR /app
-COPY --from=build /app/publish .
-
-# The .NET base images ship a predefined non-root user `app` (UID 1654,
-# exposed via APP_UID). The Server creates its certificate store under
-# /app at runtime.
-#
-# /var/run/secrets/ai is where a mounted credential is read from. It is
-# created empty so the anonymous path works without a Secret, and so the
-# directory permissions are right when one is mounted.
 ENV HOME=/app
-RUN mkdir -p /app/pki /var/run/secrets/ai \
-    && chown -R $APP_UID:0 /app /var/run/secrets/ai \
-    && chmod -R g=u /app /var/run/secrets/ai
 
 USER $APP_UID
 

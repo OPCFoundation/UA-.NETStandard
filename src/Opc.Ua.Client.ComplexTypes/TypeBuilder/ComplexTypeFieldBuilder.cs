@@ -75,6 +75,17 @@ namespace Opc.Ua.Client.ComplexTypes
             // skip unresolved fields before reaching this point.
             Type typeOfField = fieldType!.Type;
             bool isEnum = fieldType is IEnumeratedType || typeOfField.IsEnum;
+            if (allowSubTypes &&
+                field.IsOptional &&
+                !isEnum &&
+                fieldType is IEncodeableType &&
+                typeOfField != typeof(ExtensionObject))
+            {
+                // OPC 10000-6 5.1.7: the field allows the DataType and any of its
+                // subtypes, which are unrelated generated types, so the property
+                // holds any encodeable and is serialized as an ExtensionObject.
+                typeOfField = typeof(IEncodeable);
+            }
             if (field.ValueRank == ValueRanks.OneDimension)
             {
                 typeOfField = typeOfField.MakeArrayType();
@@ -137,7 +148,17 @@ namespace Opc.Ua.Client.ComplexTypes
             propertyBuilder.SetGetMethod(getBuilder);
             propertyBuilder.SetSetMethod(setBuilder);
             propertyBuilder.DataMemberAttribute(fieldName, false, order);
-            propertyBuilder.StructureFieldAttribute(field, allowSubTypes, isEnum);
+            // a runtime encodeable type (e.g. an OptionSet subtype) does not identify
+            // its DataType by its .NET type; record its namespace-uri qualified TypeId.
+            ExpandedNodeId dataTypeId = default;
+            if (fieldType is IEncodeable encodeable &&
+                !encodeable.TypeId.IsNull &&
+                (encodeable.TypeId.NamespaceIndex == 0 ||
+                    !string.IsNullOrEmpty(encodeable.TypeId.NamespaceUri)))
+            {
+                dataTypeId = encodeable.TypeId;
+            }
+            propertyBuilder.StructureFieldAttribute(field, allowSubTypes, isEnum, dataTypeId);
         }
 
         /// <inheritdoc/>

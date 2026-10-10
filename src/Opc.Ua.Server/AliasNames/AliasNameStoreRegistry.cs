@@ -137,6 +137,52 @@ namespace Opc.Ua.Server.AliasNames
         }
 
         /// <inheritdoc/>
+        public void RegisterContributor(IAliasNameStore store)
+        {
+            if (store == null)
+            {
+                throw new ArgumentNullException(nameof(store));
+            }
+
+            m_semaphore.Wait();
+            try
+            {
+                if (m_contributors.Contains(store))
+                {
+                    return;
+                }
+                m_contributors.Add(store);
+                store.Changed += OnStoreChanged;
+            }
+            finally
+            {
+                m_semaphore.Release();
+            }
+        }
+
+        /// <inheritdoc/>
+        public void UnregisterContributor(IAliasNameStore store)
+        {
+            if (store == null)
+            {
+                return;
+            }
+
+            m_semaphore.Wait();
+            try
+            {
+                if (m_contributors.Remove(store))
+                {
+                    store.Changed -= OnStoreChanged;
+                }
+            }
+            finally
+            {
+                m_semaphore.Release();
+            }
+        }
+
+        /// <inheritdoc/>
         public IAliasNameStore? GetStoreForCategory(NodeId categoryId)
         {
             if (categoryId.IsNull)
@@ -164,16 +210,36 @@ namespace Opc.Ua.Server.AliasNames
                 ITypeTable typeTree,
                 CancellationToken ct = default)
         {
-            IAliasNameStore? store = GetStoreForCategory(categoryId);
-            if (store == null)
+            List<IAliasNameStore> stores = GetQueryStores(categoryId);
+            if (stores.Count == 0)
             {
                 return (new ServiceResult(StatusCodes.BadNotImplemented), []);
             }
-            IReadOnlyList<AliasNameDataType> aliases = await store
-                .FindAliasAsync(categoryId, aliasNameSearchPattern,
-                    referenceTypeFilter, typeTree, ct)
-                .ConfigureAwait(false);
-            return (ServiceResult.Good, aliases);
+            try
+            {
+                ValidateSearchPattern(aliasNameSearchPattern);
+                if (stores.Count == 1)
+                {
+                    return (ServiceResult.Good, await stores[0]
+                        .FindAliasAsync(categoryId, aliasNameSearchPattern,
+                            referenceTypeFilter, typeTree, ct)
+                        .ConfigureAwait(false));
+                }
+                var aliases = new List<AliasNameDataType>();
+                foreach (IAliasNameStore store in stores)
+                {
+                    aliases.AddRange(await store
+                        .FindAliasAsync(categoryId, aliasNameSearchPattern,
+                            referenceTypeFilter, typeTree, ct)
+                        .ConfigureAwait(false));
+                }
+                return (ServiceResult.Good, aliases);
+            }
+            catch (ServiceResultException ex)
+                when (ex.StatusCode == StatusCodes.BadInvalidArgument || ex.StatusCode == StatusCodes.BadTimeout)
+            {
+                return (ex.Result, []);
+            }
         }
 
         /// <inheritdoc/>
@@ -185,16 +251,36 @@ namespace Opc.Ua.Server.AliasNames
                 ITypeTable typeTree,
                 CancellationToken ct = default)
         {
-            IAliasNameStore? store = GetStoreForCategory(categoryId);
-            if (store == null)
+            List<IAliasNameStore> stores = GetQueryStores(categoryId);
+            if (stores.Count == 0)
             {
                 return (new ServiceResult(StatusCodes.BadNotImplemented), []);
             }
-            IReadOnlyList<AliasNameVerboseDataType> aliases = await store
-                .FindAliasVerboseAsync(categoryId, aliasNameSearchPattern,
-                    referenceTypeFilter, typeTree, ct)
-                .ConfigureAwait(false);
-            return (ServiceResult.Good, aliases);
+            try
+            {
+                ValidateSearchPattern(aliasNameSearchPattern);
+                if (stores.Count == 1)
+                {
+                    return (ServiceResult.Good, await stores[0]
+                        .FindAliasVerboseAsync(categoryId, aliasNameSearchPattern,
+                            referenceTypeFilter, typeTree, ct)
+                        .ConfigureAwait(false));
+                }
+                var aliases = new List<AliasNameVerboseDataType>();
+                foreach (IAliasNameStore store in stores)
+                {
+                    aliases.AddRange(await store
+                        .FindAliasVerboseAsync(categoryId, aliasNameSearchPattern,
+                            referenceTypeFilter, typeTree, ct)
+                        .ConfigureAwait(false));
+                }
+                return (ServiceResult.Good, aliases);
+            }
+            catch (ServiceResultException ex)
+                when (ex.StatusCode == StatusCodes.BadInvalidArgument || ex.StatusCode == StatusCodes.BadTimeout)
+            {
+                return (ex.Result, []);
+            }
         }
 
         /// <inheritdoc/>
@@ -262,7 +348,12 @@ namespace Opc.Ua.Server.AliasNames
                 {
                     store.Changed -= OnStoreChanged;
                 }
+                foreach (IAliasNameStore store in m_contributors)
+                {
+                    store.Changed -= OnStoreChanged;
+                }
                 m_stores.Clear();
+                m_contributors.Clear();
                 m_categoryToStore.Clear();
             }
             finally
@@ -270,6 +361,51 @@ namespace Opc.Ua.Server.AliasNames
                 m_semaphore.Release();
             }
             m_semaphore.Dispose();
+        }
+
+        /// <summary>
+        /// Rejects malformed nonempty wildcard patterns before dispatching an alias search.
+        /// </summary>
+        /// <summary>
+        /// The stores a query on <paramref name="categoryId"/> fans out
+        /// to: the owner first, then every contributor reporting the
+        /// category.
+        /// </summary>
+        private List<IAliasNameStore> GetQueryStores(NodeId categoryId)
+        {
+            var stores = new List<IAliasNameStore>();
+            if (categoryId.IsNull)
+            {
+                return stores;
+            }
+            m_semaphore.Wait();
+            try
+            {
+                if (m_categoryToStore.TryGetValue(categoryId, out IAliasNameStore? owner))
+                {
+                    stores.Add(owner);
+                }
+                foreach (IAliasNameStore contributor in m_contributors)
+                {
+                    if (contributor.OwnsCategory(categoryId))
+                    {
+                        stores.Add(contributor);
+                    }
+                }
+            }
+            finally
+            {
+                m_semaphore.Release();
+            }
+            return stores;
+        }
+
+        private static void ValidateSearchPattern(string? pattern)
+        {
+            if (!string.IsNullOrEmpty(pattern))
+            {
+                _ = AliasNameWildcardMatcher.CreatePattern(pattern);
+            }
         }
 
         private void OnStoreChanged(object? sender, AliasStoreChangedEventArgs e)
@@ -300,6 +436,7 @@ namespace Opc.Ua.Server.AliasNames
         }
 
         private readonly List<IAliasNameStore> m_stores = [];
+        private readonly List<IAliasNameStore> m_contributors = [];
         private readonly Dictionary<NodeId, IAliasNameStore> m_categoryToStore = [];
         private readonly SemaphoreSlim m_semaphore = new(1, 1);
         private bool m_disposed;

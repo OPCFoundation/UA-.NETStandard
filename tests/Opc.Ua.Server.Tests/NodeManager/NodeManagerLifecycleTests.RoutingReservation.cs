@@ -182,10 +182,10 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }, timeout.Token).AsTask(), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
             Assert.That(decisions, Is.Zero);
             Assert.That(prepared.IsCommitted, Is.False);
-            Assert.That(lifecycle.Registrations, Is.EqualTo(new[] { survivor }));
+            Assert.That(GetBranchRegistrations(lifecycle), Is.EqualTo(new[] { survivor }));
             NodeId root = new(kRootNodeId,
                 (ushort)m_server.CurrentInstance.NamespaceUris.GetIndex(kModelNamespaceUri));
-            (_, IAsyncNodeManager owner) = await master.GetManagerHandleAsync(root, timeout.Token)
+            (_, IAsyncNodeManager? owner) = await master.GetManagerHandleAsync(root, timeout.Token)
                 .ConfigureAwait(false);
             Assert.That(owner, register ? Is.SameAs(survivor.NodeManager) : Is.Null);
             await prepared.DisposeAsync().ConfigureAwait(false);
@@ -311,15 +311,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                 .ConfigureAwait(false);
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            TrackingLifecycleNodeManager candidate = null;
+            TrackingLifecycleNodeManager? candidate = null;
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Add(CreateTrackingNodeManagementFactory(
                     kSecondRegistrationValue, manager => candidate = manager, kSecondModelNamespaceUri))],
                 timeout.Token).ConfigureAwait(false);
+            TrackingLifecycleNodeManager candidateManager = candidate ??
+                throw new AssertionException("The prepared callback generation was not created.");
             int mutations = 0;
             if (reconcile)
             {
-                candidate.SessionActivatedCallback = _ =>
+                candidateManager.SessionActivatedCallback = _ =>
                 {
                     MutateOnce();
                     return default;
@@ -368,7 +370,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 .ConfigureAwait(false);
             Assert.That(read.Results[0].StatusCode, Is.EqualTo(StatusCodes.Good));
             Assert.That(read.Results[0].WrappedValue, Is.EqualTo(new Variant(kSecondRegistrationValue)));
-            candidate.SessionActivatedCallback = null;
+            candidateManager.SessionActivatedCallback = _ => default;
             await session.CloseAsync(timeout.Token).ConfigureAwait(false);
 
             void MutateOnce()

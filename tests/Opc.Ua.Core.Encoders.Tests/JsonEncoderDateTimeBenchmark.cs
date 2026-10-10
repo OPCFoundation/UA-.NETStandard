@@ -59,7 +59,7 @@ namespace Opc.Ua.Core.Encoders.Tests
         [Test]
         public void ConvertToUniversalTime()
         {
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
             Span<char> valueString = stackalloc char[DateTimeHelper.DateTimeRoundTripKindLength];
             DateTimeHelper.ConvertUniversalTimeToString(m_dateTime, valueString, out int charsWritten);
             _ = valueString[..charsWritten];

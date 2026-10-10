@@ -41,6 +41,10 @@ services:
       HA_NODE_ID: replica-a
       HA_MODE: ${HA_MODE:-aa}
       HA_CONSISTENCY: ${HA_CONSISTENCY:-eventual}
+      HA_HISTORIAN: ${HA_HISTORIAN:-false}
+      HA_FAST_RECONNECT: ${HA_FAST_RECONNECT:-false}
+      HA_RECORD_KEY: ${HA_RECORD_KEY:-}
+      HA_INSECURE: ${HA_INSECURE:-false}
       REDUNDANCY_MODE: ${REDUNDANCY_MODE:-}
       HA_GOSSIP_PORT: "4840"
       HA_GOSSIP_PEERS: "server-b:4840,server-c:4840"
@@ -60,6 +64,10 @@ services:
       HA_NODE_ID: replica-b
       HA_MODE: ${HA_MODE:-aa}
       HA_CONSISTENCY: ${HA_CONSISTENCY:-eventual}
+      HA_HISTORIAN: ${HA_HISTORIAN:-false}
+      HA_FAST_RECONNECT: ${HA_FAST_RECONNECT:-false}
+      HA_RECORD_KEY: ${HA_RECORD_KEY:-}
+      HA_INSECURE: ${HA_INSECURE:-false}
       REDUNDANCY_MODE: ${REDUNDANCY_MODE:-}
       HA_GOSSIP_PORT: "4840"
       HA_GOSSIP_PEERS: "server-a:4840,server-c:4840"
@@ -79,6 +87,10 @@ services:
       HA_NODE_ID: replica-c
       HA_MODE: ${HA_MODE:-aa}
       HA_CONSISTENCY: ${HA_CONSISTENCY:-eventual}
+      HA_HISTORIAN: ${HA_HISTORIAN:-false}
+      HA_FAST_RECONNECT: ${HA_FAST_RECONNECT:-false}
+      HA_RECORD_KEY: ${HA_RECORD_KEY:-}
+      HA_INSECURE: ${HA_INSECURE:-false}
       REDUNDANCY_MODE: ${REDUNDANCY_MODE:-}
       HA_GOSSIP_PORT: "4840"
       HA_GOSSIP_PEERS: "server-a:4840,server-b:4840"

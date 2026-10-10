@@ -33,6 +33,9 @@ using System.Threading.Tasks;
 
 namespace Opc.Ua
 {
+    /// <summary>
+    /// Keeps a participant attached to a shared channel and routes its requests through the ready gate.
+    /// </summary>
     internal sealed class ManagedTransportChannelLease : IManagedTransportChannel, ITransportChannelBindingProvider
     {
         internal ManagedTransportChannelLease(
@@ -41,7 +44,6 @@ namespace Opc.Ua
             m_entry = entry ?? throw new ArgumentNullException(nameof(entry));
             Key = entry.Key;
             Endpoint = entry.Endpoint;
-            ReverseConnection = entry.ReverseConnection;
             m_participant = participant ?? throw new ArgumentNullException(nameof(participant));
             ParticipantFactory = _ => Participant;
             m_active = 1;
@@ -59,7 +61,6 @@ namespace Opc.Ua
             m_entry = entry ?? throw new ArgumentNullException(nameof(entry));
             Key = entry.Key;
             Endpoint = entry.Endpoint;
-            ReverseConnection = entry.ReverseConnection;
             m_active = 1;
             m_participant = participantFactory(this)
                 ?? throw new InvalidOperationException("Participant factory returned null.");
@@ -70,7 +71,7 @@ namespace Opc.Ua
 
         internal ConfiguredEndpoint Endpoint { get; }
 
-        internal ITransportWaitingConnection? ReverseConnection { get; }
+        internal ITransportWaitingConnection? ReverseConnection => Entry.ReverseConnection;
 
         internal Func<IManagedTransportChannel, IReconnectParticipant> ParticipantFactory { get; }
 
@@ -144,6 +145,14 @@ namespace Opc.Ua
         }
 
         internal bool IsActive => Interlocked.CompareExchange(ref m_active, 0, 0) == 1;
+
+        internal IManagedTransportChannel CreateReactivationView(CancellationToken ct)
+        {
+            ChannelEntry entry = Entry;
+            ITransportChannel transport = entry.Underlying
+                ?? throw new ServiceResultException(StatusCodes.BadSecureChannelClosed);
+            return new ReactivationView(this, entry, transport, entry.ReconnectGeneration, ct);
+        }
 
         /// <inheritdoc/>
         public ManagedChannelKey Key { get; }
@@ -250,7 +259,7 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public IServiceMessageContext MessageContext
             => Entry.Underlying?.MessageContext
-                ?? Entry.OwnerManager.Configuration.CreateMessageContext();
+                ?? Entry.MessageContext;
 
         /// <inheritdoc/>
         public int OperationTimeout
@@ -268,22 +277,28 @@ namespace Opc.Ua
             ITransportWaitingConnection? connection,
             CancellationToken ct = default)
         {
-            return new ValueTask(Entry.RequestReconnectAsync(ct));
+            return ReconnectAsync(connection, budget: null, ct);
         }
 
+        internal async ValueTask ReconnectAsync(
+            ITransportWaitingConnection? connection,
+            IRetryBudget? budget,
+            CancellationToken ct)
+        {
+            bool reconnected = await Entry.RequestReconnectAsync(connection, budget, ct).ConfigureAwait(false);
+            if (!reconnected)
+            {
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecureChannelClosed,
+                    "Channel reconnect did not complete successfully.");
+            }
+        }
+
+        /// <inheritdoc/>
         /// <inheritdoc/>
         public async ValueTask<IServiceResponse> SendRequestAsync(
             IServiceRequest request, CancellationToken ct = default)
         {
-            if (ClientChannelManager.IsReactivationInProgress)
-            {
-                ITransportChannel? bypass = Entry.Underlying
-                    ?? throw ServiceResultException.Create(
-                        StatusCodes.BadSecureChannelClosed,
-                        "Channel has no underlying transport.");
-                return await bypass.SendRequestAsync(request, ct).ConfigureAwait(false);
-            }
-
             int attempt = 0;
             while (true)
             {
@@ -297,7 +312,7 @@ namespace Opc.Ua
                         "Channel has no underlying transport.");
                 try
                 {
-                    return await underlying.SendRequestAsync(request, ct).ConfigureAwait(false);
+                    return await SendTransportRequestAsync(underlying, request, ct).ConfigureAwait(false);
                 }
                 catch (ServiceResultException sre) when (
                     IsActive &&
@@ -321,7 +336,7 @@ namespace Opc.Ua
                     // faults the original transport error is surfaced.
                     attempt++;
                     ChannelState state = entry.State;
-                    if (state is ChannelState.Closed or ChannelState.Faulted)
+                    if (entry.IsClosing)
                     {
                         // The entry is already terminal (e.g. the reconnect
                         // policy / budget was exhausted by a concurrent cycle).
@@ -351,6 +366,23 @@ namespace Opc.Ua
                     }
                 }
             }
+        }
+
+        private static async ValueTask<IServiceResponse> SendTransportRequestAsync(
+            ITransportChannel transport,
+            IServiceRequest request,
+            CancellationToken ct)
+        {
+            ct.ThrowIfCancellationRequested();
+            if (!ct.CanBeCanceled)
+            {
+                return await transport.SendRequestAsync(request, ct).ConfigureAwait(false);
+            }
+            Task<IServiceResponse> work = transport.SendRequestAsync(request, ct).AsTask();
+            ChannelEntry.ObserveRecoveryTask(work);
+            IServiceResponse response = await work.WaitAsync(ct).ConfigureAwait(false);
+            ct.ThrowIfCancellationRequested();
+            return response;
         }
 
         private static bool IsIdempotentRequest(IServiceRequest request)
@@ -399,11 +431,13 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Synchronous dispose. Begins lease teardown asynchronously on
-        /// a thread-pool thread and returns immediately. Callers that
-        /// need to observe teardown completion or surface failures MUST
-        /// use <see cref="CloseAsync(CancellationToken)"/>. The
-        /// synchronous path exists only for compatibility with the
+        /// Synchronous dispose. Releases the lease before returning, so it
+        /// no longer counts against the shared channel, and begins the
+        /// teardown of a channel left unused asynchronously on a
+        /// thread-pool thread. Callers that need to observe teardown
+        /// completion or surface failures MUST use
+        /// <see cref="CloseAsync(CancellationToken)"/>. The synchronous
+        /// path exists only for compatibility with the
         /// <see cref="IDisposable"/> contract and the legacy
         /// <c>using</c> statement, and never blocks on network I/O —
         /// blocking would deadlock callers running under a synchronization
@@ -411,21 +445,20 @@ namespace Opc.Ua
         /// </summary>
         public void Dispose()
         {
-            // Sync Dispose is best-effort. Mark the lease released
-            // immediately (preventing any further SendRequestAsync /
-            // ReconnectAsync calls), then push the actual network I/O
-            // onto the thread pool. This decouples the synchronous
-            // caller from the TCP FIN handshake — see
-            // ChannelEntry.TearDownAsync — and avoids deadlocking
+            // Mark the lease released immediately (preventing any further
+            // SendRequestAsync / ReconnectAsync calls) and drop it from the
+            // entry's refcount right away: a session failover disposes its
+            // old lease and reports completion right after, and must not
+            // leave the lease counted until a background task gets to it.
+            // Only the network I/O goes onto the thread pool, which
+            // decouples the synchronous caller from the TCP FIN handshake —
+            // see ChannelEntry.TearDownAsync — and avoids deadlocking
             // callers running under a synchronization context.
             if (Interlocked.Exchange(ref m_active, 0) == 0)
             {
                 return;
             }
-            ChannelEntry entry = Entry;
-            entry.OwnerManager.BackgroundWork.Run(
-                nameof(ChannelEntry.ReleaseLeaseAsync),
-                async _ => await entry.ReleaseLeaseAsync(this).ConfigureAwait(false));
+            Entry.ReleaseLease(this);
         }
 
         private async ValueTask DisposeAsyncCore()
@@ -435,6 +468,75 @@ namespace Opc.Ua
                 return;
             }
             await Entry.ReleaseLeaseAsync(this).ConfigureAwait(false);
+        }
+
+        private sealed class ReactivationView(
+            ManagedTransportChannelLease owner,
+            ChannelEntry entry,
+            ITransportChannel transport,
+            long generation,
+            CancellationToken scopeToken) : IManagedTransportChannel
+        {
+            public ManagedChannelKey Key => owner.Key;
+            public ChannelState State => entry.State;
+            public IClientChannelManager Manager => entry.OwnerManager;
+            public TransportChannelFeatures SupportedFeatures => transport.SupportedFeatures;
+            public EndpointDescription EndpointDescription => transport.EndpointDescription;
+            public EndpointConfiguration EndpointConfiguration => transport.EndpointConfiguration;
+            public byte[] ChannelThumbprint => transport.ChannelThumbprint;
+            public byte[] ClientChannelCertificate => transport.ClientChannelCertificate;
+            public byte[] ServerChannelCertificate => transport.ServerChannelCertificate;
+            public IServiceMessageContext MessageContext => transport.MessageContext;
+
+            public int OperationTimeout
+            {
+                get => transport.OperationTimeout;
+                set => transport.OperationTimeout = value;
+            }
+
+            public event Action<IManagedTransportChannel, ChannelStateChange>? StateChanged
+            {
+                add => owner.StateChanged += value;
+                remove => owner.StateChanged -= value;
+            }
+
+            public ValueTask ReconnectAsync(
+                ITransportWaitingConnection? connection = null,
+                CancellationToken ct = default)
+            {
+                throw new ServiceResultException(
+                    StatusCodes.BadInvalidState, "A recovery send channel cannot start another reconnect.");
+            }
+
+            /// <inheritdoc/>
+            public async ValueTask<IServiceResponse> SendRequestAsync(
+                IServiceRequest request,
+                CancellationToken ct = default)
+            {
+                if (Volatile.Read(ref m_disposed) != 0 ||
+                    !owner.IsActive ||
+                    !ReferenceEquals(owner.Entry, entry) ||
+                    entry.ReconnectGeneration != generation)
+                {
+                    throw new ServiceResultException(
+                        StatusCodes.BadInvalidState, "The recovery send channel has expired.");
+                }
+                using var linked = CancellationTokenSource.CreateLinkedTokenSource(scopeToken, ct);
+                return await SendTransportRequestAsync(transport, request, linked.Token).ConfigureAwait(false);
+            }
+
+            public ValueTask CloseAsync(CancellationToken ct = default)
+            {
+                Dispose();
+                return default;
+            }
+
+            public void Dispose()
+            {
+                Interlocked.Exchange(ref m_disposed, 1);
+            }
+
+            private int m_disposed;
         }
 
         private ChannelEntry m_entry;

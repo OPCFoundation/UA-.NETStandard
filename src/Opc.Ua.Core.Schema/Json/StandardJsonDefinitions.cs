@@ -27,7 +27,6 @@
  * http://opcfoundation.org/License/MIT/1.00/
  * ======================================================================*/
 
-using System.Collections.Generic;
 using System.Text.Json.Nodes;
 
 namespace Opc.Ua.Schema.Json
@@ -63,59 +62,46 @@ namespace Opc.Ua.Schema.Json
             };
         }
 
-        private static JsonObject StringOrInteger()
+        private static JsonObject Object(JsonObject properties, bool additionalProperties = false)
         {
-            return new JsonObject { ["type"] = new JsonArray("string", "integer") };
-        }
-
-        private static JsonObject Object(JsonObject properties, params string[] required)
-        {
-            var schema = new JsonObject
+            return new JsonObject
             {
                 ["type"] = "object",
                 ["properties"] = properties,
-                ["additionalProperties"] = false
+                ["additionalProperties"] = additionalProperties
             };
-            if (required.Length > 0)
-            {
-                var items = new List<JsonNode?>(required.Length);
-                foreach (string name in required)
-                {
-                    items.Add(name);
-                }
-                schema["required"] = new JsonArray([.. items]);
-            }
-            return schema;
         }
 
         private static JsonObject NodeId()
         {
-            return Object(new JsonObject
-            {
-                ["IdType"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 3 },
-                ["Id"] = StringOrInteger(),
-                ["Namespace"] = StringOrInteger()
-            }, "Id");
+            // Part 6 5.4.2.10: NodeIds are encoded as a JSON string (e.g. "nsu=...;i=5").
+            return new JsonObject { ["type"] = "string" };
         }
 
         private static JsonObject ExpandedNodeId()
         {
-            return Object(new JsonObject
-            {
-                ["IdType"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 3 },
-                ["Id"] = StringOrInteger(),
-                ["Namespace"] = StringOrInteger(),
-                ["ServerUri"] = StringOrInteger()
-            }, "Id");
+            // Part 6 5.4.2.11: ExpandedNodeIds are encoded as a JSON string.
+            return new JsonObject { ["type"] = "string" };
         }
 
         private static JsonObject QualifiedName()
         {
-            return Object(new JsonObject
+            // Part 6 5.4.2.14: QualifiedNames are encoded as a JSON string.
+            return new JsonObject { ["type"] = "string" };
+        }
+
+        private static JsonObject UaType()
+        {
+            return new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 31 };
+        }
+
+        private static JsonObject Dimensions()
+        {
+            return new JsonObject
             {
-                ["Name"] = new JsonObject { ["type"] = "string" },
-                ["Uri"] = StringOrInteger()
-            }, "Name");
+                ["type"] = "array",
+                ["items"] = new JsonObject { ["type"] = "integer" }
+            };
         }
 
         private static JsonObject LocalizedText()
@@ -123,6 +109,7 @@ namespace Opc.Ua.Schema.Json
             return Object(new JsonObject
             {
                 ["Locale"] = new JsonObject { ["type"] = "string" },
+                // Part 6 5.4.2.15: a null or empty Text is omitted, never written as null.
                 ["Text"] = new JsonObject { ["type"] = "string" }
             });
         }
@@ -138,33 +125,35 @@ namespace Opc.Ua.Schema.Json
 
         private static JsonObject Variant()
         {
+            // Part 6 5.4.2.17: {"UaType", "Value", "Dimensions"}.
             return Object(new JsonObject
             {
-                ["Type"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 29 },
-                ["Body"] = true,
-                ["Dimensions"] = new JsonObject
-                {
-                    ["type"] = "array",
-                    ["items"] = new JsonObject { ["type"] = "integer" }
-                }
+                ["UaType"] = UaType(),
+                ["Value"] = true,
+                ["Dimensions"] = Dimensions()
             });
         }
 
         private static JsonObject ExtensionObject()
         {
+            // Part 6 5.4.2.16: {"UaTypeId", "UaEncoding", "UaBody"}; a JSON encoded body
+            // is written inline, so the structure fields appear next to UaTypeId.
             return Object(new JsonObject
             {
-                ["TypeId"] = NodeId(),
-                ["Encoding"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 2 },
-                ["Body"] = true
-            });
+                ["UaTypeId"] = NodeId(),
+                ["UaEncoding"] = new JsonObject { ["type"] = "integer", ["minimum"] = 0, ["maximum"] = 2 },
+                ["UaBody"] = true
+            }, additionalProperties: true);
         }
 
         private static JsonObject DataValue()
         {
+            // Part 6 5.4.2.18: a Variant with the additional DataValue fields.
             return Object(new JsonObject
             {
+                ["UaType"] = UaType(),
                 ["Value"] = true,
+                ["Dimensions"] = Dimensions(),
                 ["Status"] = StatusCode(),
                 ["SourceTimestamp"] = new JsonObject { ["type"] = "string", ["format"] = "date-time" },
                 ["SourcePicoseconds"] = new JsonObject { ["type"] = "integer" },

@@ -1,20 +1,121 @@
-# Native AOT Testing
+# Native AOT
 
-## Overview
+[Native AOT](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/)
+(ahead-of-time) compilation publishes an application and the parts of the SDK
+that it uses as a single native executable. The executable starts quickly and
+runs without an installed .NET runtime, but it supports only code that the
+compiler can analyze at publish time. This guide first shows how to publish an
+application, then describes the test harness that verifies the stack under
+Native AOT.
 
-The OPC UA .NET Standard stack supports
-[Native AOT (Ahead-of-Time) compilation](https://learn.microsoft.com/en-us/dotnet/core/deploying/native-aot/?tabs=windows%2Cnet8plus),
-which produces a self-contained executable that is compiled to native code at
-publish time rather than at run time. This eliminates the need for a JIT
-compiler and the .NET runtime on the target machine, resulting in faster startup
-and a smaller deployment footprint.
+## Contents
+
+- [Publish an application](#publish-an-application)
+  - [Enable Native AOT](#enable-native-aot)
+  - [Publish and verify the executable](#publish-and-verify-the-executable)
+  - [Use AOT-compatible features](#use-aot-compatible-features)
+- [Test harness overview](#test-harness-overview)
+- [Prerequisites](#prerequisites)
+  - [.NET SDK](#net-sdk)
+  - [Platform-Specific Native Toolchain](#platform-specific-native-toolchain)
+- [Project Structure](#project-structure)
+  - [Why TUnit Instead of NUnit?](#why-tunit-instead-of-nunit)
+  - [Test Fixture Pattern](#test-fixture-pattern)
+- [How to Build and Run](#how-to-build-and-run)
+  - [Publish the Native AOT Binary](#1-publish-the-native-aot-binary)
+  - [Run the Tests](#2-run-the-tests)
+  - [Build + Run in a Single Step (Development)](#build--run-in-a-single-step-development)
+- [CI Integration](#ci-integration)
+- [Writing New AOT Tests](#writing-new-aot-tests)
+  - [Choose or Create a Test Class](#1-choose-or-create-a-test-class)
+  - [Use TUnit Attributes and Assertions](#2-use-tunit-attributes-and-assertions)
+  - [Keep Code AOT-Compatible](#3-keep-code-aot-compatible)
+  - [Handle Trimming Warnings](#4-handle-trimming-warnings)
+- [Troubleshooting](#troubleshooting)
+  - [`'vswhere.exe' is not recognized` on Windows](#vswhereexe-is-not-recognized-on-windows)
+  - [Publish Fails with Linker Errors](#publish-fails-with-linker-errors)
+  - [`TypeInitializationException` or `MissingMetadataException` at Runtime](#typeinitializationexception-or-missingmetadataexception-at-runtime)
+  - [Tests Pass Under `dotnet test` but Fail Under AOT](#tests-pass-under-dotnet-test-but-fail-under-aot)
+  - [Slow Publish Times](#slow-publish-times)
+  - [`IL2104` or Other Trimming Warnings](#il2104-or-other-trimming-warnings)
+
+## Publish an application
+
+### Enable Native AOT
+
+Install the [native toolchain](#platform-specific-native-toolchain) for your
+platform. Then set `PublishAot` in the application's project file:
+
+```xml
+<PropertyGroup>
+  <OutputType>Exe</OutputType>
+  <TargetFramework>net10.0</TargetFramework>
+  <PublishAot>true</PublishAot>
+</PropertyGroup>
+```
+
+The stack's Native AOT tests run on `net10.0`. `dotnet build` and `dotnet run`
+still use the JIT compiler; only `dotnet publish` compiles the native
+executable.
+
+### Publish and verify the executable
+
+Publish for the runtime identifier of the target platform, such as `win-x64`,
+`linux-x64`, `linux-arm64`, or `osx-arm64`:
+
+```bash
+dotnet publish -c Release -r win-x64
+```
+
+The `bin/Release/net10.0/<runtime-identifier>/publish` folder then contains one
+native executable and its symbol file. If the folder instead contains the
+application's `.dll` and `coreclr.dll`, the publish did not use Native AOT.
+Check that `PublishAot` applies to the target framework you publish, delete the
+`bin` and `obj` folders, and publish again.
+
+The client and server from
+[Getting started](GettingStarted.md#route-b-build-applications-from-nuget-packages)
+publish this way without trim or AOT warnings. A published application is also
+a new instance for its certificate stores when `PkiRoot` depends on the working
+directory, as in Getting started. Run it from the folder that contains its
+`pki` folder, or trust its new certificate again.
+
+### Use AOT-compatible features
+
+Fix every trim and AOT warning (`IL2026`, `IL3050`, and related codes) that the
+publish reports for your code. The following features are AOT-compatible:
+
+- Source-generated models and node managers; see
+  [Node managers: NativeAOT publishing](NodeManagers.md#nativeaot-publishing).
+- Source-generated data types; see
+  [Source-generated data types](SourceGeneratedDataTypes.md).
+- The default complex-type builder. The optional Reflection.Emit builder
+  requires the JIT compiler; see [Complex types: type builders](ComplexTypes.md#type-builders).
+- Hosting with dependency injection; see
+  [Dependency injection: Native AOT](DependencyInjection.md#native-aot).
+- PubSub; see [PubSub: Native AOT](PubSub.md#native-aot).
+- The crypto provider model; see [Crypto providers](CryptoProvider.md).
+
+In your own code, avoid unbounded reflection and runtime code generation; see
+[Keep code AOT-compatible](#3-keep-code-aot-compatible).
+
+Clients and servers run in globalization-invariant mode, which the
+`InvariantGlobalization` property enables to make native executables smaller.
+In this mode a server still selects translations by locale id and falls back to
+another region of the same language. Arguments in translated texts, such as
+numbers and dates, use the invariant format for every locale.
+
+## Test harness overview
 
 The **Opc.Ua.Aot.Tests** project verifies that the core OPC UA libraries work
-correctly when published as a Native AOT binary. The tests exercise encoding,
-sessions, subscriptions, monitored items, discovery, security, events, history,
-diagnostics, batch operations, node cache, complex types, GDS client operations,
-and client sample patterns — all running inside a single ahead-of-time compiled
-executable.
+correctly when published as a Native AOT binary. The tests cover:
+
+- Encoding, sessions, subscriptions, and monitored items.
+- Discovery, security, events, and history.
+- Diagnostics, batch operations, and the node cache.
+- Complex types, GDS client operations, and client sample patterns.
+
+All tests run inside a single ahead-of-time compiled executable.
 
 The crypto provider model is AOT-compatible and covered by
 `CryptoProviderAotTests`; see [CryptoProvider](CryptoProvider.md). The optional
@@ -153,15 +254,17 @@ dotnet publish tests/Opc.Ua.Aot.Tests/Opc.Ua.Aot.Tests.csproj -c Release && \
 
 ## CI Integration
 
-The GitHub Actions workflow `.github/workflows/buildandtest.yml` defines an
-`aot-test` job that runs on both `ubuntu-latest` and `windows-latest`. The
-steps are:
+The GitHub Actions workflow `.github/workflows/buildandtest.yml` runs AOT
+jobs on Ubuntu and both Intel and ARM64 macOS; the weekly
+`.github/workflows/nightly.yml` run adds Windows. Each platform performs these steps:
 
 1. **Checkout** the repository.
 2. **Setup** .NET 10.0 SDK.
 3. **Publish** the project with `dotnet publish` in `Release` configuration.
 4. **Execute** the platform-specific binary directly.
-5. **Upload** any `TestResults` artifacts.
+5. **Publish + execute** the `.Historian` and `.Mcp` companions the same way,
+   keeping results separate.
+6. **Upload** any `TestResults` artifacts.
 
 The job runs in a separate matrix from the main `dotnet test` build so that AOT
 failures are isolated and clearly visible.
@@ -213,6 +316,17 @@ third-party packages that are not yet trim-annotated. For warnings in your own
 code, fix the root cause rather than suppressing.
 
 ## Troubleshooting
+
+### `'vswhere.exe' is not recognized` on Windows
+
+The native link step locates the Visual C++ tools with `vswhere.exe`. If the
+publish fails with `'vswhere.exe' is not recognized as an internal or external
+command`, add the Visual Studio Installer folder to `PATH` and publish again:
+
+```powershell
+$env:PATH = "${env:ProgramFiles(x86)}\Microsoft Visual Studio\Installer;$env:PATH"
+dotnet publish -c Release -r win-x64
+```
 
 ### Publish Fails with Linker Errors
 

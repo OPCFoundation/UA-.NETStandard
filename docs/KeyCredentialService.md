@@ -1,19 +1,38 @@
 # KeyCredentialService Developer Guide
 
-OPC 10000-12 §8 defines the **KeyCredentialService** — a mechanism for
-a GDS to issue and manage credentials (e.g. username/password, API keys,
-tokens) on behalf of applications that need to authenticate to
-non-OPC UA services such as MQTT brokers or REST APIs.
+OPC 10000-12 §8 defines the **KeyCredentialService**. A Global Discovery
+Server (GDS) uses it to issue and manage credentials, such as usernames and
+passwords, API keys, or tokens, for applications that authenticate to
+services outside OPC UA. Examples include Message Queuing Telemetry
+Transport (MQTT) brokers and REST APIs.
 
-> **Scope note**: this service is for credentials targeting **non-OPC
-> UA** resources (MQTT brokers, REST APIs, etc. — see `ResourceUri`
-> + `ProfileUris` on `KeyCredentialServiceType`). The optional bridge
+> **Scope note:** This service issues credentials for resources outside
+> **OPC UA**, such as MQTT brokers and REST APIs. See `ResourceUri`
+> and `ProfileUris` on `KeyCredentialServiceType`. The optional bridge
 > authenticator described below is **EXPERIMENTAL** under the vendor URI
 > `urn:opcfoundation:netstandard:profile:authentication:keycredential`;
 > it is **not** an OPC UA Part 6 §6.5.3 conformance claim. For
 > standards-conformant OPC UA session authentication, use
-> [AuthorizationService](AuthorizationService.md) (JWT) and the
-> [Identity Providers](IdentityProviders.md) infrastructure.
+> [AuthorizationService](AuthorizationService.md) with JSON Web Tokens
+> (JWT) and the [Identity Providers](IdentityProviders.md) infrastructure.
+
+## Contents
+
+- [Architecture](#architecture)
+- [Client API](#client-api)
+  - [`KeyCredentialServiceClient`](#keycredentialserviceclient)
+  - [Discovering the Service NodeId](#discovering-the-service-nodeid)
+- [Server-Side: Implementing a Provider](#server-side-implementing-a-provider)
+  - [`IKeyCredentialRequestStore`](#ikeycredentialrequeststore)
+  - [Built-in Implementation](#built-in-implementation)
+  - [Writing a Custom Implementation](#writing-a-custom-implementation)
+  - [Wiring into the GDS Server](#wiring-into-the-gds-server)
+- [Decision matrix: Push vs Pull vs Bridge](#decision-matrix-push-vs-pull-vs-bridge)
+  - [Hybrid (Push + Pull)](#hybrid-push--pull)
+- [Resource Server Push Binding](#resource-server-push-binding)
+- [Experimental KeyCredential Issued-Token Bridge](#experimental-keycredential-issued-token-bridge)
+- [Audit Events](#audit-events)
+- [End-to-End Example](#end-to-end-example)
 
 ## Architecture
 
@@ -236,6 +255,43 @@ services.AddOpcUa()
 Production deployments should register an `IKeyCredentialStore` backed by
 a durable secret store before calling `WithKeyCredentialPush()`.
 
+The standard folder remains in namespace 0. Created and restored credential
+instances use a nonstandard namespace owned by the binding node manager
+(the diagnostics namespace for `ConfigurationNodeManager`), so their
+properties and methods are addressable through Read, Browse, and Call.
+Descendant NodeIds are allocated per instance through the configured factory,
+so creating another credential does not alias an existing credential's properties.
+Use the returned `CredentialNodeId` and browse its children rather than
+assuming a namespace index. A custom folder keeps its own namespace;
+standalone bindings using `KeyCredentialPushSubject.NamespaceUri` must
+register that namespace with their hosting node manager.
+
+`GetEncryptingKey` returns an application certificate from the server's active
+certificate registry. `UpdateCredential` decrypts a UA Binary
+`RsaEncryptedSecret` before passing the usable secret to `IKeyCredentialStore`.
+It verifies the declared policy, certificate thumbprint, envelope, signature
+and timestamp; invalid input never reaches the store. Both methods require
+the SecurityAdmin role and an encrypted SecureChannel.
+The envelope nonce is deliberately not compared with a session nonce:
+outside `ActivateSession`, OPC UA Part 4 Table 185 requires the receiver not
+to check it.
+
+The push binding accepts `Basic256Sha256`, `Aes128_Sha256_RsaOaep` and
+`Aes256_Sha256_RsaPss`. Restrict or reorder these through
+`KeyCredentialPushOptions.AllowedSecurityPolicyUris`; the first entry is the
+default for `GetEncryptingKey`. ECC/RSA-DH policies are explicitly rejected
+with `BadSecurityPolicyRejected`: this binding does not provide the required
+ephemeral-key exchange. Omitting the policy **and** certificate thumbprint
+retains the standard clear-secret-over-encrypted-channel mode. Supplying a
+policy never causes ciphertext to be stored as if it were a plaintext secret.
+
+For direct construction, the original constructor remains available and
+`ConfigurationNodeManager.BindKeyCredentialPushAsync` supplies the server's
+registry. A standalone caller can instead pass an `ICertificateRegistry`
+and `ISecurityPolicyRegistry` to the additional constructor. Temporary decode
+buffers are cleared; the credential record handed to a custom store remains
+valid if that store retains it.
+
 ## Experimental KeyCredential Issued-Token Bridge
 
 > **WARNING — EXPERIMENTAL**: `KeyCredentialBridgeAuthenticator` is a
@@ -257,6 +313,34 @@ Client-side, `GdsKeyCredentialAccessTokenProvider` adapts a
 `KeyCredentialServiceClient` to `IAccessTokenProvider`, so the standard
 `IssuedTokenIdentityProvider` can materialize a UA `IssuedIdentityToken`
 for the bridge profile.
+
+The bridge token payload carries a `"version"` field. It versions this vendor
+extension's own JSON payload, and has no OPC UA counterpart: Part 6 §6.5.3 and
+the GDS KeyCredential services define neither this payload nor a version field.
+The server accepts `"version": 2` only, whose HMAC proof covers a non-empty
+`aud` that must exactly match the resource server's `ApplicationUri`, so a proof
+minted for one server is rejected by another.
+
+The provider implements `IEndpointAccessTokenProvider`. Normal identity
+selection forwards the selected endpoint automatically, including for the
+vendor bridge profile. The audience is the first non-blank value of metadata
+`Audience`, metadata `ResourceUri`, or `endpoint.Server.ApplicationUri`.
+Thus a policy containing only `{"authorityUri":"urn:example:gds"}` still binds
+the proof to the target resource server, never to the GDS authority or client
+application. Explicit audience/resource metadata must identify that same server.
+
+```csharp
+var identities = new IssuedTokenIdentityProvider(
+    keyCredentialProvider, GdsKeyCredentialAccessTokenProvider.ProfileUri);
+
+// Direct acquisition outside normal identity selection also supplies the target.
+using AccessToken token = await keyCredentialProvider.AcquireAsync(
+    metadata, targetEndpoint, cancellationToken);
+```
+
+The metadata-only acquisition overload requires an explicit non-blank audience
+or resource URI. If none is available, acquisition fails before requesting or
+reading credential secrets instead of emitting an unusable unbound token.
 
 ## Audit Events
 

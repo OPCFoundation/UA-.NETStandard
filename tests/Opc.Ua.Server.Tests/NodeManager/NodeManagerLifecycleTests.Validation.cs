@@ -29,6 +29,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics.CodeAnalysis;
 using System.Threading;
 using System.Threading.Tasks;
 using Moq;
@@ -38,6 +39,19 @@ namespace Opc.Ua.Server.Tests.NodeManager
 {
     public sealed partial class NodeManagerLifecycleTests
     {
+        private static T RequireLifecycleValue<T>([NotNull] T? value)
+            where T : class
+        {
+            return value ?? throw new AssertionException(
+                $"The lifecycle operation did not provide the required {typeof(T).Name}.");
+        }
+
+        private static void AssertLifecycleValue<T>([NotNull] T? value)
+            where T : class
+        {
+            _ = RequireLifecycleValue(value);
+        }
+
         [Test]
         public async Task PrivateValidationRejectsUnsupportedReferencesBeforePublication()
         {
@@ -60,7 +74,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }).ConfigureAwait(false), Throws.TypeOf<NotSupportedException>()).ConfigureAwait(false);
 
             Assert.That(inspections, Is.EqualTo(1));
-            Assert.That(lifecycle.Registrations.IsEmpty, Is.True);
+            Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
             Assert.That(m_server.CurrentInstance.NamespaceUris.ToArrayOf(), Is.EqualTo(namespaces));
             Assert.That(objects.ReferenceExists(ReferenceTypeIds.Organizes, false, new NodeId(8402, 1)), Is.False);
             Assert.That(node.ReferenceExists(ReferenceTypeIds.Organizes, false, new NodeId(8402, 1)), Is.False);
@@ -71,7 +85,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
         [Test]
         public async Task PrivateValidationRejectsCommitDuringInspectionAndAllowsTheNextUnit()
         {
-            TrackingLifecycleNodeManager manager = null;
+            TrackingLifecycleNodeManager? manager = null;
             IAsyncNodeManagerFactory factory = CreateTrackingNodeManagementFactory(
                 kFirstRegistrationValue, created => manager = created);
             var lifecycle = (INodeManagerPublicationLifecycle)m_server.NodeManagerLifecycle;
@@ -92,10 +106,12 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 }, token).ConfigureAwait(false), Throws.TypeOf<InvalidOperationException>()).ConfigureAwait(false);
             }).ConfigureAwait(false);
 
+            TrackingLifecycleNodeManager validatedManager = manager ??
+                throw new AssertionException("Private validation did not create its candidate generation.");
             Assert.That(decisions, Is.Zero);
-            Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
-            Assert.That(manager.DisposeCount, Is.EqualTo(1));
-            Assert.That(lifecycle.Registrations.IsEmpty, Is.True);
+            Assert.That(validatedManager.DeleteAddressSpaceCount, Is.EqualTo(1));
+            Assert.That(validatedManager.DisposeCount, Is.EqualTo(1));
+            Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
             Assert.That(m_server.CurrentInstance.NamespaceUris.ToArrayOf(), Is.EqualTo(namespaces));
             await using IPreparedNodeManagerBatch next = await publication.PrepareAsync(
                 [NodeManagerBatchChange.Add(factory)]).ConfigureAwait(false);
@@ -106,14 +122,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
             }).ConfigureAwait(false);
             Assert.That(decisions, Is.EqualTo(1));
             Assert.That(next.IsCommitted, Is.True);
-            Assert.That(lifecycle.Registrations, Is.EqualTo(committed.Registrations));
+            Assert.That(GetBranchRegistrations(lifecycle), Is.EqualTo(committed.Registrations));
         }
 
         [TestCase(false)]
         [TestCase(true)]
         public async Task PrivateValidationFailureDisposesCandidatesAndReleasesAdmission(bool cancel)
         {
-            TrackingLifecycleNodeManager manager = null;
+            TrackingLifecycleNodeManager? manager = null;
             IAsyncNodeManagerFactory factory = CreateTrackingNodeManagementFactory(
                 kFirstRegistrationValue, created => manager = created);
             var lifecycle = (INodeManagerPublicationLifecycle)m_server.NodeManagerLifecycle;
@@ -136,15 +152,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     }, cancellation.Token).ConfigureAwait(false),
                     cancel ? Throws.InstanceOf<OperationCanceledException>() : Throws.Exception.SameAs(failure))
                     .ConfigureAwait(false);
-                Assert.That(lifecycle.Registrations.IsEmpty, Is.True);
-                Assert.That(manager.DeleteAddressSpaceCount, Is.EqualTo(1));
-                Assert.That(manager.DisposeCount, Is.EqualTo(1));
+                TrackingLifecycleNodeManager validatedManager = manager ??
+                    throw new AssertionException("Private validation did not create its candidate generation.");
+                Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
+                Assert.That(validatedManager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(validatedManager.DisposeCount, Is.EqualTo(1));
                 Assert.That(m_server.CurrentInstance.NamespaceUris.ToArrayOf(), Is.EqualTo(namespaces));
             }
             NodeManagerRegistration added = await lifecycle.AddAsync(factory, callerContext: null)
                 .ConfigureAwait(false);
-            Assert.That(lifecycle.Registrations.Count, Is.EqualTo(1));
-            Assert.That(lifecycle.Registrations[0], Is.SameAs(added));
+            Assert.That(GetBranchRegistrations(lifecycle).Count, Is.EqualTo(1));
+            Assert.That(GetBranchRegistration(lifecycle, added.Id), Is.SameAs(added));
         }
 
         [Test]
@@ -157,13 +175,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var validation = (INodeManagerValidationPublication)publication;
 
             await Assert.ThatAsync(async () => await validation.ValidateAsync(
-                [NodeManagerBatchChange.Add(factory.Object)], null).ConfigureAwait(false),
+                [NodeManagerBatchChange.Add(factory.Object)], null!).ConfigureAwait(false),
                 Throws.TypeOf<ArgumentNullException>()).ConfigureAwait(false);
 
             factory.Verify(value => value.CreateAsync(
                 It.IsAny<IServerInternal>(), It.IsAny<ApplicationConfiguration>(), It.IsAny<CancellationToken>()),
                 Times.Never);
-            Assert.That(lifecycle.Registrations.IsEmpty, Is.True);
+            Assert.That(GetBranchRegistrations(lifecycle).IsEmpty, Is.True);
         }
     }
 }

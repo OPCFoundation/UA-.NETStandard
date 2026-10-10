@@ -86,6 +86,10 @@ namespace Opc.Ua.Redundancy
         /// <see cref="ByteString"/> to require absence.
         /// </param>
         /// <param name="value">The value to store on success.</param>
+        /// <remarks>
+        /// A null <paramref name="value"/> atomically removes the key when
+        /// <paramref name="expected"/> matches.
+        /// </remarks>
         /// <param name="ct">Cancellation token.</param>
         /// <returns><c>true</c> when the swap succeeded.</returns>
         ValueTask<bool> CompareAndSwapAsync(string key, ByteString expected, ByteString value, CancellationToken ct = default);

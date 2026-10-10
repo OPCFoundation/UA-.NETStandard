@@ -4,6 +4,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Moq;
 using NUnit.Framework;
 using Opc.Ua.Tests;
@@ -17,6 +18,9 @@ namespace Opc.Ua.Types.Tests.Encoders
     [Parallelizable]
     public class BinaryDecoderTests
     {
+        private static readonly int[] s_twoByZero = [2, 0];
+        private static readonly int[] s_zeroByOne = [0, 1];
+
         [Test]
         public void ConstructorWithByteArrayCreatesDecoderSuccessfully()
         {
@@ -355,11 +359,11 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            Stream stream = null;
+            Stream? stream = null;
 
             // Act & Assert
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() =>
-                BinaryDecoder.DecodeMessage<TestEncodeable>(stream, messageContext));
+                BinaryDecoder.DecodeMessage<TestEncodeable>(stream!, messageContext));
             Assert.That(ex.ParamName, Is.EqualTo("stream"));
         }
 
@@ -407,9 +411,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             var mockFactory = new Mock<IEncodeableFactory>();
             var encodeableType = new Mock<IEncodeableType>();
-            encodeableType.SetupGet(x => x.Type).Returns((Type)null);
+            encodeableType.SetupGet(x => x.Type).Returns((Type)null!);
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(false);
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object)
             {
@@ -448,8 +452,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32(null, 42);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             TestEncodeableWithData result = decoder.ReadEncodeable<TestEncodeableWithData>(null);
@@ -468,14 +472,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeableWithData));
             encodeableType.Setup(x => x.CreateInstance()).Returns(() => new TestEncodeableWithData());
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(true);
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32(null, 99);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             TestEncodeableWithData result = decoder.ReadEncodeable<TestEncodeableWithData>(
@@ -492,8 +496,8 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Arrange
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var mockFactory = new Mock<IEncodeableFactory>();
-            IEncodeableType type = null;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            IEncodeableType? type = null;
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(false);
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
             using var decoder = new BinaryDecoder([0x00], messageContext);
@@ -519,8 +523,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 new TestEncodeableWithData(2)
             ];
             encoder.WriteEncodeableArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             ArrayOf<TestEncodeableWithData> result = decoder.ReadEncodeableArray<TestEncodeableWithData>(null);
@@ -541,7 +545,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeableWithData));
             encodeableType.Setup(x => x.CreateInstance()).Returns(() => new TestEncodeableWithData());
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(true);
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
 
@@ -552,8 +556,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 new TestEncodeableWithData(4)
             ];
             encoder.WriteEncodeableArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             ArrayOf<TestEncodeableWithData> result = decoder.ReadEncodeableArray<TestEncodeableWithData>(
@@ -655,7 +659,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var stringTable = new StringTable();
 
             // Act / Assert
-            Assert.Throws<ArgumentNullException>(() => decoder.LoadStringTable(stringTable));
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(
+                () => decoder.LoadStringTable(stringTable));
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
         }
 
         [Test]
@@ -1167,8 +1173,8 @@ namespace Opc.Ua.Types.Tests.Encoders
                 .. BitConverter.GetBytes(2), // dimensions count
                 .. BitConverter.GetBytes(2), // dim 0
                 .. BitConverter.GetBytes(1),  // dim 1
-                // Elements (2*1 = 2 TestEncodeable values)
-                .. BitConverter.GetBytes(2), // Array count
+                // Elements (2*1 = 2 ExtensionObject values, no length prefix,
+                // OPC 10000-6 5.2.5 Table 28)
                 .. BitConverter.GetBytes((ushort)0x1100), // NodeId
                 0x0, // encoding mask
                 .. BitConverter.GetBytes((ushort)0x1100), // NodeId
@@ -1200,10 +1206,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
             List<byte> buffer =
             [
-                // Dimensions array [0]
-                .. BitConverter.GetBytes(1), // dimensions count
-                .. BitConverter.GetBytes(0), // dim 0 = 0
-                .. BitConverter.GetBytes(0)  // empty array
+                // Dimensions array [2, 0], no values follow
+                .. BitConverter.GetBytes(2), // dimensions count
+                .. BitConverter.GetBytes(2), // dim 0 = 2
+                .. BitConverter.GetBytes(0)  // dim 1 = 0
             ];
 
             using var decoder = new BinaryDecoder([.. buffer], messageContext);
@@ -1217,8 +1223,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             MatrixOf<int> resultMatrix = result.GetInt32Matrix();
             Assert.That(resultMatrix.IsNull, Is.False);
-            Assert.That(resultMatrix.Dimensions, Has.Length.EqualTo(1));
+            Assert.That(resultMatrix.Dimensions, Is.EqualTo(s_twoByZero));
             Assert.That(resultMatrix.Count, Is.Zero);
+            Assert.That(decoder.Position, Is.EqualTo(buffer.Count));
         }
 
         [Test]
@@ -1275,7 +1282,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            uint result = decoder.ReadSwitchField(null, out string fieldName);
+            uint result = decoder.ReadSwitchField(null!, out string? fieldName);
 
             // Assert
             Assert.That(result, Is.EqualTo(42U));
@@ -1296,7 +1303,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var switches = new List<string> { "Switch1", "Switch2" };
 
             // Act
-            uint result = decoder.ReadSwitchField(switches, out string fieldName);
+            uint result = decoder.ReadSwitchField(switches, out string? fieldName);
 
             // Assert
             Assert.That(result, Is.EqualTo(uint.MaxValue));
@@ -1316,7 +1323,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            uint result = decoder.ReadSwitchField(null, out string fieldName);
+            uint result = decoder.ReadSwitchField(null!, out string? fieldName);
 
             // Assert
             Assert.That(result, Is.Zero);
@@ -2122,7 +2129,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            string result = decoder.ReadString(null);
+            string result = decoder.ReadString(null)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(testString));
@@ -2138,7 +2145,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            string result = decoder.ReadString(null, 100);
+            string? result = decoder.ReadString(null, 100);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -2154,7 +2161,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            string result = decoder.ReadString(null, 100);
+            string result = decoder.ReadString(null, 100)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(string.Empty));
@@ -2196,7 +2203,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            string result = decoder.ReadString(null, -1);
+            string result = decoder.ReadString(null, -1)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(testString));
@@ -2218,7 +2225,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            string result = decoder.ReadString(null, 100);
+            string result = decoder.ReadString(null, 100)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(testString));
@@ -2240,7 +2247,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            string result = decoder.ReadString(null, 100);
+            string result = decoder.ReadString(null, 100)!;
 
             // Assert
             Assert.That(result, Is.EqualTo(testString));
@@ -2903,7 +2910,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 TypeId = new ExpandedNodeId(1234)
             });
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(It.IsAny<ExpandedNodeId>(), out type!))
                 .Returns(true);
             var messageContext = new ServiceMessageContext(telemetryContext, mockFactory.Object);
             using var decoder = new BinaryDecoder([0x00, 0x11], messageContext);
@@ -3990,7 +3997,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null);
+            DiagnosticInfo? result = decoder.ReadDiagnosticInfo(null);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -4005,12 +4012,12 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteDiagnosticInfo(null, null);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
-            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null);
+            DiagnosticInfo? result = decoder.ReadDiagnosticInfo(null);
 
             // Assert
             Assert.That(result, Is.Null);
@@ -4034,12 +4041,12 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteDiagnosticInfo(null, diagnosticInfo);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
-            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null);
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null)!;
 
             // Assert
             Assert.That(result, Is.Not.Null);
@@ -4049,6 +4056,45 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.LocalizedText, Is.EqualTo(4));
             Assert.That(result.AdditionalInfo, Is.EqualTo("additional info"));
             Assert.That(result.InnerStatusCode, Is.EqualTo(StatusCodes.BadUnexpectedError));
+        }
+
+        [TestCase(0x01, nameof(DiagnosticInfo.SymbolicId))]
+        [TestCase(0x02, nameof(DiagnosticInfo.NamespaceUri))]
+        [TestCase(0x08, nameof(DiagnosticInfo.Locale))]
+        [TestCase(0x04, nameof(DiagnosticInfo.LocalizedText))]
+        public void ReadDiagnosticInfoRejectsInvalidNegativeStringTableIndex(int encodingMask, string fieldName)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = [(byte)encodingMask, .. BitConverter.GetBytes(-2)];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDiagnosticInfo(null));
+
+            // Assert
+            Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            Assert.That(ex.Message, Does.Contain(fieldName));
+        }
+
+        [TestCase(0x01)]
+        [TestCase(0x02)]
+        [TestCase(0x08)]
+        [TestCase(0x04)]
+        public void ReadDiagnosticInfoAcceptsMinusOneStringTableIndex(int encodingMask)
+        {
+            // Arrange
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            byte[] buffer = [(byte)encodingMask, .. BitConverter.GetBytes(-1)];
+            using var decoder = new BinaryDecoder(buffer, messageContext);
+
+            // Act
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null)!;
+
+            // Assert
+            Assert.That(result, Is.Not.Null);
         }
 
         [Test]
@@ -4061,36 +4107,61 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteDiagnosticInfo(null, diagnosticInfo);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
-            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null);
+            DiagnosticInfo result = decoder.ReadDiagnosticInfo(null)!;
 
             // Assert
-            Assert.That(CountDiagnosticInfoDepth(result), Is.EqualTo(DiagnosticInfo.MaxInnerDepth));
+            Assert.That(CountDiagnosticInfoDepth(result!), Is.EqualTo(DiagnosticInfo.MaxInnerDepth));
         }
 
         [Test]
         public void ReadDiagnosticInfoThrowsWhenInnerDepthExceedsMaxInnerDepth()
         {
-            // Arrange
+            // Arrange - a hand crafted chain that is one level deeper than the
+            // encoder would ever write.
             ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
-            DiagnosticInfo diagnosticInfo = CreateDiagnosticInfoChain(DiagnosticInfo.MaxInnerDepth);
 
-            using var encoder = new BinaryEncoder(messageContext);
-            encoder.WriteDiagnosticInfo(null, diagnosticInfo);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            var buffer = new List<byte>();
+            for (int ii = 0; ii <= DiagnosticInfo.MaxInnerDepth + 1; ii++)
+            {
+                buffer.Add(0x40); // InnerDiagnosticInfo present
+            }
+            buffer.Add(0x00); // innermost has no fields
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer.ToArray(), messageContext);
 
             // Act
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDiagnosticInfo(null));
 
             // Assert
             Assert.That(ex.StatusCode, Is.EqualTo(StatusCodes.BadEncodingLimitsExceeded));
+        }
+
+        [Test]
+        public void ReadDiagnosticInfoAcceptsEveryLevelTheEncoderWrites()
+        {
+            // Regression: the encoder emits an InnerDiagnosticInfo while
+            // depth < MaxInnerDepth, so the deepest child it writes sits at
+            // depth == MaxInnerDepth. The decoder used to reject that level.
+            ITelemetryContext telemetryContext = NUnitTelemetryContext.Create();
+            var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
+            DiagnosticInfo diagnosticInfo = CreateDiagnosticInfoChain(DiagnosticInfo.MaxInnerDepth);
+
+            using var encoder = new BinaryEncoder(messageContext);
+            encoder.WriteDiagnosticInfo(null, diagnosticInfo);
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
+
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
+
+            DiagnosticInfo decoded = decoder.ReadDiagnosticInfo(null)!;
+
+            Assert.That(decoded, Is.Not.Null);
+            Assert.That(CountDiagnosticInfoDepth(decoded), Is.EqualTo(DiagnosticInfo.MaxInnerDepth + 1));
         }
 
         [Test]
@@ -4103,10 +4174,10 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteDiagnosticInfo(null, diagnosticInfo);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
             messageContext.MaxEncodingNestingLevels = 2;
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             ServiceResultException ex = Assert.Throws<ServiceResultException>(() => decoder.ReadDiagnosticInfo(null));
@@ -4125,9 +4196,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteQualifiedName(null, expected);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             QualifiedName result = decoder.ReadQualifiedName(null);
@@ -4179,9 +4250,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteNodeId(null, expected);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             NodeId result = decoder.ReadNodeId(null);
@@ -4246,9 +4317,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteExpandedNodeId(null, expected);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             ExpandedNodeId result = decoder.ReadExpandedNodeId(null);
@@ -4269,9 +4340,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteExpandedNodeId(null, expected);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             ExpandedNodeId result = decoder.ReadExpandedNodeId(null);
@@ -4338,7 +4409,7 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             // Act & Assert
             ArgumentNullException ex = Assert.Throws<ArgumentNullException>(() =>
-                BinaryDecoder.DecodeMessage<TestEncodeable>((byte[])null, messageContext));
+                BinaryDecoder.DecodeMessage<TestEncodeable>((byte[])null!, messageContext));
             Assert.That(ex.ParamName, Is.EqualTo("buffer"));
         }
 
@@ -4388,7 +4459,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ArrayOf<string> result = decoder.ReadStringArray(null);
+            ArrayOf<string?> result = decoder.ReadStringArray(null);
 
             // Assert
             Assert.That(result.IsNull, Is.True);
@@ -4402,14 +4473,14 @@ namespace Opc.Ua.Types.Tests.Encoders
             var messageContext = ServiceMessageContext.CreateEmpty(telemetryContext);
 
             using var encoder = new BinaryEncoder(messageContext);
-            ArrayOf<string> values = ["Hello", "World", null, string.Empty];
+            ArrayOf<string> values = ["Hello", "World", null!, string.Empty];
             encoder.WriteStringArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
-            ArrayOf<string> result = decoder.ReadStringArray(null);
+            ArrayOf<string?> result = decoder.ReadStringArray(null);
 
             // Assert
             Assert.That(result.IsNull, Is.False);
@@ -4434,9 +4505,9 @@ namespace Opc.Ua.Types.Tests.Encoders
                 new LocalizedText("de", "Hallo")
             ];
             encoder.WriteLocalizedTextArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             ArrayOf<LocalizedText> result = decoder.ReadLocalizedTextArray(null);
@@ -4464,19 +4535,19 @@ namespace Opc.Ua.Types.Tests.Encoders
                 new DiagnosticInfo { SymbolicId = 2, AdditionalInfo = "info" }
             ];
             encoder.WriteDiagnosticInfoArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
-            ArrayOf<DiagnosticInfo> result = decoder.ReadDiagnosticInfoArray(null);
+            ArrayOf<DiagnosticInfo?> result = decoder.ReadDiagnosticInfoArray(null);
 
             // Assert
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.Count, Is.EqualTo(2));
-            Assert.That(result[0].SymbolicId, Is.EqualTo(1));
-            Assert.That(result[1].SymbolicId, Is.EqualTo(2));
-            Assert.That(result[1].AdditionalInfo, Is.EqualTo("info"));
+            Assert.That(result[0]!.SymbolicId, Is.EqualTo(1));
+            Assert.That(result[1]!.SymbolicId, Is.EqualTo(2));
+            Assert.That(result[1]!.AdditionalInfo, Is.EqualTo("info"));
         }
 
         [Test]
@@ -4489,9 +4560,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteByteString(null, data);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act & Assert
             ServiceResultException ex = Assert.Throws<ServiceResultException>(
@@ -4509,9 +4580,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteByteString(null, data);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             ByteString result = decoder.ReadByteString(3);
@@ -4532,9 +4603,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteVariant(null, variant);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             Variant result = decoder.ReadVariant(null);
@@ -4566,9 +4637,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteDataValue(null, dataValue);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             DataValue result = decoder.ReadDataValue(null);
@@ -4599,7 +4670,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var nodeId = new NodeId(100, 1);
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteNodeId(null, nodeId);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
             // Decode with different namespace ordering
             var streamNamespaces = new NamespaceTable();
@@ -4607,7 +4678,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             streamNamespaces.Append("http://namespace.a");
             streamNamespaces.Append("http://namespace.b");
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
             decoder.SetMappingTables(streamNamespaces, null);
 
             // Act
@@ -4630,9 +4701,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteExtensionObject(null, extensionObject);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             ExtensionObject result = decoder.ReadExtensionObject(null);
@@ -4640,7 +4711,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             // Assert
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.TypeId, Is.EqualTo(testEncodeable.BinaryEncodingId));
-            Assert.That(result.TryGetValue(out TestEncodeable _), Is.True);
+            Assert.That(result.TryGetValue(out TestEncodeable? _), Is.True);
         }
 
         [Test]
@@ -4656,9 +4727,9 @@ namespace Opc.Ua.Types.Tests.Encoders
 
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteExtensionObject(null, extensionObject);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             ExtensionObject result = decoder.ReadExtensionObject(null);
@@ -4667,7 +4738,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             Assert.That(result.IsNull, Is.False);
             Assert.That(result.TypeId, Is.EqualTo(testEncodeable.BinaryEncodingId));
             Assert.That(result.TypeId, Is.Not.EqualTo(testEncodeable.TypeId));
-            Assert.That(result.TryGetValue(out TestEncodeableWithDifferentTypeIds _), Is.True);
+            Assert.That(result.TryGetValue(out TestEncodeableWithDifferentTypeIds? _), Is.True);
         }
 
         [Test]
@@ -5003,9 +5074,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<string> values = ["test1", "test2"];
             encoder.WriteStringArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.String, ValueRanks.OneDimension));
@@ -5030,9 +5101,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<DateTimeUtc> values = [dt];
             encoder.WriteDateTimeArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(
@@ -5061,9 +5132,9 @@ namespace Opc.Ua.Types.Tests.Encoders
                 (ByteString)new byte[] { 0x02, 0x03 }
             ];
             encoder.WriteByteStringArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ByteString, ValueRanks.OneDimension));
@@ -5086,9 +5157,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             var element = XmlElement.From("<test>value</test>");
             ArrayOf<XmlElement> values = [element];
             encoder.WriteXmlElementArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.XmlElement, ValueRanks.OneDimension));
@@ -5110,9 +5181,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<NodeId> values = [new NodeId(1), new NodeId(2)];
             encoder.WriteNodeIdArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.NodeId, ValueRanks.OneDimension));
@@ -5134,9 +5205,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<StatusCode> values = [StatusCodes.Good, StatusCodes.BadUnexpectedError];
             encoder.WriteStatusCodeArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.StatusCode, ValueRanks.OneDimension));
@@ -5158,9 +5229,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<Variant> values = [Variant.From(42), Variant.From("text")];
             encoder.WriteVariantArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.Variant, ValueRanks.OneDimension));
@@ -5182,9 +5253,9 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var encoder = new BinaryEncoder(messageContext);
             ArrayOf<ExtensionObject> values = [ExtensionObject.Null];
             encoder.WriteExtensionObjectArray(null, values);
-            byte[] buffer = encoder.CloseAndReturnBuffer();
+            byte[] buffer = encoder.CloseAndReturnBuffer()!;
 
-            using var decoder = new BinaryDecoder(buffer, messageContext);
+            using var decoder = new BinaryDecoder(buffer!, messageContext);
 
             // Act
             Variant result = decoder.ReadVariantValue(null, TypeInfo.Create(BuiltInType.ExtensionObject, ValueRanks.OneDimension));
@@ -5774,7 +5845,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var switches = new List<string> { "Field0", "Field1", "Field2" };
 
             // Act
-            uint result = decoder.ReadSwitchField(switches, out string fieldName);
+            uint result = decoder.ReadSwitchField(switches, out string? fieldName);
 
             // Assert
             Assert.That(result, Is.EqualTo(1u));
@@ -5795,7 +5866,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var switches = new List<string> { "Field0", "Field1" };
 
             // Act
-            uint result = decoder.ReadSwitchField(switches, out string fieldName);
+            uint result = decoder.ReadSwitchField(switches, out string? fieldName);
 
             // Assert
             Assert.That(result, Is.EqualTo(5u));
@@ -6009,7 +6080,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
             // Act
-            ArrayOf<DiagnosticInfo> result = decoder.ReadDiagnosticInfoArray(null);
+            ArrayOf<DiagnosticInfo?> result = decoder.ReadDiagnosticInfoArray(null);
 
             // Assert
             Assert.That(result.IsNull, Is.True);
@@ -6319,7 +6390,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 // No decoding needed for test
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestEncodeable;
             }
@@ -6346,7 +6417,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 // No decoding needed for test
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestComplexTypeInstance;
             }
@@ -6385,7 +6456,7 @@ namespace Opc.Ua.Types.Tests.Encoders
                 Value = decoder.ReadInt32(null);
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestEncodeableWithData;
             }
@@ -6410,7 +6481,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestEncodeableNs1;
             }
@@ -6435,7 +6506,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             {
             }
 
-            public bool IsEqual(IEncodeable encodeable)
+            public bool IsEqual(IEncodeable? encodeable)
             {
                 return encodeable is TestEncodeableWithDifferentTypeIds;
             }
@@ -6457,7 +6528,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             encodeableType.SetupGet(x => x.Type).Returns(typeof(TestEncodeable));
             encodeableType.Setup(x => x.CreateInstance()).Returns(new TestEncodeable());
             IEncodeableType type = encodeableType.Object;
-            mockFactory.Setup(f => f.TryGetEncodeableType(testTypeId, out type))
+            mockFactory.Setup(f => f.TryGetEncodeableType(testTypeId, out type!))
                 .Returns(true);
             return new ServiceMessageContext(telemetryContext, mockFactory.Object)
             {
@@ -6488,7 +6559,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             while (current != null)
             {
                 depth++;
-                current = current.InnerDiagnosticInfo;
+                current = current.InnerDiagnosticInfo!;
             }
 
             return depth;
@@ -6506,7 +6577,7 @@ namespace Opc.Ua.Types.Tests.Encoders
             var message = new TestEncodeable();
             encoder.EncodeMessage(message);
 
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
 
         private static byte[] CreateMatrixBuffer(
@@ -6514,10 +6585,13 @@ namespace Opc.Ua.Types.Tests.Encoders
             Action<BinaryEncoder> writeArray,
             int[] dimensions)
         {
+            // The inline matrix (OPC 10000-6 5.2.5 Table 28) is the
+            // dimensions followed by the values without a length prefix.
             using var encoder = new BinaryEncoder(messageContext);
             encoder.WriteInt32Array(null, dimensions);
-            writeArray(encoder);
-            return encoder.CloseAndReturnBuffer();
+            using var values = new BinaryEncoder(messageContext);
+            writeArray(values);
+            return [.. encoder.CloseAndReturnBuffer()!, .. values.CloseAndReturnBuffer()!.Skip(4)];
         }
 
         // Issue 3546 follow-up: invalid attacker-controlled matrix dimensions
@@ -6528,7 +6602,6 @@ namespace Opc.Ua.Types.Tests.Encoders
         // exception instead of a normal parser-rejected message.
 
         private static readonly int[] s_singleZero = [0];
-        private static readonly int[] s_singleOne = [1];
         private static readonly int[] s_pair12 = [1, 2];
         private static readonly int[] s_overflowDims = [65537, 65537];
         private static readonly int[] s_negativeDim = [-1, 1];
@@ -6556,25 +6629,29 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
-        public void ReadMatrixWithNegativeDimensionThrowsBadDecodingError()
+        public void ReadMatrixWithNegativeDimensionIsEmptyMatrix()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var messageContext = ServiceMessageContext.CreateEmpty(telemetry);
 
-            // Negative dimension is rejected by MatrixOf<T> for security
-            // (downstream Array.CreateInstance / Span<T> would crash on it).
+            // A dimension <= 0 means no values are encoded (OPC 10000-6 5.2.5
+            // Table 28). The negative dimension is normalized to 0, MatrixOf<T>
+            // never sees it (downstream Array.CreateInstance / Span<T> would
+            // crash on it).
             byte[] buffer = CreateMatrixBuffer(
                 messageContext,
-                encoder => encoder.WriteInt32Array(null, s_singleOne),
+                encoder => encoder.WriteInt32Array(null, default),
                 s_negativeDim);
 
             using var decoder = new BinaryDecoder(buffer, messageContext);
 
-            ServiceResultException sre = Assert.Throws<ServiceResultException>(
-                () => decoder.ReadVariantValue(
-                    null,
-                    TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)));
-            Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadDecodingError));
+            MatrixOf<int> matrix = decoder.ReadVariantValue(
+                null,
+                TypeInfo.Create(BuiltInType.Int32, ValueRanks.TwoDimensions)).GetInt32Matrix();
+            Assert.That(matrix.IsNull, Is.False);
+            Assert.That(matrix.Count, Is.Zero);
+            Assert.That(matrix.Dimensions, Is.EqualTo(s_zeroByOne));
+            Assert.That(decoder.Position, Is.EqualTo(buffer.Length));
         }
 
         [Test]

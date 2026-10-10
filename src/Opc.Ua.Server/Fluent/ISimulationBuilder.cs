@@ -121,6 +121,9 @@ namespace Opc.Ua.Server.Fluent
             NodeManagerBuilder concrete =
                 FluentNodeManagerBase.ResolveAttachedBuilder(builder, "Simulation");
 
+            // The first simulation hands loop release to the behavior mechanism, so
+            // teardown awaits the drain instead of blocking inside Dispose.
+            concrete.EnsureSimulationLifecycleRegistered();
             return concrete.Simulations!.NewSimulation(interval);
         }
     }

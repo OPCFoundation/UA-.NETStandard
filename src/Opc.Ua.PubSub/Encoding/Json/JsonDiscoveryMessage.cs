@@ -90,6 +90,20 @@ namespace Opc.Ua.PubSub.Encoding.Json
         public UadpApplicationInformation? ApplicationInformation { get; init; }
 
         /// <summary>
+        /// The <c>ua-application</c> Description (Part 14 §7.2.5.5.3).
+        /// When not set the encoder builds it from
+        /// <see cref="ApplicationInformation"/>; the decoder sets both.
+        /// </summary>
+        public ApplicationDescription? Description { get; init; }
+
+        /// <summary>
+        /// When the message was first sent to the middleware (Part 14
+        /// §7.2.5.5). The encoder uses the current time when it is not
+        /// set.
+        /// </summary>
+        public DateTimeUtc Timestamp { get; init; } = DateTimeUtc.MinValue;
+
+        /// <summary>
         /// Application status payload when <see cref="DiscoveryType"/> is
         /// <see cref="UadpDiscoveryType.ApplicationInformation"/> with the
         /// status discriminator from Part 14 §7.2.4.6.7.
@@ -133,7 +147,8 @@ namespace Opc.Ua.PubSub.Encoding.Json
 
         /// <summary>
         /// Status of the discovery response (Good unless the
-        /// publisher signals an error).
+        /// publisher signals an error). The JSON discovery messages of
+        /// Part 14 §7.2.5.5 do not carry it.
         /// </summary>
         public StatusCode Status { get; init; } = StatusCodes.Good;
 

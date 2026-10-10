@@ -247,7 +247,7 @@ namespace Opc.Ua
         /// <param name="url">The url</param>
         public static bool IsUriHttpRelatedScheme(string url)
         {
-            return url.StartsWith(UriSchemeHttps, StringComparison.Ordinal) ||
+            return url.StartsWith(UriSchemeHttp, StringComparison.Ordinal) ||
                 IsUriHttpsScheme(url);
         }
 
@@ -316,11 +316,9 @@ namespace Opc.Ua
             }
 
             var buffer = new StringBuilder();
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             // check for special folder.
             if (!Enum.TryParse(folder, out Environment.SpecialFolder specialFolder))
             {
-#endif
                 folder = ReplaceSpecialFolderWithEnvVar(folder);
                 string? value = Environment.GetEnvironmentVariable(folder);
                 if (value != null)
@@ -331,13 +329,11 @@ namespace Opc.Ua
                 {
                     buffer.Append(DefaultLocalFolder);
                 }
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
             }
             else
             {
                 buffer.Append(Environment.GetFolderPath(specialFolder));
             }
-#endif
             // construct new path.
             buffer.Append(path);
             return buffer.ToString();
@@ -754,7 +750,7 @@ namespace Opc.Ua
 
             // construct new uri.
             var buffer = new StringBuilder();
-#if NET5_0_OR_GREATER || NETSTANDARD2_1
+#if NET5_0_OR_GREATER
             buffer
                 .Append(uri.AsSpan(0, index))
                 .Append(hostname ?? GetHostName())
@@ -795,7 +791,7 @@ namespace Opc.Ua
 
             // construct new uri.
             var buffer = new StringBuilder();
-#if NET5_0_OR_GREATER || NETSTANDARD2_1
+#if NET5_0_OR_GREATER
             buffer
                 .Append(subjectName.AsSpan(0, index + 3))
                 .Append(hostname ?? GetHostName())
@@ -1071,7 +1067,7 @@ namespace Opc.Ua
         /// <summary>
         /// Converts a buffer to a hexadecimal string.
         /// </summary>
-#if NETSTANDARD2_1_OR_GREATER || NET6_0_OR_GREATER
+#if NET6_0_OR_GREATER
         public static string ToHexString(byte[] buffer, bool invertEndian = false)
         {
             return CoreUtils.ToHexString(buffer, invertEndian);
@@ -1163,7 +1159,7 @@ namespace Opc.Ua
         /// <summary>
         /// Formats a message using the invariant locale.
         /// </summary>
-        public static string Format(string text, params object[] args)
+        public static string Format(string text, params object?[] args)
         {
             return CoreUtils.Format(text, args);
         }
@@ -1497,9 +1493,10 @@ namespace Opc.Ua
                 throw new ArgumentNullException(nameof(encoderFunc));
             }
 
+            bool remove = EqualityComparer<T>.Default.Equals(value!, default!);
             var document = new XmlDocument();
 
-            if (!EqualityComparer<T>.Default.Equals(value!, default!))
+            if (!remove)
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
                 using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
@@ -1508,11 +1505,12 @@ namespace Opc.Ua
                 encoder.Pop();
                 string xml = encoder.CloseAndReturnText()!;
                 document.LoadInnerXml(xml);
-            }
 
-            if (document.DocumentElement == null)
-            {
-                return;
+                // nothing to write: the encoder produced no element.
+                if (document.DocumentElement == null && !remove)
+                {
+                    return;
+                }
             }
 
             var xmlElements = extensions.ToList();
@@ -1525,7 +1523,7 @@ namespace Opc.Ua
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
                     {
-                        if (EqualityComparer<T>.Default.Equals(value!, default!))
+                        if (remove)
                         {
                             xmlElements.RemoveAt(ii);
                             extensions = xmlElements.ToArrayOf();
@@ -1539,7 +1537,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!EqualityComparer<T>.Default.Equals(value!, default!))
+            if (!remove)
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();
@@ -1610,10 +1608,11 @@ namespace Opc.Ua
             where T : IEncodeable
         {
             elementName ??= GetEncodeableXmlName(typeof(T));
+            bool remove = EqualityComparer<T>.Default.Equals(value!, default!);
 
             var document = new XmlDocument();
 
-            if (!EqualityComparer<T>.Default.Equals(value!, default!))
+            if (!remove)
             {
                 using IDisposable scope = AmbientMessageContext.SetScopedContext(telemetry!);
                 using var encoder = new XmlEncoder(AmbientMessageContext.CurrentContext);
@@ -1624,7 +1623,7 @@ namespace Opc.Ua
                 document.LoadInnerXml(xml);
             }
 
-            if (document.DocumentElement == null)
+            if (document.DocumentElement == null && !remove)
             {
                 return;
             }
@@ -1639,7 +1638,7 @@ namespace Opc.Ua
                         element.LocalName == elementName.Name &&
                         element.NamespaceURI == elementName.Namespace)
                     {
-                        if (EqualityComparer<T>.Default.Equals(value!, default!))
+                        if (remove)
                         {
                             xmlElements.RemoveAt(ii);
                             extensions = xmlElements.ToArrayOf();
@@ -1653,7 +1652,7 @@ namespace Opc.Ua
                 }
             }
 
-            if (!EqualityComparer<T>.Default.Equals(value!, default!))
+            if (!remove)
             {
                 xmlElements.Add(XmlElement.From(document.DocumentElement));
                 extensions = xmlElements.ToArrayOf();
@@ -1717,9 +1716,7 @@ namespace Opc.Ua
         {
             try
             {
-#if !NETSTANDARD1_4 && !NETSTANDARD1_3
                 return File.GetLastWriteTimeUtc(typeof(Utils).GetTypeInfo().Assembly.Location);
-#endif
             }
             catch
             {
@@ -1845,52 +1842,34 @@ namespace Opc.Ua
         }
 
         /// <summary>
-        /// Creates a X509 certificate collection object from the DER encoded bytes.
+        /// Creates a collection of at most 16 X509 certificates from concatenated DER encoded bytes.
         /// </summary>
         /// <param name="certificateData">The certificate data.</param>
         /// <param name="telemetry">The telemetry context to use to create obvservability instruments</param>
-        /// <param name="useAsnParser">Whether the ASN.1 library should be used to decode certificate blobs.</param>
+        /// <param name="useAsnParser">
+        /// Retained for compatibility. DER framing is always validated before loading each certificate.
+        /// </param>
         /// <exception cref="ServiceResultException"></exception>
         public static CertificateCollection ParseCertificateChainBlob(
             ReadOnlyMemory<byte> certificateData,
             ITelemetryContext? telemetry,
             bool useAsnParser = false)
         {
-            var certificateChain = new CertificateCollection();
-            int offset = 0;
-            int length = certificateData.Length;
-            while (offset < length)
+            try
             {
-                Certificate? certificate = null;
-                try
-                {
-                    ReadOnlyMemory<byte> certBlob = certificateData[offset..];
-#if !NETFRAMEWORK
-                    // macOS X509Certificate2 constructor throws exception if a certchain is encoded
-                    // use AsnParser on macOS to parse for byteblobs,
-                    if (useAsnParser || RuntimeInformation.IsOSPlatform(OSPlatform.OSX))
-                    {
-                        certBlob = AsnUtils.ParseX509Blob(certBlob);
-                    }
-#endif
-                    certificate = Certificate.FromRawData(certBlob);
-                    certificateChain.Add(certificate);
-                    offset += certificate.RawData.Length;
-                }
-                catch (Exception e)
-                {
-                    throw new ServiceResultException(
-                        StatusCodes.BadCertificateInvalid,
-                        "Could not parse DER encoded form of a X509 certificate.",
-                        e);
-                }
-                finally
-                {
-                    certificate?.Dispose();
-                }
+                return DefaultCertificateFactory.Instance.ParseChainBlob(certificateData);
             }
-
-            return certificateChain;
+            catch (Exception e)
+            {
+                // Deliberately broad: this is a public API called on untrusted wire data
+                // (TcpListenerChannel, X509IdentityTokenHandler, ServerPushConfigurationClient),
+                // and malformed DER surfaces as different exception types per platform and TFM.
+                // Callers catch ServiceResultException, so anything escaping raw would break them.
+                throw new ServiceResultException(
+                    StatusCodes.BadCertificateInvalid,
+                    "Could not parse DER encoded form of a X509 certificate.",
+                    e);
+            }
         }
 
         /// <summary>

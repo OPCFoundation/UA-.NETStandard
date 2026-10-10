@@ -613,6 +613,12 @@ namespace Opc.Ua
                     typeInfo = new TypeInfo();
                     m_nodes.Add(node.NodeId, typeInfo);
                 }
+                else if (typeInfo.SuperType != null &&
+                    !ReferenceEquals(typeInfo.SuperType, superTypeInfo))
+                {
+                    // re-parented: detach from the previous supertype (as AddSubtype does).
+                    typeInfo.SuperType.RemoveSubType(node.NodeId);
+                }
 
                 // update the info.
                 typeInfo.NodeId = node.NodeId;

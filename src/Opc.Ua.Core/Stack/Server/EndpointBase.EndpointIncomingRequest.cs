@@ -39,7 +39,7 @@ namespace Opc.Ua
         /// <summary>
         /// An object that handles an incoming request for an endpoint.
         /// </summary>
-        protected readonly struct EndpointIncomingRequest : IParkableIncomingRequest, IEquatable<EndpointIncomingRequest>
+        protected struct EndpointIncomingRequest : IParkableIncomingRequest, IEquatable<EndpointIncomingRequest>
         {
             /// <summary>
             /// Initialize the Object with a Request
@@ -52,12 +52,11 @@ namespace Opc.Ua
                 m_endpoint = endpoint;
                 SecureChannelContext = context;
                 Request = request;
+                m_parkSink = request is PublishRequest || endpoint.RequestParkingPolicy?.CanPark(request) == true
+                    ? new RequestParkSink()
+                    : null;
                 m_vts = ServiceResponsePooledValueTaskSource.Create();
-
-                // Only requests that can park (currently Publish long-polls) carry a park
-                // sink; every other request uses the legacy inline path with no extra
-                // per-request allocation or work.
-                m_parkSink = request is PublishRequest ? new RequestParkSink() : null;
+                m_transportCancellationToken = default;
             }
 
             /// <inheritdoc/>
@@ -67,7 +66,7 @@ namespace Opc.Ua
             public IServiceRequest Request { get; }
 
             /// <inheritdoc/>
-            RequestParkSink? IParkableIncomingRequest.ParkSink => m_parkSink;
+            readonly RequestParkSink? IParkableIncomingRequest.ParkSink => m_parkSink;
 
             /// <summary>
             /// Process an incoming request
@@ -77,6 +76,7 @@ namespace Opc.Ua
             {
                 try
                 {
+                    m_transportCancellationToken = cancellationToken;
                     m_endpoint.ServerForContext.ScheduleIncomingRequest(this, cancellationToken);
                 }
                 catch (Exception e)
@@ -88,7 +88,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public async ValueTask CallAsync(CancellationToken cancellationToken = default)
+            public readonly async ValueTask CallAsync(CancellationToken cancellationToken = default)
             {
                 using CancellationTokenSource? timeoutHintCts = (int)Request.RequestHeader.TimeoutHint > 0 ?
                     TimeProvider.System.CreateCancellationTokenSource(
@@ -96,8 +96,8 @@ namespace Opc.Ua
 
                 using var requestLifetime = new RequestLifetime(
                     timeoutHintCts != null ?
-                    [cancellationToken, timeoutHintCts.Token] :
-                    [cancellationToken]);
+                    [cancellationToken, m_transportCancellationToken, timeoutHintCts.Token] :
+                    [cancellationToken, m_transportCancellationToken]);
 
                 // Flow the park sink so a handler that parks (e.g. a held Publish
                 // waiting for notifications) can release the processing worker.
@@ -109,8 +109,7 @@ namespace Opc.Ua
                 try
                 {
                     Activity? activity = null;
-                    ActivitySource activitySource = m_endpoint.MessageContext.Telemetry
-                        .GetActivitySource();
+                    ActivitySource activitySource = m_endpoint.RequestActivitySource;
                     if (activitySource.HasListeners())
                     {
                         // extract trace information from the request header if available
@@ -160,7 +159,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public void OperationCompleted(IServiceResponse? response, ServiceResult error)
+            public readonly void OperationCompleted(IServiceResponse? response, ServiceResult error)
             {
                 if (ServiceResult.IsBad(error))
                 {
@@ -173,7 +172,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public override bool Equals(object? obj)
+            public override readonly bool Equals(object? obj)
             {
                 if (obj is EndpointIncomingRequest other)
                 {
@@ -183,7 +182,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public override int GetHashCode()
+            public override readonly int GetHashCode()
             {
                 return Request.RequestHeader.GetHashCode();
             }
@@ -201,7 +200,7 @@ namespace Opc.Ua
             }
 
             /// <inheritdoc/>
-            public bool Equals(EndpointIncomingRequest other)
+            public readonly bool Equals(EndpointIncomingRequest other)
             {
                 return Request.RequestHeader.Equals(other.Request.RequestHeader);
             }
@@ -209,6 +208,7 @@ namespace Opc.Ua
             private readonly EndpointBase m_endpoint;
             private readonly ServiceResponsePooledValueTaskSource m_vts;
             private readonly RequestParkSink? m_parkSink;
+            private CancellationToken m_transportCancellationToken;
         }
     }
 }

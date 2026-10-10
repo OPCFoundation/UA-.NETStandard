@@ -50,8 +50,11 @@ namespace Opc.Ua.WotCon.Server
     /// The generated <c>Refresh</c> Method is wired to the coordinator; the
     /// coordinator's events are re-emitted as the generated registry event types.
     /// </summary>
-    public sealed class WotRegistryNodeManager : AsyncCustomNodeManager, INodeManagerReadinessParticipant,
-        IWotRegistryReadImageProjection
+    public sealed class WotRegistryNodeManager :
+        AsyncCustomNodeManager,
+        INodeManagerReadinessParticipant,
+        IWotRegistryReadImageProjection,
+        ILocalAddressSpaceOwnership
     {
         /// <summary>
         /// Initializes a new registry NodeManager.
@@ -72,6 +75,14 @@ namespace Opc.Ua.WotCon.Server
             m_options = options ?? throw new ArgumentNullException(nameof(options));
             Registry = registry ?? throw new ArgumentNullException(nameof(registry));
             Coordinator = coordinator ?? throw new ArgumentNullException(nameof(coordinator));
+            m_wotConNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, Namespaces.WotCon);
+            m_xRegistryNamespaceIndex = WotConModelPartition.GetRequiredNamespaceIndex(
+                server.NamespaceUris, XRegistryWellKnown.XRegistryNamespaceUri);
+            if (NodeIdFactory is not INodeIdFactoryPolicy)
+            {
+                NodeIdFactory = NodeIdFactory.WithMode(NodeIdAssignmentMode.String);
+            }
             Coordinator.StrictBindings = options.StrictBindings;
             Coordinator.DeletePolicy = options.DeletePolicy;
             Coordinator.RetirementPolicy = options.RetirementPolicy;
@@ -95,6 +106,15 @@ namespace Opc.Ua.WotCon.Server
         /// Gets the hosted materialization coordinator.
         /// </summary>
         public WotMaterializationCoordinator Coordinator { get; }
+
+        string ILocalAddressSpaceOwnership.PartitionId =>
+            $"{Namespaces.WotCon}:registry|{XRegistryWellKnown.XRegistryNamespaceUri}";
+
+        bool ILocalAddressSpaceOwnership.OwnsNode(NodeId nodeId)
+        {
+            return nodeId.NamespaceIndex == m_xRegistryNamespaceIndex ||
+                WotConModelPartition.IsRegistryNode(nodeId, m_wotConNamespaceIndex);
+        }
 
         /// <inheritdoc/>
         protected override ValueTask<NodeStateCollection> LoadPredefinedNodesAsync(
@@ -875,6 +895,8 @@ namespace Opc.Ua.WotCon.Server
 
         private readonly WotRegistryServerOptions m_options;
         private readonly WotRegistryProjection m_projection;
+        private readonly ushort m_wotConNamespaceIndex;
+        private readonly ushort m_xRegistryNamespaceIndex;
         private readonly WotRegistryReconcileQueue m_reconcileQueue;
         private readonly SemaphoreSlim m_refreshGate = new(1, 1);
         private BaseObjectState? m_registryNode;

@@ -93,7 +93,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             TemplateString templateString = "test template content";
 
             // Act & Assert
-            Assert.DoesNotThrow(() => new Template(null, templateString));
+            Assert.DoesNotThrow(() => new Template(null!, templateString));
         }
 
         /// <summary>
@@ -109,7 +109,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             using var writer = new TemplateWriter(stringWriter);
 
             // Act & Assert
-            Assert.DoesNotThrow(() => new Template(writer, null));
+            Assert.DoesNotThrow(() => new Template(writer, null!));
         }
 
         /// <summary>
@@ -121,7 +121,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
         public void Constructor_WithBothParametersNull_DoesNotThrow()
         {
             // Act & Assert
-            Assert.DoesNotThrow(() => new Template(null, null));
+            Assert.DoesNotThrow(() => new Template(null!, null!));
         }
 
         /// <summary>
@@ -267,7 +267,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             template = new Template(templateWriter, templateString);
 
             // Act & Assert
-            Assert.DoesNotThrow(() => template.AddReplacement("TestToken", (string)null));
+            Assert.DoesNotThrow(() => template.AddReplacement("TestToken", (string)null!));
         }
 
         /// <summary>
@@ -714,6 +714,7 @@ namespace Opc.Ua.SourceGeneration.Templating.Tests
             {
                 var template = new Template(templateWriter, templateString);
 
+                template.AddReplacement(Tokens.IdModifier, "const");
                 template.AddReplacement(Tokens.IdType, "uint");
                 template.AddReplacement(Tokens.SymbolicName, "MyId");
                 template.AddReplacement(Tokens.Identifier, "12345");

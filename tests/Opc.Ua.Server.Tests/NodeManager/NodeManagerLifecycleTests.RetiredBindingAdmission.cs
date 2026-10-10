@@ -58,11 +58,13 @@ namespace Opc.Ua.Server.Tests.NodeManager
             using Opc.Ua.Client.ISession session = await client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None)
                 .ConfigureAwait(false);
-            TrackingLifecycleNodeManager original = null;
-            TrackingLifecycleNodeManager candidate = null;
-            TrackingLifecycleNodeManager nested = null;
+            TrackingLifecycleNodeManager? original = null;
+            TrackingLifecycleNodeManager? candidate = null;
+            TrackingLifecycleNodeManager? nested = null;
             NodeManagerRegistration registration = await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 kGeneration1Value, value => original = value), null, timeout.Token).ConfigureAwait(false);
+            TrackingLifecycleNodeManager originalManager = original ??
+                throw new AssertionException("The original generation was not created.");
             CreateSubscriptionResponse subscription = await session.CreateSubscriptionAsync(
                 null, 100, 100, 10, 0, true, 0, timeout.Token).ConfigureAwait(false);
             var filter = new EventFilter();
@@ -92,15 +94,17 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Replace(registration, CreateTrackingNodeManagementFactory(
                     kGeneration2Value, value => candidate = value), true)], timeout.Token).ConfigureAwait(false);
+            TrackingLifecycleNodeManager candidateManager = candidate ??
+                throw new AssertionException("The prepared replacement generation was not created.");
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 303, value => nested = value, kReadinessProbeNamespaceUri);
             var factory = new CallbackSafeNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<NodeManagerRegistration> adding = null;
+            Task<NodeManagerRegistration>? adding = null;
             int callbackClaims = 0;
-            original.AllEventsCallback = async (item, unsubscribe, _) =>
+            originalManager.AllEventsCallback = async (item, unsubscribe, _) =>
             {
                 if (item.Id != eventId || unsubscribe != delete ||
                     Interlocked.CompareExchange(ref callbackClaims, 1, 0) != 0)
@@ -146,19 +150,22 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 Assert.That(result.CleanupFailure, Is.Null);
                 Assert.That(prepared.IsCommitted, Is.True);
                 Assert.That(factory.CreateCount, Is.EqualTo(1));
-                Assert.That(server.EventManager.GetMonitoredItems().Any(item => item.Id == eventId), Is.EqualTo(!delete));
-                Assert.That(candidate.SubscribedAllEventIds.ToList(),
+                Assert.That(server.EventManager.GetMonitoredItems().Any(item => item.Id == eventId),
+                    Is.EqualTo(!delete));
+                TrackingLifecycleNodeManager nestedManager = nested ??
+                    throw new AssertionException("The nested lifecycle generation was not created.");
+                Assert.That(candidateManager.SubscribedAllEventIds.ToList(),
                     Is.EqualTo(delete ? Array.Empty<uint>() : new[] { eventId }));
-                Assert.That(nested.SubscribedAllEventIds.ToList(),
+                Assert.That(nestedManager.SubscribedAllEventIds.ToList(),
                     Is.EqualTo(delete ? Array.Empty<uint>() : new[] { eventId }),
                     "Nested lifecycle work must not bind an item already removed from its Subscription.");
-                Assert.That(nested.UnsubscribedAllEventIds.IsEmpty, Is.True);
+                Assert.That(nestedManager.UnsubscribedAllEventIds.IsEmpty, Is.True);
             }
             finally
             {
                 release.TrySetResult(true);
                 abortCallback.Cancel();
-                original.AllEventsCallback = null;
+                originalManager.AllEventsCallback = (_, _, _) => default;
                 if (adding is not null)
                 {
                     await adding.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -211,22 +218,26 @@ namespace Opc.Ua.Server.Tests.NodeManager
                 SessionTimeout = 60000
             };
             await client.LoadClientConfigurationAsync(m_pkiRoot).ConfigureAwait(false);
-            TrackingLifecycleNodeManager original = null;
-            TrackingLifecycleNodeManager candidate = null;
-            TrackingLifecycleNodeManager nested = null;
+            TrackingLifecycleNodeManager? original = null;
+            TrackingLifecycleNodeManager? candidate = null;
+            TrackingLifecycleNodeManager? nested = null;
             NodeManagerRegistration registration = await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 kGeneration1Value, value => original = value), null, timeout.Token).ConfigureAwait(false);
+            TrackingLifecycleNodeManager originalManager = original ??
+                throw new AssertionException("The original generation was not created.");
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 [NodeManagerBatchChange.Replace(registration, CreateTrackingNodeManagementFactory(
                     kGeneration2Value, value => candidate = value), immediate)], timeout.Token).ConfigureAwait(false);
+            TrackingLifecycleNodeManager candidateManager = candidate ??
+                throw new AssertionException("The prepared replacement generation was not created.");
             IAsyncNodeManagerFactory inner = CreateTrackingNodeManagementFactory(
                 303, value => nested = value, kReadinessProbeNamespaceUri);
             var factory = new CallbackSafeNodeManagerFactory([kReadinessProbeNamespaceUri], inner.CreateAsync);
             var entered = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
             var queued = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-            Task<NodeManagerRegistration> adding = null;
-            original.SessionActivatedCallback = async _ =>
+            Task<NodeManagerRegistration>? adding = null;
+            originalManager.SessionActivatedCallback = async _ =>
             {
                 Assert.That(server.RequestManager.GetCurrentRequestIdForLifecycleExtension().HasValue, Is.True);
                 adding = lifecycle.AddAsync(factory, null, timeout.Token).AsTask();
@@ -248,7 +259,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
             Task<Opc.Ua.Client.ISession> activation = client.ConnectAsync(
                 new Uri($"{Utils.UriSchemeOpcTcp}://localhost:{m_fixture.Port}"), SecurityPolicies.None);
-            Opc.Ua.Client.ISession session = null;
+            Opc.Ua.Client.ISession? session = null;
             bool cycle = false;
             try
             {
@@ -280,31 +291,35 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         "needs it to finish and release the notification being drained.");
                 }
                 NodeManagerBatchResult result = await commit.ConfigureAwait(false);
-                NodeId initialId = server.SessionManager.GetSession(m_requestHeader.AuthenticationToken).Id;
+                ISession initialSession = server.SessionManager.GetSession(m_requestHeader.AuthenticationToken) ??
+                    throw new AssertionException("The original server session was not found.");
+                Opc.Ua.Client.ISession activatedSession = session ??
+                    throw new AssertionException("The admitted client session was not activated.");
+                TrackingLifecycleNodeManager nestedManager = nested ??
+                    throw new AssertionException("The nested lifecycle generation was not created.");
+                NodeId initialId = initialSession.Id;
                 using (Assert.EnterMultipleScope())
                 {
                     Assert.That(result.CleanupFailure, Is.Null);
                     Assert.That(prepared.IsCommitted, Is.True);
                     Assert.That(factory.CreateCount, Is.EqualTo(1));
-                    Assert.That(candidate.ActivatedSessionIds.ToList(),
-                        Is.EquivalentTo(new[] { initialId, session.SessionId }));
-                    Assert.That(nested.ActivatedSessionIds.ToList(),
-                        Is.EquivalentTo(new[] { initialId, session.SessionId }));
+                    Assert.That(candidateManager.ActivatedSessionIds.ToList(),
+                        Is.EquivalentTo(new[] { initialId, activatedSession.SessionId }));
+                    Assert.That(nestedManager.ActivatedSessionIds.ToList(),
+                        Is.EquivalentTo(new[] { initialId, activatedSession.SessionId }));
                 }
-                await original.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
-                Assert.That(original.DeleteAddressSpaceCount, Is.EqualTo(1));
-                Assert.That(original.DisposeCount, Is.EqualTo(1));
+                await originalManager.DisposalCompleted.WaitAsync(timeout.Token).ConfigureAwait(false);
+                Assert.That(originalManager.DeleteAddressSpaceCount, Is.EqualTo(1));
+                Assert.That(originalManager.DisposeCount, Is.EqualTo(1));
             }
             finally
             {
                 release.TrySetResult(true);
                 abortCallback.Cancel();
-                original.SessionActivatedCallback = null;
-                if (session is not null)
-                {
-                    await session.CloseAsync(timeout.Token).ConfigureAwait(false);
-                    session.Dispose();
-                }
+                originalManager.SessionActivatedCallback = _ => default;
+                Opc.Ua.Client.ISession completedSession = RequireLifecycleValue(session);
+                await completedSession.CloseAsync(timeout.Token).ConfigureAwait(false);
+                completedSession.Dispose();
             }
         }
     }

@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System.Threading;
+using System.Threading.Tasks;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Server.Fluent;
 
@@ -77,8 +78,10 @@ namespace Opc.Ua.Robotics.Server
         T GetRequiredService<T>() where T : notnull;
 
         /// <summary>
-        /// Seals the builder and starts configured simulations.
+        /// Seals the builder, completes the registrations that could not
+        /// finish synchronously and starts configured simulations.
         /// </summary>
-        void Seal();
+        /// <param name="cancellationToken">The cancellation token.</param>
+        ValueTask SealAsync(CancellationToken cancellationToken = default);
     }
 }

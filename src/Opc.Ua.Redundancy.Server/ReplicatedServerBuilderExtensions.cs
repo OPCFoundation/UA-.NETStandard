@@ -120,9 +120,13 @@ namespace Opc.Ua.Redundancy.Server
 
             var options = new ReplicatedAddressSpaceOptions();
             configure?.Invoke(options);
+            builder.Services.TryAddSingleton(options);
 
+            builder.Services.TryAddSingleton(sp => new ReplicatedAddressSpaceStartupTask(sp, options));
             builder.Services.AddSingleton<IServerStartupTask>(
-                sp => new ReplicatedAddressSpaceStartupTask(sp, options));
+                sp => sp.GetRequiredService<ReplicatedAddressSpaceStartupTask>());
+            builder.Services.AddSingleton<IServerPreStartupTask>(
+                sp => sp.GetRequiredService<ReplicatedAddressSpaceStartupTask>());
 
             return builder;
         }

@@ -33,6 +33,7 @@ using System.IO;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
+using Moq;
 using NUnit.Framework;
 using Opc.Ua.Security.Certificates;
 using Opc.Ua.Tests;
@@ -49,6 +50,101 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
     [SetUICulture("en-us")]
     public class CertificateManagerTests
     {
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AdmittedValidationPreservesResultWhenManagerDisposesBeforeRejectedEnqueueAsync(
+            bool acceptError)
+        {
+            await using var manager = new CertificateManager(m_telemetry);
+            using Certificate certificate = CertificateBuilder.Create("CN=Admitted Validation").CreateForRSA();
+            Task disposal = Task.CompletedTask;
+            StatusCode observed = default;
+            manager.AcceptError = (_, error) =>
+            {
+                observed = error.StatusCode;
+                disposal = manager.DisposeAsync().AsTask();
+                return acceptError;
+            };
+            try
+            {
+                CertificateValidationResult result = await manager.ValidateAsync(certificate).ConfigureAwait(false);
+
+                Assert.That(observed, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+                Assert.That(result.IsValid, Is.EqualTo(acceptError));
+                Assert.That(result.StatusCode, Is.EqualTo(
+                    acceptError ? StatusCodes.Good : StatusCodes.BadCertificateUntrusted));
+                Assert.ThrowsAsync<ObjectDisposedException>(
+                    async () => await manager.ValidateAsync(certificate).ConfigureAwait(false));
+            }
+            finally
+            {
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task AdmittedEndpointValidationPreservesCertificateErrorDuringDisposalAsync(bool validateUri)
+        {
+            await using var manager = new CertificateManager(m_telemetry);
+            using Certificate certificate = CertificateBuilder.Create("CN=Endpoint Validation")
+                .AddExtension(new X509SubjectAltNameExtension("urn:actual:server", ["actual.invalid"]))
+                .CreateForRSA();
+            var endpoint = new ConfiguredEndpoint(null!, new EndpointDescription
+            {
+                EndpointUrl = "opc.tcp://different.invalid:4840",
+                Server = new ApplicationDescription { ApplicationUri = "urn:different:server" }
+            });
+            Task disposal = Task.CompletedTask;
+            StatusCode observed = default;
+            manager.AcceptError = (_, error) =>
+            {
+                observed = error.StatusCode;
+                disposal = manager.DisposeAsync().AsTask();
+                return false;
+            };
+            Action validate = validateUri
+                ? () => manager.ValidateApplicationUri(certificate, endpoint)
+                : () => manager.ValidateDomains(certificate, endpoint);
+            try
+            {
+                StatusCode expected = validateUri
+                    ? StatusCodes.BadCertificateUriInvalid
+                    : StatusCodes.BadCertificateHostNameInvalid;
+                ServiceResultException error = Assert.Throws<ServiceResultException>(() => validate());
+
+                Assert.That(error.StatusCode, Is.EqualTo(expected));
+                Assert.That(observed, Is.EqualTo(expected));
+                Assert.That(() => validate(), Throws.TypeOf<ObjectDisposedException>());
+            }
+            finally
+            {
+                await disposal.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            }
+        }
+
+        /// <summary>
+        /// Verifies rejected-certificate submission cannot recreate a writer after manager disposal.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RejectCertificateAfterDisposalDoesNotRecreateProcessorAsync(bool previouslyUsed)
+        {
+            await using var manager = new CertificateManager(m_telemetry);
+            using Certificate certificate = CertificateBuilder.Create("CN=Disposed Rejection").CreateForRSA();
+            using var chain = new CertificateCollection { certificate };
+            if (previouslyUsed)
+            {
+                await manager.RejectCertificateAsync(chain).ConfigureAwait(false);
+                await manager.FlushRejectedAsync().ConfigureAwait(false);
+            }
+            await manager.DisposeAsync().ConfigureAwait(false);
+            Assert.That(
+                async () => await manager.RejectCertificateAsync(chain).ConfigureAwait(false),
+                Throws.TypeOf<ObjectDisposedException>());
+            Assert.That(certificate.RawData, Is.Not.Empty);
+        }
+
         private ITelemetryContext m_telemetry;
         private readonly List<string> m_tempDirs = [];
 
@@ -128,7 +224,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             string trustedPath = CreateTempDir();
             manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
 
-            ICertificateStore store = manager.OpenIssuerStore(TrustListIdentifier.Peers);
+            ICertificateStore? store = manager.OpenIssuerStore(TrustListIdentifier.Peers);
 
             Assert.That(store, Is.Null);
         }
@@ -184,6 +280,193 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 Is.EqualTo(ObjectTypeIds.RsaSha256ApplicationCertificateType));
         }
 
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task PrivateKeyLoadingUsesScopedStoreProviderAsync(bool customProvider, bool coldPath)
+        {
+            using Certificate certificate = CertificateBuilder.Create("CN=ScopedKeyProvider")
+                .SetRSAKeySize(2048).CreateForRSA();
+            string storePath = CreateTempDir();
+            await certificate.AddToStoreAsync(CertificateStoreType.Directory, storePath, null, m_telemetry)
+                .ConfigureAwait(false);
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(instance => instance.StoreTypeName).Returns("ScopedKeyDirectory");
+            provider.Setup(instance => instance.SupportsStorePath(It.IsAny<string>())).Returns(false);
+            provider.Setup(instance => instance.CreateStore(m_telemetry))
+                .Returns(() => new DirectoryCertificateStore(false, m_telemetry));
+            var identifier = new CertificateIdentifier
+            {
+                Thumbprint = certificate.Thumbprint,
+                SubjectName = certificate.Subject,
+                StorePath = storePath,
+                StoreType = customProvider ? "ScopedKeyDirectory" : CertificateStoreType.Directory,
+                CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+            using var manager = new CertificateManager(m_telemetry, customProvider ? [provider.Object] : null);
+            if (coldPath)
+            {
+                using Certificate loaded = (await manager.CertificateProvider.GetPrivateKeyCertificateAsync(identifier)
+                    .ConfigureAwait(false))!;
+                Assert.That(loaded, Is.Not.Null);
+                Assert.That(loaded.HasPrivateKey, Is.True);
+                Assert.That(loaded.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            }
+            else
+            {
+                await manager.LoadApplicationCertificatesAsync(new SecurityConfiguration
+                {
+                    ApplicationCertificates = [identifier]
+                }).ConfigureAwait(false);
+                using CertificateEntry loaded = manager.AcquireApplicationCertificateByType(identifier.CertificateType)!;
+                Assert.That(loaded, Is.Not.Null);
+                Assert.That(loaded.Certificate.HasPrivateKey, Is.True);
+                Assert.That(loaded.Certificate.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            }
+            provider.Verify(instance => instance.CreateStore(m_telemetry),
+                customProvider ? Times.Once() : Times.Never());
+        }
+
+        [TestCase(null)]
+        [TestCase("")]
+        public async Task PrivateKeyLoadingInfersUnspecifiedStoreTypeAsync(string? storeType)
+        {
+            using Certificate certificate = CertificateBuilder.Create("CN=InferredStoreType")
+                .SetRSAKeySize(2048).CreateForRSA();
+            string storePath = CreateTempDir();
+            await certificate.AddToStoreAsync(CertificateStoreType.Directory, storePath, null, m_telemetry)
+                .ConfigureAwait(false);
+            using var manager = new CertificateManager(m_telemetry);
+            var resolver = new Mock<ICertificateStoreResolver>(MockBehavior.Strict);
+            resolver.Setup(instance => instance.OpenCertificateStore(storePath, null, false))
+                .Returns(() => manager.OpenCertificateStore(storePath, noPrivateKeys: false));
+            var identifier = new CertificateIdentifier
+            {
+                StorePath = storePath,
+                StoreType = storeType,
+                Thumbprint = certificate.Thumbprint,
+                SubjectName = certificate.Subject
+            };
+
+            using Certificate loaded = (await CertificateIdentifierResolver.LoadPrivateKeyWithStoreResolverAsync(
+                identifier, resolver.Object, telemetry: m_telemetry).ConfigureAwait(false))!;
+
+            Assert.That(loaded, Is.Not.Null);
+            Assert.That(loaded.HasPrivateKey, Is.True);
+            Assert.That(loaded.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            resolver.Verify(instance => instance.OpenCertificateStore(storePath, null, false), Times.Once);
+        }
+
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task ScopedKeyProviderPreservesRotationLookupAsync(bool coldPath)
+        {
+            using Certificate certificate = CertificateBuilder.Create("CN=RotatedScopedKey")
+                .SetRSAKeySize(2048).CreateForRSA();
+            using var cancellation = new CancellationTokenSource();
+            const string applicationUri = "urn:scoped:rotated";
+            var identifier = new CertificateIdentifier
+            {
+                StorePath = "scoped-key:rotation", StoreType = null, Thumbprint = "stale-thumbprint",
+                SubjectName = "CN=Previous", CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+            char[] password = [];
+            var passwords = new Mock<ICertificatePasswordProvider>(MockBehavior.Strict);
+            passwords.Setup(instance => instance.GetPassword(identifier)).Returns(password);
+            var store = new Mock<ICertificateStore>(MockBehavior.Strict);
+            store.Setup(instance => instance.Open(identifier.StorePath, false));
+            store.SetupGet(instance => instance.SupportsLoadPrivateKey).Returns(true);
+            store.Setup(instance => instance.Dispose());
+            var sequence = new MockSequence();
+            store.InSequence(sequence).Setup(instance => instance.LoadPrivateKeyAsync("stale-thumbprint", "CN=Previous",
+                null, identifier.CertificateType, password, cancellation.Token)).ReturnsAsync((Certificate)null!);
+            store.InSequence(sequence).Setup(instance => instance.LoadPrivateKeyAsync("stale-thumbprint", null,
+                applicationUri, identifier.CertificateType, password, cancellation.Token)).ReturnsAsync((Certificate)null!);
+            store.InSequence(sequence).Setup(instance => instance.LoadPrivateKeyAsync(null!, null,
+                applicationUri, identifier.CertificateType, password, cancellation.Token)).ReturnsAsync(() => certificate.AddRef());
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(instance => instance.StoreTypeName).Returns("ScopedRotation");
+            provider.Setup(instance => instance.SupportsStorePath(identifier.StorePath)).Returns(true);
+            provider.Setup(instance => instance.CreateStore(m_telemetry)).Returns(store.Object);
+            using var manager = new CertificateManager(m_telemetry, [provider.Object]);
+            if (coldPath)
+            {
+                using Certificate loaded = (await manager.CertificateProvider.GetPrivateKeyCertificateAsync(identifier,
+                    passwords.Object, applicationUri, cancellation.Token).ConfigureAwait(false))!;
+                Assert.That(loaded!.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            }
+            else
+            {
+                await manager.LoadApplicationCertificatesAsync(new SecurityConfiguration
+                {
+                    ApplicationCertificates = [identifier], CertificatePasswordProvider = passwords.Object
+                }, applicationUri, cancellation.Token).ConfigureAwait(false);
+                using CertificateEntry loaded = manager.AcquireApplicationCertificateByType(identifier.CertificateType)!;
+                Assert.That(loaded!.Certificate.Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            }
+            store.VerifyAll();
+            store.Verify(instance => instance.Dispose(), Times.Once());
+            Assert.That(identifier.Thumbprint, Is.EqualTo("stale-thumbprint"));
+            Assert.That(identifier.SubjectName, Is.EqualTo("CN=Previous"));
+        }
+
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task ScopedKeyProviderDisposesFailedStoreAsync(bool coldPath, bool cancelled)
+        {
+            using var cancellation = new CancellationTokenSource();
+            var identifier = new CertificateIdentifier
+            {
+                StoreType = "ScopedFailure", StorePath = "scoped-key:failure", Thumbprint = "test-thumbprint",
+                SubjectName = "CN=Failure", CertificateType = ObjectTypeIds.RsaSha256ApplicationCertificateType
+            };
+            var store = new Mock<ICertificateStore>(MockBehavior.Strict);
+            store.Setup(instance => instance.Dispose());
+            if (cancelled)
+            {
+                cancellation.Cancel();
+                store.Setup(instance => instance.Open(identifier.StorePath, false));
+                store.SetupGet(instance => instance.SupportsLoadPrivateKey).Returns(true);
+                store.Setup(instance => instance.LoadPrivateKeyAsync(identifier.Thumbprint, identifier.SubjectName,
+                    null, identifier.CertificateType, null, cancellation.Token))
+                    .Returns(Task.FromCanceled<Certificate?>(cancellation.Token));
+            }
+            else
+            {
+                store.Setup(instance => instance.Open(identifier.StorePath, false)).Throws(new IOException("Open failed"));
+            }
+            var provider = new Mock<ICertificateStoreProvider>(MockBehavior.Strict);
+            provider.SetupGet(instance => instance.StoreTypeName).Returns(identifier.StoreType);
+            provider.Setup(instance => instance.CreateStore(m_telemetry)).Returns(store.Object);
+            using var manager = new CertificateManager(m_telemetry, [provider.Object]);
+            Exception? failure = null;
+            try
+            {
+                if (coldPath)
+                {
+                    using Certificate loaded = (await manager.CertificateProvider.GetPrivateKeyCertificateAsync(identifier,
+                        ct: cancellation.Token).ConfigureAwait(false))!;
+                }
+                else
+                {
+                    await manager.LoadApplicationCertificatesAsync(new SecurityConfiguration
+                    {
+                        ApplicationCertificates = [identifier]
+                    }, ct: cancellation.Token).ConfigureAwait(false);
+                }
+            }
+            catch (Exception exception)
+            {
+                failure = exception;
+            }
+            Assert.That(failure, cancelled ? Is.InstanceOf<OperationCanceledException>() : Is.InstanceOf<IOException>());
+            store.Verify(instance => instance.Dispose(), Times.Once());
+            provider.Verify(instance => instance.CreateStore(m_telemetry), Times.Once());
+        }
+
         [Test]
         public async Task GetInstanceCertificateReturnsCertForPolicy()
         {
@@ -198,7 +481,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 cert).ConfigureAwait(false);
 
             using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(
-                SecurityPolicies.Basic256Sha256);
+                SecurityPolicies.Basic256Sha256)!;
 
             Assert.That(entry, Is.Not.Null);
             Assert.That(entry.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
@@ -220,14 +503,14 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // Disposing an acquired entry must not affect the manager's own
             // registered certificate.
             using (CertificateEntry first = manager.AcquireApplicationCertificateBySecurityPolicy(
-                SecurityPolicies.Basic256Sha256))
+                SecurityPolicies.Basic256Sha256)!)
             {
                 Assert.That(first, Is.Not.Null);
             }
 
             // A subsequent acquire still returns a usable certificate.
             using CertificateEntry second = manager.AcquireApplicationCertificateBySecurityPolicy(
-                SecurityPolicies.Basic256Sha256);
+                SecurityPolicies.Basic256Sha256)!;
             Assert.That(second, Is.Not.Null);
             Assert.That(second.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
             Assert.That(second.Certificate.RawData, Is.EqualTo(cert.RawData));
@@ -248,7 +531,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // A matching type returns a caller-owned entry.
             using (CertificateEntry found = manager.AcquireApplicationCertificateByType(
-                ObjectTypeIds.RsaSha256ApplicationCertificateType))
+                ObjectTypeIds.RsaSha256ApplicationCertificateType)!)
             {
                 Assert.That(found, Is.Not.Null);
                 Assert.That(found.Certificate.Thumbprint, Is.EqualTo(cert.Thumbprint));
@@ -256,7 +539,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // A type that is not registered returns null.
             CertificateEntry missing = manager.AcquireApplicationCertificateByType(
-                ObjectTypeIds.EccNistP256ApplicationCertificateType);
+                ObjectTypeIds.EccNistP256ApplicationCertificateType)!;
             Assert.That(missing, Is.Null);
         }
 
@@ -277,6 +560,37 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             Assert.That(snapshot, Has.Count.EqualTo(0));
         }
 
+        /// <summary>
+        /// Per-call acceptance neither reuses nor changes globally cached trust decisions.
+        /// </summary>
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task PerCallValidationCallbackDoesNotShareCachedDecisionsAsync(bool acceptGlobally)
+        {
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(new SecurityConfiguration
+            {
+                UseValidatedCertificates = true,
+                AutoAcceptUntrustedCertificates = acceptGlobally
+            });
+            using Certificate certificate = CertificateBuilder.Create("CN=Per-call validation").CreateForRSA();
+            using var chain = new CertificateCollection { certificate };
+
+            CertificateValidationResult before = await manager.ValidateAsync(chain).ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.EqualTo(acceptGlobally));
+
+            var options = new Opc.Ua.Security.Certificates.CertificateValidationOptions
+            {
+                AcceptError = (_, _) => !acceptGlobally
+            };
+            CertificateValidationResult overridden = await manager.ValidateAsync(
+                chain, options: options).ConfigureAwait(false);
+            Assert.That(overridden.IsValid, Is.EqualTo(!acceptGlobally));
+
+            CertificateValidationResult after = await manager.ValidateAsync(chain).ConfigureAwait(false);
+            Assert.That(after.IsValid, Is.EqualTo(acceptGlobally));
+        }
+
         [Test]
         public async Task ValidateUntrustedCertReturnsFailure()
         {
@@ -295,6 +609,279 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 TrustListIdentifier.Peers).ConfigureAwait(false);
 
             Assert.That(result.IsValid, Is.False);
+        }
+
+        /// <summary>
+        /// A validation performed before the trust list was registered caches a
+        /// core with no trust material at all. Registering the list has to evict
+        /// it, or every later validation is answered from that empty core.
+        /// </summary>
+        [Test]
+        public async Task RegisteringATrustListAfterAFailedValidationTakesEffectAsync()
+        {
+            string trustedPath = CreateTempDir();
+            using var manager = new CertificateManager(m_telemetry);
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=LateRegistration")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var collection = new CertificateCollection { cert };
+
+            // validated against a manager that has no trust list yet.
+            CertificateValidationResult before = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.False);
+
+            manager.RegisterTrustList(TrustListIdentifier.Peers, trustedPath);
+
+            using (ICertificateStore store = manager.OpenTrustedStore(TrustListIdentifier.Peers))
+            {
+                await store.AddAsync(cert).ConfigureAwait(false);
+            }
+
+            CertificateValidationResult after = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+
+            Assert.That(after.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// Re-mapping the security configuration onto a different trusted store
+        /// takes effect. A cached core snapshots its trust list when it is
+        /// built, so it has to be evicted when the configuration is replaced.
+        /// </summary>
+        [Test]
+        public async Task UpdateAsyncSwitchesToTheReconfiguredTrustedStoreAsync()
+        {
+            string emptyPath = CreateTempDir();
+            string populatedPath = CreateTempDir();
+
+            using Certificate cert = CertificateBuilder
+                .Create("CN=Reconfigured")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using (var store = new DirectoryCertificateStore(m_telemetry))
+            {
+                store.Open(populatedPath, noPrivateKeys: true);
+                await store.AddAsync(cert).ConfigureAwait(false);
+            }
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(SecurityConfigurationFor(emptyPath));
+
+            using var collection = new CertificateCollection { cert };
+
+            CertificateValidationResult before = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.False);
+
+            await manager.UpdateAsync(SecurityConfigurationFor(populatedPath))
+                .ConfigureAwait(false);
+
+            CertificateValidationResult after = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+
+            Assert.That(after.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// A peer listed in the configuration's &lt;TrustedCertificates&gt;
+        /// element reaches the validator. That list was dropped on the way from
+        /// the configuration into the trust list the validator uses, so such a
+        /// peer was rejected with BadCertificateUntrusted no matter what the
+        /// configuration said.
+        /// </summary>
+        [Test]
+        public async Task ExplicitlyTrustedPeerFromConfigurationIsAcceptedAsync()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=ExplicitlyTrusted")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            SecurityConfiguration configuration = SecurityConfigurationFor(CreateTempDir());
+            configuration.AddTrustedPeer(cert.RawData);
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(configuration);
+
+            using var collection = new CertificateCollection { cert };
+
+            CertificateValidationResult result = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// A configuration that names its trusted peers inline and sets no
+        /// store path is still registered. The registration bailed out on the
+        /// empty store path, so nothing was registered at all and the validator
+        /// went on rejecting exactly the peers it was told to trust.
+        /// </summary>
+        [Test]
+        public async Task ExplicitlyTrustedPeerWithoutATrustedStorePathIsAcceptedAsync()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=ExplicitlyTrustedNoStore")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            var configuration = new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList()
+            };
+            configuration.AddTrustedPeer(cert.RawData);
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(configuration);
+
+            Assert.That(manager.TrustLists, Does.Contain(TrustListIdentifier.Peers));
+
+            using var collection = new CertificateCollection { cert };
+
+            CertificateValidationResult result = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+
+            Assert.That(result.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// Reconfiguring onto a security configuration that no longer names a
+        /// trust list removes the old registration. It used to be kept, so the
+        /// manager went on trusting certificates the new configuration had
+        /// removed - failing open on exactly the change meant to revoke trust.
+        /// </summary>
+        [Test]
+        public async Task UpdateAsyncWithoutATrustListStopsTrustingItAsync()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=RemovedByReconfiguration")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            var trusting = new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList()
+            };
+            trusting.AddTrustedPeer(cert.RawData);
+
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(trusting);
+
+            using var collection = new CertificateCollection { cert };
+
+            CertificateValidationResult before = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.True);
+
+            await manager.UpdateAsync(new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList()
+            }).ConfigureAwait(false);
+
+            Assert.That(manager.TrustLists, Does.Not.Contain(TrustListIdentifier.Peers));
+
+            CertificateValidationResult after = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(after.IsValid, Is.False);
+        }
+
+        /// <summary>
+        /// Mapping a configuration in after a validation already ran takes
+        /// effect. That validation cached a core with no trust material, and the
+        /// mapping registered the list without evicting it, so every later
+        /// validation was still answered from the empty core.
+        /// </summary>
+        [Test]
+        public async Task MapFromSecurityConfigurationAfterAFailedValidationTakesEffectAsync()
+        {
+            using Certificate cert = CertificateBuilder
+                .Create("CN=MappedLate")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            using var manager = new CertificateManager(m_telemetry);
+            using var collection = new CertificateCollection { cert };
+
+            CertificateValidationResult before = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(before.IsValid, Is.False);
+
+            var configuration = new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList()
+            };
+            configuration.AddTrustedPeer(cert.RawData);
+            manager.MapFromSecurityConfiguration(configuration);
+
+            CertificateValidationResult after = await manager.ValidateAsync(
+                collection,
+                TrustListIdentifier.Peers).ConfigureAwait(false);
+            Assert.That(after.IsValid, Is.True);
+        }
+
+        /// <summary>
+        /// A trust list with neither a store path nor inline certificates names
+        /// no trust material, so there is nothing to register.
+        /// </summary>
+        [Test]
+        public void EmptyTrustListIsNotRegistered()
+        {
+            using var manager = new CertificateManager(m_telemetry);
+            manager.MapFromSecurityConfiguration(new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList()
+            });
+
+            Assert.That(manager.TrustLists, Does.Not.Contain(TrustListIdentifier.Peers));
+        }
+
+        /// <summary>
+        /// Constructor and setter preserve the configured limit, including
+        /// unlimited history at zero and disabled new storage at negative values.
+        /// </summary>
+        [TestCase(-1)]
+        [TestCase(-100)]
+        [TestCase(0)]
+        [TestCase(5)]
+        public void MaxRejectedCertificatesPreservesConfiguredLimits(int configured)
+        {
+            using var fromSetter = new CertificateManager(m_telemetry)
+            {
+                MaxRejectedCertificates = configured
+            };
+            Assert.That(fromSetter.MaxRejectedCertificates, Is.EqualTo(configured));
+
+            using var fromConstructor = new CertificateManager(
+                m_telemetry,
+                storeProviders: null,
+                maxRejectedCertificates: configured);
+            Assert.That(fromConstructor.MaxRejectedCertificates, Is.EqualTo(configured));
+        }
+
+        private static SecurityConfiguration SecurityConfigurationFor(string trustedPath)
+        {
+            return new SecurityConfiguration
+            {
+                TrustedPeerCertificates = new CertificateTrustList
+                {
+                    StoreType = CertificateStoreType.Directory,
+                    StorePath = trustedPath
+                }
+            };
         }
 
         [Test]
@@ -326,7 +913,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
         public async Task CertificateChangesNotifiesOnUpdate()
         {
             using var manager = new CertificateManager(m_telemetry);
-            CertificateChangeEvent received = null;
+            CertificateChangeEvent? received = null;
 
             using IDisposable subscription = manager.CertificateChanges.Subscribe(
                 new TestObserver<CertificateChangeEvent>(evt => received = evt));
@@ -669,6 +1256,34 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             return Task.CompletedTask;
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RevalidationCanRejectWithoutWritingRejectedStoreAsync(bool recordRejected)
+        {
+            await using var manager = new CertificateManager(m_telemetry);
+            manager.RegisterTrustList(TrustListIdentifier.Peers, CreateTempDir());
+            manager.RegisterTrustList(TrustListIdentifier.Rejected, CreateTempDir());
+            using Certificate certificate = CertificateBuilder.Create("CN=Untrusted Revalidated Peer").CreateForRSA();
+            using var chain = new CertificateCollection { certificate };
+
+            CertificateValidationResult result = await manager.ValidateAsync(
+                chain, TrustListIdentifier.Peers,
+                new Ua.Security.Certificates.CertificateValidationOptions
+                {
+                    RecordRejectedCertificates = recordRejected
+                }).ConfigureAwait(false);
+            Assert.That(result.IsValid, Is.False);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadCertificateUntrusted));
+            await manager.FlushRejectedAsync().ConfigureAwait(false);
+            using ICertificateStore rejected = manager.OpenTrustedStore(TrustListIdentifier.Rejected);
+            using CertificateCollection saved = await rejected.EnumerateAsync().ConfigureAwait(false);
+            Assert.That(saved, Has.Count.EqualTo(recordRejected ? 1 : 0));
+            if (recordRejected)
+            {
+                Assert.That(saved[0].Thumbprint, Is.EqualTo(certificate.Thumbprint));
+            }
+        }
+
         /// <summary>
         /// A validation can race manager disposal and enqueue a rejected
         /// chain after the rejected-certificate processor's channel has been
@@ -701,14 +1316,10 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
                 }
                 await manager.DisposeAsync().ConfigureAwait(false);
 
-                // The late enqueue is refused; it must neither throw for this
-                // benign teardown race nor keep the references taken for the
-                // refused request.
-                using (var late = new CertificateCollection { cert })
-                {
-                    Assert.DoesNotThrowAsync(async () =>
-                        await manager.RejectCertificateAsync(late).ConfigureAwait(false));
-                }
+                // Disposal closes admission before a late request can retain a chain.
+                using var late = new CertificateCollection { cert };
+                Assert.ThrowsAsync<ObjectDisposedException>(async () =>
+                    await manager.RejectCertificateAsync(late).ConfigureAwait(false));
             }
             finally
             {
@@ -717,7 +1328,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
 
             // cert held the sole surviving reference. After its Dispose every
             // owning handle over the core must be gone, so AddRef must refuse.
-            Certificate leakedReference = null;
+            Certificate? leakedReference = null;
             try
             {
                 leakedReference = cert.AddRef();
@@ -1051,7 +1662,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             // The load path must resolve the issuer chain from the issuer store
             // on its own — previously the entry was built with an empty issuer
             // chain so the blob regressed to leaf-only.
-            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256);
+            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256)!;
             Assert.That(entry, Is.Not.Null);
             Assert.That(
                 entry.IssuerChain,
@@ -1128,7 +1739,7 @@ namespace Opc.Ua.Core.Tests.Security.Certificates
             manager.MapFromSecurityConfiguration(secConfig);
             await manager.LoadApplicationCertificatesAsync(secConfig).ConfigureAwait(false);
 
-            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256);
+            using CertificateEntry entry = manager.AcquireApplicationCertificateBySecurityPolicy(SecurityPolicies.Basic256Sha256)!;
             Assert.That(entry, Is.Not.Null);
             Assert.That(entry.IssuerChain, Is.Empty);
 

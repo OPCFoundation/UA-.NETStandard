@@ -59,8 +59,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public int ApplicationType { get; set; }
         public string? ProductUri { get; set; }
         public string? ServerCapabilities { get; set; }
-        public Dictionary<string, byte[]> Certificate { get; }
-        public Dictionary<string, string> TrustListId { get; }
+        // Settable for the JSON serializer: a get-only property is skipped on
+        // deserialization, which lost the certificates on every reload.
+        [JsonInclude]
+        public Dictionary<string, byte[]> Certificate { get; internal set; }
+
+        [JsonInclude]
+        public Dictionary<string, string> TrustListId { get; internal set; }
     }
 
     [Serializable]
@@ -75,7 +80,41 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         public string? SubjectName { get; set; }
         public string[]? DomainNames { get; set; }
         public string? PrivateKeyFormat { get; set; }
+
+        /// <summary>
+        /// OPC 10000-12 §7.9.4: the CertificateManager shall not persist the
+        /// private key password, so it only lives in memory.
+        /// </summary>
+        [JsonIgnore]
         public char[]? PrivateKeyPassword { get; set; }
+
+        /// <summary>
+        /// Whether the request was started with a private key password, so a
+        /// request whose (not persisted) password was lost by a restart is
+        /// not completed with an unprotected private key.
+        /// </summary>
+        public bool HasPrivateKeyPassword { get; set; }
+
+        /// <summary>
+        /// Reads the private key password that earlier versions persisted, so a
+        /// request pending across an upgrade keeps its password (in memory only)
+        /// instead of being completed with an unprotected key. Never written.
+        /// </summary>
+        [JsonPropertyName("PrivateKeyPassword")]
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public char[]? PersistedPrivateKeyPassword
+        {
+            get => null;
+            set
+            {
+                if (value is { Length: > 0 })
+                {
+                    PrivateKeyPassword = value;
+                    HasPrivateKeyPassword = true;
+                }
+            }
+        }
+
         public string? AuthorityId { get; set; }
         public byte[]? Certificate { get; set; }
     }
@@ -96,6 +135,12 @@ namespace Opc.Ua.Gds.Server.Database.Linq
     [Serializable]
     internal class ServerEndpoint
     {
+        /// <summary>
+        /// The QueryServers record identifier. OPC 10000-12 §6.5.11 returns
+        /// one ServerOnNetwork record per DiscoveryUrl, so every endpoint
+        /// needs its own identifier for StartingRecordId paging.
+        /// </summary>
+        public uint ID { get; set; }
         public Guid ApplicationId { get; set; }
         public string? DiscoveryUrl { get; set; }
     }
@@ -377,10 +422,11 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                // Per OPC UA Part 12, an empty applicationUri filter matches
-                // all registered Applications.
-                IEnumerable<Application> results = string.IsNullOrEmpty(applicationUri)
-                    ? Applications
+                // OPC 10000-12 §6.5.4: the result holds at most the one
+                // application with this ApplicationUri; an empty
+                // ApplicationUri identifies no application.
+                IEnumerable<Application> results = string.IsNullOrWhiteSpace(applicationUri)
+                    ? []
                     : from x in Applications
                       where x.ApplicationUri == applicationUri
                       select x;
@@ -454,16 +500,13 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             out DateTimeUtc lastCounterResetTime,
             out uint nextRecordId)
         {
-            base.QueryApplications(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                applicationType,
-                productUri,
-                serverCapabilities,
-                out lastCounterResetTime,
-                out nextRecordId);
+            (LikePattern? applicationNamePattern, LikePattern? applicationUriPattern, LikePattern? productUriPattern) =
+                ValidateQueryApplicationsArguments(
+                    applicationName,
+                    applicationUri,
+                    applicationType,
+                    productUri,
+                    serverCapabilities);
 
             lastCounterResetTime = DateTimeUtc.MinValue;
             nextRecordId = 0;
@@ -473,7 +516,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             {
                 IOrderedEnumerable<Application> results =
                     from x in Applications
-                    where (int)startingRecordId == 0 || (int)startingRecordId < x.ID
+                    where x.ID > startingRecordId
                     orderby x.ID
                     select x;
 
@@ -482,19 +525,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 foreach (Application result in results)
                 {
-                    if (!string.IsNullOrEmpty(applicationName) &&
-                        !Match(result.ApplicationName, applicationName))
-                    {
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(applicationUri) &&
-                        !Match(result.ApplicationUri, applicationUri))
-                    {
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(productUri) && !Match(result.ProductUri, productUri))
+                    if (!IsMatch(applicationNamePattern, result.ApplicationName) ||
+                        !IsMatch(applicationUriPattern, result.ApplicationUri) ||
+                        !IsMatch(productUriPattern, result.ProductUri))
                     {
                         continue;
                     }
@@ -617,27 +650,33 @@ namespace Opc.Ua.Gds.Server.Database.Linq
             ArrayOf<string> serverCapabilities,
             out DateTimeUtc lastCounterResetTime)
         {
-            base.QueryServers(
-                startingRecordId,
-                maxRecordsToReturn,
-                applicationName,
-                applicationUri,
-                productUri,
-                serverCapabilities,
-                out lastCounterResetTime);
+            (LikePattern? applicationNamePattern, LikePattern? applicationUriPattern, LikePattern? productUriPattern) =
+                ValidateQueryServersArguments(
+                    applicationName,
+                    applicationUri,
+                    productUri,
+                    serverCapabilities);
 
             lock (Lock)
             {
                 lastCounterResetTime = QueryCounterResetTime;
+                if (AssignServerEndpointIds())
+                {
+                    // Endpoints of a database saved before endpoints had an
+                    // identifier: persist the migrated identifiers.
+                    Save();
+                }
 
+                // One ServerOnNetwork record per DiscoveryUrl, identified by
+                // the endpoint record id (OPC 10000-12 §6.5.11 Table 15).
                 var results =
                     from x in ServerEndpoints
                     join y in Applications on x.ApplicationId equals y.ApplicationId
-                    where y.ID > startingRecordId
-                    orderby y.ID
+                    where x.ID > startingRecordId
+                    orderby x.ID
                     select new
                     {
-                        y.ID,
+                        x.ID,
                         y.ApplicationName,
                         y.ApplicationUri,
                         y.ProductUri,
@@ -650,19 +689,9 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
                 foreach (var result in results)
                 {
-                    if (!string.IsNullOrEmpty(applicationName) &&
-                        !Match(result.ApplicationName, applicationName))
-                    {
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(applicationUri) &&
-                        !Match(result.ApplicationUri, applicationUri))
-                    {
-                        continue;
-                    }
-
-                    if (!string.IsNullOrEmpty(productUri) && !Match(result.ProductUri, productUri))
+                    if (!IsMatch(applicationNamePattern, result.ApplicationName) ||
+                        !IsMatch(applicationUriPattern, result.ApplicationUri) ||
+                        !IsMatch(productUriPattern, result.ProductUri))
                     {
                         continue;
                     }
@@ -834,38 +863,18 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     (from x in Applications where x.ApplicationId == id select x).SingleOrDefault()
                     ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
-                CertificateRequest? request = (
-                    from x in CertificateRequests
-                    where x.AuthorityId == authorityId && x.ApplicationId == id
-                    select x
-                ).SingleOrDefault();
+                CertificateRequest request = StartRequest(
+                    id,
+                    certificateGroupId,
+                    certificateTypeId,
+                    authorityId);
 
-                bool isNew = false;
-
-                if (request == null)
-                {
-                    request = new CertificateRequest
-                    {
-                        RequestId = Guid.NewGuid(),
-                        AuthorityId = authorityId
-                    };
-                    isNew = true;
-                }
-
-                request.State = (int)CertificateRequestState.New;
-                request.CertificateGroupId = certificateGroupId;
-                request.CertificateTypeId = certificateTypeId;
                 request.SubjectName = null;
                 request.DomainNames = null;
                 request.PrivateKeyFormat = null;
                 request.PrivateKeyPassword = null;
+                request.HasPrivateKeyPassword = false;
                 request.CertificateSigningRequest = certificateRequest.ToArray();
-                request.ApplicationId = id;
-
-                if (isNew)
-                {
-                    CertificateRequests.Add(request);
-                }
 
                 SaveChanges();
 
@@ -891,38 +900,18 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                     (from x in Applications where x.ApplicationId == id select x).SingleOrDefault()
                     ?? throw new ServiceResultException(StatusCodes.BadNodeIdUnknown);
 
-                CertificateRequest? request = (
-                    from x in CertificateRequests
-                    where x.AuthorityId == authorityId && x.ApplicationId == id
-                    select x
-                ).SingleOrDefault();
+                CertificateRequest request = StartRequest(
+                    id,
+                    certificateGroupId,
+                    certificateTypeId,
+                    authorityId);
 
-                bool isNew = false;
-
-                if (request == null)
-                {
-                    request = new CertificateRequest
-                    {
-                        RequestId = Guid.NewGuid(),
-                        AuthorityId = authorityId
-                    };
-                    isNew = true;
-                }
-
-                request.State = (int)CertificateRequestState.New;
-                request.CertificateGroupId = certificateGroupId;
-                request.CertificateTypeId = certificateTypeId;
                 request.SubjectName = subjectName;
                 request.DomainNames = domainNames.ToArray();
                 request.PrivateKeyFormat = privateKeyFormat;
                 request.PrivateKeyPassword = privateKeyPassword.ToArray();
+                request.HasPrivateKeyPassword = !privateKeyPassword.IsEmpty;
                 request.CertificateSigningRequest = null;
-                request.ApplicationId = id;
-
-                if (isNew)
-                {
-                    CertificateRequests.Add(request);
-                }
 
                 SaveChanges();
 
@@ -998,10 +987,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                CertificateRequest request =
-                    (from x in CertificateRequests where x.RequestId == reqId select x)
-                        .SingleOrDefault()
-                    ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                CertificateRequest request = FindApplicationRequest(reqId, appId);
 
                 switch (request.State)
                 {
@@ -1047,10 +1033,7 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
             lock (Lock)
             {
-                CertificateRequest request =
-                    (from x in CertificateRequests where x.RequestId == reqId select x)
-                        .SingleOrDefault()
-                    ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+                CertificateRequest request = FindApplicationRequest(reqId, appId);
 
                 switch (request.State)
                 {
@@ -1082,6 +1065,74 @@ namespace Opc.Ua.Gds.Server.Database.Linq
         {
         }
 
+        /// <summary>
+        /// Creates the request record for a Start*Request call. Every call
+        /// returns a new RequestId. A request of the same caller for the same
+        /// application, certificate group and certificate type is superseded
+        /// (its old RequestId becomes invalid) so the table stays bounded, but
+        /// requests for other groups or types remain pending.
+        /// </summary>
+        private CertificateRequest StartRequest(
+            Guid applicationId,
+            string certificateGroupId,
+            string certificateTypeId,
+            string authorityId)
+        {
+            CertificateRequest? request = (
+                from x in CertificateRequests
+                where x.AuthorityId == authorityId &&
+                    x.ApplicationId == applicationId &&
+                    x.CertificateGroupId == certificateGroupId &&
+                    x.CertificateTypeId == certificateTypeId
+                select x
+            ).FirstOrDefault();
+
+            if (request == null)
+            {
+                request = new CertificateRequest
+                {
+                    AuthorityId = authorityId,
+                    ApplicationId = applicationId,
+                    CertificateGroupId = certificateGroupId,
+                    CertificateTypeId = certificateTypeId
+                };
+                CertificateRequests.Add(request);
+            }
+
+            request.RequestId = Guid.NewGuid();
+            request.State = (int)CertificateRequestState.New;
+            request.Certificate = null;
+            return request;
+        }
+
+        /// <summary>
+        /// Returns the request only when it belongs to the application.
+        /// OPC 10000-12 §7.9.5: FinishRequest returns Bad_InvalidArgument when
+        /// the RequestId does not reference a valid request for the application,
+        /// so an application cannot complete another application's request.
+        /// </summary>
+        private CertificateRequest FindApplicationRequest(Guid requestId, Guid applicationId)
+        {
+            CertificateRequest request = (
+                from x in CertificateRequests
+                where x.RequestId == requestId && x.ApplicationId == applicationId
+                select x
+            ).SingleOrDefault()
+                ?? throw new ServiceResultException(StatusCodes.BadInvalidArgument);
+
+            if (request.HasPrivateKeyPassword &&
+                request.PrivateKeyPassword == null &&
+                request.State is (int)CertificateRequestState.New or (int)CertificateRequestState.Approved)
+            {
+                // the password was not persisted and is lost after a reload:
+                // the private key cannot be protected as requested.
+                request.State = (int)CertificateRequestState.Rejected;
+                SaveChanges();
+            }
+
+            return request;
+        }
+
         private void SaveChanges()
         {
             lock (Lock)
@@ -1101,8 +1152,46 @@ namespace Opc.Ua.Gds.Server.Database.Linq
                         application.ID = appMax;
                     }
                 }
+                _ = AssignServerEndpointIds();
                 Save();
             }
+        }
+
+        /// <summary>
+        /// Assigns monotonically increasing record identifiers to endpoints that
+        /// have none: endpoints added by RegisterApplication/UpdateApplication
+        /// and endpoints loaded from a database saved before endpoints had an
+        /// identifier. Identifiers are not reused after an endpoint is removed.
+        /// </summary>
+        /// <returns><c>true</c> if an identifier was assigned.</returns>
+        internal bool AssignServerEndpointIds()
+        {
+            uint endpointMax = LastServerEndpointId;
+            bool unassigned = false;
+            foreach (ServerEndpoint endpoint in ServerEndpoints)
+            {
+                endpointMax = Math.Max(endpointMax, endpoint.ID);
+                unassigned |= endpoint.ID == 0;
+            }
+
+            if (unassigned)
+            {
+                foreach (ServerEndpoint endpoint in ServerEndpoints)
+                {
+                    if (endpoint.ID == 0)
+                    {
+                        endpoint.ID = ++endpointMax;
+                    }
+                }
+            }
+
+            LastServerEndpointId = endpointMax;
+            return unassigned;
+        }
+
+        private static bool IsMatch(LikePattern? pattern, string? value)
+        {
+            return pattern == null || (!string.IsNullOrEmpty(value) && pattern.IsMatch(value));
         }
 
         [OnDeserialized]
@@ -1126,6 +1215,12 @@ namespace Opc.Ua.Gds.Server.Database.Linq
 
         [JsonInclude]
         internal ICollection<ServerEndpoint> ServerEndpoints = [];
+
+        /// <summary>
+        /// The highest QueryServers record identifier assigned to an endpoint.
+        /// </summary>
+        [JsonInclude]
+        internal uint LastServerEndpointId;
 
         [JsonInclude]
         internal ICollection<CertificateRequest> CertificateRequests

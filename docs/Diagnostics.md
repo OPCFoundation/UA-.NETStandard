@@ -25,17 +25,38 @@ design follows Microsoft's [guidance for library authors](https://learn.microsof
 
 ### Overview
 
+The legacy `TraceLoggerProvider` enables source-generated log calls when
+a configured trace-file or Debug sink can receive them, even without a
+`Tracing.TraceEventHandler` subscriber. `TraceMask` still filters individual
+messages. Trace events and file output can be enabled independently; file
+write failures report the actual path and error in Debug output.
+
+Ordinary `ILogger` event IDs, including source-generated class offsets, are
+identifiers rather than trace masks; their trace category comes from the log
+level. The obsolete `Utils.Trace(int traceMask, ...)` and
+`Utils.Log(int traceMask, ...)` APIs retain their explicit category, including
+combined masks, in `TraceEventArgs.TraceMask`. For direct `ILogger` compatibility
+calls, an `EventId` whose number **and name** match a `Utils.TraceMasks` constant
+(for example, `new EventId(Utils.TraceMasks.ServiceDetail, "ServiceDetail")`)
+also selects that legacy category. A matching number alone does not.
+
 ```csharp
 public interface ITelemetryContext
 {
     // Creates a new Meter for recording metrics (caller disposes).
     Meter CreateMeter();
 
+    // Creates a Meter for a specific assembly (caller disposes).
+    Meter CreateMeter(Assembly assembly);
+
     // Factory used to create typed ILogger instances.
     ILoggerFactory LoggerFactory { get; }
 
     // Shared ActivitySource representing the current assembly/component.
     ActivitySource ActivitySource { get; }
+
+    // Gets the shared ActivitySource for a specific assembly.
+    ActivitySource GetActivitySource(Assembly assembly);
 }
 ```
 
@@ -43,7 +64,7 @@ One abstraction covers all three telemetry pillars (logs, traces,
 metrics). Lifetime semantics are explicit: callers dispose meters they
 create; the context owns the long-lived `ActivitySource` and
 `LoggerFactory`. Multiple telemetry contexts may coexist in the same
-process &mdash; e.g. a server and a client, or several servers with
+process — e.g. a server and a client, or several servers with
 different logging configurations inside a container.
 
 ### Extension methods
@@ -55,22 +76,28 @@ public static class TelemetryExtensions
     ILogger CreateLogger(this ITelemetryContext context, string categoryName);
     ILogger<T> CreateLogger<T>(this ITelemetryContext context);
 
+    // Captures the calling assembly and creates its Meter.
+    Meter CreateMeter(this ITelemetryContext context);
+
+    // Captures the calling assembly and gets its shared ActivitySource.
+    ActivitySource GetActivitySource(this ITelemetryContext context);
+
     // Starts a new Activity with the shared ActivitySource.
     Activity StartActivity(this ITelemetryContext context, string activityName, ActivityKind kind = ActivityKind.Internal);
 }
 ```
 
-**Always use the extension methods**. They guarantee a non-null logger
-and activity even when the supplied `ITelemetryContext` is `null` or
-returns `null` from a property: in release builds the fallback is a
-backwards-compatible trace logger; in debug builds it is a debug-check
-logger that throws if used so missing telemetry is caught early.
+The metric and tracing members on `ITelemetryContext` identify the
+component assembly at the call site. The extension methods provide the
+same behavior when the supplied `ITelemetryContext` may be `null`, using
+the default context when necessary. In debug builds, the fallback also
+reports a debug check so missing telemetry is caught early.
 
 ### Obtaining a telemetry context
 
 Telemetry context should be passed **via constructors only**. This
 enables dependency injection, testability, and `readonly` fields. It
-also aligns with the lifecycle of the owning class &mdash; for example
+also aligns with the lifecycle of the owning class — for example
 `Dispose` on the class can dispose the meter it created.
 
 Existing code can obtain an `ITelemetryContext` from
@@ -84,7 +111,7 @@ use this priority order:
 0. From a private `ITelemetryContext` member (e.g. `m_telemetry`) of
    the current class. If the constructor receives any of the types
    below, pick the first and assign it to a `private readonly`
-   `m_telemetry` &mdash; then use it everywhere in the class. Create
+   `m_telemetry` — then use it everywhere in the class. Create
    a `m_logger` field at the same time when one is needed.
 1. `ISystemContext.Telemetry`
 2. `IServerInternal.Telemetry`
@@ -94,7 +121,7 @@ In pure client code:
 
 0. From a private `ITelemetryContext` member, initialized in the
    constructor from any context in this list.
-1. `ISession` &rarr; `session.MessageContext.Telemetry`
+1. `ISession` → `session.MessageContext.Telemetry`
 2. `ISystemContext.Telemetry`
 3. `IServiceMessageContext.Telemetry`
 
@@ -105,15 +132,18 @@ so it also receives the context). `Initialize` is called after the
 
 If you need to create a context yourself, use the
 `DefaultTelemetry.Create(...)` static factory. Do **not** create new
-contexts in code that already has access to one &mdash; plumb the
+contexts in code that already has access to one — plumb the
 existing one through. The application root (typically where you
 construct `ApplicationInstance` or `HostApplicationBuilder`) is the
 right place to materialize the context.
 
 ### Using the telemetry context
 
-Always use the extension methods to obtain loggers, meters, and
-activities. The returned instance is guaranteed to be non-null.
+Use the context directly when it is non-null. Use the extension methods
+when a context may be null; the returned instance is guaranteed to be
+non-null. Because `ITelemetryContext.CreateMeter()` shadows its extension,
+invoke the nullable meter fallback explicitly as
+`TelemetryExtensions.CreateMeter(telemetry)`.
 
 ```csharp
 // Obtain telemetry context
@@ -142,6 +172,11 @@ cached by the `ILoggerProvider`, so obtaining one is cheap. Still,
 be mindful of the per-object reference cost when creating loggers for
 very large object populations (`NodeState`, `NodeId`).
 
+Resolve source names before registering an `ActivityListener`, and keep its
+`ShouldListenTo` filter free of source lookups. Creating an `ActivitySource`
+synchronously invokes existing listeners; resolving a missing source inside
+that filter can recursively re-enter source creation.
+
 `ConsoleReferenceClient` and `ConsoleReferenceServer` show the full
 pattern end-to-end.
 
@@ -161,7 +196,7 @@ pattern end-to-end.
   This is the pattern we follow for certificate handling, storage,
   and configuration management.
 - A logger/meter created in the outer class can be passed to inner
-  classes created inside the outer class &mdash; for example
+  classes created inside the outer class — for example
   PubSub message objects.
 - If a class genuinely cannot obtain a logger yet (gradual migration),
   initialize the field with `Telemetry.NullLogger.Instance`. In
@@ -237,7 +272,7 @@ as a singleton `ITelemetryContext` via `TryAddSingleton`. That
 adapter resolves the host's `ILoggerFactory` from DI on first use
 (falling back to `NullLoggerFactory` when none is registered) and
 materializes a fresh `Meter` / `ActivitySource` per calling
-assembly &mdash; no further wiring needed for the common case.
+assembly — no further wiring needed for the common case.
 
 The fluent `.AddLogging(...)` / `.AddMetrics(...)` overloads on
 `IOpcUaBuilder` are thin pass-throughs to the standard
@@ -277,12 +312,12 @@ looks like:
 builder.Services.AddOpenTelemetry()
     .ConfigureResource(r => r.AddService("opc-ua-client"))
     .WithTracing(t => t
-        .AddSource("Opc.Ua.Core")             // names used by stack ActivitySources
-        .AddSource("Opc.Ua.Client.Session")
+        .AddSource("Opc.Ua.Core*")            // assembly-qualified source names
+        .AddSource("Opc.Ua.Client*")
         .AddOtlpExporter())
     .WithMetrics(m => m
-        .AddMeter("Opc.Ua.Client.*")          // wildcard match for stack meters
-        .AddMeter("Opc.Ua.Server.*")
+        .AddMeter("Opc.Ua.Client*")            // assembly-qualified meter names
+        .AddMeter("Opc.Ua.Server*")
         .AddOtlpExporter());
 ```
 
@@ -300,7 +335,7 @@ For Console / Jaeger / Application Insights, swap the
 | Counter / instrument name | `opc.ua.<area>.<noun>` lower-snake | `opc.ua.client.connects`, `opc.ua.server.subscriptions.active` |
 | Tags / dimensions | Stable subset only | `endpoint.url`, `security.mode`, `security.policy.uri` |
 
-Keep tag cardinality bounded &mdash; do not tag on session id or any
+Keep tag cardinality bounded — do not tag on session id or any
 per-request identifier.
 
 #### Testing patterns
@@ -334,7 +369,7 @@ needing a full OpenTelemetry pipeline.
 
 The stack creates one `Meter` per assembly that records measurements.
 The meter's **name is the assembly name** of the component that
-created it (via `ITelemetryContext.CreateMeter()` &rarr;
+created it (via `ITelemetryContext.CreateMeter()` →
 `Assembly.GetCallingAssembly().FullName`). Most tooling matches with
 wildcards, so subscribe with `AddMeter("Opc.Ua.Core*", "Opc.Ua.Client*")`
 to pick up everything the stack emits today.
@@ -344,50 +379,50 @@ are documented next to the tag key.
 
 #### Meter `Opc.Ua.Core`
 
-Client transport channel manager &mdash; defined in
+Client transport channel manager — defined in
 `ClientChannelManagerMetrics.cs`:
 
 | Instrument | Kind | Unit | Tags | Description |
 |---|---|---|---|---|
-| `opc.ua.channel.open` | Counter&lt;long&gt; | &mdash; | `endpoint`, `reverse` (bool) | OPC UA client transport channels opened. |
-| `opc.ua.channel.close` | Counter&lt;long&gt; | &mdash; | `endpoint`, `reverse`, `reason` (`lease-released` \| `manager-disposed` \| `faulted`) | OPC UA client transport channels closed. |
-| `opc.ua.channel.active` | UpDownCounter&lt;long&gt; | &mdash; | `endpoint` | Current number of active OPC UA client channel entries. |
-| `opc.ua.channel.reconnect.attempts` | Counter&lt;long&gt; | &mdash; | `endpoint`, `outcome` | OPC UA client channel reconnect attempts. |
-| `opc.ua.channel.reconnect.duration` | Histogram&lt;double&gt; | `ms` | `endpoint`, `outcome` | Duration of reconnect cycles. |
-| `opc.ua.channel.gate.wait` | Histogram&lt;double&gt; | `ms` | `endpoint` | Time spent waiting for the per-channel ready gate. |
-| `opc.ua.channel.participant.timeout.count` | Counter&lt;long&gt; | &mdash; | `endpoint`, `participant` (kind prefix, e.g. `Session`, `Discovery`) | Reconnect participant callbacks that timed out. |
-| `opc.ua.channel.participant.recreate.count` | Counter&lt;long&gt; | &mdash; | `endpoint`, `participant`, `success` (bool) | Reconnect participant recreate callbacks. |
-| `opc.ua.channel.refcount` | ObservableGauge&lt;long&gt; | &mdash; | `endpoint` | Reference count per channel entry. |
-| `opc.ua.channel.participants` | ObservableGauge&lt;long&gt; | &mdash; | `endpoint` | Participant count per channel entry. |
+| `opc.ua.channel.open` | `Counter<long>` | — | `endpoint`, `reverse` (bool) | OPC UA client transport channels opened. |
+| `opc.ua.channel.close` | `Counter<long>` | — | `endpoint`, `reverse`, `reason` (`lease-released` \| `manager-disposed` \| `faulted`) | OPC UA client transport channels closed. |
+| `opc.ua.channel.active` | `UpDownCounter<long>` | — | `endpoint` | Current number of active OPC UA client channel entries. |
+| `opc.ua.channel.reconnect.attempts` | `Counter<long>` | — | `endpoint`, `outcome` | OPC UA client channel reconnect attempts. |
+| `opc.ua.channel.reconnect.duration` | `Histogram<double>` | `ms` | `endpoint`, `outcome` | Duration of reconnect cycles. |
+| `opc.ua.channel.gate.wait` | `Histogram<double>` | `ms` | `endpoint` | Time spent waiting for the per-channel ready gate. |
+| `opc.ua.channel.participant.timeout.count` | `Counter<long>` | — | `endpoint`, `participant` (kind prefix, e.g. `Session`, `Discovery`) | Reconnect participant callbacks that timed out. |
+| `opc.ua.channel.participant.recreate.count` | `Counter<long>` | — | `endpoint`, `participant`, `success` (bool) | Reconnect participant recreate callbacks. |
+| `opc.ua.channel.refcount` | `ObservableGauge<long>` | — | `endpoint` | Reference count per channel entry. |
+| `opc.ua.channel.participants` | `ObservableGauge<long>` | — | `endpoint` | Participant count per channel entry. |
 
 Note: the `participant` tag carries the **kind prefix only** (`Session`, `Discovery`, etc.). The per-instance participant id is deliberately omitted to keep metric cardinality bounded; the full id is available on the related Activity tags and on the structured logs emitted under the `Opc.Ua.ChannelManager` logger category for correlation (see [Sessions.md](Sessions.md#diagnostics-surface-contract--what-tags-and-structured-log-fields-carry)).
 
-Client request duration &mdash; defined in `ClientBase.cs`:
+Client request duration — defined in `ClientBase.cs`:
 
 | Instrument | Kind | Unit | Tags | Description |
 |---|---|---|---|---|
-| `opc.ua.client.request.duration` | Histogram&lt;double&gt; | `s` | `opc.ua.request.service` (service name), `opc.ua.response.status.code` (uint), `server.address` (endpoint URL), `opc.ua.request.timeout` (ms) | Wall-clock duration of each client service request. Default bucket boundaries: 5&nbsp;ms - 60&nbsp;s. Only emitted when the client's `ActivityTraceFlags` include `ClientTraceFlags.Metrics`. |
+| `opc.ua.client.request.duration` | `Histogram<double>` | `s` | `opc.ua.request.service` (service name), `opc.ua.response.status.code` (uint), `server.address` (endpoint URL), `opc.ua.request.timeout` (ms) | Wall-clock duration of each client service request. Default bucket boundaries: 5 ms - 60 s. Only emitted when the client's `ActivityTraceFlags` include `ClientTraceFlags.Metrics`. |
 
-Certificate cache &mdash; defined in `CertificateCache.cs`:
+Certificate cache — defined in `CertificateCache.cs`:
 
 | Instrument | Kind | Unit | Tags | Description |
 |---|---|---|---|---|
-| `opc.ua.certcache.hit` | ObservableCounter&lt;long&gt; | &mdash; | &mdash; | Total certificate cache hits (public + private key caches combined). |
-| `opc.ua.certcache.miss` | ObservableCounter&lt;long&gt; | &mdash; | &mdash; | Total certificate cache misses. |
-| `opc.ua.certcache.size` | ObservableGauge&lt;long&gt; | &mdash; | &mdash; | Current number of cached certificate entries (both caches). |
-| `opc.ua.certcache.private_key_entries` | ObservableGauge&lt;long&gt; | &mdash; | &mdash; | Current number of cached entries that hold private keys. |
-| `opc.ua.certcache.eviction` | ObservableCounter&lt;long&gt; | &mdash; | &mdash; | Total certificate cache evictions. |
+| `opc.ua.certcache.hit` | `ObservableCounter<long>` | — | — | Total certificate cache hits (public + private key caches combined). |
+| `opc.ua.certcache.miss` | `ObservableCounter<long>` | — | — | Total certificate cache misses. |
+| `opc.ua.certcache.size` | `ObservableGauge<long>` | — | — | Current number of cached certificate entries (both caches). |
+| `opc.ua.certcache.private_key_entries` | `ObservableGauge<long>` | — | — | Current number of cached entries that hold private keys. |
+| `opc.ua.certcache.eviction` | `ObservableCounter<long>` | — | — | Total certificate cache evictions. |
 
 #### Meter `Opc.Ua.Client`
 
-Client node cache &mdash; defined in `NodeCache.cs`:
+Client node cache — defined in `NodeCache.cs`:
 
 | Instrument | Kind | Unit | Tags | Description |
 |---|---|---|---|---|
-| `opc.ua.client.nodecache.hits` | ObservableCounter&lt;long&gt; | &mdash; | `cache` (`nodes` \| `values` \| `references`) | Hits on the named sub-cache. |
-| `opc.ua.client.nodecache.misses` | ObservableCounter&lt;long&gt; | &mdash; | `cache` | Misses on the named sub-cache. |
-| `opc.ua.client.nodecache.evictions` | ObservableCounter&lt;long&gt; | &mdash; | `cache` | Evictions from the named sub-cache. |
-| `opc.ua.client.nodecache.size` | ObservableGauge&lt;long&gt; | &mdash; | `cache` | Current entry count of the named sub-cache. |
+| `opc.ua.client.nodecache.hits` | `ObservableCounter<long>` | — | `cache` (`nodes` \| `values` \| `references`) | Hits on the named sub-cache. |
+| `opc.ua.client.nodecache.misses` | `ObservableCounter<long>` | — | `cache` | Misses on the named sub-cache. |
+| `opc.ua.client.nodecache.evictions` | `ObservableCounter<long>` | — | `cache` | Evictions from the named sub-cache. |
+| `opc.ua.client.nodecache.size` | `ObservableGauge<long>` | — | `cache` | Current entry count of the named sub-cache. |
 
 ### Wiring up a metrics exporter
 
@@ -428,7 +463,7 @@ per OPC UA instrument; tag keys map directly to Prometheus labels.
 The `.` separators in instrument names become `_` per Prometheus
 naming rules (e.g. `opc_ua_client_request_duration`).
 
-#### OTLP (OpenTelemetry Protocol &rarr; collector / vendor backend)
+#### OTLP (OpenTelemetry Protocol → collector / vendor backend)
 
 ```csharp
 using OpenTelemetry.Metrics;
@@ -477,7 +512,7 @@ sealed class NullTelemetry : TelemetryContextBase
 ```
 
 Passing literal `null` for an `ITelemetryContext` parameter is **not
-recommended** &mdash; it triggers the legacy trace fallback and can
+recommended** — it triggers the legacy trace fallback and can
 emit format exceptions when a non-semantic trace logger receives a
 semantic logging template.
 
@@ -517,9 +552,11 @@ every event type the standard server raises.
 ### Enabling auditing
 
 Auditing is controlled by the `ServerConfiguration.AuditingEnabled`
-flag (and the `OpcUaServerOptions.AuditingEnabled` shortcut when
-using the hosted-service builder). When `false`, audit helpers
-short-circuit immediately so there is no runtime cost.
+flag, which is off by default. A hosted server enables it through the
+configuration builder:
+`OpcUaServerOptions.ConfigureBuilder = builder => builder.SetAuditingEnabled(true)`.
+When `false`, audit helpers short-circuit immediately so there is no
+runtime cost.
 
 `StandardServer` exposes the active state through
 `IServerInternal.Auditing` (via `IAuditEventServer.Auditing`). Custom
@@ -528,7 +565,7 @@ short-circuit immediately so there is no runtime cost.
 ### Raising an audit event
 
 The `AuditEvents` static class exposes one `Report<EventName>` method
-per spec event &mdash; for example `ReportAuditCreateSessionEvent`,
+per spec event — for example `ReportAuditCreateSessionEvent`,
 `ReportAuditOpenSecureChannelEvent`, `ReportAuditCertificateEvent`,
 `ReportAuditAddNodesEvent`, `ReportAuditHistoryValueUpdateEvent`,
 `ReportAuditRoleMappingRuleChangedEvent`. Each helper:
@@ -595,14 +632,19 @@ automatically through `src/Opc.Ua.Server/Diagnostics/DiagnosticsNodeManager.cs`.
 The runtime cost of maintaining the diagnostics tree (per-session,
 per-subscription counters) is gated by `ServerConfiguration.DiagnosticsEnabled`
 (default **true** in `OpcUaServerOptions`). Toggle it at runtime
-through the `Server.ServerDiagnostics.EnabledFlag` variable &mdash;
+through the `Server.ServerDiagnostics.EnabledFlag` variable —
 writes flow through `DiagnosticsNodeManager.SetDiagnosticsEnabledAsync`,
 which atomically pauses or resumes the periodic scan loop.
 
-When disabled, the diagnostics nodes remain present but are not
-updated; reads return the last known values. Disable for
-high-throughput production servers where per-monitored-item counters
-become measurable overhead.
+When disabled, the periodic scan stops and diagnostics-array reads return
+`BadOutOfService`. Per-session and per-subscription diagnostic instances
+are removed; the standard diagnostics containers remain present.
+Re-enabling diagnostics resumes scanning if diagnostic items are still
+being monitored.
+
+Session and subscription array reads use stable snapshots. A concurrent
+removal does not truncate an in-progress result or block behind its
+diagnostic update callbacks; subsequent reads reflect the removal.
 
 ### Information-model surface
 
@@ -633,9 +675,10 @@ UaExpert relies on.
 - Subscription diagnostics aggregate across the publishing thread;
   reading them while the server is under heavy load briefly stalls
   publishing.
-- The scan loop runs at a fixed interval (default 1&nbsp;s). Custom
-  servers can subclass `DiagnosticsNodeManager` and override the
-  scan cadence for very large session populations.
+- One scan timer runs at a fixed 1 s interval while diagnostics
+  are enabled and at least one diagnostic item is in Sampling or
+  Reporting mode. Ordinary monitored items do not keep this timer alive.
+  Disabling or deleting the last active diagnostic item stops it.
 
 ## 4. Packet capture, dissection, and replay
 
@@ -657,7 +700,7 @@ traffic can be decrypted offline. **Do not enable in production.**
 Operators who enable any part of it should treat every output file
 as a secret.
 
-#### Defaults &mdash; opt-in everything
+#### Defaults — opt-in everything
 
 | Capability | Default | Opt-in mechanism |
 |---|---|---|
@@ -743,9 +786,9 @@ lifetime has no effect (matches the existing
 
 The keylog file extension selects the writer format:
 
-- `*.txt` &rarr; NSS-style space-delimited hex tokens
+- `*.txt` → NSS-style space-delimited hex tokens
   (`UaKeyLogTextWriter`).
-- everything else (including `*.json` and `*.uakeys.json`) &rarr;
+- everything else (including `*.json` and `*.uakeys.json`) →
   JSON-lines (`UaKeyLogJsonWriter`).
 
 Whitespace-only values are treated as unset, so accidentally exporting
@@ -824,7 +867,7 @@ every security-relevant operation emits a structured event:
 - `StartCapture`, `StopCapture`
 - `DumpKeys`, `DecodePcapWithKeys`
 - `StartReplay`, `StopReplay`
-- `FrameCaptured` &mdash; rate-limited to 1/min per channel
+- `FrameCaptured` — rate-limited to 1/min per channel
 
 For tamper-evident storage register the optional
 `HashChainedAuditFileSink` (writes a JSONL ledger with per-line HMACs).
@@ -919,8 +962,8 @@ graph TD
 introduced in issue [#3288](https://github.com/OPCFoundation/UA-.NETStandard/issues/3288)
 via the global `TransportBindings.Channels` registry: `AddPcap`
 installs a `PcapTransportChannelBinding` decorator over the TCP
-channel factory, and `ClientChannelManager` &mdash; which by default
-reads from that same global registry &mdash; picks the wrapped
+channel factory, and `ClientChannelManager` — which by default
+reads from that same global registry — picks the wrapped
 factory up automatically. There is no extra wiring code; the
 composition is pure layering at the transport binding level.
 
@@ -936,7 +979,7 @@ free:
 - **Transparent reconnect.** During the manager's coalesced reconnect
   cycle the wrapping socket is re-created against the new transport
   but the `IChannelCaptureRegistry` keeps recording into the same
-  session file &mdash; the reconnect transition appears in the
+  session file — the reconnect transition appears in the
   timeline as a state edge rather than a capture interruption.
 - **Faulted-entry swap.** The `Phase E` `SwapFaultedEntryAsync` path
   produces a fresh `ChannelEntry` under the same `ManagedChannelKey`;
@@ -960,7 +1003,7 @@ synchronously into the process-wide registry), but the order above
 reads top-down as "register the channel manager, then your services,
 then opt in to capture". For non-DI consumers, call
 `PcapBindings.Install()` / `InstallClient()` / `InstallServer()` at
-startup to achieve the same effect &mdash; see
+startup to achieve the same effect — see
 [Enabling pcap capture without dependency injection](#enabling-pcap-capture-without-dependency-injection).
 
 ### Capture sources
@@ -1405,7 +1448,7 @@ The `OPCFoundation.NetStandard.Opc.Ua.PubSub.Diagnostics` package is the PubSub
 [§4 Packet capture, dissection, and replay](#4-packet-capture-dissection-and-replay). It
 captures the raw NetworkMessages exchanged over the UDP datagram and MQTT broker
 transports, writes them to `.pcap` / `.pcapng` for Wireshark, and dissects them
-back into structured DataSets &mdash; including **decryption of encrypted UADP
+back into structured DataSets — including **decryption of encrypted UADP
 messages** when the matching security keys are available. Targets `net8.0`,
 `net9.0`, `net10.0`.
 
@@ -1413,14 +1456,14 @@ PubSub is connectionless and message-secured, so it uses its own frame and
 key-material abstractions rather than the UA-SC channel/token model, but reuses
 the [§4](#4-packet-capture-dissection-and-replay) `.pcap` / `.pcapng` writers.
 
-### Architecture &mdash; capturing transport decorator
+### Architecture — capturing transport decorator
 
 Capture is implemented as a **transport decorator**, not as code inside the UDP /
 MQTT transports. `AddPubSubPcap()` wraps every registered
 `IPubSubTransportFactory` in a `CapturingPubSubTransportFactory`, whose
 `CapturingPubSubTransport` decorates the real `IPubSubTransport`: on send and
 receive it taps the raw payload to the active observer and delegates everything
-else. This mirrors the UA-SC `CapturingMessageSocket` decorator &mdash; the UDP
+else. This mirrors the UA-SC `CapturingMessageSocket` decorator — the UDP
 and MQTT transports contain **no** capture code, and the decorator is inserted
 only when the diagnostics package is configured via DI. When no capture session
 has installed an observer, the tap is a single volatile read.
@@ -1466,8 +1509,8 @@ Encrypted UADP NetworkMessages
 ([Part 14 §8.3](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/8.3),
 [Annex A.2.2.5](https://reference.opcfoundation.org/specs/OPC-10000-14/v1.05.06/A.2.2.5))
 carry a `SecurityTokenId` in the UADP SecurityHeader. The dissector decrypts a
-secured frame when a key resolves for that token id &mdash; reusing the
-production `UadpSecurityWrapper` &mdash; then dissects the recovered cleartext.
+secured frame when a key resolves for that token id — reusing the
+production `UadpSecurityWrapper` — then dissects the recovered cleartext.
 Keys come from an `IPubSubKeyResolver`: `CapturedKeyLogKeyResolver` (a captured
 key log via `PubSubKeyLogReader`, or the keys buffered during capture) or
 `SksKeyResolver` (a live `IPubSubSecurityKeyProvider`, e.g. a pull provider
@@ -1487,7 +1530,7 @@ on host shutdown:
 
 ### MCP tools
 
-The reference MCP server exposes the PubSub surface as tools &mdash; Action /
+The reference MCP server exposes the PubSub surface as tools — Action /
 configuration, Security Key Service, in-process publish/subscribe runtime, and
 capture / dissection. See [McpServer.md](McpServer.md#pubsub-tools) for the full
 catalogue.
@@ -1503,21 +1546,21 @@ unchanged.
 
 ## 6. Related references
 
-- [Dependency Injection](DependencyInjection.md) &mdash; how the
+- [Dependency Injection](DependencyInjection.md) — how the
   stack composes its services, including telemetry, around
   `IServiceCollection`.
-- [Sessions](Sessions.md) &mdash; the central
+- [Sessions](Sessions.md) — the central
   `IClientChannelManager` that packet capture decorates.
-- [MCP Server](McpServer.md) &mdash; surfaces the packet-capture
+- [MCP Server](McpServer.md) — surfaces the packet-capture
   tools (`start_capture`, `dump_keys`, `decode_pcap_with_keys`,
   `replay_pcap`) over JSON-RPC for LLM-driven workflows.
-- [Migration Guide](MigrationGuide.md) &mdash; previous releases used
+- [Migration Guide](MigrationGuide.md) — previous releases used
   static `Utils.SetLogger` / `Utils.Trace*` instead of
   `ITelemetryContext`. The migration appendix lists every breaking
   change required to adopt the telemetry context.
-- [Certificate Manager](CertificateManager.md) &mdash; certificate
+- [Certificate Manager](CertificateManager.md) — certificate
   factories and stores all take `ITelemetryContext` on construction.
-- [CryptoProvider](CryptoProvider.md) &mdash; the `opc.ua.crypto.*`
+- [CryptoProvider](CryptoProvider.md) — the `opc.ua.crypto.*`
   metrics and the audit events that record which cryptographic module
   performed an operation, including a warning when it carries no
   validation.

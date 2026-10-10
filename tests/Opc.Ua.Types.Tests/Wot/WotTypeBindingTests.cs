@@ -107,7 +107,7 @@ namespace Opc.Ua.Types.Tests.Wot
         {
             WotConversionResult<UANodeSet> result = Convert(string.Empty);
 
-            Assert.That(TypeDefinitionOf(result.Value).Value,
+            Assert.That(TypeDefinitionOf(result.Value!).Value,
                 Is.EqualTo(WotVocabulary.BaseObjectType));
         }
 
@@ -121,7 +121,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "\"links\":[{\"rel\":\"ua:Organizes\"," +
                 "\"href\":\"nsu=urn:test:pump;i=1042\"}]");
 
-            Assert.That(TypeDefinitionOf(result.Value).Value,
+            Assert.That(TypeDefinitionOf(result.Value!).Value,
                 Is.EqualTo(WotVocabulary.BaseObjectType));
         }
 
@@ -155,7 +155,7 @@ namespace Opc.Ua.Types.Tests.Wot
                 "{\"rel\":\"ua:HasTypeDefinition\",\"href\":\"nsu=urn:test:pump;i=1042\"}," +
                 "{\"rel\":\"ua:HasTypeDefinition\",\"href\":\"nsu=urn:test:pump;i=1043\"}]");
 
-            Assert.That(TypeDefinitionOf(result.Value).Value,
+            Assert.That(TypeDefinitionOf(result.Value!).Value,
                 Is.EqualTo(WotVocabulary.BaseObjectType),
                 "An ambiguous document must not be bound to either candidate.");
         }
@@ -201,8 +201,8 @@ namespace Opc.Ua.Types.Tests.Wot
 
         private static Reference TypeDefinitionOf(UANodeSet nodeSet)
         {
-            UANode root = nodeSet.Items.First(i => i is UAObject);
-            return root.References.First(r =>
+            UANode root = nodeSet.Items!.First(i => i is UAObject);
+            return root.References!.First(r =>
                 string.Equals(r.ReferenceType, "HasTypeDefinition", System.StringComparison.Ordinal));
         }
 

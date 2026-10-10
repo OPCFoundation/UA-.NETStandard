@@ -34,7 +34,7 @@ namespace Opc.Ua.PubSub.Mqtt.Internal
 {
     /// <summary>
     /// Default <see cref="IMqttClientFactory"/> implementation backed
-    /// by MQTTnet (v4 on netstandard / net48, v5 on net8+).
+    /// by MQTTnet (v4 on net48, v5 on net8+).
     /// </summary>
     /// <remarks>
     /// Wired into the DI container by the PubSub transport composition;

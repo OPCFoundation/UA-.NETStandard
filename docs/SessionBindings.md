@@ -6,6 +6,11 @@ returned. Stock `Session` and `ManagedSession` implement it. Existing `ISession`
 `ISessionClient` and `ITransportChannel` implementations acquire no new mandatory
 members, and ordinary unbound clients retain their normal reconnect behavior.
 
+This client capability is distinct from the server's
+[`IServerSessionBindingProvider`](Transports.md#committed-session-bindings), which
+provides read-only committed-session membership and classification snapshots through
+`HasSession` and `TryGetSessionContext`. Neither interface requires the other's members.
+
 ## Capture and use
 
 Establish and authenticate the owning session through the usual direct factory

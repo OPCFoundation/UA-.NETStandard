@@ -519,8 +519,12 @@ namespace Opc.Ua.Wot
                     field.InnerText.Trim(),
                     NumberStyles.Float,
                     CultureInfo.InvariantCulture,
-                    out double parsed))
+                    out double parsed) ||
+                    double.IsNaN(parsed) ||
+                    double.IsInfinity(parsed))
                 {
+                    // NaN / Infinity parse but cannot be written as JSON, and
+                    // NaN is what XmlConvert writes for an uninitialised range.
                     return false;
                 }
                 switch (field.LocalName)
@@ -848,7 +852,7 @@ namespace Opc.Ua.Wot
                     affordance.Key;
                 AttachUnitProperty(
                     document, affordance.Value, owner, propertyNodeIds, index,
-                    items, rootNodeId, rootReferences, diagnostics);
+                    rootNodeId, rootReferences, diagnostics);
                 if (TryReadRangeMembers(affordance.Value, out WotRange euRange))
                 {
                     MaterializeRange(
@@ -877,7 +881,6 @@ namespace Opc.Ua.Wot
             UAVariable owner,
             Dictionary<string, string> propertyNodeIds,
             Dictionary<string, UANode> index,
-            List<UANode> items,
             string rootNodeId,
             List<Reference> rootReferences,
             List<WotDiagnostic> diagnostics)
@@ -906,7 +909,7 @@ namespace Opc.Ua.Wot
                 return;
             }
             _ = diagnostics;
-            Reparent(unit, owner.NodeId!, rootNodeId, rootReferences, items);
+            Reparent(unit, owner, rootNodeId, rootReferences);
         }
 
         /// <summary>
@@ -954,15 +957,15 @@ namespace Opc.Ua.Wot
         /// </summary>
         private static void Reparent(
             UAVariable child,
-            string ownerNodeId,
+            UAVariable owner,
             string rootNodeId,
-            List<Reference> rootReferences,
-            List<UANode> items)
+            List<Reference> rootReferences)
         {
             if (!string.Equals(child.ParentNodeId, rootNodeId, StringComparison.Ordinal))
             {
                 return;
             }
+            string ownerNodeId = owner.NodeId!;
             child.ParentNodeId = ownerNodeId;
             var references = new List<Reference>();
             foreach (Reference reference in child.References ?? [])
@@ -992,7 +995,7 @@ namespace Opc.Ua.Wot
                     rootReferences.RemoveAt(ii);
                 }
             }
-            AddOwnedProperty(items, ownerNodeId, child.NodeId!);
+            AddOwnedProperty(owner, child.NodeId!);
         }
 
         /// <summary>
@@ -1079,7 +1082,7 @@ namespace Opc.Ua.Wot
                     }
                 ]
             });
-            AddOwnedProperty(items, owner.NodeId!, nodeId);
+            AddOwnedProperty(owner, nodeId);
         }
 
         /// <summary>
@@ -1213,35 +1216,32 @@ namespace Opc.Ua.Wot
         /// <summary>
         /// Adds the forward Property reference from the owning Variable.
         /// </summary>
-        private static void AddOwnedProperty(List<UANode> items, string owner, string nodeId)
+        /// <remarks>
+        /// The owner is passed as the Node the caller already holds rather
+        /// than looked up again by a scan of every Node, which made each
+        /// analog Property cost a pass over the whole NodeSet.
+        /// </remarks>
+        private static void AddOwnedProperty(UANode owner, string nodeId)
         {
-            foreach (UANode node in items)
+            foreach (Reference existing in owner.References ?? [])
             {
-                if (!string.Equals(node.NodeId, owner, StringComparison.Ordinal))
+                if (existing.IsForward &&
+                    IsComponentReference(existing.ReferenceType) &&
+                    string.Equals(existing.Value, nodeId, StringComparison.Ordinal))
                 {
-                    continue;
+                    return;
                 }
-                foreach (Reference existing in node.References ?? [])
-                {
-                    if (existing.IsForward &&
-                        IsComponentReference(existing.ReferenceType) &&
-                        string.Equals(existing.Value, nodeId, StringComparison.Ordinal))
-                    {
-                        return;
-                    }
-                }
-                var references = new List<Reference>(node.References ?? [])
-                {
-                    new Reference
-                    {
-                        ReferenceType = "HasProperty",
-                        IsForward = true,
-                        Value = nodeId
-                    }
-                };
-                node.References = [.. references];
-                return;
             }
+            var references = new List<Reference>(owner.References ?? [])
+            {
+                new Reference
+                {
+                    ReferenceType = "HasProperty",
+                    IsForward = true,
+                    Value = nodeId
+                }
+            };
+            owner.References = [.. references];
         }
     }
 }

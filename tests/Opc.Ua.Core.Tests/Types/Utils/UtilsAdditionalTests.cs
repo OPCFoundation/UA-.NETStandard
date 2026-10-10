@@ -94,7 +94,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void EscapeUriNullReturnsEmpty()
         {
-            Assert.That(Utils.EscapeUri(null), Is.EqualTo(string.Empty));
+            Assert.That(Utils.EscapeUri(null!), Is.EqualTo(string.Empty));
         }
 
         [Test]
@@ -410,7 +410,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
         [Test]
         public void ReplaceSpecialFolderNamesHandlesKnownEnvironmentAndFallbacks()
         {
-            string programData = Environment.GetEnvironmentVariable("ProgramData");
+            string programData = Environment.GetEnvironmentVariable("ProgramData")!;
             if (programData != null)
             {
                 Assert.That(
@@ -457,7 +457,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             {
                 File.Delete(existingFile);
                 File.Delete(createdFile);
-                string createdDirectory = Path.GetDirectoryName(createdFile);
+                string createdDirectory = Path.GetDirectoryName(createdFile)!;
                 if (createdDirectory != null && Directory.Exists(createdDirectory))
                 {
                     Directory.Delete(createdDirectory);
@@ -575,11 +575,11 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
 
             Assert.Throws<ArgumentNullException>(
-                () => Utils.ParseExtension<string>(extensions, elementName, telemetry, null));
+                () => Utils.ParseExtension<string>(extensions, elementName, telemetry, null!));
             Assert.Throws<ArgumentNullException>(
-                () => Utils.ParseExtension<string>(extensions, null, telemetry, decoder => decoder.ReadString("Value")));
+                () => Utils.ParseExtension<string>(extensions, null!, telemetry, decoder => decoder.ReadString("Value")!));
             Assert.That(
-                Utils.ParseExtension<string>(extensions, elementName, telemetry, decoder => decoder.ReadString("Value")),
+                Utils.ParseExtension<string>(extensions, elementName, telemetry, decoder => decoder.ReadString("Value")!),
                 Is.Null);
         }
 
@@ -597,13 +597,13 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 telemetry,
                 (encoder, value) => encoder.WriteString("Value", value));
             Assert.That(extensions, Has.Count.EqualTo(1));
-            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Contain("alpha"));
+            Assert.That(extensions[0].AsXmlElement()!.OuterXml, Does.Contain("alpha"));
 
             string parsed = Utils.ParseExtension(
                 extensions,
                 elementName,
                 telemetry,
-                decoder => decoder != null ? "decoded" : null);
+                decoder => decoder != null ? "decoded" : null)!;
             Assert.That(parsed, Is.EqualTo("decoded"));
 
             Utils.UpdateExtension(
@@ -613,15 +613,134 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
                 telemetry,
                 (encoder, value) => encoder.WriteString("Value", value));
             Assert.That(extensions, Has.Count.EqualTo(1));
-            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Contain("beta"));
-            Assert.That(extensions[0].AsXmlElement().OuterXml, Does.Not.Contain("alpha"));
+            Assert.That(extensions[0].AsXmlElement()!.OuterXml, Does.Contain("beta"));
+            Assert.That(extensions[0].AsXmlElement()!.OuterXml, Does.Not.Contain("alpha"));
 
             parsed = Utils.ParseExtension(
                 extensions,
                 elementName,
                 telemetry,
-                decoder => decoder != null ? "decoded" : null);
+                decoder => decoder != null ? "decoded" : null)!;
             Assert.That(parsed, Is.EqualTo("decoded"));
+        }
+
+        /// <summary>
+        /// Passing the default value deletes the extension. The delete never
+        /// happened: the method encoded nothing for a default value, then
+        /// returned early because the empty document had no root element, so the
+        /// removal below it was unreachable.
+        /// </summary>
+        [Test]
+        public void UpdateExtensionWithDefaultValueRemovesTheExtension()
+        {
+            var extensions = new ArrayOf<Opc.Ua.XmlElement>();
+            var elementName = new XmlQualifiedName("SampleExtension", "urn:test");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            Utils.UpdateExtension(
+                ref extensions,
+                elementName,
+                "alpha",
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Assert.That(extensions, Has.Count.EqualTo(1));
+
+            Utils.UpdateExtension<string>(
+                ref extensions,
+                elementName,
+                null,
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+
+            Assert.That(extensions, Is.Empty);
+        }
+
+        /// <summary>
+        /// Deleting an extension leaves the others alone.
+        /// </summary>
+        [Test]
+        public void UpdateExtensionWithDefaultValueKeepsOtherExtensions()
+        {
+            var extensions = new ArrayOf<Opc.Ua.XmlElement>();
+            var first = new XmlQualifiedName("FirstExtension", "urn:test");
+            var second = new XmlQualifiedName("SecondExtension", "urn:test");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            Utils.UpdateExtension(
+                ref extensions,
+                first,
+                "alpha",
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Utils.UpdateExtension(
+                ref extensions,
+                second,
+                "beta",
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Assert.That(extensions, Has.Count.EqualTo(2));
+
+            Utils.UpdateExtension<string>(
+                ref extensions,
+                first,
+                null,
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+
+            Assert.That(extensions, Has.Count.EqualTo(1));
+            Assert.That(extensions[0].AsXmlElement()!.OuterXml, Does.Contain("beta"));
+        }
+
+        /// <summary>
+        /// Deleting an extension that is not there is a no-op rather than an
+        /// empty element being added.
+        /// </summary>
+        [Test]
+        public void UpdateExtensionWithDefaultValueOnAnAbsentExtensionAddsNothing()
+        {
+            var extensions = new ArrayOf<Opc.Ua.XmlElement>();
+            var elementName = new XmlQualifiedName("SampleExtension", "urn:test");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+
+            Utils.UpdateExtension<string>(
+                ref extensions,
+                elementName,
+                null,
+                telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+
+            Assert.That(extensions, Is.Empty);
+        }
+
+        /// <summary>
+        /// Verifies null extension updates remove only the matching qualified name without serializing a replacement.
+        /// </summary>
+        [Test]
+        public void UpdateExtensionNullRemovesOnlyMatchingQualifiedName()
+        {
+            ArrayOf<Opc.Ua.XmlElement> extensions = [];
+            var name = new XmlQualifiedName("Entry", "urn:remove");
+            var other = new XmlQualifiedName("Entry", "urn:keep");
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            Utils.UpdateExtension(
+                ref extensions, name, "remove", telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Utils.UpdateExtension(
+                ref extensions, other, "keep", telemetry,
+                (encoder, value) => encoder.WriteString("Value", value));
+            Opc.Ua.XmlElement retained = extensions[1];
+
+            Utils.UpdateExtension<string>(
+                ref extensions, name, null, telemetry,
+                (_, _) => Assert.Fail("Deleting an extension must not serialize a replacement."));
+            Assert.That(extensions, Has.Count.EqualTo(1));
+            Assert.That(extensions[0], Is.EqualTo(retained));
+
+            Utils.UpdateExtension<string>(
+                ref extensions, name, null, telemetry,
+                (_, _) => Assert.Fail("Deleting an absent extension must not serialize."));
+            Assert.That(extensions, Has.Count.EqualTo(1));
+            Assert.That(extensions[0], Is.EqualTo(retained));
         }
 
         [Test]
@@ -645,7 +764,7 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
 
             Assert.That(extensions, Has.Count.EqualTo(1));
 
-            ReadRequest parsed = Utils.ParseExtension<ReadRequest>(extensions, null, telemetry);
+            ReadRequest parsed = Utils.ParseExtension<ReadRequest>(extensions, null, telemetry)!;
             Assert.That(parsed, Is.Not.Null);
             Assert.That(parsed.NodesToRead, Has.Count.EqualTo(1));
             Assert.That(parsed.NodesToRead[0].NodeId, Is.EqualTo(VariableIds.Server_ServerStatus));
@@ -665,8 +784,8 @@ namespace Opc.Ua.Core.Tests.Types.UtilsTests
             Utils.UpdateExtension(ref extensions, null, replacementRequest, telemetry);
 
             Assert.That(extensions, Has.Count.EqualTo(1));
-            parsed = Utils.ParseExtension<ReadRequest>(extensions, null, telemetry);
-            Assert.That(parsed.NodesToRead, Has.Count.EqualTo(1));
+            parsed = Utils.ParseExtension<ReadRequest>(extensions, null, telemetry)!;
+            Assert.That(parsed!.NodesToRead, Has.Count.EqualTo(1));
             Assert.That(
                 parsed.NodesToRead[0].NodeId,
                 Is.EqualTo(VariableIds.Server_ServerStatus_CurrentTime));

@@ -121,46 +121,76 @@ namespace Opc.Ua.Bindings
 
             int inputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa);
             int outputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);
+            int decryptedSize = GetRsaDecryptedSize(dataToDecrypt, headerToCopy, inputBlockSize, outputBlockSize);
 
-            // verify the input data is the correct block size.
-            if (dataToDecrypt.Count % inputBlockSize != 0)
+            byte[] decryptedBuffer = BufferManager.TakeBuffer(decryptedSize, "Rsa_Decrypt");
+            bool success = false;
+
+            try
             {
-                m_logger.UaSCChannelLog8(dataToDecrypt.Count, inputBlockSize);
-            }
-
-            byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Decrypt");
-            Array.Copy(
-                headerToCopy.GetArray(),
-                headerToCopy.Offset,
-                decryptedBuffer,
-                0,
-                headerToCopy.Count);
-            RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
-
-            using (
-                var ostrm = new MemoryStream(
+                Array.Copy(
+                    headerToCopy.GetArray(),
+                    headerToCopy.Offset,
                     decryptedBuffer,
-                    headerToCopy.Count,
-                    decryptedBuffer.Length - headerToCopy.Count))
-            {
-                // decrypt body.
-                byte[] input = new byte[inputBlockSize];
+                    0,
+                    headerToCopy.Count);
+                RSAEncryptionPadding rsaPadding = RsaUtils.GetRSAEncryptionPadding(padding);
 
-                for (int ii = dataToDecrypt.Offset;
-                    ii < dataToDecrypt.Offset + dataToDecrypt.Count;
-                    ii += inputBlockSize)
+                using (
+                    var ostrm = new MemoryStream(
+                        decryptedBuffer,
+                        headerToCopy.Count,
+                        decryptedSize - headerToCopy.Count))
                 {
-                    Array.Copy(dataToDecrypt.GetArray(), ii, input, 0, input.Length);
-                    byte[] plainText = rsa.Decrypt(input, rsaPadding);
-                    ostrm.Write(plainText, 0, plainText.Length);
+                    // decrypt body.
+                    byte[] input = new byte[inputBlockSize];
+
+                    for (int ii = dataToDecrypt.Offset;
+                        ii < dataToDecrypt.Offset + dataToDecrypt.Count;
+                        ii += inputBlockSize)
+                    {
+                        Array.Copy(dataToDecrypt.GetArray(), ii, input, 0, input.Length);
+                        byte[] plainText = rsa.Decrypt(input, rsaPadding);
+                        ostrm.Write(plainText, 0, plainText.Length);
+                    }
+                }
+
+                success = true;
+
+                // return buffers.
+                return new ArraySegment<byte>(decryptedBuffer, 0, decryptedSize);
+            }
+            finally
+            {
+                if (!success)
+                {
+                    BufferManager.ReturnBuffer(decryptedBuffer, "Rsa_Decrypt");
                 }
             }
+        }
 
-            // return buffers.
-            return new ArraySegment<byte>(
-                decryptedBuffer,
-                0,
-                (dataToDecrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count);
+        /// <summary>
+        /// Returns the size of the header and the decrypted body of an RSA
+        /// encrypted chunk, after checking that the cipher text is a whole
+        /// number of blocks (OPC 10000-6 §6.7.2.5.1).
+        /// </summary>
+        /// <exception cref="ServiceResultException"></exception>
+        private int GetRsaDecryptedSize(
+            ArraySegment<byte> dataToDecrypt,
+            ArraySegment<byte> headerToCopy,
+            int inputBlockSize,
+            int outputBlockSize)
+        {
+            if (dataToDecrypt.Count == 0 || dataToDecrypt.Count % inputBlockSize != 0)
+            {
+                m_logger.UaSCChannelLog8(dataToDecrypt.Count, inputBlockSize);
+                throw ServiceResultException.Create(
+                    StatusCodes.BadSecurityChecksFailed,
+                    "The encrypted data is not a multiple of the {0} byte block size.",
+                    inputBlockSize);
+            }
+
+            return (dataToDecrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count;
         }
 
         /// <summary>
@@ -194,14 +224,9 @@ namespace Opc.Ua.Bindings
 
             int inputBlockSize = RsaUtils.GetCipherTextBlockSize(rsa);
             int outputBlockSize = RsaUtils.GetPlainTextBlockSize(rsa, padding);
+            int decryptedSize = GetRsaDecryptedSize(dataToDecrypt, headerToCopy, inputBlockSize, outputBlockSize);
 
-            // verify the input data is the correct block size.
-            if (dataToDecrypt.Count % inputBlockSize != 0)
-            {
-                m_logger.UaSCChannelLog8(dataToDecrypt.Count, inputBlockSize);
-            }
-
-            byte[] decryptedBuffer = BufferManager.TakeBuffer(SendBufferSize, "Rsa_Decrypt", ct);
+            byte[] decryptedBuffer = BufferManager.TakeBuffer(decryptedSize, "Rsa_Decrypt", ct);
             bool success = false;
 
             try
@@ -234,10 +259,7 @@ namespace Opc.Ua.Bindings
                 success = true;
 
                 // return buffers.
-                return new ArraySegment<byte>(
-                    decryptedBuffer,
-                    0,
-                    (dataToDecrypt.Count / inputBlockSize * outputBlockSize) + headerToCopy.Count);
+                return new ArraySegment<byte>(decryptedBuffer, 0, decryptedSize);
             }
             finally
             {

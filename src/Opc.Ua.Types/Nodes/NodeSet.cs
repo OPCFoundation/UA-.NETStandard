@@ -954,8 +954,8 @@ namespace Opc.Ua
             {
                 argument.DataType = Translate(
                     argument.DataType,
-                    sourceNamespaceUris,
-                    targetNamespaceUris);
+                    targetNamespaceUris,
+                    sourceNamespaceUris);
                 return new ExtensionObject(argument);
             }
 #pragma warning restore CS8602, CS8600

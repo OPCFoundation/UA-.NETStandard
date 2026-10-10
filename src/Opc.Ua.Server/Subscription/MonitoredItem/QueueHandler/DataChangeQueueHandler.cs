@@ -35,41 +35,45 @@ using Microsoft.Extensions.Logging;
 namespace Opc.Ua.Server
 {
     /// <summary>
-    /// Mangages a data value queue for a data change monitoredItem
+    /// Manages the data-value queue of a data-change monitored item.
     /// </summary>
     public interface IDataChangeQueueHandler : IDisposable
     {
         /// <summary>
         /// Sets the queue size.
         /// </summary>
-        /// <param name="queueSize">The new queue size.</param>
+        /// <param name="queueSize">The maximum number of values retained in the queue.</param>
         /// <param name="discardOldest">Whether to discard the oldest values if the queue overflows.</param>
-        /// <param name="diagnosticsMasks">Specifies which diagnostics which should be kept in the queue.</param>
+        /// <param name="diagnosticsMasks">The diagnostic information to retain with queued values.</param>
         void SetQueueSize(uint queueSize, bool discardOldest, DiagnosticsMasks diagnosticsMasks);
 
         /// <summary>
-        /// Set the sampling interval of the queue
+        /// Sets the sampling interval used to coalesce incoming values.
         /// </summary>
-        /// <param name="samplingInterval">the sampling interval</param>
+        /// <param name="samplingInterval">The interval in milliseconds, or zero to disable coalescing.</param>
         void SetSamplingInterval(double samplingInterval);
 
         /// <summary>
-        /// Number of DataValues in the queue
+        /// Gets the number of retained data values.
         /// </summary>
+        /// <value>The number of values currently in the queue.</value>
         int ItemsInQueue { get; }
 
         /// <summary>
-        /// Queues a value
+        /// Queues a sampled value and its associated diagnostic result.
         /// </summary>
-        /// <param name="value">the dataValue</param>
-        /// <param name="error">the error</param>
-        /// <returns>true of overflow occured</returns>
+        /// <param name="value">The sampled data value.</param>
+        /// <param name="error">The diagnostic result associated with the value.</param>
+        /// <returns><c>true</c> if queue overflow discarded a value; otherwise, <c>false</c>.</returns>
         bool QueueValue(in DataValue value, ServiceResult error);
 
         /// <summary>
-        /// Dequeues the last item
+        /// Dequeues the next data value for publication.
         /// </summary>
-        /// <returns>true if an item was dequeued</returns>
+        /// <param name="value">Receives the dequeued value, or its default value when the queue is empty.</param>
+        /// <param name="error">Receives the value's diagnostic result, or <c>null</c> when none is available.</param>
+        /// <param name="noEventLog"><c>true</c> to suppress the dequeue trace; otherwise, <c>false</c>.</param>
+        /// <returns><c>true</c> if a value was dequeued; otherwise, <c>false</c>.</returns>
         bool PublishSingleValue(
             out DataValue value,
             out ServiceResult error,
@@ -166,40 +170,65 @@ namespace Opc.Ua.Server
             // copy existing values.
             List<DataValue>? existingValues = null;
             List<ServiceResult>? existingErrors = null;
+            ServiceResult? requiredError = m_requiredError;
+            int requiredIndex = -1;
 
             if (ItemsInQueue > 0)
             {
                 existingValues = new List<DataValue>((int)queueSize);
                 existingErrors = new List<ServiceResult>((int)queueSize);
 
-                while (PublishSingleValue(out DataValue value, out ServiceResult error, true))
+                while (PublishSingleValue(
+                    out DataValue value,
+                    out ServiceResult error,
+                    out bool wasRequired,
+                    noEventLog: true,
+                    retryOnEmpty: true))
                 {
+                    if (wasRequired)
+                    {
+                        requiredIndex = existingValues.Count;
+                    }
                     existingValues.Add(value);
                     existingErrors.Add(error);
                 }
             }
 
-            // The marker keeps its identity across the resize, so draining it here must not clear
-            // the flag that protects it from being discarded once it is put back.
-            DataValue required = m_required;
-            bool requiredPending = m_requiredPending;
-
             m_dataValueQueue.ResetQueue(queueSize, queueErrors);
 
             m_overflow = default;
             m_overflowPending = false;
+            m_required = default;
+            m_requiredError = null;
+            m_requiredPending = false;
 
             // requeue the data.
             if (existingValues != null)
             {
                 for (int ii = 0; ii < existingValues.Count; ii++)
                 {
-                    Enqueue(existingValues[ii], existingErrors![ii]);
+                    if (ii == requiredIndex)
+                    {
+                        DataValue requiredValue = existingValues[ii];
+                        ServiceResult requeueError =
+                            requiredError ?? existingErrors![ii];
+                        if (requiredValue.StatusCode.Overflow)
+                        {
+                            SetOverflowBit(
+                                ref requiredValue,
+                                ref requeueError);
+                        }
+                        EnqueueRequired(
+                            requiredValue,
+                            requeueError,
+                            replaceExisting: false);
+                    }
+                    else
+                    {
+                        Enqueue(existingValues[ii], existingErrors![ii]);
+                    }
                 }
             }
-
-            m_required = required;
-            m_requiredPending = requiredPending;
         }
 
         /// <summary>
@@ -263,9 +292,21 @@ namespace Opc.Ua.Server
                         now,
                         m_nextSampleTime);
 
-                    m_dataValueQueue.OverwriteLastValue(value, error);
-
-                    m_discardedValueHandler?.Invoke();
+                    DataValue replacement = value;
+                    bool overwritesOverflow = m_overflowPending && m_overflow == overwrittenValue;
+                    if (overwritesOverflow || overwrittenValue.StatusCode.Overflow)
+                    {
+                        SetOverflowBit(ref replacement, ref error);
+                    }
+                    if (overwritesOverflow)
+                    {
+                        m_overflow = default;
+                        m_overflowPending = false;
+                    }
+                    // a value replaced because the next sampling interval has not elapsed
+                    // is sampling, not a queue overflow: it is not counted as a discard
+                    // (Part 5 12.15 MonitoringQueueOverflowCount).
+                    m_dataValueQueue.OverwriteLastValue(replacement, error);
 
                     return false;
                 }
@@ -291,11 +332,19 @@ namespace Opc.Ua.Server
         }
 
         /// <summary>
-        /// Queues a required missing-node marker without sampling or overflow replacement.
+        /// Queues a required notification without sampling or overflow replacement.
         /// </summary>
-        internal void QueueRequiredValue(in DataValue value, ServiceResult error)
+        /// <param name="value">The required notification value.</param>
+        /// <param name="error">The required notification error.</param>
+        /// <param name="replaceExisting">
+        /// Whether a different pending required notification is superseded.
+        /// </param>
+        internal void QueueRequiredValue(
+            in DataValue value,
+            ServiceResult error,
+            bool replaceExisting = false)
         {
-            EnqueueRequired(value, error);
+            EnqueueRequired(value, error, replaceExisting);
         }
 
         /// <summary>
@@ -311,11 +360,37 @@ namespace Opc.Ua.Server
             out ServiceResult error,
             bool noEventLog = false)
         {
-            if (m_dataValueQueue.Dequeue(out value, out error))
+            return PublishSingleValue(
+                out value,
+                out error,
+                out _,
+                noEventLog,
+                retryOnEmpty: false);
+        }
+
+        private bool PublishSingleValue(
+            out DataValue value,
+            out ServiceResult error,
+            out bool wasRequired,
+            bool noEventLog,
+            bool retryOnEmpty)
+        {
+            bool dequeued = retryOnEmpty
+                ? DequeueWithRetry(out value, out error)
+                : m_dataValueQueue.Dequeue(out value, out error);
+            if (dequeued)
             {
-                if (IsRequiredMarker(value))
+                wasRequired = IsRequiredMarker(value);
+                if (wasRequired)
                 {
+                    if (m_required.StatusCode.Overflow &&
+                        !value.StatusCode.Overflow)
+                    {
+                        value = m_required;
+                        error = m_requiredError ?? error;
+                    }
                     m_required = default;
+                    m_requiredError = null;
                     m_requiredPending = false;
                 }
 
@@ -338,6 +413,7 @@ namespace Opc.Ua.Server
                 return true;
             }
 
+            wasRequired = false;
             return false;
         }
 
@@ -345,6 +421,7 @@ namespace Opc.Ua.Server
         /// Enque value
         /// </summary>
         /// <returns>true of overflow occured</returns>
+        /// <exception cref="ServiceResultException">A full queue cannot discard its oldest value.</exception>
         private bool Enqueue(DataValue value, ServiceResult error)
         {
             // check for empty queue.
@@ -383,9 +460,9 @@ namespace Opc.Ua.Server
                     m_discardedValueHandler?.Invoke();
                     ServerUtils.ReportDiscardedValue(default, m_monitoredItemId, lastValue);
 
-                    // the newest value reports the loss.
-                    m_overflow = value;
-                    m_overflowPending = true;
+                    // the newest value reports the loss. The Overflow bit is stored with the
+                    // queued value, so a durable queue keeps it across a restore.
+                    SetOverflowBit(ref value, ref error);
 
                     // overwrite last value
                     m_dataValueQueue.OverwriteLastValue(value, error);
@@ -449,18 +526,67 @@ namespace Opc.Ua.Server
         /// </summary>
         /// <param name="value">The marker value.</param>
         /// <param name="error">The marker error.</param>
-        private void EnqueueRequired(DataValue value, ServiceResult error)
+        /// <param name="replaceExisting">
+        /// Whether a different pending marker is superseded.
+        /// </param>
+        private void EnqueueRequired(
+            DataValue value,
+            ServiceResult error,
+            bool replaceExisting)
         {
             if (m_requiredPending)
             {
-                // A marker is already queued and says the same thing, so a second one adds
-                // nothing and would only displace a real value.
+                if (m_required.StatusCode == value.StatusCode ||
+                    !replaceExisting)
+                {
+                    return;
+                }
+                ReplaceRequired(value, error);
                 return;
             }
 
-            // No marker is queued yet, so the rule that protects it cannot reject this one.
             Enqueue(value, error);
             m_required = value;
+            m_requiredError = error;
+            m_requiredPending = true;
+        }
+
+        private void ReplaceRequired(
+            DataValue value,
+            ServiceResult error)
+        {
+            var existingValues = new List<DataValue>(
+                Math.Max(m_dataValueQueue.ItemsInQueue - 1, 0));
+            var existingErrors = new List<ServiceResult>(
+                existingValues.Capacity);
+            while (PublishSingleValue(
+                out DataValue existingValue,
+                out ServiceResult existingError,
+                out bool wasRequired,
+                noEventLog: true,
+                retryOnEmpty: true))
+            {
+                if (wasRequired)
+                {
+                    if (existingValue.StatusCode.Overflow)
+                    {
+                        SetOverflowBit(ref value, ref error);
+                    }
+                }
+                else
+                {
+                    existingValues.Add(existingValue);
+                    existingErrors.Add(existingError);
+                }
+            }
+
+            for (int ii = 0; ii < existingValues.Count; ii++)
+            {
+                Enqueue(existingValues[ii], existingErrors[ii]);
+            }
+            Enqueue(value, error);
+            m_required = value;
+            m_requiredError = error;
             m_requiredPending = true;
         }
 
@@ -470,7 +596,16 @@ namespace Opc.Ua.Server
         /// <param name="value">The queued value.</param>
         private bool IsRequiredMarker(in DataValue value)
         {
-            return m_requiredPending && m_required == value;
+            return m_requiredPending &&
+                AreEquivalentRequiredValues(m_required, value);
+        }
+
+        private static bool AreEquivalentRequiredValues(
+            in DataValue left,
+            in DataValue right)
+        {
+            return left.WithStatus(left.StatusCode.SetOverflow(false)) ==
+                right.WithStatus(right.StatusCode.SetOverflow(false));
         }
 
         /// <summary>
@@ -517,7 +652,6 @@ namespace Opc.Ua.Server
             error = ServiceResult.Good;
             return false;
         }
-
 
         /// <summary>
         /// Sets the overflow bit in the value and error.
@@ -576,6 +710,7 @@ namespace Opc.Ua.Server
         private DataValue m_overflow;
         private bool m_overflowPending;
         private DataValue m_required;
+        private ServiceResult? m_requiredError;
         private bool m_requiredPending;
     }
 
@@ -584,6 +719,9 @@ namespace Opc.Ua.Server
     /// </summary>
     internal static partial class DataChangeQueueHandlerLog
     {
+        /// <summary>
+        /// Logs a queued value overwritten because the next sampling interval has not elapsed.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.DataChangeQueueHandler + 0, Level = LogLevel.Trace,
             Message = "OVERWRITTEN VALUE (TOO SOON FOR ANOTHER SAMPLE): Value={Value} CODE={Code}<{Code:X8}> " +
                 "SamplingInterval={SamplingInterval}QueueValueCall {Now} NextSampleTime {NextSampleTime}")]
@@ -595,10 +733,11 @@ namespace Opc.Ua.Server
             long now,
             long nextSampleTime);
 
-
+        /// <summary>
+        /// Logs a value being added to the data-change queue.
+        /// </summary>
         [LoggerMessage(EventId = ServerEventIds.DataChangeQueueHandler + 1, Level = LogLevel.Trace,
             Message = "ENQUEUE VALUE: Value={Value}")]
         public static partial void ENQUEUEVALUEValueValue(this ILogger logger, Variant value);
     }
-
 }

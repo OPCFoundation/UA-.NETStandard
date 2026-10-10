@@ -55,9 +55,9 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
-            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
-            byte[] expectedPassword = Nonce.CreateNonce(96).Data;
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri)!;
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy!.SecureChannelNonceLength).Data!;
+            byte[] expectedPassword = Nonce.CreateNonce(96).Data!;
 
             using Certificate certificate = CertificateBuilder
                 .Create("CN=User Identity Token Test Subject, O=OPC Foundation")
@@ -68,8 +68,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 context,
                 certificate,
                 kSecurityPolicyUri,
-                expectedPassword,
-                receiverNonce);
+                expectedPassword!,
+                receiverNonce!);
 
             var token = new UserNameIdentityToken
             {
@@ -88,13 +88,56 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             Assert.That(tokenHandler.DecryptedPassword, Is.EqualTo(expectedPassword));
         }
 
+        /// <summary>
+        /// A failing RSAEncryptedSecret must report its own cause (here the nonce) to the
+        /// server, which logs it, instead of falling through to the legacy decryption path.
+        /// </summary>
+        [Test]
+        public void DecryptReportsRsaEncryptedSecretFailureCause()
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
+            var context = ServiceMessageContext.CreateEmpty(telemetry);
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri)!;
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy!.SecureChannelNonceLength).Data!;
+            byte[] otherNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data!;
+
+            using Certificate certificate = CertificateBuilder
+                .Create("CN=User Identity Token Failure Test Subject, O=OPC Foundation")
+                .SetRSAKeySize(2048)
+                .CreateForRSA();
+
+            byte[] encryptedSecret = CreateRsaEncryptedSecret(
+                context,
+                certificate,
+                kSecurityPolicyUri,
+                Nonce.CreateNonce(96).Data!,
+                otherNonce!);
+
+            var token = new UserNameIdentityToken
+            {
+                UserName = "user",
+                Password = encryptedSecret.ToByteString(),
+                EncryptionAlgorithm = null
+            };
+
+            var tokenHandler = new UserNameIdentityTokenHandler(token);
+            Assert.That(
+                async () => await tokenHandler.DecryptAsync(
+                    certificate,
+                    Nonce.CreateNonce(securityPolicy, receiverNonce!),
+                    kSecurityPolicyUri,
+                    context).ConfigureAwait(false),
+                Throws.TypeOf<ServiceResultException>()
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadNonceInvalid));
+        }
+
         [Test]
         public async Task DecryptKeepsLegacyRsaEncryptedTokenPathAsync()
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
-            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri)!;
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy!.SecureChannelNonceLength).Data!;
             byte[] expectedPassword = GetRandomBytes(TestLegacyPasswordLength);
 
             using Certificate certificate = CertificateBuilder
@@ -118,7 +161,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             var tokenHandler = new UserNameIdentityTokenHandler(token);
             await tokenHandler.DecryptAsync(
                 certificate,
-                Nonce.CreateNonce(securityPolicy, receiverNonce),
+                Nonce.CreateNonce(securityPolicy, receiverNonce!),
                 kSecurityPolicyUri,
                 context).ConfigureAwait(false);
 
@@ -139,10 +182,13 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             };
 
             var tokenHandler = new UserNameIdentityTokenHandler(token);
+            StatusCode expected = SecurityPolicies.Default.GetInfo(SecurityPolicies.ECC_nistP256) == null
+                ? StatusCodes.BadSecurityPolicyRejected
+                : StatusCodes.BadIdentityTokenInvalid;
             Assert.That(
                 async () => await tokenHandler.DecryptAsync(
-                    certificate: null,
-                    receiverNonce: null,
+                    certificate: null!,
+                    receiverNonce: null!,
                     securityPolicyUri: SecurityPolicies.ECC_nistP256,
                     context: context,
                     ephemeralKey: null,
@@ -150,7 +196,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                     senderIssuerCertificates: null,
                     validator: null).ConfigureAwait(false),
                 Throws.TypeOf<ServiceResultException>()
-                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(StatusCodes.BadIdentityTokenInvalid));
+                    .With.Property(nameof(ServiceResultException.StatusCode)).EqualTo(expected));
         }
 
         [Test]
@@ -158,8 +204,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
-            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri)!;
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy!.SecureChannelNonceLength).Data!;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold - 1);
 
             using Certificate certificate = CertificateBuilder
@@ -168,7 +214,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 .CreateForRSA();
 
             var tokenHandler = new UserNameIdentityTokenHandler("legacyUser", password);
-            await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
+            await tokenHandler.EncryptAsync(certificate, receiverNonce!, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
@@ -189,8 +235,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
-            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri)!;
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy!.SecureChannelNonceLength).Data!;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold);
 
             using Certificate certificate = CertificateBuilder
@@ -199,7 +245,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 .CreateForRSA();
 
             var tokenHandler = new UserNameIdentityTokenHandler("thresholdUser", password);
-            await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
+            await tokenHandler.EncryptAsync(certificate, receiverNonce!, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
@@ -220,8 +266,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var context = ServiceMessageContext.CreateEmpty(telemetry);
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri);
-            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy.SecureChannelNonceLength).Data;
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(kSecurityPolicyUri)!;
+            byte[] receiverNonce = Nonce.CreateNonce(securityPolicy!.SecureChannelNonceLength).Data!;
             byte[] password = GetRandomBytes(RsaEncryptedSecretPasswordThreshold + 1);
 
             using Certificate certificate = CertificateBuilder
@@ -230,7 +276,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 .CreateForRSA();
 
             var tokenHandler = new UserNameIdentityTokenHandler("secretUser", password);
-            await tokenHandler.EncryptAsync(certificate, receiverNonce, kSecurityPolicyUri, context).ConfigureAwait(false);
+            await tokenHandler.EncryptAsync(certificate, receiverNonce!, kSecurityPolicyUri, context).ConfigureAwait(false);
 
             Assert.That(tokenHandler.Token, Is.TypeOf<UserNameIdentityToken>());
             var token = (UserNameIdentityToken)tokenHandler.Token;
@@ -253,8 +299,8 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] secret,
             byte[] nonce)
         {
-            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri);
-            if (securityPolicy.SymmetricEncryptionAlgorithm is not
+            SecurityPolicyInfo securityPolicy = SecurityPolicies.Default.GetInfo(securityPolicyUri)!;
+            if (securityPolicy!.SymmetricEncryptionAlgorithm is not
                 (SymmetricEncryptionAlgorithm.Aes128Cbc or SymmetricEncryptionAlgorithm.Aes256Cbc))
             {
                 throw new NotSupportedException("The test helper supports RSA security policies with CBC encryption only.");
@@ -263,12 +309,15 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             byte[] signingKey = GetRandomBytes(securityPolicy.DerivedSignatureKeyLength);
             byte[] encryptingKey = GetRandomBytes(securityPolicy.SymmetricEncryptionKeyLength);
             byte[] iv = GetRandomBytes(securityPolicy.InitializationVectorLength);
-            byte[] keyData = Utils.Append(signingKey, encryptingKey, iv);
-
-            byte[] encryptedKeyData = SecurityPolicies.Default.Encrypt(
+            using var keyDataEncoder = new BinaryEncoder(context);
+            keyDataEncoder.WriteByteString(null, signingKey);
+            keyDataEncoder.WriteByteString(null, encryptingKey);
+            keyDataEncoder.WriteByteString(null, iv);
+            byte[] keyData = keyDataEncoder.CloseAndReturnBuffer()!;
+            byte[] encryptedKeyData = EncryptRsaRaw(
                 receiverCertificate,
-                securityPolicyUri,
-                keyData).Data;
+                securityPolicy,
+                keyData!);
 
             byte[] plainPayload = CreatePayload(context, secret, nonce, securityPolicy.InitializationVectorLength);
             byte[] encryptedPayload = EncryptPayload(plainPayload, encryptingKey, iv);
@@ -300,17 +349,17 @@ namespace Opc.Ua.Core.Tests.Stack.Types
                 encoder.WriteByte(null, 0);
             }
 
-            byte[] encodedSecret = encoder.CloseAndReturnBuffer();
+            byte[] encodedSecret = encoder.CloseAndReturnBuffer()!;
 
-            int extensionObjectLength = encodedSecret.Length - lengthPosition - 4;
+            int extensionObjectLength = encodedSecret!.Length - lengthPosition - 4;
             encodedSecret[lengthPosition++] = (byte)(extensionObjectLength & 0xFF);
             encodedSecret[lengthPosition++] = (byte)((extensionObjectLength >> 8) & 0xFF);
             encodedSecret[lengthPosition++] = (byte)((extensionObjectLength >> 16) & 0xFF);
             encodedSecret[lengthPosition] = (byte)((extensionObjectLength >> 24) & 0xFF);
 
             int signatureStart = encodedSecret.Length - securityPolicy.SymmetricSignatureLength;
-            using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey);
-            byte[] signature = hmac.ComputeHash(encodedSecret, 0, signatureStart);
+            using HMAC hmac = securityPolicy.CreateSignatureHmac(signingKey)!;
+            byte[] signature = hmac!.ComputeHash(encodedSecret, 0, signatureStart);
             Buffer.BlockCopy(
                 signature,
                 0,
@@ -346,7 +395,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
 
             encoder.WriteByte(null, (byte)paddingCount);
             encoder.WriteByte(null, 0);
-            return encoder.CloseAndReturnBuffer();
+            return encoder.CloseAndReturnBuffer()!;
         }
 
         private static byte[] EncryptPayload(byte[] plainPayload, byte[] encryptingKey, byte[] iv)
@@ -366,6 +415,47 @@ namespace Opc.Ua.Core.Tests.Stack.Types
             return encryptor.TransformFinalBlock(encryptedPayload, 0, encryptedPayload.Length);
         }
 
+        private static byte[] EncryptRsaRaw(
+            Certificate receiverCertificate,
+            SecurityPolicyInfo securityPolicy,
+            byte[] plainText)
+        {
+            using RSA rsa = receiverCertificate.GetRSAPublicKey()
+                ?? throw new InvalidOperationException("The receiver certificate must have an RSA public key.");
+            RSAEncryptionPadding padding = GetRsaEncryptionPadding(securityPolicy);
+            int blockSize = securityPolicy.AsymmetricEncryptionAlgorithm switch
+            {
+                AsymmetricEncryptionAlgorithm.RsaOaepSha1 => (rsa.KeySize / 8) - 42,
+                AsymmetricEncryptionAlgorithm.RsaOaepSha256 => (rsa.KeySize / 8) - 66,
+                AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1 => (rsa.KeySize / 8) - 11,
+                _ => throw new NotSupportedException(securityPolicy.AsymmetricEncryptionAlgorithm.ToString())
+            };
+            int encryptedBlockSize = rsa.KeySize / 8;
+            byte[] encrypted = new byte[(plainText.Length + blockSize - 1) / blockSize * encryptedBlockSize];
+            int written = 0;
+
+            for (int offset = 0; offset < plainText.Length; offset += blockSize)
+            {
+                int count = Math.Min(blockSize, plainText.Length - offset);
+                byte[] block = rsa.Encrypt(plainText.AsSpan(offset, count).ToArray(), padding);
+                Buffer.BlockCopy(block, 0, encrypted, written, block.Length);
+                written += block.Length;
+            }
+
+            return encrypted;
+        }
+
+        private static RSAEncryptionPadding GetRsaEncryptionPadding(SecurityPolicyInfo securityPolicy)
+        {
+            return securityPolicy.AsymmetricEncryptionAlgorithm switch
+            {
+                AsymmetricEncryptionAlgorithm.RsaOaepSha1 => RSAEncryptionPadding.OaepSHA1,
+                AsymmetricEncryptionAlgorithm.RsaOaepSha256 => RSAEncryptionPadding.OaepSHA256,
+                AsymmetricEncryptionAlgorithm.RsaPkcs15Sha1 => RSAEncryptionPadding.Pkcs1,
+                _ => throw new NotSupportedException(securityPolicy.AsymmetricEncryptionAlgorithm.ToString())
+            };
+        }
+
         private static byte[] GetRandomBytes(int count)
         {
             byte[] bytes = new byte[count];
@@ -377,7 +467,7 @@ namespace Opc.Ua.Core.Tests.Stack.Types
         private static byte[] ComputeSha1Hash(byte[] data)
         {
             // CA5350: SHA1 required for legacy compatibility test vector.
-            // CA1850: SHA1.HashData() is .NET 5+ only and the suite still targets net472/net48.
+            // CA1850: SHA1.HashData() is .NET 5+ only and the suite still targets net48.
 #pragma warning disable CA5350, CA1850
             using var sha1 = SHA1.Create();
             return sha1.ComputeHash(data);

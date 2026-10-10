@@ -7,7 +7,6 @@
     <RestrictForLegacyTfm>true</RestrictForLegacyTfm>
     <PackageId>$(PackagePrefix).Opc.Ua.WotCon.Bindings.Mqtt</PackageId>
     <RootNamespace>Opc.Ua.WotCon.Bindings.Mqtt</RootNamespace>
-    <Nullable>enable</Nullable>
     <Description>MQTT protocol executor for OPC UA WoT Connectivity binding forms</Description>
     <IsPackable>true</IsPackable>
     <PackageReadmeFile>NugetREADME.md</PackageReadmeFile>

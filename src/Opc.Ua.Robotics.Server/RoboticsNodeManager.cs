@@ -33,6 +33,7 @@ using System.Threading.Tasks;
 using Opc.Ua.Di.Server;
 using Opc.Ua.Di.Server.Hosting;
 using Opc.Ua.Server;
+using Opc.Ua.Server.Fluent;
 
 namespace Opc.Ua.Robotics.Server
 {
@@ -179,7 +180,8 @@ namespace Opc.Ua.Robotics.Server
         }
 
         /// <inheritdoc/>
-        protected override ValueTask OnAddressSpaceReadyAsync(
+        protected override ValueTask ConfigureAsync(
+            INodeManagerBuilder builder,
             CancellationToken cancellationToken)
         {
             m_addressSpaceReady = true;

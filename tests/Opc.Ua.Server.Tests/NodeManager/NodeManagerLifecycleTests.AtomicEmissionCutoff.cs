@@ -54,16 +54,20 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            TrackingLifecycleNodeManager first = null;
-            TrackingLifecycleNodeManager second = null;
+            TrackingLifecycleNodeManager? first = null;
+            TrackingLifecycleNodeManager? second = null;
             NodeManagerRegistration firstRegistration = await lifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(101, manager => first = manager),
                 null, timeout.Token).ConfigureAwait(false);
             NodeManagerRegistration secondRegistration = await lifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(202, manager => second = manager, kSecondModelNamespaceUri),
                 null, timeout.Token).ConfigureAwait(false);
-            var firstNode = (BaseVariableState)first.Find(new NodeId(kValueNodeId, first.NamespaceIndexes[0]));
-            var secondNode = (BaseVariableState)second.Find(new NodeId(kValueNodeId, second.NamespaceIndexes[0]));
+            AssertLifecycleValue(first);
+            AssertLifecycleValue(second);
+            BaseVariableState firstNode = RequireLifecycleValue(
+                first.Find(new NodeId(kValueNodeId, first.NamespaceIndexes[0])) as BaseVariableState);
+            BaseVariableState secondNode = RequireLifecycleValue(
+                second.Find(new NodeId(kValueNodeId, second.NamespaceIndexes[0])) as BaseVariableState);
             firstNode.StatusCode = StatusCodes.Good;
             secondNode.StatusCode = StatusCodes.Good;
             var services = new ServerTestServices(m_server, m_secureChannelContext);
@@ -117,10 +121,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 reverse ? [secondChange, firstChange] : [firstChange, secondChange], timeout.Token)
                 .ConfigureAwait(false);
-            ISession session = server.SessionManager.GetSession(m_requestHeader.AuthenticationToken);
+            ISession session = RequireLifecycleValue(
+                server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
             using var context = new OperationContext(session, DiagnosticsMasks.None);
             Task dispatch = master.ConditionRefreshAsync(context, [eventItem], timeout.Token).AsTask();
-            Task<NodeManagerBatchResult> commit = null;
+            Task<NodeManagerBatchResult>? commit = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -193,9 +198,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             IServerInternal server = m_server.CurrentInstance;
             var master = (MasterNodeManager)server.NodeManager;
             var lifecycle = (INodeManagerBatchLifecycle)m_server.NodeManagerLifecycle;
-            TrackingLifecycleNodeManager first = null;
-            TrackingLifecycleNodeManager second = null;
-            TrackingLifecycleNodeManager survivor = null;
+            TrackingLifecycleNodeManager? first = null;
+            TrackingLifecycleNodeManager? second = null;
+            TrackingLifecycleNodeManager? survivor = null;
             NodeManagerRegistration firstRegistration = await lifecycle.AddAsync(
                 CreateTrackingNodeManagementFactory(101, manager => first = manager),
                 null, timeout.Token).ConfigureAwait(false);
@@ -205,6 +210,9 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await lifecycle.AddAsync(CreateTrackingNodeManagementFactory(
                 303, manager => survivor = manager, kReadinessProbeNamespaceUri), null, timeout.Token)
                 .ConfigureAwait(false);
+            AssertLifecycleValue(first);
+            AssertLifecycleValue(second);
+            AssertLifecycleValue(survivor);
             var services = new ServerTestServices(m_server, m_secureChannelContext);
             RequestHeader header = m_requestHeader;
             header.Timestamp = DateTimeUtc.Now;
@@ -249,10 +257,11 @@ namespace Opc.Ua.Server.Tests.NodeManager
             await using IPreparedNodeManagerBatch prepared = await lifecycle.PrepareAsync(
                 reverse ? [secondChange, firstChange] : [firstChange, secondChange], timeout.Token)
                 .ConfigureAwait(false);
-            ISession session = server.SessionManager.GetSession(m_requestHeader.AuthenticationToken);
+            ISession session = RequireLifecycleValue(
+                server.SessionManager.GetSession(m_requestHeader.AuthenticationToken));
             using var context = new OperationContext(session, DiagnosticsMasks.None);
             Task dispatch = master.ConditionRefreshAsync(context, [allEvents], timeout.Token).AsTask();
-            Task<NodeManagerBatchResult> commit = null;
+            Task<NodeManagerBatchResult>? commit = null;
             try
             {
                 await entered.Task.WaitAsync(timeout.Token).ConfigureAwait(false);
@@ -276,14 +285,14 @@ namespace Opc.Ua.Server.Tests.NodeManager
                         new SubscriptionAcknowledgement { SubscriptionId = subscriptionId, SequenceNumber = sequence });
                     foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
                     {
-                        if (!notification.TryGetValue(out EventNotificationList events))
+                        if (!notification.TryGetValue(out EventNotificationList? events))
                         {
                             continue;
                         }
                         foreach (EventFieldList occurrence in events.Events)
                         {
                             Assert.That(occurrence.EventFields[1].TryGetValue(out LocalizedText message), Is.True);
-                            messages[occurrence.ClientHandle].Add(message.Text);
+                            messages[occurrence.ClientHandle].Add(RequireLifecycleValue(message.Text));
                         }
                     }
                 }
@@ -317,7 +326,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
             void QueueLocal(string message)
             {
                 var occurrence = new BaseEventState(null);
-                occurrence.Initialize(server.DefaultSystemContext, second.Find(secondRoot),
+                occurrence.Initialize(server.DefaultSystemContext, RequireLifecycleValue(second.Find(secondRoot)),
                     EventSeverity.Medium, new LocalizedText(message));
                 localEvents.QueueEvent(occurrence);
             }
@@ -379,7 +388,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
                     new SubscriptionAcknowledgement { SubscriptionId = subscriptionId, SequenceNumber = sequence });
                 foreach (ExtensionObject notification in response.NotificationMessage.NotificationData)
                 {
-                    if (!notification.TryGetValue(out DataChangeNotification data))
+                    if (!notification.TryGetValue(out DataChangeNotification? data))
                     {
                         continue;
                     }
@@ -403,7 +412,7 @@ namespace Opc.Ua.Server.Tests.NodeManager
 
             public ValueTask ReportOwnedEmissionAsync(string message, CancellationToken cancellationToken)
             {
-                NodeState root = Find(new NodeId(kRootNodeId, NamespaceIndexes[0]));
+                NodeState root = RequireLifecycleValue(Find(new NodeId(kRootNodeId, NamespaceIndexes[0])));
                 var occurrence = new BaseEventState(null);
                 occurrence.Initialize(SystemContext, root, EventSeverity.Medium, new LocalizedText(message));
                 return OnReportEventAsync(SystemContext, root, occurrence, cancellationToken);

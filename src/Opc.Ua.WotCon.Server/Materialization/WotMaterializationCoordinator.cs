@@ -2204,7 +2204,7 @@ namespace Opc.Ua.WotCon.Server.Materialization
             byte[] buffer,
             CancellationToken cancellationToken)
         {
-#if NETFRAMEWORK || NETSTANDARD2_0
+#if NETFRAMEWORK
             return await stream.ReadAsync(buffer, 0, buffer.Length, cancellationToken)
                 .ConfigureAwait(false);
 #else

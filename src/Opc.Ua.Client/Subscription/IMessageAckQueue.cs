@@ -73,6 +73,17 @@ namespace Opc.Ua.Client.Subscriptions
             CancellationToken ct = default);
 
         /// <summary>
+        /// Runs an automatic subscription update while the session is available.
+        /// Session recovery cancels an active pass and defers its retry until
+        /// explicit subscription restoration has completed.
+        /// </summary>
+        /// <param name="operation">The update pass to run.</param>
+        /// <param name="ct">Cancellation token for the update worker.</param>
+        ValueTask RunWithSessionAvailableAsync(
+            Func<CancellationToken, ValueTask> operation,
+            CancellationToken ct = default);
+
+        /// <summary>
         /// Drops every queued acknowledgement targeting the given
         /// <paramref name="subscriptionId"/>. Used by the
         /// recreate path after the old server-side subscription has
@@ -85,6 +96,18 @@ namespace Opc.Ua.Client.Subscriptions
         /// <returns>The number of queued acknowledgements that
         /// were dropped.</returns>
         int DropPendingForSubscription(uint subscriptionId);
+
+        /// <summary>
+        /// Whether <paramref name="subscriptionId"/> still resolves to
+        /// <paramref name="subscription"/> in the dispatch registry. A server
+        /// that recycles identifiers after a session recreate can hand the id
+        /// of a retired subscription to a sibling that recreated first;
+        /// deleting that id would then tear down the sibling's live
+        /// subscription.
+        /// </summary>
+        /// <param name="subscription">The subscription asking.</param>
+        /// <param name="subscriptionId">The server-assigned id to check.</param>
+        bool OwnsSubscriptionId(IMessageProcessor subscription, uint subscriptionId);
 
         /// <summary>
         /// Notify the queue/manager that the subscription's state has

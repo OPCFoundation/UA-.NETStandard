@@ -30,6 +30,7 @@
 #if NET8_0_OR_GREATER
 using System;
 using System.Globalization;
+using System.Net;
 using System.Threading;
 using System.Threading.RateLimiting;
 using System.Threading.Tasks;
@@ -126,17 +127,40 @@ namespace Opc.Ua.Bindings
             return ValueTask.CompletedTask;
         }
 
-        private static PartitionedRateLimiter<HttpContext> CreateDefaultGlobalLimiter()
+        /// <summary>
+        /// Creates the default limiter. Each peer (remote IP address) gets its own
+        /// window, so one client exceeding its budget cannot lock every other
+        /// client out of the listener.
+        /// </summary>
+        internal static PartitionedRateLimiter<HttpContext> CreateDefaultGlobalLimiter()
         {
             return PartitionedRateLimiter.Create<HttpContext, string>(
-                _ => RateLimitPartition.GetFixedWindowLimiter(
-                    DefaultLimiterPartitionKey,
+                context => RateLimitPartition.GetFixedWindowLimiter(
+                    GetPartitionKey(context),
                     _ => new FixedWindowRateLimiterOptions
                     {
                         PermitLimit = 100,
                         Window = TimeSpan.FromSeconds(1),
                         QueueLimit = 0
                     }));
+        }
+
+        /// <summary>
+        /// Gets the partition key of a request: the peer address, or a shared
+        /// key when the transport does not report one.
+        /// </summary>
+        internal static string GetPartitionKey(HttpContext context)
+        {
+            IPAddress? address = context.Connection.RemoteIpAddress;
+            if (address == null)
+            {
+                return DefaultLimiterPartitionKey;
+            }
+            if (address.IsIPv4MappedToIPv6)
+            {
+                address = address.MapToIPv4();
+            }
+            return address.ToString();
         }
     }
 }

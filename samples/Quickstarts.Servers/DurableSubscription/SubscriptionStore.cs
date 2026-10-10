@@ -39,6 +39,9 @@ using Opc.Ua.Server;
 
 namespace Quickstarts.Servers
 {
+    /// <summary>
+    /// Persists sample server subscriptions and their durable monitored-item queues to local files.
+    /// </summary>
     public class SubscriptionStore : ISubscriptionStore
     {
         private static readonly string s_storage_path = Path.Combine(
@@ -47,11 +50,16 @@ namespace Quickstarts.Servers
 
         private const string kFilename = "subscriptionsStore.bin";
         private const uint kStoreMagic = 0x44535541;
-        private const uint kStoreVersion = 1;
+        private const uint kStoreVersion = 4;
+        private const uint kOwnerStateStoreVersion = 3;
+        private const uint kLegacyStoreVersion = 1;
         private readonly DurableMonitoredItemQueueFactory? m_durableMonitoredItemQueueFactory;
         private readonly ILogger m_logger;
         private readonly IServiceMessageContext m_messageContext;
 
+        /// <summary>
+        /// Initializes the store with the server's message context, telemetry, and durable queue factory.
+        /// </summary>
         public SubscriptionStore(IServerInternal server)
         {
             m_logger = server.Telemetry.CreateLogger<SubscriptionStore>();
@@ -60,6 +68,9 @@ namespace Quickstarts.Servers
                 .MonitoredItemQueueFactory as DurableMonitoredItemQueueFactory;
         }
 
+        /// <summary>
+        /// Saves subscriptions and their available durable queues, reporting whether persistence succeeded.
+        /// </summary>
         public ValueTask<bool> StoreSubscriptionsAsync(
             IEnumerable<IStoredSubscription> subscriptions,
             CancellationToken cancellationToken = default)
@@ -117,6 +128,9 @@ namespace Quickstarts.Servers
             return false;
         }
 
+        /// <summary>
+        /// Restores subscriptions from the local store and removes the successfully read subscription file.
+        /// </summary>
         public ValueTask<RestoreSubscriptionResult> RestoreSubscriptionsAsync(
             CancellationToken cancellationToken = default)
         {
@@ -135,7 +149,7 @@ namespace Quickstarts.Servers
                     using (var decoder = new BinaryDecoder(
                         fileStream, m_messageContext, true))
                     {
-                        ValidateStoreHeader(decoder);
+                        uint version = ValidateStoreHeader(decoder);
                         ArrayOf<string> nsUris = decoder.ReadStringArray(null)!;
                         ArrayOf<string> serverUris = decoder.ReadStringArray(null)!;
                         decoder.SetMappingTables(
@@ -146,7 +160,7 @@ namespace Quickstarts.Servers
                         result = new List<IStoredSubscription>(count);
                         for (int i = 0; i < count; i++)
                         {
-                            result.Add(DecodeSubscription(decoder));
+                            result.Add(DecodeSubscription(decoder, version));
                         }
                     }
 
@@ -162,6 +176,9 @@ namespace Quickstarts.Servers
             return new RestoreSubscriptionResult(false, null);
         }
 
+        /// <summary>
+        /// Restores a monitored item's persisted data-change queue through the durable queue factory.
+        /// </summary>
         public IDataChangeMonitoredItemQueue RestoreDataChangeMonitoredItemQueue(
             uint monitoredItemId)
         {
@@ -170,6 +187,9 @@ namespace Quickstarts.Servers
                 s_storage_path)!;
         }
 
+        /// <summary>
+        /// Restores a monitored item's persisted event queue through the durable queue factory.
+        /// </summary>
         public IEventMonitoredItemQueue RestoreEventMonitoredItemQueue(uint monitoredItemId)
         {
             return m_durableMonitoredItemQueueFactory?.RestoreEventQueue(
@@ -177,6 +197,9 @@ namespace Quickstarts.Servers
                 s_storage_path)!;
         }
 
+        /// <summary>
+        /// Returns the restored data-change queue, or null when no durable queue factory is available.
+        /// </summary>
         public ValueTask<IDataChangeMonitoredItemQueue?> RestoreDataChangeMonitoredItemQueueAsync(
             uint monitoredItemId,
             CancellationToken cancellationToken = default)
@@ -185,6 +208,9 @@ namespace Quickstarts.Servers
                 RestoreDataChangeMonitoredItemQueue(monitoredItemId));
         }
 
+        /// <summary>
+        /// Returns the restored event queue, or null when no durable queue factory is available.
+        /// </summary>
         public ValueTask<IEventMonitoredItemQueue?> RestoreEventMonitoredItemQueueAsync(
             uint monitoredItemId,
             CancellationToken cancellationToken = default)
@@ -193,6 +219,9 @@ namespace Quickstarts.Servers
                 RestoreEventMonitoredItemQueue(monitoredItemId));
         }
 
+        /// <summary>
+        /// Cleans up persisted subscription and queue files after subscription restoration completes.
+        /// </summary>
         public ValueTask OnSubscriptionRestoreCompleteAsync(
             Dictionary<uint, ArrayOf<uint>> createdSubscriptions,
             CancellationToken cancellationToken = default)
@@ -220,13 +249,20 @@ namespace Quickstarts.Servers
             return default;
         }
 
+        /// <summary>
+        /// Writes the durable subscription store's format marker and version.
+        /// </summary>
         internal static void WriteStoreHeader(BinaryEncoder encoder)
         {
             encoder.WriteUInt32(null, kStoreMagic);
             encoder.WriteUInt32(null, kStoreVersion);
         }
 
-        internal static void ValidateStoreHeader(BinaryDecoder decoder)
+        /// <summary>
+        /// Validates the store's format marker and returns its supported serialization version.
+        /// </summary>
+        /// <exception cref="InvalidDataException">The header or serialization version is not supported.</exception>
+        internal static uint ValidateStoreHeader(BinaryDecoder decoder)
         {
             uint magic = decoder.ReadUInt32(null);
             if (magic != kStoreMagic)
@@ -237,13 +273,13 @@ namespace Quickstarts.Servers
             }
 
             uint version = decoder.ReadUInt32(null);
-            if (version != kStoreVersion)
-            {
-                throw new InvalidDataException(
-                    $"Unsupported durable subscription store version {version}.");
-            }
+            ValidateStoreVersion(version);
+            return version;
         }
 
+        /// <summary>
+        /// Encodes subscription state, a credential-safe identity, sent messages, and monitored items.
+        /// </summary>
         public static void EncodeSubscription(
             BinaryEncoder encoder, StoredSubscription subscription)
         {
@@ -258,6 +294,8 @@ namespace Quickstarts.Servers
             encoder.WriteByte(null, subscription.Priority);
             encoder.WriteInt32(null, subscription.LastSentMessage);
             encoder.WriteUInt32(null, subscription.SequenceNumber);
+            encoder.WriteBoolean(null, subscription.PublishingEnabled);
+            encoder.WriteString(null, subscription.OwnerClientApplicationUri);
 
             UserIdentityToken? sanitizedIdentityToken =
                 SanitizeUserIdentityToken(subscription.UserIdentityToken);
@@ -280,8 +318,57 @@ namespace Quickstarts.Servers
             {
                 EncodeMonitoredItem(encoder, item);
             }
+
+            EncodeTriggeringLinks(encoder, subscription.TriggeringLinks);
         }
 
+        /// <summary>
+        /// Encodes the triggering links between the subscription's monitored items.
+        /// </summary>
+        internal static void EncodeTriggeringLinks(
+            BinaryEncoder encoder,
+            IReadOnlyDictionary<uint, IReadOnlyList<uint>>? triggeringLinks)
+        {
+            encoder.WriteInt32(null, triggeringLinks?.Count ?? 0);
+            if (triggeringLinks == null)
+            {
+                return;
+            }
+
+            foreach (KeyValuePair<uint, IReadOnlyList<uint>> link in triggeringLinks)
+            {
+                encoder.WriteUInt32(null, link.Key);
+                encoder.WriteUInt32Array(null, [.. link.Value ?? []]);
+            }
+        }
+
+        /// <summary>
+        /// Decodes the triggering links written by <see cref="EncodeTriggeringLinks"/>.
+        /// </summary>
+        internal static IReadOnlyDictionary<uint, IReadOnlyList<uint>>? DecodeTriggeringLinks(
+            BinaryDecoder decoder)
+        {
+            int count = decoder.ReadInt32(null);
+            if (count <= 0)
+            {
+                return null;
+            }
+
+            var triggeringLinks = new Dictionary<uint, IReadOnlyList<uint>>(count);
+            for (int ii = 0; ii < count; ii++)
+            {
+                uint triggeringItemId = decoder.ReadUInt32(null);
+                ArrayOf<uint> linkedItemIds = decoder.ReadUInt32Array(null);
+                triggeringLinks[triggeringItemId] = linkedItemIds.IsNull
+                    ? []
+                    : linkedItemIds.Memory.ToArray();
+            }
+            return triggeringLinks;
+        }
+
+        /// <summary>
+        /// Encodes the monitored-item settings and last sampled value retained for restoration.
+        /// </summary>
         internal static void EncodeMonitoredItem(
             BinaryEncoder encoder, StoredMonitoredItem item)
         {
@@ -318,8 +405,14 @@ namespace Quickstarts.Servers
             encoder.WriteString(null, item.ParsedIndexRange.ToString());
         }
 
-        public static StoredSubscription DecodeSubscription(BinaryDecoder decoder)
+        /// <summary>
+        /// Decodes subscription state and monitored items using the specified store version.
+        /// </summary>
+        public static StoredSubscription DecodeSubscription(
+            BinaryDecoder decoder,
+            uint version = kStoreVersion)
         {
+            ValidateStoreVersion(version);
             var subscription = new StoredSubscription
             {
                 Id = decoder.ReadUInt32(null),
@@ -334,6 +427,15 @@ namespace Quickstarts.Servers
                 LastSentMessage = decoder.ReadInt32(null),
                 SequenceNumber = decoder.ReadUInt32(null)
             };
+            if (version >= kOwnerStateStoreVersion)
+            {
+                subscription.PublishingEnabled = decoder.ReadBoolean(null);
+                subscription.OwnerClientApplicationUri = decoder.ReadString(null);
+            }
+            else
+            {
+                subscription.PublishingEnabled = true;
+            }
 
             ExtensionObject tokenEo = decoder.ReadExtensionObject(null);
             if (!tokenEo.IsNull && tokenEo.TryGetValue(out IEncodeable? tokenBody))
@@ -365,9 +467,19 @@ namespace Quickstarts.Servers
                 items.Add(DecodeMonitoredItem(decoder));
             }
             subscription.MonitoredItems = items;
+            if (version >= kStoreVersion)
+            {
+                subscription.TriggeringLinks = DecodeTriggeringLinks(decoder);
+            }
             return subscription;
         }
 
+        /// <summary>
+        /// Copies supported identity tokens without passwords and rejects unsafe token types.
+        /// </summary>
+        /// <exception cref="NotSupportedException">
+        /// An issued or unsupported identity-token type cannot be persisted safely.
+        /// </exception>
         internal static UserIdentityToken? SanitizeUserIdentityToken(
             UserIdentityToken? identityToken)
         {
@@ -399,6 +511,9 @@ namespace Quickstarts.Servers
             };
         }
 
+        /// <summary>
+        /// Decodes persisted monitored-item state in the current store format.
+        /// </summary>
         internal static StoredMonitoredItem DecodeMonitoredItem(BinaryDecoder decoder)
         {
             var item = new StoredMonitoredItem
@@ -449,27 +564,47 @@ namespace Quickstarts.Servers
             string? rangeStr = decoder.ReadString(null);
             item.ParsedIndexRange = string.IsNullOrEmpty(rangeStr)
                 ? NumericRange.Null : NumericRange.Parse(rangeStr!);
-
             return item;
+        }
+
+        /// <exception cref="InvalidDataException">The supplied store version is not supported.</exception>
+        private static void ValidateStoreVersion(uint version)
+        {
+            if (version is not kLegacyStoreVersion and not kOwnerStateStoreVersion and not kStoreVersion)
+            {
+                throw new InvalidDataException(
+                    $"Unsupported durable subscription store version {version}.");
+            }
         }
     }
 
+    /// <summary>
+    /// Defines log messages for durable subscription persistence and restoration failures.
+    /// </summary>
     internal static partial class SubscriptionStoreLog
     {
+        /// <summary>
+        /// Logs a failure to persist subscriptions or their queues.
+        /// </summary>
         [LoggerMessage(
             EventId = QuickstartsServersEventIds.SubscriptionStore + 0, Level = LogLevel.Warning,
             Message = "Failed to store subscriptions")]
         public static partial void FailedToStoreSubscriptions(this ILogger logger, Exception exception);
 
+        /// <summary>
+        /// Logs a failure to restore persisted subscriptions.
+        /// </summary>
         [LoggerMessage(
             EventId = QuickstartsServersEventIds.SubscriptionStore + 1, Level = LogLevel.Warning,
             Message = "Failed to restore subscriptions")]
         public static partial void FailedToRestoreSubscriptions(this ILogger logger, Exception exception);
 
+        /// <summary>
+        /// Logs a failure to remove a persisted subscription file after restoration.
+        /// </summary>
         [LoggerMessage(
             EventId = QuickstartsServersEventIds.SubscriptionStore + 2, Level = LogLevel.Warning,
             Message = "Failed to cleanup files for stored subscsription")]
         public static partial void FailedToCleanupStoredSubscriptionFiles(this ILogger logger, Exception exception);
     }
-
 }

@@ -103,7 +103,7 @@ namespace Opc.Ua
                 encodeableType = null;
                 return false;
             }
-            return m_encodeableTypes.TryGetValue(typeId, out encodeableType);
+            return m_encodeableTypes.TryGetValue(Fix(typeId), out encodeableType);
         }
 
         /// <inheritdoc/>
@@ -120,7 +120,7 @@ namespace Opc.Ua
                 enumeratedType = null;
                 return false;
             }
-            return m_enumeratedTypes.TryGetValue(typeId, out enumeratedType);
+            return m_enumeratedTypes.TryGetValue(Fix(typeId), out enumeratedType);
         }
 
         /// <inheritdoc/>
@@ -155,6 +155,24 @@ namespace Opc.Ua
         public EncodeableFactory Fork()
         {
             return CaptureSnapshot(out _, out _);
+        }
+
+        /// <summary>
+        /// Normalizes an encoding id that names namespace zero by its URI into
+        /// the equivalent relative id. Registrations and lookups both apply
+        /// this so that either spelling of a namespace zero id resolves to the
+        /// same entry.
+        /// </summary>
+        private static ExpandedNodeId Fix(ExpandedNodeId nodeId)
+        {
+            // check for default namespace. A server scoped id names a type in a
+            // remote address space and must not collapse onto the local entry.
+            if (nodeId.NamespaceUri == Types.Namespaces.OpcUa &&
+                nodeId.ServerIndex == 0)
+            {
+                return new ExpandedNodeId(nodeId.InnerNodeId);
+            }
+            return nodeId;
         }
 
         /// <summary>
@@ -209,15 +227,15 @@ namespace Opc.Ua
                 {
                     if (!typeId.IsNull)
                     {
-                        m_enumeratedTypes[typeId] = type;
+                        m_enumeratedTypes[Fix(typeId)] = type;
                     }
                     if (!binaryEncodingId.IsNull)
                     {
-                        m_enumeratedTypes[binaryEncodingId] = type;
+                        m_enumeratedTypes[Fix(binaryEncodingId)] = type;
                     }
                     if (!xmlEncodingId.IsNull)
                     {
-                        m_enumeratedTypes[xmlEncodingId] = type;
+                        m_enumeratedTypes[Fix(xmlEncodingId)] = type;
                     }
                 }
                 m_xmlNameToType[type.XmlName] = type;
@@ -231,7 +249,7 @@ namespace Opc.Ua
             {
                 if (!encodingId.IsNull)
                 {
-                    m_encodeableTypes[encodingId] = type ??
+                    m_encodeableTypes[Fix(encodingId)] = type ??
                         throw new ArgumentNullException(nameof(type));
                     m_xmlNameToType[type.XmlName] = type;
                 }
@@ -245,7 +263,7 @@ namespace Opc.Ua
             {
                 if (!encodingId.IsNull)
                 {
-                    m_enumeratedTypes[encodingId] = type ??
+                    m_enumeratedTypes[Fix(encodingId)] = type ??
                         throw new ArgumentNullException(nameof(type));
                     m_xmlNameToType[type.XmlName] = type;
                 }
@@ -264,10 +282,10 @@ namespace Opc.Ua
                     switch (type)
                     {
                         case IEncodeableType encodeableType:
-                            m_encodeableTypes[encodingId] = encodeableType;
+                            m_encodeableTypes[Fix(encodingId)] = encodeableType;
                             break;
                         case IEnumeratedType enumeratedType:
-                            m_enumeratedTypes[encodingId] = enumeratedType;
+                            m_enumeratedTypes[Fix(encodingId)] = enumeratedType;
                             break;
                         case null:
                             return this;
@@ -311,7 +329,7 @@ namespace Opc.Ua
                     encodeableType = null;
                     return false;
                 }
-                return m_encodeableTypes.TryGetValue(typeId, out encodeableType) ||
+                return m_encodeableTypes.TryGetValue(Fix(typeId), out encodeableType) ||
                     m_factory.TryGetEncodeableType(typeId, out encodeableType);
             }
 
@@ -325,7 +343,7 @@ namespace Opc.Ua
                     enumeratedType = null;
                     return false;
                 }
-                return m_enumeratedTypes.TryGetValue(typeId, out enumeratedType) ||
+                return m_enumeratedTypes.TryGetValue(Fix(typeId), out enumeratedType) ||
                     m_factory.TryGetEnumeratedType(typeId, out enumeratedType);
             }
 
@@ -479,16 +497,9 @@ namespace Opc.Ua
                     m_encodeableTypes[Fix(nodeId)] = encodeableType;
                 }
 
-                static ExpandedNodeId Fix(ExpandedNodeId nodeId)
-                {
-                    // check for default namespace.
-                    if (nodeId.NamespaceUri == Types.Namespaces.OpcUa)
-                    {
-                        return new ExpandedNodeId(nodeId.InnerNodeId);
-                    }
-                    return nodeId;
-                }
             }
+
+
 
             private readonly EncodeableFactory m_factory;
             private readonly Dictionary<XmlQualifiedName, IType> m_xmlNameToType = [];
@@ -596,7 +607,12 @@ namespace Opc.Ua
         /// <inheritdoc/>
         public override bool Equals(object? obj)
         {
-            return m_type.Equals((obj as IEncodeableType)?.Type);
+            // Only equal to a reflection based wrapper of the same kind: this
+            // keeps Equals reflexive for enumerated types and symmetric and
+            // consistent with GetHashCode across IType implementations.
+            return obj is ReflectionBasedType other &&
+                other.GetType() == GetType() &&
+                m_type == other.m_type;
         }
 
         /// <inheritdoc/>
