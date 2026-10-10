@@ -1571,8 +1571,7 @@ namespace Opc.Ua.Bindings
             // holding it: started inline, the synchronous prologue would run on
             // the caller's stack, disclaim the caller's own entitlement and then
             // block on a gate that this very thread holds.
-            byte[] backingBuffer = buffer.GetArray();
-            QueueWrite(() => WriteSingleChunkAsync(transport, chunk, backingBuffer, state));
+            QueueWrite(new PendingWrite(transport, chunk, buffer.GetArray(), state));
         }
 
         /// <summary>
@@ -1603,6 +1602,14 @@ namespace Opc.Ua.Bindings
                 return;
             }
 
+            // Not queued, unlike BeginWriteMessage(ArraySegment{byte}, object).
+            // The ticket already orders this write, and by the stronger order:
+            // it was taken while the message was secured, so it follows the
+            // SequenceNumber the peer requires, whereas the queue would follow
+            // the order the writes happened to be issued in. Queuing it as well
+            // would deadlock, because the queue sends one write at a time and
+            // would wait for a write whose predecessor's ticket is still behind
+            // it in that same queue.
             _ = WriteBuffersAsync(transport, buffers, state, sendTicket);
         }
 
@@ -1617,34 +1624,112 @@ namespace Opc.Ua.Bindings
         /// required because sequence numbers are assigned under that gate, and a
         /// peer rejects a chunk whose sequence number does not follow its
         /// predecessor. Independently queued work items carry no such guarantee,
-        /// so each write is appended to a chain and cannot start before the one
-        /// issued before it has finished.
+        /// so the writes are queued and a single writer on the thread pool sends
+        /// them one after the other; a write cannot start before the one issued
+        /// before it has finished.
         /// </remarks>
-        private void QueueWrite(Func<Task> write)
+        private void QueueWrite(PendingWrite write)
         {
-            lock (m_writeChainLock)
+            lock (m_writeQueueLock)
             {
-                // No ExecuteSynchronously on the write itself: the continuation
-                // must reach the pool rather than run on whichever thread
-                // completed its predecessor, which may be the caller's. The
-                // trailing continuation observes any fault so that a write which
-                // fails outside its own error handling cannot surface later as an
-                // unobserved task exception.
-                m_writeChain = m_writeChain
-                    .ContinueWith(
-                        static (_, state) => ((Func<Task>)state!)(),
-                        write,
-                        CancellationToken.None,
-                        TaskContinuationOptions.DenyChildAttach,
-                        TaskScheduler.Default)
-                    .Unwrap()
-                    .ContinueWith(
-                        static completed => _ = completed.Exception,
-                        CancellationToken.None,
-                        TaskContinuationOptions.ExecuteSynchronously |
-                        TaskContinuationOptions.DenyChildAttach,
-                        TaskScheduler.Default);
+                m_writeQueue.Enqueue(write);
+                if (m_writerRunning)
+                {
+                    return;
+                }
+                m_writerRunning = true;
             }
+
+            // The execution context is not needed by the write and is not flowed.
+            // The write goes to the local queue of the issuing thread, which picks
+            // it up as soon as it returns to the pool (typically to await the
+            // response), like the task continuation this replaces did.
+#if NETCOREAPP3_0_OR_GREATER
+            ThreadPool.UnsafeQueueUserWorkItem(s_runWrites, this, preferLocal: true);
+#else
+            ThreadPool.UnsafeQueueUserWorkItem(s_runWrites, this);
+#endif
+        }
+
+#if NETCOREAPP3_0_OR_GREATER
+        private static readonly Action<UaSCUaBinaryChannel> s_runWrites =
+            static channel => _ = channel.RunWritesAsync();
+#else
+        private static readonly WaitCallback s_runWrites =
+            static state => _ = ((UaSCUaBinaryChannel)state!).RunWritesAsync();
+#endif
+
+        /// <summary>
+        /// Sends the queued writes in order until the queue is empty.
+        /// </summary>
+        private async Task RunWritesAsync()
+        {
+            while (true)
+            {
+                PendingWrite write;
+                lock (m_writeQueueLock)
+                {
+                    if (m_writeQueue.Count == 0)
+                    {
+                        m_writerRunning = false;
+                        return;
+                    }
+                    write = m_writeQueue.Dequeue();
+                }
+
+                Task pending = WriteSingleChunkAsync(
+                    write.Transport, write.Chunk, write.BackingBuffer, write.State);
+                if (pending.IsCompleted)
+                {
+                    // Observe a fault that escaped the write's own error handling, so
+                    // that it cannot surface later as an unobserved task exception.
+                    _ = pending.Exception;
+                    continue;
+                }
+                try
+                {
+                    await pending.ConfigureAwait(false);
+                }
+                catch
+                {
+                    // Observed only, as above; the write reported its own result.
+                }
+
+                // The await resumed on whichever thread completed the write. The
+                // next write must start on the pool, not on that thread, which may
+                // be one that holds a gate (an in-process peer, for instance).
+                await Task.Yield();
+            }
+        }
+
+        /// <summary>
+        /// A write waiting for its turn: one contiguous chunk with the buffer to
+        /// return.
+        /// </summary>
+        /// <remarks>
+        /// Collections of buffers are not queued. They carry a
+        /// <see cref="SendGateTicket"/>, which orders them by the order they
+        /// were secured in rather than the order they were issued in; see
+        /// <see cref="BeginWriteMessage(BufferCollection, object, SendGateTicket)"/>.
+        /// </remarks>
+        private readonly struct PendingWrite
+        {
+            public PendingWrite(
+                IUaSCByteTransport transport,
+                ReadOnlyMemory<byte> chunk,
+                byte[] backingBuffer,
+                object? state)
+            {
+                Transport = transport;
+                Chunk = chunk;
+                BackingBuffer = backingBuffer;
+                State = state;
+            }
+
+            public IUaSCByteTransport Transport { get; }
+            public ReadOnlyMemory<byte> Chunk { get; }
+            public byte[] BackingBuffer { get; }
+            public object? State { get; }
         }
 
         /// <summary>
@@ -1800,14 +1885,42 @@ namespace Opc.Ua.Bindings
         /// it.
         /// </summary>
         /// <remarks>
-        /// The write chain exists to keep chunks in the order their sequence
+        /// The write queue exists to keep chunks in the order their sequence
         /// numbers were assigned, which only concerns reaching the transport.
-        /// Reporting completion does not, and some channels implement it by
-        /// entering the gate — so leaving it in the chain would make every
-        /// subsequent write on the channel wait for a contended gate, throttling
-        /// a busy publisher badly enough to change its behaviour.
+        /// Reporting completion does not, and the client channel implements a
+        /// failed write by entering the gate — so reporting a failure inline
+        /// would make every subsequent write on the channel wait for a
+        /// contended gate, throttling a busy publisher badly enough to change
+        /// its behaviour. A successful write only updates counters and returns
+        /// buffers, so it is reported inline.
         /// </remarks>
         private void ReportWriteComplete(
+            BufferCollection? buffers,
+            object? state,
+            int sent,
+            ServiceResult result)
+        {
+            if (ServiceResult.IsGood(result))
+            {
+                try
+                {
+                    HandleWriteComplete(buffers, state, sent, result);
+                }
+                catch (Exception ex)
+                {
+                    m_logger.UaSCChannelWriteCompletionFailed(ex, ChannelId);
+                }
+                return;
+            }
+
+            ReportWriteFailure(buffers, state, sent, result);
+        }
+
+        /// <summary>
+        /// Reports a failed write on the thread pool. A separate method, so that
+        /// the closure is only allocated for a failure.
+        /// </summary>
+        private void ReportWriteFailure(
             BufferCollection? buffers,
             object? state,
             int sent,
@@ -2276,9 +2389,10 @@ namespace Opc.Ua.Bindings
         private int m_activeWriteRequests;
         private readonly Lock m_writeCapacityLock = new();
         private TaskCompletionSource<bool>? m_writeCapacityWaiter;
-        private readonly Lock m_writeChainLock = new();
         private readonly Lock m_sendGateLock = new();
-        private Task m_writeChain = Task.CompletedTask;
+        private readonly Lock m_writeQueueLock = new();
+        private readonly Queue<PendingWrite> m_writeQueue = new();
+        private bool m_writerRunning;
         private long m_lastActiveTimestamp;
         private readonly string m_contextId;
         private readonly ILogger m_logger;

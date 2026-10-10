@@ -28,6 +28,8 @@
  * ======================================================================*/
 
 using System;
+using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.Extensions.Time.Testing;
 using Moq;
 using NUnit.Framework;
@@ -287,13 +289,78 @@ namespace Opc.Ua.Client.Tests
             Assert.That(sre.StatusCode, Is.EqualTo(StatusCodes.BadSecureChannelClosed));
         }
 
-        private static KeepAliveTestSession CreateSession(TimeProvider timeProvider)
+        /// <summary>
+        /// Responses do not move the keep alive timer each time; the timer moves
+        /// itself when it fires. The keep alive read must still be sent exactly
+        /// one interval after the last response, and not while responses keep
+        /// arriving.
+        /// </summary>
+        [Test]
+        [CancelAfter(30000)]
+        public async Task TheKeepAliveReadIsSentOneIntervalAfterTheLastResponseAsync()
+        {
+            var timeProvider = new FakeTimeProvider();
+            using var readSent = new SemaphoreSlim(0);
+            using KeepAliveTestSession session = CreateSession(
+                timeProvider,
+                channel => channel
+                    .Setup(c => c.SendRequestAsync(It.IsAny<IServiceRequest>(), It.IsAny<CancellationToken>()))
+                    .Returns((IServiceRequest request, CancellationToken _) =>
+                    {
+                        readSent.Release();
+                        return new ValueTask<IServiceResponse>(CreateKeepAliveResponse(request));
+                    }));
+            session.SessionCreated(new NodeId(1u, 1), new NodeId(2u, 1));
+
+            // the first keep alive read is sent right away.
+            await session.StartKeepAliveTimerAsync().ConfigureAwait(false);
+            Assert.That(await readSent.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.True);
+
+            // a response every 2 s for 20 s: no keep alive read.
+            for (int ii = 0; ii < 10; ii++)
+            {
+                timeProvider.Advance(TimeSpan.FromSeconds(2));
+                session.CompleteRequest(StatusCodes.Good);
+                Assert.That(
+                    await readSent.WaitAsync(TimeSpan.FromMilliseconds(100)).ConfigureAwait(false),
+                    Is.False,
+                    $"the last response was received {ii * 2000} ms after the previous one");
+            }
+
+            // traffic stops: nothing until a full interval after the last response.
+            timeProvider.Advance(TimeSpan.FromMilliseconds(kKeepAliveInterval - 10));
+            Assert.That(
+                await readSent.WaitAsync(TimeSpan.FromMilliseconds(200)).ConfigureAwait(false),
+                Is.False);
+
+            timeProvider.Advance(TimeSpan.FromMilliseconds(20));
+            Assert.That(await readSent.WaitAsync(TimeSpan.FromSeconds(10)).ConfigureAwait(false), Is.True);
+        }
+
+        private static ReadResponse CreateKeepAliveResponse(IServiceRequest request)
+        {
+            return new ReadResponse
+            {
+                ResponseHeader = new ResponseHeader
+                {
+                    RequestHandle = request.RequestHeader.RequestHandle,
+                    ServiceResult = StatusCodes.Good,
+                    Timestamp = DateTime.UtcNow
+                },
+                Results = new[] { new DataValue(new Variant((int)ServerState.Running)) }.ToArrayOf()
+            };
+        }
+
+        private static KeepAliveTestSession CreateSession(
+            TimeProvider timeProvider,
+            Action<Mock<ITransportChannel>>? setupChannel = null)
         {
             ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             ApplicationConfiguration configuration = CreateClientConfiguration(telemetry);
             IServiceMessageContext messageContext = configuration.CreateMessageContext();
             var channel = new Mock<ITransportChannel>();
             channel.SetupGet(c => c.MessageContext).Returns(messageContext);
+            setupChannel?.Invoke(channel);
 
             var session = new KeepAliveTestSession(
                 channel.Object,

@@ -1,0 +1,6 @@
+--scenario read --nodes 1
+--scenario read --nodes 100
+--scenario write --nodes 100
+--scenario browse
+--scenario read --nodes 100 --security encrypt
+--scenario sub --subs 5 --nodes 100 --pub 100 --write-interval 50

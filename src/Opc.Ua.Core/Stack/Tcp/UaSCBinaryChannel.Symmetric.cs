@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Buffers.Binary;
 using System.IO;
 using System.Security.Cryptography;
 using System.Text;
@@ -641,10 +642,9 @@ namespace Opc.Ua.Bindings
                         continue;
                     }
 
-#pragma warning disable CA2000 // Stream is disposed by the BinaryEncoder (leaveOpen: false)
-                    var strm = new MemoryStream(chunkArray, 0, sendBufferSize);
-                    using var encoder = new BinaryEncoder(strm, Quotas.MessageContext, false);
-#pragma warning restore CA2000
+                    // The headers are fixed-size little-endian fields in front of the
+                    // body, written directly rather than through an encoder per chunk.
+                    uint chunkType;
 
                     // check if the message needs to be aborted. The segment holds
                     // only the body (it starts after the headers), which is what
@@ -654,7 +654,7 @@ namespace Opc.Ua.Bindings
                         messageSize + chunkToProcess.Count,
                         ii + 1))
                     {
-                        encoder.WriteUInt32(null, messageType | TcpMessageType.Abort);
+                        chunkType = messageType | TcpMessageType.Abort;
 
                         // Replace the body in the chunk with an error message.
                         // The encoder is bounded by the room the chunk has for a
@@ -686,12 +686,12 @@ namespace Opc.Ua.Bindings
                     // check if the message is complete.
                     else if (ii == chunksToProcess.Count - 1)
                     {
-                        encoder.WriteUInt32(null, messageType | TcpMessageType.Final);
+                        chunkType = messageType | TcpMessageType.Final;
                     }
                     // more chunks to follow.
                     else
                     {
-                        encoder.WriteUInt32(null, messageType | TcpMessageType.Intermediate);
+                        chunkType = messageType | TcpMessageType.Intermediate;
                     }
 
                     int count = 0;
@@ -720,17 +720,19 @@ namespace Opc.Ua.Bindings
 
                     count += TcpMessageLimits.SymmetricHeaderSize;
 
-                    encoder.WriteUInt32(null, (uint)count);
-                    encoder.WriteUInt32(null, ChannelId);
-                    encoder.WriteUInt32(null, token.TokenId);
+                    Span<byte> header = chunkArray.AsSpan(0, headerSize);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header, chunkType);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header[4..], (uint)count);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header[8..], ChannelId);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header[12..], token.TokenId);
 
                     sendTicket ??= TakeSendTicket();
                     uint sequenceNumber = GetNewSequenceNumber();
-                    encoder.WriteUInt32(null, sequenceNumber);
-                    encoder.WriteUInt32(null, requestId);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header[16..], sequenceNumber);
+                    BinaryPrimitives.WriteUInt32LittleEndian(header[20..], requestId);
 
-                    // skip body.
-                    strm.Seek(chunkToProcess.Count, SeekOrigin.Current);
+                    // the headers are followed by the body.
+                    int position = headerSize + chunkToProcess.Count;
 
                     // update message size count.
                     messageSize += chunkToProcess.Count;
@@ -742,7 +744,7 @@ namespace Opc.Ua.Bindings
                         dataToSend = new ArraySegment<byte>(
                             chunkArray,
                             TcpMessageLimits.SymmetricHeaderSize,
-                            encoder.Position - TcpMessageLimits.SymmetricHeaderSize);
+                            position - TcpMessageLimits.SymmetricHeaderSize);
 
                         dataToSend = EncryptAndSign(token, dataToSend, isRequest);
                     }
@@ -751,7 +753,7 @@ namespace Opc.Ua.Bindings
                         dataToSend = new ArraySegment<byte>(
                             chunkArray,
                             0,
-                            encoder.Position);
+                            position);
                     }
 
                     // add the header into chunk.
@@ -792,7 +794,8 @@ namespace Opc.Ua.Bindings
                 SecurityMode == MessageSecurityMode.Sign,
                 token.TokenId,
                 LastSentSequenceNumber, // already incremented to create this message. need the last one sent.
-                m_symmetricProvider);
+                m_symmetricProvider,
+                useClientKeys ? token.ClientAes : token.ServerAes);
         }
 
         /// <summary>
@@ -806,11 +809,12 @@ namespace Opc.Ua.Bindings
             out uint requestId,
             out uint sequenceNumber)
         {
-            using var decoder = new BinaryDecoder(buffer, Quotas.MessageContext);
-            uint messageType = decoder.ReadUInt32(null);
-            uint messageSize = decoder.ReadUInt32(null);
-            uint channelId = decoder.ReadUInt32(null);
-            uint tokenId = decoder.ReadUInt32(null);
+            // The headers are fixed-size little-endian fields, read directly
+            // rather than through a decoder per chunk.
+            _ = ReadHeaderField(buffer, 0); // message type
+            _ = ReadHeaderField(buffer, 4); // message size
+            uint channelId = ReadHeaderField(buffer, 8);
+            uint tokenId = ReadHeaderField(buffer, 12);
 
             // ensure the channel is valid.
             if (channelId != ChannelId)
@@ -895,7 +899,7 @@ namespace Opc.Ua.Bindings
                     token.CreatedAtTimestamp);
             }
 
-            int headerSize = decoder.Position;
+            int headerSize = TcpMessageLimits.SymmetricHeaderSize;
 
             // ArraySegment.Array is non-null because the buffer comes from BufferManager.
             byte[] bufferArray = buffer.GetArray();
@@ -924,8 +928,8 @@ namespace Opc.Ua.Bindings
             }
 
             // extract request id and sequence number.
-            sequenceNumber = decoder.ReadUInt32(null);
-            requestId = decoder.ReadUInt32(null);
+            sequenceNumber = ReadHeaderField(buffer, headerSize);
+            requestId = ReadHeaderField(buffer, headerSize + 4);
 
             headerSize += TcpMessageLimits.SequenceHeaderSize;
 
@@ -934,6 +938,29 @@ namespace Opc.Ua.Bindings
                 dataToProcess.GetArray(),
                 dataToProcess.Offset + headerSize,
                 dataToProcess.Count - headerSize);
+        }
+
+        /// <summary>
+        /// Reads a 32-bit header field of a message chunk.
+        /// </summary>
+        /// <exception cref="ServiceResultException">The chunk ends before the
+        /// field, with the decoding error a decoder reports.</exception>
+        private uint ReadHeaderField(ArraySegment<byte> buffer, int offset)
+        {
+            if (buffer.Count - offset >= sizeof(uint))
+            {
+                return BinaryPrimitives.ReadUInt32LittleEndian(
+                    buffer.AsSpan(offset, sizeof(uint)));
+            }
+
+            // Too short: the decoder raises the same error as when it read the
+            // whole header.
+            using var decoder = new BinaryDecoder(
+                buffer.GetArray(),
+                buffer.Offset + Math.Min(offset, buffer.Count),
+                Math.Max(buffer.Count - offset, 0),
+                Quotas.MessageContext);
+            return decoder.ReadUInt32(null);
         }
 
         private ArraySegment<byte> DecryptAndVerify(
@@ -952,7 +979,8 @@ namespace Opc.Ua.Bindings
                 token.TokenId,
                 m_remoteSequenceNumber,
                 useClientKeys ? token.ClientHmac : token.ServerHmac,
-                m_symmetricProvider);
+                m_symmetricProvider,
+                useClientKeys ? token.ClientAes : token.ServerAes);
         }
 
         private static readonly byte[] s_hkdfClientLabel = Encoding.UTF8.GetBytes("opcua-client");

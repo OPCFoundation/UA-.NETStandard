@@ -260,7 +260,7 @@ namespace Opc.Ua.Bindings
             }
             IServiceMessageContext context = m_quotas?.MessageContext ?? throw BadNotConnected();
             HttpClient client = m_client ?? throw BadNotConnected();
-            using Activity? activity = m_telemetry.StartActivity();
+            using Activity? activity = CachedActivitySource.StartActivity();
             using CancellationTokenSource cts = m_timeProvider.CreateCancellationTokenSource(
                 TimeSpan.FromMilliseconds(OperationTimeout));
             using var linkedCts = CancellationTokenSource.CreateLinkedTokenSource(cts.Token, ct);
@@ -888,6 +888,15 @@ namespace Opc.Ua.Bindings
         private X509Certificate2? m_pinnedClientCertX509;
         private bool m_disposeClient;
         private bool m_disposed;
+
+        /// <summary>
+        /// The activity source for service calls, resolved once: the
+        /// GetActivitySource extension walks the stack to find the calling
+        /// assembly, which is too expensive to repeat for every call.
+        /// </summary>
+        private ActivitySource CachedActivitySource => m_activitySource ??= m_telemetry.GetActivitySource();
+
+        private ActivitySource? m_activitySource;
         private readonly ITelemetryContext m_telemetry;
         private readonly ILogger m_logger;
         private readonly TimeProvider m_timeProvider;

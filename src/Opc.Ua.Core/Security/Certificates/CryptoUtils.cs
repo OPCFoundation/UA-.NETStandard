@@ -902,6 +902,44 @@ namespace Opc.Ua
             uint lastSequenceNumber,
             ISymmetricCryptoProvider? provider)
         {
+            return SymmetricEncryptAndSign(
+                data,
+                securityPolicy,
+                encryptingKey,
+                iv,
+                signingKey,
+                hmac,
+                signOnly,
+                tokenId,
+                lastSequenceNumber,
+                provider,
+                null);
+        }
+
+        /// <summary>
+        /// Encrypts the buffer like the public overload, reusing an AES instance
+        /// for the CBC policies.
+        /// </summary>
+        /// <remarks>
+        /// <c>aesCache</c> retains an AES instance for <paramref name="encryptingKey"/>
+        /// (one per channel token and direction), or is <see langword="null"/> to use a fresh instance.
+        /// Creating an instance imports the key, which costs more than encrypting a small message.
+        /// </remarks>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="CryptographicException"></exception>
+        internal static ArraySegment<byte> SymmetricEncryptAndSign(
+            ArraySegment<byte> data,
+            SecurityPolicyInfo securityPolicy,
+            byte[] encryptingKey,
+            byte[] iv,
+            byte[]? signingKey,
+            HMAC? hmac,
+            bool signOnly,
+            uint tokenId,
+            uint lastSequenceNumber,
+            ISymmetricCryptoProvider? provider,
+            AesCache? aesCache)
+        {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
             if (algorithm == SymmetricEncryptionAlgorithm.None)
@@ -1016,23 +1054,14 @@ namespace Opc.Ua
                 }
                 else
                 {
-#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
-                    using var aes = Aes.Create();
-
-                    aes.Mode = CipherMode.CBC;
-                    aes.Padding = PaddingMode.None;
-                    aes.Key = encryptingKey;
-                    aes.IV = iv;
-
-                    using ICryptoTransform encryptor = aes.CreateEncryptor();
-#pragma warning restore CA5401
-
-                    encryptor.TransformBlock(
+                    AesCbcTransform(
+                        true,
+                        encryptingKey,
+                        iv,
                         dataArray,
                         data.Offset,
                         data.Count,
-                        dataArray,
-                        data.Offset);
+                        aesCache);
                 }
             }
 
@@ -1573,6 +1602,46 @@ namespace Opc.Ua
            HMAC? hmac,
            ISymmetricCryptoProvider? provider)
         {
+            return SymmetricDecryptAndVerify(
+                data,
+                securityPolicy,
+                encryptingKey,
+                iv,
+                signingKey,
+                signOnly,
+                tokenId,
+                lastSequenceNumber,
+                hmac,
+                provider,
+                null);
+        }
+
+        /// <summary>
+        /// Decrypts and verifies the buffer like the public overload, reusing an
+        /// AES instance for the CBC policies.
+        /// </summary>
+        /// <remarks>
+        /// <c>aesCache</c> retains an AES instance for <paramref name="encryptingKey"/>
+        /// (one per channel token and direction), or is <see langword="null"/> to use a fresh instance.
+        /// </remarks>
+        /// <exception cref="CryptographicException"></exception>
+        /// <exception cref="NotSupportedException"></exception>
+        /// <exception cref="ServiceResultException">
+        /// The signature HMAC could not be created.
+        /// </exception>
+        internal static ArraySegment<byte> SymmetricDecryptAndVerify(
+           ArraySegment<byte> data,
+           SecurityPolicyInfo securityPolicy,
+           byte[] encryptingKey,
+           byte[] iv,
+           byte[]? signingKey,
+           bool signOnly,
+           uint tokenId,
+           uint lastSequenceNumber,
+           HMAC? hmac,
+           ISymmetricCryptoProvider? provider,
+           AesCache? aesCache)
+        {
             SymmetricEncryptionAlgorithm algorithm = securityPolicy.SymmetricEncryptionAlgorithm;
 
             if (algorithm == SymmetricEncryptionAlgorithm.None)
@@ -1633,21 +1702,14 @@ namespace Opc.Ua
                 }
                 else
                 {
-                    using var aes = Aes.Create();
-
-                    aes.Mode = CipherMode.CBC;
-                    aes.Padding = PaddingMode.None;
-                    aes.Key = encryptingKey;
-                    aes.IV = iv;
-
-                    using ICryptoTransform decryptor = aes.CreateDecryptor();
-
-                    decryptor.TransformBlock(
+                    AesCbcTransform(
+                        false,
+                        encryptingKey,
+                        iv,
                         dataArray,
                         data.Offset,
                         data.Count,
-                        dataArray,
-                        data.Offset);
+                        aesCache);
                 }
             }
 
@@ -1744,6 +1806,78 @@ namespace Opc.Ua
             }
 
             return new ArraySegment<byte>(dataArray, 0, data.Offset + data.Count);
+        }
+
+        /// <summary>
+        /// Encrypts or decrypts whole AES blocks in place with CBC and no padding.
+        /// </summary>
+        /// <remarks>
+        /// The instance is taken out of <paramref name="aesCache"/> while it is in
+        /// use and put back afterwards, so a concurrent caller creates its own
+        /// rather than sharing it. A channel encrypts and decrypts one message at a
+        /// time per direction, so in practice one instance per key is reused.
+        /// </remarks>
+        /// <exception cref="CryptographicException"></exception>
+        private static void AesCbcTransform(
+            bool encrypt,
+            byte[] key,
+            byte[] iv,
+            byte[] buffer,
+            int offset,
+            int count,
+            AesCache? aesCache)
+        {
+            Aes aes = aesCache?.Take() ?? CreateCbcAes(key);
+            try
+            {
+#if NET6_0_OR_GREATER
+                Span<byte> data = buffer.AsSpan(offset, count);
+                int written = encrypt
+                    ? aes.EncryptCbc(data, iv, data, PaddingMode.None)
+                    : aes.DecryptCbc(data, iv, data, PaddingMode.None);
+                if (written != count)
+                {
+                    throw new CryptographicException(
+                        "The cipher did not transform the whole buffer.");
+                }
+#else
+                aes.IV = iv;
+#pragma warning disable CA5401 // Symmetric encryption uses non-default initialization vector
+                using ICryptoTransform transform = encrypt
+                    ? aes.CreateEncryptor()
+                    : aes.CreateDecryptor();
+#pragma warning restore CA5401
+                transform.TransformBlock(buffer, offset, count, buffer, offset);
+#endif
+            }
+            finally
+            {
+                if (aesCache == null)
+                {
+                    aes.Dispose();
+                }
+                else
+                {
+                    aesCache.Return(aes);
+                }
+            }
+        }
+
+        private static Aes CreateCbcAes(byte[] key)
+        {
+            var aes = Aes.Create();
+            try
+            {
+                aes.Mode = CipherMode.CBC;
+                aes.Padding = PaddingMode.None;
+                aes.Key = key;
+                return aes;
+            }
+            catch
+            {
+                aes.Dispose();
+                throw;
+            }
         }
 
         /// <summary>

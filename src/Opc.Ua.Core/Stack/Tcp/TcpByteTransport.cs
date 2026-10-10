@@ -31,6 +31,7 @@ using System;
 using System.Collections.Generic;
 using System.Net;
 using System.Net.Sockets;
+using System.Runtime.CompilerServices;
 using System.Runtime.InteropServices;
 using System.Threading;
 using System.Threading.Tasks;
@@ -219,42 +220,21 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+#if NET6_0_OR_GREATER
+        [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
+#endif
         public async ValueTask SendChunkAsync(ReadOnlyMemory<byte> chunk, CancellationToken ct)
         {
             Socket socket = RequireConnectedSocket();
-            using var linkedCts =
-                CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token);
-            await m_sendLock.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+            // The channel sends with CancellationToken.None, so link only when the
+            // caller's token can be cancelled.
+            using CancellationTokenSource? linkedCts = ct.CanBeCanceled
+                ? CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token)
+                : null;
+            await m_sendLock.WaitAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false);
             try
             {
-                int sent = 0;
-                while (sent < chunk.Length)
-                {
-                    ReadOnlyMemory<byte> slice = chunk[sent..];
-#if NET5_0_OR_GREATER
-                    int n = await socket
-                        .SendAsync(slice, SocketFlags.None, ct)
-                        .ConfigureAwait(false);
-#else
-                    if (!MemoryMarshal.TryGetArray(slice, out ArraySegment<byte> seg))
-                    {
-                        // Fall back to a copy when the memory does not wrap an array
-                        // (rare in this code path: BufferManager always rents arrays).
-                        byte[] tmp = slice.ToArray();
-                        seg = new ArraySegment<byte>(tmp, 0, tmp.Length);
-                    }
-                    int n = await socket
-                        .SendAsync(seg, SocketFlags.None)
-                        .ConfigureAwait(false);
-#endif
-                    if (n <= 0)
-                    {
-                        throw ServiceResultException.Create(
-                            StatusCodes.BadConnectionClosed,
-                            "Remote side closed the connection while sending.");
-                    }
-                    sent += n;
-                }
+                await SendMemoryAsync(socket, chunk, ct).ConfigureAwait(false);
             }
             finally
             {
@@ -263,6 +243,9 @@ namespace Opc.Ua.Bindings
         }
 
         /// <inheritdoc/>
+#if NET6_0_OR_GREATER
+        [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
+#endif
         public async ValueTask SendChunkAsync(BufferCollection buffers, CancellationToken ct)
         {
             if (buffers == null)
@@ -270,17 +253,31 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(buffers));
             }
             Socket socket = RequireConnectedSocket();
-            using var linkedCts =
-                CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token);
-            await m_sendLock.WaitAsync(linkedCts.Token).ConfigureAwait(false);
+            using CancellationTokenSource? linkedCts = ct.CanBeCanceled
+                ? CancellationTokenSource.CreateLinkedTokenSource(ct, m_sendCancellation.Token)
+                : null;
+            await m_sendLock.WaitAsync(linkedCts?.Token ?? m_sendCancellation.Token).ConfigureAwait(false);
             try
             {
+                if (buffers.Count == 1)
+                {
+                    // A single-chunk message: the memory overload avoids the Task
+                    // and the scatter/gather list of the vectored send.
+                    ArraySegment<byte> buffer = buffers[0];
+                    await SendMemoryAsync(
+                        socket,
+                        new ReadOnlyMemory<byte>(buffer.Array, buffer.Offset, buffer.Count),
+                        ct).ConfigureAwait(false);
+                    return;
+                }
+
                 // Socket.SendAsync(IList<ArraySegment<byte>>) is a vectored send
                 // available on all targets but does not accept a CancellationToken,
                 // so we use it directly and rely on Close()/Dispose() for cancel.
                 await SendAllAsync(
                     buffers,
-                    pending => socket.SendAsync(pending, SocketFlags.None))
+                    socket,
+                    static (s, pending) => s.SendAsync(pending, SocketFlags.None))
                     .ConfigureAwait(false);
             }
             finally
@@ -289,7 +286,48 @@ namespace Opc.Ua.Bindings
             }
         }
 
+#if NET6_0_OR_GREATER
+        [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
+#endif
+        private static async ValueTask SendMemoryAsync(
+            Socket socket,
+            ReadOnlyMemory<byte> chunk,
+            CancellationToken ct)
+        {
+            int sent = 0;
+            while (sent < chunk.Length)
+            {
+                ReadOnlyMemory<byte> slice = chunk[sent..];
+#if NET5_0_OR_GREATER
+                    int n = await socket
+                        .SendAsync(slice, SocketFlags.None, ct)
+                        .ConfigureAwait(false);
+#else
+                if (!MemoryMarshal.TryGetArray(slice, out ArraySegment<byte> seg))
+                {
+                    // Fall back to a copy when the memory does not wrap an array
+                    // (rare in this code path: BufferManager always rents arrays).
+                    byte[] tmp = slice.ToArray();
+                    seg = new ArraySegment<byte>(tmp, 0, tmp.Length);
+                }
+                int n = await socket
+                    .SendAsync(seg, SocketFlags.None)
+                    .ConfigureAwait(false);
+#endif
+                if (n <= 0)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadConnectionClosed,
+                        "Remote side closed the connection while sending.");
+                }
+                sent += n;
+            }
+        }
+
         /// <inheritdoc/>
+#if NET6_0_OR_GREATER
+        [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder<>))]
+#endif
         public async ValueTask<ArraySegment<byte>> ReceiveChunkAsync(CancellationToken ct)
         {
             Socket socket = RequireConnectedSocket();
@@ -433,6 +471,20 @@ namespace Opc.Ua.Bindings
                 throw new ArgumentNullException(nameof(sendAsync));
             }
 
+            await SendAllAsync(buffers, sendAsync, static (send, pending) => send(pending))
+                .ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// Sends all buffers, passing the state to a static send delegate so that
+        /// the per-send path does not allocate a closure.
+        /// </summary>
+        /// <typeparam name="TState">The state passed to the send delegate.</typeparam>
+        private static async ValueTask SendAllAsync<TState>(
+            BufferCollection buffers,
+            TState state,
+            Func<TState, IList<ArraySegment<byte>>, Task<int>> sendAsync)
+        {
             long totalSize = 0;
             foreach (ArraySegment<byte> buffer in buffers)
             {
@@ -445,7 +497,7 @@ namespace Opc.Ua.Bindings
             int startIndex = 0;
             while (remaining > 0)
             {
-                int sent = await sendAsync(pending).ConfigureAwait(false);
+                int sent = await sendAsync(state, pending).ConfigureAwait(false);
                 if (sent <= 0)
                 {
                     throw ServiceResultException.Create(
@@ -511,6 +563,9 @@ namespace Opc.Ua.Bindings
             return startIndex;
         }
 
+#if NET6_0_OR_GREATER
+        [AsyncMethodBuilder(typeof(PoolingAsyncValueTaskMethodBuilder))]
+#endif
         private static async ValueTask ReadExactAsync(
             Socket socket,
             byte[] buffer,
