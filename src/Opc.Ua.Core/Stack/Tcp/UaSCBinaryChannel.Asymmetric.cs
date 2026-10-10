@@ -827,6 +827,7 @@ namespace Opc.Ua.Bindings
         /// <param name="messageBody">The encoded message body to send.</param>
         /// <param name="oscRequestSignature">The signature from the OpenSecureChannel request.</param>
         /// <param name="signature">Returns the signature generated for the message being written.</param>
+        /// <param name="sendTicket">Returns the FIFO send gate ticket for the secured chunks.</param>
         /// <exception cref="InvalidDataException"></exception>
         /// <exception cref="ServiceResultException"></exception>
         /// <remarks>
@@ -844,9 +845,11 @@ namespace Opc.Ua.Bindings
             Certificate? receiverCertificate,
             ArraySegment<byte> messageBody,
             byte[]? oscRequestSignature,
-            out byte[] signature)
+            out byte[] signature,
+            out SendGateTicket sendTicket)
         {
             signature = null!;
+            sendTicket = null!;
 
             bool success = false;
             var chunksToSend = new BufferCollection();
@@ -922,6 +925,7 @@ namespace Opc.Ua.Bindings
 
                 while (bytesToWrite > 0)
                 {
+                    sendTicket ??= TakeSendTicket();
                     encoder.WriteUInt32(null, GetNewSequenceNumber());
                     encoder.WriteUInt32(null, requestId);
 
@@ -1088,6 +1092,11 @@ namespace Opc.Ua.Bindings
 
                 if (!success)
                 {
+                    if (sendTicket != null)
+                    {
+                        ReleaseSendTicket(sendTicket);
+                    }
+
                     chunksToSend.Release(BufferManager, "WriteAsymmetricMessage");
                 }
             }

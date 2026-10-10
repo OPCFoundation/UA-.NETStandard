@@ -147,6 +147,21 @@ namespace Opc.Ua.Bindings
     }
 
     /// <summary>
+    /// Optional callback for byte transports that need the
+    /// SecureChannel-global identifier assigned by the listener channel.
+    /// </summary>
+    public interface IUaSCSecureChannelBoundTransport
+    {
+        /// <summary>
+        /// Called when the transport is attached to a SecureChannel.
+        /// </summary>
+        /// <param name="secureChannelId">The
+        /// <see cref="SecureChannelContext.SecureChannelId"/> value that
+        /// Service requests on this transport will carry.</param>
+        void OnSecureChannelAttached(string secureChannelId);
+    }
+
+    /// <summary>
     /// Updates mutable limits on a byte transport after channel negotiation.
     /// </summary>
     internal interface IUaSCByteTransportLimits

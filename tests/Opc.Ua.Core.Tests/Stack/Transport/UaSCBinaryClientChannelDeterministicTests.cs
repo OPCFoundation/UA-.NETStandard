@@ -1150,7 +1150,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 using (Gate.Enter())
                 {
-                    BeginWriteMessage(buffers, null);
+                    BeginWriteMessage(buffers, null, TakeSendTicket());
                 }
             }
 

@@ -52,7 +52,7 @@ namespace Opc.Ua.Server
     /// released. Callers that can await should still prefer <see cref="DisposeAsync"/>
     /// so the shutdown does not block their thread.
     /// </remarks>
-    public class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider,
+    public partial class StandardServer : SessionServerBase, IStandardServer, IAsyncDisposable, ISessionBindingProvider,
         IRequestParkingPolicySource
     {
         /// <inheritdoc/>
@@ -281,6 +281,8 @@ namespace Opc.Ua.Server
         /// </summary>
         private async Task DisposeCoreAsync()
         {
+            ShutdownDataChannelServices();
+
             // Run the orderly server shutdown (idempotent) before releasing base resources,
             // so no request is still dispatching to the address space when it is torn down.
             // The cached m_disposeTask makes this method run exactly once.
@@ -573,6 +575,13 @@ namespace Opc.Ua.Server
             string globalChannelId,
             Exception exception)
         {
+            // Part 6 errata §5.13: a closed SecureChannel faults every data
+            // channel that was riding on it. This is the only notification a
+            // Server gets that one has gone; the Session lifecycle does not
+            // cover it, because a SecureChannel may close while its Sessions
+            // are still alive and awaiting transfer.
+            AbortDataChannelsOfSecureChannel(globalChannelId, StatusCodes.BadSecureChannelClosed);
+
             ServerInternal?.ReportAuditCloseSecureChannelEvent(globalChannelId, exception, m_logger);
         }
 
@@ -4372,9 +4381,16 @@ namespace Opc.Ua.Server
 
             List<EndpointDescription> endpointsList = [];
             ArrayOf<string> baseAddresses = configuration.ServerConfiguration.BaseAddresses;
-            foreach (
-                string scheme in Utils.DefaultUriSchemes.Where(scheme =>
-                    baseAddresses.Contains(a => a.StartsWith(scheme, StringComparison.OrdinalIgnoreCase))))
+            var schemes = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (string address in baseAddresses)
+            {
+                if (Uri.TryCreate(address, UriKind.Absolute, out Uri? uri))
+                {
+                    schemes.Add(uri.Scheme);
+                }
+            }
+
+            foreach (string scheme in schemes)
             {
                 ITransportListenerFactory binding = bindingFactory.GetListenerFactory(scheme) ??
                     throw new InvalidOperationException(
@@ -4409,6 +4425,7 @@ namespace Opc.Ua.Server
             return scheme switch
             {
                 Utils.UriSchemeOpcTcp => "OpcTcp",
+                Utils.UriSchemeOpcQuic => "Quic",
                 Utils.UriSchemeHttps or Utils.UriSchemeOpcHttps => "Https",
                 Utils.UriSchemeWss or Utils.UriSchemeOpcWss => "Wss",
                 _ => scheme
@@ -4626,6 +4643,7 @@ namespace Opc.Ua.Server
 
                 // add the session manager to the datastore.
                 m_serverInternal.SetSessionManager(sessionManager, subscriptionManager);
+                InitializeDataChannelServices();
 
                 // every subsystem is bound; refuse any further binding so nothing can
                 // rewire a running server.
@@ -4907,6 +4925,8 @@ namespace Opc.Ua.Server
             // Drain in-flight requests by disposing the request queue before the address space
             // is torn down.
             await StopRequestQueueAsync(cancellationToken).ConfigureAwait(false);
+
+            ShutdownDataChannelServices();
 
             // Sessions still open are terminated by the server; SessionManager.ShutdownAsync
             // audits each of them once its close completed (OPC 10000-5 6.4.7).

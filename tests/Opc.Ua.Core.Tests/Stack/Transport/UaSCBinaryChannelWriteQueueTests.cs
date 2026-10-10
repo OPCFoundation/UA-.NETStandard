@@ -40,8 +40,10 @@ using Opc.Ua.Tests;
 namespace Opc.Ua.Core.Tests.Stack.Transport
 {
     /// <summary>
-    /// The queue that sends a channel's chunks one after the other, in the order
-    /// they were issued, off the caller's stack.
+    /// The ordering a channel applies to its chunks: they are sent one after the
+    /// other, off the caller's stack, in the order they were issued. Contiguous
+    /// chunks are ordered by the write queue and collections of buffers by their
+    /// send-gate ticket, so each test runs over both.
     /// </summary>
     [TestFixture]
     [Category("TcpTransport")]
@@ -54,19 +56,20 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Writes queued while the first one is still sending are sent in order,
         /// never two at a time, and each is reported once.
         /// </summary>
-        [Test]
+        [TestCase(true)]
+        [TestCase(false)]
         [CancelAfter(30000)]
-        public async Task QueuedWritesAreSentOneAtATimeInOrderAsync()
+        public async Task QueuedWritesAreSentOneAtATimeInOrderAsync(bool useCollection)
         {
             var transport = new RecordingTransport();
             using var channel = new WriteProbeChannel(m_telemetry, transport);
             const int count = 200;
 
-            channel.Write(0, useCollection: true);
+            channel.Write(0, useCollection);
             await transport.FirstSendStarted.Task.ConfigureAwait(false);
             for (int ii = 1; ii < count; ii++)
             {
-                channel.Write(ii, useCollection: ii % 2 == 0);
+                channel.Write(ii, useCollection);
             }
             transport.ReleaseFirstSend.SetResult(true);
 
@@ -103,9 +106,10 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
         /// Writes issued from many threads are all sent and reported, one at a
         /// time, and the queue drains completely.
         /// </summary>
-        [Test]
+        [TestCase(true)]
+        [TestCase(false)]
         [CancelAfter(30000)]
-        public async Task ConcurrentWritersAreAllSentAsync()
+        public async Task ConcurrentWritersAreAllSentAsync(bool useCollection)
         {
             var transport = new RecordingTransport { BlockFirstSend = false };
             using var channel = new WriteProbeChannel(m_telemetry, transport);
@@ -116,7 +120,7 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 for (int ii = 0; ii < perWriter; ii++)
                 {
-                    channel.Write((w * perWriter) + ii, useCollection: ii % 3 == 0);
+                    channel.Write((w * perWriter) + ii, useCollection);
                 }
             }))).ConfigureAwait(false);
 
@@ -202,9 +206,13 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
                 BitConverter.GetBytes(index).CopyTo(buffer, 0);
                 if (useCollection)
                 {
+                    // Secured messages are ordered by their send-gate ticket
+                    // rather than by the write queue, so the probe takes one
+                    // exactly where WriteSymmetricMessage would.
                     BeginWriteMessage(
                         new BufferCollection { new ArraySegment<byte>(buffer, 0, sizeof(int)) },
-                        index);
+                        index,
+                        TakeSendTicket());
                 }
                 else
                 {

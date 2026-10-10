@@ -211,6 +211,11 @@ namespace Opc.Ua.Bindings
             CurrentToken = token;
             RenewedToken = null;
 
+            // The SequenceNumber space is per token, so a new token restores
+            // the budget every MessageType on the channel draws on
+            // (Part 6 errata 5.1.1).
+            NotifySecurityTokenActivated();
+
             TokenActivatedCallback?.Invoke(token, PreviousToken);
 
             if (m_logger.IsEnabled(LogLevel.Information))
@@ -542,9 +547,11 @@ namespace Opc.Ua.Bindings
             ChannelToken token,
             object messageBody,
             bool isRequest,
-            out bool limitsExceeded)
+            out bool limitsExceeded,
+            out SendGateTicket sendTicket)
         {
             limitsExceeded = false;
+            sendTicket = null!;
             bool success = false;
             BufferCollection? chunksToProcess = null;
 
@@ -719,6 +726,7 @@ namespace Opc.Ua.Bindings
                     BinaryPrimitives.WriteUInt32LittleEndian(header[8..], ChannelId);
                     BinaryPrimitives.WriteUInt32LittleEndian(header[12..], token.TokenId);
 
+                    sendTicket ??= TakeSendTicket();
                     uint sequenceNumber = GetNewSequenceNumber();
                     BinaryPrimitives.WriteUInt32LittleEndian(header[16..], sequenceNumber);
                     BinaryPrimitives.WriteUInt32LittleEndian(header[20..], requestId);
@@ -760,6 +768,11 @@ namespace Opc.Ua.Bindings
             {
                 if (!success)
                 {
+                    if (sendTicket != null)
+                    {
+                        ReleaseSendTicket(sendTicket);
+                    }
+
                     chunksToProcess?.Release(BufferManager, "WriteSymmetricMessage");
                 }
             }

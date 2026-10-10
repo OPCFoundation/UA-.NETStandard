@@ -159,6 +159,7 @@ namespace Opc.Ua.Bindings
                 Volatile.Write(ref m_peerCertificateChain, null);
                 Quotas.MessageAssemblyScheduler.Unregister(this, TimeProvider);
             }
+            UaSCSecureChannelRegistry.Unbind(GlobalChannelId, this);
             base.Dispose(disposing);
         }
 
@@ -312,8 +313,17 @@ namespace Opc.Ua.Bindings
             ChannelId = channelId;
             State = TcpChannelState.Connecting;
             Transport = transport;
+
+            if (transport is IUaSCSecureChannelBoundTransport boundTransport)
+            {
+                boundTransport.OnSecureChannelAttached(GlobalChannelId);
+            }
+
+            UaSCSecureChannelRegistry.Bind(GlobalChannelId, this);
+
             if (Volatile.Read(ref m_disposed) != 0)
             {
+                UaSCSecureChannelRegistry.Unbind(GlobalChannelId, this);
                 DetachTransportForHandoff()?.Close();
                 throw new ObjectDisposedException(nameof(TcpListenerChannel));
             }
@@ -1086,10 +1096,11 @@ namespace Opc.Ua.Bindings
                     token,
                     response,
                     false,
-                    out bool limitsExceeded);
+                    out bool limitsExceeded,
+                    out SendGateTicket sendTicket);
 
                 // send message.
-                BeginWriteMessage(buffers, null);
+                BeginWriteMessage(buffers, null, sendTicket);
                 buffers = null;
             }
             catch (Exception e)

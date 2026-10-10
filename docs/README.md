@@ -327,6 +327,11 @@ guide describes its current limitations.
   connectivity first.
 - [KeyCredential issued-token bridge](KeyCredentialService.md#experimental-keycredential-issued-token-bridge)
   (experimental).
+- [Data Channels](DataChannels.md) (experimental) - inline streaming over a
+  SecureChannel, with flow control, scheduling, and the data-channel Service Set
+  in `Opc.Ua.Core`; `opc.quic` ships separately as
+  `OPCFoundation.NetStandard.Opc.Ua.Bindings.Quic`. Identifiers are provisional,
+  and the errata is not endorsed by the OPC Foundation.
 
 These samples combine several draft or preview capabilities. Read the guides
 for their models first:

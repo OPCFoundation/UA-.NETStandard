@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="utf-8" ?>
+<?xml version="1.0" encoding="utf-8" ?>
 <opc:TypeDictionary
   xmlns:s0="http://opcfoundation.org/UA/BuiltInTypes/"
   xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
@@ -889,5 +889,49 @@
   <opc:Constant Name="Bad_DataSetIdInvalid">
     <opc:Documentation>The DataSet specified for the DataSetWriter creation is invalid.</opc:Documentation>
   </opc:Constant>
-  
+
+  <!-- Data Channel Codes. Experimental; numeric values are provisional. -->
+  <opc:Constant Name="Bad_DataChannelIdInvalid">
+    <opc:Documentation>The ChannelId is not known on this SecureChannel.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelClosed">
+    <opc:Documentation>The data channel exists but is closing, closed or faulted.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelNotSupported">
+    <opc:Documentation>The Node is not a data channel source, or the Server does not implement data channels.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelTransportUnsupported">
+    <opc:Documentation>The transport carrying this SecureChannel cannot carry data channels.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelDirectionUnsupported">
+    <opc:Documentation>The requested direction is not supported by the data channel source.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DeliveryModeUnsupported">
+    <opc:Documentation>The requested delivery mode is not supported.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_ContentTypeUnsupported">
+    <opc:Documentation>The requested content type cannot be produced or consumed.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_TooManyDataChannels">
+    <opc:Documentation>A data channel count limit would be exceeded.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelLimitsExceeded">
+    <opc:Documentation>A requested parameter is outside anything the Server can revise to, or an immutable parameter was changed.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelCreditExceeded">
+    <opc:Documentation>A flow control grant would overflow the credit window, or a sender transmitted beyond its window.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelOfferInvalid">
+    <opc:Documentation>The data channel offer is unknown, expired, already accepted, or does not match the source.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelFrameTypeUnsupported">
+    <opc:Documentation>A data channel frame carried a FrameType the receiver does not implement, or one held back for a future revision.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Bad_DataChannelFrameInvalid">
+    <opc:Documentation>A data channel frame was well-formed as a header but not as a frame of its own type.</opc:Documentation>
+  </opc:Constant>
+  <opc:Constant Name="Uncertain_DataDiscarded">
+    <opc:Documentation>Delivered payload is incomplete because frames were discarded or lost.</opc:Documentation>
+  </opc:Constant>
+
 </opc:TypeDictionary>

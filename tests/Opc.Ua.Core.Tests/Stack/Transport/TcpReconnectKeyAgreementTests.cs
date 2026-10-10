@@ -1085,7 +1085,9 @@ namespace Opc.Ua.Core.Tests.Stack.Transport
             {
                 ChannelToken token = usePreviousToken ? PreviousToken! : Token;
                 BufferCollection chunks = WriteSymmetricMessage(
-                    TcpMessageType.Message, 78, token, new ReadRequest(), true, out bool exceeded);
+                    TcpMessageType.Message, 78, token, new ReadRequest(), true, out bool exceeded,
+                    out SendGateTicket sendTicket);
+                ReleaseSendTicket(sendTicket);
                 Assert.That(exceeded, Is.False);
                 Assert.That(chunks, Has.Count.EqualTo(1));
                 return chunks[0];
