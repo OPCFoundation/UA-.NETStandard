@@ -1,0 +1,145 @@
+<!-- ========================================================================
+   Copyright (c) 2005-2026 The OPC Foundation, Inc. All rights reserved.
+
+   OPC Foundation MIT License 1.00
+
+   Permission is hereby granted, free of charge, to any person
+   obtaining a copy of this software and associated documentation
+   files (the "Software"), to deal in the Software without
+   restriction, including without limitation the rights to use,
+   copy, modify, merge, publish, distribute, sublicense, and/or sell
+   copies of the Software, and to permit persons to whom the
+   Software is furnished to do so, subject to the following
+   conditions:
+
+   The above copyright notice and this permission notice shall be
+   included in all copies or substantial portions of the Software.
+   THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND,
+   EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES
+   OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND
+   NONINFRINGEMENT. IN NO EVENT SHALL THE AUTHORS OR COPYRIGHT
+   HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER LIABILITY,
+   WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+   FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
+   OTHER DEALINGS IN THE SOFTWARE.
+
+   The complete license agreement can be found here:
+   http://opcfoundation.org/License/MIT/1.00/
+======================================================================== -->
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:UaLens.Plugins.Models"
+             xmlns:views="using:UaLens.Views"
+             x:Class="UaLens.Plugins.Models.ModelInspectorView"
+             x:DataType="vm:ModelInspectorPlugin"
+             Background="{DynamicResource SurfaceBg}"
+             Foreground="{DynamicResource TextPrimary}">
+  <UserControl.Styles>
+    <Style Selector="Border.panel">
+      <Setter Property="Background" Value="{DynamicResource PanelBg}" />
+      <Setter Property="BorderBrush" Value="{DynamicResource PanelBorder}" />
+      <Setter Property="BorderThickness" Value="1" />
+      <Setter Property="CornerRadius" Value="4" />
+      <Setter Property="Padding" Value="8" />
+    </Style>
+    <Style Selector="TextBlock.caption">
+      <Setter Property="Foreground" Value="{DynamicResource TextSecondary}" />
+      <Setter Property="FontSize" Value="11" />
+      <Setter Property="TextWrapping" Value="Wrap" />
+    </Style>
+    <Style Selector="Button.action">
+      <Setter Property="Padding" Value="10,4" />
+      <Setter Property="Margin" Value="0,0,6,4" />
+    </Style>
+  </UserControl.Styles>
+  <Grid Margin="8" RowDefinitions="Auto,*,Auto" RowSpacing="8">
+    <Border Grid.Row="0" Classes="panel">
+      <StackPanel Spacing="6">
+        <TextBlock Text="Models — target identity is saved by namespace URI; all reads and mutations are explicit."
+                   Classes="caption" />
+        <TextBox x:Name="ModelsTarget" Text="{CompiledBinding Target, Mode=TwoWay}"
+                 IsEnabled="{CompiledBinding CanConfigure}" MaxLength="4096"
+                 PlaceholderText="i=2258 or nsu=urn:your:model;s=Variable" />
+        <WrapPanel>
+          <Button Classes="action" Content="Use selected node" Command="{CompiledBinding UseSelectedCommand}" />
+          <Button x:Name="ModelsRead" Classes="action" Content="Read" Command="{CompiledBinding ReadCommand}" />
+          <Button Classes="action" Content="Refresh metadata" Command="{CompiledBinding RefreshMetadataCommand}" />
+          <Button Classes="action" Content="Stop" Command="{CompiledBinding StopCommand}" />
+          <TextBlock Text="{CompiledBinding ReadState}" VerticalAlignment="Center" Margin="6,0,0,4" />
+        </WrapPanel>
+        <TextBlock Classes="caption" Text="{CompiledBinding TargetName}" />
+        <TextBlock Classes="caption" IsVisible="{CompiledBinding IsOffline}"
+                   Text="Offline: target intent is retained. Connect and click Read; nothing is replayed on restore." />
+      </StackPanel>
+    </Border>
+    <Grid Grid.Row="1" ColumnDefinitions="*,6,*">
+      <Grid Grid.Column="0" RowDefinitions="*,Auto,*" RowSpacing="8">
+        <Border Grid.Row="0" Classes="panel">
+          <Grid RowDefinitions="Auto,*">
+            <TextBlock Text="Definition / permission evidence" Classes="caption" Margin="0,0,0,6" />
+            <TextBox Grid.Row="1" Text="{CompiledBinding DefinitionPreview}" IsReadOnly="True"
+                     AcceptsReturn="True" TextWrapping="Wrap"
+                     FontFamily="Cascadia Mono, Consolas, monospace" />
+          </Grid>
+        </Border>
+        <Border Grid.Row="1" Classes="panel">
+          <StackPanel Spacing="6">
+            <ComboBox x:Name="ModelsSchemaFormat"
+                      SelectedItem="{CompiledBinding SelectedSchemaFormat, Mode=TwoWay}"
+                      IsEnabled="{CompiledBinding CanConfigure}">
+              <ComboBox.ItemTemplate>
+                <DataTemplate x:DataType="vm:ModelSchemaChoice">
+                  <TextBlock Text="{CompiledBinding Name}" />
+                </DataTemplate>
+              </ComboBox.ItemTemplate>
+            </ComboBox>
+            <WrapPanel>
+              <Button Classes="action" Content="Preview schema" Command="{CompiledBinding PreviewSchemaCommand}" />
+              <Button Classes="action" Content="Export schema…" Command="{CompiledBinding ExportSchemaCommand}" />
+            </WrapPanel>
+            <TextBlock Classes="caption" Text="{CompiledBinding SchemaStatus}" />
+          </StackPanel>
+        </Border>
+        <Border Grid.Row="2" Classes="panel">
+          <TextBox Text="{CompiledBinding SchemaPreview}" IsReadOnly="True" AcceptsReturn="True"
+                   TextWrapping="NoWrap" FontFamily="Cascadia Mono, Consolas, monospace" />
+        </Border>
+      </Grid>
+      <GridSplitter Grid.Column="1" HorizontalAlignment="Stretch" />
+      <Border Grid.Column="2" Classes="panel">
+        <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="6">
+          <TextBlock Classes="caption" Text="{CompiledBinding EditorStatus}" />
+          <TextBox Grid.Row="1" Text="{CompiledBinding ValuePreview}" IsReadOnly="True" AcceptsReturn="True"
+                   TextWrapping="Wrap" MaxHeight="160" FontFamily="Cascadia Mono, Consolas, monospace" />
+          <Border Grid.Row="2" IsEnabled="{CompiledBinding CanConfigure}">
+            <views:ComplexValueEditor x:Name="ValueEditor" IsEnabled="{CompiledBinding EditingEnabled}" />
+          </Border>
+          <Expander Grid.Row="3" Header="Advanced — local edits and explicit mutations">
+            <StackPanel Spacing="6">
+              <CheckBox Content="Enable local editing" IsChecked="{CompiledBinding EditingEnabled, Mode=TwoWay}"
+                        IsEnabled="{CompiledBinding CanEdit}" />
+              <WrapPanel>
+                <Button Classes="action" Content="Edit primitive / array…"
+                        Command="{CompiledBinding EditValueCommand}" />
+                <Button Classes="action" Content="Import value…" Command="{CompiledBinding ImportValueCommand}" />
+              </WrapPanel>
+              <CheckBox Content="Confirm writing this prepared value to the selected Variable"
+                        IsChecked="{CompiledBinding ConfirmWrite, Mode=TwoWay}"
+                        IsEnabled="{CompiledBinding CanEdit}" />
+              <WrapPanel>
+                <Button Classes="action" Content="Write prepared value" Command="{CompiledBinding WriteCommand}" />
+                <Button Classes="action" Content="Call method…" Command="{CompiledBinding CallCommand}" />
+              </WrapPanel>
+              <TextBlock Classes="caption">
+                <Run Text="Read-only first. Call opens the existing validated argument dialog. " />
+                <Run Text="OptionSets remain read-only. Import a typed value to create a matrix; " />
+                <Run Text="existing dimensions are preserved. Stop never replays a mutation." />
+              </TextBlock>
+            </StackPanel>
+          </Expander>
+        </Grid>
+      </Border>
+    </Grid>
+    <TextBlock Grid.Row="2" x:Name="ModelsStatus" Text="{CompiledBinding Status}" TextWrapping="Wrap" />
+  </Grid>
+</UserControl>

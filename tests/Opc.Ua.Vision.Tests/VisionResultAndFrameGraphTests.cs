@@ -57,6 +57,8 @@ namespace Opc.Ua.Vision.Tests
                 new(3213u, 3), "recipe-1");
             harness.AddValueChild(harness.ResultNodeId, BrowseNames.CreationTime,
                 new(3214u, 3), new DateTimeUtc(new DateTime(2024, 1, 1)));
+            harness.AddValueChild(harness.ResultNodeId, BrowseNames.Characteristics,
+                new(3215u, 3), Variant.FromStructure(ArrayOf<VisionCharacteristicDataType>.Empty));
 
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
             VisionInspectionResultSnapshot snapshot = await reader.ReadInspectionAsync()
@@ -69,6 +71,8 @@ namespace Opc.Ua.Vision.Tests
                 Assert.That(snapshot.PartId, Is.EqualTo("part-A"));
                 Assert.That(snapshot.RecipeId, Is.EqualTo("recipe-1"));
                 Assert.That(snapshot.NodeId, Is.EqualTo(harness.ResultNodeId));
+                Assert.That(snapshot.Characteristics.IsNull, Is.False);
+                Assert.That(snapshot.Characteristics.IsEmpty, Is.True);
             });
         }
 
@@ -82,6 +86,8 @@ namespace Opc.Ua.Vision.Tests
                 new(3221u, 3), "frame-1");
             harness.AddValueChild(harness.ResultNodeId, BrowseNames.CreationTime,
                 new(3222u, 3), new DateTimeUtc(new DateTime(2024, 1, 1)));
+            harness.AddValueChild(harness.ResultNodeId, BrowseNames.Detections,
+                new(3223u, 3), Variant.FromStructure(ArrayOf<VisionDetectionDataType>.Empty));
 
             VisionResultReader reader = harness.Client.Result(harness.ResultNodeId);
             VisionDetectionResultSnapshot snapshot = await reader.ReadDetectionAsync()
@@ -89,6 +95,8 @@ namespace Opc.Ua.Vision.Tests
 
             Assert.That(snapshot.ResultId, Is.EqualTo("det-1"));
             Assert.That(snapshot.FrameId, Is.EqualTo("frame-1"));
+            Assert.That(snapshot.Detections.IsNull, Is.False);
+            Assert.That(snapshot.Detections.IsEmpty, Is.True);
         }
 
         [Test]

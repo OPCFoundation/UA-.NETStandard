@@ -1,0 +1,6 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <Import Project="LensTestCommon.props" />
+  <ItemGroup>
+    <Compile Remove="Desktop\ConnectedProtocolContext.cs" />
+  </ItemGroup>
+</Project>

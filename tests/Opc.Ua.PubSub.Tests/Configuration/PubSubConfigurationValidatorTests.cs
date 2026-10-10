@@ -545,6 +545,44 @@ namespace Opc.Ua.PubSub.Tests.Configuration
                 Has.Some.Matches<PubSubConfigurationIssue>(static i => i.Code == "PSC0051"));
         }
 
+        [TestCase("Group1", true)]
+        [TestCase("group1", false)]
+        [TestCase("AnotherGroup", false)]
+        [TestCase("", false)]
+        public void OutOfBandKeyRegistrationAppliesOnlyToTheExactSecurityGroup(string registration, bool valid)
+        {
+            PubSubConfigurationDataType configuration = NewMinimalValidConfig();
+            WriterGroupDataType group = configuration.Connections[0].WriterGroups[0];
+            group.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            group.SecurityGroupId = "Group1";
+            var validator = new PubSubConfigurationValidator(s_allProfiles)
+            {
+                RegisteredSecurityGroupIds = [registration]
+            };
+            PubSubConfigurationValidationResult result = validator.Validate(configuration);
+
+            Assert.That(result.Issues.Contains(issue => issue.Code == "PSC0051"), Is.EqualTo(!valid));
+            Assert.That(group.SecurityKeyServices.IsEmpty, Is.True);
+            Assert.That(group.SecurityMode, Is.EqualTo(MessageSecurityMode.SignAndEncrypt));
+            Assert.That(group.SecurityGroupId, Is.EqualTo("Group1"));
+        }
+
+        [Test]
+        public void RegistrationCannotAuthorizeMissingGroupOrUnsecuredConfiguration()
+        {
+            PubSubConfigurationDataType configuration = NewMinimalValidConfig();
+            WriterGroupDataType group = configuration.Connections[0].WriterGroups[0];
+            group.SecurityMode = MessageSecurityMode.SignAndEncrypt;
+            var validator = new PubSubConfigurationValidator(s_allProfiles)
+            {
+                RegisteredSecurityGroupIds = ["Group1", string.Empty]
+            };
+            Assert.That(validator.Validate(configuration).Issues.Contains(issue => issue.Code == "PSC0050"), Is.True);
+            group.SecurityMode = MessageSecurityMode.None;
+            group.SecurityGroupId = "Group1";
+            Assert.That(validator.Validate(configuration).Issues.Contains(issue => issue.Code == "PSC0052"), Is.True);
+        }
+
         [Test]
         [TestSpec("6.2.5.4", Summary = "SecurityMode == None forbids SecurityGroupId")]
         public void Validate_NoneWithSecurityGroup_EmitsError()

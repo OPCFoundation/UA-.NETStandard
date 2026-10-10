@@ -63,7 +63,6 @@ namespace Vision.VisualInspectionCell
                 Volatile.Write(ref m_nodeManager, manager);
                 if (manager != null)
                 {
-                    FixDeploymentMethodDeclarations(manager);
                     BindVisionPipeline(internalServer, manager);
                 }
                 if (m_logger.IsEnabled(LogLevel.Information))
@@ -96,42 +95,6 @@ namespace Vision.VisualInspectionCell
             if (m_logger.IsEnabled(LogLevel.Information))
             {
                 m_logger.VisionPipelineBound(ai.PrimaryDeploymentId.ToString(), ai.LearningJobId.ToString());
-            }
-        }
-
-        private void FixDeploymentMethodDeclarations(AINodeManager ai)
-        {
-            FixMethodDeclaration(ai, ai.PrimaryDeploymentId, Opc.Ua.AI.BrowseNames.Invoke, 6136);
-            FixMethodDeclaration(ai, ai.PrimaryDeploymentId, Opc.Ua.AI.BrowseNames.InvokeAsync, 6139);
-            FixMethodDeclaration(ai, ai.PrimaryDeploymentId, Opc.Ua.AI.BrowseNames.GetCapabilities, 6056);
-            FixMethodDeclaration(ai, ai.PrimaryDeploymentId, Opc.Ua.AI.BrowseNames.BeginTransfer, 6157);
-            if (!ai.FallbackDeploymentId.IsNull)
-            {
-                FixMethodDeclaration(ai, ai.FallbackDeploymentId, Opc.Ua.AI.BrowseNames.Invoke, 6136);
-                FixMethodDeclaration(ai, ai.FallbackDeploymentId, Opc.Ua.AI.BrowseNames.InvokeAsync, 6139);
-                FixMethodDeclaration(ai, ai.FallbackDeploymentId, Opc.Ua.AI.BrowseNames.GetCapabilities, 6056);
-                FixMethodDeclaration(ai, ai.FallbackDeploymentId, Opc.Ua.AI.BrowseNames.BeginTransfer, 6157);
-            }
-        }
-
-        private static void FixMethodDeclaration(
-            AINodeManager ai,
-            NodeId deploymentId,
-            string browseName,
-            uint methodDeclarationId)
-        {
-            if (deploymentId.IsNull)
-            {
-                return;
-            }
-            BaseInstanceState deployment = ai.FindPredefinedNode<BaseInstanceState>(deploymentId);
-            var children = new List<BaseInstanceState>();
-            deployment.GetChildren(ai.SystemContext, children);
-            MethodState? method = children.OfType<MethodState>().FirstOrDefault(
-                child => string.Equals(child.BrowseName.Name, browseName, StringComparison.Ordinal));
-            if (method != null)
-            {
-                method.MethodDeclarationId = new NodeId(methodDeclarationId, deploymentId.NamespaceIndex);
             }
         }
 

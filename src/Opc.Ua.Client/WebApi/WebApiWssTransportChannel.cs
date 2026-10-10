@@ -279,7 +279,20 @@ namespace Opc.Ua.Client.WebApi
             }
             try
             {
-                await connection.OpenAsync(endpointUrl, ct).ConfigureAwait(false);
+                using CancellationTokenSource timeout = m_timeProvider.CreateCancellationTokenSource(
+                    OperationTimeout > 0 ? TimeSpan.FromMilliseconds(OperationTimeout) : Timeout.InfiniteTimeSpan);
+                using var opening = CancellationTokenSource.CreateLinkedTokenSource(ct, timeout.Token);
+                try
+                {
+                    await connection.OpenAsync(endpointUrl, opening.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (timeout.IsCancellationRequested && !ct.IsCancellationRequested)
+                {
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadRequestTimeout,
+                        "WSS OpenAPI connection timed out after {0} ms.",
+                        OperationTimeout);
+                }
             }
             catch
             {
@@ -497,7 +510,10 @@ namespace Opc.Ua.Client.WebApi
                 catch (OperationCanceledException) when (
                     timeout.IsCancellationRequested && !ct.IsCancellationRequested)
                 {
-                    throw new ServiceResultException(StatusCodes.BadRequestTimeout);
+                    throw ServiceResultException.Create(
+                        StatusCodes.BadRequestTimeout,
+                        "WSS OpenAPI request timed out after {0} ms.",
+                        OperationTimeout);
                 }
             }
             finally

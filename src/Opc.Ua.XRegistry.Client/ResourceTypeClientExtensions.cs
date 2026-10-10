@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -56,6 +57,12 @@ namespace Opc.Ua.XRegistry.Client
         /// handle. The handle is the one returned by the group's <c>CreateResource</c> /
         /// <c>GetOrCreateResource</c> with <c>RequestFileOpen</c> set.
         /// </summary>
+        /// <remarks>
+        /// Closing uses a fresh five-second cancellation budget even if writing
+        /// was canceled. When writing and closing both fail, both errors are
+        /// preserved. A failed transfer is not replayed; callers must inspect
+        /// the server's state before deciding whether another upload is safe.
+        /// </remarks>
         /// <param name="resource">The resource proxy.</param>
         /// <param name="fileHandle">The open write handle.</param>
         /// <param name="document">The document bytes.</param>
@@ -79,18 +86,27 @@ namespace Opc.Ua.XRegistry.Client
                 throw new ArgumentOutOfRangeException(nameof(chunkSize));
             }
 
-            try
+            var handle = new ResourceWriteHandle(resource, fileHandle);
+            await using (handle.ConfigureAwait(false))
             {
-                for (int offset = 0; offset < document.Length; offset += chunkSize)
+                try
                 {
-                    int length = Math.Min(chunkSize, document.Length - offset);
-                    ByteString chunk = new(document.Slice(offset, length));
-                    await resource.WriteAsync(fileHandle, chunk, ct).ConfigureAwait(false);
+                    ct.ThrowIfCancellationRequested();
+                    for (int offset = 0; offset < document.Length;)
+                    {
+                        ct.ThrowIfCancellationRequested();
+                        int length = Math.Min(chunkSize, document.Length - offset);
+                        ByteString chunk = new(document.Slice(offset, length));
+                        await resource.WriteAsync(fileHandle, chunk, ct).ConfigureAwait(false);
+                        offset += length;
+                    }
+                    ct.ThrowIfCancellationRequested();
                 }
-            }
-            finally
-            {
-                await resource.CloseAsync(fileHandle, CancellationToken.None).ConfigureAwait(false);
+                catch (Exception error) when (IsTransferFailure(error))
+                {
+                    handle.Failure = error;
+                    throw;
+                }
             }
         }
 
@@ -148,6 +164,31 @@ namespace Opc.Ua.XRegistry.Client
             }
         }
 
+        private static bool IsTransferFailure(Exception error)
+        {
+            return error is ServiceResultException or IOException or OperationCanceledException or
+                InvalidOperationException or ArgumentException or NotSupportedException;
+        }
+
         private const byte kReadMode = 1;
+
+        private sealed class ResourceWriteHandle(ResourceTypeClient resource, uint handle) : IAsyncDisposable
+        {
+            public Exception? Failure { get; set; }
+
+            public async ValueTask DisposeAsync()
+            {
+                using var cleanup = new CancellationTokenSource(TimeSpan.FromSeconds(5));
+                try
+                {
+                    await resource.CloseAsync(handle, cleanup.Token).ConfigureAwait(false);
+                }
+                catch (Exception error) when (Failure is not null && IsTransferFailure(error))
+                {
+                    throw new AggregateException("Writing and closing the resource document both failed.",
+                        Failure, error);
+                }
+            }
+        }
     }
 }

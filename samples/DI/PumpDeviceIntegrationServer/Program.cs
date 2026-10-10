@@ -30,6 +30,7 @@
 using System;
 using System.Globalization;
 using System.IO;
+using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -37,6 +38,7 @@ using Microsoft.Extensions.Logging;
 using Opc.Ua;
 using Opc.Ua.Di;
 using Opc.Ua.Di.Server.Builders;
+using Opc.Ua.Di.Server.SoftwareUpdate;
 using Opc.Ua.Pumps;
 using Opc.Ua.Server.Fluent;
 using Pumps;
@@ -47,6 +49,42 @@ builder.Logging.ClearProviders();
 builder.Logging.AddConsole();
 
 int port = int.TryParse(builder.Configuration["port"], out int p) ? p : 62542;
+string? softwareUpdateOption = builder.Configuration["software-update-demo"];
+if (softwareUpdateOption is not null && !bool.TryParse(softwareUpdateOption, out _))
+{
+    Console.Error.WriteLine("--software-update-demo must be true or false.");
+    return 2;
+}
+bool softwareUpdateDemo = bool.TryParse(softwareUpdateOption, out bool enabled) && enabled;
+string? runOption = builder.Configuration["run-seconds"];
+int runSeconds = 0;
+if (runOption is not null &&
+    (!int.TryParse(runOption, NumberStyles.None, CultureInfo.InvariantCulture, out runSeconds) ||
+        runSeconds is < 1 or > 3600))
+{
+    Console.Error.WriteLine("--run-seconds must be an integer from 1 through 3600.");
+    return 2;
+}
+string? autoAcceptOption = builder.Configuration["autoaccept"];
+bool autoAccept = true;
+if (autoAcceptOption is not null && !bool.TryParse(autoAcceptOption, out autoAccept))
+{
+    Console.Error.WriteLine("--autoaccept must be true or false.");
+    return 2;
+}
+string? includeUnsecureOption = builder.Configuration["include-unsecure"];
+bool includeUnsecure = false;
+if (includeUnsecureOption is not null && !bool.TryParse(includeUnsecureOption, out includeUnsecure))
+{
+    Console.Error.WriteLine("--include-unsecure must be true or false.");
+    return 2;
+}
+string pkiRoot = builder.Configuration["pki-root"] ?? Path.Combine(AppContext.BaseDirectory, "pki");
+if (!Path.IsPathRooted(pkiRoot))
+{
+    Console.Error.WriteLine("--pki-root must be an absolute path.");
+    return 2;
+}
 
 if (!TryReadPumpCount(builder.Configuration["pumps"], out int pumpCount, out string? pumpError))
 {
@@ -63,6 +101,10 @@ builder.Services.Configure<PumpDeviceIntegrationOptions>(options =>
 {
     options.PumpCount = pumpCount;
 });
+if (softwareUpdateDemo)
+{
+    builder.Services.AddSingleton<ISoftwarePackageStore, MemoryPackageStore>();
+}
 
 builder.Services
     .AddOpcUa()
@@ -72,17 +114,18 @@ builder.Services
         o.ApplicationUri = "urn:localhost:OPCFoundation:PumpDeviceIntegrationServer";
         o.ProductUri = "uri:opcfoundation.org:PumpDeviceIntegrationServer";
         // Sample convenience only; never auto-accept untrusted certificates in production.
-        o.AutoAcceptUntrustedCertificates = true;
-        o.PkiRoot = Path.Combine(AppContext.BaseDirectory, "pki");
+        o.AutoAcceptUntrustedCertificates = autoAccept;
+        o.PkiRoot = pkiRoot;
         o.RejectSHA1Certificates = true;
         o.MinCertificateKeySize = 2048;
+        o.IncludeUnsecurePolicyNone = includeUnsecure;
         o.EndpointUrls.Add($"opc.tcp://{host}:{port}/PumpDeviceIntegrationServer");
     })
     .AddNodeManager<PumpNodeManagerFactory>()
     // Demonstrate the declarative DI topology-element builder after the
     // node manager has materialised and fluently wired every pump. The
     // ad-hoc Diagnostics group is added identically to each pump.
-    .ConfigureDevicesFor<PumpNodeManager>(ctx =>
+    .ConfigureDevicesFor<PumpNodeManager>(async ctx =>
     {
         var manager = (PumpNodeManager)ctx.Manager;
         foreach (NodeId pumpNodeId in manager.PumpNodeIds)
@@ -98,10 +141,20 @@ builder.Services
                         .WithProperty("LastSelfTest", (DateTimeUtc)DateTime.UtcNow)));
         }
 
-        return new ValueTask();
+        if (softwareUpdateDemo)
+        {
+            await SoftwareUpdateDemo.CreateAsync(
+                ctx.Manager, ctx.GetRequiredService<ISoftwarePackageStore>(), ctx.CancellationToken)
+                .ConfigureAwait(false);
+        }
     });
 
-await builder.Build().RunAsync().ConfigureAwait(false);
+using var runLifetime = new CancellationTokenSource();
+if (runSeconds != 0)
+{
+    runLifetime.CancelAfter(TimeSpan.FromSeconds(runSeconds));
+}
+await builder.Build().RunAsync(runLifetime.Token).ConfigureAwait(false);
 return 0;
 
 static bool TryReadPumpCount(string? value, out int pumpCount, out string? error)

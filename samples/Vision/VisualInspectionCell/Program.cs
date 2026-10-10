@@ -29,6 +29,8 @@
 
 using System;
 using System.Globalization;
+using System.IO;
+using System.Threading;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -58,6 +60,22 @@ _ = VisualInspectionCellOptions.TryParseLocation(
     builder.Configuration["inferenceLocation"],
     out VisualInspectionInferenceLocation inferenceLocation);
 bool insecure = bool.TryParse(builder.Configuration["insecure"], out bool parsedInsecure) && parsedInsecure;
+string? pkiRoot = builder.Configuration["pki-root"];
+if (pkiRoot is not null && !Path.IsPathFullyQualified(pkiRoot))
+{
+    await Console.Error.WriteLineAsync("--pki-root must be an absolute path.").ConfigureAwait(false);
+    return 2;
+}
+string? runOption = builder.Configuration["run-seconds"];
+int runSeconds = 0;
+if (runOption is not null &&
+    (!int.TryParse(runOption, NumberStyles.None, CultureInfo.InvariantCulture, out runSeconds) ||
+        runSeconds is < 1 or > 3600))
+{
+    await Console.Error.WriteLineAsync("--run-seconds must be an integer from 1 through 3600.")
+        .ConfigureAwait(false);
+    return 2;
+}
 var cellOptions = new VisualInspectionCellOptions
 {
     InferenceLocation = inferenceLocation
@@ -107,6 +125,10 @@ IOpcUaServerBuilder opcUa = builder.Services
         options.ApplicationUri = "urn:localhost:OPCFoundation:VisualInspectionCell";
         options.ProductUri = "uri:opcfoundation.org:VisualInspectionCell";
         options.AutoAcceptUntrustedCertificates = insecure;
+        if (pkiRoot is not null)
+        {
+            options.PkiRoot = pkiRoot;
+        }
         options.EndpointUrls.Add($"opc.tcp://{host}:{port}/VisualInspectionCell");
     })
     .ConfigureRoles(options => options.Roles.Add(new RoleDefinitionOptions
@@ -174,7 +196,13 @@ foreach (string fixture in analysis.FixtureNames)
             $"  {characteristic.CharacteristicId}: {characteristic.Actual:0.00} mm [{low:0.00}, {high:0.00}], {characteristic.Status}"));
     }
 }
-await app.RunAsync().ConfigureAwait(false);
+using var runLifetime = new CancellationTokenSource();
+if (runSeconds != 0)
+{
+    runLifetime.CancelAfter(TimeSpan.FromSeconds(runSeconds));
+}
+await app.RunAsync(runLifetime.Token).ConfigureAwait(false);
+return 0;
 
 static string[] NormalizeArgs(string[] args)
 {

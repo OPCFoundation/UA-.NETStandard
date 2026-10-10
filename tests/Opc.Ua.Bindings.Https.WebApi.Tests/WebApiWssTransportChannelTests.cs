@@ -35,6 +35,7 @@ using System.Net.Http;
 using System.Net.WebSockets;
 using System.Reflection;
 using System.Text;
+using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Threading;
 using System.Threading.Tasks;
@@ -68,7 +69,7 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
     /// <c>http://127.0.0.1:0</c> with <see cref="WebSocketOptions"/>
     /// enabled — plain <c>ws://</c> sidesteps the TLS / certificate
     /// management overhead unit tests don't need. The same wire
-    /// envelope (<c>{TypeId, Body}</c> standard OPC UA JSON message)
+    /// envelope (<c>UaTypeId</c> with inline service fields)
     /// is reused, so the channel exercises the same encode/decode path
     /// it does against the real <c>HttpsTransportListener.AcceptWebSocketOpenApiAsync</c>.
     /// </remarks>
@@ -84,6 +85,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
         private ServiceMessageContext? m_messageContext;
         private string? m_lastNegotiatedSubProtocol;
         private IServiceRequest? m_lastRequest;
+        private ByteString m_lastResponseBytes;
+        private TaskCompletionSource? m_handshakeReceived;
         private Func<IServiceRequest, IServiceResponse>? m_responder;
         private Func<WebSocket, CancellationToken, Task>? m_socketScript;
 
@@ -101,6 +104,8 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 .Commit();
             m_lastNegotiatedSubProtocol = null;
             m_lastRequest = null;
+            m_lastResponseBytes = default;
+            m_handshakeReceived = null;
             m_responder = DefaultResponder;
             m_socketScript = null;
 
@@ -157,6 +162,12 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             Assert.That(response, Is.InstanceOf<ReadResponse>());
             Assert.That(m_lastRequest, Is.InstanceOf<ReadRequest>());
             Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(4242u));
+            using var envelope = JsonDocument.Parse(m_lastResponseBytes.Memory);
+            Assert.That(envelope.RootElement.GetProperty("UaTypeId").GetString(), Is.EqualTo("i=632"));
+            Assert.That(envelope.RootElement.GetProperty("ResponseHeader").GetProperty("RequestHandle").GetUInt32(),
+                Is.EqualTo(m_lastRequest!.RequestHeader.RequestHandle).And.Not.EqualTo(4242u));
+            Assert.That(envelope.RootElement.TryGetProperty("UaBody", out _), Is.False);
+            Assert.That(request.RequestHeader.RequestHandle, Is.EqualTo(4242u));
         }
 
         [Test]
@@ -1251,6 +1262,59 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             AssertRequestUnchanged(request, snapshot, originalHeader);
         }
 
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task OpeningHandshakeHonorsDeadlineAndCallerCancellationAsync(bool cancel)
+        {
+            var time = new FakeTimeProvider();
+            m_handshakeReceived = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var cancellation = new CancellationTokenSource();
+            using var channel = new WebApiWssTransportChannel(new TelemetryStub(), timeProvider: time);
+            EndpointConfiguration configuration = EndpointConfiguration.Create();
+            configuration.OperationTimeout = 100;
+            TransportChannelSettings settings = CreateChannelSettings(configuration);
+            Task opening = channel.OpenAsync(m_baseUri, settings, cancellation.Token).AsTask();
+
+            await m_handshakeReceived.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            time.Advance(TimeSpan.FromMilliseconds(99));
+            Assert.That(opening.IsCompleted, Is.False);
+            if (cancel)
+            {
+                await cancellation.CancelAsync().ConfigureAwait(false);
+                await Assert.ThatAsync(() => opening.WaitAsync(TimeSpan.FromSeconds(5)),
+                    Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+            }
+            else
+            {
+                time.Advance(TimeSpan.FromMilliseconds(1));
+                await Assert.ThatAsync(() => opening.WaitAsync(TimeSpan.FromSeconds(5)),
+                    Throws.TypeOf<ServiceResultException>()
+                        .With.Property(nameof(ServiceResultException.StatusCode))
+                        .EqualTo(StatusCodes.BadRequestTimeout)).ConfigureAwait(false);
+            }
+
+            m_handshakeReceived = null;
+            await channel.OpenAsync(m_baseUri, settings, CancellationToken.None).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            IServiceResponse response = await channel.SendRequestAsync(
+                new ReadRequest { RequestHeader = new RequestHeader { RequestHandle = 42 } }).AsTask()
+                .WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+            Assert.That(response, Is.TypeOf<ReadResponse>());
+            Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(42));
+        }
+
+        [Test]
+        public Task SilentServerRequestUsesOperationTimeoutAsync()
+        {
+            return AssertSilentServerRequestTerminationAsync(cancel: false);
+        }
+
+        [Test]
+        public Task SilentServerRequestPreservesCallerCancellationAsync()
+        {
+            return AssertSilentServerRequestTerminationAsync(cancel: true);
+        }
+
         private static void AssertRequestUnchanged(
             IServiceRequest request,
             IServiceRequest snapshot,
@@ -1322,12 +1386,80 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
             return channel;
         }
 
+        private async Task AssertSilentServerRequestTerminationAsync(bool cancel)
+        {
+            var received = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            m_socketScript = async (socket, ct) =>
+            {
+                _ = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                received.TrySetResult();
+                IServiceRequest retry = await ReceiveServiceRequestAsync(socket, ct).ConfigureAwait(false);
+                await SendResponseAsync(socket, DefaultResponder(retry), ct).ConfigureAwait(false);
+                await release.Task.WaitAsync(ct).ConfigureAwait(false);
+            };
+
+            var time = new FakeTimeProvider();
+            using WebApiWssTransportChannel channel = await OpenChannelAsync(timeProvider: time)
+                .ConfigureAwait(false);
+            using var cancellation = new CancellationTokenSource();
+            channel.OperationTimeout = 100;
+            try
+            {
+                Task<IServiceResponse> request = channel.SendRequestAsync(new GetEndpointsRequest
+                {
+                    RequestHeader = new RequestHeader { RequestHandle = 24 },
+                    EndpointUrl = m_baseUri.AbsoluteUri
+                }, cancellation.Token).AsTask();
+                await received.Task.WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                time.Advance(TimeSpan.FromMilliseconds(99));
+                Assert.That(request.IsCompleted, Is.False);
+                if (cancel)
+                {
+                    await cancellation.CancelAsync().ConfigureAwait(false);
+                    await Assert.ThatAsync(() => request.WaitAsync(TimeSpan.FromSeconds(5)),
+                        Throws.InstanceOf<OperationCanceledException>()).ConfigureAwait(false);
+                }
+                else
+                {
+                    time.Advance(TimeSpan.FromMilliseconds(1));
+                    await Assert.ThatAsync(() => request.WaitAsync(TimeSpan.FromSeconds(5)),
+                        Throws.TypeOf<ServiceResultException>()
+                            .With.Property(nameof(ServiceResultException.StatusCode))
+                            .EqualTo(StatusCodes.BadRequestTimeout)
+                            .And.Message.Contains("100 ms")).ConfigureAwait(false);
+                }
+
+                IServiceResponse response = await channel.SendRequestAsync(new GetEndpointsRequest
+                {
+                    RequestHeader = new RequestHeader { RequestHandle = 25 },
+                    EndpointUrl = m_baseUri.AbsoluteUri
+                }).AsTask().WaitAsync(TimeSpan.FromSeconds(5)).ConfigureAwait(false);
+                Assert.That(response, Is.TypeOf<GetEndpointsResponse>());
+                Assert.That(response.ResponseHeader.RequestHandle, Is.EqualTo(25));
+            }
+            finally
+            {
+                release.TrySetResult();
+                await channel.CloseAsync(CancellationToken.None).AsTask().WaitAsync(TimeSpan.FromSeconds(5))
+                    .ConfigureAwait(false);
+            }
+        }
+
         private async Task<WebApiWssTransportChannel> OpenChannelAsync(
             WebApiClientOptions? options = null,
-            EndpointConfiguration? configuration = null)
+            EndpointConfiguration? configuration = null,
+            TimeProvider? timeProvider = null)
         {
-            var channel = new WebApiWssTransportChannel(new TelemetryStub(), options);
-            var settings = new TransportChannelSettings
+            var channel = new WebApiWssTransportChannel(new TelemetryStub(), options, timeProvider);
+            await channel.OpenAsync(m_baseUri, CreateChannelSettings(configuration), CancellationToken.None)
+                .ConfigureAwait(false);
+            return channel;
+        }
+
+        private TransportChannelSettings CreateChannelSettings(EndpointConfiguration? configuration)
+        {
+            return new TransportChannelSettings
             {
                 Description = new EndpointDescription
                 {
@@ -1342,9 +1474,6 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 Factory = m_messageContext!.Factory,
                 NamespaceUris = new NamespaceTable()
             };
-            await channel.OpenAsync(m_baseUri, settings, CancellationToken.None)
-                .ConfigureAwait(false);
-            return channel;
         }
 
         private async Task HandleWebSocketAsync(HttpContext context)
@@ -1365,6 +1494,13 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
                 return;
             }
             m_lastNegotiatedSubProtocol = subProtocol;
+
+            if (m_handshakeReceived is TaskCompletionSource received)
+            {
+                received.TrySetResult();
+                await Task.Delay(Timeout.InfiniteTimeSpan, context.RequestAborted).ConfigureAwait(false);
+                return;
+            }
 
             using WebSocket ws = await context.WebSockets
                 .AcceptWebSocketAsync(subProtocol)
@@ -1456,7 +1592,9 @@ namespace Opc.Ua.Bindings.Https.WebApi.Tests
 
         private Task SendResponseAsync(WebSocket socket, IServiceResponse response, CancellationToken ct)
         {
-            return SendResponseBytesAsync(socket, EncodeResponse(response), ct);
+            byte[] responseBytes = EncodeResponse(response);
+            m_lastResponseBytes = ByteString.From(responseBytes);
+            return SendResponseBytesAsync(socket, responseBytes, ct);
         }
 
         private static async Task SendResponseBytesAsync(WebSocket socket, byte[] responseBytes, CancellationToken ct)

@@ -641,7 +641,24 @@ if (!vision.IsVisionNamespaceAvailable)
 }
 ```
 
+Sensor, calibration, pipeline and result snapshots reject Bad and Uncertain
+quality on members that were returned by a read; an unreadable member is not
+replaced by a successful default. Present members with an incompatible
+data type also fail. In particular, absent or wrongly typed `Detections` and
+`Characteristics` do not become empty observations. An explicitly empty detection
+array is still a valid empty result, and absent optional members remain absent.
+Media status-classification reads retain their separate inline-delivery status
+semantics described in [media gating](#64-media-gating).
+
+[UaLens Companion specification tasks](UaLens.md#companion-specification-tasks) provides a managed desktop
+consumer of these clients: published inspection, explicitly authorized simulated
+media/inference/feedback and a geometry-only SVG overlay export.
+
 ### Discovery
+
+Generated instance folders contain their configured endpoint instances, not
+references back to uninstantiated `MandatoryPlaceholder` or `OptionalPlaceholder`
+declarations. The declarations and their references remain in the type model.
 
 ```csharp
 await foreach (VisionNodeEntry sensor in vision.EnumerateSensorsAsync(ct))
