@@ -90,13 +90,21 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                     .With.Message.EqualTo("The registered registry cannot resolve recovery evidence."));
         }
 
-        [TestCase(false)]
-        [TestCase(true)]
-        public async Task ExplicitProjectionCompatibilityReachesRegistryAndViewMaterialization(bool configuration)
+        [TestCase(false, false)]
+        [TestCase(true, false)]
+        [TestCase(false, true)]
+        [TestCase(true, true)]
+        public async Task ExplicitProjectionCompatibilityReachesRegistryAndViewMaterialization(
+            bool configuration, bool forceLeasedContent)
         {
-            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync(forceLeasedContent)
+                .ConfigureAwait(false);
             var services = new ServiceCollection();
             var host = new FakeWotProjectionHost();
+            if (runtime.ConfiguredResourceStore is { } resourceStore)
+            {
+                services.AddSingleton(resourceStore);
+            }
             using var viewHost = new LifecycleWotViewProjectionHost(runtime.Lifecycle);
             services.AddSingleton<IWotProjectionHost>(runtime.Observe(host.RecordCommitted));
             services.AddSingleton<IWotDocumentConverter>(new FakeWotDocumentConverter());

@@ -131,7 +131,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             File.Move(Directory.GetFiles(directory, "manifest.json.tmp-*").Single(),
                 Path.Combine(directory, "manifest.json"));
             m_indeterminateDecision = false;
-            using var observer = new FileWotRegistryStore(directory);
+            using FileWotRegistryStore observer = m_storage.OpenStore();
             WotRegistrySnapshot decided = await observer.LoadAsync().ConfigureAwait(false);
             Assert.That(decided.RefreshGeneration, Is.EqualTo(2u));
             m_events.Clear();
@@ -436,7 +436,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(File.Exists(manifest), Is.False);
             File.Move(decisions.Single(), manifest);
             m_indeterminateDecision = false;
-            using var authoritativeStore = new FileWotRegistryStore(directory);
+            using FileWotRegistryStore authoritativeStore = m_storage.OpenStore();
             WotRegistrySnapshot decided = await authoritativeStore.LoadAsync().ConfigureAwait(false);
             uint expectedGeneration = committed ? 2u : 1u;
             Assert.That(decided.RefreshGeneration, Is.EqualTo(expectedGeneration));

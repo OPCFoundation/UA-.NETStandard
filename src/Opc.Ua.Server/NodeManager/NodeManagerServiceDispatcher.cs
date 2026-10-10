@@ -2455,7 +2455,8 @@ namespace Opc.Ua.Server
                             .ConfigureAwait(false);
                         if (ServiceResult.IsBad(result) &&
                             result.StatusCode != StatusCodes.BadNodeIdUnknown &&
-                            result.StatusCode != StatusCodes.BadMonitoredItemIdInvalid)
+                            result.StatusCode != StatusCodes.BadMonitoredItemIdInvalid &&
+                            !(monitoredItem.MonitoringAllEvents && result.StatusCode == StatusCodes.BadNotSupported))
                         {
                             compensationFailures.Add(new ServiceResultException(result));
                         }

@@ -48,15 +48,40 @@ namespace Opc.Ua.Server.Tests.Historian
         /// <summary>
         /// Verifies that raw-history continuation state round-trips through the codec.
         /// </summary>
-        [Test]
-        public async Task RawContinuationRoundTripsAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task RawContinuationRoundTripsAsync(bool captured)
         {
             NodeId nodeId = new("Historized", 1);
             PortableProvider provider = new("shared-historian");
             (HistorianContinuationPointCodec codec, HistorianProviderRegistry registry) =
-                CreateCodec();
+                CreateCodec(out NamespaceTable namespaceUris);
             registry.RegisterForNode(nodeId, provider);
-            HistorianContinuationState original = CreateRawState(nodeId, provider);
+            using HistorianContinuationState original = CreateRawState(nodeId, provider);
+            var source = new Mock<IAsyncNodeManager>();
+            if (captured)
+            {
+                original.Ownership.Manager = source.Object;
+                original.Ownership.SetDependencyOwners([source.Object]);
+            }
+            var store = new Mock<IHistoryContinuationPointStore>();
+            NodeId sessionId = new(Guid.NewGuid());
+            store.Setup(value => value.TryTakeAsync(
+                sessionId, original.Id, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+            var points = new SessionContinuationPoints(
+                () => sessionId,
+                maxBrowse: 4,
+                maxHistory: 4,
+                store: null,
+                historyStore: store.Object,
+                historyCodec: codec,
+                namespaceUris: namespaceUris);
+            await points.SaveHistoryAsync(original).ConfigureAwait(false);
+            store.Verify(value => value.StoreAsync(
+                It.Is<HistoryContinuationPointEnvelope>(payload =>
+                    payload.Id == original.Id && payload.OwnerSessionId == sessionId),
+                It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(points.HasHistoryForManager(source.Object), Is.EqualTo(captured));
 
             HistoryContinuationPointEnvelope? envelope = await codec.EncodeAsync(
                 new NodeId(Guid.NewGuid()),
@@ -81,24 +106,76 @@ namespace Opc.Ua.Server.Tests.Historian
             Assert.That(state.RawRequest.MaxValues, Is.EqualTo(17));
             Assert.That(state.RawRequest.IsForward, Is.True);
             Assert.That(state.RawRequest.ReturnBounds, Is.True);
+            Assert.That(state.Ownership.HasCapturedDependencies, Is.False);
+            Assert.That(state.Ownership.Manager, Is.Null);
+            Assert.That(state.Ownership.RoutingSnapshot, Is.Null);
+            Assert.That(points.HasHistoryForManager(source.Object), Is.EqualTo(captured));
+            state.Dispose();
+            ByteString token = original.Id.ToByteArray().ToByteString();
+            Assert.That(points.RestoreHistory(token), Is.Null);
+            IHistoryContinuationPoint? claimed = await points.RestoreHistoryAsync(token).ConfigureAwait(false);
+            Assert.That(claimed, Is.SameAs(original));
+            store.Verify(value => value.TryTakeAsync(
+                sessionId, original.Id, It.IsAny<CancellationToken>()), Times.Once);
+            Assert.That(points.HasHistoryForManager(source.Object), Is.EqualTo(captured));
+            using (SessionContinuationPoints.HistoryReadScope read = points.BeginHistoryRead(token, claimed))
+            {
+                Assert.That(read.Point, Is.SameAs(original));
+                Assert.That(
+                    await points.RestoreHistoryAsync(token).ConfigureAwait(false),
+                    Is.SameAs(original));
+                Assert.That(await points.RestoreHistoryAsync(token).ConfigureAwait(false), Is.Null);
+                store.Verify(value => value.TryTakeAsync(
+                    sessionId, original.Id, It.IsAny<CancellationToken>()), Times.Once);
+            }
+            points.Clear();
+            Assert.That(points.HasHistoryForManager(source.Object), Is.False);
         }
 
         /// <summary>
         /// Verifies that nonportable continuation state is not encoded.
         /// </summary>
-        [Test]
-        public async Task NonPortableContinuationIsNotEncodedAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task NonPortableContinuationIsNotEncodedAsync(bool captured)
         {
             NodeId nodeId = new("Historized", 1);
             var provider = new PortableProvider("local-historian", portable: false);
-            (HistorianContinuationPointCodec codec, _) = CreateCodec();
+            (HistorianContinuationPointCodec codec, _) = CreateCodec(out NamespaceTable namespaceUris);
+            using HistorianContinuationState state = CreateRawState(nodeId, provider);
+            var source = new Mock<IAsyncNodeManager>();
+            if (captured)
+            {
+                state.Ownership.Manager = source.Object;
+                state.Ownership.SetDependencyOwners([source.Object]);
+            }
 
             HistoryContinuationPointEnvelope? envelope = await codec.EncodeAsync(
                 new NodeId(Guid.NewGuid()),
-                CreateRawState(nodeId, provider),
+                state,
                 CancellationToken.None).ConfigureAwait(false);
 
             Assert.That(envelope, Is.Null);
+            var store = new Mock<IHistoryContinuationPointStore>();
+            var points = new SessionContinuationPoints(
+                () => new NodeId(1000),
+                maxBrowse: 4,
+                maxHistory: 4,
+                store: null,
+                historyStore: store.Object,
+                historyCodec: codec,
+                namespaceUris: namespaceUris);
+            await points.SaveHistoryAsync(state).ConfigureAwait(false);
+            store.Verify(value => value.StoreAsync(
+                It.IsAny<HistoryContinuationPointEnvelope>(), It.IsAny<CancellationToken>()), Times.Never);
+            Assert.That(points.HasHistoryForManager(source.Object), Is.EqualTo(captured));
+            Assert.That(
+                await points.RestoreHistoryAsync(state.Id.ToByteArray().ToByteString()).ConfigureAwait(false),
+                Is.SameAs(state));
+            Assert.That(points.HasHistoryForManager(source.Object), Is.EqualTo(captured));
+            state.Dispose();
+            Assert.That(points.HasHistoryForManager(source.Object), Is.False);
+            points.Clear();
         }
 
         /// <summary>
@@ -245,13 +322,20 @@ namespace Opc.Ua.Server.Tests.Historian
         /// <summary>
         /// Verifies that buffered processed-history continuations are not encoded as portable state.
         /// </summary>
-        [Test]
-        public async Task BufferedProcessedContinuationIsNotEncodedAsync()
+        [TestCase(false)]
+        [TestCase(true)]
+        public async Task BufferedProcessedContinuationIsNotEncodedAsync(bool captured)
         {
             NodeId nodeId = new("Historized", 1);
             PortableProvider provider = new("shared-historian");
             (HistorianContinuationPointCodec codec, _) = CreateCodec();
-            HistorianContinuationState state = CreateRawState(nodeId, provider);
+            using HistorianContinuationState state = CreateRawState(nodeId, provider);
+            var source = new Mock<IAsyncNodeManager>();
+            if (captured)
+            {
+                state.Ownership.Manager = source.Object;
+                state.Ownership.SetDependencyOwners([source.Object]);
+            }
             state.BufferedProcessedOutputs =
                 new HistorianBufferedProcessedPayload([]);
 
@@ -541,15 +625,31 @@ namespace Opc.Ua.Server.Tests.Historian
 
         private static (
             HistorianContinuationPointCodec Codec,
+            HistorianProviderRegistry Registry) CreateCodec(out NamespaceTable namespaceUris)
+        {
+            namespaceUris = new NamespaceTable();
+            namespaceUris.Append("urn:test:historian");
+            return CreateCodec(namespaceUris);
+        }
+
+        private static (
+            HistorianContinuationPointCodec Codec,
             HistorianProviderRegistry Registry) CreateCodec(
                 params string[] customNamespaceUris)
         {
-            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var namespaceUris = new NamespaceTable();
             for (int i = 0; i < customNamespaceUris.Length; i++)
             {
                 namespaceUris.Append(customNamespaceUris[i]);
             }
+            return CreateCodec(namespaceUris);
+        }
+
+        private static (
+            HistorianContinuationPointCodec Codec,
+            HistorianProviderRegistry Registry) CreateCodec(NamespaceTable namespaceUris)
+        {
+            ITelemetryContext telemetry = NUnitTelemetryContext.Create();
             var serverUris = new StringTable();
             var messageContext = new ServiceMessageContext(
                 telemetry,

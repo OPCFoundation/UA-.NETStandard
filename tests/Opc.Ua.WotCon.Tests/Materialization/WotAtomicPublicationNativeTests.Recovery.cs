@@ -132,7 +132,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend(kStockViewNamespace);
-            using var store = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+            using FileWotRegistryStore store = m_storage.OpenStore();
             using var registry = new WotRegistryService(store);
             using var restoredViews = new LifecycleWotViewProjectionHost(restarted.Lifecycle);
             using var coordinator = new WotMaterializationCoordinator(
@@ -207,7 +207,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend("urn:c1:ordinary-padding");
-            using var store = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+            using FileWotRegistryStore store = m_storage.OpenStore();
             using var registry = new WotRegistryService(store);
             using var recoveredViews = new LifecycleWotViewProjectionHost(restarted.Lifecycle);
             using var coordinator = new WotMaterializationCoordinator(
@@ -258,7 +258,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             WotRegistrySnapshot expected = m_registry.Current;
             await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
                 .ConfigureAwait(false);
-            using var store = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+            using FileWotRegistryStore store = m_storage.OpenStore();
             using var registry = new WotRegistryService(store);
             using var coordinator = new WotMaterializationCoordinator(registry, restarted.Host);
 
@@ -305,7 +305,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend("urn:c1:restart-padding");
             restarted.Namespaces.GetIndexOrAppend(kStockViewNamespace);
-            using var restoredStore = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+            using FileWotRegistryStore restoredStore = m_storage.OpenStore();
             using var restoredRegistry = new WotRegistryService(restoredStore);
             using var restoredViews = new LifecycleWotViewProjectionHost(restarted.Lifecycle);
             using var restoredCoordinator = new WotMaterializationCoordinator(

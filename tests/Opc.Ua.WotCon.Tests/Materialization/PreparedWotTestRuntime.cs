@@ -38,6 +38,8 @@ using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.WotCon.Tests.Registry;
+using Opc.Ua.XRegistry.Server;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
@@ -45,11 +47,13 @@ namespace Opc.Ua.WotCon.Tests.Materialization
     internal sealed class PreparedWotTestRuntime : IAsyncDisposable
     {
         private PreparedWotTestRuntime(
-            string root, ServerFixture<ReferenceServer> fixture, ReferenceServer server)
+            string root, ServerFixture<ReferenceServer> fixture, ReferenceServer server, bool forceLeasedContent)
         {
             m_root = root;
             m_fixture = fixture;
             m_server = server;
+            m_forceLeasedContent = forceLeasedContent;
+            m_configuredStorage = new PreparedWotTestStorage(StorageFolder, forceLeasedContent);
             Host = new LifecycleWotProjectionHost(server.NodeManagerLifecycle);
         }
 
@@ -58,8 +62,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         public INodeManagerLifecycle Lifecycle => m_server.NodeManagerLifecycle;
         public int Port => m_fixture.Port;
         public string StorageFolder => Path.Combine(m_root, "configured-registry");
+        public IXRegistryResourceStore? ConfiguredResourceStore => m_configuredStorage.ContentStore;
 
-        public static async Task<PreparedWotTestRuntime> StartAsync()
+        public static async Task<PreparedWotTestRuntime> StartAsync(bool forceLeasedContent = false)
         {
             string root = Path.Combine(TestContext.CurrentContext.WorkDirectory,
                 nameof(PreparedWotTestRuntime), Guid.NewGuid().ToString("N"));
@@ -70,14 +75,18 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 AutoAccept = true
             };
             ReferenceServer server = await fixture.StartAsync(Path.Combine(root, "pki")).ConfigureAwait(false);
-            return new PreparedWotTestRuntime(root, fixture, server);
+            return new PreparedWotTestRuntime(root, fixture, server, forceLeasedContent);
         }
 
         public async Task<WotRegistryService> CreateRegistryAsync(
             WotRegistryPersistenceBounds? bounds = null,
             WotProjectionCompatibilityMode compatibilityMode = WotProjectionCompatibilityMode.None)
         {
-            var store = new FileWotRegistryStore(Path.Combine(m_root, Guid.NewGuid().ToString("N")));
+            var storage = new PreparedWotTestStorage(
+                Path.Combine(m_root, Guid.NewGuid().ToString("N")), m_forceLeasedContent);
+            m_storages.Add(storage);
+            FileWotRegistryStore store = storage.OpenStore();
+            Assert.That(store.SupportsPreparedCommits, Is.True);
             var registry = new WotRegistryService(store, bounds, compatibilityMode);
             m_registries.Add((registry, store));
             await registry.InitializeAsync().ConfigureAwait(false);
@@ -106,6 +115,11 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     registry.Dispose();
                     store.Dispose();
                 }
+                foreach (PreparedWotTestStorage storage in m_storages)
+                {
+                    storage.Dispose();
+                }
+                m_configuredStorage.Dispose();
                 if (Directory.Exists(m_root))
                 {
                     Directory.Delete(m_root, recursive: true);
@@ -260,6 +274,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private readonly string m_root;
         private readonly ServerFixture<ReferenceServer> m_fixture;
         private readonly ReferenceServer m_server;
+        private readonly bool m_forceLeasedContent;
+        private readonly PreparedWotTestStorage m_configuredStorage;
         private readonly List<(WotRegistryService Registry, FileWotRegistryStore Store)> m_registries = [];
+        private readonly List<PreparedWotTestStorage> m_storages = [];
     }
 }

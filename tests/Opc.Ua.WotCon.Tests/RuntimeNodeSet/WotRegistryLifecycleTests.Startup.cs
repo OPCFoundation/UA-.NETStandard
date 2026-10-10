@@ -28,7 +28,6 @@
  * ======================================================================*/
 
 using System;
-using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using NUnit.Framework;
@@ -51,8 +50,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_registry.Dispose();
             int registrationsBefore = m_server.NodeManagerLifecycle.Registrations.Count;
 
-            string storeRoot = Path.Combine(m_pkiRoot, "registry");
-            using (var store = new FileWotRegistryStore(storeRoot))
+            using (FileWotRegistryStore store = m_testStorage!.OpenStore())
             using (var writer = new WotRegistryService(store, m_options.Bounds, m_options.IdentityBindings))
             {
                 await writer.InitializeAsync().ConfigureAwait(false);
@@ -68,7 +66,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                 }
             }
 
-            m_startupStore = new FileWotRegistryStore(storeRoot);
+            m_startupStore = m_testStorage!.OpenStore();
             m_registry = new WotRegistryService(m_startupStore, m_options.Bounds, m_options.IdentityBindings);
             await m_registry.InitializeAsync().ConfigureAwait(false);
             Assert.That(m_registry.Current.FindResource(

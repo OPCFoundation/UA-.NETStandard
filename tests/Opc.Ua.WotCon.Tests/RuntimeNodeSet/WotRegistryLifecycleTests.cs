@@ -85,6 +85,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
         private WotRegistryService m_registry = null!;
         private FileWotRegistryStore? m_testStore;
+        private Registry.PreparedWotTestStorage? m_testStorage;
+        private Registry.PreparedWotTestStorage? m_startupStorage;
         private WotMaterializationCoordinator m_coordinator = null!;
         private WotRegistryServerOptions m_options = null!;
 
@@ -123,7 +125,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
                     RequiredRoleId = UaObjectIds.WellKnownRole_Anonymous
                 }
             };
-            m_testStore = new FileWotRegistryStore(Path.Combine(m_pkiRoot, "registry"));
+            m_testStorage = new Registry.PreparedWotTestStorage(Path.Combine(m_pkiRoot, "registry"));
+            m_testStore = m_testStorage.OpenStore();
             m_registry = new WotRegistryService(m_testStore, m_options.Bounds, m_options.IdentityBindings);
             var host = new LifecycleWotProjectionHost(m_server.NodeManagerLifecycle);
             m_coordinator = new WotMaterializationCoordinator(
@@ -150,6 +153,10 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_startupStore = null;
             m_testStore?.Dispose();
             m_testStore = null;
+            m_startupStorage?.Dispose();
+            m_startupStorage = null;
+            m_testStorage?.Dispose();
+            m_testStorage = null;
 
             if (!string.IsNullOrEmpty(m_pkiRoot) && Directory.Exists(m_pkiRoot))
             {

@@ -207,6 +207,8 @@ namespace Opc.Ua.Server.Tests.NodeManager
             var namespaces = new NamespaceTable();
             namespaces.Append("urn:test:server");
             server.SetupGet(value => value.NamespaceUris).Returns(namespaces);
+            server.SetupGet(value => value.TypeTree).Returns(new TypeTable(namespaces));
+            server.SetupGet(value => value.Factory).Returns(EncodeableFactory.Create());
             server.SetupGet(value => value.Telemetry).Returns(NUnitTelemetryContext.Create());
             server.SetupGet(value => value.MainNodeManagerFactory).Returns(factory.Object);
             return new MasterNodeManager(

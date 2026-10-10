@@ -40,6 +40,7 @@ using Opc.Ua.Server.TestFramework;
 using Opc.Ua.Tests;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.WotCon.Tests.Registry;
 using Quickstarts.ReferenceServer;
 
 namespace Opc.Ua.WotCon.Tests.Materialization
@@ -62,8 +63,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 TestContext.CurrentContext.WorkDirectory,
                 nameof(WotAtomicPublicationNativeTests),
                 Guid.NewGuid().ToString("N"));
-            m_store = new FileWotRegistryStore(
-                Path.Combine(m_root, "registry"),
+            m_storage = new PreparedWotTestStorage(Path.Combine(m_root, "registry"));
+            m_store = m_storage.OpenStore(
                 directorySyncFailureInjector: null,
                 manifestReplace: (source, destination, backup) =>
                 {
@@ -82,6 +83,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                         throw new IOException("The publication committed with uncertain final durability.");
                     }
                 });
+            Assert.That(m_store.SupportsPreparedCommits, Is.True);
             m_registry = new WotRegistryService(m_store);
             await m_registry.InitializeAsync().ConfigureAwait(false);
             m_fixture = new ServerFixture<ReferenceServer>(telemetry => new ReferenceServer(telemetry))
@@ -351,6 +353,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                     m_coordinator?.Dispose();
                     m_registry?.Dispose();
                     m_store?.Dispose();
+                    m_storage?.Dispose();
                 }
             }
             if (Directory.Exists(m_root))
@@ -400,6 +403,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private readonly List<WotMaterializationEventArgs> m_events = [];
         private string m_root = null!;
         private FileWotRegistryStore m_store = null!;
+        private PreparedWotTestStorage m_storage = null!;
         private WotRegistryService m_registry = null!;
         private ServerFixture<ReferenceServer> m_fixture = null!;
         private ReferenceServer m_server = null!;

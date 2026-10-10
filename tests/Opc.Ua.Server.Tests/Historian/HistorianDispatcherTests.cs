@@ -239,12 +239,13 @@ namespace Opc.Ua.Server.Tests.Historian
         }
 
         /// <summary>
-        /// Verifies that asynchronous release disposes a custom history continuation.
+        /// Verifies that asynchronous release rejects and disposes an untyped custom history continuation.
         /// </summary>
         [Test]
         public async Task AsyncReleaseDisposesCustomHistoryContinuationAsync()
         {
             var id = Guid.NewGuid();
+            ByteString token = ByteString.From(id.ToByteArray());
             var continuation = new Mock<IHistoryContinuationPoint>();
             continuation.SetupGet(point => point.Id).Returns(id);
             var continuationPoints = new Mock<ISessionContinuationPoints>();
@@ -261,11 +262,13 @@ namespace Opc.Ua.Server.Tests.Historian
                     h.SystemContext,
                     new HistoryReadValueId
                     {
-                        ContinuationPoint = ByteString.From(id.ToByteArray())
+                        NodeId = new NodeId("custom-history", 1),
+                        ContinuationPoint = token
                     },
                     CancellationToken.None).ConfigureAwait(false);
 
-            Assert.That(ServiceResult.IsGood(result), Is.True);
+            Assert.That(result.StatusCode, Is.EqualTo(StatusCodes.BadContinuationPointInvalid));
+            continuationPoints.Verify(points => points.RestoreHistoryAsync(token, CancellationToken.None), Times.Once);
             continuation.Verify(point => point.Dispose(), Times.Once);
         }
 

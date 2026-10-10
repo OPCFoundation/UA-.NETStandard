@@ -2474,7 +2474,7 @@ namespace Opc.Ua.Server
 
                 lock (m_lock)
                 {
-                    cancellationToken.ThrowIfCancellationRequested();
+                    // The dispatcher preserves completed items and reports cancellation per unfinished item.
                     ThrowIfDeleted();
                     VerifySession(context);
                     ownershipTransferred = true;

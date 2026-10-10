@@ -154,7 +154,9 @@ namespace Opc.Ua.Server
                 single.AggregateType = [processed.AggregateType[index]];
                 details = single;
             }
-            using SessionContinuationPoints.HistoryReadScope use = holder.BeginHistoryRead(node.ContinuationPoint);
+            IHistoryContinuationPoint? point = await holder.RestoreHistoryAsync(
+                node.ContinuationPoint, cancellationToken).ConfigureAwait(false);
+            using SessionContinuationPoints.HistoryReadScope use = holder.BeginHistoryRead(node.ContinuationPoint, point);
             var result = new HistoryReadResult();
             if (use.Point is null ||
                 (use.Point is HistorianContinuationState saved &&

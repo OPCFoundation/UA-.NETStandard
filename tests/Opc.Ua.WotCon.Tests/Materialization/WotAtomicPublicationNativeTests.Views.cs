@@ -190,7 +190,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(result.Results.All(row => row.Message!.Contains("durability", StringComparison.Ordinal)),
                     Is.True);
             }
-            using var observer = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+            using FileWotRegistryStore observer = m_storage.OpenStore();
             WotRegistrySnapshot durable = await observer.LoadAsync().ConfigureAwait(false);
             Assert.That(durable.CanonicalViewGraphState, Is.EqualTo(m_registry.Current.CanonicalViewGraphState));
             Assert.That(durable.RefreshGeneration, Is.EqualTo(1u));

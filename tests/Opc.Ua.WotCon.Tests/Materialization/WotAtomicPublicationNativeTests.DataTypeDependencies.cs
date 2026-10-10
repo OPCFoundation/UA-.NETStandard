@@ -414,7 +414,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             }
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
             runtime.Namespaces.GetIndexOrAppend("urn:r30:namespace-padding");
-            using var store = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+            using FileWotRegistryStore store = m_storage.OpenStore();
             using var registry = new WotRegistryService(store);
             using var recovered = new WotMaterializationCoordinator(
                 registry, runtime.Host, documentConverter: new WotNodeSetDocumentConverter());

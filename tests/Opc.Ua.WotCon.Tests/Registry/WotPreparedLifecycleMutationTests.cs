@@ -61,7 +61,8 @@ namespace Opc.Ua.WotCon.Tests.Registry
         [TestCase(true, true)]
         public async Task MutationImageUsesTheExistingDecisionAndPreservesDeletedChangeIdentity(bool delete, bool commit)
         {
-            using var store = new FileWotRegistryStore(m_root);
+            using var storage = new PreparedWotTestStorage(m_root);
+            using FileWotRegistryStore store = storage.OpenStore();
             using var registry = new WotRegistryService(store);
             await registry.InitializeAsync().ConfigureAwait(false);
             WotRegistryMutationResult added = await registry.UpsertResourceAsync(new WotUpsertResourceRequest
@@ -110,7 +111,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
                 Assert.That(registry.Current, Is.SameAs(previous));
                 Assert.That(changes, Is.Empty);
             }
-            using var reopened = new FileWotRegistryStore(m_root);
+            using FileWotRegistryStore reopened = storage.OpenStore();
             WotRegistrySnapshot durable = await reopened.LoadAsync().ConfigureAwait(false);
             Assert.That(durable.Generation, Is.EqualTo(previous.Generation + (commit ? 1 : 0)));
             WotResource? restored = durable.FindResourceByXid(resource.Xid);

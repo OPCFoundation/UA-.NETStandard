@@ -106,7 +106,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 ], CancellationToken.None).ConfigureAwait(false);
             Assert.That(read.Results.ToList().Select(value => value.StatusCode),
                 Is.EqualTo(new StatusCode[] { StatusCodes.Good, StatusCodes.Good, StatusCodes.BadNodeIdUnknown }));
-            using var observer = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+            using FileWotRegistryStore observer = m_storage.OpenStore();
             WotRegistrySnapshot durable = await observer.LoadAsync().ConfigureAwait(false);
             Assert.That(durable.RefreshGeneration, Is.EqualTo((uint)unitCount));
             Assert.That(durable.Generation, Is.EqualTo(before.Generation + unitCount));
@@ -321,7 +321,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 Assert.That(result.Results.Single(row => row.ResourceId == good.ResourceId).Phase,
                     Is.EqualTo(WoTPhaseEnum.Activation));
             }
-            using var observer = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+            using FileWotRegistryStore observer = m_storage.OpenStore();
             WotRegistrySnapshot durable = await observer.LoadAsync().ConfigureAwait(false);
             Assert.That(durable.RefreshGeneration, Is.EqualTo((uint)committedUnits));
         }

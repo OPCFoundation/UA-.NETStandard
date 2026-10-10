@@ -242,8 +242,9 @@ namespace Opc.Ua.WotCon.Tests.Registry
             Directory.CreateDirectory(root);
             try
             {
+                using var storage = new PreparedWotTestStorage(root);
                 WotUpsertResourceRequest plan = Request(WoTDocumentKindEnum.ThingDescription);
-                using (var store = new FileWotRegistryStore(root))
+                using (FileWotRegistryStore store = storage.OpenStore())
                 using (var initial = new WotRegistryService(store))
                 {
                     await initial.InitializeAsync().ConfigureAwait(false);
@@ -269,7 +270,7 @@ namespace Opc.Ua.WotCon.Tests.Registry
 
                 await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
                 var registrations = runtime.Lifecycle.Registrations;
-                using var restoredStore = new FileWotRegistryStore(root);
+                using FileWotRegistryStore restoredStore = storage.OpenStore();
                 using var service = new WotRegistryService(restoredStore);
                 if (storedKind != WoTDocumentKindEnum.ThingDescription)
                 {

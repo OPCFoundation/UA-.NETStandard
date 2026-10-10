@@ -49,6 +49,7 @@ using Opc.Ua.Wot;
 using Opc.Ua.WotCon.Server;
 using Opc.Ua.WotCon.Server.Materialization;
 using Opc.Ua.WotCon.Server.Registry;
+using Opc.Ua.WotCon.Tests.Registry;
 using Quickstarts.ReferenceServer;
 using ISession = Opc.Ua.Client.ISession;
 
@@ -1286,7 +1287,9 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             private NativeHarness()
             {
                 m_directory = Path.Combine(
-                    Path.GetTempPath(), nameof(WotProjectionViewCanonicalLiveTests), Guid.NewGuid().ToString("N"));
+                    TestContext.CurrentContext.WorkDirectory,
+                    nameof(WotProjectionViewCanonicalLiveTests), Guid.NewGuid().ToString("N"));
+                m_storage = new PreparedWotTestStorage(Path.Combine(m_directory, "registry"));
                 m_fixture = new ServerFixture<ReferenceServer>(context => new ReferenceServer(context))
                 {
                     UriScheme = Utils.UriSchemeOpcTcp,
@@ -1381,7 +1384,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             public async Task<ByteString> LoadDurableGraphAsync()
             {
-                using var observer = new FileWotRegistryStore(Path.Combine(m_directory, "registry"));
+                using FileWotRegistryStore observer = m_storage.OpenStore();
                 WotRegistrySnapshot snapshot = await observer.LoadAsync().ConfigureAwait(false);
                 return snapshot.CanonicalViewGraphState;
             }
@@ -1608,6 +1611,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                                         finally
                                         {
                                             m_store?.Dispose();
+                                            m_storage.Dispose();
                                             try
                                             {
                                                 m_server?.Dispose();
@@ -1639,7 +1643,8 @@ namespace Opc.Ua.WotCon.Tests.Materialization
                 {
                     m_server.CurrentInstance.NamespaceUris.GetIndexOrAppend("urn:c2:restart-padding");
                 }
-                m_store = new FileWotRegistryStore(Path.Combine(m_directory, "registry"));
+                m_store = m_storage.OpenStore();
+                Assert.That(m_store.SupportsPreparedCommits, Is.True);
                 m_registry = new WotRegistryService(m_store);
                 await m_registry.InitializeAsync().ConfigureAwait(false);
                 m_coordinator = new WotMaterializationCoordinator(
@@ -1693,6 +1698,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
 
             private readonly string m_directory;
             private readonly ServerFixture<ReferenceServer> m_fixture;
+            private readonly PreparedWotTestStorage m_storage;
             private ReferenceServer? m_server;
             private ClientFixture? m_client;
             private WotRegistryService? m_registry;

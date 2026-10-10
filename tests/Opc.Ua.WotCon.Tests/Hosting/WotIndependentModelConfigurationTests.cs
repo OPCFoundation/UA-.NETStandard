@@ -67,14 +67,22 @@ namespace Opc.Ua.WotCon.Tests.Hosting
                 Is.EqualTo(WotDocumentSetMode.PartitionReconstruction));
         }
 
-        [TestCase("fluent")]
-        [TestCase("configuration")]
-        [TestCase("section")]
-        public async Task ConfiguredIndependentModeReachesTheRegistryMergeAsync(string route)
+        [TestCase("fluent", false)]
+        [TestCase("configuration", false)]
+        [TestCase("section", false)]
+        [TestCase("fluent", true)]
+        [TestCase("configuration", true)]
+        [TestCase("section", true)]
+        public async Task ConfiguredIndependentModeReachesTheRegistryMergeAsync(string route, bool forceLeasedContent)
         {
-            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
+            await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync(forceLeasedContent)
+                .ConfigureAwait(false);
             var services = new ServiceCollection();
             var host = new FakeWotProjectionHost();
+            if (runtime.ConfiguredResourceStore is { } resourceStore)
+            {
+                services.AddSingleton(resourceStore);
+            }
             ServiceMessageContext context = ServiceMessageContext.CreateEmpty(NUnitTelemetryContext.Create());
             services.AddSingleton<IServiceMessageContext>(context);
             services.AddSingleton<IWotProjectionHost>(runtime.Observe(host.RecordCommitted));
@@ -115,6 +123,7 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             Assert.That(converterOptions.ValueEncodingContext, Is.SameAs(context));
             IWotRegistryService registry = provider.GetRequiredService<IWotRegistryService>();
             await registry.InitializeAsync().ConfigureAwait(false);
+            Assert.That(((IWotPreparedRegistryPublicationService)registry).SupportsPreparedPublication, Is.True);
             await AddModelAsync(registry, "first", 1).ConfigureAwait(false);
             await AddModelAsync(registry, "second", 2).ConfigureAwait(false);
 
@@ -189,6 +198,10 @@ namespace Opc.Ua.WotCon.Tests.Hosting
             await using PreparedWotTestRuntime runtime = await PreparedWotTestRuntime.StartAsync().ConfigureAwait(false);
             var services = new ServiceCollection();
             var host = new FakeWotProjectionHost();
+            if (runtime.ConfiguredResourceStore is { } resourceStore)
+            {
+                services.AddSingleton(resourceStore);
+            }
             services.AddSingleton<IWotProjectionHost>(runtime.Observe(host.RecordCommitted));
             using var views = new LifecycleWotViewProjectionHost(runtime.Lifecycle);
             services.AddSingleton<IWotViewProjectionHost>(views);

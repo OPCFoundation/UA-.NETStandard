@@ -241,7 +241,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             await using PreparedWotTestRuntime restarted = await PreparedWotTestRuntime.StartAsync()
                 .ConfigureAwait(false);
             restarted.Namespaces.GetIndexOrAppend("urn:c1:retained-input-padding");
-            using var store = new FileWotRegistryStore(Path.Combine(m_root, "registry"));
+            using FileWotRegistryStore store = m_storage.OpenStore();
             using var registry = new WotRegistryService(store);
             using var recovered = new WotMaterializationCoordinator(
                 registry, restarted.Host, documentConverter: converter.Object);

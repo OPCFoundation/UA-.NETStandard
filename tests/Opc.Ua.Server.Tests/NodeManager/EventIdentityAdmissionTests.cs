@@ -294,18 +294,24 @@ namespace Opc.Ua.Server.Tests.NodeManager
             nodeManager.Setup(manager => manager.ValidateEventRolePermissionsAsync(
                     It.IsAny<IEventMonitoredItem>(), It.IsAny<IFilterTarget>(), It.IsAny<CancellationToken>()))
                 .Returns(new ValueTask<ServiceResult>(ServiceResult.Good));
-            ServiceResultException? error = null;
-            try
-            {
-                await EventManager.ReportEventAsync(Event(s_id), nodeManager.Object, [item]).ConfigureAwait(false);
-            }
-            catch (ServiceResultException exception)
-            {
-                error = exception;
-            }
+            BaseEventState unowned = Event(s_id);
+            await EventManager.ReportEventAsync(unowned, nodeManager.Object, [item]).ConfigureAwait(false);
 
-            Assert.That(error, Is.Not.Null);
-            Assert.That(error!.StatusCode, Is.EqualTo(StatusCodes.BadSecurityChecksFailed));
+            var notifications = new Queue<EventFieldList>();
+            using var context = NewContext();
+            item.Publish(context, notifications, 8);
+            Assert.That(notifications, Is.Empty, "A rejected receiver must not queue an unowned occurrence.");
+            AssertStatus(() => item.QueueEvent(unowned), StatusCodes.BadSecurityChecksFailed);
+
+            BaseEventState owned = Event(s_id);
+            reservation.Attach(fixture.Context, owned);
+            await EventManager.ReportEventAsync(owned, nodeManager.Object, [item]).ConfigureAwait(false);
+            item.Publish(context, notifications, 8);
+            Assert.That(notifications, Has.Count.EqualTo(1));
+            Assert.That(notifications.Peek().EventFields[0].TryGetValue(out ByteString id), Is.True);
+            Assert.That(id, Is.EqualTo(s_id));
+            nodeManager.Verify(manager => manager.ValidateEventRolePermissionsAsync(
+                item, It.IsAny<IFilterTarget>(), CancellationToken.None), Times.Exactly(2));
         }
 
         [Test]

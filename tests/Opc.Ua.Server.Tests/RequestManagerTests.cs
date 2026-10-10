@@ -554,7 +554,9 @@ namespace Opc.Ua.Server.Tests
             {
                 Assert.That(count, Is.EqualTo(2U));
                 Assert.That(cancelled, Is.EquivalentTo(new[] { first.RequestId, second.RequestId }));
-                Assert.That(statuses, Is.All.EqualTo(StatusCodes.BadRequestCancelledByRequest));
+                Assert.That(statuses, Is.All.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                Assert.That(first.OperationStatus.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
+                Assert.That(second.OperationStatus.Code, Is.EqualTo(StatusCodes.BadRequestCancelledByClient));
                 Assert.That(firstLifetime.CancellationToken.IsCancellationRequested, Is.True);
                 Assert.That(secondLifetime.CancellationToken.IsCancellationRequested, Is.True);
                 Assert.That(otherLifetime.CancellationToken.IsCancellationRequested, Is.False);

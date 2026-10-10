@@ -248,7 +248,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             else
             {
                 Assert.That(result.Errors, Is.Empty);
-                Assert.That(result.NodeSet!.Items!.OfType<UAObjectType>().Single().References!
+                Assert.That(ConsumerEventType(result.NodeSet!).References!
                     .Single(reference => reference.ReferenceType == "HasSubtype").Value, Is.EqualTo("i=2782"));
             }
         }
@@ -369,11 +369,12 @@ namespace Opc.Ua.WotCon.Tests.Materialization
         private static void AssertTargets(UANodeSet nodeSet)
         {
             UANode[] nodes = nodeSet.Items ?? throw new AssertionException("Conversion returned no native nodes.");
-            UAObjectType eventType = nodes.OfType<UAObjectType>().Single();
+            UAObjectType eventType = ConsumerEventType(nodeSet);
             Assert.That(eventType.References!.Single(reference => reference.ReferenceType == "HasSubtype").Value,
                 Is.EqualTo("ns=2;i=7001"));
             Assert.That(nodeSet.NamespaceUris![1], Is.EqualTo(TypeNamespace));
-            UAMethod method = nodes.OfType<UAMethod>().Single();
+            UAMethod method = nodes.OfType<UAMethod>()
+                .Single(candidate => candidate.MethodDeclarationId == "i=9029");
             Assert.That(method.MethodDeclarationId, Is.EqualTo("i=9029"));
             Assert.That(method.ParentNodeId, Is.EqualTo(eventType.NodeId));
             Assert.That(method.BrowseName, Is.EqualTo("AddComment"));
@@ -384,6 +385,23 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That(arguments.Value!.GetElementsByTagName("Name", UaNamespaces.OpcUaXsd)
                 .Cast<System.Xml.XmlElement>()
                 .Select(value => value.InnerText), Is.EqualTo(s_argumentNames));
+        }
+
+        private static UAObjectType ConsumerEventType(UANodeSet nodeSet)
+        {
+            UANode[] nodes = nodeSet.Items ?? throw new AssertionException("Conversion returned no native nodes.");
+            var namespaces = new NamespaceTable([UaNamespaces.OpcUa, .. nodeSet.NamespaceUris ?? []]);
+            string sourceId = ExpandedNodeId.ToNodeId(
+                ExpandedNodeId.Parse("nsu=urn:registry-review:device;i=5001"), namespaces).ToString();
+            UAObject source = nodes.OfType<UAObject>().Single(node => node.NodeId == sourceId);
+            string sourceTypeId = source.References!
+                .Single(reference => reference.ReferenceType is "HasTypeDefinition" or "i=40" &&
+                    reference.IsForward).Value!;
+            UAObjectType sourceType = nodes.OfType<UAObjectType>().Single(node => node.NodeId == sourceTypeId);
+            string eventTypeId = sourceType.References!
+                .Single(reference => reference.ReferenceType is "GeneratesEvent" or "i=41" &&
+                    reference.IsForward).Value!;
+            return nodes.OfType<UAObjectType>().Single(node => node.NodeId == eventTypeId);
         }
 
         private static async Task<RegistryContext> CreateContextAsync(

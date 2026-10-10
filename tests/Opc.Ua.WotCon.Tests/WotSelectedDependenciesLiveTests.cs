@@ -696,7 +696,7 @@ namespace Opc.Ua.WotCon.Tests
                 }
             }
 
-            private readonly Registry.WotPreparedMetadataStoreTests.RecordingLeasedResourceStore m_inner = new();
+            private readonly Registry.RecordingLeasedResourceStore m_inner = new();
         }
 
         private const string XRegistryNamespace = "http://opcfoundation.org/UA/xRegistry/";

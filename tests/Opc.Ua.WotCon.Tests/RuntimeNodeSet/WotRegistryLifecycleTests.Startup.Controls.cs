@@ -403,7 +403,8 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
             m_registry.Dispose();
             m_startupStore?.Dispose();
             string storeRoot = Path.Combine(m_pkiRoot, "startup-control-registry");
-            using (var store = new FileWotRegistryStore(storeRoot))
+            m_startupStorage ??= new Registry.PreparedWotTestStorage(storeRoot);
+            using (FileWotRegistryStore store = m_startupStorage.OpenStore())
             using (var writer = new WotRegistryService(store, m_options.Bounds, m_options.IdentityBindings))
             {
                 await writer.InitializeAsync().ConfigureAwait(false);
@@ -420,7 +421,7 @@ namespace Opc.Ua.WotCon.Tests.RuntimeNodeSet
 
         private async Task ReopenStartupControlStoreAsync()
         {
-            m_startupStore = new FileWotRegistryStore(Path.Combine(m_pkiRoot, "startup-control-registry"));
+            m_startupStore = m_startupStorage!.OpenStore();
             m_registry = new WotRegistryService(m_startupStore, m_options.Bounds, m_options.IdentityBindings);
             await m_registry.InitializeAsync().ConfigureAwait(false);
             Assert.That(StartupResource().DefaultVersion!.HasContent, Is.True);

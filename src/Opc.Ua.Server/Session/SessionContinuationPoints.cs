@@ -484,9 +484,8 @@ namespace Opc.Ua.Server
             }
         }
 
-        internal HistoryReadScope BeginHistoryRead(ByteString token)
+        internal HistoryReadScope BeginHistoryRead(ByteString token, IHistoryContinuationPoint? point)
         {
-            IHistoryContinuationPoint? point = RestoreHistory(token);
             var scope = new HistoryReadScope(this, m_historyRead.Value, token, point);
             m_historyRead.Value = scope;
             return scope;
@@ -572,7 +571,7 @@ namespace Opc.Ua.Server
                 throw new ArgumentNullException(nameof(continuationPoint));
             }
 
-            // Captured generation owners and provider cursors are process-local, not portable replicas.
+            // Captured owners remain local; the codec independently validates whether the cursor is portable.
             if (continuationPoint is Historian.HistorianContinuationState { Ownership.HasCapturedDependencies: true })
             {
                 try
@@ -584,8 +583,6 @@ namespace Opc.Ua.Server
                     DisposeUnretainedHistoryPoint(continuationPoint);
                     throw;
                 }
-                SaveHistory(continuationPoint);
-                return;
             }
 
             HistoryContinuationPoint local;

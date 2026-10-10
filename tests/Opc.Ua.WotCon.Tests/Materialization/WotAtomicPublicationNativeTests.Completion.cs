@@ -75,7 +75,7 @@ namespace Opc.Ua.WotCon.Tests.Materialization
             Assert.That((await ReadNodeClassAsync(Root(rejected)).ConfigureAwait(false)).StatusCode,
                 Is.EqualTo(StatusCodes.BadNodeIdUnknown));
             Assert.That(result.Results.Single(row => row.ResourceId == rejected.ResourceId).Generation, Is.EqualTo(1u));
-            using (var observer = new FileWotRegistryStore(Path.Combine(m_root, "registry")))
+            using (FileWotRegistryStore observer = m_storage.OpenStore())
             {
                 WotRegistrySnapshot durable = await observer.LoadAsync().ConfigureAwait(false);
                 Assert.That(durable.RefreshGeneration, Is.EqualTo(1u));
