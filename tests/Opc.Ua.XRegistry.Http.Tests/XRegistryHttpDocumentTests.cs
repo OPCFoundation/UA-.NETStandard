@@ -231,6 +231,52 @@ namespace Opc.Ua.XRegistry.Http.Tests
             Assert.That(handler.Requests, Has.Count.EqualTo(2));
         }
 
+        [Test]
+        public async Task CoreValidModelUsesPublishedModelDrivenHeaderCodecForDocumentWritesAsync()
+        {
+            const string model = /*lang=json,strict*/ """
+                {"groups":{"schemagroups":{"singular":"schemagroup","resources":{
+                  "schemas":{"singular":"schema","hasdocument":true,"attributes":{
+                    "score":{"type":"integer"}}}}}}}
+                """;
+            using var handler = new RecordingHttpHandler(message =>
+            {
+                if (message.RequestUri!.AbsolutePath == "/registry/")
+                {
+                    return HttpTestData.JsonResponse(HttpTestData.Root);
+                }
+                if (message.RequestUri.AbsolutePath == "/registry/model")
+                {
+                    return HttpTestData.JsonResponse(model);
+                }
+                if (message.RequestUri.AbsolutePath == "/registry/capabilities")
+                {
+                    return HttpTestData.JsonResponse(HttpTestData.Capabilities);
+                }
+
+                var response = HttpTestData.BytesResponse("payload"u8.ToArray(), "text/plain", 201);
+                response.Headers.TryAddWithoutValidation("xRegistry-score", "17");
+                return response;
+            });
+            using var client = new HttpClient(handler);
+            var endpoint = new XRegistryHttpEndpoint(client, HttpTestData.RegistryRoot, HttpTestData.Qualified);
+            XRegistryResponse response = await endpoint.ExecuteAsync(
+                new XRegistryRequest(XRegistryAction.Replace, HttpTestData.ResourcePath)
+                {
+                    Metadata = HttpTestData.Json("""{"score":17}"""),
+                    Document = ByteString.From("payload"u8),
+                    ContentType = "text/plain"
+                }).ConfigureAwait(false);
+            var write = handler.Requests.Single(request => request.Method == "PUT");
+            Assert.Multiple(() =>
+            {
+                Assert.That(write.Header("xRegistry-score"), Is.EqualTo("17"));
+                Assert.That(response.StatusCode, Is.EqualTo(201));
+                Assert.That(response.Metadata.GetProperty("score").GetInt32(), Is.EqualTo(17));
+                Assert.That(response.Document.ToArray(), Is.EqualTo("payload"u8.ToArray()));
+            });
+        }
+
         [TestCase("name", "%")]
         [TestCase("name", "%GG")]
         [TestCase("name", "%C0%A0")]

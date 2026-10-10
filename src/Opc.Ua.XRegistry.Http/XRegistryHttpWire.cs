@@ -82,7 +82,7 @@ namespace Opc.Ua.XRegistry.Http
                 if (document)
                 {
                     foreach (KeyValuePair<string, string> header in XRegistryHttpHeaders.Encode(
-                        request.Metadata, shape, request: true))
+                        request.Metadata, shape, request: true, options: Options))
                     {
                         message.Headers.Add(header.Key, header.Value);
                     }
@@ -125,7 +125,8 @@ namespace Opc.Ua.XRegistry.Http
             JsonElement metadata = default;
             if (document)
             {
-                metadata = XRegistryHttpHeaders.Decode(headers, contentType, shape, request: true, Body);
+                metadata = XRegistryHttpHeaders.Decode(headers, contentType, shape, request: true, codec: Body,
+                    options: Options);
             }
             else
             {
@@ -226,7 +227,8 @@ namespace Opc.Ua.XRegistry.Http
             }
             else if (shape.IsDocumentView(request, response: true))
             {
-                metadata = XRegistryHttpHeaders.Decode(headers, contentType, shape, request: false, Body);
+                metadata = XRegistryHttpHeaders.Decode(headers, contentType, shape, request: false, codec: Body,
+                    options: Options);
                 metadata = XRegistryHttpLinks.Translate(metadata, request, model, Address, Body, sentUri);
                 if (status is >= 200 and < 300 and not 204)
                 {
@@ -307,7 +309,7 @@ namespace Opc.Ua.XRegistry.Http
                 {
                     JsonElement metadata = XRegistryHttpLinks.Translate(
                         response.Metadata, request, model, Address, Body);
-                    headers.AddRange(XRegistryHttpHeaders.Encode(metadata, shape, request: false));
+                    headers.AddRange(XRegistryHttpHeaders.Encode(metadata, shape, request: false, options: Options));
                 }
             }
             else if (documentView && (response.StatusCode == 204 || response.StatusCode is >= 300 and < 400))
@@ -315,7 +317,7 @@ namespace Opc.Ua.XRegistry.Http
                 body = default;
                 contentType = response.ContentType;
                 JsonElement metadata = XRegistryHttpLinks.Translate(response.Metadata, request, model, Address, Body);
-                headers.AddRange(XRegistryHttpHeaders.Encode(metadata, shape, request: false));
+                headers.AddRange(XRegistryHttpHeaders.Encode(metadata, shape, request: false, options: Options));
             }
             else
             {

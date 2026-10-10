@@ -596,6 +596,15 @@ modern .NET; the connector requires .NET 10. Direct constructors and dependency
 injection use the same implementation. Native models are source-generated;
 registry JSON is not OPC UA Part 6 JSON.
 
+On net8.0 and later, the HTTP binding consumes the published
+`XRegistry` NuGet package (`0.1.0-alpha`) for Core model compilation and
+model-driven Document metadata header encoding/decoding. The bridge still owns
+its caller-contextual HTTP transport, OPC UA-specific transaction boundary,
+native projection and synchronization. The existing compatibility codec remains
+active for historical or experimental model documents that are outside the
+published Core model grammar. This is a staged package integration, not a
+replacement of the generic server engine or evidence of conformance.
+
 ### Choose a mode
 
 Build the tool from the repository:

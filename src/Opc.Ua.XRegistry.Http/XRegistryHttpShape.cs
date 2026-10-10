@@ -53,6 +53,59 @@ namespace Opc.Ua.XRegistry.Http
 
         public JsonElement Definition { get; init; }
 
+#if NET8_0_OR_GREATER
+        public JsonElement Model { get; init; }
+
+        public global::XRegistry.RegistryResourceDefinition? GetResourceDefinition(XRegistryHttpOptions options)
+        {
+            if (Definition.ValueKind != JsonValueKind.Object ||
+                Model.ValueKind != JsonValueKind.Object ||
+                Kind is not (XRegistryHttpEntityKind.Resource or XRegistryHttpEntityKind.Version or
+                    XRegistryHttpEntityKind.Meta or XRegistryHttpEntityKind.Versions))
+            {
+                return null;
+            }
+
+            ArrayOf<string> segments = XRegistryPath.GetSegments(ModelPath);
+            if (segments.Count < 3)
+            {
+                return null;
+            }
+
+            try
+            {
+                var limits = new global::XRegistry.RegistryJsonLimits
+                {
+                    MaxBytes = options.MaximumBodyBytes,
+                    MaxDepth = options.MaximumJsonDepth
+                };
+                global::XRegistry.RegistryModel compiled = global::XRegistry.RegistryModel.Compile(
+                    global::XRegistry.RegistryJson.Parse(Model.GetRawText(), limits),
+                    new global::XRegistry.RegistryModelCompilationOptions { JsonLimits = limits });
+                return compiled.Groups.TryGetValue(segments[0], out global::XRegistry.RegistryGroupDefinition? compiledGroup) &&
+                    compiledGroup.Resources.TryGetValue(segments[2], out global::XRegistry.RegistryResourceDefinition? compiledResource)
+                        ? compiledResource : null;
+            }
+            catch (global::XRegistry.RegistryException exception) when (
+                exception.Diagnostic.Message is
+                    "Unknown or unresolved model language member." or
+                    "Array and map definitions require item." or
+                    "A valid singular name is required." or
+                    "A specification-defined type or constraint cannot be weakened.")
+            {
+                // Preserve the binding's explicitly supported sparse and experimental model dialects.
+                return null;
+            }
+            catch (global::XRegistry.RegistryException exception)
+            {
+                throw new XRegistryHttpWireException(400, exception.Diagnostic.Code,
+                    exception.Diagnostic.Message, exception);
+            }
+        }
+
+        private string ModelPath { get; init; } = "/";
+#endif
+
         public string? Singular { get; init; }
 
         public bool HasDocument { get; init; }
@@ -183,6 +236,11 @@ namespace Opc.Ua.XRegistry.Http
                 Definition = resource,
                 Singular = singular.GetString(),
                 HasDocument = hasDocument
+#if NET8_0_OR_GREATER
+                ,
+                Model = model,
+                ModelPath = path
+#endif
             };
         }
 

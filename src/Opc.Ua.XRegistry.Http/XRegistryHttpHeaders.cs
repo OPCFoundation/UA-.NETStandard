@@ -43,8 +43,69 @@ namespace Opc.Ua.XRegistry.Http
         public static ArrayOf<KeyValuePair<string, string>> Encode(
             JsonElement metadata,
             XRegistryHttpShape shape,
-            bool request)
+            bool request,
+            XRegistryHttpOptions options)
         {
+#if NET8_0_OR_GREATER
+            if (metadata.ValueKind != JsonValueKind.Undefined &&
+                shape.GetResourceDefinition(options) is { } resource)
+            {
+                var extraNulls = new List<string>();
+                JsonNode registryNode = JsonNode.Parse(metadata.GetRawText()) ??
+                    throw new JsonException("Document metadata is empty.");
+                if (request && registryNode is JsonObject registryObject)
+                {
+                    foreach (JsonProperty property in metadata.EnumerateObject())
+                    {
+                        if (property.Value.ValueKind == JsonValueKind.Null &&
+                            !IsDeclared(resource, property.Name))
+                        {
+                            _ = registryObject.Remove(property.Name);
+                            extraNulls.Add(property.Name);
+                        }
+                    }
+                }
+                global::XRegistry.RegistryJson registryMetadata = global::XRegistry.RegistryJson.Parse(
+                    registryNode.ToJsonString(),
+                    new global::XRegistry.RegistryJsonLimits { MaxBytes = options.MaximumBodyBytes,
+                        MaxDepth = options.MaximumJsonDepth });
+                try
+                {
+                    IReadOnlyDictionary<string, string> encoded = global::XRegistry.Http.RegistryHeaderMetadata.Encode(
+                        registryMetadata, resource,
+                        request
+                            ? global::XRegistry.Http.RegistryHeaderMetadataDirection.ClientInput
+                            : global::XRegistry.Http.RegistryHeaderMetadataDirection.Response,
+                        HeaderOptions(options));
+                    var encodedHeaders = new List<KeyValuePair<string, string>>(encoded.Count + extraNulls.Count);
+                    foreach (KeyValuePair<string, string> header in encoded)
+                    {
+                        encodedHeaders.Add(header);
+                    }
+                    foreach (string name in extraNulls)
+                    {
+                        ValidateName(name);
+                        if (name.Contains('.', StringComparison.Ordinal) || name == "contenttype" ||
+                            name == shape.Singular || name == shape.Singular + "base64")
+                        {
+                            throw Error("An absent model attribute cannot be deleted with this Document header.");
+                        }
+                        encodedHeaders.Add(new("xRegistry-" + name, "null"));
+                    }
+                    return [.. encodedHeaders];
+                }
+                catch (global::XRegistry.RegistryException exception)
+                {
+                    throw new XRegistryHttpWireException(400, exception.Diagnostic.Code,
+                        exception.Diagnostic.Message, exception);
+                }
+                catch (ArgumentException exception)
+                {
+                    throw new XRegistryHttpWireException(400, "header_error",
+                        "The Document metadata cannot be represented as HTTP headers.", exception);
+                }
+            }
+#endif
             var result = new List<KeyValuePair<string, string>>();
             var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             if (metadata.ValueKind == JsonValueKind.Undefined)
@@ -99,8 +160,82 @@ namespace Opc.Ua.XRegistry.Http
             string? contentType,
             XRegistryHttpShape shape,
             bool request,
-            XRegistryHttpBody codec)
+            XRegistryHttpBody codec,
+            XRegistryHttpOptions options)
         {
+#if NET8_0_OR_GREATER
+            if (shape.GetResourceDefinition(options) is { } resource)
+            {
+                var packageHeaders = new List<KeyValuePair<string, IEnumerable<string?>>>(headers.Count + 1);
+                var unmodeledResponseHeaders = new List<KeyValuePair<string, string>>();
+                bool hasContentType = false;
+                foreach (KeyValuePair<string, string> header in headers.Span)
+                {
+                    if (!request && TryAttributeHeader(header.Key, out string attribute, out _) &&
+                        !IsDeclared(resource, attribute) &&
+                        attribute != "contenttype" && attribute != shape.Singular &&
+                        attribute != shape.Singular + "base64")
+                    {
+                        unmodeledResponseHeaders.Add(header);
+                    }
+                    else
+                    {
+                        packageHeaders.Add(new(header.Key, [header.Value]));
+                    }
+                    hasContentType |= header.Key.Equals("Content-Type", StringComparison.OrdinalIgnoreCase);
+                }
+                if (contentType is not null && !hasContentType)
+                {
+                    packageHeaders.Add(new("Content-Type", [contentType]));
+                }
+                try
+                {
+                    global::XRegistry.RegistryJson decoded = global::XRegistry.Http.RegistryHeaderMetadata.Decode(
+                        packageHeaders, resource,
+                        request
+                            ? global::XRegistry.Http.RegistryHeaderMetadataDirection.ClientInput
+                            : global::XRegistry.Http.RegistryHeaderMetadataDirection.Response,
+                        HeaderOptions(options));
+                    if (unmodeledResponseHeaders.Count == 0)
+                    {
+                        return decoded.RootElement.Clone();
+                    }
+                    var combined = (JsonObject)JsonNode.Parse(decoded.RootElement.GetRawText())!;
+                    foreach (KeyValuePair<string, string> header in unmodeledResponseHeaders)
+                    {
+                        if (!TryAttributeHeader(header.Key, out string attribute, out string? mapKey))
+                        {
+                            continue;
+                        }
+                        string value = DecodeValue(header.Value);
+                        JsonNode? decodedValue = value == "null" ? null : JsonValue.Create(value);
+                        if (mapKey is null)
+                        {
+                            if (combined.ContainsKey(attribute))
+                            {
+                                throw Error("A map and a scalar header target the same attribute.");
+                            }
+                            combined[attribute] = decodedValue;
+                        }
+                        else
+                        {
+                            if (combined[attribute] is not JsonObject map)
+                            {
+                                map = new JsonObject();
+                                combined[attribute] = map;
+                            }
+                            map[mapKey] = decodedValue;
+                        }
+                    }
+                    return JsonDocument.Parse(combined.ToJsonString()).RootElement.Clone();
+                }
+                catch (global::XRegistry.RegistryException exception)
+                {
+                    throw new XRegistryHttpWireException(400, exception.Diagnostic.Code,
+                        exception.Diagnostic.Message, exception);
+                }
+            }
+#endif
             var metadata = new JsonObject();
             var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
             var selectors = new JsonObject { ["contenttype"] = contentType };
@@ -170,6 +305,63 @@ namespace Opc.Ua.XRegistry.Http
             }
             return codec.Parse(codec.Encode(metadata));
         }
+
+#if NET8_0_OR_GREATER
+        private static bool IsDeclared(global::XRegistry.RegistryResourceDefinition resource, string name) =>
+            Declared(resource.Attributes, name) ||
+            Declared(resource.ResourceAttributes, name) ||
+            Declared(resource.MetaAttributes, name);
+
+        private static bool Declared(
+            IReadOnlyDictionary<string, global::XRegistry.RegistryAttributeDefinition> definitions, string name)
+        {
+            if (definitions.ContainsKey(name) || definitions.ContainsKey("*"))
+            {
+                return true;
+            }
+            foreach (global::XRegistry.RegistryAttributeDefinition definition in definitions.Values)
+            {
+                foreach (IReadOnlyDictionary<string, global::XRegistry.RegistryAttributeDefinition> conditional
+                    in definition.IfValues.Values)
+                {
+                    if (Declared(conditional, name))
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        private static bool TryAttributeHeader(string name, out string attribute, out string? mapKey)
+        {
+            attribute = string.Empty;
+            mapKey = null;
+            if (!name.StartsWith("xRegistry-", StringComparison.OrdinalIgnoreCase))
+            {
+                return false;
+            }
+            string suffix = name["xRegistry-".Length..];
+            int separator = suffix.IndexOf('.', StringComparison.Ordinal);
+            attribute = (separator < 0 ? suffix : suffix[..separator]).ToLowerInvariant();
+            mapKey = separator < 0 ? null : suffix[(separator + 1)..];
+            return attribute.Length != 0 && (mapKey is null || mapKey.Length != 0);
+        }
+#endif
+
+#if NET8_0_OR_GREATER
+        private static global::XRegistry.Http.RegistryHeaderMetadataOptions HeaderOptions(XRegistryHttpOptions options) =>
+            new()
+            {
+                MaxHeaderBytes = options.MaximumHeaderBytes,
+                MaxHeaderCount = options.MaximumHeaders,
+                Json = new()
+                {
+                    MaxBytes = options.MaximumBodyBytes,
+                    MaxDepth = options.MaximumJsonDepth
+                }
+            };
+#endif
 
         public static string EncodeValue(string value)
         {
