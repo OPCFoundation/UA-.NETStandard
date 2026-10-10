@@ -35,8 +35,9 @@
 //   run     --scenario read|write|sub|browse [--sessions N] [--nodes K] [--inflight I]
 //           [--duration S] [--warmup S] [--security none|sign|encrypt] [--diag 0|1] [--audit 0|1]
 //           [--subs S] [--pub ms] [--write-interval ms] [--trace file] [--trace-profile p] [--out file]
+//           [--client classic|managed] [--callback fast|item] [--trace-side server|client]
 //           Spawns the server child, drives the load and prints a report of client latency
-//           and server-side CPU / GC / allocation deltas for the measurement window.
+//           and the CPU / GC / allocation deltas of both processes for the measurement window.
 
 using System;
 using System.Collections;
@@ -55,6 +56,7 @@ using Opc.Ua.Client.TestFramework;
 using Opc.Ua.Configuration;
 using Opc.Ua.Server.TestFramework;
 using Quickstarts.ReferenceServer;
+using V2 = Opc.Ua.Client.Subscriptions;
 
 namespace Opc.Ua.Perf.ServerLoadHarness
 {
@@ -208,7 +210,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             await application.StartAsync(server).ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant($"READY {endpointUrl} {Environment.ProcessId}"));
 
-            ServerStats mark = ServerStats.Capture();
+            ProcessStats mark = ProcessStats.Capture();
             string? line;
             while ((line = await Console.In.ReadLineAsync().ConfigureAwait(false)) != null)
             {
@@ -217,13 +219,13 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     case "mark":
                         GC.Collect();
                         GC.WaitForPendingFinalizers();
-                        mark = ServerStats.Capture();
+                        mark = ProcessStats.Capture();
                         (server as CounterServer)?.Counters?.Mark();
                         Console.WriteLine("MARKED");
                         break;
                     case "report":
                         string counterReport = (server as CounterServer)?.Counters?.Report(sampling) ?? string.Empty;
-                        Console.WriteLine("REPORT " + ServerStats.Capture().Delta(mark) + " " + counterReport);
+                        Console.WriteLine("REPORT " + ProcessStats.Capture().Delta(mark) + " " + counterReport);
                         break;
                     case "quit":
                         await server.StopAsync().ConfigureAwait(false);
@@ -277,6 +279,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             await client
                 .LoadClientConfigurationAsync(Path.Combine(Path.GetTempPath(), "uaperf-pki-client"), "PerfClient")
                 .ConfigureAwait(false);
+            // The test fixture asks the server for diagnostics in every response;
+            // an application does not by default.
+            client.SessionFactory.ReturnDiagnostics = DiagnosticsMasks.None;
             string policy = security == "none" ? SecurityPolicies.None : SecurityPolicies.Basic256Sha256;
             MessageSecurityMode mode = security switch
             {
@@ -294,18 +299,30 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 }
             }
 
+            // classic: Session from the default session factory (classic subscription engine).
+            // managed: ManagedSession with the default V2 subscription engine.
+            string clientKind = Arg("client", "classic");
+            ConfiguredEndpoint? managedEndpoint = clientKind == "managed"
+                ? await client.GetEndpointAsync(new Uri(url), policy, selected).ConfigureAwait(false)
+                : null;
             var sessions = new ISession[sessionCount];
             var connectTime = Stopwatch.StartNew();
             await Parallel.ForAsync(
                 0,
                 sessionCount,
                 new ParallelOptions { MaxDegreeOfParallelism = 32 },
-                async (i, ct) => sessions[i] = await client
-                    .ConnectAsync(new Uri(url), policy, selected)
-                    .ConfigureAwait(false))
+                async (i, ct) => sessions[i] = managedEndpoint != null
+                    ? await new ManagedSessionBuilder(client.Config, telemetry)
+                        .UseEndpoint(managedEndpoint)
+                        .WithSessionTimeout(TimeSpan.FromSeconds(60))
+                        .ConnectAsync(ct)
+                        .ConfigureAwait(false)
+                    : await client
+                        .ConnectAsync(new Uri(url), policy, selected)
+                        .ConfigureAwait(false))
                 .ConfigureAwait(false);
             Console.WriteLine(FormattableString.Invariant(
-                $"connected {sessionCount} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
+                $"connected {sessionCount} {clientKind} sessions ({security}) in {connectTime.ElapsedMilliseconds} ms"));
 
             Workload workload = scenario == "counters"
                 ? new CounterWorkload(sessions[0], ArgInt("nodes", 1), ArgInt("sampling", 10), ArgInt("pub", 1000))
@@ -315,7 +332,8 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                     ArgInt("nodes", 100),
                     ArgInt("subs", 5),
                     ArgInt("pub", 100),
-                    ArgInt("write-interval", 100))
+                    ArgInt("write-interval", 100),
+                    Arg("callback", "fast") == "item")
                 : new RequestWorkload(scenario, sessions, ArgInt("nodes", 100), ArgInt("inflight", 1));
             await workload.SetupAsync().ConfigureAwait(false);
 
@@ -323,7 +341,11 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             Task run = workload.RunAsync(stop.Token);
             await Task.Delay(TimeSpan.FromSeconds(warmupSeconds)).ConfigureAwait(false);
 
-            using Process? tracer = StartTracer(server.Id, durationSeconds, out string? trace);
+            bool traceClient = Arg("trace-side", "server") == "client";
+            using Process? tracer = StartTracer(
+                traceClient ? Environment.ProcessId : server.Id,
+                durationSeconds,
+                out string? trace);
             if (tracer != null)
             {
                 await Task.Delay(2000).ConfigureAwait(false);
@@ -331,10 +353,14 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
             await server.StandardInput.WriteLineAsync("mark").ConfigureAwait(false);
             Take(serverLines, "MARKED");
+            GC.Collect();
+            GC.WaitForPendingFinalizers();
+            ProcessStats clientMark = ProcessStats.Capture();
             workload.ResetStats();
             var window = Stopwatch.StartNew();
             TimeSpan clientCpuStart = Process.GetCurrentProcess().TotalProcessorTime;
             await Task.Delay(TimeSpan.FromSeconds(durationSeconds)).ConfigureAwait(false);
+            string clientProcess = ProcessStats.Capture().Delta(clientMark);
             await server.StandardInput.WriteLineAsync("report").ConfigureAwait(false);
             string report = Take(serverLines, "REPORT")[7..];
             double clientCores = (Process.GetCurrentProcess().TotalProcessorTime - clientCpuStart).TotalSeconds /
@@ -362,14 +388,19 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 .Append(string.Join(' ', args.Skip(1)))
                 .Append('\n')
                 .Append("  client: ").Append(clientReport).Append('\n')
-                .Append("  server: ").Append(report).Append('\n');
+                .Append("  server: ").Append(report).Append('\n')
+                .Append("  client-process: ").Append(clientProcess).Append('\n');
             double operations = workload.Operations;
             if (operations > 0)
             {
-                (double allocatedMb, double cpuMs) = ParseServerReport(report);
+                (double allocatedMb, double cpuMs) = ParseProcessReport(report);
                 result.Append(
                     CultureInfo.InvariantCulture,
                     $"  per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
+                (allocatedMb, cpuMs) = ParseProcessReport(clientProcess);
+                result.Append(
+                    CultureInfo.InvariantCulture,
+                    $"  client-per-op: allocB={allocatedMb * 1048576 / operations:F0} cpuUs={cpuMs * 1000 / operations:F1}  ({workload.OperationName})\n");
             }
             Console.Write(result.ToString());
             if (s_args.TryGetValue("out", out string? outFile))
@@ -455,7 +486,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             }
         }
 
-        private static (double AllocatedMb, double CpuMs) ParseServerReport(string report)
+        private static (double AllocatedMb, double CpuMs) ParseProcessReport(string report)
         {
             Dictionary<string, string> values = report
                 .Split(' ')
@@ -469,9 +500,9 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     }
 
     /// <summary>
-    /// Process-wide counters of the server process, captured at the start and end of the window.
+    /// Process-wide counters, captured at the start and end of the measurement window.
     /// </summary>
-    internal sealed record ServerStats(
+    internal sealed record ProcessStats(
         long Allocated,
         int Gen0,
         int Gen1,
@@ -484,10 +515,10 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         long WorkingSet,
         long Heap)
     {
-        public static ServerStats Capture()
+        public static ProcessStats Capture()
         {
             using var process = Process.GetCurrentProcess();
-            return new ServerStats(
+            return new ProcessStats(
                 GC.GetTotalAllocatedBytes(true),
                 GC.CollectionCount(0),
                 GC.CollectionCount(1),
@@ -501,7 +532,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
                 GC.GetGCMemoryInfo().HeapSizeBytes);
         }
 
-        public string Delta(ServerStats mark)
+        public string Delta(ProcessStats mark)
         {
             double seconds = Stopwatch.GetElapsedTime(mark.Timestamp, Timestamp).TotalSeconds;
             TimeSpan cpu = Cpu - mark.Cpu;
@@ -703,13 +734,20 @@ namespace Opc.Ua.Perf.ServerLoadHarness
     /// </summary>
     internal sealed class SubscribeWorkload : Workload
     {
-        public SubscribeWorkload(ISession[] sessions, int nodes, int subscriptions, int publishingInterval, int writeInterval)
+        public SubscribeWorkload(
+            ISession[] sessions,
+            int nodes,
+            int subscriptions,
+            int publishingInterval,
+            int writeInterval,
+            bool itemCallback)
         {
             m_sessions = sessions;
             m_nodes = nodes;
             m_subscriptions = subscriptions;
             m_publishingInterval = publishingInterval;
             m_writeInterval = writeInterval;
+            m_itemCallback = itemCallback;
         }
 
         public override double Operations => Interlocked.Read(ref m_notifications);
@@ -777,27 +815,40 @@ namespace Opc.Ua.Perf.ServerLoadHarness
 
         private async Task CreateSubscriptionAsync(ISession session, CancellationToken ct)
         {
+            if (session is ManagedSession managed)
+            {
+                await CreateManagedSubscriptionAsync(managed, ct).ConfigureAwait(false);
+                return;
+            }
 #pragma warning disable CA2000 // ownership transfers to the session in AddSubscription; disposed below on failure before that
             var subscription = new Subscription(session.DefaultSubscription)
             {
                 PublishingInterval = m_publishingInterval,
                 KeepAliveCount = 10,
-                LifetimeCount = 100,
-                FastDataChangeCallback = OnDataChange
+                LifetimeCount = 100
             };
 #pragma warning restore CA2000
+            if (!m_itemCallback)
+            {
+                subscription.FastDataChangeCallback = OnDataChange;
+            }
             try
             {
                 foreach (NodeId nodeId in m_nodeIds)
                 {
-                    subscription.AddItem(new MonitoredItem(subscription.DefaultItem)
+                    var item = new MonitoredItem(subscription.DefaultItem)
                     {
                         StartNodeId = nodeId,
                         AttributeId = Attributes.Value,
                         MonitoringMode = MonitoringMode.Reporting,
                         SamplingInterval = 0,
                         QueueSize = 1
-                    });
+                    };
+                    if (m_itemCallback)
+                    {
+                        item.Notification += OnItemNotification;
+                    }
+                    subscription.AddItem(item);
                 }
                 // the session owns and disposes the subscription from here on
                 session.AddSubscription(subscription);
@@ -816,17 +867,126 @@ namespace Opc.Ua.Perf.ServerLoadHarness
             int count = 0;
             foreach (MonitoredItemNotification item in notification.MonitoredItems)
             {
-                if (item.Value.WrappedValue.TryGetValue(out int counter) && counter > 0)
-                {
-                    long written = Volatile.Read(ref m_writeTicks[counter & 0xFFFF]);
-                    if (written != 0)
-                    {
-                        m_latency.Record(now - written);
-                    }
-                }
+                RecordValue(now, item.Value);
                 count++;
             }
             Interlocked.Add(ref m_notifications, count);
+        }
+
+        private void OnItemNotification(MonitoredItem monitoredItem, MonitoredItemNotificationEventArgs e)
+        {
+            if (e.NotificationValue is MonitoredItemNotification item)
+            {
+                RecordValue(Stopwatch.GetTimestamp(), item.Value);
+                Interlocked.Increment(ref m_notifications);
+            }
+        }
+
+        private void RecordValue(long now, DataValue value)
+        {
+            if (value.WrappedValue.TryGetValue(out int counter) && counter > 0)
+            {
+                long written = Volatile.Read(ref m_writeTicks[counter & 0xFFFF]);
+                if (written != 0)
+                {
+                    m_latency.Record(now - written);
+                }
+            }
+        }
+
+        private async Task CreateManagedSubscriptionAsync(ManagedSession session, CancellationToken ct)
+        {
+            var setup = new SubscriptionSetup();
+            V2.ISubscription subscription = session.AddSubscription(
+                new NotificationHandler(this, setup),
+                new V2.SubscriptionOptions
+                {
+                    PublishingInterval = TimeSpan.FromMilliseconds(m_publishingInterval),
+                    PublishingEnabled = true,
+                    KeepAliveCount = 10,
+                    LifetimeCount = 100
+                });
+            for (int i = 0; i < m_nodeIds.Count; i++)
+            {
+                if (!subscription.TryAddMonitoredItem(
+                    i.ToString(CultureInfo.InvariantCulture),
+                    new V2.MonitoredItems.MonitoredItemOptions
+                    {
+                        StartNodeId = m_nodeIds[i],
+                        AttributeId = Attributes.Value,
+                        MonitoringMode = MonitoringMode.Reporting,
+                        SamplingInterval = TimeSpan.Zero,
+                        QueueSize = 1
+                    },
+                    out _))
+                {
+                    throw new InvalidOperationException(
+                        $"Could not add monitored item '{m_nodeIds[i]}' during subscription setup.");
+                }
+            }
+            await setup.WaitForReadyAsync(subscription, ct).ConfigureAwait(false);
+        }
+
+        /// <summary>
+        /// V2 engine handler; data changes are counted like the classic fast callback.
+        /// </summary>
+        private sealed class NotificationHandler : V2.ISubscriptionNotificationHandler
+        {
+            public NotificationHandler(SubscribeWorkload owner, SubscriptionSetup setup)
+            {
+                m_owner = owner;
+                m_setup = setup;
+            }
+
+            public ValueTask OnDataChangeNotificationAsync(
+                V2.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<V2.DataValueChange> notification,
+                V2.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                long now = Stopwatch.GetTimestamp();
+                foreach (V2.DataValueChange change in notification.Span)
+                {
+                    m_owner.RecordValue(now, change.Value);
+                }
+                Interlocked.Add(ref m_owner.m_notifications, notification.Length);
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnEventDataNotificationAsync(
+                V2.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                ReadOnlyMemory<V2.EventNotification> notification,
+                V2.PublishState publishStateMask,
+                IReadOnlyList<string> stringTable)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnKeepAliveNotificationAsync(
+                V2.ISubscription subscription,
+                uint sequenceNumber,
+                DateTime publishTime,
+                V2.PublishState publishStateMask)
+            {
+                return ValueTask.CompletedTask;
+            }
+
+            public ValueTask OnSubscriptionStateChangedAsync(
+                V2.ISubscription subscription,
+                V2.SubscriptionState state,
+                V2.PublishState publishStateMask,
+                CancellationToken ct = default)
+            {
+                m_setup.OnStateChanged(state);
+                return ValueTask.CompletedTask;
+            }
+
+            private readonly SubscribeWorkload m_owner;
+            private readonly SubscriptionSetup m_setup;
         }
 
         private readonly ISession[] m_sessions;
@@ -834,6 +994,7 @@ namespace Opc.Ua.Perf.ServerLoadHarness
         private readonly int m_subscriptions;
         private readonly int m_publishingInterval;
         private readonly int m_writeInterval;
+        private readonly bool m_itemCallback;
         private readonly long[] m_writeTicks = new long[1 << 16];
         private readonly LatencyRecorder m_latency = new();
         private long m_notifications;
