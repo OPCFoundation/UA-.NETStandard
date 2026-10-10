@@ -202,11 +202,13 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                         CreateServerStatusReadRequest(),
                         participantCt)
                     .ConfigureAwait(false);
+                // The worker outlives the callback, whose token is cancelled once
+                // it returns, so it runs on the test token like any other caller.
                 workerTask = Task.Run(
                     () => originalChannel!
-                        .SendRequestAsync(CreateServerStatusReadRequest(), participantCt)
+                        .SendRequestAsync(CreateServerStatusReadRequest(), ct)
                         .AsTask(),
-                    participantCt);
+                    ct);
                 await reactivationBarrier.SignalAndWaitForReleaseAsync(participantCt)
                     .ConfigureAwait(false);
                 return ParticipantReconnectResult.Reactivated;

@@ -29,10 +29,13 @@
 
 extern alias pubsubsample;
 
+using System.Net;
+using System.Net.Sockets;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using Opc.Ua.PubSub.Application;
 using Opc.Ua.PubSub.Configuration;
+using Opc.Ua.PubSub.DataSets;
 using Opc.Ua.PubSub.MetaData;
 using Opc.Ua.PubSub.Transports;
 using Opc.Ua.PubSub.Udp;
@@ -43,6 +46,7 @@ using PubSubDataSetMessageType = Opc.Ua.PubSub.Encoding.PubSubDataSetMessageType
 using PubSubFieldEncoding = Opc.Ua.PubSub.Encoding.PubSubFieldEncoding;
 using PubSubNetworkMessage = Opc.Ua.PubSub.Encoding.PubSubNetworkMessage;
 using PubSubNetworkMessageContext = Opc.Ua.PubSub.Encoding.PubSubNetworkMessageContext;
+using SampleClient = pubsubsample::Quickstarts.ConsoleReferencePubSubClient;
 using UadpDataSetMessage = Opc.Ua.PubSub.Encoding.Uadp.UadpDataSetMessage;
 using UadpDecoder = Opc.Ua.PubSub.Encoding.Uadp.UadpDecoder;
 using UadpEncoder = Opc.Ua.PubSub.Encoding.Uadp.UadpEncoder;
@@ -256,6 +260,71 @@ namespace Opc.Ua.Aot.Tests
             await app.DisposeAsync().ConfigureAwait(false);
         }
 
+        /// <summary>
+        /// The sample publisher signs and encrypts its DataSets with the
+        /// sample's static keys and the sample subscriber decodes them, as
+        /// in the first exchange of docs/PubSub.md.
+        /// </summary>
+        [Test]
+        public async Task SamplePublisherDeliversSecuredDataSetToSampleSubscriberAsync()
+        {
+            ITelemetryContext telemetry = DefaultTelemetry.Create(
+                builder => builder.SetMinimumLevel(LogLevel.Warning));
+            string endpoint = $"opc.udp://127.0.0.1:{ReserveLoopbackUdpPort()}";
+            var sink = new FirstDataSetSink();
+
+            IPubSubApplication subscriber = new PubSubApplicationBuilder(telemetry)
+                .WithApplicationId("urn:test:secured-subscriber")
+                .UseAllStandardEncoders()
+                .AddSecurityKeyProvider(SampleClient.SampleSecurity.CreateKeyProvider())
+                .AddTransportFactory(new UdpPubSubTransportFactory(
+                    Options.Create(new UdpTransportOptions())))
+                .AddSubscribedDataSetSink(SampleClient.SubscriberConfigurationBuilder.ReaderName, sink)
+                .UseConfiguration(SampleClient.SubscriberConfigurationBuilder.Build(
+                    SampleClient.SubscriberProfile.UdpUadp,
+                    endpoint,
+                    publisherIdFilter: 9,
+                    writerGroupIdFilter: 910,
+                    dataSetWriterIdFilter: 1))
+                .Build();
+            IPubSubApplication publisher = new PubSubApplicationBuilder(telemetry)
+                .WithApplicationId("urn:test:secured-publisher")
+                .UseAllStandardEncoders()
+                .AddSecurityKeyProvider(SampleClient.SampleSecurity.CreateKeyProvider())
+                .AddTransportFactory(new UdpPubSubTransportFactory(
+                    Options.Create(new UdpTransportOptions())))
+                .AddDataSetSource(
+                    SampleClient.PublisherConfigurationBuilder.DataSetName,
+                    new SampleClient.SampleDataSetSource())
+                .UseConfiguration(SampleClient.PublisherConfigurationBuilder.Build(
+                    SampleClient.PublisherProfile.UdpUadp,
+                    endpoint,
+                    publisherId: 9,
+                    writerGroupId: 910,
+                    dataSetWriterId: 1,
+                    intervalMs: 50))
+                .Build();
+
+            try
+            {
+                await subscriber.StartAsync(CancellationToken.None).ConfigureAwait(false);
+                await publisher.StartAsync(CancellationToken.None).ConfigureAwait(false);
+
+                int fieldCount = await sink.FirstFieldCount
+                    .WaitAsync(TimeSpan.FromSeconds(10))
+                    .ConfigureAwait(false);
+
+                await Assert.That(fieldCount).IsEqualTo(3);
+            }
+            finally
+            {
+                await publisher.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                await subscriber.StopAsync(CancellationToken.None).ConfigureAwait(false);
+                await publisher.DisposeAsync().ConfigureAwait(false);
+                await subscriber.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+
         [Test]
         public async Task RoundTripsUadpNetworkMessage()
         {
@@ -387,6 +456,33 @@ namespace Opc.Ua.Aot.Tests
                 new PubSub.Diagnostics.PubSubDiagnostics(
                     PubSub.Diagnostics.PubSubDiagnosticsLevel.Low),
                 TimeProvider.System);
+        }
+
+        private static int ReserveLoopbackUdpPort()
+        {
+            using var probe = new Socket(AddressFamily.InterNetwork, SocketType.Dgram, ProtocolType.Udp);
+            probe.Bind(new IPEndPoint(IPAddress.Loopback, 0));
+            return ((IPEndPoint)probe.LocalEndPoint!).Port;
+        }
+
+        /// <summary>
+        /// Records the field count of the first DataSet that a
+        /// DataSetReader delivers.
+        /// </summary>
+        private sealed class FirstDataSetSink : ISubscribedDataSetSink
+        {
+            public Task<int> FirstFieldCount => m_firstFieldCount.Task;
+
+            public ValueTask WriteAsync(
+                IReadOnlyList<DataSetField> fields,
+                CancellationToken cancellationToken = default)
+            {
+                m_firstFieldCount.TrySetResult(fields.Count);
+                return default;
+            }
+
+            private readonly TaskCompletionSource<int> m_firstFieldCount =
+                new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
     }
 

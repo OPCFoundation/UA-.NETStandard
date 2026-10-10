@@ -268,7 +268,10 @@ namespace Opc.Ua.Stress.Tests.Channels.Contract
                     managerMock.Object,
                     channelMock,
                     expectedBudget,
-                    CancellationToken.None
+                    CancellationToken.None,
+                    // ITransportWaitingConnection? connection: null takes the
+                    // channel-manager path rather than a reverse connect.
+                    null
                 ]);
 
             Assert.That(invocation, Is.InstanceOf<ValueTask>());

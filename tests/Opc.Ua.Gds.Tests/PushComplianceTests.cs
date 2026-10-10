@@ -144,11 +144,12 @@ namespace Opc.Ua.Gds.Tests
             Assert.That(applyChangesRequired, Is.True);
 
             ISession other = await OpenAdminSessionAsync().ConfigureAwait(false);
+            using Certificate certificate = CreateSelfSigned();
             await AssertStatusAsync(
                 () => AppTrustList(other).OpenAsync(WriteEraseExisting).AsTask(),
                 StatusCodes.BadTransactionPending).ConfigureAwait(false);
             await AssertStatusAsync(
-                () => AppTrustList(other).AddCertificateAsync(CreateSelfSigned().RawData.ToByteString(), true).AsTask(),
+                () => AppTrustList(other).AddCertificateAsync(certificate.RawData.ToByteString(), true).AsTask(),
                 StatusCodes.BadTransactionPending).ConfigureAwait(false);
 
             await ApplyChangesAsync(owner).ConfigureAwait(false);
