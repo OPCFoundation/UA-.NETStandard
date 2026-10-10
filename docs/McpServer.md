@@ -11,6 +11,7 @@ automation systems through natural language.
 - [What It Does](#what-it-does)
 - [Tool Profiles](#tool-profiles)
   - [Vision-guided Robotics](#vision-guided-robotics)
+  - [Industrial companion tools](CompanionMcp.md)
 - [Resources](#resources)
   - [Multi-Session Support](#multi-session-support)
 - [Installation](#installation)
@@ -94,6 +95,13 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 | `diagnostics` | Connection, Packet Capture (plus decode/replay when diagnostics tools are enabled) | OPC UA-aware packet capture, offline decode, and replay |
 | `robotics` | Connection plus Robot Intent discovery, paged monitoring, control, mission and Vision-guided Pick tools | Commanding and monitoring a Robot Intent controller |
 | `vision` | Connection plus the Vision discovery, monitoring, seeing, inference, feedback and geometry tools | Perception-driven agents that need to see through a Vision server, compose poses across the §5.12 frame graph, run or submit inference, and (when composed with `robotics`) act on what they see — see the [Vision developer guide](Vision.md) |
+| `amb` | Connection plus asset discovery, reads, observations and explicit asset changes | Asset inventory, health, maintenance and documentation |
+| `machinery` | Connection plus machine building blocks, process values, energy, job information and results | Machine monitoring and result retrieval; compose with `isa95` for job commands |
+| `scales` | Connection plus weights, products, recipes and scale/PackML commands | Weighing workflows; compose with `di` for explicit product locking |
+| `pumps` | Connection plus pump identity, values, ports, supervision and maintenance | Inspect pump state without inventing control methods |
+| `di` | Connection plus device topology, identification, locks, transfers and software updates | Device configuration and explicitly requested updates |
+| `isa95` | Connection plus common objects and V1/V2 job order/response tools | Job submission, control and monitoring |
+| `positioning` | Connection plus spatial frames, global locations and coordinate conversion | Inspect and transform relative/global positions |
 | `full` (default) | Every tool class above | Unrestricted access; the current-major default so existing integrations keep working unchanged |
 
 `full` is the default for the current major version — `core` and the other bounded profiles are opt-in. Select a profile with:
@@ -105,6 +113,11 @@ The server selects its tool catalog through a **tool profile** — a bounded set
 **Profiles compose.** A `--profile` value can name more than one bounded profile at a time — the `BinPickingClient` sample runs `--profile vision,robotics` and exposes both catalogs from the same MCP host, deduplicating the shared `Connection` tools. The composed set uses the `WithOpcUaCoreTools(McpToolProfileSet)` / `WithOpcUaVisionTools(McpToolProfileSet)` / `WithOpcUaRoboticsTools(McpToolProfileSet)` overloads, and the core-tools overload owns the single `ConnectionTools` registration across every package that references the same MCP server. See the [Vision developer guide](Vision.md#mcp-tools) for the composed 64-tool example and the [BinPickingClient sample](../samples/Robotics/BinPickingClient) for the running catalog.
 
 Because the exact number of tools in each profile (and in `full`) changes as tools are added or removed, this document intentionally does not hard-code a tool count. Use the tables above (or `tools/list`) to enumerate the tools actually exposed by a running server.
+
+The [industrial companion guide](CompanionMcp.md) describes the seven new
+families, cross-family handoffs, bounded observations and configured file
+transfers. The new catalogs are additive to `full`; existing bounded
+profiles keep their tool sets. Profiles select a catalog, not permissions.
 
 ### Vision-guided Robotics
 
@@ -585,10 +598,18 @@ tools/
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode | Core + `Opc.Ua.PubSub.Diagnostics` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent discovery, typed control/missions, paged monitoring, Vision-guided Pick | Core + `Opc.Ua.Robotics.Client` + `Opc.Ua.Vision.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, monitoring, seeing (`vision_get_frame` returns an MCP `ImageContentBlock`), inference, off-server feedback, §5.12 pose composition | Core + `Opc.Ua.Vision.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB` | Asset inventory, health, maintenance and documentation | Core + `Opc.Ua.AMB.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery` | Machine monitoring, process values, energy, jobs and results | Core + `Opc.Ua.Machinery.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales` | Weighing, products, recipes and PackML | Core + `Opc.Ua.Scales.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps` | Pump values, supervision and maintenance | Core + `Opc.Ua.Pumps.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Di` | Device topology, locks, transfers and software updates | Core + `Opc.Ua.Di.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` | Common objects and job control V1/V2 | Core + `Opc.Ua.ISA95.Client` |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames, global locations and transforms | Core + `Opc.Ua.Positioning.Client` |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp` | the ready-to-run `opcua-mcp` tool | all of the above |
 
 The libraries multi-target `net8.0;net9.0;net10.0`; the executable targets
-`net10.0`. `Mcp.Robotics` and `Mcp.Vision` are preview packages; the other
+`net10.0`. Robotics, Vision and the seven industrial companion MCP libraries
+are preview packages; the other
 libraries and the `opcua-mcp` tool, which includes all of them, are stable.
 
 ### Embedding the tools in your own MCP server
@@ -652,6 +673,11 @@ registration extensions.
 
 ## Security Notes
 
+- Companion file transfers are disabled until an explicit host-owned root is
+  configured and are limited to 64 MiB by default. See
+  [file transfer policy](CompanionMcp.md#file-transfers).
+- Companion commands preserve server permissions and refusals. Discovery never
+  requests authority or takes locks; software upload never implicitly installs.
 - The `autoAcceptCerts` parameter is for **testing only**. In production, configure proper certificate trust using the OPC UA certificate stores under `%LocalApplicationData%/OPC Foundation/pki/`.
 - The server supports simultaneous named OPC UA sessions. Use the intended session identifier for each operation and disconnect that session when finished; connecting to another server does not require closing unrelated sessions.
 - Application certificates are automatically created on first use and stored in the local certificate store.

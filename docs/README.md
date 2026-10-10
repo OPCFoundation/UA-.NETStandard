@@ -196,6 +196,10 @@ models that each model depends on.
 For more examples, including the Pumps and Machinery models, see the
 [companion-model samples](Samples.md#companion-model-samples).
 
+To expose these typed client interfaces to an agent, use the
+[industrial companion MCP tools](CompanionMcp.md). Select one family or
+compose several profiles without enabling the entire tool catalog.
+
 ## 5. Prepare for production
 
 Builds on the certificate trust you used in [Getting started](GettingStarted.md).

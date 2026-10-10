@@ -256,6 +256,7 @@
     <File Path="docs/CertificateManager.md" />
     <File Path="docs/Certificates.md" />
     <File Path="docs/ComplexTypes.md" />
+    <File Path="docs/CompanionMcp.md" />
     <File Path="docs/ContainerReferenceServer.md" />
     <File Path="docs/CoreNodeManagerVsCustomNodeManager2.md" />
     <File Path="docs/DependencyInjection.md" />
@@ -391,11 +392,18 @@
   </Folder>
   <Folder Name="/tools/">
     <Project Path="tools/Opc.Ua.Mcp/Opc.Ua.Mcp.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.AMB/Opc.Ua.Mcp.AMB.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Core/Opc.Ua.Mcp.Core.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Di/Opc.Ua.Mcp.Di.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Diagnostics/Opc.Ua.Mcp.Diagnostics.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.PubSub/Opc.Ua.Mcp.PubSub.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.ISA95/Opc.Ua.Mcp.ISA95.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Machinery/Opc.Ua.Mcp.Machinery.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Positioning/Opc.Ua.Mcp.Positioning.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.PubSub.Diagnostics/Opc.Ua.Mcp.PubSub.Diagnostics.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Pumps/Opc.Ua.Mcp.Pumps.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Robotics/Opc.Ua.Mcp.Robotics.csproj" />
+    <Project Path="tools/Opc.Ua.Mcp.Scales/Opc.Ua.Mcp.Scales.csproj" />
     <Project Path="tools/Opc.Ua.Mcp.Vision/Opc.Ua.Mcp.Vision.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector/Opc.Ua.OpenUsd.Connector.csproj" />
     <Project Path="tools/Opc.Ua.OpenUsd.Connector.Viewer/Opc.Ua.OpenUsd.Connector.Viewer.csproj" />

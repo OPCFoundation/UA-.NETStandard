@@ -16,6 +16,7 @@ depends on RSL.
 - [Minimal standalone server](#minimal-standalone-server)
 - [Server authoring](#server-authoring)
 - [Client](#client)
+- [MCP tools](#mcp-tools)
 - [Transform conventions](#transform-conventions)
 - [Robot and OpenUSD sample](#robot-and-openusd-sample)
 
@@ -228,6 +229,99 @@ depth. `ObserveFrameAsync`, `ObservePositionFrameAsync`,
 GPOS structured types are registered with both the session and message-context
 encodeable factories before reads, so binary `ExtensionObject` values decode to
 the generated types.
+
+## MCP tools
+
+The `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` package exposes the
+existing typed positioning clients as seven read-only MCP tools:
+
+| Tool | Discriminator and targets |
+|---|---|
+| `positioning_rsl_list` | `scope`: `SpatialObjectLists`, `SpatialObjects` (list `parentNodeId`), `Frames` (folder `parentNodeId`) |
+| `positioning_rsl_read` | `facet`: `PositionFrame` (spatial object), `Frame` or `WorldFrame` (frame variable) |
+| `positioning_rsl_observe` | `facet`: `PositionFrame`, `Frame`, `NodeVersion` (list) |
+| `positioning_gpos_list` | Enumerate Zones under GlobalLocations |
+| `positioning_gpos_read` | `facet`: `GlobalPosition`, `GlobalLocation` (variable), `ZoneTransform` (Zone) |
+| `positioning_gpos_transform` | `direction`: `GlobalToLocal` or `LocalToGlobal` using the Zone's control points |
+| `positioning_gpos_observe` | `facet`: `GlobalPosition` or `GlobalLocation` (variable) |
+
+```csharp
+using Microsoft.Extensions.DependencyInjection;
+using Opc.Ua.Mcp;
+
+services.AddOpcUaMcpCore();
+services.AddOpcUaMcpPositioning();
+services.AddMcpServer()
+    .WithOpcUaMcpFilters()
+    .WithOpcUaPositioningTools(McpToolProfile.Positioning);
+```
+
+The registration also supports `McpToolProfileSet`. Connect first with the
+contributed connection tools; `sessionName` selects a named session and may
+be omitted when exactly one session is active. Accessors resolve the current
+session for every call. No inventory, proxy, frame chain or fitted transform
+is cached.
+
+For example, resolve a discovered frame with `positioning_rsl_read`:
+
+```json
+{
+  "nodeId": "ns=2;s=RobotFrame",
+  "facet": "WorldFrame",
+  "angleUnit": "Radians"
+}
+```
+
+Replace example NodeIds with the actual discovered targets. WorldFrame
+requires the actual RSL orientation units (`Radians` or `Degrees`); raw
+Frame/PositionFrame reads retain the server's units without conversion.
+The result includes the base-frame chain and the existing transform's
+row-major rotation matrix, translation and frame representation.
+
+To convert geographic coordinates with `positioning_gpos_transform`:
+
+```json
+{
+  "zoneNodeId": "ns=2;s=FactoryZone",
+  "direction": "GlobalToLocal",
+  "x": 8.55,
+  "y": 47.37,
+  "angleUnit": "Degrees",
+  "fitOptions": {
+    "mode": "Rigid",
+    "controlPointAngleUnit": "Degrees",
+    "allowReflection": false,
+    "coordinateReferenceSystem": "EPSG:4326"
+  }
+}
+```
+
+Global `x`/`y` are longitude/latitude; optional `z` is elevation in metres.
+Local `x`/`y`/`z` use the Zone's coordinate units, with omitted local Z
+defaulting to zero. Input/output geographic `angleUnit` is independent of
+the actual server `controlPointAngleUnit`. Fit modes are `Rigid`,
+`Similarity` and `Affine`. The existing fitter determines 2D versus 3D
+from the control points; missing elevation is not fabricated.
+`ZoneTransform` returns dimension, rank, residuals, determinant and
+invertibility together with the effective options.
+
+The default transformer is WGS84/EPSG:4326. A host can inject
+`ICoordinateReferenceSystemTransformer` and callers must explicitly request
+its CRS identifier in `fitOptions`. An unsupported or mismatched identifier
+is rejected. Raw GlobalPosition/GlobalLocation numeric CRS codes remain
+unchanged and are distinct from the transformer identifier.
+
+Discovery supports `offset` and `maxResults` (default 100, maximum 500).
+Observe calls support `durationMs` (default 1,000, maximum 30,000) and
+`maxItems` (default 100, maximum 500). They borrow the selected
+`ManagedSession.DefaultStreaming`, release only their own enumerators, and
+propagate external cancellation; they never dispose the host subscription.
+Missing optional nodes remain service errors, distinguishable from empty
+observation windows. Encoded values preserve optional fields, while
+`metadata` carries UA-encoded status and source timestamp; the raw
+status code, source node, type and CRS are also preserved where applicable.
+Every tool is annotated read-only/non-destructive and none invents a write
+or method-call surface.
 
 ## Transform conventions
 

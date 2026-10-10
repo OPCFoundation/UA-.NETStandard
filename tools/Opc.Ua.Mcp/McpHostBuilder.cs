@@ -28,11 +28,11 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Console;
-using Opc.Ua.Mcp.Tools;
 using Opc.Ua.Pcap.DependencyInjection;
 
 namespace Opc.Ua.Mcp
@@ -62,6 +62,13 @@ namespace Opc.Ua.Mcp
             services.AddOpcUaMcpPubSub();
             services.AddOpcUaMcpRobotics();
             services.AddOpcUaMcpVision();
+            services.AddOpcUaMcpAmb();
+            services.AddOpcUaMcpMachinery();
+            services.AddOpcUaMcpScales();
+            services.AddOpcUaMcpPumps();
+            services.AddOpcUaMcpDi();
+            services.AddOpcUaMcpIsa95();
+            services.AddOpcUaMcpPositioning();
             services.AddOpcUaMcpDiagnostics(options =>
             {
                 options.BaseFolder = pcapOptions.BaseFolder;
@@ -92,6 +99,17 @@ namespace Opc.Ua.Mcp
             ArgumentNullException.ThrowIfNull(configuration);
 
             OpcUaMcpOptions options = CreateOpcUaMcpOptions();
+            options.TransferRoot = configuration["McpServer:TransferRoot"] ?? options.TransferRoot;
+            string? configuredLimit = configuration["McpServer:MaxTransferBytes"];
+            if (configuredLimit != null)
+            {
+                if (!long.TryParse(configuredLimit, NumberStyles.None, CultureInfo.InvariantCulture, out long limit) ||
+                    limit <= 0)
+                {
+                    throw new InvalidOperationException("McpServer:MaxTransferBytes must be a positive integer.");
+                }
+                options.MaxTransferBytes = limit;
+            }
             if (!string.IsNullOrWhiteSpace(toolProfileOverride))
             {
                 ApplyConfiguredProfile(options, toolProfileOverride);
@@ -179,10 +197,16 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaPubSubTools(toolProfile)
                 .WithOpcUaRoboticsTools(toolProfile)
                 .WithOpcUaVisionTools(toolProfile)
+                .WithOpcUaAmbTools(toolProfile)
+                .WithOpcUaMachineryTools(toolProfile)
+                .WithOpcUaScalesTools(toolProfile)
+                .WithOpcUaPumpsTools(toolProfile)
+                .WithOpcUaDiTools(toolProfile)
+                .WithOpcUaIsa95Tools(toolProfile)
+                .WithOpcUaPositioningTools(toolProfile)
                 .WithOpcUaDiagnosticsTools(toolProfile, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfile, diagnosticsToolsEnabled);
 
-            mcpServerBuilder.WithResources<SessionResources>();
         }
 
         /// <summary>
@@ -222,10 +246,16 @@ namespace Opc.Ua.Mcp
                 .WithOpcUaPubSubTools(toolProfiles)
                 .WithOpcUaRoboticsTools(toolProfiles)
                 .WithOpcUaVisionTools(toolProfiles)
+                .WithOpcUaAmbTools(toolProfiles)
+                .WithOpcUaMachineryTools(toolProfiles)
+                .WithOpcUaScalesTools(toolProfiles)
+                .WithOpcUaPumpsTools(toolProfiles)
+                .WithOpcUaDiTools(toolProfiles)
+                .WithOpcUaIsa95Tools(toolProfiles)
+                .WithOpcUaPositioningTools(toolProfiles)
                 .WithOpcUaDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled)
                 .WithOpcUaPubSubDiagnosticsTools(toolProfiles, diagnosticsToolsEnabled);
 
-            mcpServerBuilder.WithResources<SessionResources>();
         }
 
         /// <summary>

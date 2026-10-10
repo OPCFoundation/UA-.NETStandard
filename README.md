@@ -101,7 +101,11 @@ the companion
 
 ### Developer tools
 
-- [OPC UA MCP Server](tools/Opc.Ua.Mcp/README.md) — installable .NET tool and container that exposes OPC UA client operations as MCP tools for LLMs and Copilot. The tools also ship as libraries (`…Opc.Ua.Mcp.Core`, `.PubSub`, `.Diagnostics`, `.PubSub.Diagnostics`) so an application can embed them next to its own MCP tools.
+- [OPC UA MCP Server](docs/McpServer.md) — installable .NET tool and container
+  exposing OPC UA client operations to LLMs and Copilot. Embeddable libraries
+  provide Part 4 services, PubSub, diagnostics, Robotics and Vision, plus
+  [industrial companion profiles](docs/CompanionMcp.md) for AMB, Machinery,
+  Scales, Pumps, Device Integration, ISA-95 and Positioning.
 
 ## 🔧 Migrating from 1.5.378 to 2.0
 

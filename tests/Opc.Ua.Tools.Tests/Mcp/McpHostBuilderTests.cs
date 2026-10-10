@@ -146,6 +146,13 @@ namespace Opc.Ua.Tools.Tests.Mcp
         [TestCase("pubsub", McpToolProfile.PubSub)]
         [TestCase("diagnostics", McpToolProfile.Diagnostics)]
         [TestCase("robotics", McpToolProfile.Robotics)]
+        [TestCase("amb", McpToolProfile.Amb)]
+        [TestCase("machinery", McpToolProfile.Machinery)]
+        [TestCase("scales", McpToolProfile.Scales)]
+        [TestCase("pumps", McpToolProfile.Pumps)]
+        [TestCase("di", McpToolProfile.Di)]
+        [TestCase("isa95", McpToolProfile.Isa95)]
+        [TestCase("positioning", McpToolProfile.Positioning)]
         [TestCase("full", McpToolProfile.Full)]
         public void CreateOpcUaMcpOptionsParsesConfiguredProfile(
             string configuredProfile,
@@ -373,6 +380,7 @@ namespace Opc.Ua.Tools.Tests.Mcp
             HashSet<string> tools = provider
                 .GetServices<McpServerTool>()
                 .Select(tool => tool.ProtocolTool.Name)
+                .Where(name => !IsIndustrialCompanionTool(name))
                 .ToHashSet(StringComparer.Ordinal);
 
             Assert.That(tools, Has.Count.EqualTo(expectedCount),
@@ -513,7 +521,8 @@ namespace Opc.Ua.Tools.Tests.Mcp
 
                 bool needsSession = tools.Any(
                     name => name.StartsWith("robotics_", StringComparison.Ordinal) ||
-                        name.StartsWith("vision_", StringComparison.Ordinal));
+                        name.StartsWith("vision_", StringComparison.Ordinal) ||
+                        IsIndustrialCompanionTool(name));
 
                 if (!needsSession)
                 {
@@ -618,6 +627,20 @@ namespace Opc.Ua.Tools.Tests.Mcp
             Assert.That(
                 () => McpHostBuilder.ConfigureLogging(null!),
                 Throws.ArgumentNullException);
+        }
+
+        /// <summary>
+        /// Distinguishes the additive industrial catalog from the compatibility catalog.
+        /// </summary>
+        private static bool IsIndustrialCompanionTool(string name)
+        {
+            return name.StartsWith("amb_", StringComparison.Ordinal) ||
+                name.StartsWith("machinery_", StringComparison.Ordinal) ||
+                name.StartsWith("scales_", StringComparison.Ordinal) ||
+                name.StartsWith("pumps_", StringComparison.Ordinal) ||
+                name.StartsWith("di_", StringComparison.Ordinal) ||
+                name.StartsWith("isa95_", StringComparison.Ordinal) ||
+                name.StartsWith("positioning_", StringComparison.Ordinal);
         }
 
         private static HashSet<string> GetToolNames(

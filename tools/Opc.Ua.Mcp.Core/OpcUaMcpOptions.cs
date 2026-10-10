@@ -28,6 +28,7 @@
  * ======================================================================*/
 
 using System;
+using System.Globalization;
 
 namespace Opc.Ua.Mcp
 {
@@ -96,6 +97,18 @@ namespace Opc.Ua.Mcp
         public string? PcapBaseFolder { get; set; }
 
         /// <summary>
+        /// Host-owned directory for companion package uploads and result downloads.
+        /// Transfers are disabled until an existing directory is explicitly configured.
+        /// </summary>
+        public string? TransferRoot { get; set; }
+
+        /// <summary>
+        /// Maximum bytes in one companion upload or download, enforced while streaming.
+        /// Defaults to 64 MiB; callers of an MCP tool cannot raise this host policy.
+        /// </summary>
+        public long MaxTransferBytes { get; set; } = 64L * 1024 * 1024;
+
+        /// <summary>
         /// Creates options from the well-known environment variables the MCP
         /// tools consume.
         /// </summary>
@@ -105,13 +118,26 @@ namespace Opc.Ua.Mcp
         /// </remarks>
         public static OpcUaMcpOptions FromEnvironment()
         {
-            return new OpcUaMcpOptions
+            var options = new OpcUaMcpOptions
             {
                 NodeSetExportRoot = Environment.GetEnvironmentVariable(
                     "OPCUA_MCP_NODESET_EXPORT_ROOT"),
                 PcapBaseFolder = Environment.GetEnvironmentVariable(
-                    "OPCUA_MCP_PCAP_BASE_FOLDER")
+                    "OPCUA_MCP_PCAP_BASE_FOLDER"),
+                TransferRoot = Environment.GetEnvironmentVariable(
+                    "OPCUA_MCP_TRANSFER_ROOT")
             };
+            string? limit = Environment.GetEnvironmentVariable("OPCUA_MCP_MAX_TRANSFER_BYTES");
+            if (!string.IsNullOrWhiteSpace(limit))
+            {
+                if (!long.TryParse(limit, NumberStyles.None, CultureInfo.InvariantCulture, out long bytes) ||
+                    bytes <= 0)
+                {
+                    throw new InvalidOperationException("OPCUA_MCP_MAX_TRANSFER_BYTES must be a positive integer.");
+                }
+                options.MaxTransferBytes = bytes;
+            }
+            return options;
         }
     }
 }

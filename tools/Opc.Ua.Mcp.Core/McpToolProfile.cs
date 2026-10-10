@@ -73,6 +73,41 @@ namespace Opc.Ua.Mcp
         /// <summary>
         /// Every available tool, preserving the current-major default catalog.
         /// </summary>
-        Full
+        Full,
+
+        /// <summary>
+        /// Asset Management Basics discovery, monitoring and asset maintenance.
+        /// </summary>
+        Amb,
+
+        /// <summary>
+        /// Machinery building blocks, process values, energy, jobs and results.
+        /// </summary>
+        Machinery,
+
+        /// <summary>
+        /// Weighing, products, recipes and PackML operations.
+        /// </summary>
+        Scales,
+
+        /// <summary>
+        /// Pump discovery, measurements, supervision and maintenance.
+        /// </summary>
+        Pumps,
+
+        /// <summary>
+        /// Device Integration topology, locking, transfers and software updates.
+        /// </summary>
+        Di,
+
+        /// <summary>
+        /// ISA-95 common objects and V1/V2 job control.
+        /// </summary>
+        Isa95,
+
+        /// <summary>
+        /// Relative spatial locations, global positioning and coordinate transforms.
+        /// </summary>
+        Positioning
     }
 }

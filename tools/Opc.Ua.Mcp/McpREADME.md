@@ -17,8 +17,9 @@ dnx OPCFoundation.NetStandard.Opc.Ua.Mcp
 dotnet tool install --global OPCFoundation.NetStandard.Opc.Ua.Mcp
 ```
 
-The tool includes every profile, including `robotics`, `vision`, and the
-composed `vision,robotics` profile.
+The tool includes Robotics, Vision and the AMB, Machinery, Scales, Pumps,
+Device Integration, ISA-95 and Positioning companion profiles. Profiles compose,
+for example `--profile machinery,isa95` or `--profile scales,di`.
 
 ## Usage
 
@@ -39,7 +40,7 @@ opcua-mcp --transport http --port 5100
 
 The server exposes tools through a **tool profile** — a bounded, named catalog
 selected with
-`--profile core|services|administration|pubsub|diagnostics|robotics|vision|full`.
+`--profile <name>`. Run `opcua-mcp --help` for the current profile names.
 Profiles can be composed, for example `--profile vision,robotics`. `full` is the
 default; the other profiles expose smaller focused subsets. See the
 [full documentation](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#tool-profiles)
@@ -60,6 +61,14 @@ Tools in the `full` profile cover all OPC UA Part 4 service sets:
   bounded operation/mission waits, and same-session `robotics_vision_pick`
 - **Vision**: image capture, structured one-shot inference, result monitoring,
   feedback and frame-graph composition
+- **Industrial companions**: asset management, machinery, weighing, pumps,
+  device integration, ISA-95 jobs and relative/global positioning. See the
+  [companion guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/CompanionMcp.md).
+
+Companion calls preserve server failures, use bounded lists and observations,
+and never acquire locks or retry commands implicitly. Package upload and result
+download require `OPCUA_MCP_TRANSFER_ROOT`; the default streaming byte limit is
+64 MiB (`OPCUA_MCP_MAX_TRANSFER_BYTES`). Paths cannot escape the configured root.
 
 ## Embedding
 
@@ -84,9 +93,16 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.PubSub.Diagnostics` | PubSub capture, decode |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics` | Robot Intent control, missions, waits and Vision-guided Pick |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision` | Vision discovery, seeing, inference, feedback and geometry |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB` | Asset management |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery` | Machine monitoring, process values, energy and results |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales` | Weighing, products and recipes |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps` | Pump values, supervision and maintenance |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Di` | Device integration, locking and updates |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` | Common objects and V1/V2 job control |
+| `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames and coordinate conversion |
 
-The Robotics and Vision libraries are preview packages; the other libraries are
-stable.
+The Robotics, Vision and seven industrial companion libraries are preview
+packages; the other libraries are stable.
 
 ## Documentation
 
