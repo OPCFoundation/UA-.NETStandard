@@ -1596,9 +1596,18 @@ namespace Opc.Ua.Client
                 if (!authenticatedEndpoint.UserIdentityTokens.Contains(
                     policy => AreEquivalentUserTokenPolicies(policy, identityPolicy)))
                 {
-                    throw new ServiceResultException(
-                        StatusCodes.BadSecurityChecksFailed,
-                        "The server returned a different security policy for the selected user identity token.");
+                    // PolicyIds are server-assigned and need not survive a server
+                    // restart, so a recreate against a restarted server can see the
+                    // same policy under a new id. Adopt it as long as every security
+                    // relevant field still matches; anything else is a downgrade.
+                    UserTokenPolicy renumberedPolicy = FindRenumberedUserTokenPolicy(
+                        authenticatedEndpoint.UserIdentityTokens, identityPolicy) ??
+                        throw new ServiceResultException(
+                            StatusCodes.BadSecurityChecksFailed,
+                            "The server returned a different security policy for the selected user identity token.");
+                    identityPolicy = renumberedPolicy;
+                    identityToken.UpdatePolicy(renumberedPolicy);
+                    identity.TokenHandler.UpdatePolicy(renumberedPolicy);
                 }
                 UpdateDescription(m_endpoint.Description, authenticatedEndpoint);
 
@@ -6097,9 +6106,31 @@ namespace Opc.Ua.Client
 
         private static bool AreEquivalentUserTokenPolicies(UserTokenPolicy first, UserTokenPolicy second)
         {
-            return first.TokenType == second.TokenType &&
-                string.Equals(
+            return string.Equals(
                     first.PolicyId ?? string.Empty, second.PolicyId ?? string.Empty, StringComparison.Ordinal) &&
+                HaveSameUserTokenSecurity(first, second);
+        }
+
+        /// <summary>
+        /// Finds the policy that differs from <paramref name="selected"/> only in its server-assigned PolicyId.
+        /// </summary>
+        private static UserTokenPolicy? FindRenumberedUserTokenPolicy(
+            ArrayOf<UserTokenPolicy> policies,
+            UserTokenPolicy selected)
+        {
+            foreach (UserTokenPolicy policy in policies)
+            {
+                if (policy != null && HaveSameUserTokenSecurity(policy, selected))
+                {
+                    return policy;
+                }
+            }
+            return null;
+        }
+
+        private static bool HaveSameUserTokenSecurity(UserTokenPolicy first, UserTokenPolicy second)
+        {
+            return first.TokenType == second.TokenType &&
                 string.Equals(
                     first.SecurityPolicyUri ?? string.Empty,
                     second.SecurityPolicyUri ?? string.Empty,
