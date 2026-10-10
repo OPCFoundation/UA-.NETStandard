@@ -63,7 +63,7 @@ Tools in the `full` profile cover all OPC UA Part 4 service sets:
   feedback and frame-graph composition
 - **Industrial companions**: asset management, machinery, weighing, pumps,
   device integration, ISA-95 jobs and relative/global positioning. See the
-  [companion guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/CompanionMcp.md).
+  [companion guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#industrial-companion-tools).
 
 Companion calls preserve server failures, use bounded lists and observations,
 and never acquire locks or retry commands implicitly. Package upload and result
@@ -101,8 +101,9 @@ builder.Services.AddMcpServer()
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95` | Common objects and V1/V2 job control |
 | `OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning` | Spatial frames and coordinate conversion |
 
-The Robotics, Vision and seven industrial companion libraries are preview
-packages; the other libraries are stable.
+The Robotics and Vision libraries are preview-only packages. The seven
+industrial companion libraries follow the root release channel and are stable
+when the root release is stable.
 
 ## Documentation
 

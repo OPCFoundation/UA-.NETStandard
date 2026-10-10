@@ -758,7 +758,7 @@ Discovery deduplicates pumps visible under both `DeviceSet` and `Machines`.
 Paged results describe a live enumeration, not a durable snapshot.
 
 Embed `Opc.Ua.Mcp.Pumps` with `AddOpcUaMcpPumps()` and `WithOpcUaPumpsTools(...)`.
-See [industrial companion MCP tools](CompanionMcp.md) for composition and
+See [industrial companion MCP tools](McpServer.md#industrial-companion-tools) for composition and
 session/error contracts.
 
 ## See also

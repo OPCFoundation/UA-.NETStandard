@@ -256,7 +256,6 @@
     <File Path="docs/CertificateManager.md" />
     <File Path="docs/Certificates.md" />
     <File Path="docs/ComplexTypes.md" />
-    <File Path="docs/CompanionMcp.md" />
     <File Path="docs/ContainerReferenceServer.md" />
     <File Path="docs/CoreNodeManagerVsCustomNodeManager2.md" />
     <File Path="docs/DependencyInjection.md" />

@@ -632,7 +632,7 @@ not followed. There is no historical health or maintenance tool where the
 current typed client has no history implementation.
 
 Embed `Opc.Ua.Mcp.AMB` with `AddOpcUaMcpAmb()` and `WithOpcUaAmbTools(...)`.
-See [industrial companion MCP tools](CompanionMcp.md) for profiles, session
+See [industrial companion MCP tools](McpServer.md#industrial-companion-tools) for profiles, session
 selection, result/error contracts and embedding.
 
 ## See also

@@ -19,7 +19,6 @@
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.OpenUsd.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.AI' OR $([System.String]::Copy('$(_PreviewPackageBaseId)').StartsWith('$(PackagePrefix).Opc.Ua.AI.'))">true</_IsPreviewPackage>
     <_IsPreviewPackage Condition="'$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Robotics' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.Mcp.Vision' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector' OR '$(_PreviewPackageBaseId)' == '$(PackagePrefix).Opc.Ua.OpenUsd.Connector.Viewer'">true</_IsPreviewPackage>
-    <_IsPreviewPackage Condition="$([System.Text.RegularExpressions.Regex]::IsMatch('$(_PreviewPackageBaseId)', '\.Opc\.Ua\.Mcp\.(AMB|Machinery|Scales|Pumps|Di|ISA95|Positioning)$'))">true</_IsPreviewPackage>
     <!--
       On a canonical release/M.m branch build (NBGV_PublicRelease == 'True'),
       common.props/version.props deliberately do NOT reference the

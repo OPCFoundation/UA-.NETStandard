@@ -289,6 +289,26 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
             }
         }
 
+        /// <summary>
+        /// The actual MCP binder must reject either timezone-less creation bound as an actionable tool error.
+        /// </summary>
+        [TestCase("createdAfter")]
+        [TestCase("createdBefore")]
+        public async Task ResultQueryRejectsTimezoneLessJsonBoundsAsync(string parameterName)
+        {
+            CallToolResult result = await CallAsync("machinery_list_results", new JsonObject
+            {
+                ["machineNodeId"] = m_machine!.NodeId.ToString(),
+                [parameterName] = "2026-01-01T00:00:00"
+            }).ConfigureAwait(false);
+
+            Assert.That(result.IsError, Is.True);
+            JsonElement payload = result.StructuredContent!.Value;
+            Assert.That(payload.GetProperty("errorType").GetString(), Is.EqualTo(nameof(ArgumentException)));
+            Assert.That(payload.GetProperty("message").GetString(), Does.Contain("UTC or offset"));
+            Assert.That(payload.GetProperty("message").GetString(), Does.Contain(parameterName));
+        }
+
         private async Task<CallToolResult> CallAsync(string name, JsonObject arguments)
         {
             arguments["sessionName"] = "plant";

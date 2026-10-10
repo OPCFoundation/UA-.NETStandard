@@ -50,7 +50,9 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
         [SetUp]
         public void SetUp()
         {
-            m_root = Path.Combine(Path.GetTempPath(), $"companion-transfer-{Guid.NewGuid():N}");
+            // macOS resolves its temporary directory through /var, which is a symbolic link.
+            // Keep the fixture under the test workspace so it exercises the intended transfer policy.
+            m_root = Path.Combine(TestContext.CurrentContext.WorkDirectory, $"companion-transfer-{Guid.NewGuid():N}");
             Directory.CreateDirectory(m_root);
             m_options = new OpcUaMcpOptions { TransferRoot = m_root, MaxTransferBytes = 4 };
         }

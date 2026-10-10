@@ -472,9 +472,9 @@ namespace Opc.Ua.Mcp.Tools
             string? jobId = null,
             [Description("Exact part identifier to filter results; omit for all parts.")]
             string? partId = null,
-            [Description("Inclusive creation-time lower bound in ISO 8601 UTC; omit for no bound.")]
+            [Description("Inclusive ISO 8601 lower bound with Z or an explicit offset; omit for no bound.")]
             DateTime? createdAfter = null,
-            [Description("Inclusive creation-time upper bound in ISO 8601 UTC; omit for no bound.")]
+            [Description("Inclusive ISO 8601 upper bound with Z or an explicit offset; omit for no bound.")]
             DateTime? createdBefore = null,
             MachineryResultOrder orderBy = MachineryResultOrder.CreationTime,
             [Description("Maximum returned items per live page, 1..500.")]

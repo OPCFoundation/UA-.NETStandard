@@ -168,6 +168,56 @@ namespace Opc.Ua.Tools.Tests.McpCompanion
                 namespaces, null, null, start.AddDays(1), start, MachineryResultOrder.CreationTime),
                 Throws.ArgumentException);
         }
+
+        /// <summary>
+        /// A JSON timestamp without a UTC or offset designation cannot become a host-local query.
+        /// </summary>
+        [TestCase(true)]
+        [TestCase(false)]
+        public void ResultFiltersRejectTimezoneUnspecifiedBounds(bool lowerBound)
+        {
+            using JsonDocument json = JsonDocument.Parse("\"2026-01-01T00:00:00\"");
+            DateTime timestamp = json.RootElement.GetDateTime();
+            var namespaces = new NamespaceTable();
+            namespaces.GetIndexOrAppend(Ua.Machinery.Result.Namespaces.MachineryResult);
+            string parameterName = lowerBound ? "createdAfter" : "createdBefore";
+
+            Assert.That(timestamp.Kind, Is.EqualTo(DateTimeKind.Unspecified));
+            Assert.That(() => MachineryJson.ResultFilter(
+                namespaces, null, null, lowerBound ? timestamp : null, lowerBound ? null : timestamp,
+                MachineryResultOrder.CreationTime),
+                Throws.ArgumentException.With.Property("ParamName").EqualTo(parameterName)
+                    .And.Message.Contains("UTC or offset"));
+        }
+
+        /// <summary>
+        /// Accepted designators describe the same absolute instant in both filter operands.
+        /// </summary>
+        [TestCase("2026-01-01T00:00:00Z", "2026-01-01T00:00:00Z")]
+        [TestCase("2026-01-01T02:00:00+02:00", "2026-01-01T00:00:00Z")]
+        [TestCase("2026-01-01T00:00:00Z", "2025-12-31T19:00:00-05:00")]
+        public void ResultFiltersPreserveExplicitTimestampInstants(string lowerBound, string upperBound)
+        {
+            using JsonDocument lower = JsonDocument.Parse($"\"{lowerBound}\"");
+            using JsonDocument upper = JsonDocument.Parse($"\"{upperBound}\"");
+            var namespaces = new NamespaceTable();
+            namespaces.GetIndexOrAppend(Ua.Machinery.Result.Namespaces.MachineryResult);
+            var expected = new DateTimeUtc(new DateTime(2026, 1, 1, 0, 0, 0, DateTimeKind.Utc));
+
+            (ContentFilter filter, _) = MachineryJson.ResultFilter(
+                namespaces, null, null, lower.RootElement.GetDateTime(), upper.RootElement.GetDateTime(),
+                MachineryResultOrder.CreationTime);
+
+            ContentFilterElement[] comparisons = filter.Elements.ToArray()!
+                .Where(element => element.FilterOperator != FilterOperator.And).ToArray();
+            Assert.That(comparisons, Has.Length.EqualTo(2));
+            foreach (ContentFilterElement comparison in comparisons)
+            {
+                Assert.That(comparison.FilterOperands[1].TryGetValue(out LiteralOperand? operand), Is.True);
+                Assert.That(operand!.Value.TryGetValue(out DateTimeUtc actual), Is.True);
+                Assert.That(actual, Is.EqualTo(expected));
+            }
+        }
     }
 }
 #endif

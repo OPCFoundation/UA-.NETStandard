@@ -387,9 +387,10 @@ for example, a stable `2.0.0` root produces `2.0.0-preview.N` for these
 families (`N` a committed, manually curated number in `preview-version.props`
 that always sorts above every already-published preview — see
 [Release process](ReleaseProcess.md)) and `2.0.0` for the other packages. The
-same policy applies to the Robotics, Vision, AMB, Machinery, Scales, Pumps,
-Device Integration, ISA-95 and Positioning MCP extensions and the
-OpenUSD connector tools. The package validation manifest
+same policy applies to the Robotics and Vision MCP extensions and the
+OpenUSD connector tools. The seven industrial MCP extensions (AMB, Machinery,
+Scales, Pumps, Device Integration, ISA-95 and Positioning) follow the root
+release channel and are not preview-only packages. The package validation manifest
 (`.azurepipelines/validate-nuget-package-set.ps1`) records the root package
 version, a `preview`/`stable` `channel`, and the distinct family versions so
 the signed release workflow can promote an intentional mixed-version set.

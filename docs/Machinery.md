@@ -761,7 +761,7 @@ use `OpenResultStreamAsync` and must asynchronously dispose the returned
 `TransferRoot`, enforce `MaxTransferBytes`, and remove incomplete local artifacts.
 Their tool annotation is not read-only because they create a local file.
 
-See [Companion MCP modules](CompanionMcp.md) for the shared host policies.
+See [Companion MCP modules](McpServer.md#industrial-companion-tools) for the shared host policies.
 
 ## Conformance matrix
 

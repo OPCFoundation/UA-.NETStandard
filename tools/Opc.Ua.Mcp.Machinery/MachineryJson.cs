@@ -344,6 +344,8 @@ namespace Opc.Ua.Mcp.Tools
             {
                 throw new ArgumentOutOfRangeException(nameof(orderBy));
             }
+            createdAfter = TimestampBound(createdAfter, nameof(createdAfter));
+            createdBefore = TimestampBound(createdBefore, nameof(createdBefore));
             if (createdAfter.HasValue && createdBefore.HasValue && createdAfter > createdBefore)
             {
                 throw new ArgumentException("createdAfter must not be later than createdBefore.", nameof(createdAfter));
@@ -432,6 +434,19 @@ namespace Opc.Ua.Mcp.Tools
         private static JsonObject? Text(LocalizedText value)
         {
             return value.IsNull ? null : new JsonObject { ["text"] = value.Text, ["locale"] = value.Locale };
+        }
+
+        /// <summary>
+        /// Rejects undesignated wall-clock times and compares accepted bounds as UTC instants.
+        /// </summary>
+        private static DateTime? TimestampBound(DateTime? value, string parameterName)
+        {
+            if (value.HasValue && value.Value.Kind == DateTimeKind.Unspecified)
+            {
+                throw new ArgumentException(
+                    "A creation-time bound must include a UTC or offset designation.", parameterName);
+            }
+            return value?.ToUniversalTime();
         }
 
         /// <summary>

@@ -718,7 +718,7 @@ JSON array of NodeId strings (1..500), not the CLR `ArrayOf` representation.
 Creating a recipe or an element does not start it.
 
 Embed `Opc.Ua.Mcp.Scales` with `AddOpcUaMcpScales()` and
-`WithOpcUaScalesTools(...)`. See [industrial companion MCP tools](CompanionMcp.md)
+`WithOpcUaScalesTools(...)`. See [industrial companion MCP tools](McpServer.md#industrial-companion-tools)
 for shared profiles and error/observation contracts.
 
 ## See also

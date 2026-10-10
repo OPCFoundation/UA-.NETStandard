@@ -104,7 +104,7 @@ the companion
 - [OPC UA MCP Server](docs/McpServer.md) — installable .NET tool and container
   exposing OPC UA client operations to LLMs and Copilot. Embeddable libraries
   provide Part 4 services, PubSub, diagnostics, Robotics and Vision, plus
-  [industrial companion profiles](docs/CompanionMcp.md) for AMB, Machinery,
+  [industrial companion profiles](docs/McpServer.md#industrial-companion-tools) for AMB, Machinery,
   Scales, Pumps, Device Integration, ISA-95 and Positioning.
 
 ## 🔧 Migrating from 1.5.378 to 2.0

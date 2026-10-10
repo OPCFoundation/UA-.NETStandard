@@ -6,13 +6,6 @@ function Test-PreviewPackageId {
         $baseId -in @(
             'OPCFoundation.NetStandard.Opc.Ua.Mcp.Robotics',
             'OPCFoundation.NetStandard.Opc.Ua.Mcp.Vision',
-            'OPCFoundation.NetStandard.Opc.Ua.Mcp.AMB',
-            'OPCFoundation.NetStandard.Opc.Ua.Mcp.Machinery',
-            'OPCFoundation.NetStandard.Opc.Ua.Mcp.Scales',
-            'OPCFoundation.NetStandard.Opc.Ua.Mcp.Pumps',
-            'OPCFoundation.NetStandard.Opc.Ua.Mcp.Di',
-            'OPCFoundation.NetStandard.Opc.Ua.Mcp.ISA95',
-            'OPCFoundation.NetStandard.Opc.Ua.Mcp.Positioning',
             'OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector',
             'OPCFoundation.NetStandard.Opc.Ua.OpenUsd.Connector.Viewer')
 }

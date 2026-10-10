@@ -38,8 +38,7 @@ without any other context.
   shares the same root version except the **preview-only families**.
 - **Preview-only families** - the XRegistry, WoT Connectivity, Vision,
   Robotics, Redundancy, Positioning, OpenUSD, and AI package
-  families, the Robotics/Vision and industrial companion MCP extensions
-  (AMB, Machinery, Scales, Pumps, DI, ISA-95 and Positioning), and the OpenUSD connector
+  families, the Robotics/Vision MCP extensions, and the OpenUSD connector
   tools. `version.targets` keeps these on a `-preview.N` suffix even when the
   root version is an exact stable release. The full, single source of truth
   for which package IDs this covers is `_IsPreviewPackage` in

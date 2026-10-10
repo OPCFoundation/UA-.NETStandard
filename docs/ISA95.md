@@ -308,7 +308,7 @@ most 500 results, not durable snapshots. Status observations borrow the selected
 managed session's streaming subscription and decode concrete vendor subtypes
 using the generated V2 event contract.
 
-See [Companion MCP modules](CompanionMcp.md) for shared deployment policies.
+See [Companion MCP modules](McpServer.md#industrial-companion-tools) for shared deployment policies.
 
 ## In-memory limitations and HA guidance
 

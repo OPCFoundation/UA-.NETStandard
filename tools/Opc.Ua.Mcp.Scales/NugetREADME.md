@@ -1,7 +1,8 @@
 # OPC UA Scales MCP tools
 
 Embeddable OPC 40200 discovery, weight monitoring, products, recipes and
-explicit scale/PackML commands. This is a preview package for .NET 8, 9 and 10.
+explicit scale/PackML commands for .NET 8, 9 and 10. The package follows the
+stack's root release channel and is not preview-only.
 
 ```csharp
 builder.Services.AddOpcUaMcpCore();
@@ -21,5 +22,5 @@ Discovery/read lists and observations are bounded. Missing weight capability
 is distinct from a valid scale's uninitialized `"NaN"` measurement. Units,
 quality, timestamps and server refusals remain visible.
 
-See the [companion MCP guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/CompanionMcp.md)
+See the [companion MCP guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/McpServer.md#industrial-companion-tools)
 and [Scales guide](https://github.com/OPCFoundation/UA-.NETStandard/blob/master/docs/Scales.md).
