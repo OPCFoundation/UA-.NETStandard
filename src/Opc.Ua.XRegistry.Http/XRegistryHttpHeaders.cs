@@ -50,6 +50,21 @@ namespace Opc.Ua.XRegistry.Http
             if (metadata.ValueKind != JsonValueKind.Undefined &&
                 shape.GetResourceDefinition(options) is { } resource)
             {
+                var jsonLimits = new global::XRegistry.RegistryJsonLimits
+                {
+                    MaxBytes = options.MaximumBodyBytes,
+                    MaxDepth = options.MaximumJsonDepth
+                };
+                try
+                {
+                    _ = global::XRegistry.RegistryJson.FromElement(metadata, jsonLimits);
+                }
+                catch (global::XRegistry.RegistryException exception)
+                {
+                    throw new XRegistryHttpWireException(400, exception.Diagnostic.Code,
+                        exception.Diagnostic.Message, exception);
+                }
+
                 var extraNulls = new List<string>();
                 JsonNode registryNode = JsonNode.Parse(metadata.GetRawText()) ??
                     throw new JsonException("Document metadata is empty.");
@@ -67,8 +82,7 @@ namespace Opc.Ua.XRegistry.Http
                 }
                 global::XRegistry.RegistryJson registryMetadata = global::XRegistry.RegistryJson.Parse(
                     registryNode.ToJsonString(),
-                    new global::XRegistry.RegistryJsonLimits { MaxBytes = options.MaximumBodyBytes,
-                        MaxDepth = options.MaximumJsonDepth });
+                    jsonLimits);
                 try
                 {
                     IReadOnlyDictionary<string, string> encoded = global::XRegistry.Http.RegistryHeaderMetadata.Encode(
