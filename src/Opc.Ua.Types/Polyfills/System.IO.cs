@@ -44,11 +44,21 @@ namespace System.IO
         }
 
         /// <summary>
-        /// Contains a character in a string using a specified comparison type.
+        /// Writes a span of bytes through a pooled buffer. The binary encoder
+        /// writes every string, array and byte string through here.
         /// </summary>
         public static void Write(this BinaryWriter target, ReadOnlySpan<byte> value)
         {
-            target.Write(value.ToArray());
+            byte[] buffer = System.Buffers.ArrayPool<byte>.Shared.Rent(value.Length);
+            try
+            {
+                value.CopyTo(buffer);
+                target.Write(buffer, 0, value.Length);
+            }
+            finally
+            {
+                System.Buffers.ArrayPool<byte>.Shared.Return(buffer);
+            }
         }
 
         /// <summary>

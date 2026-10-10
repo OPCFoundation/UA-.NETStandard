@@ -295,25 +295,38 @@ namespace Opc.Ua.Gds.Tests
         /// <summary>
         /// Tear down the Global Discovery Server and disconnect the Client
         /// </summary>
+        /// <remarks>
+        /// OneTimeSetUpAsync can end early through Assert.Ignore, for example when
+        /// the GDS test server does not advertise the security policy of the
+        /// fixture. The push server is then not registered and the fields set
+        /// after that point are null, but the GDS server is running and must be
+        /// disposed.
+        /// </remarks>
         [OneTimeTearDown]
         protected async Task OneTimeTearDownAsync()
         {
             try
             {
-                await ConnectGDSClientAsync(true).ConfigureAwait(false);
-                await UnRegisterPushServerApplicationAsync().ConfigureAwait(false);
+                if (m_applicationRecord != null)
+                {
+                    await ConnectGDSClientAsync(true).ConfigureAwait(false);
+                    await UnRegisterPushServerApplicationAsync().ConfigureAwait(false);
+                }
                 await m_gdsClient.DisconnectClientAsync().ConfigureAwait(false);
                 await m_pushClient.DisconnectClientAsync().ConfigureAwait(false);
-                await m_server.DisposeAsync().ConfigureAwait(false);
             }
             catch
             {
             }
             finally
             {
-                m_pushClient.Dispose();
-                m_gdsClient.Dispose();
-                m_selfSignedServerCert.Dispose();
+                if (m_server != null)
+                {
+                    await m_server.DisposeAsync().ConfigureAwait(false);
+                }
+                m_pushClient?.Dispose();
+                m_gdsClient?.Dispose();
+                m_selfSignedServerCert?.Dispose();
                 m_selfSignedServerCert = null!;
                 m_caCert?.Dispose();
                 m_caCert = null!;

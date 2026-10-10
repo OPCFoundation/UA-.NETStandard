@@ -123,7 +123,7 @@ namespace Opc.Ua
         {
             m_translation = null;
             m_locale = null;
-            m_text = text;
+            m_text = Normalize(text);
         }
 
         /// <summary>
@@ -134,8 +134,8 @@ namespace Opc.Ua
         [JsonConstructor]
         public LocalizedText(string? locale, string? text)
         {
-            m_text = text;
-            m_locale = locale;
+            m_text = Normalize(text);
+            m_locale = Normalize(locale);
             m_translation = LocalizedTextFormatAndTranslation.Create(locale, text);
         }
 
@@ -148,7 +148,7 @@ namespace Opc.Ua
         public LocalizedText(string key, string locale, string text)
         {
             m_text = text;
-            m_locale = locale;
+            m_locale = Normalize(locale);
             m_translation = LocalizedTextFormatAndTranslation.Create(key, locale, text);
         }
 
@@ -213,7 +213,7 @@ namespace Opc.Ua
         internal LocalizedText(LocalizedTextFormatAndTranslation? translation)
         {
             m_translation = translation;
-            m_locale = translation?.GetLocale();
+            m_locale = Normalize(translation?.GetLocale());
             m_text = translation?.GetText(m_locale);
         }
 
@@ -225,22 +225,23 @@ namespace Opc.Ua
         /// <param name="translation">The translation information</param>
         internal LocalizedText(string? locale, string? text, LocalizedTextFormatAndTranslation? translation)
         {
-            m_text = text;
-            m_locale = locale;
+            // Retain an explicitly empty selected template so formatting does not substitute fallback text.
+            m_text = translation == null ? Normalize(text) : text;
+            m_locale = Normalize(locale);
             m_translation = translation;
         }
 
         /// <summary>
-        /// The locale used to create the text.
+        /// The locale used to create the text. Empty locale identifiers are returned as null.
         /// </summary>
         public string? Locale
-            => m_locale ?? m_translation?.GetLocale();
+            => Normalize(m_locale ?? m_translation?.GetLocale());
 
         /// <summary>
-        /// The localized text.
+        /// The localized text. Empty text is returned as null.
         /// </summary>
         public string? Text
-            => IsMultiLanguage ? m_text : m_translation?.FormatText(Locale, m_text) ?? m_text;
+            => Normalize(IsMultiLanguage ? m_text : m_translation?.FormatText(Locale, m_text) ?? m_text);
 
         /// <summary>
         /// Translations
@@ -456,8 +457,16 @@ namespace Opc.Ua
         /// </summary>
         internal bool TryGetTextOnly(out string? text)
         {
-            text = m_text;
+            text = Normalize(m_text);
             return m_locale is null && m_translation is null;
+        }
+
+        /// <summary>
+        /// Canonicalizes empty fields to the absent representation used by OPC UA encodings.
+        /// </summary>
+        private static string? Normalize(string? value)
+        {
+            return string.IsNullOrEmpty(value) ? null : value;
         }
 
         /// <summary>

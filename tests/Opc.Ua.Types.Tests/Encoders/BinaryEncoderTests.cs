@@ -10087,7 +10087,10 @@ namespace Opc.Ua.Types.Tests.Encoders
             var value = new LocalizedText("en", string.Empty);
             Variant decoded = RoundTripVariantValue(Variant.From(value), raw);
 
-            Assert.That(decoded.GetLocalizedText(), Is.EqualTo(value));
+            LocalizedText localizedText = decoded.GetLocalizedText();
+            Assert.That(localizedText.Locale, Is.EqualTo("en"));
+            Assert.That(localizedText.Text, Is.Null);
+            Assert.That(localizedText, Is.EqualTo(value));
         }
 
         [Theory]

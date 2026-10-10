@@ -99,11 +99,11 @@ publish reports for your code. The following features are AOT-compatible:
 In your own code, avoid unbounded reflection and runtime code generation; see
 [Keep code AOT-compatible](#3-keep-code-aot-compatible).
 
-Do not enable globalization-invariant mode for a server, a common size
-optimization for native executables. With the `InvariantGlobalization` property
-or the `DOTNET_SYSTEM_GLOBALIZATION_INVARIANT` environment variable set, the
-server does not start: it reports a `CultureNotFoundException` for the `en-US`
-culture. Clients run in this mode.
+Clients and servers run in globalization-invariant mode, which the
+`InvariantGlobalization` property enables to make native executables smaller.
+In this mode a server still selects translations by locale id and falls back to
+another region of the same language. Arguments in translated texts, such as
+numbers and dates, use the invariant format for every locale.
 
 ## Test harness overview
 
