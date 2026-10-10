@@ -961,8 +961,8 @@ namespace Opc.Ua.Bindings
                     channel.GlobalChannelId,
                     channel.EndpointDescription,
                     RequestEncoding.Binary,
-                    channel.ClientCertificate?.RawData,
-                    channel.ServerCertificate?.RawData,
+                    channel.ClientCertificateRawData,
+                    channel.ServerCertificateRawData,
                     channel.ChannelThumbprint,
                     (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
 
@@ -970,7 +970,7 @@ namespace Opc.Ua.Bindings
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);
 
-                ((TcpServerChannel)channel).SendResponse(requestId, response);
+                await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false);
 
                 NotifyResponseDispatched(context);
             }

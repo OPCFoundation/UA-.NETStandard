@@ -954,11 +954,11 @@ namespace Opc.Ua.Server
                 byte[] clientNonceData = ClientNonce.ToArray();
 
                 byte[] dataToSign = securityPolicy.GetClientSignatureData(
-                    context.ChannelContext.ChannelThumbprint,
+                    context.ChannelContext.ChannelThumbprint.ToArrayOrNull(),
                     m_serverNonce.Data,
                     m_serverCertificate.RawData,
-                    context.ChannelContext.ServerChannelCertificate,
-                    context.ChannelContext.ClientChannelCertificate,
+                    context.ChannelContext.ServerChannelCertificate.ToArrayOrNull(),
+                    context.ChannelContext.ClientChannelCertificate.ToArrayOrNull(),
                     clientNonceData);
 
                 if (!VerifyClientSignature(clientSignature!, dataToSign) &&
@@ -1010,11 +1010,11 @@ namespace Opc.Ua.Server
             }
 
             byte[] dataToSign = securityPolicy.GetClientSignatureData(
-                channelContext.ChannelThumbprint,
+                channelContext.ChannelThumbprint.ToArrayOrNull(),
                 m_serverNonce.Data,
                 [.. serverCertificateChainList],
-                channelContext.ServerChannelCertificate,
-                channelContext.ClientChannelCertificate,
+                channelContext.ServerChannelCertificate.ToArrayOrNull(),
+                channelContext.ClientChannelCertificate.ToArrayOrNull(),
                 clientNonceData);
             return VerifyClientSignature(clientSignature, dataToSign);
         }
@@ -1058,11 +1058,11 @@ namespace Opc.Ua.Server
             byte[] serverCertificate)
         {
             byte[] dataToSign = securityPolicy.GetClientSignatureData(
-                channelContext.ChannelThumbprint,
+                channelContext.ChannelThumbprint.ToArrayOrNull(),
                 m_serverNonce.Data,
                 serverCertificate,
-                channelContext.ServerChannelCertificate,
-                channelContext.ClientChannelCertificate,
+                channelContext.ServerChannelCertificate.ToArrayOrNull(),
+                channelContext.ClientChannelCertificate.ToArrayOrNull(),
                 clientNonceData);
             return VerifyClientSignature(clientSignature, dataToSign);
         }
@@ -1513,12 +1513,12 @@ namespace Opc.Ua.Server
                     byte[] clientNonceData = ClientNonce.ToArray();
 
                     byte[] dataToSign = securityPolicy.GetUserTokenSignatureData(
-                        channelContext.ChannelThumbprint,
+                        channelContext.ChannelThumbprint.ToArrayOrNull(),
                         m_serverNonce.Data,
                         m_serverCertificate.RawData,
-                        channelContext.ServerChannelCertificate,
+                        channelContext.ServerChannelCertificate.ToArrayOrNull(),
                         ClientCertificate?.RawData,
-                        channelContext.ClientChannelCertificate,
+                        channelContext.ClientChannelCertificate.ToArrayOrNull(),
                         clientNonceData,
                         EndpointDescription.SecurityMode);
 
@@ -1545,12 +1545,12 @@ namespace Opc.Ua.Server
                             }
 
                             dataToSign = securityPolicy.GetUserTokenSignatureData(
-                                channelContext.ChannelThumbprint,
+                                channelContext.ChannelThumbprint.ToArrayOrNull(),
                                 m_serverNonce.Data,
                                 [.. serverCertificateChainList],
-                                channelContext.ServerChannelCertificate,
+                                channelContext.ServerChannelCertificate.ToArrayOrNull(),
                                 ClientCertificate?.RawData,
-                                channelContext.ClientChannelCertificate,
+                                channelContext.ClientChannelCertificate.ToArrayOrNull(),
                                 clientNonceData,
                                 EndpointDescription.SecurityMode);
 

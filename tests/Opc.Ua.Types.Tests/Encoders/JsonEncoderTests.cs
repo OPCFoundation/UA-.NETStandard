@@ -931,6 +931,23 @@ namespace Opc.Ua.Types.Tests.Encoders
         }
 
         [Test]
+        public void WriteEnumValueWritesSymbolAndNumberOrTheNumber()
+        {
+            Assert.Multiple(() =>
+            {
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", new EnumValue(-5, "Low"))),
+                    Is.EqualTo("""{"E":"Low_-5"}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", new EnumValue(12345))),
+                    Is.EqualTo("""{"E":"12345"}"""));
+                Assert.That(
+                    Encode(JsonEncoderOptions.Verbose, w => w.WriteEnumerated("E", NodeClass.ReferenceType)),
+                    Is.EqualTo("""{"E":"ReferenceType_32"}"""));
+            });
+        }
+
+        [Test]
         public void WriteEnumeratedWithoutLiteralWritesNumericString()
         {
             // Without a literal for the value only the numeric value is encoded as a JSON

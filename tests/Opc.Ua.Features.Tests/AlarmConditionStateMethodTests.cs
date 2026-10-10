@@ -1048,7 +1048,7 @@ namespace Opc.Ua.Features.Tests
 
             Assert.That(ServiceResult.IsGood(result), Is.True);
             Assert.That(alarm.Comment!.Value.Locale, Is.EqualTo("en"));
-            Assert.That(alarm.Comment.Value.Text, Is.EqualTo(string.Empty));
+            Assert.That(alarm.Comment.Value.Text, Is.Null);
         }
 
         /// <summary>

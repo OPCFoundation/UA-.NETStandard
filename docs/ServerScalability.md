@@ -9,6 +9,7 @@ This document describes how the reference server scales to large numbers of conc
 - [Admission control and rate limiting](#admission-control-and-rate-limiting)
 - [Held Publishes and the request-thread budget](#held-publishes-and-the-request-thread-budget)
 - [Session diagnostics cost](#session-diagnostics-cost)
+- [Garbage collector mode](#garbage-collector-mode)
 - [Configuration](#configuration)
 - [Scaling out](#scaling-out)
 - [See also](#see-also)
@@ -66,6 +67,20 @@ starving other requests.
 ## Session diagnostics cost
 
 Creating a session or subscription registers a diagnostics node and marks the live `SessionDiagnostics` and `SubscriptionDiagnostics` arrays for refresh. The arrays are rebuilt on demand when they are read or monitored, and the rebuild is throttled so that a burst of session creates does not trigger a rebuild per create. Servers that do not need the live session-diagnostics arrays can turn them off with the `DiagnosticsEnabled` server setting to remove the cost entirely.
+
+## Garbage collector mode
+
+A server allocates per request on many threads at once. With the default workstation garbage collector the heap's gen0 budget is a few megabytes, so a loaded server collects hundreds of times per second and every collection suspends all request threads. In a 20-session Read load (100 values per request, 24-core machine) the workstation collector paused the process for about half of the wall-clock time; enabling Server GC on the same build doubled the request rate (21k to 44k Reads per second) and cut the 90th-percentile latency from 2.1 ms to 0.6 ms, at the price of a larger working set (about 430 MB instead of 210 MB).
+
+Enable Server GC in the server's project file:
+
+```xml
+<PropertyGroup>
+  <ServerGarbageCollection>true</ServerGarbageCollection>
+</PropertyGroup>
+```
+
+or set `DOTNET_gcServer=1` in the environment. On .NET 8 and later, Server GC adapts its heap count to the load (DATAS), so idle servers stay small. The console reference server enables it.
 
 ## Configuration
 

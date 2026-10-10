@@ -2199,8 +2199,8 @@ namespace Opc.Ua.Bindings
                     channel.GlobalChannelId,
                     channel.EndpointDescription,
                     RequestEncoding.Binary,
-                    channel.ClientCertificate?.RawData,
-                    channel.ServerCertificate?.RawData,
+                    channel.ClientCertificateRawData,
+                    channel.ServerCertificateRawData,
                     channel.ChannelThumbprint,
                     peerAddress: (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
 
@@ -2208,7 +2208,7 @@ namespace Opc.Ua.Bindings
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);
 
-                serverChannel.SendResponse(requestId, response);
+                await serverChannel.SendResponseAsync(requestId, response).ConfigureAwait(false);
                 NotifyResponseDispatched(context);
             }
             catch (Exception ex)

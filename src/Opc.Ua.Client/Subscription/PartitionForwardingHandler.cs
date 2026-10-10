@@ -306,12 +306,12 @@ namespace Opc.Ua.Client.Subscriptions
             SubscriptionState state, PublishState publishStateMask)
         {
             bool wasStopped = m_stoppedSubscriptions.Count != 0;
-            if (publishStateMask.HasFlag(PublishState.Stopped))
+            if ((publishStateMask & PublishState.Stopped) == PublishState.Stopped)
             {
                 m_stoppedSubscriptions.Add(subscription);
             }
-            if (publishStateMask.HasFlag(PublishState.Recovered) ||
-                publishStateMask.HasFlag(PublishState.Completed) ||
+            if ((publishStateMask & PublishState.Recovered) == PublishState.Recovered ||
+                (publishStateMask & PublishState.Completed) == PublishState.Completed ||
                 state is SubscriptionState.Created or SubscriptionState.Deleted)
             {
                 m_stoppedSubscriptions.Remove(subscription);

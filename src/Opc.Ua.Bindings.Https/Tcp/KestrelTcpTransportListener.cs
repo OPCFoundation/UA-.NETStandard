@@ -937,14 +937,14 @@ namespace Opc.Ua.Bindings
                     channel.GlobalChannelId,
                     channel.EndpointDescription,
                     RequestEncoding.Binary,
-                    channel.ClientCertificate?.RawData,
-                    channel.ServerCertificate?.RawData,
+                    channel.ClientCertificateRawData,
+                    channel.ServerCertificateRawData,
                     channel.ChannelThumbprint,
                     (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
                 IServiceResponse response = await m_callback
                     .ProcessRequestAsync(context, request)
                     .ConfigureAwait(false);
-                ((TcpServerChannel)channel).SendResponse(requestId, response);
+                await ((TcpServerChannel)channel).SendResponseAsync(requestId, response).ConfigureAwait(false);
                 NotifyResponseDispatched(context);
             }
             catch (Exception ex)
@@ -953,7 +953,7 @@ namespace Opc.Ua.Bindings
                 try
                 {
                     ServiceFault fault = EndpointBase.CreateFault(Logger, request, ex);
-                    ((TcpServerChannel)channel).SendResponse(requestId, fault);
+                    await ((TcpServerChannel)channel).SendResponseAsync(requestId, fault).ConfigureAwait(false);
                 }
                 catch (Exception faultEx)
                 {

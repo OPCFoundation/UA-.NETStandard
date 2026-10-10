@@ -166,6 +166,13 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
                     new CryptoValidationStatus(CryptoValidationLevel.Uncertified, "token")));
 
             using var auditor = new CryptoProviderAuditor(registry, NUnitTelemetryContext.Create());
+            var auditorMeter = (Meter?)typeof(CryptoProviderAuditor)
+                .GetField(
+                    "m_meter",
+                    System.Reflection.BindingFlags.NonPublic |
+                    System.Reflection.BindingFlags.Instance)?
+                .GetValue(auditor);
+            Assert.That(auditorMeter, Is.Not.Null);
 
             var observed = new List<KeyValuePair<string, object?>>();
             int uncertified = -1;
@@ -174,9 +181,11 @@ namespace Opc.Ua.Core.Tests.Security.Crypto
             {
                 listener.InstrumentPublished = (instrument, l) =>
                 {
-                    // Match on the instrument rather than the meter: the meter's
-                    // name comes from the telemetry context, not from this type.
-                    if (instrument.Name.StartsWith("opc.ua.crypto", StringComparison.Ordinal))
+                    // Match the auditor's own meter instance: its name comes from
+                    // the telemetry context and is shared, so a name match would
+                    // also observe auditors created by tests running in parallel.
+                    if (ReferenceEquals(instrument.Meter, auditorMeter) &&
+                        instrument.Name.StartsWith("opc.ua.crypto", StringComparison.Ordinal))
                     {
                         l.EnableMeasurementEvents(instrument);
                     }

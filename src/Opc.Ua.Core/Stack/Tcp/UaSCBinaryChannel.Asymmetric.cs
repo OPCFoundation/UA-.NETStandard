@@ -100,6 +100,21 @@ namespace Opc.Ua.Bindings
         internal Certificate? ClientCertificate { get; set; }
 
         /// <summary>
+        /// The DER encoding of <see cref="ClientCertificate"/>, copied once per certificate.
+        /// </summary>
+        /// <remarks>
+        /// Certificate.RawData returns a new copy on every access; the listener needs the
+        /// bytes for every request it dispatches. The array never leaves the stack:
+        /// <see cref="SecureChannelContext"/> exposes it as a read-only ByteString view.
+        /// </remarks>
+        internal byte[]? ClientCertificateRawData => GetCachedRawData(ClientCertificate, ref m_clientCertificateRawData);
+
+        /// <summary>
+        /// The DER encoding of <see cref="ServerCertificate"/>, copied once per certificate.
+        /// </summary>
+        internal byte[]? ServerCertificateRawData => GetCachedRawData(ServerCertificate, ref m_serverCertificateRawData);
+
+        /// <summary>
         /// The client certificate chain.
         /// </summary>
         internal CertificateCollection? ClientCertificateChain { get; set; }
@@ -2468,5 +2483,26 @@ namespace Opc.Ua.Bindings
         private bool m_noncesDisposed;
         private Nonce? m_localNonce;
         private Nonce? m_remoteNonce;
+        private Tuple<Certificate, byte[]>? m_clientCertificateRawData;
+        private Tuple<Certificate, byte[]>? m_serverCertificateRawData;
+
+        /// <summary>
+        /// Returns the cached DER copy of a certificate, refreshing it when the
+        /// certificate instance changes (renewal, reassignment).
+        /// </summary>
+        private static byte[]? GetCachedRawData(Certificate? certificate, ref Tuple<Certificate, byte[]>? cache)
+        {
+            if (certificate == null)
+            {
+                return null;
+            }
+            Tuple<Certificate, byte[]>? cached = Volatile.Read(ref cache);
+            if (cached == null || !ReferenceEquals(cached.Item1, certificate))
+            {
+                cached = Tuple.Create(certificate, certificate.RawData);
+                Volatile.Write(ref cache, cached);
+            }
+            return cached.Item2;
+        }
     }
 }

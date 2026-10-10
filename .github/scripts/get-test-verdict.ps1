@@ -7,15 +7,17 @@
     tests/Opc.Ua.Tools.Tests/CiTestVerdictTests.cs. It is separated from the
     executor because it is the single decision that determines whether continuous
     integration reports green: a rule that is too strict reports a false red, and
-    one that is too lax lets a genuinely broken suite merge. Keeping it in its own
-    file lets it be tested without building or running anything.
+    one that is too lax lets a genuinely broken suite merge. Keeping it, and the
+    TRX parsing it consumes, in their own file lets both be tested without
+    building or running anything.
 
     The emitted TRX decides the verdict, not the 'dotnet test' exit code. A
     non-zero exit is tolerated when - and only when - the results record at least
-    one *passing* test and no failure of any kind, which means the host died
-    during process exit after the last test and every teardown had already run.
-    A host that dies mid-run leaves a non-zero failed/aborted/passedButRunAborted counter and is
-    rejected, and a suite whose tests were all skipped is rejected as well.
+    one *passing* test, no failure of any kind, and no test fixture whose setup or
+    teardown failed, which means the host died during process exit after the last
+    test and every teardown had already run. A host that dies mid-run leaves a
+    non-zero failed/aborted/passedButRunAborted counter and is rejected, and a
+    suite whose tests were all skipped is rejected as well.
 #>
 
 <#
@@ -37,6 +39,11 @@
     unfinished test: failed, error, timeout, aborted, passedButRunAborted,
     inconclusive, notRunnable, disconnected, warning, completed, inProgress,
     and pending - a fail-closed set.
+
+ .PARAMETER FixtureFailures
+    The test fixtures whose setup or teardown failed, one message per fixture,
+    as Measure-TestResults reads them from the TRX run messages. No counter
+    records these failures.
 
  .PARAMETER ExitCode
     Exit code of the 'dotnet test' process.
@@ -62,7 +69,8 @@ function Get-TestRunVerdict
         [Parameter(Mandatory = $true)] [int] $Failed,
         [Parameter(Mandatory = $true)] [int] $ExitCode,
         [Parameter(Mandatory = $true)] [bool] $TimedOut,
-        [Parameter(Mandatory = $false)] [int] $TimeoutMinutes = 0
+        [Parameter(Mandatory = $false)] [int] $TimeoutMinutes = 0,
+        [Parameter(Mandatory = $false)] [string[]] $FixtureFailures = @()
     )
 
     # A timeout is never benign: the executor killed a process that was still
@@ -97,6 +105,20 @@ function Get-TestRunVerdict
         }
     }
 
+    # A failed fixture setup or teardown - for example an assembly-level leak
+    # check in [OneTimeTearDown] - fails after its tests passed, so no counter
+    # records it, and the host then exits non-zero. Evaluated before the exit
+    # code so that this exit is not tolerated as an at-exit stall below.
+    $fixtureFailureList = @($FixtureFailures | Where-Object { -not [string]::IsNullOrWhiteSpace($_) })
+    if ($fixtureFailureList.Count -gt 0) {
+        return [pscustomobject]@{
+            Passed    = $false
+            Tolerated = $false
+            Reason    = ("$($fixtureFailureList.Count) test fixture setup or teardown failure(s): " +
+                "$($fixtureFailureList -join '; ').")
+        }
+    }
+
     if ($Total -le 0) {
         return [pscustomobject]@{
             Passed    = $false
@@ -128,4 +150,81 @@ function Get-TestRunVerdict
     }
 
     return [pscustomobject]@{ Passed = $true; Tolerated = $false; Reason = '' }
+}
+
+<#
+ .SYNOPSIS
+    Sums the counters of every TRX below a directory and collects the test
+    fixtures whose setup or teardown failed.
+
+ .DESCRIPTION
+    A failed fixture setup or teardown is not a test result, so no counter
+    records it. The NUnit adapter reports it as a run message that the TRX
+    stores in a RunInfo, for example "TearDown failed for test fixture
+    Opc.Ua.Gds.Tests.LeakDetectionSetup", followed by a second RunInfo with the
+    failure message. Only the first one names the fixture, so each failed
+    fixture is reported once.
+#>
+function Measure-TestResults([string] $directory)
+{
+    $total = 0
+    $passed = 0
+    $failed = 0
+    $fixtureFailures = [System.Collections.Generic.List[string]]::new()
+    $nonPassingCounters = @(
+        'failed',
+        'error',
+        'timeout',
+        'aborted',
+        'passedButRunAborted',
+        'inconclusive',
+        'notRunnable',
+        'disconnected',
+        'warning',
+        'completed',
+        'inProgress',
+        'pending')
+    $trxFiles = @(Get-ChildItem -LiteralPath $directory -Recurse -File -Filter *.trx -ErrorAction SilentlyContinue)
+    foreach ($trxFile in $trxFiles) {
+        # XmlDocument.Load rather than [xml](Get-Content): PubSub emits several
+        # megabytes of results and the array-of-lines cast fails on files that
+        # size.
+        $document = [System.Xml.XmlDocument]::new()
+        $document.XmlResolver = $null
+        $document.Load($trxFile.FullName)
+        foreach ($counters in $document.GetElementsByTagName('Counters')) {
+            $total += Get-CounterValue $counters 'total'
+            $passed += Get-CounterValue $counters 'passed'
+            foreach ($name in $nonPassingCounters) {
+                $failed += Get-CounterValue $counters $name
+            }
+        }
+        foreach ($runInfo in $document.GetElementsByTagName('RunInfo')) {
+            # The NUnit adapter writes "Setup" or "TearDown"; accept either
+            # spelling of both.
+            if ($runInfo.InnerText -match '^\s*(set ?up|tear ?down) failed for test fixture [^\r\n]+') {
+                $fixtureFailures.Add($Matches[0].Trim())
+            }
+        }
+    }
+    return [pscustomobject]@{
+        Files           = $trxFiles.Count
+        Total           = $total
+        Passed          = $passed
+        Failed          = $failed
+        FixtureFailures = $fixtureFailures.ToArray()
+    }
+}
+
+<#
+ .SYNOPSIS
+    Reads a TRX counter attribute, treating an absent attribute as zero.
+#>
+function Get-CounterValue([System.Xml.XmlElement] $element, [string] $name)
+{
+    $raw = $element.GetAttribute($name)
+    if ([string]::IsNullOrEmpty($raw)) {
+        return 0
+    }
+    return [int]$raw
 }

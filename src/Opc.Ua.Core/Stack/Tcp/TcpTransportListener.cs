@@ -1721,8 +1721,8 @@ namespace Opc.Ua.Bindings
                         channel.GlobalChannelId,
                         channel.EndpointDescription,
                         RequestEncoding.Binary,
-                        channel.ClientCertificate?.RawData,
-                        channel.ServerCertificate?.RawData,
+                        channel.ClientCertificateRawData,
+                        channel.ServerCertificateRawData,
                         channel.ChannelThumbprint,
                         (channel.Transport?.RemoteEndpoint as IPEndPoint)?.Address);
 
@@ -1732,7 +1732,8 @@ namespace Opc.Ua.Bindings
 
                     try
                     {
-                        responseRetained = ((TcpServerChannel)channel).SendResponse(requestId, response);
+                        responseRetained = await ((TcpServerChannel)channel)
+                            .SendResponseAsync(requestId, response).ConfigureAwait(false);
                     }
                     catch (ServiceResultException sre) when (sre.StatusCode == StatusCodes.BadSecureChannelClosed)
                     {
@@ -1749,7 +1750,8 @@ namespace Opc.Ua.Bindings
                             // if the channel is not the same as the one we started with, send the response over the new channel
                             if (serverChannel != channel)
                             {
-                                responseRetained = serverChannel.SendResponse(requestId, response);
+                                responseRetained = await serverChannel
+                                    .SendResponseAsync(requestId, response).ConfigureAwait(false);
                                 NotifyResponseDispatched(context);
                                 return;
                             }
@@ -1787,7 +1789,8 @@ namespace Opc.Ua.Bindings
                         ServiceFault fault = EndpointBase.CreateFault(m_logger, request, e);
                         (response as IPooledEncodeable)?.Reuse();
                         response = fault;
-                        responseRetained = ((TcpServerChannel)channel).SendResponse(requestId, fault);
+                        responseRetained = await ((TcpServerChannel)channel)
+                            .SendResponseAsync(requestId, fault).ConfigureAwait(false);
                     }
                     catch (ServiceResultException faultSre)
                         when (faultSre.StatusCode == StatusCodes.BadSecureChannelClosed)
